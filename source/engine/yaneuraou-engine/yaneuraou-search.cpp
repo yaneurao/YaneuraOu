@@ -1338,7 +1338,7 @@ namespace {
 		//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
 		// didLMR				: LMRを行ったのフラグ
 		// priorCapture         : 1つ前の局面は駒を取る指し手か？
-		bool givesCheck, improving, didLMR, priorCapture;
+		bool givesCheck, improving, didLMR, priorCapture, singularQuietLMR;
 
 		// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 		// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
@@ -2111,7 +2111,7 @@ namespace {
 
 		value = bestValue;
 
-		moveCountPruning = false;
+		moveCountPruning = singularQuietLMR = false;
 
 		// Indicate PvNodes that will probably fail low if the node was searched
 		// at a depth equal or greater than the current depth, and the result of this search was a fail low.
@@ -2364,6 +2364,7 @@ namespace {
 					if (value < singularBeta)
 					{
 						extension = 1;
+						singularQuietLMR = !ttCapture;
 
 #if 0
 						// singular extentionが生じた回数の統計を取ってみる。
@@ -2536,6 +2537,10 @@ namespace {
 				// Decrease reduction for PvNodes based on depth
 				if (PvNode)
 					r -= 1 + 15 / (3 + depth);
+
+				// Decrease reduction if ttMove has been singularly extended (~1 Elo)
+				if (singularQuietLMR)
+					r--;
 
 				// Increase reduction if next ply has a lot of fail high else reset count to 0
 				if ((ss + 1)->cutoffCnt > 3 && !PvNode)
