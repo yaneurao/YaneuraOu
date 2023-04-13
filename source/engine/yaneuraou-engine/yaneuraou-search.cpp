@@ -2555,14 +2555,6 @@ namespace {
 				if (ttCapture)
 					r++;
 
-				// Decrease reduction at PvNodes if bestvalue
-				// is vastly different from static evaluation
-
-				// PvNodesでbestValueが静的評価(評価関数の返し値)と大きく異るなら
-				// reductionを減らす。
-				if (PvNode && !ss->inCheck && abs(ss->staticEval - bestValue) > 250)
-					r--;
-
 				// Decrease reduction for PvNodes based on depth
 				if (PvNode)
 					r -= 1 + 15 / ( 3 + depth );
