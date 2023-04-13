@@ -1747,17 +1747,6 @@ namespace {
 			if (eval == VALUE_NONE)
 				ss->staticEval = eval = evaluate(pos);
 
-			// 引き分けっぽい評価値であるなら、いくぶん揺らす。(0を±1として扱う)
-			// (千日手回避のため)
-			// 将棋ではこの処理どうなのかな…。
-			// 
-			// ※　そもそも千日手時のスコアがデフォルトではVALUE_DRAW==0ではないので
-			// 　　このコードだとうまく動作しない。
-
-	        // // Randomize draw evaluation
-			// if (eval == VALUE_DRAW)
-			//	   eval = value_draw(thisThread);
-
 			// ttValue can be used as a better position evaluation (~4 Elo)
 			// ttValueのほうがこの局面の評価値の見積もりとして適切であるならそれを採用する。
 			// 1. ttValue > evaluate()でかつ、ttValueがBOUND_LOWERなら、真の値はこれより大きいはずだから、
