@@ -1826,8 +1826,7 @@ namespace {
 		// eval が alpha よりもずっと下にある場合、qsearch が alpha よりも上に押し上げることが
 		// できるかどうかをチェックし、もしできなければ fail low を返す。
 
-		if (depth <= 7
-			&& eval < alpha - 348 - 258 * depth * depth)
+		if (eval < alpha - 369 - 254 * depth * depth)
 		{
 			value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
 			if (value < alpha)
