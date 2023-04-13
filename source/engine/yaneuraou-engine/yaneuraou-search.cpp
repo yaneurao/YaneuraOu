@@ -1993,10 +1993,6 @@ namespace {
 			ASSERT_LV3(probCutBeta < VALUE_INFINITE);
 
 			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, depth - 3, &captureHistory);
-			bool ttPv = ss->ttPv;  // このあとの探索でss->ttPvを潰してしまうのでtte->save()のときはこっちを用いる。
-			//bool captureOrPromotion;
-			// ↑このStockfishのコード、ここで宣言しなくてもいいと思う。[2022/04/13]
-			ss->ttPv = false;
 
 			// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 			// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
@@ -2038,16 +2034,12 @@ namespace {
 					{
 						// Save ProbCut data into transposition table
 						ASSERT_LV3(pos.legal_promote(move));
-						tte->save(posKey, value_to_tt(value, ss->ply), ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval);
+						tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval);
 						return value;
 					}
 				}
 
 			} // end of while
-
-
-			// ss->ttPvはprobCutの探索で書き換えてしまったかも知れないので復元する。
-			ss->ttPv = ttPv;
 		}
 
 		// Step 11. If the position is not in TT, decrease depth by 3.
