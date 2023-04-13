@@ -2036,17 +2036,9 @@ namespace {
 
 					if (value >= probCutBeta)
 					{
-						// if transposition table doesn't have equal or more deep info write probCut data into it
-						// もし置換表が、等しいかより深く探索した情報ではないなら、probCutの情報をそこに書く
-
-						if (!(ss->ttHit
-							&& tte->depth() >= depth - 3
-							&& ttValue != VALUE_NONE))
-						{
-							ASSERT_LV3(pos.legal_promote(move));
-							tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
-								BOUND_LOWER, depth - 3, move, ss->staticEval);
-						}
+						// Save ProbCut data into transposition table
+						ASSERT_LV3(pos.legal_promote(move));
+						tte->save(posKey, value_to_tt(value, ss->ply), ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval);
 						return value;
 					}
 				}
