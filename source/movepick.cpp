@@ -306,12 +306,12 @@ void MovePicker::score()
 			if (pos.capture(m))
 				// 捕獲する指し手に関しては簡易SEE + MVV/LVA
 				m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-				        - (Value)(LVA(type_of(pos.moved_piece_before(m))));
+				        - (Value)(LVA(type_of(pos.moved_piece_before(m))))
+				        + (1 << 28);
 			else
 				// 捕獲しない指し手に関してはhistoryの値の順番
 				m.value = 2 * (*mainHistory)[from_to(m)][pos.side_to_move()]
-						+ 2 * (*continuationHistory[0])[to_sq(m)][pos.moved_piece_after(m)]
-						- (1 << 28);
+						+ 2 * (*continuationHistory[0])[to_sq(m)][pos.moved_piece_after(m)];
 
 		}
 	}

@@ -150,36 +150,6 @@ private:
 	int64_t average;
 };
 
-//
-// 探索でtrendと楽観値の計算で用いるsigmoid関数。
-// →　やねうら王では使っていない。
-//
-/// sigmoid(t, x0, y0, C, P, Q) implements a sigmoid-like function using only integers,
-/// with the following properties:
-///
-///  -  sigmoid is centered in (x0, y0)
-///  -  sigmoid has amplitude [-P/Q , P/Q] instead of [-1 , +1]
-///  -  limit is (y0 - P/Q) when t tends to -infinity
-///  -  limit is (y0 + P/Q) when t tends to +infinity
-///  -  the slope can be adjusted using C > 0, smaller C giving a steeper sigmoid
-///  -  the slope of the sigmoid when t = x0 is P/(Q*C)
-///  -  sigmoid is increasing with t when P > 0 and Q > 0
-///  -  to get a decreasing sigmoid, change sign of P
-///  -  mean value of the sigmoid is y0
-///
-/// Use <https://www.desmos.com/calculator/jhh83sqq92> to draw the sigmoid
-
-inline int64_t sigmoid(int64_t t, int64_t x0,
-	int64_t y0,
-	int64_t  C,
-	int64_t  P,
-	int64_t  Q)
-{
-	ASSERT_LV3(C > 0);
-	ASSERT_LV3(Q != 0);
-	return y0 + P * (t - x0) / (Q * (std::abs(t - x0) + C));
-}
-
 // --------------------
 //  Time[ms] wrapper
 // --------------------
