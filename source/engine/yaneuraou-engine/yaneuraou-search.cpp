@@ -238,7 +238,7 @@ namespace {
 	// History and stats update bonus, based on depth
 	// depthに基づく、historyとstatsのupdate bonus
 	int stat_bonus(Depth d) {
-		return std::min((9 * d + 270) * d - 311, 2145);
+		return std::min((8 * d + 240) * d - 276, 1907);
 	}
 
 	// チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
@@ -2271,7 +2271,7 @@ namespace {
 						continue;
 
 					// mainHistory[][]もStockfishと逆順なので注意。
-					history += thisThread->mainHistory[from_to(move)][ us];
+					history += 2 * thisThread->mainHistory[from_to(move)][ us];
 
 					// Futility pruning: parent node (~9 Elo)
 					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
@@ -2543,7 +2543,7 @@ namespace {
 
 				// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 				// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
-				ss->statScore = thisThread->mainHistory[from_to(move)][us]
+				ss->statScore = 2 * thisThread->mainHistory[from_to(move)][us]
 								+ (*contHist[0])[to_sq(move)][movedPiece]
 								+ (*contHist[1])[to_sq(move)][movedPiece]
 								+ (*contHist[3])[to_sq(move)][movedPiece]

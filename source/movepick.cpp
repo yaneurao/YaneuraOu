@@ -252,7 +252,7 @@ void MovePicker::score()
 			Square movedSq = to_sq(m);
 			PieceType moved_piece = type_of(pos.moved_piece_before(m));
 
-			m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
+			m.value = 2 * (*mainHistory)[from_to(m)][pos.side_to_move()]
 					+ 2 * (*continuationHistory[0])[movedSq][movedPiece]
 					+     (*continuationHistory[1])[movedSq][movedPiece]
 					+     (*continuationHistory[3])[movedSq][movedPiece]
@@ -309,7 +309,7 @@ void MovePicker::score()
 				        - (Value)(LVA(type_of(pos.moved_piece_before(m))));
 			else
 				// 捕獲しない指し手に関してはhistoryの値の順番
-				m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
+				m.value = 2 * (*mainHistory)[from_to(m)][pos.side_to_move()]
 						+ 2 * (*continuationHistory[0])[to_sq(m)][pos.moved_piece_after(m)]
 						- (1 << 28);
 
