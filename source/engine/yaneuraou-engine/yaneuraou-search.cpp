@@ -2224,7 +2224,6 @@ namespace {
 
 					// Futility pruning for captures (~0 Elo)
 					if (!givesCheck
-						&& !PvNode
 						&& lmrDepth < 6
 						&& !ss->inCheck
 						&& ss->staticEval + 281 + 179 * lmrDepth + CapturePieceValueEg(pos,move)
