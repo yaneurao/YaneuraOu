@@ -1457,7 +1457,6 @@ namespace {
 		// rootからの手数
 		ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
-		(ss + 1)->ttPv			= false;
 		(ss + 1)->excludedMove	= bestMove = MOVE_NONE;
 
 		// 2手先のkillerの初期化。
@@ -2351,7 +2350,6 @@ namespace {
 					// move(ttMove)の指し手を以下のsearch()での探索から除外
 
 					ss->excludedMove = move;
-					// the search with excludedMove will update ss->staticEval
 					// 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
 					// 浅いdepthでnull windowなので、すぐに探索は終わるはず。
 					value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
