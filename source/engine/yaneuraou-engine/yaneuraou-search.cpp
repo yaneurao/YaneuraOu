@@ -2526,8 +2526,8 @@ namespace {
 				if (singularQuietLMR)
 					r--;
 
-				// Increase reduction if next ply has a lot of fail high else reset count to 0
-				if ((ss + 1)->cutoffCnt > 3 && !PvNode)
+				// Increase reduction if next ply has a lot of fail high
+				if ((ss + 1)->cutoffCnt > 3)
 					r++;
 
 				// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
