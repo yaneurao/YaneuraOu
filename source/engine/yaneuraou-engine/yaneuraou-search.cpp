@@ -3193,9 +3193,9 @@ namespace {
 
 			// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
 
-			// Do not search moves with negative SEE values (~5 Elo)
-			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& !pos.see_ge(move))
+			// Do not search moves with bad enough SEE values (~5 Elo)
+			if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY
+				&& !pos.see_ge(move, Value(-108)))
 				continue;
 
 
