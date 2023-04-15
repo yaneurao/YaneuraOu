@@ -237,8 +237,8 @@ void MovePicker::score()
 			// ここに来るCAPTURESに歩の成りを含めているので、捕獲する駒(pos.piece_on(to_sq(m)))がNO_PIECEで
 			// ある可能性については考慮しておく必要がある。
 
-			m.value = 6 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
-					 +    (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))];
+			m.value = (7 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
+				+ (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))]) / 16;
 		}
 		else if constexpr (Type == QUIETS)
 		{
@@ -378,7 +378,7 @@ top:
 	case GOOD_CAPTURE:
 		if (select<Next>([&]() {
 				// moveは駒打ちではないからsee()の内部での駒打ちは判定不要だが…。
-				return pos.see_ge(*cur, Value(-69 * cur->value / 1024)) ?
+				return pos.see_ge(*cur, Value(-cur->value)) ?
 						// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
 						true : (*endBadCaptures++ = *cur, false); }))
 			return *(cur -1);
