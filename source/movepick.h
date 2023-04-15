@@ -165,7 +165,7 @@ public:
 	// 通常探索(search)のProbCutの処理から呼び出されるの専用。
 	// threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
 	// capture_or_pawn_promotion()に該当する指し手しか返さない。
-	MovePicker(const Position& pos_, Move ttMove_, Value threshold_, Depth d,
+	MovePicker(const Position& pos_, Move ttMove_, Value threshold_,
 		const CapturePieceToHistory* cph);
 
 

@@ -153,8 +153,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 
 // 通常探索時にProbCutの処理から呼び出されるの専用
 // th = 枝刈りのしきい値
-MovePicker::MovePicker(const Position& p, Move ttm, Value th , Depth d , const CapturePieceToHistory* cph)
-			: pos(p), captureHistory(cph) , ttMove(ttm),threshold(th) , depth(d) {
+MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePieceToHistory* cph)
+			: pos(p), captureHistory(cph) , ttMove(ttm),threshold(th) {
 
 	ASSERT_LV3(!pos.in_check());
 
@@ -368,7 +368,7 @@ top:
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
-		partial_insertion_sort(cur, endMoves, -3000 * depth);
+		partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
 		++stage;
 		goto top;
 
