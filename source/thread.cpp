@@ -293,28 +293,29 @@ Thread* ThreadPool::get_best_thread() const {
 		minScore = std::min(minScore, th->rootMoves[0].score);
 
 	// Vote according to score and depth, and select the best thread
-	for (Thread* th : *this)
-	{
-		votes[th->rootMoves[0].pv[0]] +=
-			(th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
+	auto thread_value = [minScore](Thread* th) {
+		return (th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
+	};
 
+	for (Thread* th : *this)
+		votes[th->rootMoves[0].pv[0]] += thread_value(th);
+
+	for (Thread* th : *this)
 		if (abs(bestThread->rootMoves[0].score) >= VALUE_TB_WIN_IN_MAX_PLY)
 		{
 			// Make sure we pick the shortest mate / TB conversion or stave off mate the longest
 			if (th->rootMoves[0].score > bestThread->rootMoves[0].score)
 				bestThread = th;
 		}
-		else if (   th->rootMoves[0].score >= VALUE_TB_WIN_IN_MAX_PLY
-				 || (   th->rootMoves[0].score > VALUE_TB_LOSS_IN_MAX_PLY
-					 && (votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]
-						 || (votes[th->rootMoves[0].pv[0]] == votes[bestThread->rootMoves[0].pv[0]]
-							 && th->rootMoves[0].pv.size() > bestThread->rootMoves[0].pv.size()))))
+		else if (th->rootMoves[0].score >= VALUE_TB_WIN_IN_MAX_PLY
+			|| (th->rootMoves[0].score > VALUE_TB_LOSS_IN_MAX_PLY
+				&& (votes[th->rootMoves[0].pv[0]] > votes[bestThread->rootMoves[0].pv[0]]
+					|| (votes[th->rootMoves[0].pv[0]] == votes[bestThread->rootMoves[0].pv[0]]
+						&& thread_value(th) > thread_value(bestThread)))))
 			bestThread = th;
-	}
 
 	return bestThread;
 }
-
 
 /// Start non-main threads
 // 探索を開始する(main thread以外)
