@@ -753,8 +753,11 @@ void search_thread_init(Thread* th, Stack* ss , Move pv[])
 	std::memset(ss - 7, 0, 10 * sizeof(Stack));
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
-	for (int i = 7; i > 0; i--)
+	for (int i = 7; i > 0; --i)
+	{
 		(ss - i)->continuationHistory = &th->continuationHistory[0][0][SQ_ZERO][NO_PIECE]; // Use as a sentinel
+		(ss - i)->staticEval = VALUE_NONE;
+	}
 
 	// Stack(探索用の構造体)上のply(手数)は事前に初期化しておけば探索時に代入する必要がない。
 	for (int i = 0; i <= MAX_PLY + 2; ++i)
