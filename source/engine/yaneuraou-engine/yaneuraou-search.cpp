@@ -2563,6 +2563,9 @@ namespace {
 
 				// full depthで探索するときはcutNodeにしてはいけない。
 				value = -search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false);
+
+				if (moveCount > 1 && newDepth >= depth && !capture)
+					update_continuation_histories(ss, movedPiece, to_sq(move), -stat_bonus(newDepth));
 			}
 
 			// -----------------------
