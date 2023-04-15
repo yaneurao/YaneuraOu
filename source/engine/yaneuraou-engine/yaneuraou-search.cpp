@@ -2760,17 +2760,17 @@ namespace {
 		// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
 		// 【計測資料 15.】search()でfail lowしているときにhistoryのupdateを行なう条件
 
-		else if (  (depth >= 4 || PvNode)
-				&& !priorCapture)
+		else if ((depth >= 5 || PvNode || bestValue < alpha - 62 * depth)
+			&& !priorCapture)
 		{
 			//Assign extra bonus if current node is PvNode or cutNode
 			//or fail low was really bad
-			bool extraBonus =  PvNode
-							|| cutNode
-							|| bestValue < alpha - 70 * depth;
+			bool extraBonus = PvNode
+				|| cutNode;
 
-			// continuation historyのupdate。PvNodeかcutNodeならボーナスを2倍する。
-			update_continuation_histories(ss - 1, /*pos.piece_on(prevSq)*/prevPc, prevSq, stat_bonus(depth) * (1 + extraBonus));
+			bool doubleExtraBonus = extraBonus && bestValue < alpha - 85 * depth;
+
+			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, stat_bonus(depth) * (1 + extraBonus + doubleExtraBonus));
 		}
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
 		// ゆえにStockfishのここのコードは不要。(maxValueでcapする必要がない)
