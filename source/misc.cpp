@@ -527,7 +527,7 @@ static void* aligned_large_pages_alloc_windows([[maybe_unused]] size_t allocSize
 	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hProcessToken))
 		return nullptr;
 
-	if (LookupPrivilegeValue(NULL, SE_LOCK_MEMORY_NAME, &luid))
+	if (LookupPrivilegeValue(nullptr, SE_LOCK_MEMORY_NAME, &luid))
 	{
 		TOKEN_PRIVILEGES tp{ };
 		TOKEN_PRIVILEGES prevTp{ };
@@ -546,10 +546,10 @@ static void* aligned_large_pages_alloc_windows([[maybe_unused]] size_t allocSize
 			// round up size to full pages and allocate
 			allocSize = (allocSize + largePageSize - 1) & ~size_t(largePageSize - 1);
 			mem = VirtualAlloc(
-				NULL, allocSize, MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, PAGE_READWRITE);
+				nullptr, allocSize, MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, PAGE_READWRITE);
 
 			// privilege no longer needed, restore previous state
-			AdjustTokenPrivileges(hProcessToken, FALSE, &prevTp, 0, NULL, NULL);
+			AdjustTokenPrivileges(hProcessToken, FALSE, &prevTp, 0, nullptr, nullptr);
 		}
 	}
 
@@ -594,7 +594,7 @@ void* aligned_large_pages_alloc(size_t allocSize) {
 	// fall back to regular, page aligned, allocation if necessary
 	// 4KB単位であることは保証されているはず..
 	if (!ptr)
-		ptr = VirtualAlloc(NULL, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		ptr = VirtualAlloc(nullptr, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
 	// VirtualAlloc()はpage size(4KB)でalignされていること自体は保証されているはず。
 
