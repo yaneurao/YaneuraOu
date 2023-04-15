@@ -238,7 +238,7 @@ namespace {
 	// History and stats update bonus, based on depth
 	// depthに基づく、historyとstatsのupdate bonus
 	int stat_bonus(Depth d) {
-		return std::min((12 * d + 282) * d - 349, 1480);
+		return std::min((12 * d + 282) * d - 349, 1594);
 	}
 
 	// チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
@@ -2543,7 +2543,7 @@ namespace {
 
 
 				// Decrease/increase reduction for moves with a good/bad history (~30 Elo)
-				r -= ss->statScore / (13000 + 4152 * (depth > 7 && depth < 19));
+				r -= ss->statScore / (13628 + 4000 * (depth > 7 && depth < 19));
 
 				// In general we want to cap the LMR depth search at newDepth, but when
 				// reduction is negative, we allow this move a limited search extension
@@ -2562,10 +2562,9 @@ namespace {
 					// Adjust full depth search based on LMR results - if result
 					// was good enough search deeper, if it was bad enough search shallower
 					const bool doDeeperSearch = value > (alpha + 64 + 11 * (newDepth - d));
-					const bool doEvenDeeperSearch = value > alpha + 582;
 					const bool doShallowerSearch = value < bestValue + newDepth;
 
-					newDepth += doDeeperSearch - doShallowerSearch + doEvenDeeperSearch;
+					newDepth += doDeeperSearch - doShallowerSearch;
 
 					if (newDepth > d)
 						value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
