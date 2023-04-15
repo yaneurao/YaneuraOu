@@ -2526,8 +2526,9 @@ namespace {
 					newDepth += doDeeperSearch - doShallowerSearch + doEvenDeeperSearch;
 					if (newDepth > d)
 						value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
-					int bonus = value > alpha ? stat_bonus(newDepth)
-						: -stat_bonus(newDepth);
+					int bonus = value <= alpha ? -stat_bonus(newDepth)
+						: value >= beta ? stat_bonus(newDepth)
+						: 0;
 
 					update_continuation_histories(ss, movedPiece, to_sq(move), bonus);
 				}
@@ -2557,9 +2558,6 @@ namespace {
 
 				// full depthで探索するときはcutNodeにしてはいけない。
 				value = -search<PV>(pos, ss + 1, -beta, -alpha, newDepth, false);
-
-				if (moveCount > 1 && newDepth >= depth && !capture)
-					update_continuation_histories(ss, movedPiece, to_sq(move), -stat_bonus(newDepth));
 			}
 
 			// -----------------------
