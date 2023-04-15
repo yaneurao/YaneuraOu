@@ -1591,7 +1591,7 @@ namespace {
 					// 1手前の早い時点のquietの指し手に対する追加のペナルティ
 					// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 
-					if ((ss - 1)->moveCount <= 2 && !priorCapture)
+					if (prevSq != SQ_NB && (ss - 1)->moveCount <= 2 && !priorCapture)
 						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
 
 				}
@@ -2090,7 +2090,7 @@ namespace {
 		Piece prevPc = pos.piece_on(prevSq);
 
 		// 1手前の指し手(1手前のtoとPiece)に対応するよさげな応手を統計情報から取得。
-		Move countermove = thisThread->counterMoves[prevSq][prevPc];
+		Move countermove = prevSq != SQ_NB ? thisThread->counterMoves[pos.piece_on(prevSq)][prevSq] : MOVE_NONE;
 
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
 										  &captureHistory,
@@ -2782,7 +2782,7 @@ namespace {
 		// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
 		// 【計測資料 15.】search()でfail lowしているときにhistoryのupdateを行なう条件
 
-		else if (!priorCapture)
+		else if (!priorCapture && prevSq != SQ_NB)
 		{
 			int bonus = (depth > 5) + (PvNode || cutNode) + (bestValue < alpha - 97 * depth) + ((ss - 1)->moveCount > 10);
 			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, stat_bonus(depth)* bonus);
@@ -3116,7 +3116,7 @@ namespace {
 		// 取り合いの指し手だけ生成する
 		// searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうるが、
 		// 静止探索の1つ目の深さではrecaptureを生成しないならこれは問題とならない。
-		Square prevSq = to_sq((ss - 1)->currentMove);
+		Square prevSq = is_ok((ss - 1)->currentMove) ? to_sq((ss - 1)->currentMove) : SQ_NB;
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
 										  &thisThread->captureHistory,
 										  contHist,
@@ -3434,7 +3434,7 @@ namespace {
 		Thread* thisThread = pos.this_thread();
 		CapturePieceToHistory& captureHistory = thisThread->captureHistory;
 		Piece moved_piece = pos.moved_piece_after(bestMove);
-		PieceType captured = type_of(pos.piece_on(to_sq(bestMove)));
+		PieceType captured;
 		int bonus1 = stat_bonus(depth + 1);
 
 		// Stockfishではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
@@ -3456,17 +3456,20 @@ namespace {
 			}
 		}
 		else
+		{
 			// Increase stats for the best move in case it was a capture move
-
+			captured = type_of(pos.piece_on(to_sq(bestMove)));
 			captureHistory[to_sq(bestMove)][moved_piece][captured] << bonus1;
-		// ※　StockfishはcaptureHistory↑は[pc][to][captured]の順なので注意。
+			// ※　StockfishはcaptureHistory↑は[pc][to][captured]の順なので注意。
+		}
 
 		// Extra penalty for a quiet early move that was not a TT move or
 		// main killer move in previous ply when it gets refuted.
 
 		// (ss-1)->ttHit : 一つ前のnodeで置換表にhitしたか
 
-		if (((ss - 1)->moveCount == 1 + (ss - 1)->ttHit || ((ss - 1)->currentMove == (ss - 1)->killers[0]))
+		if (   prevSq != SQ_NB
+			&& ((ss - 1)->moveCount == 1 + (ss - 1)->ttHit || ((ss - 1)->currentMove == (ss - 1)->killers[0]))
 			&& !pos.captured_piece())
 			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -bonus1);
 
@@ -3532,7 +3535,7 @@ namespace {
 		if (is_ok((ss - 1)->currentMove))
 		{
 			// 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
-			Square prevSq = to_sq((ss - 1)->currentMove);
+			Square prevSq = (ss - 1)->currentMove != MOVE_NULL ? to_sq((ss - 1)->currentMove) : SQ_NB;
 			thisThread->counterMoves[prevSq][pos.piece_on(prevSq)] = move;
 		}
 	}
