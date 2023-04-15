@@ -1471,19 +1471,8 @@ namespace {
 		// TODO : null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
 		Square prevSq			= to_sq((ss - 1)->currentMove);
 
-		// Initialize statScore to zero for the grandchildren of the current position.
-		// So statScore is shared between all grandchildren and only the first grandchild
-		// starts with statScore = 0. Later grandchildren start with the last calculated
-		// statScore of the previous grandchild. This influences the reduction rules in
-		// LMR which are based on the statScore of parent position.
+		ss->statScore = 0;
 
-		// statScoreを現nodeの孫nodeのためにゼロ初期化。
-		// statScoreは孫nodeの間でshareされるので、最初の孫だけがstatScore = 0で開始する。
-		// そのあと、孫は前の孫が計算したstatScoreから計算していく。
-		// このように計算された親局面のstatScoreは、LMRにおけるreduction rulesに影響を与える。
-		if (!rootNode)
-			(ss + 2)->statScore = 0;
-	
 		// -----------------------
 		// Step 4. Transposition table lookup.
 		// -----------------------
