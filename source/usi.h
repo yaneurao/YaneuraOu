@@ -24,7 +24,7 @@ namespace USI
 	};
 
 	// USIのoption名と、それに対応する設定内容を保持しているclass。実体はstd::map
-	typedef std::map<std::string, Option , CaseInsensitiveLess> OptionsMap;
+	using OptionsMap = std::map<std::string, Option , CaseInsensitiveLess>;
 
 	// USIプロトコルで指定されるoptionの内容を保持するclass
 	class Option {
@@ -33,7 +33,7 @@ namespace USI
 		//		typedef void(*OnChange)(const Option&);
 		// Stockfishでは↑のように関数ポインタになっているが、
 		// これだと[&](o){...}みたいなlambda式を受けられないのでここはstd::functionを使うべきだと思う。
-		typedef std::function<void(const Option&)> OnChange;
+		using OnChange = std::function<void(const Option&)>;
 
 	public:
 		// (GUI側のエンジン設定画面に出てくる)ボタン

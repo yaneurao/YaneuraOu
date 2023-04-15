@@ -83,7 +83,7 @@ namespace Search {
 		std::vector<Move> pv;
 	};
 
-	typedef std::vector<RootMove> RootMoves;
+	using RootMoves = std::vector<RootMove>;
 
 	// goコマンドでの探索時に用いる、持ち時間設定などが入った構造体
 	// "ponder"のフラグはここに含まれず、Threads.ponderにあるので注意。

@@ -71,14 +71,14 @@ public:
 template <typename T, int D, int Size, int... Sizes>
 struct Stats : public std::array<Stats<T, D, Sizes...>, Size>
 {
-	typedef Stats<T, D, Size, Sizes...> stats;
+	using stats = Stats<T, D, Size, Sizes...>;
 
 	void fill(const T& v) {
 
 		// For standard-layout 'this' points to first struct member
 		ASSERT_LV3(std::is_standard_layout<stats>::value);
 		
-		typedef StatsEntry<T, D> entry;
+		using entry = StatsEntry<T, D>;
 		entry* p = reinterpret_cast<entry*>(this);
 		std::fill(p, p + sizeof(*this) / sizeof(entry), v);
 	}
@@ -99,29 +99,29 @@ enum StatsType { NoCaptures, Captures };
 // やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
 // そのため、(SQ_NB + 7)まで移動元がある。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-typedef Stats<int16_t, 7183, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB> ButterflyHistory;
+using ButterflyHistory = Stats<int16_t, 7183, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB>;
 
 
 /// CounterMoveHistoryは、直前の指し手の[to][piece]によってindexされるcounter moves(応手)を格納する。
 /// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-typedef Stats<Move, NOT_USED, SQ_NB , PIECE_NB> CounterMoveHistory;
+using CounterMoveHistory = Stats<Move, NOT_USED, SQ_NB , PIECE_NB>;
 
 /// CapturePieceToHistoryは、指し手の[to][piece][captured piece type]で示される。
 // ※　Stockfishとは、添字の順番を変更してあるので注意。
 //     Stockfishでは、[piece][to][captured piece type]の順。
-typedef Stats<int16_t, 10692, SQ_NB, PIECE_NB , PIECE_TYPE_NB> CapturePieceToHistory;
+using CapturePieceToHistory = Stats<int16_t, 10692, SQ_NB, PIECE_NB , PIECE_TYPE_NB>;
 
 /// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[to][piece]で示される。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
 //     Stockfishでは[piece][to]の順。
-typedef Stats<int16_t, 29952, SQ_NB , PIECE_NB> PieceToHistory;
+using PieceToHistory = Stats<int16_t, 29952, SQ_NB , PIECE_NB>;
 
 /// ContinuationHistoryは、与えられた2つの指し手のhistoryを組み合わせたもので、
 // 普通、1手前によって与えられる現在の指し手(によるcombined history)
 // このnested history tableは、ButterflyBoardsの代わりに、PieceToHistoryをベースとしている。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-typedef Stats<PieceToHistory, NOT_USED, SQ_NB , PIECE_NB> ContinuationHistory;
+using ContinuationHistory = Stats<PieceToHistory, NOT_USED, SQ_NB , PIECE_NB>;
 
 
 // -----------------------

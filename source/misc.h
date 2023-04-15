@@ -155,7 +155,7 @@ private:
 // --------------------
 
 // ms単位での時間計測しか必要ないのでこれをTimePoint型のように扱う。
-typedef std::chrono::milliseconds::rep TimePoint;
+using TimePoint = std::chrono::milliseconds::rep;
 static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
 
 // ms単位で現在時刻を返す
@@ -248,7 +248,7 @@ static std::ostream& operator<<(std::ostream& os, PRNG& prng)
 
 inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
 #if defined(__GNUC__) && defined(IS_64BIT)
-	__extension__ typedef unsigned __int128 uint128;
+	__extension__ using uint128 = unsigned __int128;
 	return ((uint128)a * (uint128)b) >> 64;
 #else
 	// 64bit同士の掛け算を64bitを32bit 2つに分割して、筆算のようなことをするコード

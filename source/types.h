@@ -358,7 +358,7 @@ static bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 constexpr int MAX_PLY = MAX_PLY_NUM;
 
 // 探索深さを表現する型
-typedef int Depth;
+using Depth = int;
 
 enum : int {
 
@@ -982,7 +982,7 @@ private:
 
 // 局面のハッシュキー
 // 盤面(盤上の駒 + 手駒)に対して、Zobrist Hashでそれに対応する値を計算する。
-typedef uint64_t Key;
+using Key = uint64_t;
 
 // 合同法による擬似乱数生成器
 // 探索で、excludedMoveを考慮した局面のhash keyが欲しいので、それを生成するために
