@@ -68,6 +68,7 @@ namespace Search {
 
 		// aspiration searchの時に用いる。previousScoreの移動平均。
 		Value averageScore = -VALUE_INFINITE;
+		Value uciScore = -VALUE_INFINITE;
 		bool scoreLowerbound = false;
 		bool scoreUpperbound = false;
 

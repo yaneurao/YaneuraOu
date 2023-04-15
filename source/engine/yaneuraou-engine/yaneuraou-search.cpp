@@ -2645,10 +2645,16 @@ namespace {
 					// root nodeにおいてPVの指し手または、α値を更新した場合、スコアをセットしておく。
 					// (iterationの終わりでsortするのでそのときに指し手が入れ替わる。)
 
-					rm.score = value;
+					rm.score = rm.uciScore = value;
 					rm.selDepth = thisThread->selDepth;
-					rm.scoreLowerbound = value >= beta;
-					rm.scoreUpperbound = value <= alpha;
+					if (value >= beta) {
+						rm.scoreLowerbound = true;
+						rm.uciScore = beta;
+					}
+					else if (value <= alpha) {
+						rm.scoreUpperbound = true;
+						rm.uciScore = alpha;
+					}
 					rm.pv.resize(1);
 					// PVは変化するはずなのでいったんリセット
 

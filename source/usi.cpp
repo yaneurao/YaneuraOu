@@ -186,7 +186,7 @@ namespace USI
 
 			// 1より小さな探索depthで出力しない。
 			Depth d = updated ? depth : std::max(1, depth - 1);
-			Value v = updated ? rootMoves[i].score : rootMoves[i].previousScore;
+			Value v = updated ? rootMoves[i].uciScore : rootMoves[i].previousScore;
 
 			// multi pv時、例えば3個目の候補手までしか評価が終わっていなくて(PVIdx==2)、このとき、
 			// 3,4,5個目にあるのは前回のiterationまでずっと評価されていなかった指し手であるような場合に、
