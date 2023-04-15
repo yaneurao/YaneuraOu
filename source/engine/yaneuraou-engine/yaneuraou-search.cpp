@@ -2892,6 +2892,7 @@ namespace {
 		//     nodeの初期化
 		// -----------------------
 
+		// Step 1. Initialize node
 		if (PvNode)
 		{
 			(ss + 1)->pv = pv;
@@ -2907,7 +2908,7 @@ namespace {
 		//    最大手数へ到達したか？
 		// -----------------------
 
-	    // Check for an immediate draw or maximum ply reached
+		// Step 2. Check for an immediate draw or maximum ply reached
 
 		if (ss->ply >= MAX_PLY)
 			return draw_value(REPETITION_DRAW, pos.side_to_move());
@@ -2938,7 +2939,7 @@ namespace {
 		ttDepth = ss->inCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
 													      : DEPTH_QS_NO_CHECKS;
 
-		// Transposition table lookup
+		// Step 3. Transposition table lookup
 		// 置換表のlookup
 
 		posKey = pos.hash_key();
@@ -2953,6 +2954,7 @@ namespace {
 		if (tte->move().to_u16() && !ttMove)
 			ss->ttHit = false;
 
+		// At non-PV nodes we check for an early TT cutoff
 		// nonPVでは置換表の指し手で枝刈りする
 		// PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)
 		if (  !PvNode
@@ -2973,7 +2975,7 @@ namespace {
 		//     eval呼び出し
 		// -----------------------
 
-		// Evaluate the position statically
+		// Step 4. Static evaluation of the position
 
 		if (ss->inCheck)
 		{
@@ -3123,7 +3125,8 @@ namespace {
 		// evaluate()を呼び出していないなら呼び出しておく。
 		evaluate_with_no_return(pos);
 
-		// Loop through the moves until no moves remain or a beta cutoff occurs
+		// Step 5. Loop through all pseudo-legal moves until no moves remain
+		// or a beta cutoff occurs.
 
 		while ((move = mp.next_move()) != MOVE_NONE)
 		{
@@ -3146,67 +3149,76 @@ namespace {
 
 			moveCount++;
 
-			//
-			// Futility pruning and moveCount pruning (~5 Elo)
-			//
-
-			// 自玉に王手がかかっていなくて、敵玉に王手にならない指し手であるとき、
-			// 今回捕獲されるであろう駒による評価値の上昇分を
-			// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
-
-			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& !givesCheck
-				&&  to_sq(move) != prevSq
-				&&  futilityBase > -VALUE_KNOWN_WIN
-			//	&&  type_of(move) != PROMOTION) // TODO : これ入れたほうがいいのか？
-				)
+			// Step 6. Pruning.
+			if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
 			{
-				//assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
-
-				// MoveCountに基づく枝刈り
-				if (moveCount > 2)
-					continue;
-
-				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
-				// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
-				futilityValue = futilityBase + CapturePieceValueEg(pos, move);
-
-				// これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行ってして、そのあと、この値を用いないからセーフ。
-
-				// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
-				// それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
-				if (futilityValue <= alpha)
+				// Futility pruning and moveCount pruning (~10 Elo)
+				// 自玉に王手がかかっていなくて、敵玉に王手にならない指し手であるとき、
+				// 今回捕獲されるであろう駒による評価値の上昇分を
+				// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
+				if (   !givesCheck
+					&& to_sq(move) != prevSq
+					&& futilityBase > -VALUE_KNOWN_WIN
+					//	&&  type_of(move) != PROMOTION) // TODO : これ入れたほうがいいのか？
+					)
 				{
-					bestValue = std::max(bestValue, futilityValue);
-					ASSERT_LV3(bestValue != -VALUE_INFINITE);
-					continue;
+					//assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
+
+					// MoveCountに基づく枝刈り
+					if (moveCount > 2)
+						continue;
+
+					// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
+					// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
+					futilityValue = futilityBase + CapturePieceValueEg(pos, move);
+
+					// これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行ってして、そのあと、この値を用いないからセーフ。
+
+					// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
+					// それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
+					if (futilityValue <= alpha)
+					{
+						bestValue = std::max(bestValue, futilityValue);
+						ASSERT_LV3(bestValue != -VALUE_INFINITE);
+						continue;
+					}
+
+					// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
+					// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
+
+					if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
+					{
+						bestValue = std::max(bestValue, futilityBase);
+						ASSERT_LV3(bestValue != -VALUE_INFINITE);
+						continue;
+					}
 				}
 
-				// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
-				// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
+				// We prune after 2nd quiet check evasion where being 'in check' is implicitly checked through the counter
+				// and being a 'quiet' apart from being a tt move is assumed after an increment because captures are pushed ahead.
+				if (quietCheckEvasions > 1)
+					break;
 
-				if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
-				{
-					bestValue = std::max(bestValue, futilityBase);
-					ASSERT_LV3(bestValue != -VALUE_INFINITE);
+				// Continuation history based pruning (~3 Elo)
+				if (!capture
+					&& (*contHist[0])[pos.moved_piece_after(move)][to_sq(move)] < 0
+					&& (*contHist[1])[pos.moved_piece_after(move)][to_sq(move)] < 0)
 					continue;
-				}
+
+				//
+				//  Detect non-capture evasions
+				//
+
+				// 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
+				// 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
+
+				// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
+
+				// Do not search moves with bad enough SEE values (~5 Elo)
+				if (!pos.see_ge(move, Value(-108)))
+					continue;
+
 			}
-
-			//
-			//  Detect non-capture evasions
-			//
-
-			// 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
-			// 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
-
-			// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
-
-			// Do not search moves with bad enough SEE values (~5 Elo)
-			if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& !pos.see_ge(move, Value(-108)))
-				continue;
-
 
 			// TODO : prefetchは、入れると遅くなりそうだが、many coreだと違うかも。
 			// Speculative prefetch as early as possible
@@ -3217,6 +3229,7 @@ namespace {
 			// -----------------------
 
 			// 現在このスレッドで探索している指し手を保存しておく。
+			// Update the current move
 			ss->currentMove = move;
 
 			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck                ]
@@ -3224,25 +3237,9 @@ namespace {
 																	  [to_sq(move)                ]
 																	  [pos.moved_piece_after(move)];
 
-
-			// Continuation history based pruning (~2 Elo)
-			// Continuation historyベースの枝刈り
-			// ※ Stockfish12でqsearch()にも導入された。
-			if (   !capture
-				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < 0
-				&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < 0)
-				continue;
-
-			// We prune after 2nd quiet check evasion where being 'in check' is implicitly checked through the counter
-			// and being a 'quiet' apart from being a tt move is assumed after an increment because captures are pushed ahead.
-			if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& quietCheckEvasions > 1)
-				break;
-
 			quietCheckEvasions += !capture && ss->inCheck;
 
-			// Make and search the move
+			// Step 7. Make and search the move
 			// 1手動かして、再帰的にqsearch()を呼ぶ
 			pos.do_move(move, st, givesCheck);
 			value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha, depth - 1);
@@ -3250,7 +3247,7 @@ namespace {
 
 			ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
 
-			// Check for a new best move
+			// Step 8. Check for a new best move
 			// bestValue(≒alpha値)を更新するのか
 			if (value > bestValue)
 			{
@@ -3289,6 +3286,7 @@ namespace {
 		// 指し手を調べ終わった
 		// -----------------------
 
+		// Step 9. Check for mate
 		// All legal moves have been searched. A special case: if we're in check
 		// and no legal moves were found, it is checkmate.
 
