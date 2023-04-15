@@ -2394,7 +2394,7 @@ namespace {
 					// ttMoveのevalがbetaより大きいなら、extensionを減らす(負の延長)
 
 					else if (ttValue >= beta)
-						extension = -2;
+						extension = -2 - !PvNode;
 
 					// If the eval of ttMove is less than alpha and value, we reduce it (negative extension)
 					else if (ttValue <= value)
