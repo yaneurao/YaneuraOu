@@ -126,7 +126,7 @@ public:
 	//
 	// completedDepth : このスレッドに関して、終了した反復深化の深さ
 	//
-	Depth rootDepth, completedDepth, previousDepth;
+	Depth rootDepth, completedDepth;
 
 #if defined(__EMSCRIPTEN__)
 	// yaneuraou.wasm

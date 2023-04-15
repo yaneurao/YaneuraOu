@@ -700,9 +700,6 @@ SKIP_SEARCH:;
 	bestPreviousScore        = bestThread->rootMoves[0].score;
 	bestPreviousAverageScore = bestThread->rootMoves[0].averageScore;
 
-	for (Thread* th : Threads)
-		th->previousDepth = bestThread->completedDepth;
-
 	// 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。
 	// ただし定跡の指し手にhitした場合などはrootMoves[0].score == -VALUE_INFINITEになっているのでそれは除外。
 	auto resign_value = (int)Options["ResignValue"];
@@ -2329,7 +2326,7 @@ namespace {
 
 				// singular延長をするnodeであるか。
 				if (!rootNode
-					&& depth >= PARAM_SINGULAR_EXTENSION_DEPTH /* 4 */ - (thisThread->previousDepth > 27) + 2 * (PvNode && tte->is_pv())
+					&& depth >= 4 - (thisThread->completedDepth > 22) + 2 * (PvNode && tte->is_pv())
 					&& move == ttMove
 					&& !excludedMove // 再帰的なsingular延長を除外する。
 				/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
