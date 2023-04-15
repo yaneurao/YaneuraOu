@@ -2203,6 +2203,8 @@ namespace {
 
 			Value delta = beta - alpha;
 
+			Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
+
 			if (  !rootNode
 				// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
 			//	&& pos.non_pawn_material(us)  // これに相当する処理、将棋でも必要だと思う。
@@ -2214,7 +2216,7 @@ namespace {
 
 				// Reduced depth of the next LMR search
 				// 次のLMR探索における軽減された深さ
-				int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount, delta, thisThread->rootDelta), 0);
+				int lmrDepth = std::max(newDepth - r, 0);
 
 				if (   capture
 					|| givesCheck)
@@ -2467,8 +2469,6 @@ namespace {
 
 			// 指し手で1手進める
 			pos.do_move(move, st, givesCheck);
-
-			Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
 
 			// Decrease reduction if position is or has been on the PV
 			// and node is not likely to fail low. (~3 Elo)
