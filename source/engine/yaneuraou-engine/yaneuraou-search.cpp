@@ -2782,8 +2782,7 @@ namespace {
 
 		else if (!priorCapture)
 		{
-			// Extra bonuses for PV/Cut nodes or bad fail lows
-			int bonus = (depth > 4) + (PvNode || cutNode) + (bestValue < alpha - 88 * depth);
+			int bonus = (depth > 5) + (PvNode || cutNode) + (bestValue < alpha - 97 * depth) + ((ss - 1)->moveCount > 10);
 			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, stat_bonus(depth)* bonus);
 		}
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
