@@ -1497,7 +1497,7 @@ namespace {
 		// excludedMoveがある(singular extension時)は、異なるentryにアクセスするように。
 		// ただし、このときpos.key()のbit0を破壊することは許されないので、make_key()でbit0はクリアしておく。
 		// excludedMoveがMOVE_NONEの時はkeyを変更してはならない。
-		posKey = excludedMove == MOVE_NONE ? pos.hash_key() : pos.hash_key() ^ HASH_KEY(make_key(excludedMove));
+		posKey = pos.key();
 
 		tte = TT.probe(posKey, ss->ttHit);
 
@@ -1534,6 +1534,9 @@ namespace {
 
 		ttCapture = ttMove && pos.capture(ttMove);
 
+		// At this point, if excluded, skip straight to step 6, static eval. However,
+		// to save indentation, we list the condition in all code between here and there.
+
 		// 置換表にhitしなかった時は、PV nodeのときだけttPvとして扱う。
 		// これss->ttPVに保存してるけど、singularの判定等でsearchをss+1ではなくssで呼び出すことがあり、
 		// そのときにss->ttPvが破壊される。なので、破壊しそうなときは直前にローカル変数に保存するコードが書いてある。
@@ -1546,6 +1549,7 @@ namespace {
 
 		if (  !PvNode                  // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
 			&& ss->ttHit               // 置換表の指し手がhitして
+			&& !excludedMove
 			&& tte->depth() > depth - (tte->bound() == BOUND_EXACT)   // 置換表に登録されている探索深さのほうが深くて
 									   // ↑ スレッドごとに探索がばらけるように。
 			&& ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
@@ -1620,7 +1624,7 @@ namespace {
 		// これは将棋にはないが、将棋には代わりに宣言勝ちというのがある。
 		// ここは、やねうら王独自のコード。
 
-		{
+		if (!excludedMove) {
 			// 宣言勝ちの指し手が置換表上に登録されていることがある
 			// ただしPV nodeではこれを信用しない。
 			if (ttMove == MOVE_WIN && !PvNode)
@@ -1656,7 +1660,7 @@ namespace {
 		//    1手詰みか？
 		// -----------------------
 
-		if (PARAM_SEARCH_MATE1)
+		if (PARAM_SEARCH_MATE1 && !excludedMove)
 		{
 			// RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
 			// 置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
@@ -1728,6 +1732,12 @@ namespace {
 			//complexity = 0;
 			goto moves_loop;
 		}
+		else if (excludedMove) {
+			// excludeMove implies that we had a ttHit on the containing non-excluded search with ss->staticEval filled from TT
+			// However static evals from the TT aren't good enough (-13 elo), presumably due to changing optimism context
+			// Recalculate value with current optimism (without updating thread avgComplexity)
+			ss->staticEval = eval = evaluate(pos);
+		}
 		else if (ss->ttHit)
 		{
 			// Never assume anything about values stored in TT
@@ -1757,15 +1767,14 @@ namespace {
 		{
 			ss->staticEval = eval = evaluate(pos);
 
-	        // Save static evaluation into transposition table
+			// Save static evaluation into transposition table
 			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
 			// ※　bonus分だけ加算されているが静止探索の値ということで…。
 			//
 			// また、excludedMoveがある時は、これを置換表に保存するのは危ない。
 			// cf . Add / remove leaves from search tree ttPv : https://github.com/official-stockfish/Stockfish/commit/c02b3a4c7a339d212d5c6f75b3b89c926d33a800
 
-			if (!excludedMove)
-				tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
+			tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
 
 			// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
 			// 実行したという証にはなるので意味がある。
@@ -2339,6 +2348,7 @@ namespace {
 					// move(ttMove)の指し手を以下のsearch()での探索から除外
 
 					ss->excludedMove = move;
+					// the search with excludedMove will update ss->staticEval
 					// 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
 					// 浅いdepthでnull windowなので、すぐに探索は終わるはず。
 					value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
