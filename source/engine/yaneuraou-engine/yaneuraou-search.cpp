@@ -2345,7 +2345,7 @@ namespace {
 					// null window searchするときに大きなコストを伴いかねないから。)
 				{
 					// このmargin値は評価関数の性質に合わせて調整されるべき。
-					Value singularBeta = ttValue - (3 + (ss->ttPv && !PvNode)) * depth;
+					Value singularBeta = ttValue - (3 + 2 * (ss->ttPv && !PvNode)) * depth / 2;
 					Depth singularDepth = (depth - 1) / 2;
 
 					// move(ttMove)の指し手を以下のsearch()での探索から除外
