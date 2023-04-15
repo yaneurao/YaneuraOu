@@ -2776,11 +2776,10 @@ namespace {
 		// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
 		// 【計測資料 15.】search()でfail lowしているときにhistoryのupdateを行なう条件
 
-		else if ((depth >= 5 || PvNode || bestValue < alpha - 62 * depth)
-			&& !priorCapture)
+		else if (!priorCapture)
 		{
 			// Extra bonuses for PV/Cut nodes or bad fail lows
-			int bonus = 1 + (PvNode || cutNode) + (bestValue < alpha - 88 * depth);
+			int bonus = (depth > 4) + (PvNode || cutNode) + (bestValue < alpha - 88 * depth);
 			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, stat_bonus(depth)* bonus);
 		}
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
