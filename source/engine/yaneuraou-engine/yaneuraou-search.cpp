@@ -1117,7 +1117,8 @@ void Thread::search()
 		if (!Threads.stop)
 			completedDepth = rootDepth;
 
-		if (rootMoves[0].pv[0] != lastBestMove) {
+		if (rootMoves[0].pv[0] != lastBestMove)
+		{
 			lastBestMove = rootMoves[0].pv[0];
 			lastBestMoveDepth = rootDepth;
 		}
@@ -1732,7 +1733,8 @@ namespace {
 			//complexity = 0;
 			goto moves_loop;
 		}
-		else if (excludedMove) {
+		else if (excludedMove)
+		{
 			// excludeMove implies that we had a ttHit on the containing non-excluded search with ss->staticEval filled from TT
 			// However static evals from the TT aren't good enough (-13 elo), presumably due to changing optimism context
 			// Recalculate value with current optimism (without updating thread avgComplexity)
@@ -2070,8 +2072,7 @@ namespace {
 			&& tte->depth() >= depth - 3
 			&& ttValue >= probCutBeta
 			&& abs(ttValue) <= VALUE_KNOWN_WIN
-			&& abs(beta) <= VALUE_KNOWN_WIN
-			)
+			&& abs(beta) <= VALUE_KNOWN_WIN)
 			return probCutBeta;
 
 
@@ -2396,7 +2397,7 @@ namespace {
 						extension = -2;
 
 					// If the eval of ttMove is less than alpha and value, we reduce it (negative extension)
-					else if (ttValue <= alpha && ttValue <= value)
+					else if (ttValue <= value)
 						extension = -1;
 				}
 
@@ -2623,14 +2624,17 @@ namespace {
 					rm.selDepth = thisThread->selDepth;
 					rm.scoreLowerbound = rm.scoreUpperbound = false;
 
-					if (value >= beta) {
+					if (value >= beta)
+					{
 						rm.scoreLowerbound = true;
 						rm.uciScore = beta;
 					}
-					else if (value <= alpha) {
+					else if (value <= alpha)
+					{
 						rm.scoreUpperbound = true;
 						rm.uciScore = alpha;
 					}
+
 					rm.pv.resize(1);
 					// PVは変化するはずなのでいったんリセット
 
@@ -3216,7 +3220,6 @@ namespace {
 				// Do not search moves with bad enough SEE values (~5 Elo)
 				if (!pos.see_ge(move, Value(-108)))
 					continue;
-
 			}
 
 			// TODO : prefetchは、入れると遅くなりそうだが、many coreだと違うかも。
