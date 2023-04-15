@@ -3254,19 +3254,11 @@ namespace {
 				&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < 0)
 				continue;
 
-			// movecount pruning for quiet check evasions
-			// quietな指し手による王手回避のためのmovecountによる枝刈り。
-
-			// 王手回避でquietな指し手は良いとは思えないから、捕獲する指し手を好むようにする。
-			// だから、もし、qsearchで2つのquietな王手回避に失敗したら、
-			// そこ以降(captureから生成しているのでそこ以降もquietな指し手)も良くないと
-			// 考えるのは理に適っている。
-
-			if (   bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& quietCheckEvasions > 1
-				&& !capture
-				&& ss->inCheck)
-				continue;
+			// We prune after 2nd quiet check evasion where being 'in check' is implicitly checked through the counter
+			// and being a 'quiet' apart from being a tt move is assumed after an increment because captures are pushed ahead.
+			if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY
+				&& quietCheckEvasions > 1)
+				break;
 
 			quietCheckEvasions += !capture && ss->inCheck;
 
