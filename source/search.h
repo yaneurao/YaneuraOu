@@ -68,6 +68,8 @@ namespace Search {
 
 		// aspiration searchの時に用いる。previousScoreの移動平均。
 		Value averageScore = -VALUE_INFINITE;
+		bool scoreLowerbound = false;
+		bool scoreUpperbound = false;
 
 		// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
 		int selDepth = 0;

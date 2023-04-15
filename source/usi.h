@@ -129,7 +129,7 @@ namespace USI
 
 	// pv(読み筋)をUSIプロトコルに基いて出力する。
 	// depth : 反復深化のiteration深さ。
-	std::string pv(const Position& pos, Depth depth, Value alpha, Value beta);
+	std::string pv(const Position& pos, Depth depth);
 
 	// 局面posとUSIプロトコルによる指し手を与えて
 	// もし可能なら等価で合法な指し手を返す。

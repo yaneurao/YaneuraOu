@@ -499,7 +499,7 @@ void MainThread::search()
 		rootMoves[0].score = mated_in(0);
 
 		if (!Limits.silent)
-			sync_cout << USI::pv(rootPos, 1 , -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+			sync_cout << USI::pv(rootPos, 1) << sync_endl;
 
 		goto SKIP_SEARCH;
 	}
@@ -545,7 +545,7 @@ void MainThread::search()
 
 				// rootで宣言勝ちのときにもそのPVを出力したほうが良い。
 				if (!Limits.silent)
-					sync_cout << USI::pv(rootPos, 1 , -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+					sync_cout << USI::pv(rootPos, 1) << sync_endl;
 
 				goto SKIP_SEARCH;
 			}
@@ -638,7 +638,7 @@ SKIP_SEARCH:;
 			// →　いずれにせよ、mateを見つけた時に最終的なPVを出力していないと、詰みではないscoreのPVが最終的な読み筋としてGUI上に
 			//     残ることになるからよろしくない。PV自体は必ず出力すべきなのでは。
 			if (/*bestThread != this &&*/ !Limits.silent && !Limits.consideration_mode)
-				sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+				sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth) << sync_endl;
 
 			output_final_pv_done = true;
 		}
@@ -1039,7 +1039,7 @@ void Thread::search()
 				{
 					// 最後に出力した時刻を記録しておく。
 					mainThread->lastPvInfoTime = Time.elapsed();
-					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
+					sync_cout << USI::pv(rootPos, rootDepth) << sync_endl;
 				}
 
 				// aspiration窓の範囲外
@@ -1107,7 +1107,7 @@ void Thread::search()
 						&& (rootDepth < 3 || mainThread->lastPvInfoTime + Limits.pv_interval <= Time.elapsed())))
 				{
 					mainThread->lastPvInfoTime = Time.elapsed();
-					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
+					sync_cout << USI::pv(rootPos, rootDepth) << sync_endl;
 				}
 			}
 
@@ -2646,6 +2646,8 @@ namespace {
 
 					rm.score = value;
 					rm.selDepth = thisThread->selDepth;
+					rm.scoreLowerbound = value >= beta;
+					rm.scoreUpperbound = value <= alpha;
 					rm.pv.resize(1);
 					// PVは変化するはずなのでいったんリセット
 
