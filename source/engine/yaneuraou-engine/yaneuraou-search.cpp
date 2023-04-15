@@ -1880,7 +1880,7 @@ namespace {
 								/* + complexity / 28 */
 			&& !excludedMove
 		//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
-			&& (ss->ply >= thisThread->nmpMinPly || us != thisThread->nmpColor)
+			&& (ss->ply >= thisThread->nmpMinPly)
 			// 同じ手番側に連続してnull moveを適用しない
 			)
 		{
@@ -1921,11 +1921,10 @@ namespace {
 				ASSERT_LV3(!thisThread->nmpMinPly); // 再帰的な検証は認めていない。
 
 				// Do verification search at high depths, with null move pruning disabled
-				// for us, until ply exceeds nmpMinPly.
+				// until ply exceeds nmpMinPly.
 				// null move枝刈りを無効化してus側の手番で、plyがnmpMinPlyを超えるまで
 				// 高いdepthで検証のための探索を行う。
 				thisThread->nmpMinPly = ss->ply + 3 * (depth - R) / 4 ;
-				thisThread->nmpColor = us;
 
 				// nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。cutNodeにしない。
 				Value v = search<NonPV>(pos, ss, beta - 1, beta, depth - R, false);
