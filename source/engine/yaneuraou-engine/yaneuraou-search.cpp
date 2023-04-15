@@ -1229,9 +1229,8 @@ void Thread::search()
 				}
 				// 前回からdepthが増えたかのチェック。
 				// depthが増えて行っていないなら、同じ深さで再度探索する。
-				else if (Threads.increaseDepth
-					&& !mainThread->ponder
-					&&  Time.elapsed() > totalTime * 0.58)
+				else if (!mainThread->ponder
+					&& Time.elapsed() > totalTime * 0.53)
 					Threads.increaseDepth = false;
 				else
 					Threads.increaseDepth = true;
