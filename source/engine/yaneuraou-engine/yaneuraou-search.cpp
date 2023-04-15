@@ -2360,9 +2360,12 @@ namespace {
 						// Avoid search explosion by limiting the number of double extensions
 						// 2重延長を制限することで探索の組合せ爆発を回避する。
 						if (!PvNode
-							&& value < singularBeta - 26
-							&& ss->doubleExtensions <= 8)
+							&& value < singularBeta - 25
+							&& ss->doubleExtensions <= 9)
+						{
 							extension = 2;
+							depth += depth < 12;
+						}
 					}
 
 					// Multi-cut pruning
@@ -3300,8 +3303,8 @@ namespace {
 						alpha = value;
 
 						// Reduce other moves if we have found at least one score improvement
-						if (depth > 2
-							&& depth < 7
+						if (depth > 1
+							&& depth < 6
 							&& beta  <  VALUE_KNOWN_WIN
 							&& alpha > -VALUE_KNOWN_WIN)
 							depth -= 1;
