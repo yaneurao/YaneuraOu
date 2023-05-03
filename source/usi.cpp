@@ -243,7 +243,7 @@ namespace USI
 				auto pos_ = const_cast<Position*>(&pos);
 				Move moves[MAX_PLY + 1];
 				StateInfo si[MAX_PLY];
-				int ply = 0;
+				size_t ply = 0;
 
 				while ( ply < MAX_PLY )
 				{
