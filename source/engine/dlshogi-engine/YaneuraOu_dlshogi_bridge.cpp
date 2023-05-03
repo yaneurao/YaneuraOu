@@ -382,8 +382,7 @@ namespace dlshogi
 			Move m = child.move;
 			// move_count == 0であって欲しくはないのだが…。
 			float win = child.move_count == 0 ? child.nnrate : (float)child.win / child.move_count;
-//			result.emplace_back(std::pair<Move, float>(m, win));
-			result[i] = std::pair<Move, float>(m, win);
+			result.emplace_back(std::pair<Move, float>(m, win));
 		}
 	}
 
