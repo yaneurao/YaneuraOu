@@ -28,6 +28,9 @@ namespace Book
 	int makebook2021(Position& pos, istringstream& is, const string& token);
 #endif
 
+	// 定跡生成コマンド2023年度版。ペタショック化コマンド。
+	int makebook2023(Position& pos, istringstream& is, const string& token);
+
 	// ---------------------------------------------------------------------------------------------
 
 	// makebookコマンドの処理本体
@@ -77,6 +80,9 @@ namespace Book
 		if (makebook2021(pos, is, token))
 			return;
 #endif
+		// 2023年に作ったmakebook拡張コマンド
+		if (makebook2023(pos, is, token))
+			return;
 
 		// いずれのコマンドも処理しなかったので、使用方法を出力しておく。
 
@@ -87,7 +93,7 @@ namespace Book
 		cout << "> makebook sort book_src.db book_sorted.db" << endl;
 		cout << "> makebook convert_from_apery book_src.bin book_converted.db" << endl;
 		cout << "> makebook build_tree book2019.db user_book1.db" << endl;
-
+		cout << "> makebook peta_shock book.db user_book1.db" << endl;
 	}
 
 } // namespace Book

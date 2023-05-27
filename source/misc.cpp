@@ -1059,8 +1059,14 @@ namespace Tools
 	}
 
 	// size_ : 全件でいくらあるかを設定する。
-	ProgressBar::ProgressBar(u64 size_) : size(size_)
+	ProgressBar::ProgressBar(u64 size_)
 	{
+		reset(size_);
+	}
+
+	void ProgressBar::reset(u64 size_)
+	{
+		size = size_;
 		if (enable_)
 			cout << "0% [";
 		dots = 0;

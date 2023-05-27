@@ -354,6 +354,7 @@ ifeq (,)
 		book/makebook2015.cpp                                                  \
 		book/makebook2019.cpp                                                  \
 		book/makebook2021.cpp                                                  \
+		book/makebook2023.cpp                                                  \
 		learn/learner.cpp                                                      \
 		learn/learning_tools.cpp                                               \
 		learn/multi_think.cpp

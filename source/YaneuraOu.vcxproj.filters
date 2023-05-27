@@ -561,6 +561,9 @@
     <ClCompile Include="engine\yo-cluster\ClusterStrategy.cpp">
       <Filter>リソース ファイル\engine\yo-cluster</Filter>
     </ClCompile>
+    <ClCompile Include="book\makebook2023.cpp">
+      <Filter>リソース ファイル\book</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\script\readme.txt">

@@ -474,6 +474,9 @@ namespace Tools
 		// size_ : 全件でいくらあるかを設定する。
 		ProgressBar(u64 size_);
 
+		// また0%に戻す。このインスタンスを再利用する時に用いる。
+		void reset(u64 size_);
+
 		// 進捗を出力する。
 		// current : 現在までに完了している件数
 		void check(u64 current);
