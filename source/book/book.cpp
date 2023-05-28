@@ -394,7 +394,7 @@ namespace Book
 		if (writer.Open(filename).is_not_ok())
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
-		cout << endl << "write " + filename << endl;
+		cout << "write " + filename << endl;
 
 		// バージョン識別用文字列
 		writer.WriteLine("#YANEURAOU-DB2016 1.00");

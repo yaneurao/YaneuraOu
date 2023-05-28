@@ -116,8 +116,21 @@ namespace MakeBook2023
 	public:
 		void make_book(Position& pos , istringstream& is)
 		{
-			cout << "peta-shock command start : " << endl;
-			cout << "================================================================================" << endl;
+			string readbook_name;
+			string writebook_name;
+			is >> readbook_name >> writebook_name;
+
+			readbook_name  = Path::Combine("book",readbook_name );
+			writebook_name = Path::Combine("book",writebook_name);
+
+			cout << "[ PetaShock CONFIGURATION ]" << endl;
+
+			cout << "readbook  : " << readbook_name  << endl;
+			cout << "writebook : " << writebook_name << endl;
+
+			// 引き分けのスコアを変更したいなら先に変更しておいて欲しい。
+			cout << "draw_value black : " << draw_value(REPETITION_DRAW,BLACK) << endl;
+			cout << "draw_value white : " << draw_value(REPETITION_DRAW,WHITE) << endl;
 
 			// 高速化のために、HASH_KEYだけで局面を処理したいので、hashの衝突はあってはならない。
 			// そのため、HASH_KEY_BITSは128か256が望ましい。
@@ -127,19 +140,7 @@ namespace MakeBook2023
 				cout << "    Rebuild with a set HASH_KEY_BITS == 128 or 256." << endl;
 			}
 
-			string readbook_name;
-			string writebook_name;
-			is >> readbook_name >> writebook_name;
-
-			readbook_name  = Path::Combine("book",readbook_name );
-			writebook_name = Path::Combine("book",writebook_name);
-
-			cout << "readbook  : " << readbook_name  << endl;
-			cout << "writebook : " << writebook_name << endl;
-
-			// 引き分けのスコアを変更したいなら先に変更しておいて欲しい。
-			cout << "draw_value black : " << draw_value(REPETITION_DRAW,BLACK) << endl;
-			cout << "draw_value white : " << draw_value(REPETITION_DRAW,WHITE) << endl;
+			cout << endl;
 
 			// 手数無視のオプションを有効にすると、MemoryBook::read_book()は、
 			// sfen文字列末尾の手数を無視してくれる。
@@ -154,7 +155,7 @@ namespace MakeBook2023
 				return ;
 			}
 
-			cout << "register sfen       : " << endl;
+			cout << "Register SFENs      : " << endl;
 
 			// memo : 指し手の存在しない局面はそんな定跡ファイル読み込ませていないか、
 			//        あるいはMemoryBookが排除してくれていると仮定している。
@@ -191,7 +192,7 @@ namespace MakeBook2023
 			});
 
 			// 局面の合流チェック
-			cout << "converge check      :" << endl;
+			cout << "Convergence Check   :" << endl;
 
 			counter = 0;
 
@@ -289,8 +290,8 @@ namespace MakeBook2023
 			//       if --parent.出次数 == 0:                    # 出次数が0になったのでこの局面もqueueに追加する。
 			//         queue.push(parent)
 
-			// 後退解析その1
-			cout << "retrograde analysis : step I" << endl;
+			// 後退解析その1 : 出次数0の局面を削除
+			cout << "Retrograde Analysis : Step I   -> delete nodes with zero out-degree." << endl;
 
 			// 作業対象nodeが入っているqueue
 			// このqueueは処理順は問題ではないので両端queueでなくて良いからvectorで実装しておく。
@@ -331,11 +332,6 @@ namespace MakeBook2023
 						best_depth = book_move.depth;
 					}
 				}
-				// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
-				// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスしておく。
-				for(auto& book_move:book_node.moves)
-					if (best_value == book_move.value && best_depth < book_move.depth)
-						book_move.value --;
 
 				for(auto& parent_ki : book_node.parents)
 				{
@@ -370,17 +366,20 @@ namespace MakeBook2023
 					retro_counter2++;
 			}
 
-			// ループがあって処理できていないnodeの数。これはmin-max探索を行う。
+			// 後退解析その2 : すべてのノードの親に評価値を伝播。MAX_PLY回行われる。
+
+			cout << "Retrograde Analysis : Step II  -> Propagate the eval to the parents of all nodes." << endl;
+
+			// ループがあって処理できていないnodeの数。
+			//cout << "loop nodes       : " << counter << endl;
+
+			// これらのnodeに対してはmin-max探索を行わなければならない。
 			// ただし、min-maxだと組み合わせ爆発するので、non leafな指し手の値を
 			// draw_valueで初期化して、全ノードに対してMAX_PLY回だけparentに評価値を伝播する。
 			// これでループから抜け出せないところはdraw_valueになり、そうでないところは、正しい値が伝播されるということである。
-			//cout << "loop nodes       : " << counter << endl;
-
-			// 後退解析その2
-			cout << "retrograde analysis : step II" << endl;
 
 			// まずnon leaf moveのvalueをdraw valueで初期化。
-			// non leaf moveが存在するなら出次数 > 0であるから、これを先に判定して良い。
+			// non leaf moveが存在するならnodeの出次数 > 0であるから、これを先に判定して良い。
 			for(auto& book_node : book_nodes)
 				if (book_node.out_count != 0)
 					for(auto& book_move : book_node.moves)
@@ -393,7 +392,7 @@ namespace MakeBook2023
 			progress.reset(counter * MAX_PLY);
 			counter = 0;
 
-			// あるnodeのbest_valueとbest_depthを得る。
+			// あるnodeのbest_valueとbest_depthを得るヘルパー関数。
 			auto get_bestvalue = [&](BookNode& node)
 			{
 				// まずこのnodeの結論を得る。
@@ -418,7 +417,7 @@ namespace MakeBook2023
 			};
 
 			// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
-			// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスする処理を行う関数。
+			// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスする処理を行うヘルパー関数。
 			auto adjust_second_bestvalue = [&](BookNode& node)
 			{
 				auto best = get_bestvalue(node);
@@ -451,17 +450,9 @@ namespace MakeBook2023
 						int best_value = best.first;
 						int best_depth = best.second;
 
-						// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
-						// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスしておく。
-						//for(auto& book_move:book_node.moves)
-						//	if (best_value == book_move.value && best_depth < book_move.depth)
-						//		book_move.value --;
-						// →　ここでこの処理をやってもこのnodeの子から書き換えられてしまう。
-						//    正しくは親に書き込みにいく時に、この処理をやるべきなのか…。
-
 						// このnodeの評価が決まったので、これをparentに伝達する。
 						// 子:親は1:Nだが、親のある指し手によって進める子は高々1つしかいないので
-						// 子の評価値は、親のその指し手の評価値としてそのまま伝播される。
+						// 子の評価値は、それぞれの親のこの局面に進む指し手の評価値としてそのまま伝播される。
 						for(auto& parent : book_node.parents)
 						{
 							BookNodeIndex parent_index = parent.parent;
@@ -470,11 +461,6 @@ namespace MakeBook2023
 
 							my_parent_move.value = - best_value;
 							my_parent_move.depth =   best_depth + 1;
-
-							// この親で、同じvalueを持つ、depthがより低い枝があるなら、この枝のvalueを1下げておく。
-							// 理由は上に書いた千日手対策。
-
-							adjust_second_bestvalue(parent_node);
 						}
 					}
 
@@ -482,6 +468,28 @@ namespace MakeBook2023
 				}
 			}
 			progress.check(counter * MAX_PLY);
+
+			// 後退解析その3 : 
+
+			// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
+			// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスしておく。
+
+			cout << "Retrograde Analysis : step III -> Adjust the bestvalue at all nodes." << endl;
+
+			progress.reset(book_nodes.size());
+			for(size_t i = 0 ; i < book_nodes.size() ; ++i)
+			{
+				auto& book_node = book_nodes[i];
+				adjust_second_bestvalue(book_node);
+
+				progress.check(i);
+			}
+			progress.check(book_nodes.size());
+
+			// メモリ上の定跡DBを再構成。
+			cout << "Rebuild MemoryBook  : " << endl;
+			progress.reset(sfen_to_index.size());
+			counter = 0;
 
 			// これはメモリ上にまずBook classを用いて定跡DBを構築して、それを書き出すのが間違いがないと思う。
 			Book::MemoryBook new_book;
@@ -499,11 +507,14 @@ namespace MakeBook2023
 				}
 				shared_ptr<Book::BookMoves> bookMovesPtr(new Book::BookMoves(bookMoves));
 				new_book.append(sfen, bookMovesPtr);
+
+				progress.check(++counter);
 			}
 
+			// 定跡ファイルの書き出し
 			new_book.write_book(writebook_name);
 
-			cout << "================================================================================" << endl;
+			cout << "[ PetaShock Result ]" << endl;
 			// 合流チェックによって合流させた指し手の数。
 			cout << "converged_moves  : " << converged_moves << endl;
 			// 後退解析において判明した、leafから見てループではなかったノード数
@@ -511,7 +522,8 @@ namespace MakeBook2023
 			// 後退解析において判明した、ループだったノード数
 			cout << "retro_counter2   : " << retro_counter2 << endl;
 			cout << "write book nodes : " << new_book.size() << endl;
-			cout << "peta-shock done." << endl;
+			cout << endl;
+			cout << "Making a peta-shock book has been completed." << endl;
 		}
 
 	private:
