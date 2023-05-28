@@ -331,6 +331,11 @@ namespace MakeBook2023
 						best_depth = book_move.depth;
 					}
 				}
+				// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
+				// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスしておく。
+				for(auto& book_move:book_node.moves)
+					if (best_value == book_move.value && best_depth < book_move.depth)
+						book_move.value --;
 
 				for(auto& parent_ki : book_node.parents)
 				{
@@ -388,6 +393,51 @@ namespace MakeBook2023
 			progress.reset(counter * MAX_PLY);
 			counter = 0;
 
+			// あるnodeのbest_valueとbest_depthを得る。
+			auto get_bestvalue = [&](BookNode& node)
+			{
+				// まずこのnodeの結論を得る。
+				int best_value = numeric_limits<int>::min();
+				int best_depth = 0;
+						
+				for(auto& book_move:node.moves)
+				{
+					// 値が同じならdepthの低いほうを採用する。
+					// なぜなら、循環してきて、別の枝に進むことがあり、それはdepthが高いはずであるから。
+					if (best_value == book_move.value)
+						best_depth = std::min(best_depth , book_move.depth);
+					else if (best_value < book_move.value)
+					{
+						// BookNodeには、必ずINT_MINより大きなvalueを持つ指し手が一つは存在するので、
+						// そのdepthで上書きされることは保証されている。
+						best_value = book_move.value;
+						best_depth = book_move.depth;
+					}
+				}
+				return pair<int,int>(best_value,best_depth);
+			};
+
+			// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
+			// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスする処理を行う関数。
+			auto adjust_second_bestvalue = [&](BookNode& node)
+			{
+				auto best = get_bestvalue(node);
+				int best_value = best.first;
+				int best_depth = best.second;
+
+				for(auto& book_move : node.moves)
+				{
+					if (   best_value == book_move.value
+						&& best_depth  < book_move.depth
+						)
+						// depthが最小でない指し手の評価値を1だけ減らしておく。
+
+						// bestの値しか親には伝播しないので、ここで引いたところで
+						// このnodeにしか影響はない。
+						book_move.value--;
+				}
+			};
+
 			// MAX_PLY回だけ評価値を伝播させる。
 			for(size_t loop = 0 ; loop < MAX_PLY ; ++loop)
 			{
@@ -397,30 +447,17 @@ namespace MakeBook2023
 					// これがmin-maxの代わりとなる。
 					if (book_node.parents.size() != 0)
 					{
-						// まずこのnodeの結論を得る。
-						int best_value = numeric_limits<int>::min();
-						int best_depth = 0;
-						
-						for(auto& book_move:book_node.moves)
-						{
-							// 値が同じならdepthの低いほうを採用する。
-							// なぜなら、循環してきて、別の枝に進むことがあり、それはdepthが高いはずであるから。
-							if (best_value == book_move.value)
-								best_depth = std::min(best_depth , book_move.depth);
-							else if (best_value < book_move.value)
-							{
-								// BookNodeには、必ずINT_MINより大きなvalueを持つ指し手が一つは存在するので、
-								// そのdepthで上書きされることは保証されている。
-								best_value = book_move.value;
-								best_depth = book_move.depth;
-							}
-						}
+						auto best = get_bestvalue(book_node);
+						int best_value = best.first;
+						int best_depth = best.second;
 
 						// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
 						// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスしておく。
-						for(auto& book_move:book_node.moves)
-							if (best_value == book_move.value && best_depth < book_move.depth)
-								book_move.value --;
+						//for(auto& book_move:book_node.moves)
+						//	if (best_value == book_move.value && best_depth < book_move.depth)
+						//		book_move.value --;
+						// →　ここでこの処理をやってもこのnodeの子から書き換えられてしまう。
+						//    正しくは親に書き込みにいく時に、この処理をやるべきなのか…。
 
 						// このnodeの評価が決まったので、これをparentに伝達する。
 						// 子:親は1:Nだが、親のある指し手によって進める子は高々1つしかいないので
@@ -428,13 +465,20 @@ namespace MakeBook2023
 						for(auto& parent : book_node.parents)
 						{
 							BookNodeIndex parent_index = parent.parent;
-							BookMove& parent_move = book_nodes[parent_index].moves[parent.move_index];
-							parent_move.value = - best_value;
-							parent_move.depth =   best_depth + 1;
-						}
+							BookNode&     parent_node  = book_nodes[parent_index];
+							BookMove& my_parent_move   = parent_node.moves[parent.move_index];
 
-						progress.check(++counter);
+							my_parent_move.value = - best_value;
+							my_parent_move.depth =   best_depth + 1;
+
+							// この親で、同じvalueを持つ、depthがより低い枝があるなら、この枝のvalueを1下げておく。
+							// 理由は上に書いた千日手対策。
+
+							adjust_second_bestvalue(parent_node);
+						}
 					}
+
+					progress.check(++counter);
 				}
 			}
 			progress.check(counter * MAX_PLY);
