@@ -324,7 +324,8 @@ namespace BookTools
 
 	// 平手、駒落ちの開始局面集
 	// ここで返ってきた配列の、[0]は平手のsfenであることは保証されている。
-	// 先頭に"sfen "とついているので注意。
+	// 先頭に"sfen "とついているのでこれはPosition::set()では設定できないから注意。
+	// Position::set()を用いるなら先頭の"sfen"の文字列を削るか、さもなくばfeed_position_string()を用いること。
 	std::vector<std::string> get_start_sfens();
 
 	// "position"コマンドに設定できるsfen文字列を渡して、そこから全合法手で１手進めたsfen文字列を取得する。

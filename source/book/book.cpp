@@ -1257,7 +1257,7 @@ namespace Book
 				}
 			}
 
-			bestMove = bestBookMove.move;
+			bestMove   = bestBookMove.move;
 			ponderMove = bestBookMove.ponder;
 
 			// ponderが登録されていなければ、bestMoveで一手進めてそこの局面のbestを拾ってくる。
