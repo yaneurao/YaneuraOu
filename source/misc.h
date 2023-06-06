@@ -580,6 +580,9 @@ namespace SystemIO
 	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
 	extern Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
 
+	// ファイルにすべての行を書き出す。
+	extern Tools::Result WriteAllLines(const std::string& filename, std::vector<std::string>& lines);
+
 
 	// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
 	// C++のstd::ifstreamで::read()は、一発で2GB以上のファイルの読み書きが出来ないのでそのためのwrapperである。

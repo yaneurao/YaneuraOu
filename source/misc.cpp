@@ -1168,6 +1168,22 @@ namespace SystemIO
 		return Tools::Result::Ok();
 	}
 
+	// ファイルにすべての行を書き出す。
+	Tools::Result WriteAllLines(const std::string& filename, std::vector<std::string>& lines)
+	{
+		TextWriter writer;
+		if (writer.Open(filename).is_not_ok())
+			return Tools::ResultCode::FileOpenError;
+
+		for(auto& line : lines)
+		{
+			if (writer.WriteLine(line).is_not_ok())
+			return Tools::ResultCode::FileWriteError;
+		}
+
+		return Tools::ResultCode::Ok;
+	}
+
 	Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func)
 	{
 		// fstream、遅いので、FILEを用いて書き換える。

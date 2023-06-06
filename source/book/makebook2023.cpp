@@ -47,7 +47,7 @@ namespace MakeBook2023
 			move(move),value(value),depth(depth),next(BookNodeIndexNull){}
 
 		// moveの指し手がleafではない場合。
-		BookMove::BookMove(Move move,int value,int depth,BookNodeIndex next):
+		BookMove::BookMove(Move move,int value,int depth, BookNodeIndex next):
 			move(move),value(value),depth(depth),next(next){}
 
 		// move(4) + value(4) + depth(4) + next(4) = 16 bytes
@@ -69,6 +69,11 @@ namespace MakeBook2023
 
 	// BoonNodeの評価値で∞を表現する定数。
 	const int BOOK_VALUE_INF = numeric_limits<int>::max();
+
+	// ペタショック前の定跡DBに指し手の評価値を99999にして書き出しておくと、
+	// これは指し手は存在するけど評価値は不明の指し手である。(という約束にする)
+	// これは棋譜の指し手などを定跡DBに登録する時に評価値が確定しないのでそういう時に用いる。
+	const int BOOK_VALUE_NONE = -99999;
 
 	// あるnodeに対してその親nodeとその何番目の指し手がこのnodeに接続されているのかを保持する構造体。
 	struct ParentMove
@@ -102,6 +107,38 @@ namespace MakeBook2023
 
 		// 指し手
 		vector<BookMove> moves;
+
+		// key(この局面からhash keyを逆引きしたい時に必要になるので仕方なく追加してある)
+		HASH_KEY key;
+	};
+
+	// 定跡の評価値とその時のdepthをひとまとめにした構造体
+	struct ValueDepth
+	{
+		ValueDepth()
+			: value(BOOK_VALUE_NONE), depth(0) {}
+
+		ValueDepth(int value, int depth)
+			: value(value) , depth(depth){}
+
+		int value;
+		int depth;
+	};
+
+	// 後退解析IVで用いる構造体。
+	struct ParentMoveEx
+	{
+		ParentMoveEx(ParentMove parent_move , bool is_deleted , ValueDepth best)
+			: parent_move(parent_move), is_deleted(is_deleted) , best(best){}
+
+		// ある子局面にいたる指し手
+		ParentMove parent_move;
+
+		// その子の指し手がすべてMOVE_NONEで、parent_moveは削除されるべきであるか。
+		bool is_deleted;
+
+		// is_deleted == falseの時、子のbest_value。これを反転させたものが、parent_moveの評価値となる。
+		ValueDepth best;
 	};
 
 
@@ -128,26 +165,34 @@ namespace MakeBook2023
 		{
 			hashbit_check();
 
-			string readbook_name;
-			string writebook_name;
+			string readbook_path;
+			string writebook_path;
+			string root_sfens_path ;
 
 			// 次の思考対象とすべきsfenを書き出す時のその局面の数。
 			u64 next_nodes = 0;
 			if (next)
-				is >> next;
+				is >> next_nodes;
 
-			is >> readbook_name >> writebook_name;
+			is >> readbook_path >> writebook_path;
 
-			readbook_name  = Path::Combine("book",readbook_name );
-			writebook_name = Path::Combine("book",writebook_name);
+			readbook_path  = Path::Combine("book",readbook_path );
+			writebook_path = Path::Combine("book",writebook_path);
 
 			cout << "[ PetaShock makebook CONFIGURATION ]" << endl;
 
 			if (next)
-				cout << "next_sfens: " << next << endl;
+			{
+				// 書き出すsfenの数
+				cout << "write next_sfens : " << next << endl;
 
-			cout << "readbook  : " << readbook_name  << endl;
-			cout << "writebook : " << writebook_name << endl;
+				// これは現状ファイル名固定でいいや。
+				root_sfens_path = Path::Combine("book","root_sfens.txt");
+				cout << "root_sfens_path  : " << root_sfens_path << endl;
+			}
+
+			cout << "readbook_path    : " << readbook_path  << endl;
+			cout << "writebook_path   : " << writebook_path << endl;
 
 			// 引き分けのスコアを変更したいなら先に変更しておいて欲しい。
 			cout << "draw_value black : " << draw_value(REPETITION_DRAW,BLACK) << endl;
@@ -162,7 +207,7 @@ namespace MakeBook2023
 			// 元のオプションへの復元は行わない。(行いたいならば、benchmark.cppを参考にコードを修正すべし。)
 
 			Book::MemoryBook book;
-			if (book.read_book(readbook_name).is_not_ok())
+			if (book.read_book(readbook_path).is_not_ok())
 			{
 				cout << "read book error" << endl;
 				return ;
@@ -199,6 +244,8 @@ namespace MakeBook2023
 				auto key = pos.state()->hash_key();
 				this->sfen_to_index[sfen]   = index;
 				this->hashkey_to_index[key] = index;
+				// 逆引きするのに必要なのでhash keyも格納しておく。
+				book_nodes.back().key = key;
 
 				progress.check(++counter);
 			});
@@ -417,24 +464,26 @@ namespace MakeBook2023
 			auto get_bestvalue = [&](BookNode& node)
 			{
 				// まずこのnodeの結論を得る。
-				int best_value = numeric_limits<int>::min();
-				int best_depth = 0;
+				ValueDepth best(numeric_limits<int>::min(),0);
 						
 				for(auto& book_move:node.moves)
 				{
+					// MOVE_NONEならこの枝はないものとして扱う。
+					if (book_move.move == MOVE_NONE)
+						continue;
+
 					// 値が同じならdepthの低いほうを採用する。
 					// なぜなら、循環してきて、別の枝に進むことがあり、それはdepthが高いはずであるから。
-					if (best_value == book_move.value)
-						best_depth = std::min(best_depth , book_move.depth);
-					else if (best_value < book_move.value)
+					if (best.value == book_move.value)
+						best.depth = std::min(best.depth , book_move.depth);
+					else if (best.value < book_move.value)
 					{
 						// BookNodeには、必ずINT_MINより大きなvalueを持つ指し手が一つは存在するので、
 						// そのdepthで上書きされることは保証されている。
-						best_value = book_move.value;
-						best_depth = book_move.depth;
+						best = ValueDepth(book_move.value, book_move.depth);
 					}
 				}
-				return pair<int,int>(best_value,best_depth);
+				return best;
 			};
 
 			// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
@@ -442,13 +491,11 @@ namespace MakeBook2023
 			auto adjust_second_bestvalue = [&](BookNode& node)
 			{
 				auto best = get_bestvalue(node);
-				int best_value = best.first;
-				int best_depth = best.second;
 
 				for(auto& book_move : node.moves)
 				{
-					if (   best_value == book_move.value
-						&& best_depth  < book_move.depth
+					if (   best.value == book_move.value
+						&& best.depth  < book_move.depth
 						)
 						// depthが最小でない指し手の評価値を1だけ減らしておく。
 
@@ -471,12 +518,10 @@ namespace MakeBook2023
 					if (book_node.parents.size() != 0)
 					{
 						auto best = get_bestvalue(book_node);
-						int best_value = best.first;
-						int best_depth = best.second;
 
-						if (book_node.lastBestValue != best_value)
+						if (book_node.lastBestValue != best.value)
 						{
-							book_node.lastBestValue = best_value;
+							book_node.lastBestValue = best.value;
 							updated = true;
 						}
 
@@ -489,8 +534,8 @@ namespace MakeBook2023
 							BookNode&     parent_node  = book_nodes[parent_index];
 							BookMove& my_parent_move   = parent_node.moves[parent.move_index];
 
-							my_parent_move.value = - best_value;
-							my_parent_move.depth =   best_depth + 1;
+							my_parent_move.value = - best.value;
+							my_parent_move.depth =   best.depth + 1;
 						}
 					}
 
@@ -525,63 +570,223 @@ namespace MakeBook2023
 				progress.check(book_nodes.size());
 			}
 
-			// 書き出したrecord数
 			u64 write_counter = 0;
+
 			if (next)
 			{
-				// 次に調べるべきsfenを書き出していく。
+				// 次に探索すべき定跡局面についてsfenを書き出していく。
+				// これはmin-max探索した時のPVのleaf node。
 				cout << "Retrograde Analysis : step IV  -> pick up next sfens to search." << endl;
 
 				// rootから辿っていきPV leafに到達したらそのsfenを書き出す。
 				// そのPV leaf nodeを削除して後退解析により、各局面の評価値を更新する。
 				// これを繰り返す。
 
-				SystemIO::TextWriter writer;
-
-				auto root_sfens = BookTools::get_start_sfens();
-				deque<StateInfo> si;
-				BookTools::feed_position_string(pos, root_sfens[0]/*平手*/, si);
-				// 駒落ちの局面の定跡をこの手法で作らないと思うのでいまはいいや。
+				// 定跡の開始局面。
+				// "book/root_sfens.txt"からrootのsfen集合を読み込むことにする。
+				// これはUSIのposition文字列の"position"を省略した文字列であること。
+				// つまり、
+				//   startpos
+				//   startpos moves ...
+				//   sfen ...
+				// のような文字列である。
+				vector<string> root_sfens;
+				if (SystemIO::ReadAllLines(root_sfens_path,root_sfens).is_not_ok())
+					root_sfens.emplace_back(BookTools::get_start_sfens()[0]);
 
 				progress.reset(next_nodes);
-				for(size_t i = 0 ; i < next_nodes ; ++i)
+
+				// 書き出すsfen
+				vector<string> write_sfens;
+
+				// それぞれのroot_sfenに対して。
+				for(auto root_sfen : root_sfens)
 				{
-					progress.check(i);
-					string sfen;
-
-					auto hash_key = pos.state()->hash_key();
-					if (hashkey_to_index.count(hash_key) == 0)
+					// 所定の行数のsfenを書き出すまで回る。
+					// ただし、局面が尽きることがあるのでrootが存在しなければループは抜ける。
+					while (true)
 					{
-						// 局面が定跡DBの範囲から外れた。これを書き出しておく。
-						sfen = pos.sfen();
+						deque<StateInfo> si;
+						BookTools::feed_position_string(pos, root_sfen, si);
 
-						// このnodeへのleaf node move(一つ前のnodeがleaf nodeであるはずだから、そのleaf nodeからこの局面へ至る指し手)を削除する。
-						// そのあと、そこから後退解析のようなことをしてrootに評価値を伝播する。
-					} else {
-						// bestmoveを辿っていく。
-						BookNodeIndex index = hashkey_to_index[hash_key];
-						auto& moves = book_nodes[index].moves;
-						// movesが0の局面は定跡から除外されているはずなのだが…。
-						ASSERT_LV3(moves.size());
+						progress.check(write_sfens.size());
 
-						// 指し手のなかでbestを選ぶ。同じvalueならdepthが最小であること。
-						BookMove best = moves[0];
-						// moves[0]とbestとの比較は無駄だが、まあいいや。
-						for(auto& move : moves)
+						// 規定の行数を書き出した or rootの局面が定跡DB上に存在しない
+						if (write_sfens.size() >= next_nodes
+							|| hashkey_to_index.count(pos.state()->hash_key()) == 0)
+							break;
+
+						// PVを辿った時の最後のParentMove
+						ParentMove last_parent_move(BookNodeIndexNull,0);
+
+						// leafの局面までの手順
+						//string sfen_path = "startpos moves ";
+
+						// まずPV leafまで辿る。
+						while (true)
 						{
-							if (    move.value > best.value
-								|| (move.value == best.value && move.depth < best.depth)
-								)
-								best = move;
+							// 千日手がPVになってるとこれ以上どうしようもない。
+							// 諦めて次のrootを試す。
+							if (pos.is_repetition(MAX_PLY) == REPETITION_DRAW)
+								goto NEXT_ROOT;
+
+							auto hash_key = pos.state()->hash_key();
+							if (hashkey_to_index.count(hash_key) == 0)
+							{
+								// 局面が定跡DBの範囲から外れた。この局面は定跡未探索。このsfenを書き出しておく。
+								write_sfens.emplace_back(pos.sfen());
+								break;
+
+								// このnodeへのleaf node move(一つ前のnodeがleaf nodeであるはずだから、そのleaf nodeからこの局面へ至る指し手)を削除する。
+								// そのあと、そこから後退解析のようなことをしてrootに評価値を伝播する。
+							} else {
+								// bestmoveを辿っていく。
+								BookNodeIndex index = hashkey_to_index[hash_key];
+								auto& moves = book_nodes[index].moves;
+								// movesが0の局面は定跡から除外されているはずなのだが…。
+								ASSERT_LV3(moves.size());
+
+								// 指し手のなかでbestを選ぶ。同じvalueならdepthが最小であること。
+								BookMove best = BookMove(MOVE_NONE,-BOOK_VALUE_INF,0);
+								last_parent_move = ParentMove(index,0);
+
+								for(size_t i = 0 ; i < moves.size() ; ++i)
+								{
+									auto& move = moves[i];
+
+									// MOVE_NONEは無視する。これは死んでる枝。
+									if ( move.move == MOVE_NONE)
+										continue;
+
+									if (move.value == BOOK_VALUE_NONE)
+									{
+										// 評価値未確定のやつ。これは値によってはこれが即PVになるのでここも探索すべき。
+										si.emplace_back(StateInfo());
+										pos.do_move(move.move,si.back());
+										write_sfens.emplace_back(pos.sfen());
+										pos.undo_move(move.move);
+
+										// 書き出したのでこの枝は死んだことにする。
+										move.move = MOVE_NONE;
+										continue;
+									}
+
+									// bestを更新するか。
+									if (    move.value > best.value
+										|| (move.value == best.value && move.depth < best.depth)
+										)
+									{
+										best = move;
+										// この指し手でdo_moveすることになりそうなのでmove_indexを記録しておく。
+										last_parent_move.move_index = (u32)i;
+									}
+								}
+
+								//sfen_path += to_usi_string(best.move) + ' ';
+
+								si.emplace_back(StateInfo());
+								pos.do_move(best.move, si.back());
+							}
 						}
-						si.emplace_back(StateInfo());
-						pos.do_move(best.move, si.back());
+
+						// 手順もデバッグ用に書き出す。
+						//write_sfens.emplace_back(sfen_path);
+
+						// PV leaf nodeまで到達したので、ここからrootまで遡ってbest move,best valueの更新を行う。
+						// rootまで遡る時にparentsが複数あったりloopがあったりするので単純に遡ると組み合わせ爆発を起こす。
+						// そこで、次のアルゴリズムを用いる。
+
+						/*
+							queue = [処理すべき局面]
+							while queue:
+								p = queue.pop_left()
+								b = pの指し手がすべてMOVE_NONE(無効)になったのか
+								v = 局面pのbestvalue
+								for parent in 局面p.parents():
+									if b:
+										parentの局面pに行く指し手 = MOVE_NONE
+									else:
+										parentの局面pにいく指し手の評価値 = v
+
+									if ↑この代入によりこのnodeのbestvalueが変化したなら
+										queue.push_right(p)
+						*/
+						// 上記のアルゴリズムで停止すると思うのだが、この停止性の証明ができていない。
+						// もしかして評価値が振動して永遠に終わらないかも？
+						// →　であるなら、同じ局面についてはqueueにX回以上pushしないみたいな制限をしてやる必要がある。
+
+						deque<ParentMoveEx> queue;
+						queue.emplace_back(ParentMoveEx(last_parent_move,true,ValueDepth()));
+
+						while (queue.size())
+						{
+							auto pm = queue[0];
+							queue.pop_front();
+
+							auto index      = pm.parent_move.parent;
+							auto move_index = pm.parent_move.move_index;
+							bool is_deleted = pm.is_deleted;
+							auto& book_node = book_nodes[index];
+
+							// 子の局面の指し手がすべてMOVE_NONEなので、子に至るこの指し手を無効化する。
+							// これでbest_valueに変化が生じるのか？
+							if (is_deleted)
+							{
+								book_node.moves[move_index].move  =   MOVE_NONE;
+								// これによりすべてがMOVE_NONEになったか？
+								for(auto move : book_node.moves)
+									is_deleted &= (move.move == MOVE_NONE);
+							}
+							else
+							{
+								// 子からの評価値を伝播させる。
+								// これによって、このnodeの指し手がすべてMOVE_NONEになることはないから
+								// そのチェックは端折ることができる。
+								book_node.moves[move_index].value = pm.best.value;
+								book_node.moves[move_index].depth = pm.best.depth;
+							}
+
+							// 親に伝播させる。
+
+							if (is_deleted)
+							{
+								// このnodeのすべて枝が死んだのでこのnodeは消滅させる。
+								hashkey_to_index.erase(book_node.key);
+
+								// 親に伝播させる。
+								for(auto& parent_move : book_node.parents)
+									queue.emplace_back(parent_move, is_deleted, ValueDepth());
+
+							} else {
+
+								auto& best = get_bestvalue(book_node);
+
+								if (best.value != book_node.lastBestValue)
+								{
+									// 次回用にlastBestValueを更新しておく。
+									book_node.lastBestValue = best.value;
+
+									// 親に伝播するのでvalueの符号はこの時点で反転させておく。
+									best.value = - best.value;
+									best.depth =   best.depth + 1;
+
+									// 親に伝播させる。
+									for(auto& parent_move : book_node.parents)
+										queue.emplace_back(parent_move, is_deleted, best);
+								}
+							}
+
+						}
 					}
 
+				NEXT_ROOT:;
 
-					writer.WriteLine(sfen);
-					write_counter++;
 				}
+
+				progress.check(next_nodes);
+
+				SystemIO::WriteAllLines(writebook_path, write_sfens);
+				write_counter = write_sfens.size();
 
 			} else {
 
@@ -610,7 +815,7 @@ namespace MakeBook2023
 					progress.check(++counter);
 				}
 				// 定跡ファイルの書き出し
-				new_book.write_book(writebook_name);
+				new_book.write_book(writebook_path);
 				write_counter = new_book.size();
 			}
 
