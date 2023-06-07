@@ -253,88 +253,82 @@ namespace MakeBook2023
 			// 局面の合流チェック
 
 			cout << "Convergence Check   :" << endl;
+
+			// sfen nextの時はこの処理端折りたいのだが、parent局面の登録などが必要で
+			// この工程を端折るのはそう簡単ではないからやめておく。
+
 			// 合流した指し手の数
 			u64 converged_moves = 0;
 
-			// sfen_nextの時はこの処理端折っても結果は大差ないと思うので端折る。
+			counter = 0;
+			progress.reset(book.size());
 
-			//if (next)
-			// →　何かの初期化が足りなくて後退解析IVでアクセス違反になるのでskipするのやめとく。
-			if (false)
-			{
-				cout << "..skip" << endl;
-			} else {
+			book.foreach([&](string sfen,Book::BookMovesPtr& book_moves){
 
-				counter = 0;
-				progress.reset(book.size());
+				StateInfo si,si2;
+				pos.set(sfen,&si,Threads.main());
+				HASH_KEY key = pos.state()->hash_key();
+				// 先に定跡局面は登録したので、このindexが存在することは保証されている。
+				BookNodeIndex index = this->hashkey_to_index[key];
 
-				book.foreach([&](string sfen,Book::BookMovesPtr& book_moves){
+				// いまからこのBookNodeを設定していく。
+				BookNode& book_node = this->book_nodes[index];
 
-					StateInfo si,si2;
-					pos.set(sfen,&si,Threads.main());
-					HASH_KEY key = pos.state()->hash_key();
-					// 先に定跡局面は登録したので、このindexが存在することは保証されている。
-					BookNodeIndex index = this->hashkey_to_index[key];
+				// 手番をBookNodeに保存しておく。
+				book_node.color = pos.side_to_move();
 
-					// いまからこのBookNodeを設定していく。
-					BookNode& book_node = this->book_nodes[index];
+				// ここから全合法手で一手進めて既知の局面に行き着くかを調べる。
+				for(auto move:MoveList<LEGAL_ALL>(pos))
+				{
+					pos.do_move(move,si2);
 
-					// 手番をBookNodeに保存しておく。
-					book_node.color = pos.side_to_move();
+					// moveで進めた局面が存在する時のhash値。
+					HASH_KEY next_hash = pos.state()->hash_key();
 
-					// ここから全合法手で一手進めて既知の局面に行き着くかを調べる。
-					for(auto move:MoveList<LEGAL_ALL>(pos))
+					if (this->hashkey_to_index.count(next_hash) > 0)
 					{
-						pos.do_move(move,si2);
+						// 定跡局面が存在した。
 
-						// moveで進めた局面が存在する時のhash値。
-						HASH_KEY next_hash = pos.state()->hash_key();
+						// 元のnodeの出次数をと、next_nodeへの入次数をインクリメントしてやる。
+						// (後退解析みたいなことをしたいので)
+						book_node.out_count++;
+						BookNodeIndex next_book_node_index = this->hashkey_to_index[next_hash];
+						BookNode&     next_book_node       = this->book_nodes[next_book_node_index];
 
-						if (this->hashkey_to_index.count(next_hash) > 0)
-						{
-							// 定跡局面が存在した。
+						// parentのlistに、元のnodeを追加しておく。
+						next_book_node.parents.emplace_back(ParentMove(index,book_node.moves.size()));
 
-							// 元のnodeの出次数をと、next_nodeへの入次数をインクリメントしてやる。
-							// (後退解析みたいなことをしたいので)
-							book_node.out_count++;
-							BookNodeIndex next_book_node_index = this->hashkey_to_index[next_hash];
-							BookNode&     next_book_node       = this->book_nodes[next_book_node_index];
-
-							// parentのlistに、元のnodeを追加しておく。
-							next_book_node.parents.emplace_back(ParentMove(index,book_node.moves.size()));
-
-							// どうせmin-maxして、ここの評価値とdepthは上書きされるから何でも良い。
-							BookMove book_move(move,0,0,next_book_node_index);
-							book_node.moves.emplace_back(book_move);
-							converged_moves++;
-						}
-
-						pos.undo_move(move);
+						// どうせmin-maxして、ここの評価値とdepthは上書きされるから何でも良い。
+						BookMove book_move(move,0,0,next_book_node_index);
+						book_node.moves.emplace_back(book_move);
+						converged_moves++;
 					}
 
-					// 定跡DB上のこの局面の指し手も登録しておく。
-					book_moves->foreach([&](Book::BookMove& book_move){
-							Move move = pos.to_move(book_move.move);
-							int depth = book_move.depth;
-							int value = book_move.value;
+					pos.undo_move(move);
+				}
 
-							// これがbook_nodeにすでに登録されているか？
-							if (std::find_if(book_node.moves.begin(),book_node.moves.end(),[&](auto& book_move){ return book_move.move == move; })== book_node.moves.end())
-							{
-								// 登録されてなかったので登録する。(登録されていればどうせmin-max探索によって値が上書きされるので登録しなくて良い。)
-								// 登録されていなかったということは、ここから接続されているnodeはないので、出次数には影響を与えない。
-								BookMove book_move(move,value,depth);
-								book_node.moves.emplace_back(book_move);
-							} else {
-								// 登録されていたのでconvergeしたやつではなかったから、convergeカウンターはデクリメントしておく。
-								converged_moves--;
-							}
+				// 定跡DB上のこの局面の指し手も登録しておく。
+				book_moves->foreach([&](Book::BookMove& bm){
+						Move move = pos.to_move(bm.move);
+						int depth = bm.depth;
+						int value = bm.value;
+
+						// これがbook_nodeにすでに登録されているか？
+						if (std::find_if(book_node.moves.begin(),book_node.moves.end(),[&](auto& book_move){ return book_move.move == move; })== book_node.moves.end())
+						{
+							// 登録されてなかったので登録する。(登録されていればどうせmin-max探索によって値が上書きされるので登録しなくて良い。)
+							// 登録されていなかったということは、ここから接続されているnodeはないので、出次数には影響を与えない。
+							BookMove book_move(move,value,depth);
+							book_node.moves.emplace_back(book_move);
+						} else {
+							// 登録されていたのでconvergeしたやつではなかったから、convergeカウンターはデクリメントしておく。
+							converged_moves--;
 						}
-					);
+					}
+				);
 
-					progress.check(++counter);
-				});
-			}
+				progress.check(++counter);
+			});
 
 			//cout << "converged_moves : " << converged_moves << endl;
 
@@ -773,6 +767,10 @@ namespace MakeBook2023
 								// 親に伝播させる。
 								for(auto& parent_move : book_node.parents)
 									queue.emplace_back(parent_move, is_deleted, ValueDepth());
+
+								// ここからparentへの経路はここで絶たれたことにしておかないと
+								// 死んでいるノードだけが循環しているケースでwhileが終了しない。
+								book_node.parents.clear();
 
 							} else {
 
