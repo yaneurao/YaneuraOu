@@ -458,7 +458,7 @@ namespace MakeBook2023
 						if (book_move.next != BookNodeIndexNull)
 						{
 							book_move.depth = 1;
-							book_move.value = draw_value(REPETITION_DRAW,book_node.color);
+							book_move.value = draw_value(REPETITION_DRAW, book_node.color);
 						}
 
 			progress.reset(counter * MAX_PLY);
@@ -630,8 +630,11 @@ namespace MakeBook2023
 						while (true)
 						{
 							// 千日手がPVになってる。
-							if (pos.is_repetition(MAX_PLY) == REPETITION_DRAW)
+							if (pos.is_repetition(MAX_PLY) == REPETITION_DRAW || pos.game_ply() >= MAX_PLY )
 							{
+								// たまに循環がひたすら回避されながら無限に手数が増えることがあるのでgame_ply()の判定必須。
+								// ここ、切断してはいけないところが切断される可能性があるか…。まあ仕方ないな…。
+
 								//if (last_parent_move.parent == BookNodeIndexNull)
 								//	goto NEXT_ROOT;
 
@@ -717,7 +720,7 @@ namespace MakeBook2023
 									else:
 										parentの局面pにいく指し手の評価値 = v
 
-									if ↑この代入によりこのnodeのbestvalueが変化したなら
+									if ↑この代入によりこのparent nodeのbestvalueが変化したなら
 										queue.push_right(p)
 						*/
 						// 上記のアルゴリズムで停止すると思うのだが、この停止性の証明ができていない。

@@ -200,10 +200,19 @@ TTEntry* TranspositionTable::probe(const Key key_for_index, const TTEntry::KEY_T
 	TTEntry* replace = tte;
 	for (int i = 1; i < ClusterSize; ++i)
 
-		// ・深い探索の結果であるものほど価値があるので残しておきたい。depth8 × 重み1.0
-		// ・generationがいまの探索generationに近いものほど価値があるので残しておきたい。geration(4ずつ増える)×重み 2.0
+		// ・深い探索の結果であるものほど価値があるので残しておきたい。すなわち、depth8 が高いほど良い探索結果だから残しておきたい。
+		// ・generationがいまの探索generationに近いものほど価値があるので残しておきたい。depth8 - generation のようにする。
+		// 　　gerationは、次の局面が来るごとに8ずつ増える。普通は2手先の局面が来る。
+		//     (新規対局時にはTTを丸ごとクリアしているから新規対局時のことは考えなくて良い)
+		// 　　すなわち2手前の局面の探索結果については、depth8 - 8 の深さで探索した結果であるとみなす。(depth8 - 2でもいいような気は少しするが、
+		// 　　この情報が現局面から到達可能な局面の情報とは限らないので、少し大きめのペナルティを加えているのだと思う。)
+		//
 		// 以上に基いてスコアリングする。
 		// 以上の合計が一番小さいTTEntryを使う。
+		//
+		// 詳しくは、以下のブログ記事に書いた。
+		//		https://yaneuraou.yaneu.com/2023/06/09/replacement-strategy-in-transposition-table/
+		// 
 
       // Due to our packed storage format for generation and its cyclic
       // nature we add GENERATION_CYCLE (256 is the modulus, plus what
