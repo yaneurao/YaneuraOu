@@ -68,12 +68,15 @@ namespace MakeBook2023
 	};
 
 	// BoonNodeの評価値で∞を表現する定数。
-	const int BOOK_VALUE_INF = numeric_limits<int>::max();
+	const int BOOK_VALUE_INF  = numeric_limits<int>::max();
 
 	// ペタショック前の定跡DBに指し手の評価値を99999にして書き出しておくと、
 	// これは指し手は存在するけど評価値は不明の指し手である。(という約束にする)
 	// これは棋譜の指し手などを定跡DBに登録する時に評価値が確定しないのでそういう時に用いる。
 	const int BOOK_VALUE_NONE = -99999;
+
+	// 定跡で千日手手順の時のdepth。∞であることがわかる特徴的な定数にしておくといいと思う。
+	const int BOOK_DEPTH_INF = 9999;
 
 	// あるnodeに対してその親nodeとその何番目の指し手がこのnodeに接続されているのかを保持する構造体。
 	struct ParentMove
@@ -82,6 +85,23 @@ namespace MakeBook2023
 
 		BookNodeIndex parent;
 		u32 move_index;
+	};
+
+	// 定跡の評価値とその時のdepthをひとまとめにした構造体
+	struct ValueDepth
+	{
+		ValueDepth()
+			: value(BOOK_VALUE_NONE), depth(0) {}
+
+		ValueDepth(int value, int depth)
+			: value(value) , depth(depth){}
+
+		int value;
+		int depth;
+
+		// 比較オペレーター
+		bool operator==(ValueDepth& v) { return value==v.value && depth==v.depth;}
+		bool operator!=(ValueDepth& v) { return !(*this==v); }
 	};
 
 	// 定跡の1つの局面を表現する構造体。
@@ -103,26 +123,13 @@ namespace MakeBook2023
 		vector<ParentMove> parents;
 
 		// 後退解析IIの時の前回のbestValue。全ノード、これが前回と変わっていないなら後退解析を終了できる。
-		int lastBestValue = BOOK_VALUE_INF;
+		ValueDepth lastBest = ValueDepth(BOOK_VALUE_INF,0);
 
 		// 指し手
 		vector<BookMove> moves;
 
 		// key(この局面からhash keyを逆引きしたい時に必要になるので仕方なく追加してある)
 		HASH_KEY key;
-	};
-
-	// 定跡の評価値とその時のdepthをひとまとめにした構造体
-	struct ValueDepth
-	{
-		ValueDepth()
-			: value(BOOK_VALUE_NONE), depth(0) {}
-
-		ValueDepth(int value, int depth)
-			: value(value) , depth(depth){}
-
-		int value;
-		int depth;
 	};
 
 	// 後退解析IVで用いる構造体。
@@ -194,9 +201,13 @@ namespace MakeBook2023
 			cout << "readbook_path    : " << readbook_path  << endl;
 			cout << "writebook_path   : " << writebook_path << endl;
 
+			// DrawValueBlackの反映(DrawValueWhiteは無視)
+			drawValueTable[REPETITION_DRAW][BLACK] =   Value((int)Options["DrawValueBlack"]);
+			drawValueTable[REPETITION_DRAW][WHITE] = - Value((int)Options["DrawValueBlack"]);
+
 			// 引き分けのスコアを変更したいなら先に変更しておいて欲しい。
-			cout << "draw_value black : " << draw_value(REPETITION_DRAW,BLACK) << endl;
-			cout << "draw_value white : " << draw_value(REPETITION_DRAW,WHITE) << endl;
+			cout << "draw_value_black : " << draw_value(REPETITION_DRAW, BLACK) << endl;
+			cout << "draw_value_white : " << draw_value(REPETITION_DRAW, WHITE) << endl;
 
 			cout << endl;
 
@@ -388,18 +399,17 @@ namespace MakeBook2023
 					auto& book_node = book_nodes[index];
 
 					// この局面の評価値のうち、一番いいやつを親に伝播する
-					int best_value = numeric_limits<int>::min();
-					int best_depth = 0;
+					ValueDepth best(-BOOK_VALUE_INF , 0);
 					for(auto& book_move : book_node.moves)
 					{
 						// 値が同じならdepthの低いほうを採用する。
 						// 同じvalueの局面ならば最短で行けたほうが得であるから。
-						if (best_value == book_move.value)
-							best_depth = std::min(best_depth , book_move.depth);
-						else if (best_value < book_move.value)
+						if (best.value == book_move.value)
+							best.depth = std::min(best.depth , book_move.depth);
+						else if (best.value < book_move.value)
 						{
-							best_value = book_move.value;
-							best_depth = book_move.depth;
+							best.value = book_move.value;
+							best.depth = book_move.depth;
 						}
 					}
 
@@ -409,8 +419,10 @@ namespace MakeBook2023
 						auto& parent_move_index = parent_ki.move_index;
 
 						auto& m = parent.moves[parent_move_index];
-						m.value = -best_value;            // min-maxなので符号を反転
-						m.depth =  best_depth + 1;        // depthは一つ深くなった
+						m.value = -best.value;      // min-maxなので符号を反転
+						m.depth =  best.depth + 1;  // depthは一つ深くなった
+						// →　出自数0なのでdepthがBOOK_DEPTH_INFであることは無いからそのチェックは不要。
+
 						m.next  = BookNodeIndexNull; // この指し手はもう辿る必要がないのでここがnodeがleaf nodeに変わったことにしておく。
 
 						// parentの出次数が1減る。parentの出次数が0になったなら、処理対象としてqueueに追加。
@@ -457,8 +469,12 @@ namespace MakeBook2023
 					for(auto& book_move : book_node.moves)
 						if (book_move.next != BookNodeIndexNull)
 						{
-							book_move.depth = 1;
+							// 千日手の時のvalueとdepth。
+							// これは、
+							//	value = draw_value
+							//	depth = ∞
 							book_move.value = draw_value(REPETITION_DRAW, book_node.color);
+							book_move.depth = BOOK_DEPTH_INF;
 						}
 
 			progress.reset(counter * MAX_PLY);
@@ -468,9 +484,9 @@ namespace MakeBook2023
 			auto get_bestvalue = [&](BookNode& node)
 			{
 				// まずこのnodeの結論を得る。
-				ValueDepth best(numeric_limits<int>::min(),0);
+				ValueDepth best(-BOOK_VALUE_INF, BOOK_DEPTH_INF);
 						
-				for(auto& book_move:node.moves)
+				for(auto& book_move: node.moves)
 				{
 					// MOVE_NONEならこの枝はないものとして扱う。
 					if (book_move.move == MOVE_NONE)
@@ -498,8 +514,11 @@ namespace MakeBook2023
 
 				for(auto& book_move : node.moves)
 				{
+
 					if (   best.value == book_move.value
 						&& best.depth  < book_move.depth
+						&& book_move.depth == BOOK_DEPTH_INF
+						// 千日手スコアであることも条件に含めておく。千日手スコアでないなら、1減らさなくともランダムに選ばれて良いと思うので。
 						)
 						// depthが最小でない指し手の評価値を1だけ減らしておく。
 
@@ -523,23 +542,34 @@ namespace MakeBook2023
 					{
 						auto best = get_bestvalue(book_node);
 
-						if (book_node.lastBestValue != best.value)
+						// 親nodeをupdateするのか。
+						bool update_parent = false;
+
+						// valueかdepthが違う限り伝播し続けて良い。
+						if (   book_node.lastBest != best )
 						{
-							book_node.lastBestValue = best.value;
+							book_node.lastBest = best;
 							updated = true;
+							update_parent = true;
 						}
 
-						// このnodeの評価が決まったので、これをparentに伝達する。
-						// 子:親は1:Nだが、親のある指し手によって進める子は高々1つしかいないので
-						// 子の評価値は、それぞれの親のこの局面に進む指し手の評価値としてそのまま伝播される。
-						for(auto& parent : book_node.parents)
+						if (update_parent)
 						{
-							BookNodeIndex parent_index = parent.parent;
-							BookNode&     parent_node  = book_nodes[parent_index];
-							BookMove& my_parent_move   = parent_node.moves[parent.move_index];
+							// このnodeの評価が決まり、更新が確定したので、これをparentに伝達する。
+							// 子:親は1:Nだが、親のある指し手によって進める子は高々1つしかいないので
+							// 子の評価値は、それぞれの親のこの局面に進む指し手の評価値としてそのまま伝播される。
+							for(auto& parent : book_node.parents)
+							{
+								BookNodeIndex parent_index = parent.parent;
+								BookNode&     parent_node  = book_nodes[parent_index];
+								BookMove& my_parent_move   = parent_node.moves[parent.move_index];
 
-							my_parent_move.value = - best.value;
-							my_parent_move.depth =   best.depth + 1;
+								// 親に伝播させている以上、前回のvalueの値と異なることは確定している。
+								// ゆえに、depthの書き換えも必須。
+
+								my_parent_move.value =      - best.value;
+								my_parent_move.depth = min(   best.depth + 1 , BOOK_DEPTH_INF);
+							}
 						}
 					}
 
@@ -632,7 +662,7 @@ namespace MakeBook2023
 							// 千日手がPVになってる。
 							if (pos.is_repetition(MAX_PLY) == REPETITION_DRAW || pos.game_ply() >= MAX_PLY )
 							{
-								// たまに循環がひたすら回避されながら無限に手数が増えることがあるのでgame_ply()の判定必須。
+								// たまに循環がひたすら回避されながらMAX_PLYを超えて手数が増えることがあるのでgame_ply()の判定必須。
 								// ここ、切断してはいけないところが切断される可能性があるか…。まあ仕方ないな…。
 
 								//if (last_parent_move.parent == BookNodeIndexNull)
@@ -673,6 +703,8 @@ namespace MakeBook2023
 									if (move.value == BOOK_VALUE_NONE)
 									{
 										// 評価値未確定のやつ。これは値によってはこれが即PVになるのでここも探索すべき。
+										// またvalueがBOOK_VALUE_NONEであるということは子からの評価値の伝播がなかったということだから、
+										// この指し手で進めてもbook_nodesに格納されている局面には進行しないことは保証されている。
 										si.emplace_back(StateInfo());
 										pos.do_move(move.move,si.back());
 										write_sfens.emplace_back(pos.sfen());
@@ -685,7 +717,7 @@ namespace MakeBook2023
 
 									// bestを更新するか。
 									if (    move.value > best.value
-										|| (move.value == best.value && move.depth < best.depth)
+										|| (/*move.value == best.value &&*/ move.depth < best.depth)
 										)
 									{
 										best = move;
@@ -779,14 +811,15 @@ namespace MakeBook2023
 
 								auto& best = get_bestvalue(book_node);
 
-								if (best.value != book_node.lastBestValue)
+								if (   best.value != book_node.lastBest.value
+									|| best.depth <  book_node.lastBest.depth)
 								{
 									// 次回用にlastBestValueを更新しておく。
-									book_node.lastBestValue = best.value;
+									book_node.lastBest = best;
 
 									// 親に伝播するのでvalueの符号はこの時点で反転させておく。
-									best.value = - best.value;
-									best.depth =   best.depth + 1;
+									best.value =      - best.value;
+									best.depth = min(   best.depth + 1 , BOOK_DEPTH_INF);
 
 									// 親に伝播させる。
 									for(auto& parent_move : book_node.parents)
