@@ -245,6 +245,9 @@ namespace MakeBook2023
 
 		// key(この局面からhash keyを逆引きしたい時に必要になるので仕方なく追加してある)
 		HASH_KEY key;
+
+		// 初期局面からの手数
+		int ply = 0;
 	};
 
 	// 後退解析IVで用いる構造体。
@@ -263,6 +266,15 @@ namespace MakeBook2023
 		ValueDepth best;
 	};
 
+	// plyを求めるためにBFSする時に必要な構造体
+	struct BookNodeIndexPly
+	{
+		BookNodeIndexPly(BookNodeIndex index, int ply):
+			index(index), ply(ply){}
+
+		BookNodeIndex index;
+		int ply;
+	};
 
 	// hashkeyのbit数をチェックする。
 	void hashbit_check()
@@ -293,36 +305,44 @@ namespace MakeBook2023
 
 			// 次の思考対象とすべきsfenを書き出す時のその局面の数。
 			u64 next_nodes = 0;
-			if (next)
-				is >> next_nodes;
+
+			// plyが1手小さいごとに加点されるボーナス
+			float bonus = 0;
 
 			is >> readbook_path >> writebook_path;
 
 			readbook_path  = Path::Combine("book",readbook_path );
 			writebook_path = Path::Combine("book",writebook_path);
 
+			if (next)
+			{
+				is >> next_nodes;
+				is >> bonus;
+			}
+
 			cout << "[ PetaShock makebook CONFIGURATION ]" << endl;
 
 			if (next)
 			{
 				// 書き出すsfenの数
-				cout << "write next_sfens : " << next_nodes << endl;
+				cout << "write next_sfens   : " << next_nodes << endl;
+				cout << "eval bonus for ply : " << bonus << endl;
 
 				// これは現状ファイル名固定でいいや。
 				root_sfens_path = Path::Combine("book","root_sfens.txt");
-				cout << "root_sfens_path  : " << root_sfens_path << endl;
+				cout << "root_sfens_path    : " << root_sfens_path << endl;
 			}
 
-			cout << "readbook_path    : " << readbook_path  << endl;
-			cout << "writebook_path   : " << writebook_path << endl;
+			cout << "readbook_path      : " << readbook_path  << endl;
+			cout << "writebook_path     : " << writebook_path << endl;
 
 			// DrawValueBlackの反映(DrawValueWhiteは無視)
 			drawValueTable[REPETITION_DRAW][BLACK] =   Value((int)Options["DrawValueBlack"]);
 			drawValueTable[REPETITION_DRAW][WHITE] = - Value((int)Options["DrawValueBlack"]);
 
 			// 引き分けのスコアを変更したいなら先に変更しておいて欲しい。
-			cout << "draw_value_black : " << draw_value(REPETITION_DRAW, BLACK) << endl;
-			cout << "draw_value_white : " << draw_value(REPETITION_DRAW, WHITE) << endl;
+			cout << "draw_value_black   : " << draw_value(REPETITION_DRAW, BLACK) << endl;
+			cout << "draw_value_white   : " << draw_value(REPETITION_DRAW, WHITE) << endl;
 
 			cout << endl;
 
@@ -413,6 +433,20 @@ namespace MakeBook2023
 				}
 			};
 
+			// 定跡の開始局面。
+			// "book/root_sfens.txt"からrootのsfen集合を読み込むことにする。
+			// これはUSIのposition文字列の"position"を省略した文字列であること。
+			// つまり、
+			//   startpos
+			//   startpos moves ...
+			//   sfen ...
+			// のような文字列である。
+			vector<string> root_sfens;
+			if (next)
+			{
+				if (SystemIO::ReadAllLines(root_sfens_path,root_sfens).is_not_ok())
+					root_sfens.emplace_back(BookTools::get_start_sfens()[0]);
+			}
 
 			// 局面数などをカウントするのに用いるカウンター。
 			u64 counter = 0;
@@ -563,6 +597,67 @@ namespace MakeBook2023
 			//       if --parent.出次数 == 0:                    # 出次数が0になったのでこの局面もqueueに追加する。
 			//         queue.push(parent)
 
+
+			// 評価値ボーナスはplyに対して与えられるので初期局面からの手数が必須。
+			if (bonus != 0)
+			{
+				// BFSして初期局面からの手数を計算する。
+				cout << "BFS for eval bonus for ply." << endl;
+				progress.check(book_nodes.size());
+
+				u64 counter = 0;
+
+				for(auto root_sfen : root_sfens)
+				{
+					// 作業対象nodeが入っているqueue
+					// このqueueは処理順は問題ではないので両端queueでなくて良いからvectorで実装しておく。
+					deque<BookNodeIndexPly> queue;
+					deque<StateInfo> si;
+					BookTools::feed_position_string(pos, root_sfen, si);
+					auto hash_key = pos.state()->hash_key();
+					if (this->hashkey_to_index.count(hash_key) > 0)
+					{
+						BookNodeIndex index = hashkey_to_index[hash_key];
+						int ply = pos.game_ply();
+						queue.push_back(BookNodeIndexPly(index , ply));
+					}
+
+					while (queue.size())
+					{
+						BookNodeIndexPly ip = queue[0];
+						queue.pop_front();
+						int ply = ip.ply;
+
+						auto& book_node = book_nodes[ip.index];
+
+						// このnodeは計算済みであるか？
+						if (book_node.ply !=0)
+							continue;
+
+						// 忘れないうちに代入しておく。
+						book_node.ply = ply;
+
+						for(auto& book_move : book_node.moves)
+						{
+							BookNodeIndex next = book_move.next;
+							if (next == BookNodeIndexNull)
+							{
+								// leaf moveなのでせっかくだからここでevalを補正しとくか…。
+								if (bonus != 0)
+								{
+									// 先手から見たvalueなので後手なら反転させて考える必要がある。
+									book_move.vd.value -= (int)((book_node.color == BLACK ? 1 : -1) * ply * bonus);
+								}
+							} else {
+								queue.push_back(BookNodeIndexPly(next,ply+1));
+							}
+						}
+
+						progress.check(++counter);
+					}
+				}
+			}
+
 			// 後退解析その1 : 出次数0の局面を削除
 			cout << "Retrograde Analysis : Step I   -> delete nodes with zero out-degree." << endl;
 			u64 retro_counter1 = 0;
@@ -630,10 +725,15 @@ namespace MakeBook2023
 			// 出次数0以外の残りのnodeの数をカウント。
 			// これらは何らかloopしているということなのできちんとしたmin-max探索が必要となる。
 			u64 retro_counter2 = 0;
-			for(size_t i = 0 ; i < book_nodes.size() ; i++)
+			if (next)
+				retro_counter2 = book_nodes.size();
+			else
 			{
-				if (book_nodes[i].out_count !=0)
-					retro_counter2++;
+				for(size_t i = 0 ; i < book_nodes.size() ; i++)
+				{
+					if (book_nodes[i].out_count !=0)
+						retro_counter2++;
+				}
 			}
 
 			// 後退解析その2 : すべてのノードの親に評価値を伝播。MAX_PLY回行われる。
@@ -738,18 +838,6 @@ namespace MakeBook2023
 				// rootから辿っていきPV leafに到達したらそのsfenを書き出す。
 				// そのPV leaf nodeを削除して後退解析により、各局面の評価値を更新する。
 				// これを繰り返す。
-
-				// 定跡の開始局面。
-				// "book/root_sfens.txt"からrootのsfen集合を読み込むことにする。
-				// これはUSIのposition文字列の"position"を省略した文字列であること。
-				// つまり、
-				//   startpos
-				//   startpos moves ...
-				//   sfen ...
-				// のような文字列である。
-				vector<string> root_sfens;
-				if (SystemIO::ReadAllLines(root_sfens_path,root_sfens).is_not_ok())
-					root_sfens.emplace_back(BookTools::get_start_sfens()[0]);
 
 				progress.reset(next_nodes);
 
@@ -1050,7 +1138,9 @@ namespace Book
 
 			// ペタショックnext
 			// ペタショック手法と組み合わせてmin-maxして、有望な局面をsfen形式でテキストファイルに書き出す。
-			//   makebook peta_shock_next 1000 book.db sfens.txt
+			//   makebook peta_shock_next book.db sfens.txt 1000
+			//   makebook peta_shock_next book.db sfens.txt 1000 1.2
+			// 1000局面を書き出す。1.2はplyが1手早いことに対する評価値のbonus。
 			MakeBook2023::PetaShock ps;
 			ps.make_book(pos, is , true);
 			return 1;
