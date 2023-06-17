@@ -85,11 +85,11 @@ namespace MakeBook2023
 		*/
 
 		// 比較オペレーター
-		bool operator==(DrawState& v) { return state==v.state;}
-		bool operator!=(DrawState& v) { return !(*this==v); }
+		bool operator==(const DrawState& v) const { return state==v.state;}
+		bool operator!=(const DrawState& v) const { return !(*this==v); }
 
 		// 手番cにおいて評価値が同じ時に this のほうが yより勝るか。
-		bool is_superior(DrawState y, Color c)
+		bool is_superior(DrawState y, Color c) const
 		{
 			// 先手にとってのbestを選出する順番
 			constexpr int black_[] = {1,3,2,4};
@@ -154,14 +154,14 @@ namespace MakeBook2023
 		DrawState draw_state;
 
 		// 比較オペレーター
-		bool operator==(ValueDepth& v) { return value==v.value && depth==v.depth && draw_state==v.draw_state;}
-		bool operator!=(ValueDepth& v) { return !(*this==v); }
+		bool operator==(const ValueDepth& v) const { return value==v.value && depth==v.depth && draw_state==v.draw_state;}
+		bool operator!=(const ValueDepth& v) const { return !(*this==v); }
 
 		// 優れているかの比較
 		// 1. 評価値が優れている。
 		// 2. 評価値が同じ場合、DrawStateが優れている
 		// 3. 評価値とDrawStateも同じ場合、depthが小さいほうが優れている
-		bool is_superior(ValueDepth& v, Color color)
+		bool is_superior(ValueDepth& v, Color color) const
 		{
 			// 評価値ベースの比較
 			if (this->value != v.value)
@@ -307,6 +307,7 @@ namespace MakeBook2023
 			u64 next_nodes = 0;
 
 			// plyが1手小さいごとに加点されるボーナス
+			// (plyが1手大きいごとに減点されるペナルティとも言える)
 			float bonus = 0;
 
 			is >> readbook_path >> writebook_path;
@@ -367,21 +368,28 @@ namespace MakeBook2023
 			// === helper function ===
 
 			// あるnodeのbestと親に伝播すべきparent_vdとを得るヘルパー関数。
-			auto get_bestvalue = [&](BookNode& node , ValueDepth& parent_vd)
+			// best_index : 何番目の指し手がbestであったのかを返す。
+			auto get_bestvalue = [&](BookNode& node , ValueDepth& parent_vd , size_t& best_index)
 			{
 				// まずこのnodeのbestを得る。
 				ValueDepth best(-BOOK_VALUE_INF, BOOK_DEPTH_INF);
 				// 親に伝播するbest
 				parent_vd = ValueDepth(-BOOK_VALUE_INF,BOOK_DEPTH_INF,DrawState(3));
-						
-				for(auto& book_move: node.moves)
+
+				best_index = 0;
+				for(size_t i = 0 ; i< node.moves.size() ; ++i)
 				{
+					const auto& book_move = node.moves[i];
+
 					// MOVE_NONEならこの枝はないものとして扱う。
 					if (book_move.move == MOVE_NONE)
 						continue;
 
 					if (book_move.vd.is_superior(best, node.color))
+					{
 						best = book_move.vd;
+						best_index = i;
+					}
 
 					if (parent_vd.value < book_move.vd.value)
 						parent_vd = book_move.vd;
@@ -407,7 +415,8 @@ namespace MakeBook2023
 			auto adjust_second_bestvalue = [&](BookNode& node)
 			{
 				ValueDepth vd;
-				auto best = get_bestvalue(node, vd);
+				size_t _;
+				auto best = get_bestvalue(node, vd , _);
 
 				for(auto& book_move : node.moves)
 				{
@@ -642,7 +651,7 @@ namespace MakeBook2023
 							BookNodeIndex next = book_move.next;
 							if (next == BookNodeIndexNull)
 							{
-								// leaf moveなのでせっかくだからここでevalを補正しとくか…。
+								// leaf moveなのでせっかくだからここでevalを補整しとくか…。
 								if (bonus != 0)
 								{
 									// 先手から見たvalueなので後手なら反転させて考える必要がある。
@@ -693,7 +702,8 @@ namespace MakeBook2023
 					auto& book_node = book_nodes[index];
 
 					ValueDepth parent_vd;
-					auto best = get_bestvalue(book_node , parent_vd);
+					size_t _;
+					auto best = get_bestvalue(book_node , parent_vd , _);
 
 					for(auto& parent_ki : book_node.parents)
 					{
@@ -765,7 +775,8 @@ namespace MakeBook2023
 					if (book_node.parents.size() != 0)
 					{
 						ValueDepth parent_vd;
-						auto best = get_bestvalue(book_node , parent_vd);
+						size_t _;
+						auto best = get_bestvalue(book_node , parent_vd, _);
 
 						// 親nodeをupdateするのか。
 						bool update_parent = false;
@@ -895,22 +906,16 @@ namespace MakeBook2023
 							} else {
 								// bestmoveを辿っていく。
 								BookNodeIndex index = hashkey_to_index[hash_key];
-								auto& moves = book_nodes[index].moves;
+								auto& book_node = book_nodes[index];
+								auto& moves     = book_node.moves;
 								// movesが0の局面は定跡から除外されているはずなのだが…。
 								ASSERT_LV3(moves.size());
 
 								// 指し手のなかでbestを選ぶ。同じvalueならdepthが最小であること。
-								BookMove best = BookMove(MOVE_NONE,-BOOK_VALUE_INF,0);
 								last_parent_move = ParentMove(index,0);
 
-								for(size_t i = 0 ; i < moves.size() ; ++i)
+								for(auto& move : moves)
 								{
-									auto& move = moves[i];
-
-									// MOVE_NONEは無視する。これは死んでる枝。
-									if ( move.move == MOVE_NONE)
-										continue;
-
 									if (move.vd.value == BOOK_VALUE_NONE)
 									{
 										// 評価値未確定のやつ。これは値によってはこれが即PVになるのでここも探索すべき。
@@ -923,24 +928,19 @@ namespace MakeBook2023
 
 										// 書き出したのでこの枝は死んだことにする。
 										move.move = MOVE_NONE;
-										continue;
-									}
-
-									// bestを更新するか。
-									if (    move.vd.value > best.vd.value
-										|| (/*move.value == best.value &&*/ move.vd.depth < best.vd.depth)
-										)
-									{
-										best = move;
-										// この指し手でdo_moveすることになりそうなのでmove_indexを記録しておく。
-										last_parent_move.move_index = (u32)i;
 									}
 								}
+
+								ValueDepth parent_vd;
+								size_t i;
+								auto best = get_bestvalue(book_node, parent_vd , i);
+								// このbestのやつのindexが必要なので何番目にあるか調べる
+								last_parent_move.move_index = (u32)i;
 
 								//sfen_path += to_usi_string(best.move) + ' ';
 
 								si.emplace_back(StateInfo());
-								pos.do_move(best.move, si.back());
+								pos.do_move(moves[i].move, si.back());
 							}
 						}
 
@@ -967,13 +967,15 @@ namespace MakeBook2023
 										queue.push_right(p)
 						*/
 						// 上記のアルゴリズムで停止すると思うのだが、この停止性の証明ができていない。
-						// もしかして評価値が振動して永遠に終わらないかも？
-						// →　であるなら、同じ局面についてはqueueにX回以上pushしないみたいな制限をしてやる必要がある。
+						// 永久ループになることがある。同じ局面は2回更新しないようにする。
 
 					AVOID_REPETITION:;
 
 						deque<ParentMoveEx> queue;
 						queue.emplace_back(ParentMoveEx(last_parent_move,true,ValueDepth()));
+
+						// update済みノード
+						unordered_set<BookNodeIndex> already_searched_node;
 
 						while (queue.size())
 						{
@@ -1013,6 +1015,9 @@ namespace MakeBook2023
 								for(auto& parent_move : book_node.parents)
 									queue.emplace_back(parent_move, is_deleted, ValueDepth());
 
+								// deleteしているので、deleteが二重になされることはないから、
+								// これによって永久ループになることはない。ゆえにこれは2回 parent nodeをupdateしても問題ない。
+
 								// ここからparentへの経路はここで絶たれたことにしておかないと
 								// 死んでいるノードだけが循環しているケースでwhileが終了しない。
 								book_node.parents.clear();
@@ -1020,9 +1025,8 @@ namespace MakeBook2023
 							} else {
 
 								ValueDepth parent_vd;
-								auto& best = get_bestvalue(book_node , parent_vd);
-
-								// これ永久ループにならない保証が欲しいのだが…。
+								size_t _;
+								auto& best = get_bestvalue(book_node , parent_vd, _);
 
 								if (   parent_vd != book_node.lastParentVd )
 								{
@@ -1031,7 +1035,16 @@ namespace MakeBook2023
 
 									// 親に伝播させる。
 									for(auto& parent_move : book_node.parents)
+									{
+										// すでに一度updateしてあるならスキップする
+										BookNodeIndex parent = parent_move.parent;
+										if (already_searched_node.count(parent) > 0)
+											continue;
+										// これは一度updateしたのでこれ以上追加しないようにしておく。
+										already_searched_node.emplace(parent);
+
 										queue.emplace_back(parent_move, is_deleted, parent_vd);
+									}
 								}
 							}
 
