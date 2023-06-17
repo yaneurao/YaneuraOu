@@ -853,7 +853,7 @@ namespace MakeBook2023
 				progress.reset(next_nodes);
 
 				// 書き出すsfen
-				vector<string> write_sfens;
+				unordered_set<string> write_sfens;
 
 				// それぞれのroot_sfenに対して。
 				for(auto root_sfen : root_sfens)
@@ -898,7 +898,7 @@ namespace MakeBook2023
 							if (hashkey_to_index.count(hash_key) == 0)
 							{
 								// 局面が定跡DBの範囲から外れた。この局面は定跡未探索。このsfenを書き出しておく。
-								write_sfens.emplace_back(pos.sfen());
+								write_sfens.emplace(pos.sfen());
 								break;
 
 								// このnodeへのleaf node move(一つ前のnodeがleaf nodeであるはずだから、そのleaf nodeからこの局面へ至る指し手)を削除する。
@@ -923,7 +923,7 @@ namespace MakeBook2023
 										// この指し手で進めてもbook_nodesに格納されている局面には進行しないことは保証されている。
 										si.emplace_back(StateInfo());
 										pos.do_move(move.move,si.back());
-										write_sfens.emplace_back(pos.sfen());
+										write_sfens.emplace(pos.sfen());
 										pos.undo_move(move.move);
 
 										// 書き出したのでこの枝は死んだことにする。
@@ -1057,7 +1057,11 @@ namespace MakeBook2023
 
 				progress.check(next_nodes);
 
-				SystemIO::WriteAllLines(writebook_path, write_sfens);
+				SystemIO::TextWriter writer;
+				writer.Open(writebook_path);
+				for(auto& write_sfen : write_sfens)
+					writer.WriteLine(write_sfen);
+
 				write_counter = write_sfens.size();
 
 			} else {
