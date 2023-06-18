@@ -708,6 +708,17 @@ constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return (Mov
 // また、reverse_move()を用いるならば、ifの条件式に " && !is_drop(move)"が要ると思う。
 static Move16 reverse_move(Move m) { return make_move16(to_sq(m), from_sq(m)); }
 
+// 指し手を反転させる(盤面を180°回転させた指し手にする)
+// 駒打ちもちゃんと考慮する。mがMOVE_NONEでも良い。(MOVE_NONEが返る)
+static Move16 flip_move(Move16 m) {
+
+	return 
+		is_drop   (m)  ? make_move_drop16   (move_dropped_piece(m), Flip(to_sq(m))):
+        is_promote(m)  ? make_move_promote16(Flip(from_sq(m))     , Flip(to_sq(m))):
+					     make_move16        (Flip(from_sq(m))     , Flip(to_sq(m)));
+}
+
+
 // 指し手がおかしくないかをテストする
 // ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。
 // これら２つの定数は、移動元と移動先が等しい値になっている。このテストだけをする。

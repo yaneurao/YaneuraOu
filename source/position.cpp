@@ -390,10 +390,14 @@ const std::string Position::sfen(int gamePly_) const
 		}
 
 	// 手駒がない場合はハイフンを出力
-	ss << (found ? " " : "- ");
+	if (!found)
+		ss << '-';
 
 	// --- 初期局面からの手数
-	ss << gamePly_;
+
+	// ※　裏技 : gamePlyが負なら、sfen文字列末尾の手数を出力しない。
+	if (gamePly_ >= 0)
+		ss << ' ' << gamePly_;
 
 	return ss.str();
 }
@@ -2213,6 +2217,44 @@ Move Position::DeclarationWin() const
 	}
 }
 
+// 盤面を反転(180°回転)させる。
+// ※　定跡生成の処理などで欲しかったので追加した。
+// 注意 :
+//  sfen()とかstate().key()とかの使用のために用いる。
+//  do_move()は想定していないのでやってはならない。
+void Position::flip()
+{
+	Piece pieces[SQ_NB];
+	for(auto sq : SQ)
+	{
+		pieces[sq] = piece_on(sq);
+		// piece除去。
+		remove_piece(sq);
+	}
+	// 逆順で置いていく。
+	for(auto sq : SQ)
+	{
+		Piece pc = pieces[sq];
+		if (pc != NO_PIECE)
+			// 相手番の駒にする
+			pc = make_piece(~color_of(pc),type_of(pc));
+		// flipしたところに駒を配置する。
+		put_piece(Square(SQ_NB- 1 - sq), pc);
+	}
+
+	// 手駒の入れ替え
+	std::swap(hand[BLACK],hand[WHITE]);
+
+	// 手番の反転
+	sideToMove = ~sideToMove;
+
+	// 利きとzobrist hashの更新
+	update_bitboards();
+	update_kingSquare();
+	set_state(st);
+}
+
+
 // ----------------------------------
 //      内部情報の正当性のテスト
 // ----------------------------------
@@ -2585,6 +2627,19 @@ void Position::UnitTest(Test::UnitTester& tester)
 		}
 	}
 
+	{
+		// それ以外のテスト
+		auto section = tester.section("misc");
+
+		{
+			// 盤面の反転
+
+			// 23歩不成ができ、かつ、23歩不成では駒の捕獲にはならない局面。
+			pos_init("lnsgk1snl/1r4g2/p1ppppb1p/6pP1/7R1/2P6/P2PPPP1P/1SG6/LN2KGSNL b BP2p 21");
+			pos.flip();
+			tester.test("flip board", pos.sfen()=="lnsgk2nl/6gs1/p1pppp2p/6p2/1r7/1pP6/P1BPPPP1P/2G4R1/LNS1KGSNL w 2Pbp 21");
+		}
+	}
 
 #if 0
 	// ランダムプレイヤーでの対局

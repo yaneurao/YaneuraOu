@@ -360,8 +360,6 @@ namespace MakeBook2023
 				return ;
 			}
 
-			cout << "Register SFENs      : " << endl;
-
 			// memo : 指し手の存在しない局面はそんな定跡ファイル読み込ませていないか、
 			//        あるいはMemoryBookが排除してくれていると仮定している。
 
@@ -460,26 +458,84 @@ namespace MakeBook2023
 			// 局面数などをカウントするのに用いるカウンター。
 			u64 counter = 0;
 
-			Tools::ProgressBar progress(book.size());
+			// progress表示用
+			Tools::ProgressBar progress;
+
+			// 盤面を反転させた局面が元の定跡DBにどれだけ含まれていたかを示すカウンター。
+			u64 reverse_counter = 0;
+
+			// 盤面を反転させた局面も定跡に登録するかのフラグ。
+			// makebookコマンドのオプションでON/OFF切り替えられるようにすべきか？
+			const bool register_reversed_position = true;
+
+			// 反転局面の登録
+			if (register_reversed_position)
+			{
+				cout << "Reginter reversed positions :" << endl;
+
+				progress.reset(book.size());
+
+				Book::MemoryBook book2;
+				book.foreach([&](const string& sfen,const Book::BookMovesPtr book_moves){
+					StateInfo si;
+					pos.set(sfen,&si,Threads.main());
+					pos.flip();
+					string flip_sfen = pos.sfen(-1); // 手数なしのsfen文字列
+					progress.check(++counter);
+
+					if (book.find(flip_sfen) != nullptr)
+					{
+						// すでに登録されていた
+						++reverse_counter;
+						return;
+					}
+
+					Book::BookMovesPtr flip_book_moves(new Book::BookMoves());
+					for(const auto& bm : *book_moves)
+					{
+						// 盤面を反転させた指し手として設定する。
+						// ponderがMOVE_NONEでもflip_move()がうまく動作することは保証されている。
+						Book::BookMove flip_book_move(flip_move(bm.move), flip_move(bm.ponder), bm.value , bm.depth , bm.move_count);
+						flip_book_moves->push_back(flip_book_move);
+					}
+					book2.append(flip_sfen, flip_book_moves);
+				});
+
+				// 生成されたreverse bookをmergeする。
+				book.merge(book2);
+			}
+
+			cout << "Register SFENs              : " << endl;
+
+			counter = 0;
+			progress.reset(book.size());
 
 			// まず、出現する局面すべてのsfenに対して、それをsfen_to_hashkeyに登録する。
 			// sfen文字列の末尾に手数が付与されているなら、それを除外する。→ IgnoreBookPly = trueなので除外されている。
-			book.foreach([&](string sfen,Book::BookMovesPtr& book_moves){
+			book.foreach([&](string sfen, const Book::BookMovesPtr book_moves){
 
-				// unordered_mapは同じキーに対して複数の値を登録できる便利構造なので、
-				// 同じ値のキーが2つ以上登録されていないかをチェックしておく。
+				// 同じ値のキーがすでに登録されていないかをチェックしておく。
+				// 反転させた盤面も登録するのでこのチェックは外しておく。
+				//if (this->sfen_to_index.count(sfen) > 0)
+				//{
+				//	cout << "Error! : Hash Conflict! Rebuild with a set HASH_KEY_BITS == 128 or 256." << endl;
+				//	Tools::exit();
+				//}
+
+				StateInfo si,si2;
+				pos.set(sfen,&si,Threads.main());
+
 				if (this->sfen_to_index.count(sfen) > 0)
 				{
-					cout << "Error! : Hash Conflict! Rebuild with a set HASH_KEY_BITS == 128 or 256." << endl;
-					Tools::exit();
+					// 反転させた局面がすでに登録されている。
+					++reverse_counter;
+					return ;
 				}
 
 				// 局面ひとつ登録する。
 				BookNodeIndex index = (BookNodeIndex)this->book_nodes.size();
 				this->book_nodes.emplace_back(BookNode());
 
-				StateInfo si,si2;
-				pos.set(sfen,&si,Threads.main());
 				auto key = pos.state()->hash_key();
 				this->sfen_to_index[sfen]   = index;
 				this->hashkey_to_index[key] = index;
@@ -491,7 +547,7 @@ namespace MakeBook2023
 
 			// 局面の合流チェック
 
-			cout << "Convergence Check   :" << endl;
+			cout << "Convergence Check           :" << endl;
 
 			// sfen nextの時はこの処理端折りたいのだが、parent局面の登録などが必要で
 			// この工程を端折るのはそう簡単ではないからやめておく。
@@ -502,7 +558,7 @@ namespace MakeBook2023
 			counter = 0;
 			progress.reset(book.size());
 
-			book.foreach([&](string sfen,Book::BookMovesPtr& book_moves){
+			book.foreach([&](string sfen, const Book::BookMovesPtr book_moves){
 
 				StateInfo si,si2;
 				pos.set(sfen,&si,Threads.main());
@@ -561,7 +617,7 @@ namespace MakeBook2023
 				}
 
 				// 定跡DB上のこの局面の指し手も登録しておく。
-				book_moves->foreach([&](Book::BookMove& bm){
+				book_moves->foreach([&](const Book::BookMove& bm){
 						Move move = pos.to_move(bm.move);
 						int depth = bm.depth;
 						int value = bm.value;
@@ -924,6 +980,7 @@ namespace MakeBook2023
 										si.emplace_back(StateInfo());
 										pos.do_move(move.move,si.back());
 										write_sfens.emplace(pos.sfen());
+
 										pos.undo_move(move.move);
 
 										// 書き出したのでこの枝は死んだことにする。
@@ -987,6 +1044,10 @@ namespace MakeBook2023
 							bool is_deleted = pm.is_deleted;
 							auto& book_node = book_nodes[index];
 
+							// 親がいなくなっている = bestmoveを求めても伝播する先かない = このnodeは死んでいる。
+							if (book_node.parents.size()==0)
+								continue;
+
 							// 子の局面の指し手がすべてMOVE_NONEなので、子に至るこの指し手を無効化する。
 							// これでbest_valueに変化が生じるのか？
 							if (is_deleted)
@@ -1028,9 +1089,10 @@ namespace MakeBook2023
 								size_t _;
 								auto& best = get_bestvalue(book_node , parent_vd, _);
 
+								// 異なる値へのupdateの時だけ親に伝播させる。
 								if (   parent_vd != book_node.lastParentVd )
 								{
-									// 次回用にlastBestValueを更新しておく。
+									// 次回用にlastParentVdを更新しておく。
 									book_node.lastParentVd = parent_vd;
 
 									// 親に伝播させる。
@@ -1056,6 +1118,9 @@ namespace MakeBook2023
 				}
 
 				progress.check(next_nodes);
+
+				// write_sfensのなかにある局面とそれをflipした局面の組が含まれないかを
+				// チェックしたほうがいいが、現実的にはほぼ生じないので気にしないことにする。
 
 				SystemIO::TextWriter writer;
 				writer.Open(writebook_path);
@@ -1096,11 +1161,13 @@ namespace MakeBook2023
 			}
 
 			cout << "[ PetaShock Result ]" << endl;
+
+			cout << "reverse counter  : " << reverse_counter << endl;
+
 			// 合流チェックによって合流させた指し手の数。
 			if (!next)
-			{
 				cout << "converged_moves  : " << converged_moves << endl;
-			}
+
 			// 後退解析において判明した、leafから見てループではなかったノード数
 			cout << "retro_counter1   : " << retro_counter1 << endl;
 			// 後退解析において判明した、ループだったノード数

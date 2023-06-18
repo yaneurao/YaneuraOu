@@ -225,6 +225,7 @@ public:
 	// ※ USIプロトコルにおいては不要な機能ではあるが、デバッグのために局面を標準出力に出力して
 	// 　その局面から開始させたりしたいときに、sfenで現在の局面を出力出来ないと困るので用意してある。
 	// 引数としてintを取るほうのsfen()は、出力するsfen文字列の末尾の手数を指定できるバージョン。
+	// ※　裏技 : gamePlyが負なら、sfen文字列末尾の手数を出力しない。
 	const std::string sfen() const { return sfen(game_ply()); }
 	const std::string sfen(int gamePly) const;
 
@@ -627,6 +628,13 @@ public:
 	// mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
 	// 32bit Moveが返る。
 	Move DeclarationWin() const;
+
+	// 盤面を反転(180°回転)させる。
+	// ※　定跡生成の処理などで欲しかったので追加した。
+	// 注意 :
+	//  sfen()とかstate().key()とかの使用のために用いる。
+	//  do_move()は想定していないのでやってはならない。
+	void flip();
 
 	// -- sfen化ヘルパ
 #if defined(USE_SFEN_PACKER)

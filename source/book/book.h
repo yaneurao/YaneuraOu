@@ -183,7 +183,7 @@ namespace Book
 		// [ASYNC] メモリに保持している定跡に局面を一つ追加する。
 		//   book_body[sfen] = ptr;
 		// と等価。すでに登録されているとしたら、それは置き換わる。
-		void append(const std::string& sfen, const Book::BookMovesPtr& ptr);
+		void append(const std::string& sfen, const Book::BookMovesPtr ptr);
 
 		// [ASYNC] book_bodyの局面sfenに対してBookMoveを一つ追加するヘルパー関数。
 		// 同じ局面に対して繰り返し、この関数を呼ぶぐらいなら、BookMovesに直接push_back()してから、このクラスのappend()を呼ぶべき。
@@ -191,8 +191,11 @@ namespace Book
 		//             このフラグがfalseならば、その局面ですでに同じmoveの指し手が登録されている場合は何もしない。
 		void insert(const std::string& sfen, const BookMove& bp , bool overwrite = true);
 
+		// [ASYNC] 他のbookをmergeする。
+		void merge(MemoryBook& book2);
+
 		// [ASYNC] このクラスの持つ定跡DBに対して、それぞれの局面を列挙する時に用いる
-		void foreach(std::function<void(std::string /*sfen*/, BookMovesPtr)> f);
+		void foreach(std::function<void(const std::string& /*sfen*/, const Book::BookMovesPtr)> f);
 
 		// 保持している局面数を返す。これは、on the flyではない状態でread_book()した時にのみ有効。
 		size_t size() const { return book_body.size(); }

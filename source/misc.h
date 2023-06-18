@@ -471,6 +471,8 @@ namespace Tools
 	class ProgressBar
 	{
 	public:
+		ProgressBar(){}
+
 		// size_ : 全件でいくらあるかを設定する。
 		ProgressBar(u64 size_);
 

@@ -157,6 +157,16 @@ namespace Book
 		sorted = false; // sort関係が崩れたのでフラグをfalseに戻しておく。
 	}
 
+	// [ASYNC] 他のbookをmergeする。
+	void MemoryBook::merge(MemoryBook& book2)
+	{
+		std::lock_guard<std::recursive_mutex> lock(mutex_);
+		book2.foreach([&](const std::string& sfen, const Book::BookMovesPtr book_moves)
+		{
+			this->append(sfen, book_moves);
+		});
+	}
+
 	// [ASYNC] このクラスの持つ指し手集合に対して、それぞれの局面を列挙する時に用いる
 	void BookMoves::foreach(std::function<void(BookMove&)> f)
 	{
@@ -186,7 +196,7 @@ namespace Book
 	}
 
 	// [ASYNC] このクラスの持つ定跡DBに対して、それぞれの局面を列挙する時に用いる
-	void MemoryBook::foreach(std::function<void(std::string /*sfen*/, BookMovesPtr)> f)
+	void MemoryBook::foreach(std::function<void(const std::string& /*sfen*/, const BookMovesPtr)> f)
 	{
 		std::lock_guard<std::recursive_mutex> lock(mutex_);
 
@@ -503,7 +513,7 @@ namespace Book
 	// [ASYNC] メモリに保持している定跡に局面を一つ追加する。
 	//   book_body[sfen] = ptr;
 	// と等価。
-	void MemoryBook::append(const std::string& sfen, const Book::BookMovesPtr& ptr)
+	void MemoryBook::append(const std::string& sfen, const Book::BookMovesPtr ptr)
 	{
 		std::lock_guard<std::recursive_mutex> lock(mutex_);
 		book_body[sfen] = ptr;
