@@ -44,16 +44,19 @@ void USI::extra_option(USI::OptionsMap& o)
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, int_max);
 #endif
 
-#ifdef MAKE_BOOK
+#if defined(MAKE_BOOK)
 	// 定跡を生成するときはPV出力は抑制したほうが良さげ。
     o["PV_Interval"]                 << USI::Option(0, 0, int_max);
     o["Save_Book_Interval"]          << USI::Option(100, 0, int_max);
 #else
     o["PV_Interval"]                 << USI::Option(500, 0, int_max);
-#endif // !MAKE_BOOK
+#endif // defined(MAKE_BOOK)
+	
+	// UCTノードの上限(この値を10億以上にするならWIN_TYPE_DOUBLEをdefineしてコンパイルしないと
+	// MCTSする時の勝率の計算精度足りないし、あとメモリも2TBは載ってないと足りないと思う…)
+	o["UCT_NodeLimit"]				 << USI::Option(10000000, 10, 1000000000);
 
-	o["UCT_NodeLimit"]				 << USI::Option(10000000, 100000, 1000000000); // UCTノードの上限
-																				   // デバッグ用のメッセージ出力の有無
+	// デバッグ用のメッセージ出力の有無
 	o["DebugMessage"]                << USI::Option(false);
 
 	// ノードを再利用するか。
