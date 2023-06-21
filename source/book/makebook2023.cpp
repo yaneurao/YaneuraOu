@@ -187,11 +187,11 @@ namespace MakeBook2023
 	struct BookMove
 	{
 		// moveの指し手がleafである場合。
-		BookMove::BookMove(Move move,int value,int depth):
+		BookMove(Move move,int value,int depth):
 			move(move),vd(ValueDepth(value,depth)),next(BookNodeIndexNull){}
 
 		// moveの指し手がleafではない場合。
-		BookMove::BookMove(Move move,ValueDepth vd, BookNodeIndex next):
+		BookMove(Move move,ValueDepth vd, BookNodeIndex next):
 			move(move),vd(vd),next(next){}
 
 		// move(4) + value(4) + depth(4) + next(4) = 16 bytes
@@ -212,7 +212,7 @@ namespace MakeBook2023
 	// あるnodeに対してその親nodeとその何番目の指し手がこのnodeに接続されているのかを保持する構造体。
 	struct ParentMove
 	{
-		ParentMove::ParentMove(BookNodeIndex parent,size_t move_index):parent(parent),move_index((u32)move_index){}
+		ParentMove(BookNodeIndex parent,size_t move_index):parent(parent),move_index((u32)move_index){}
 
 		BookNodeIndex parent;
 		u32 move_index;
@@ -462,16 +462,16 @@ namespace MakeBook2023
 			Tools::ProgressBar progress;
 
 			// 盤面を反転させた局面が元の定跡DBにどれだけ含まれていたかを示すカウンター。
-			u64 reverse_counter = 0;
+			u64 flipped_counter = 0;
 
 			// 盤面を反転させた局面も定跡に登録するかのフラグ。
 			// makebookコマンドのオプションでON/OFF切り替えられるようにすべきか？
-			const bool register_reversed_position = true;
+			const bool register_flipped_position = true;
 
 			// 反転局面の登録
-			if (register_reversed_position)
+			if (register_flipped_position)
 			{
-				cout << "Reginter reversed positions :" << endl;
+				cout << "Reginter flipped positions  :" << endl;
 
 				progress.reset(book.size());
 
@@ -486,7 +486,7 @@ namespace MakeBook2023
 					if (book.find(flip_sfen) != nullptr)
 					{
 						// すでに登録されていた
-						++reverse_counter;
+						++flipped_counter;
 						return;
 					}
 
@@ -501,7 +501,7 @@ namespace MakeBook2023
 					book2.append(flip_sfen, flip_book_moves);
 				});
 
-				// 生成されたreverse bookをmergeする。
+				// 生成されたflipped bookをmergeする。
 				book.merge(book2);
 			}
 
@@ -515,22 +515,14 @@ namespace MakeBook2023
 			book.foreach([&](string sfen, const Book::BookMovesPtr book_moves){
 
 				// 同じ値のキーがすでに登録されていないかをチェックしておく。
-				// 反転させた盤面も登録するのでこのチェックは外しておく。
-				//if (this->sfen_to_index.count(sfen) > 0)
-				//{
-				//	cout << "Error! : Hash Conflict! Rebuild with a set HASH_KEY_BITS == 128 or 256." << endl;
-				//	Tools::exit();
-				//}
+				if (this->sfen_to_index.count(sfen) > 0)
+				{
+					cout << "Error! : Hash Conflict! Rebuild with a set HASH_KEY_BITS == 128 or 256." << endl;
+					Tools::exit();
+				}
 
 				StateInfo si,si2;
 				pos.set(sfen,&si,Threads.main());
-
-				if (this->sfen_to_index.count(sfen) > 0)
-				{
-					// 反転させた局面がすでに登録されている。
-					++reverse_counter;
-					return ;
-				}
 
 				// 局面ひとつ登録する。
 				BookNodeIndex index = (BookNodeIndex)this->book_nodes.size();
@@ -1087,7 +1079,7 @@ namespace MakeBook2023
 
 								ValueDepth parent_vd;
 								size_t _;
-								auto& best = get_bestvalue(book_node , parent_vd, _);
+								auto best = get_bestvalue(book_node , parent_vd, _);
 
 								// 異なる値へのupdateの時だけ親に伝播させる。
 								if (   parent_vd != book_node.lastParentVd )
@@ -1162,7 +1154,7 @@ namespace MakeBook2023
 
 			cout << "[ PetaShock Result ]" << endl;
 
-			cout << "reverse counter  : " << reverse_counter << endl;
+			cout << "flipped counter  : " << flipped_counter << endl;
 
 			// 合流チェックによって合流させた指し手の数。
 			if (!next)
