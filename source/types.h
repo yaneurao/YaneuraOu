@@ -909,13 +909,21 @@ enum MOVE_GEN_TYPE
 	CAPTURES_PRO_PLUS,      // CAPTURES + 価値のかなりあると思われる成り(歩だけ)
 	NON_CAPTURES_PRO_MINUS, // NON_CAPTURES - 価値のかなりあると思われる成り(歩だけ)
 
+	CAPTURES_PRO_PLUS_ALL,      // CAPTURES_PRO_PLUS + 歩の不成、大駒の不成で駒を取る手も含む
+	NON_CAPTURES_PRO_MINUS_ALL, // NON_CAPTURES_PRO_MINUS + 大駒の不成で駒を取らない手も含む
+	// note : 歩の不成で駒を取らない指し手は後者に含まれるべきだが、指し手生成の実装が難しくなるので前者に含めることにした。
+	//        オーダリング(movepicker)でなんとかするだろうからそこまで悪くはならないだろうし、普段は
+	//		  GenerateAllLegalMovesがオンにして動かさないから良しとする。
+
 	// BonanzaではCAPTURESに銀以外の成りを含めていたが、Aperyでは歩の成り以外は含めない。
 	// あまり変な成りまで入れるとオーダリングを阻害する。
 	// 本ソースコードでは、NON_CAPTURESとCAPTURESは使わず、CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSを使う。
 
 	// note : NON_CAPTURESとCAPTURESとの生成される指し手の集合は被覆していない。
+	// note : CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSとの生成される指し手の集合も被覆していない。
+	// note : CAPTURES_PRO_PLUS_ALLとNON_CAPTURES_PRO_MINUS_ALLとの生成される指し手の集合も被覆していない。
 	// →　被覆させないことで、二段階に指し手生成を分解することが出来る。
-	
+
 	EVASIONS,              // 王手の回避(指し手生成元で王手されている局面であることがわかっているときはこちらを呼び出す)
 	EVASIONS_ALL,          // EVASIONS + 歩の不成なども含む。
 
