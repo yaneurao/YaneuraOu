@@ -301,9 +301,9 @@ namespace Book
 		bool probe_impl(Position& rootPos, bool silent, Move16& bestMove, Move16& ponderMove , bool forceHit = false);
 
 		// 定跡のpv文字列を生成して返す。
-		// m : 局面posで進める指し手
-		// depth : 残りdepth
-		std::string pv_builder(Position& pos, Move16 m , int depth);
+		// m        : 局面posをこの指し手で進める
+		// rest_ply : 残り出力するPVの手数
+		std::string pv_builder(Position& pos, Move16 m , int rest_ply);
 
 		AsyncPRNG prng;
 	};

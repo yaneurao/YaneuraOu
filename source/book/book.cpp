@@ -1007,15 +1007,9 @@ namespace Book
 	}
 
 	// 与えられたmで進めて定跡のpv文字列を生成する。
-	string BookMoveSelector::pv_builder(Position& pos, Move16 m16 , int depth)
+	string BookMoveSelector::pv_builder(Position& pos, Move16 m16 , int rest_ply)
 	{
-		// 千日手検出
-		auto rep = pos.is_repetition(MAX_PLY);
-		if (rep != REPETITION_NONE)
-		{
-			// 千日手でPVを打ち切るときはその旨を表示(USI拡張)
-			return " " + to_usi_string(rep);
-		}
+		ASSERT_LV3(rest_ply > 0);
 
 		string result = "";
 
@@ -1026,17 +1020,50 @@ namespace Book
 			StateInfo si;
 			pos.do_move(m, si);
 
-			Move16 bestMove16, ponderMove16;
-			if (!probe_impl(pos, true, bestMove16, ponderMove16 , true /* 強制的にhitさせる */))
-				goto UNDO;
+			result = " " + m16.to_usi_string();
+			// 残り出力するPV長さをデクリメントしておく。
+			--rest_ply;
 
-			if (depth > 0)
-				result = pv_builder(pos, bestMove16 , depth - 1); // さらにbestMoveで指し手を進める。
+			// 千日手検出
+			auto rep = pos.is_repetition(MAX_PLY);
+			if (rep != REPETITION_NONE)
+			{
+				// 千日手でPVを打ち切るときはその旨を表示(USI拡張)
+				result += " " + to_usi_string(rep);
 
-			result = " " + bestMove16.to_usi_string()
-				+ ((result == "" /* is leaf node? */) ? (" " + ponderMove16.to_usi_string()) : result);
+			} else {
 
-		UNDO:;
+				// さらに指し手を進める
+				Move16 bestMove16, ponderMove16;
+				if (probe_impl(pos, true, bestMove16, ponderMove16 , true /* 強制的にhitさせる */))
+				{
+					// hitした
+
+					string result2;
+					if (rest_ply >= 1)
+					{
+						// まだ表示すべき手数が残っているので再帰的にさらにbestMoveで指し手を進める。
+						result2 = pv_builder(pos, bestMove16 , rest_ply);
+
+						// resultの文字がないならそこでPVの末尾なのでponderがあればそれを出力。
+						if (result2.empty())
+						{
+							// result2がemptyということはPVを出力しなかったということなのでrest_plyは消費していない。
+							// だから、
+							// 1. rest_plyの残りがあるならもう1手は出力しないといけないのでponderを出力して良い。
+							// 2. 但し、この時、ponderが登録されていない(MOVE_NONE)なら出力しない。
+							if (rest_ply >= 1 && ponderMove16 != MOVE_NONE)
+								result += " " + ponderMove16.to_usi_string();
+
+						} else {
+							result += result2;
+						}
+
+						//--rest_ply;
+						// ↑このあと用いないので更新不要。
+					}
+				}
+			}
 			pos.undo_move(m);
 		}
 		return result;
@@ -1116,6 +1143,7 @@ namespace Book
 
 		if (!silent)
 		{
+			// PVとして出力する長さ(手数)
 			int pv_moves = (int)Options["BookPvMoves"];
 
 			for (size_t i = 0; i < move_list.size() ; ++ i)
@@ -1123,19 +1151,6 @@ namespace Book
 				// PVを構築する。pv_movesで指定された手数分だけ表示する。
 				// bestMoveを指した局面でさらに定跡のprobeを行なって…。
 				auto& it = move_list[i];
-
-				string pv_string;
-				if (pv_moves <= 1)
-					pv_string = it.move.to_usi_string();
-				else if (pv_moves == 2)
-					pv_string =it.move.to_usi_string() + " " + it.ponder.to_usi_string();
-				else {
-					// 次の局面で定跡にhitしない場合があって、その場合、この局面のnextMoveを出力してやる必要がある。
-					auto rest = pv_builder(rootPos, it.move, pv_moves - 3);
-					pv_string = (rest != "") ?
-						(it.move.to_usi_string() + rest) :
-						(it.move.to_usi_string() + " " + it.ponder.to_usi_string());
-				}
 
 				// USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
 				// 複数出力するときに"multipv"は連番なのでこれが先頭に来ているほうが見やすいと思うので先頭に"multipv"を出力する。
@@ -1145,7 +1160,7 @@ namespace Book
 					<< " multipv " << (i + 1)
 #endif
 					<< " score cp " << it.value << " depth " << it.depth
-					<< " pv " << pv_string
+					<< " pv " << pv_builder(rootPos, it.move, pv_moves)
 					<< " (" << fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << ")" // 採択確率
 					<< sync_endl;
 
