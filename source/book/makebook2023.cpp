@@ -160,7 +160,25 @@ namespace MakeBook2023
 		// 優れているかの比較
 		// 1. 評価値が優れている。
 		// 2. 評価値が同じ場合、DrawStateが優れている
-		// 3. 評価値とDrawStateも同じ場合、depthが小さいほうが優れている
+		// 3. 評価値とDrawStateも同じ場合、評価値が正ならdepthが小さいほうが優れている。
+		// 4. 評価値とDrawStateも同じ場合、評価値が負ならdepthが大きいほうが優れている。
+		//
+		// 3., 4.の理屈としては、同じ評価値を持つ２つのノード(two nodes with the same value)問題があることを発見したからだ。
+		// いま 
+		//     A→B→C→D→A
+		//     A→E→F→G
+		//     B→X
+		// のような経路があるとする。
+		//
+		// X,Gは同じ評価値でAの手番側から見て100であり、Aの手番側はここを目指すとする。
+		// A→B→XはAからXに2手でvalue=100にいける。
+		// A→E→F→GはAからGに3手でvalue=100にいける。
+		// Aの手番を持たされた側は、depthが小さいからと言ってA→Bを選ぶとBの手番側がXに行く手を選択せずにCに行く手を選択してしまう。
+		// そうするとC→D→AとAに戻ってきて千日手になる。
+		// Bの手番側は、B→C→D→A→E→F→Gのコースを選んだほうが得なので、depthの大きい側を選ぶべきなのである。
+		// この理屈から、評価値が正のほうは、千日手を回避するためにdepthが小さいほうを目指すが(親にそれを伝播する)、
+		// 評価値が負のほうは、千日手にするためにdepthが大きいほうを目指す(親にそれを伝播する)べきなのである。
+		// ゆえに、評価値の正負によって、どちらのdepthの指し手を選ぶかが変わるのである。
 		bool is_superior(ValueDepth& v, Color color) const
 		{
 			// 評価値ベースの比較
@@ -174,8 +192,12 @@ namespace MakeBook2023
 			if (this->draw_state != v.draw_state)
 				return this->draw_state.is_superior(v.draw_state, color);
 
-			// depthベースの比較。
-			return this->depth < v.depth;
+			// depthベースの比較。評価値の符号で場合分けが生ずる。
+			// 一貫性をもたせるためにvalueが0の場合は、先手ならdepthの小さいほうを目指すことにしておく。
+			if ((this->value > 0) || (this->value == 0 && (color == BLACK)))
+				return this->depth < v.depth;
+			else
+				return this->depth > v.depth;
 		}
 
 		// depthにdraw_stateの状態を反映させる。
@@ -423,8 +445,8 @@ namespace MakeBook2023
 						&& (
 								// draw_state違い。これはbestが優先されるべき。
 							   ( best.draw_state != book_move.vd.draw_state)
-								// あるいは、draw_stateは同じだが、経路の長さが違う場合。これは短いほうのみが選ばれるべき。
-							|| ( best.draw_state == book_move.vd.draw_state && best.depth < book_move.vd.depth)
+								// あるいは、draw_stateは同じだが、経路の長さが違う場合。これはbestのほうのみが選ばれるべき。
+							|| ( best.draw_state == book_move.vd.draw_state && best.depth != book_move.vd.depth)
 							)
 						)
 					{
@@ -471,7 +493,7 @@ namespace MakeBook2023
 			// 反転局面の登録
 			if (register_flipped_position)
 			{
-				cout << "Reginter flipped positions  :" << endl;
+				cout << "Register flipped pos:" << endl;
 
 				progress.reset(book.size());
 
@@ -505,7 +527,7 @@ namespace MakeBook2023
 				book.merge(book2);
 			}
 
-			cout << "Register SFENs              : " << endl;
+			cout << "Register SFENs      : " << endl;
 
 			counter = 0;
 			progress.reset(book.size());
@@ -539,7 +561,7 @@ namespace MakeBook2023
 
 			// 局面の合流チェック
 
-			cout << "Convergence Check           :" << endl;
+			cout << "Convergence Check   :" << endl;
 
 			// sfen nextの時はこの処理端折りたいのだが、parent局面の登録などが必要で
 			// この工程を端折るのはそう簡単ではないからやめておく。
@@ -576,7 +598,7 @@ namespace MakeBook2023
 					{
 						// 定跡局面が存在した。
 
-						// 元のnodeの出次数をと、next_nodeへの入次数をインクリメントしてやる。
+						// 元のnodeの出次数と、next_nodeへの入次数をインクリメントしてやる。
 						// (後退解析みたいなことをしたいので)
 						book_node.out_count++;
 						BookNodeIndex next_book_node_index = this->hashkey_to_index[next_hash];
