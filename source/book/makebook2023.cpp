@@ -176,9 +176,13 @@ namespace MakeBook2023
 		// Aの手番を持たされた側は、depthが小さいからと言ってA→Bを選ぶとBの手番側がXに行く手を選択せずにCに行く手を選択してしまう。
 		// そうするとC→D→AとAに戻ってきて千日手になる。
 		// Bの手番側は、B→C→D→A→E→F→Gのコースを選んだほうが得なので、depthの大きい側を選ぶべきなのである。
-		// この理屈から、評価値が正のほうは、千日手を回避するためにdepthが小さいほうを目指すが(親にそれを伝播する)、
-		// 評価値が負のほうは、千日手にするためにdepthが大きいほうを目指す(親にそれを伝播する)べきなのである。
+		// この理屈から、評価値が正(千日手スコアより大きい)のほうは、千日手を回避するためにdepthが小さいほうを目指すが(親にそれを伝播する)、
+		// 評価値が負(千日手スコアより小さい)のほうは、千日手にするためにdepthが大きいほうを目指す(親にそれを伝播する)べきなのである。
 		// ゆえに、評価値の正負によって、どちらのdepthの指し手を選ぶかが変わるのである。
+		// 
+		// ※ PVが同じleafに到達する２つの指し手があるとして、depthが大きいほうは循環を含んでいる可能性が高いので、
+		//    千日手にしたい側はdepthが大きいほうを、したくない側はdepthが小さいほうを選ぶという理屈。
+		//
 		bool is_superior(ValueDepth& v, Color color) const
 		{
 			// 評価値ベースの比較
@@ -193,8 +197,9 @@ namespace MakeBook2023
 				return this->draw_state.is_superior(v.draw_state, color);
 
 			// depthベースの比較。評価値の符号で場合分けが生ずる。
-			// 一貫性をもたせるためにvalueが0の場合は、先手ならdepthの小さいほうを目指すことにしておく。
-			if ((this->value > 0) || (this->value == 0 && (color == BLACK)))
+			// 一貫性をもたせるためにvalueが千日手スコアの場合は、先手ならdepthの小さいほうを目指すことにしておく。
+			auto dv = draw_value(REPETITION_DRAW, color);
+			if ((this->value > dv) || (this->value == dv && (color == BLACK)))
 				return this->depth < v.depth;
 			else
 				return this->depth > v.depth;
