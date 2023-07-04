@@ -207,7 +207,7 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 
 	// 残り時間 - network_delay2よりは短くしないと切れ負けになる可能性が出てくる。
 	minimumTime = std::min(round_up(minimumTime), remain_time);
-	optimumTime = std::min(optimumTime, remain_time);
+	optimumTime = std::min(         optimumTime , remain_time);
 	maximumTime = std::min(round_up(maximumTime), remain_time);
 
 }

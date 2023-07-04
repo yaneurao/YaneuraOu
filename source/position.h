@@ -229,6 +229,10 @@ public:
 	const std::string sfen() const { return sfen(game_ply()); }
 	const std::string sfen(int gamePly) const;
 
+	// sfen()の先後反転(盤面を180度回転)させた時のsfenを返す。
+	const std::string flipped_sfen() const { return flipped_sfen(game_ply()); }
+	const std::string flipped_sfen(int gamePly) const;
+
 	// 平手の初期盤面を設定する。
 	// siについては、上記のset()にある説明を読むこと。
 	void set_hirate(StateInfo*si,Thread* th) { set(SFEN_HIRATE,si,th); }
@@ -629,12 +633,6 @@ public:
 	// 32bit Moveが返る。
 	Move DeclarationWin() const;
 
-	// 盤面を反転(180°回転)させる。
-	// ※　定跡生成の処理などで欲しかったので追加した。
-	// 注意 :
-	//  sfen()とかstate().key()とかの使用のために用いる。
-	//  do_move()は想定していないのでやってはならない。
-	void flip();
 
 	// -- sfen化ヘルパ
 #if defined(USE_SFEN_PACKER)

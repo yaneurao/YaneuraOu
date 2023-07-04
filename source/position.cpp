@@ -402,6 +402,86 @@ const std::string Position::sfen(int gamePly_) const
 	return ss.str();
 }
 
+// 盤面を先後反転させた時のsfen文字列を取得する。
+const std::string Position::flipped_sfen(int gamePly_) const
+{
+	std::ostringstream ss;
+
+	// --- 盤面
+	int emptyCnt;
+	for (Rank r = RANK_9; r >= RANK_1; --r)
+	{
+		for (File f = FILE_1; f <= FILE_9; ++f)
+		{
+			// それぞれの升に対して駒がないなら
+			// その段の、そのあとの駒のない升をカウントする
+			for (emptyCnt = 0; f <= FILE_9 && piece_on(f | r) == NO_PIECE; ++f)
+				++emptyCnt;
+
+			// 駒のなかった升の数を出力
+			if (emptyCnt)
+				ss << emptyCnt;
+
+			// 駒があったなら、それに対応する駒文字列を出力
+			if (f <= FILE_9)
+				// ※　flippedなのでこの駒、先後逆にしないといけないので PIECE_WHITEのbitを反転させる。
+				ss << Piece(piece_on(f | r) ^ PIECE_WHITE);
+		}
+
+		// 最下段以外では次の行があるのでセパレーターである'/'を出力する。
+		if (r > RANK_1)
+			ss << '/';
+	}
+
+	// --- 手番
+	// ※　flippedなのでsideToMoveの逆を出力
+	ss << (~sideToMove == WHITE ? " w " : " b ");
+
+	// --- 手駒(UCIプロトコルにはないがUSIプロトコルにはある)
+	int n;
+	bool found = false;
+	for (Color c = BLACK; c <= WHITE; ++c)
+		for (int pn = 0 ; pn < 7; ++ pn)
+		{
+			// 手駒の出力順はUSIプロトコルでは規定されていないが、
+			// USI原案によると、飛、角、金、銀、桂、香、歩の順である。
+			// sfen文字列を一意にしておかないと定跡データーをsfen文字列で書き出したときに
+			// 他のソフトで文字列が一致しなくて困るので、この順に倣うことにする。
+
+			const PieceType USI_Hand[7] = { ROOK,BISHOP,GOLD,SILVER,KNIGHT,LANCE,PAWN };
+			auto p = USI_Hand[pn];
+
+			// その種類の手駒の枚数
+			// ※ flippedなので、ここをcではなく~c側を見ればflipしたことになる。
+			n = hand_count(hand[~c], p);
+			// その種類の手駒を持っているか
+			if (n != 0)
+			{
+				// 手駒が1枚でも見つかった
+				found = true;
+
+				// その種類の駒の枚数。1ならば出力を省略
+				if (n != 1)
+					ss << n;
+
+				ss << PieceToCharBW[make_piece(c, p)];
+			}
+		}
+
+	// 手駒がない場合はハイフンを出力
+	if (!found)
+		ss << '-';
+
+	// --- 初期局面からの手数
+
+	// ※　裏技 : gamePlyが負なら、sfen文字列末尾の手数を出力しない。
+	if (gamePly_ >= 0)
+		ss << ' ' << gamePly_;
+
+	return ss.str();
+}
+
+
 void Position::set_state(StateInfo* si) const {
 
 	// --- bitboard
@@ -2217,42 +2297,6 @@ Move Position::DeclarationWin() const
 	}
 }
 
-// 盤面を反転(180°回転)させる。
-// ※　定跡生成の処理などで欲しかったので追加した。
-// 注意 :
-//  sfen()とかstate().key()とかの使用のために用いる。
-//  do_move()は想定していないのでやってはならない。
-void Position::flip()
-{
-	Piece pieces[SQ_NB];
-	for(auto sq : SQ)
-	{
-		pieces[sq] = piece_on(sq);
-		// piece除去。
-		remove_piece(sq);
-	}
-	// 逆順で置いていく。
-	for(auto sq : SQ)
-	{
-		Piece pc = pieces[sq];
-		if (pc != NO_PIECE)
-			// 相手番の駒にする
-			pc = make_piece(~color_of(pc),type_of(pc));
-		// flipしたところに駒を配置する。
-		put_piece(Square(SQ_NB- 1 - sq), pc);
-	}
-
-	// 手駒の入れ替え
-	std::swap(hand[BLACK],hand[WHITE]);
-
-	// 手番の反転
-	sideToMove = ~sideToMove;
-
-	// 利きとzobrist hashの更新
-	update_bitboards();
-	update_kingSquare();
-	set_state(st);
-}
 
 
 // ----------------------------------
@@ -2637,6 +2681,19 @@ void Position::UnitTest(Test::UnitTester& tester)
 	}
 
 	{
+		// それ以外のテスト
+		auto section = tester.section("misc");
+		{
+			// 盤面の反転
+
+			// 23歩不成ができ、かつ、23歩不成では駒の捕獲にはならない局面。
+			pos_init("lnsgk1snl/1r4g2/p1ppppb1p/6pP1/7R1/2P6/P2PPPP1P/1SG6/LN2KGSNL b BP2p 21");
+			auto flipped = pos.flipped_sfen();
+			tester.test("flip sfen", flipped=="lnsgk2nl/6gs1/p1pppp2p/6p2/1r7/1pP6/P1BPPPP1P/2G4R1/LNS1KGSNL w 2Pbp 21");
+		}
+	}
+
+	{
 		// 深いdepthのperftのテストが通っていれば、利きの計算、指し手生成はおおよそ間違っていないと言える。
 
 		auto section2 = tester.section("Perft");
@@ -2666,19 +2723,6 @@ void Position::UnitTest(Test::UnitTester& tester)
 				u64 pn = p_nodes[d];
 				tester.test("depth " + to_string(d) + " = " + to_string(nodes), nodes == pn);
 			}
-		}
-	}
-
-	{
-		// それ以外のテスト
-		auto section = tester.section("misc");
-		{
-			// 盤面の反転
-
-			// 23歩不成ができ、かつ、23歩不成では駒の捕獲にはならない局面。
-			pos_init("lnsgk1snl/1r4g2/p1ppppb1p/6pP1/7R1/2P6/P2PPPP1P/1SG6/LN2KGSNL b BP2p 21");
-			pos.flip();
-			tester.test("flip board", pos.sfen()=="lnsgk2nl/6gs1/p1pppp2p/6p2/1r7/1pP6/P1BPPPP1P/2G4R1/LNS1KGSNL w 2Pbp 21");
 		}
 	}
 

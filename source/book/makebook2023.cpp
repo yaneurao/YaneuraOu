@@ -506,8 +506,7 @@ namespace MakeBook2023
 				book.foreach([&](const string& sfen,const Book::BookMovesPtr book_moves){
 					StateInfo si;
 					pos.set(sfen,&si,Threads.main());
-					pos.flip();
-					string flip_sfen = pos.sfen(-1); // 手数なしのsfen文字列
+					string flip_sfen = pos.flipped_sfen(-1); // 手数なしのsfen文字列
 					progress.check(++counter);
 
 					if (book.find(flip_sfen) != nullptr)
