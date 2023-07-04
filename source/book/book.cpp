@@ -124,8 +124,8 @@ namespace Book
 
 		// 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
 
-		move = (move_str == "none" || move_str == "resign") ? MOVE_NONE : USI::to_move16(move_str);
-		ponder = (ponder_str == "none" || ponder_str == "resign") ? MOVE_NONE : USI::to_move16(ponder_str);
+		move   = (move_str   == "none" || move_str   == "None" || move_str   == "resign") ? MOVE_NONE : USI::to_move16(move_str  );
+		ponder = (ponder_str == "none" || ponder_str == "None" || ponder_str == "resign") ? MOVE_NONE : USI::to_move16(ponder_str);
 
 		return BookMove(move,ponder,value,depth,move_count);
 	}
@@ -519,6 +519,172 @@ namespace Book
 		book_body[sfen] = ptr;
 	}
 
+	// 反転された指し手を登録した新規エントリーを作成するヘルパー関数。
+	BookMovesPtr make_flipped_bookmoves(BookMovesPtr pt)
+	{
+		BookMovesPtr entry(new BookMoves());
+		pt->foreach([&](BookMove& bm)
+			{
+				// 盤面を反転させた指し手として設定する。
+				// ponderがMOVE_NONEでもflip_move()がうまく動作することは保証されている。
+				BookMove flip_book_move(flip_move(bm.move), flip_move(bm.ponder), bm.value , bm.depth , bm.move_count);
+				entry->push_back(flip_book_move);
+			}
+		);
+		entry->sort_moves();
+		return entry;
+	};
+
+	// sfenで指定された局面の情報を定跡DBファイルにon the flyで探して、それを返す。
+	BookMovesPtr MemoryBook::find_bookmoves_on_the_fly(string sfen)
+	{
+		// ディスクから読み込むなら、いずれにせよ、新規エントリーを作成してそれを返す必要がある。
+		BookMovesPtr pml_entry(new BookMoves());
+
+		// IgnoreBookPlyのときは末尾の手数は取り除いておく。
+		// read_book()で取り除くと、そのあと書き出すときに手数が消失するのでまずい。(気がする)
+		sfen = trim(sfen);
+
+		// ファイル自体はオープンされてして、ファイルハンドルはfsだと仮定して良い。
+
+		// ファイルサイズ取得
+		// C++的には未定義動作だが、これのためにsys/stat.hをincludeしたくない。
+		// ここでfs.clear()を呼ばないとeof()のあと、tellg()が失敗する。
+		fs.clear();
+		fs.seekg(0, std::ios::beg);
+		auto file_start = fs.tellg();
+
+		fs.clear();
+		fs.seekg(0, std::ios::end);
+
+		// ファイルサイズ
+		auto file_size = s64(fs.tellg() - file_start);
+
+		// 与えられたseek位置から"sfen"文字列を探し、それを返す。どこまでもなければ""が返る。
+		// hackとして、seek位置は-2しておく。(1行読み捨てるので、seek_fromぴったりのところに
+		// "sfen"から始まる文字列があるとそこを読み捨ててしまうため。-2してあれば、そこに
+		// CR+LFがあるはずだから、ここを読み捨てても大丈夫。)
+
+		// last_posには、現在のファイルポジションが返ってくる。
+		// ※　実際の位置より改行コードのせいで少し手前である可能性はある。
+		// ftell()を用いると、MSYS2 + g++ 環境でtellgが嘘を返す(getlineを呼び出した時に内部的に
+		// bufferingしているため(?)、かなり先のファイルポジションを返す)ので自前で計算する。
+		auto next_sfen = [&](s64 seek_from , s64& last_pos)
+		{
+			string line;
+
+			seek_from = std::max( s64(0), seek_from - 2);
+
+			// 前回のgetline()でファイル末尾までいくとeofフラグが立つのでこれをクリアする必要がある。
+			fs.clear();
+			fs.seekg(seek_from , fstream::beg);
+
+			// --- 1行読み捨てる
+
+			// seek_from == 0の場合も、ここで1行読み捨てられるが、1行目は
+			// ヘッダ行であり、問題ない。
+			getline(fs, line);
+
+			last_pos = seek_from + (s64)line.size() + 1;
+			// 改行コードが1文字はあるはずだから、+1しておく。
+
+			// getlineはeof()を正しく反映させないのでgetline()の返し値を用いる必要がある。
+			while (getline(fs, line))
+			{
+				last_pos += s64(line.size()) + 1;
+
+				if (!line.compare(0, 4, "sfen"))
+				{
+					// ios::binaryつけているので末尾に'\r'が付与されている。禿げそう。
+					// →　trim()で吸収する。(trimがStringExtension::trim_number()を呼び出すがそちらで吸収される)
+					return trim(line.substr(5));
+					// "sfen"という文字列は取り除いたものを返す。
+					// IgnoreBookPly == trueのときは手数の表記も取り除いて比較したほうがいい。
+				}
+			}
+			return string();
+		};
+
+		// バイナリサーチ
+		//
+		// 区間 [s,e) で解を求める。現時点での中間地点がm。
+		// 解とは、探しているsfen文字列が書いてある行の先頭のファイルポジションのことである。
+		//
+		// next_sfen()でm以降にある"sfen"で始まる行を読み込んだ時、そのあとのファイルポジションがlast_pos。
+
+		s64 s = 0, e = file_size, m , last_pos;
+		// s,eは無符号型だと、s - 2のような式が負にならないことを保証するのが面倒くさい。
+		// こういうのを無符号型で扱うのは筋が悪い。
+
+		while (true)
+		{
+			m = (s + e) / 2;
+
+			auto sfen2 = next_sfen(m, last_pos);
+			if (sfen2 == "" || sfen < sfen2) {
+
+				// 左(それより小さいところ)を探す
+				e = m;
+
+			} else if (sfen > sfen2) {
+
+				// 右(それより大きいところ)を探す
+
+				// next_sfen()のなかでgetline()し終わった時の位置より後ろに解がある。
+				// ここでftell()を使いたいが、上に書いた理由で嘘が返ってくるようだ。
+				s = last_pos;
+
+			} else {
+				// 見つかった！
+				break;
+			}
+
+			// 40バイトより小さなsfenはありえないので、この範囲に２つの"sfen"で始まる文字列が
+			// 入っていないことは保証されている。
+			// ゆえに、探索範囲がこれより小さいならsの先頭から調べて("sfen"と書かれている文字列を探して)終了。
+			if (s + 40 > e)
+			{
+				if ( next_sfen(s, last_pos) == sfen)
+					// 見つかった！
+					break;
+
+				// 見つからなかった
+				return BookMovesPtr();
+			}
+
+		}
+		// 見つけた処理
+
+		// read_bookとほとんど同じ読み込み処理がここに必要。辛い。
+
+		// sfen文字列が合致したところまでは確定しており、そこまでfileのseekは完了している。
+		// その直後に指し手が書かれているのでそれをgetline()で読み込めば良い。
+
+		while (!fs.eof())
+		{
+			string line;
+			getline(fs, line);
+
+			// バージョン識別文字列(とりあえず読み飛ばす)
+			if (line.length() >= 1 && line[0] == '#')
+				continue;
+
+			// コメント行(とりあえず読み飛ばす)
+			if (line.length() >= 2 && line.substr(0, 2) == "//")
+				continue;
+
+			// 次のsfenに遭遇したらこれにて終了。
+			if (  (line.length() >= 5 && line.substr(0, 5) == "sfen ")
+				|| line.length() == 0 /* 空行かeofか.. */)
+			{
+				break;
+			}
+
+			pml_entry->push_back(BookMove::from_string(line));
+		}
+		pml_entry->sort_moves();
+		return pml_entry;
+	}
 
 	BookMovesPtr MemoryBook::find(const Position& pos)
 	{
@@ -587,147 +753,19 @@ namespace Book
 
 			if (on_the_fly)
 			{
-				// ディスクから読み込むなら、いずれにせよ、新規エントリーを作成してそれを返す必要がある。
-				BookMovesPtr pml_entry(new BookMoves());
-
-				// IgnoreBookPlyのときは末尾の手数は取り除いておく。
-				// read_book()で取り除くと、そのあと書き出すときに手数が消失するのでまずい。(気がする)
-				sfen = trim(sfen);
-
-				// ファイル自体はオープンされてして、ファイルハンドルはfsだと仮定して良い。
-
-				// ファイルサイズ取得
-				// C++的には未定義動作だが、これのためにsys/stat.hをincludeしたくない。
-				// ここでfs.clear()を呼ばないとeof()のあと、tellg()が失敗する。
-				fs.clear();
-				fs.seekg(0, std::ios::beg);
-				auto file_start = fs.tellg();
-
-				fs.clear();
-				fs.seekg(0, std::ios::end);
-
-				// ファイルサイズ
-				auto file_size = s64(fs.tellg() - file_start);
-
-				// 与えられたseek位置から"sfen"文字列を探し、それを返す。どこまでもなければ""が返る。
-				// hackとして、seek位置は-2しておく。(1行読み捨てるので、seek_fromぴったりのところに
-				// "sfen"から始まる文字列があるとそこを読み捨ててしまうため。-2してあれば、そこに
-				// CR+LFがあるはずだから、ここを読み捨てても大丈夫。)
-
-				// last_posには、現在のファイルポジションが返ってくる。
-				// ※　実際の位置より改行コードのせいで少し手前である可能性はある。
-				// ftell()を用いると、MSYS2 + g++ 環境でtellgが嘘を返す(getlineを呼び出した時に内部的に
-				// bufferingしているため(?)、かなり先のファイルポジションを返す)ので自前で計算する。
-				auto next_sfen = [&](s64 seek_from , s64& last_pos)
+				auto entry = find_bookmoves_on_the_fly(sfen);
+				if (entry == nullptr)
 				{
-					string line;
-
-					seek_from = std::max( s64(0), seek_from - 2);
-					fs.seekg(seek_from , fstream::beg);
-
-					// --- 1行読み捨てる
-
-					// seek_from == 0の場合も、ここで1行読み捨てられるが、1行目は
-					// ヘッダ行であり、問題ない。
-					getline(fs, line);
-					last_pos = seek_from + (s64)line.size() + 1;
-					// 改行コードが1文字はあるはずだから、+1しておく。
-
-					// getlineはeof()を正しく反映させないのでgetline()の返し値を用いる必要がある。
-					while (getline(fs, line))
+					// FlippedBookが有効なら、反転させた局面にhitするか調べる。
+					if (Options["FlippedBook"])
 					{
-						last_pos += s64(line.size()) + 1;
-
-						if (!line.compare(0, 4, "sfen"))
-						{
-							// ios::binaryつけているので末尾に'\r'が付与されている。禿げそう。
-							// →　trim()で吸収する。(trimがStringExtension::trim_number()を呼び出すがそちらで吸収される)
-							return trim(line.substr(5));
-							// "sfen"という文字列は取り除いたものを返す。
-							// IgnoreBookPly == trueのときは手数の表記も取り除いて比較したほうがいい。
-						}
+						entry = find_bookmoves_on_the_fly(Position::sfen_to_flipped_sfen(sfen));
+						// 指し手をflipさせる
+						if (entry != nullptr)
+							entry = make_flipped_bookmoves(entry);
 					}
-					return string();
-				};
-
-				// バイナリサーチ
-				//
-				// 区間 [s,e) で解を求める。現時点での中間地点がm。
-				// 解とは、探しているsfen文字列が書いてある行の先頭のファイルポジションのことである。
-				//
-				// next_sfen()でm以降にある"sfen"で始まる行を読み込んだ時、そのあとのファイルポジションがlast_pos。
-
-				s64 s = 0, e = file_size, m , last_pos;
-				// s,eは無符号型だと、s - 2のような式が負にならないことを保証するのが面倒くさい。
-				// こういうのを無符号型で扱うのは筋が悪い。
-
-				while (true)
-				{
-					m = (s + e) / 2;
-
-					auto sfen2 = next_sfen(m, last_pos);
-					if (sfen2 == "" || sfen < sfen2) {
-
-						// 左(それより小さいところ)を探す
-						e = m;
-
-					} else if (sfen > sfen2) {
-
-						// 右(それより大きいところ)を探す
-
-						// next_sfen()のなかでgetline()し終わった時の位置より後ろに解がある。
-						// ここでftell()を使いたいが、上に書いた理由で嘘が返ってくるようだ。
-						s = last_pos;
-
-					} else {
-						// 見つかった！
-						break;
-					}
-
-					// 40バイトより小さなsfenはありえないので、この範囲に２つの"sfen"で始まる文字列が
-					// 入っていないことは保証されている。
-					// ゆえに、探索範囲がこれより小さいなら先頭から調べて("sfen"と書かれている文字列を探して)終了。
-					if (s + 40 > e)
-					{
-						if ( next_sfen(s, last_pos) == sfen)
-							// 見つかった！
-							break;
-
-						// 見つからなかった
-						return BookMovesPtr();
-					}
-
 				}
-				// 見つけた処理
-
-				// read_bookとほとんど同じ読み込み処理がここに必要。辛い。
-
-				// sfen文字列が合致したところまでは確定しており、そこまでfileのseekは完了している。
-				// その直後に指し手が書かれているのでそれをgetline()で読み込めば良い。
-
-				while (!fs.eof())
-				{
-					string line;
-					getline(fs, line);
-
-					// バージョン識別文字列(とりあえず読み飛ばす)
-					if (line.length() >= 1 && line[0] == '#')
-						continue;
-
-					// コメント行(とりあえず読み飛ばす)
-					if (line.length() >= 2 && line.substr(0, 2) == "//")
-						continue;
-
-					// 次のsfenに遭遇したらこれにて終了。
-					if (line.length() >= 5 && line.substr(0, 5) == "sfen ")
-					{
-						break;
-					}
-
-					pml_entry->push_back(BookMove::from_string(line));
-				}
-				pml_entry->sort_moves();
-				return pml_entry;
+				return entry;
 
 			} else {
 
@@ -738,6 +776,17 @@ namespace Book
 					// メモリ上に丸読みしてあるので参照透明だと思って良い。
 					it->second->sort_moves();
 					return BookMovesPtr(it->second);
+				}
+
+				// FlippedBookが有効なら、反転させた局面にhitするか調べる。
+				if (Options["FlippedBook"])
+				{
+					it = book_body.find(trim(Position::sfen_to_flipped_sfen(sfen)));
+					if (it != book_body.end())
+					{
+						// hitしたので反転された指し手を登録した新規エントリーを作成してそれを返す。
+						return make_flipped_bookmoves(it->second);
+					}
 				}
 
 				// 空のentryを返す。
@@ -1004,6 +1053,9 @@ namespace Book
 		// 例) 局面図が同じなら、DBの36手目の局面に40手目でもヒットする。
 		// これ変更したときに定跡ファイルの読み直しが必要になるのだが…(´ω｀)
 		o["IgnoreBookPly"] << Option(false);
+
+		// 反転させた局面が定跡DBに登録されていたら、それにヒットするようになるオプション。
+		o["FlippedBook"] << Option(true);
 	}
 
 	// 与えられたmで進めて定跡のpv文字列を生成する。
