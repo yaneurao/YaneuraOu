@@ -481,6 +481,14 @@ const std::string Position::flipped_sfen(int gamePly_) const
 	return ss.str();
 }
 
+// sfen文字列を先後反転したsfen文字列に変換する。
+const std::string Position::sfen_to_flipped_sfen(std::string sfen)
+{
+	Position pos;
+	StateInfo si;
+	pos.set(sfen,&si,Threads.main());
+	return pos.flipped_sfen();
+}
 
 void Position::set_state(StateInfo* si) const {
 

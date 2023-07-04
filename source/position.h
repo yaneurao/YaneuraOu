@@ -233,6 +233,9 @@ public:
 	const std::string flipped_sfen() const { return flipped_sfen(game_ply()); }
 	const std::string flipped_sfen(int gamePly) const;
 
+	// sfen文字列を先後反転したsfen文字列に変換する。
+	static const std::string sfen_to_flipped_sfen(std::string sfen);
+
 	// 平手の初期盤面を設定する。
 	// siについては、上記のset()にある説明を読むこと。
 	void set_hirate(StateInfo*si,Thread* th) { set(SFEN_HIRATE,si,th); }

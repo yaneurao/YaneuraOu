@@ -14,6 +14,8 @@
 //    makebook petashock book1.db user_book1.db
 // 
 // book1.dbをmin-max探索してuser_book1.dbを書き出す。
+// 
+// エンジンオプションのFlippedBookがtrueなら、先手番の局面しか書き出さない。(後手番の局面はそれをflipした局面が書き出されているはずだから)
 //
 
 #include <sstream>
@@ -371,6 +373,11 @@ namespace MakeBook2023
 			// 引き分けのスコアを変更したいなら先に変更しておいて欲しい。
 			cout << "draw_value_black   : " << draw_value(REPETITION_DRAW, BLACK) << endl;
 			cout << "draw_value_white   : " << draw_value(REPETITION_DRAW, WHITE) << endl;
+
+			// 反転された局面を書き出すのか。(FlippedBookがtrueなら書き出さない)
+			// すなわち、後手番の局面はすべて書き出さない。(反転された先手番の局面を書き出しているはずだから)
+			bool flipped_book = Options["FlippedBook"];
+			cout << "FlippedBook        : " << flipped_book << endl;
 
 			cout << endl;
 
@@ -1162,6 +1169,10 @@ namespace MakeBook2023
 					auto& index = sfen_index.second;
 					auto& book_node = book_nodes[index];
 
+					// FlippedBookがtrueなら、後手番の局面は書き出さない。
+					if (flipped_book && book_node.color == WHITE)
+						continue;
+
 					Book::BookMoves bookMoves;
 					for(auto& move : book_node.moves)
 					{
@@ -1173,6 +1184,8 @@ namespace MakeBook2023
 
 					progress.check(++counter);
 				}
+				progress.check(sfen_to_index.size());
+
 				// 定跡ファイルの書き出し
 				new_book.write_book(writebook_path);
 				write_counter = new_book.size();
