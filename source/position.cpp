@@ -2118,6 +2118,56 @@ RepetitionState Position::is_repetition(int repPly, int& found_ply) const
 	return REPETITION_NONE;
 }
 
+// Finds 4th repetition, not just the first repetition
+// and doesn't check for superior repetition at all
+RepetitionState Position::is_repetition_full(int repPly, int ply) const
+{
+	ASSERT_LV3(st->pliesFromNull >= 0);
+
+	// 遡り可能な手数。
+	// 最大でもrepPly手までしか遡らないことにする。
+	int end = std::min(repPly, st->pliesFromNull);
+
+	if (end < 4)
+		return REPETITION_NONE;
+
+	int cnt = 0;
+	StateInfo* stp = st->previous->previous;
+
+	for (int i = 4; i <= end ; i += 2)
+	{
+		stp = stp->previous->previous;
+
+		// board_key : 盤上の駒のみのhash(手駒を除く)
+		// 盤上の駒が同じ状態であるかを判定する。
+		if (stp->board_key() == st->board_key())
+		{
+			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+			if (stp->hand == st->hand)
+			{
+				if (++cnt + (ply > i ? 2 : 0) >= 3)
+				{
+					// 自分が王手をしている連続王手の千日手なのか？
+					if (i <= st->continuousCheck[sideToMove])
+						return REPETITION_LOSE;
+
+					// 相手が王手をしている連続王手の千日手なのか？
+					if (i <= st->continuousCheck[~sideToMove])
+						return REPETITION_WIN;
+
+					return REPETITION_DRAW;
+				}
+				else {
+					end = std::min(end + repPly, st->pliesFromNull);
+				}
+			}
+		}
+	}
+
+	// 同じhash keyの局面が見つからなかったので…。
+	return REPETITION_NONE;
+}
+
 
 // ----------------------------------
 //      入玉判定

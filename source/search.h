@@ -104,7 +104,7 @@ namespace Search {
 			enteringKingPoint[BLACK] = 28; // Position::set()でupdate_entering_point()が呼び出されて設定される。
 			enteringKingPoint[WHITE] = 27; // Position::set()でupdate_entering_point()が呼び出されて設定される。
 
-			silent = bench = consideration_mode = outout_fail_lh_pv = false;
+			silent = bench = consideration_mode = outout_fail_lh_pv = analyseMode = false;
 			pv_interval = 0;
 			generate_all_legal_moves = true;
 			wait_stop = false;
@@ -188,6 +188,9 @@ namespace Search {
 
 		// fail low/highのときのPVを出力するのか
 		bool outout_fail_lh_pv;
+
+		// Stricter repetition handling
+		bool analyseMode;
 
 		// ベンチマークモード(このときPVの出力時に置換表にアクセスしない)
 		bool bench;

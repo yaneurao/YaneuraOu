@@ -133,6 +133,9 @@ void USI::extra_option(USI::OptionsMap & o)
 	// fail low/highのときにPVを出力するかどうか。
 	o["OutputFailLHPV"] << Option(true);
 
+	// Stricter repetition handling
+	o["USI_AnalyseMode"] << Option(false);
+
 #if defined(YANEURAOU_ENGINE_NNUE)
 	// NNUEのFV_SCALEの値
 	o["FV_SCALE"] << Option(16, 1, 128);
@@ -447,6 +450,9 @@ void MainThread::search()
 
 	// fail low/highのときにPVを出力するかどうか。
 	Limits.outout_fail_lh_pv = Options["OutputFailLHPV"];
+
+	// Stricter repetition handling
+	Limits.analyseMode = Options["USI_AnalyseMode"];
 
 	// PVが詰まるのを抑制するために、前回出力時刻を記録しておく。
 	lastPvInfoTime = 0;
@@ -1403,7 +1409,7 @@ namespace {
 
 			// 教師局面生成時には、これをオフにしたほうが良いかも知れない。
 			// ただし、そのときであっても連続王手の千日手は有効にしておく。
-			auto draw_type = pos.is_repetition(/*ss->ply*/);
+			RepetitionState draw_type = Limits.analyseMode ? pos.is_repetition_full(16, ss->ply) : pos.is_repetition(/*ss->ply*/);
 			if (draw_type != REPETITION_NONE)
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 

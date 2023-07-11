@@ -329,6 +329,10 @@ public:
 	// REPETITION_NONEではない時は、found_plyにその値が返ってくる。	// ※　定跡生成の時にしか使わない。
 	RepetitionState is_repetition(int rep_ply , int& found_ply) const;
 
+	// Finds if 4th repetition exists
+	// rep_ply         : 遡る手数。あまり大きくすると速度低下を招く。
+	RepetitionState is_repetition_full(int rep_ply , int ply) const;
+
 	// --- Bitboard
 
 	// 先手か後手か、いずれかの駒がある場所が1であるBitboardが返る。
