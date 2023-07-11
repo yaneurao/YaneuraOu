@@ -2574,6 +2574,31 @@ void Position::UnitTest(Test::UnitTester& tester)
 		tester.test("REPETITION_DRAW", rep == REPETITION_DRAW && found_ply == 4);
 	}
 
+	// 千日手検出のテスト
+	{
+		auto section2 = tester.section("is_repetition_full");
+
+		std::deque<StateInfo> sis;
+
+		BookTools::feed_position_string(pos, "startpos moves 2h3h 8b7b 3h2h 7b8b 2h3h 8b7b 3h2h 7b8b 2h3h 8b7b 3h2h 7b8b", sis);
+
+		auto rep = pos.is_repetition_full(16, 0);
+
+		tester.test("REPETITION_DRAW (4th repetition)", rep == REPETITION_DRAW);
+
+		BookTools::feed_position_string(pos, "startpos moves 2h3h 8b7b 3h2h 7b8b 2h3h 8b7b 3h2h 7b8b", sis);
+
+		auto rep2 = pos.is_repetition_full(16, 0);
+
+		tester.test("REPETITION_NONE (3rd repetition)", rep2 == REPETITION_NONE);
+
+		BookTools::feed_position_string(pos, "startpos moves 5i5h 5a5b 5h5i 5b5a", sis);
+
+		auto rep3 = pos.is_repetition_full(16, 0);
+
+		tester.test("REPETITION_NONE (1st repetition)", rep3 == REPETITION_NONE);
+	}
+
 	// 入玉のテスト
 	{
 		auto section2 = tester.section("EnteringKing");
