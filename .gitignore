@@ -23,6 +23,9 @@ YaneuraOu_backup*.lnk
 *.nnue.*
 *.result.txt
 
+# contains nn.bin files
+/eval
+
 # embedded_nnue.cpp
 embedded_nnue.cpp
 
