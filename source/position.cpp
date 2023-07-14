@@ -2589,21 +2589,27 @@ void Position::UnitTest(Test::UnitTester& tester)
 
 		BookTools::feed_position_string(pos, "startpos moves 2h3h 8b7b 3h2h 7b8b 2h3h 8b7b 3h2h 7b8b 2h3h 8b7b 3h2h 7b8b", sis);
 
-		auto rep = pos.is_repetition_full(16, 0);
+		auto rep4 = pos.is_repetition_full(16, 0);
 
-		tester.test("REPETITION_DRAW (4th repetition)", rep == REPETITION_DRAW);
+		tester.test("REPETITION_DRAW (4th repetition)", rep4 == REPETITION_DRAW);
 
 		BookTools::feed_position_string(pos, "startpos moves 2h3h 8b7b 3h2h 7b8b 2h3h 8b7b 3h2h 7b8b", sis);
 
-		auto rep2 = pos.is_repetition_full(16, 0);
+		auto rep3 = pos.is_repetition_full(16, 0);
 
-		tester.test("REPETITION_NONE (3rd repetition)", rep2 == REPETITION_NONE);
+		tester.test("REPETITION_NONE (3rd repetition)", rep3 == REPETITION_NONE);
 
 		BookTools::feed_position_string(pos, "startpos moves 5i5h 5a5b 5h5i 5b5a", sis);
 
-		auto rep3 = pos.is_repetition_full(16, 0);
+		auto rep2 = pos.is_repetition_full(16, 0);
 
-		tester.test("REPETITION_NONE (1st repetition)", rep3 == REPETITION_NONE);
+		tester.test("REPETITION_NONE (2nd repetition)", rep2 == REPETITION_NONE);
+
+		BookTools::feed_position_string(pos, "sfen l5snl/3k5/1pnsg1b2/p1ppp1g1p/5pp2/PPP1P4/2SP5/K1GB5/LNG4+r1 w 2Prsnl3p 78 moves 4e4f 6h4f P*4e", sis);
+
+		auto sup_rep = pos.is_repetition_full(16, 0);
+
+		tester.test("REPETITION_NONE (superior position)", sup_rep == REPETITION_NONE);
 	}
 
 	// 入玉のテスト
