@@ -2161,6 +2161,13 @@ RepetitionState Position::is_repetition_full(int repPly, int ply) const
 					end = std::min(end + repPly, st->pliesFromNull);
 				}
 			}
+			else if (ply > i) {
+				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+				if (hand_is_equal_or_superior(st->hand, stp->hand))
+					return REPETITION_SUPERIOR;
+				if (hand_is_equal_or_superior(stp->hand, st->hand))
+					return REPETITION_INFERIOR;
+			}
 		}
 	}
 
