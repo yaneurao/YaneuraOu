@@ -939,6 +939,8 @@ namespace MakeBook2023
 				// それぞれのroot_sfenに対して。
 				for(auto root_sfen : root_sfens)
 				{
+					u64 timeup_counter = 0;
+
 					// 所定の行数のsfenを書き出すまで回る。
 					// ただし、局面が尽きることがあるのでrootが存在しなければループは抜ける。
 					while (true)
@@ -953,11 +955,18 @@ namespace MakeBook2023
 							|| hashkey_to_index.count(pos.state()->hash_key()) == 0)
 							break;
 
+						// 書き出す指し手がすべてのrootでなくなっていることを証明するロジックを書くのわりと面倒なので
+						// timeup_counterをカウントすることにする。
+						// next_nodesの10倍も回ったらもうあかんやろ…。
+						if (++timeup_counter > next_nodes * 10)
+							break;
+
 						// PVを辿った時の最後のParentMove
 						ParentMove last_parent_move(BookNodeIndexNull,0);
 
 						// leafの局面までの手順
 						//string sfen_path = "startpos moves ";
+
 
 						// まずPV leafまで辿る。
 						while (true)
@@ -995,6 +1004,8 @@ namespace MakeBook2023
 								// 指し手のなかでbestを選ぶ。同じvalueならdepthが最小であること。
 								last_parent_move = ParentMove(index,0);
 
+								/*
+								// →　BOOK_VALUE_NONE、書き出すのやめることにする。これあまりいいアイデアではなかった。
 								for(auto& move : moves)
 								{
 									if (move.vd.value == BOOK_VALUE_NONE)
@@ -1012,6 +1023,7 @@ namespace MakeBook2023
 										move.move = MOVE_NONE;
 									}
 								}
+								*/
 
 								ValueDepth parent_vd;
 								size_t i;
@@ -1070,8 +1082,9 @@ namespace MakeBook2023
 							auto& book_node = book_nodes[index];
 
 							// 親がいなくなっている = bestmoveを求めても伝播する先かない = このnodeは死んでいる。
-							if (book_node.parents.size()==0)
-								continue;
+							// →　ただし、rootの可能性があるので、このノードの処理は行う必要がある。
+							//if (book_node.parents.size()==0)
+							//	continue;
 
 							// 子の局面の指し手がすべてMOVE_NONEなので、子に至るこの指し手を無効化する。
 							// これでbest_valueに変化が生じるのか？
@@ -1089,6 +1102,9 @@ namespace MakeBook2023
 								// そのチェックは端折ることができる。
 								book_node.moves[move_index].vd = pm.best;
 							}
+
+							if (book_node.parents.size()==0)
+								continue;
 
 							// 親に伝播させる。
 
