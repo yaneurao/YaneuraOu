@@ -508,7 +508,7 @@ namespace dlshogi
 		}
 
 		// ---------------------
-		//     PV出力して終了
+		//   思考した指し手を返す
 		// ---------------------
 
 		// ponderモードでは指し手自体は返さない。
@@ -523,6 +523,13 @@ namespace dlshogi
 
 		// この時点で探索スレッドをすべて停止させないと
 		// Virtual Lossを元に戻す前にbestmoveを選出してしまう。
+
+
+		// 評価値が投了値を下回っていたら投了
+		if (best.wp < search_options.RESIGN_THRESHOLD) {
+			ponderMove = MOVE_NONE;
+			return MOVE_RESIGN;
+		}
 
 		// それに対するponderの指し手もあるはずなのでそれをセットしておく。
 		ponderMove = best.ponder;
@@ -621,6 +628,15 @@ namespace dlshogi
 		// hashfull
 		// s.current_root->move_count == NOT_EXPANDED  開始まもなくはこれでありうるので、
 		// +1してから比較する。(NOT_EXPANDEDはu32::max()なので+1すると0になる)
+		// 
+		// current_root->move_countは現在のルートからの展開局面数だと近似できる(少なくとも、これ以上の
+		//   局面の情報はメモリ上に存在しないことは保証されている)ので、uct_node_limitがこれを上回るまで
+		//   という条件にしておく。
+		// 本当は、expand_node()した回数で制限をかけたいのだが、current_rootにぶらさがっているノード数をカウントする
+		// 手段がないため、このようにしておく。
+		// 
+		// stochastic ponderでponderhitした場合もいったん思考を停止して、次の局面で(つまりcurrent_rootが次の局面に進んで)、
+		// 再度思考するので、この処理で問題ない。
 		if ( (NodeCountType)(s.current_root->move_count + 1) > o.uct_node_limit)
 		{
 			// これは、時間制御の対象外。
