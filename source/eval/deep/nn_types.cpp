@@ -30,7 +30,7 @@ namespace Eval::dlshogi
 
 #if defined(TRT_NN_FP16)
 	const DType dtype_zero = __float2half(0.0f);
-	const DType dtype_one = __float2half(1.0f);
+	const DType dtype_one  = __float2half(1.0f);
 #endif
 
 #if 0 // dlshogiに忠実に書かれたコード

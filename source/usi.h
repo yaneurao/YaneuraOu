@@ -80,7 +80,8 @@ namespace USI
 		// 起動時に設定を代入する。
 		void operator<<(const Option&);
 
-		// s64型への暗黙の変換子
+		// s64型への暗黙の変換子。
+		// Stockfishでは、intになっているが、やねうら王ではs64に拡張している。
 		operator s64() const;
 
 		// string型への暗黙の変換子

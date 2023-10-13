@@ -1,7 +1,11 @@
-﻿#include "thread.h"
-#include "tt.h"
-#include "usi.h"
+﻿
+//#include "evaluate.h"
 #include "misc.h"
+//#include "search.h
+//#include "syzygy/tbprobe.h"
+#include "thread.h"
+//#include "tt.h"
+#include "usi.h"
 
 using std::string;
 
@@ -9,6 +13,16 @@ using std::string;
 USI::OptionsMap Options;
 
 namespace USI {
+
+	/// 'On change' actions, triggered by an option's value change
+	// オプションの値が変更された時に呼び出されるOn changeアクション。
+
+	//static void on_clear_hash(const Option&) { Search::clear(); }
+	//static void on_hash_size(const Option& o) { TT.resize(size_t(o)); }
+	static void on_logger(const Option& o) { start_logger(o); }
+	//static void on_threads(const Option& o) { Threads.set(size_t(o)); }
+	//static void on_tb_path(const Option& o) { Tablebases::init(o); }
+	//static void on_eval_file(const Option&) { Eval::NNUE::init(); }
 
 	// --- やねうら王独自拡張分の前方宣言
 
@@ -57,18 +71,18 @@ namespace USI {
 		// Stockfishもこうすべきだと思う。
 
 #if !defined(__EMSCRIPTEN__)
-		o["Threads"] << Option(4, 1, 512, [](const Option& o) { /* Threads.set(o); */ });
+		o["Threads"] << Option(4, 1, 1024, [](const Option& o) { /* on_threads(o); */ });
 #else
 		// yaneuraou.wasm
 		// スレッド数などの調整
 		// stockfish.wasmの数値を基本的に使用している
-		o["Threads"] << Option(1, 1, 32, [](const Option& o) { /* Threads.set(o); */ });
+		o["Threads"] << Option(1, 1, 32, [](const Option& o) { /* on_threads(o); */ });
 #endif
 #endif
 
 #if !defined(TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
 		// 置換表のサイズ。[MB]で指定。
-		o["USI_Hash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { /* TT.resize(o); */ });
+		o["USI_Hash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { /* on_hash_size(o); */ });
 
 #if defined(USE_EVAL_HASH)
 		// 評価値用のcacheサイズ。[MB]で指定。
@@ -80,6 +94,9 @@ namespace USI {
 		o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
 #endif // defined(FOR_TOURNAMENT)
 #endif // defined(USE_EVAL_HASH)
+
+		// Stockfishには、探索部を初期化するエンジンオプションがあるが使わないので未サポートとする。
+	    //o["Clear Hash"]            << Option(on_clear_hash);
 
 		// ponderの有無
 		o["USI_Ponder"] << Option(false);
@@ -165,7 +182,7 @@ namespace USI {
 #endif // !defined(TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
 
 		// cin/coutの入出力をファイルにリダイレクトする
-		o["WriteDebugLog"] << Option("", [](const Option& o) { start_logger(o); });
+		o["WriteDebugLog"] << Option("", [](const Option& o) { on_logger(o); });
 
 		// 読みの各局面ですべての合法手を生成する
 		// (普通、歩の2段目での不成などは指し手自体を生成しないが、
@@ -293,10 +310,9 @@ namespace USI {
 		defaultValue = currentValue = v;
 	}
 
-	// Stockfishでは、これdoubleになっているが、あまりいいと思えないので数値型はs64のみのサポートにする。
 	Option::operator s64() const {
 		ASSERT_LV1(type == "check" || type == "spin");
-		return (type == "spin" ? stoll(currentValue) : currentValue == "true");
+		return (type == "spin" ? std::stoll(currentValue) : currentValue == "true");
 	}
 
 	Option::operator std::string() const {

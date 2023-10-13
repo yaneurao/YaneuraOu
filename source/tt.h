@@ -1,6 +1,9 @@
 ﻿#ifndef TT_H_INCLUDED
 #define TT_H_INCLUDED
 
+#include <cstddef>
+#include <cstdint>
+
 #include "types.h"
 #include "misc.h"
 
@@ -31,11 +34,11 @@ struct Key256;
 struct TTEntry {
 
 	Move16 move()  const { return Move16(move16); }
-	Value  value() const { return (Value)value16; }
-	Value  eval()  const { return (Value)eval16;  }
-	Depth  depth() const { return (Depth)depth8 + DEPTH_OFFSET; }
-	bool   is_pv() const { return (bool )(genBound8 & 0x4); }
-	Bound  bound() const { return (Bound)(genBound8 & 0x3); }
+	Value  value() const { return Value(value16); }
+	Value  eval()  const { return Value(eval16 ); }
+	Depth  depth() const { return Depth(depth8 + DEPTH_OFFSET); }
+	bool   is_pv() const { return bool (genBound8 & 0x4); }
+	Bound  bound() const { return Bound(genBound8 & 0x3); }
 
 	// 置換表のエントリーに対して与えられたデータを保存する。上書き動作
 	//   v    : 探索のスコア

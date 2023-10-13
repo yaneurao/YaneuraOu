@@ -916,15 +916,15 @@ namespace Tools
 	// ※ Stockfishのtt.cppのTranspositionTable::clear()にあるコードと同等のコード。
 	void memclear(const char* name_, void* table, size_t size)
 	{
+#if !defined(EVAL_LEARN) && !defined(__EMSCRIPTEN__)
+
 		// Windows10では、このゼロクリアには非常に時間がかかる。
 		// malloc()時点ではメモリを実メモリに割り当てられておらず、
 		// 初回にアクセスするときにその割当てがなされるため。
 		// ゆえに、分割してゼロクリアして、一定時間ごとに進捗を出力する。
 
-		// memset(table, 0, size);
-
 		// Options["Threads"]が使用できるスレッド数とは限らない(ふかうら王など)
-		auto thread_num = (size_t)Threads.size(); // Options["Threads"];
+		auto thread_num = size_t(Threads.size()); // Options["Threads"];
 
 		if (name_ != nullptr)
 			sync_cout << "info string " + std::string(name_) + " : Start clearing with " <<  thread_num << " threads , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
@@ -944,10 +944,15 @@ namespace Tools
 					WinProcGroup::bindThisThread(idx);
 
 				// それぞれのスレッドがhash tableの各パートをゼロ初期化する。
+				// start  : このスレッドによるゼロクリア開始位置
+				// stride : 各スレッドのゼロクリアするサイズ
+				// len    : このスレッドによるゼロクリアするサイズ。
+				//          strideと等しいが、最後のスレッドだけは端数を考慮し、
+				//			size - start のサイズだけクリアする必要がある。
 				const size_t stride = size / thread_num,
-					start = stride * idx,
-					len = idx != thread_num - 1 ?
-					stride : size - start;
+							 start  = stride * idx,
+							 len    = idx != thread_num - 1 ?
+									  stride : size - start;
 
 				std::memset((uint8_t*)table + start, 0, len);
 				}));
@@ -958,6 +963,19 @@ namespace Tools
 
 		if (name_ != nullptr)
 			sync_cout << "info string " + std::string(name_) + " : Finish clearing." << sync_endl;
+
+#else
+		// yaneuraou.wasm
+		// pthread_joinによってブラウザのメインスレッドがブロックされるため、単一スレッドでメモリをクリアする処理に変更
+
+		// LEARN版のときは、
+		// 単一スレッドでメモリをクリアする。(他のスレッドは仕事をしているので..)
+		// 教師生成を行う時は、対局の最初にスレッドごとのTTに対して、
+		// このclear()が呼び出されるものとする。
+		// 例) th->tt.clear();
+		std::memset(table, 0, size);
+#endif
+
 	}
 
 	// 途中での終了処理のためのwrapper

@@ -1,7 +1,16 @@
-﻿#include <cstring>	// std::memset()
+﻿#include "tt.h"
+
+//#include <cassert>
+//#include <cstdlib>
+//#include <cstring>
+//#include <iostream>
+//#include <thread>
+//#include <vector>
+
 #include "misc.h"
 #include "thread.h"
-#include "tt.h"
+
+// やねうら王独自拡張
 #include "extra/key128.h"
 
 TranspositionTable TT; // 置換表をglobalに確保。
@@ -45,7 +54,7 @@ void TTEntry::save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound 
 	// ケースが考えられる。ゆえに、今回の指し手のほうが、いまの置換表の指し手より価値があると考えられる。
 
 	if (m || key_for_ttentry != key)
-		move16 = (uint16_t)m;
+		move16 = uint16_t(m);
 
 	// このエントリーの現在の内容のほうが価値があるなら上書きしない。
 	// 1. hash keyが違うということはTT::probeでここを使うと決めたわけだから、このEntryは無条件に潰して良い
@@ -63,10 +72,10 @@ void TTEntry::save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound 
 		ASSERT_LV3(d < 256 + DEPTH_OFFSET);
 
 		key       = key_for_ttentry;
-		depth8    = (uint8_t)(d - DEPTH_OFFSET); // DEPTH_OFFSETだけ下駄履きさせてある。
-		genBound8 = (uint8_t)(TT.generation8 | uint8_t(pv) << 2 | b);
-		value16   = (int16_t)v;
-		eval16    = (int16_t)ev;
+		depth8    = uint8_t(d - DEPTH_OFFSET); // DEPTH_OFFSETだけ下駄履きさせてある。
+		genBound8 = uint8_t(TT.generation8 | uint8_t(pv) << 2 | b);
+		value16   = int16_t(v);
+		eval16    = int16_t(ev);
 	}
 }
 
@@ -134,21 +143,9 @@ void TranspositionTable::clear()
 
 	auto size = clusterCount * sizeof(Cluster);
 
-#if !defined(EVAL_LEARN) && !defined(__EMSCRIPTEN__)
 	// 進捗を表示しながら並列化してゼロクリア
 	// Stockfishのここにあったコードは、独自の置換表を実装した時にも使いたいため、tt.cppに移動させた。
-	Tools::memclear("USI_Hash" , table, size);
-#else
-	// yaneuraou.wasm
-	// pthread_joinによってブラウザのメインスレッドがブロックされるため、単一スレッドでメモリをクリアする処理に変更
-
-	// LEARN版のときは、
-	// 単一スレッドでメモリをクリアする。(他のスレッドは仕事をしているので..)
-	// 教師生成を行う時は、対局の最初にスレッドごとのTTに対して、
-	// このclear()が呼び出されるものとする。
-	// 例) th->tt.clear();
-	std::memset(table, 0, size);
-#endif
+	Tools::memclear("USI_Hash", table, size);
 }
 
 // probe()の内部実装用。
@@ -190,7 +187,7 @@ TTEntry* TranspositionTable::probe(const Key key_for_index, const TTEntry::KEY_T
 		{
 			tte[i].genBound8 = uint8_t(generation8 | (tte[i].genBound8 & (GENERATION_DELTA - 1))); // Refresh
 
-			return found = (bool)tte[i].depth8, &tte[i];
+			return found = bool(tte[i].depth8), &tte[i];
 		}
 	}
 

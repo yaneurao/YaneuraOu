@@ -137,6 +137,10 @@ void USI::extra_option(USI::OptionsMap & o)
 	// NNUEのFV_SCALEの値
 	o["FV_SCALE"] << Option(16, 1, 128);
 #endif
+
+	// Stockfishには、Eloレーティングを指定して棋力調整するためのエンジンオプションがあるようだが…。
+	// o["UCI_Elo"]               << Option(1320, 1320, 3190);
+
 }
 
 // パラメーターのランダム化のときには、
@@ -498,7 +502,7 @@ void MainThread::search()
 		rootMoves[0].score = mated_in(0);
 
 		if (!Limits.silent)
-			sync_cout << USI::pv(rootPos, 1) << sync_endl;
+			sync_cout << USI::pv(rootPos, Depth(1)) << sync_endl;
 
 		goto SKIP_SEARCH;
 	}
