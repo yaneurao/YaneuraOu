@@ -218,13 +218,9 @@ namespace USI
 				ss << " multipv " << (i + 1);
 
 			ss << " nodes " << nodes_searched
-			   << " nps "   << nodes_searched * 1000 / elapsed;
-
-			// 置換表使用率。経過時間が短いときは意味をなさないので出力しない。
-			if (elapsed > 1000)
-				ss << " hashfull " << TT.hashfull();
-
-			ss << " time " << elapsed
+			   << " nps "   << nodes_searched * 1000 / elapsed
+			   << " hashfull " << TT.hashfull()
+			   << " time " << elapsed
 			   << " pv";
 
 
@@ -959,6 +955,7 @@ void usi_cmdexec(Position& pos, StateListPtr& states, string& cmd)
 				filename += ".txt";
 				sync_cout << "USI Commands from File = " << filename << sync_endl;
 				vector<string> lines;
+
 				SystemIO::ReadAllLines(filename, lines);
 				for (auto& line : lines)
 					std_input.push(line);
@@ -1144,6 +1141,14 @@ namespace {
 	}
 }
 
+/// Turns a Value to an integer centipawn number,
+/// without treatment of mate and similar special scores.
+// 詰みやそれに類似した特別なスコアの処理なしに、Valueを整数のセントポーン数に変換します、
+int USI::to_cp(Value v) {
+
+  return 100 * v / USI::NormalizeToPawnValue;
+}
+
 #if defined(USE_PIECE_VALUE)
 // スコアを歩の価値を100として正規化して出力する。
 // USE_PIECE_VALUEが定義されていない時は正規化しようがないのでこの関数は呼び出せない。
@@ -1151,23 +1156,24 @@ std::string USI::value(Value v)
 {
 	ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
-	std::stringstream s;
+	std::stringstream ss;
 
 	// 置換表上、値が確定していないことがある。
 	if (v == VALUE_NONE)
-		s << "none";
+		ss << "none";
 	else if (abs(v) < VALUE_MATE_IN_MAX_PLY)
-		s << "cp " << v * 100 / int(Eval::PawnValue);
+		//s << "cp " << v * 100 / int(Eval::PawnValue);
+		ss << "cp " << USI::to_cp(v);
 	else if (v == -VALUE_MATE)
 		// USIプロトコルでは、手数がわからないときには "mate -"と出力するらしい。
 		// 手数がわからないというか詰んでいるのだが…。これを出力する方法がUSIプロトコルで定められていない。
 		// ここでは"-0"を出力しておく。
 		// ※　ShogiGUIだと、これで"+詰"と出力されるようである。
-		s << "mate -0";
+		ss << "mate -0";
 	else
-		s << "mate " << (v > 0 ? VALUE_MATE - v : -VALUE_MATE - v);
+		ss << "mate " << (v > 0 ? VALUE_MATE - v : -VALUE_MATE - v);
 
-	return s.str();
+	return ss.str();
 }
 #endif
 

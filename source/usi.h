@@ -1,10 +1,10 @@
 ﻿#ifndef USI_H_INCLUDED
 #define USI_H_INCLUDED
 
+#include <cstddef>
+#include <iosfwd>
 #include <map>
-//#include <string>
-#include <vector>
-#include <functional>	// function
+#include <string>
 
 #include "types.h"
 #include "position.h"
@@ -15,17 +15,35 @@
 
 namespace USI
 {
+	// Normalizes the internal value as reported by evaluate or search
+	// to the UCI centipawn result used in output. This value is derived from
+	// the win_rate_model() such that Stockfish outputs an advantage of
+	// "100 centipawns" for a position if the engine has a 50% probability to win
+	// from this position in selfplay at fishtest LTC time control.
+
+	// evaluateまたはsearchによって報告される内部値をUSIの出力で使用されるUSIのcenti-pawnの値に正規化します
+	// この値はwin_rate_model()から派生しており、
+	// Stockfishがこのポジションから自己対局で50%の確率で勝利する場合、
+	// "100セントポーン"の利点を出力します。
+	// これは、fishtest LTCタイムコントロールでの自己対局においてです。
+
+	// → やねうら王の場合、PawnValue = 90なので Value = 90なら 100として出力する必要がある。
+	const int NormalizeToPawnValue = Eval::PawnValue;
+
 	class Option;
 
+	/// Define a custom comparator, because the UCI options should be case-insensitive
 	// UCIではオプションはcase insensitive(大文字・小文字の区別をしない)なのでcustom comparatorを用意する。
 	// USIではここがプロトコル上どうなっているのかはわからないが、同様の処理にしておく。
 	struct CaseInsensitiveLess {
 		bool operator() (const std::string&, const std::string&) const;
 	};
 
+	/// The options container is defined as a std::map
 	// USIのoption名と、それに対応する設定内容を保持しているclass。実体はstd::map
-	typedef std::map<std::string, Option , CaseInsensitiveLess> OptionsMap;
+	using OptionsMap = std::map<std::string, Option, CaseInsensitiveLess>;
 
+	/// The Option class implements each option as specified by the UCI protocol
 	// USIプロトコルで指定されるoptionの内容を保持するclass
 	class Option {
 
@@ -33,7 +51,7 @@ namespace USI
 		//		typedef void(*OnChange)(const Option&);
 		// Stockfishでは↑のように関数ポインタになっているが、
 		// これだと[&](o){...}みたいなlambda式を受けられないのでここはstd::functionを使うべきだと思う。
-		typedef std::function<void(const Option&)> OnChange;
+		using OnChange = void (*)(const Option&);
 
 	public:
 		// (GUI側のエンジン設定画面に出てくる)ボタン
@@ -109,6 +127,10 @@ namespace USI
 	void loop(int argc, char* argv[]);
 
 #if defined(USE_PIECE_VALUE)
+
+	// Valueをcp(centi-pawn)に変換する。
+	int to_cp(Value v);
+
 	// USIプロトコルの形式でValue型を出力する。
 	// 歩が100になるように正規化するので、operator <<(Value)をこういう仕様にすると
 	// 実際の値と異なる表示になりデバッグがしにくくなるから、そうはしていない。
