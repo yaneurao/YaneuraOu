@@ -1,6 +1,9 @@
 ﻿#ifndef _SEARCH_H_INCLUDED_
 #define _SEARCH_H_INCLUDED_
 
+#include <cstdint>
+#include <vector>
+
 #include "config.h"
 #include "misc.h"
 #include "movepick.h"
@@ -70,6 +73,15 @@ namespace Search {
 		// aspiration searchの時に用いる。previousScoreの移動平均。
 		Value averageScore = -VALUE_INFINITE;
 
+		// USIに出力する用のscore
+		Value usiScore = -VALUE_INFINITE;
+
+		// usiScoreはlowerboundになっているのか。
+		bool scoreLowerbound = false;
+
+		// usiScoreはupperboundになっているのか。
+		bool scoreUpperbound = false;
+
 		// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
 		int selDepth = 0;
 
@@ -81,7 +93,7 @@ namespace Search {
 		std::vector<Move> pv;
 	};
 
-	typedef std::vector<RootMove> RootMoves;
+	using RootMoves = std::vector<RootMove>;
 
 	// goコマンドでの探索時に用いる、持ち時間設定などが入った構造体
 	// "ponder"のフラグはここに含まれず、Threads.ponderにあるので注意。

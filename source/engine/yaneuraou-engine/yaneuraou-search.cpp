@@ -498,7 +498,7 @@ void MainThread::search()
 		rootMoves[0].score = mated_in(0);
 
 		if (!Limits.silent)
-			sync_cout << USI::pv(rootPos, 1 , -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+			sync_cout << USI::pv(rootPos, 1) << sync_endl;
 
 		goto SKIP_SEARCH;
 	}
@@ -544,7 +544,7 @@ void MainThread::search()
 
 				// rootで宣言勝ちのときにもそのPVを出力したほうが良い。
 				if (!Limits.silent)
-					sync_cout << USI::pv(rootPos, 1 , -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+					sync_cout << USI::pv(rootPos, 1) << sync_endl;
 
 				goto SKIP_SEARCH;
 			}
@@ -637,7 +637,7 @@ SKIP_SEARCH:;
 			// →　いずれにせよ、mateを見つけた時に最終的なPVを出力していないと、詰みではないscoreのPVが最終的な読み筋としてGUI上に
 			//     残ることになるからよろしくない。PV自体は必ず出力すべきなのでは。
 			if (/*bestThread != this &&*/ !Limits.silent && !Limits.consideration_mode)
-				sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth, -VALUE_INFINITE, VALUE_INFINITE) << sync_endl;
+				sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth) << sync_endl;
 
 			output_final_pv_done = true;
 		}
@@ -1000,9 +1000,19 @@ void Thread::search()
 
 			while (true)
 			{
+				// Adjust the effective depth searched, but ensure at least one effective increment for every
+				// four searchAgain steps (see issue #2717).
+
 				// fail highするごとにdepthを下げていく処理
-				Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt - searchAgainCounter);
+	            Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt - 3 * (searchAgainCounter + 1) / 4);
 				bestValue = ::search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
+
+				// Bring the best move to the front. It is critical that sorting
+				// is done with a stable algorithm because all the values but the
+				// first and eventually the new best one is set to -VALUE_INFINITE
+				// and we want to keep the same order for all the moves except the
+				// new PV that goes to the front. Note that in the case of MultiPV
+				// search the already searched PV lines are preserved.
 
 				// それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
@@ -1022,6 +1032,8 @@ void Thread::search()
 					// fail low/highしたときの読み筋は役に立たないであろうという考え。
 					&& multiPV == 1
 					&& (bestValue <= alpha || bestValue >= beta)
+
+					// 以下、やねうら王独自拡張。
 					&& Time.elapsed() > 3000
 					// 将棋所のコンソールが詰まるのを予防するために出力を少し抑制する。
 					// また、go infiniteのときは、検討モードから使用しているわけで、PVは必ず出力する。
@@ -1034,7 +1046,7 @@ void Thread::search()
 				{
 					// 最後に出力した時刻を記録しておく。
 					mainThread->lastPvInfoTime = Time.elapsed();
-					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
+					sync_cout << USI::pv(rootPos, rootDepth) << sync_endl;
 				}
 
 				// aspiration窓の範囲外
@@ -1102,7 +1114,7 @@ void Thread::search()
 						&& (rootDepth < 3 || mainThread->lastPvInfoTime + Limits.pv_interval <= Time.elapsed())))
 				{
 					mainThread->lastPvInfoTime = Time.elapsed();
-					sync_cout << USI::pv(rootPos, rootDepth, alpha, beta) << sync_endl;
+					sync_cout << USI::pv(rootPos, rootDepth) << sync_endl;
 				}
 			}
 
@@ -2698,8 +2710,21 @@ namespace {
 					// root nodeにおいてPVの指し手または、α値を更新した場合、スコアをセットしておく。
 					// (iterationの終わりでsortするのでそのときに指し手が入れ替わる。)
 
-					rm.score = value;
+		            rm.score =  rm.usiScore = value;
 					rm.selDepth = thisThread->selDepth;
+					rm.scoreLowerbound = rm.scoreUpperbound = false;
+
+					if (value >= beta)
+					{
+						rm.scoreLowerbound = true;
+						rm.usiScore = beta;
+					}
+					else if (value <= alpha)
+					{
+						rm.scoreUpperbound = true;
+						rm.usiScore = alpha;
+					}
+
 					rm.pv.resize(1);
 					// PVは変化するはずなのでいったんリセット
 
