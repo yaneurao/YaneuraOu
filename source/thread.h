@@ -3,14 +3,16 @@
 
 #include <atomic>
 #include <condition_variable>
+//#include <cstddef>
+//#include <cstdint>
 #include <mutex>
-#include <thread>
 #include <vector>
 
 #include "movepick.h"
 #include "position.h"
 #include "search.h"
 #include "thread_win32_osx.h"
+//#include "types.h"
 
 #if defined(EVAL_LEARN)
 // 学習用の実行ファイルでは、スレッドごとに置換表を持ちたい。
@@ -88,9 +90,6 @@ public:
 	// pvLast   : tbRank絡み。将棋では関係ないので用いない。
 	size_t pvIdx /*,pvLast*/;
 
-	//RunningAverage complexityAverage;
-	// →　やねうら王では導入せず
-
 	// nodes     : このスレッドが探索したノード数(≒Position::do_move()を呼び出した回数)
 	// bestMoveChanges : 反復深化においてbestMoveが変わった回数。nodeの安定性の指標として用いる。全スレ分集計して使う。
 	std::atomic<uint64_t> nodes,/* tbHits,*/ bestMoveChanges;
@@ -152,11 +151,6 @@ public:
 
 	// Stockfish10ではスレッドごとにcontemptを保持するように変わった。
 	//Score contempt;
-
-	// trendは千日手を受け入れるスコア。動的に変更する。(dynamic contempt)
-	// 勝ってるほうは千日手にはしたくないし、負けてるほうは千日手やむなしという…。
-	//Value trend;
-	// →　やねうら王ではこの値、使わないことにする。
 
 	// ------------------------------
 	//   やねうら王、独自追加

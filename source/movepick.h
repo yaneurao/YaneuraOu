@@ -5,11 +5,13 @@
 #if defined(USE_MOVE_PICKER)
 
 #include <array>
+//#include <cassert>
+//#include <cstdint>
+//#include <cstdlib>
 #include <limits>
 //#include <type_traits>
 
 //#include "movegen.h"
-//#include "position.h"
 #include "types.h"
 
 // -----------------------
@@ -71,14 +73,14 @@ public:
 template <typename T, int D, int Size, int... Sizes>
 struct Stats : public std::array<Stats<T, D, Sizes...>, Size>
 {
-	typedef Stats<T, D, Size, Sizes...> stats;
+    using stats = Stats<T, D, Size, Sizes...>;
 
 	void fill(const T& v) {
 
 		// For standard-layout 'this' points to first struct member
-		ASSERT_LV3(std::is_standard_layout<stats>::value);
-		
-		typedef StatsEntry<T, D> entry;
+		ASSERT_LV3(std::is_standard_layout_v<stats>);
+
+	    using entry = StatsEntry<T, D>;
 		entry* p = reinterpret_cast<entry*>(this);
 		std::fill(p, p + sizeof(*this) / sizeof(entry), v);
 	}
@@ -91,6 +93,11 @@ struct Stats<T, D, Size> : public std::array<StatsEntry<T, D>, Size> {};
 enum StatsParams { NOT_USED = 0 };
 enum StatsType { NoCaptures, Captures };
 
+/// ButterflyHistory records how often quiet moves have been successful or
+/// unsuccessful during the current search, and is used for reduction and move
+/// ordering decisions. It uses 2 tables (one for each color) indexed by
+/// the move's from and to squares, see www.chessprogramming.org/Butterfly_Boards
+/// (~11 elo)
 // ButterflyHistoryは、 現在の探索中にquietな指し手がどれくらい成功/失敗したかを記録し、
 // reductionと指し手オーダリングの決定のために用いられる。
 // 添字は[from_to][color]の順。
@@ -99,29 +106,36 @@ enum StatsType { NoCaptures, Captures };
 // やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
 // そのため、(SQ_NB + 7)まで移動元がある。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-typedef Stats<int16_t, 14365, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB> ButterflyHistory;
+using ButterflyHistory = Stats<int16_t, 14365, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB>;
 
-
-/// CounterMoveHistoryは、直前の指し手の[to][piece]によってindexされるcounter moves(応手)を格納する。
+/// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
+/// move, see www.chessprogramming.org/Countermove_Heuristic
+// CounterMoveHistoryは、直前の指し手の[to][piece]によってindexされるcounter moves(応手)を格納する。
 /// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-typedef Stats<Move, NOT_USED, SQ_NB , PIECE_NB> CounterMoveHistory;
+using CounterMoveHistory = Stats<Move, NOT_USED, SQ_NB , PIECE_NB>;
 
-/// CapturePieceToHistoryは、指し手の[to][piece][captured piece type]で示される。
+/// CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
+// CapturePieceToHistoryは、指し手の[to][piece][captured piece type]で示される。
 // ※　Stockfishとは、添字の順番を変更してあるので注意。
 //     Stockfishでは、[piece][to][captured piece type]の順。
-typedef Stats<int16_t, 10692, SQ_NB, PIECE_NB , PIECE_TYPE_NB> CapturePieceToHistory;
+using CapturePieceToHistory = Stats<int16_t, 10692, SQ_NB, PIECE_NB , PIECE_TYPE_NB>;
 
+/// PieceToHistory is like ButterflyHistory but is addressed by a move's [piece][to]
 /// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[to][piece]で示される。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
 //     Stockfishでは[piece][to]の順。
-typedef Stats<int16_t, 29952, SQ_NB , PIECE_NB> PieceToHistory;
+using PieceToHistory = Stats<int16_t, 29952, SQ_NB , PIECE_NB>;
 
-/// ContinuationHistoryは、与えられた2つの指し手のhistoryを組み合わせたもので、
+/// ContinuationHistory is the combined history of a given pair of moves, usually
+/// the current one given a previous one. The nested history table is based on
+/// PieceToHistory instead of ButterflyBoards.
+/// (~63 elo)
+// ContinuationHistoryは、与えられた2つの指し手のhistoryを組み合わせたもので、
 // 普通、1手前によって与えられる現在の指し手(によるcombined history)
 // このnested history tableは、ButterflyBoardsの代わりに、PieceToHistoryをベースとしている。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-typedef Stats<PieceToHistory, NOT_USED, SQ_NB , PIECE_NB> ContinuationHistory;
+using ContinuationHistory = Stats<PieceToHistory, NOT_USED, SQ_NB , PIECE_NB>;
 
 
 // -----------------------

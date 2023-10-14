@@ -147,12 +147,16 @@ class Thread;
 // 平手の開始局面
 extern std::string SFEN_HIRATE;
 
+/// A list to keep track of the position states along the setup moves (from the
+/// start position to the position just before the search starts). Needed by
+/// 'draw by repetition' detection. Use a std::deque because pointers to
+/// elements are not invalidated upon list resizing.
 
 // setup moves("position"コマンドで設定される、現局面までの指し手)に沿った局面の状態を追跡するためのStateInfoのlist。
 // 千日手の判定のためにこれが必要。std::dequeを使っているのは、StateInfoがポインターを内包しているので、resizeに対して
 // 無効化されないように。
-typedef std::deque<StateInfo> StateList;
-typedef std::unique_ptr<StateList> StateListPtr;
+using StateList    = std::deque<StateInfo>;
+using StateListPtr = std::unique_ptr<StateList>;
 
 // --------------------
 //       盤面
