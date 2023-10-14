@@ -99,7 +99,6 @@ public:
 	// nmpColor  : null moveの前回の適用Color
 	// state     : 探索で組合せ爆発が起きているか等を示す状態
 	int selDepth, nmpMinPly;
-	Color nmpColor;
 
 	// bestValue :
 	// search()で、そのnodeでbestMoveを指したときの(探索の)評価値
