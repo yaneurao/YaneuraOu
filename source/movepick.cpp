@@ -1,7 +1,17 @@
 ﻿#include "movepick.h"
 #if defined(USE_MOVE_PICKER)
 
-#include "thread.h"
+#include <algorithm>
+//#include <cassert>
+#include <iterator>
+#include <utility>
+
+#include "bitboard.h"
+#include "position.h"
+
+// 以下、やねうら王独自拡張
+
+#include "search.h" // Search::Limits.generate_all_legal_movesによって生成される指し手を変えたいので…。
 
 // パラメーターの自動調整フレームワークからパラメーターの値を読み込む
 #include "engine/yaneuraou-engine/yaneuraou-param-common.h"
@@ -109,6 +119,19 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 
 // 指し手オーダリング器
 
+/// Constructors of the MovePicker class. As arguments, we pass information
+/// to help it return the (presumably) good moves first, to decide which
+/// moves to return (in the quiescence search, for instance, we only want to
+/// search captures, promotions, and some checks) and how important a good
+/// move ordering is at the current node.
+
+/// MovePickerクラスのコンストラクタ。
+/// 引数として、我々は情報を渡します。
+/// それが最初に（おそらく）良い手を返す手助けとなるため、どの手を返すかを決定するために
+/// （例えば、静止探索（quiescence search）では、我々は駒を取る手、
+/// 成る手、およびいくつかの王手だけを探索したい）そして、
+/// 現在のノードにおいて良い手の順序付けがどれほど重要であるかについてです。
+
 // 通常探索から呼び出されるとき用。
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
 	const CapturePieceToHistory* cph ,
@@ -146,9 +169,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 	// 歩の不成、香の2段目への不成、大駒の不成を除外
 
 	stage = (pos.in_check() ? EVASION_TT : QSEARCH_TT) +
-		!(ttm
-			&& (pos.in_check() || depth > DEPTH_QS_RECAPTURES || to_sq(ttm) == recaptureSquare)
-			&& pos.pseudo_legal(ttm));
+		    !(   ttm
+			  && pos.pseudo_legal(ttm));
 
 }
 
@@ -328,7 +350,7 @@ Move MovePicker::select(Pred filter) {
 	{
 		// TがBestならBestを探してcurが指す要素と入れ替える。
 		// それがttMoveであるなら、もう一周する。
-		if (T == Best)
+		if constexpr (T == Best)
 			std::swap(*cur, *std::max_element(cur, endMoves));
 
 		// filter()のなかで*curにアクセスして判定するのでfilter()は引数を取らない。
@@ -451,15 +473,15 @@ top:
 			// 以下のSuperSortを有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
 
 #if 0
-			partial_super_sort(cur, endMoves , -3000 * depth);
+			partial_super_sort(cur, endMoves , std::numeric_limits<int>::min());
 #endif
 
 #if 0
 			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
 			if (depth >= 10 && endMoves - cur >= 64)
-				partial_super_sort(cur, endMoves , -3000 * depth);
+				partial_super_sort(cur, endMoves , std::numeric_limits<int>::min());
 			else
-				partial_insertion_sort(cur, endMoves, -3000 * depth);
+				partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
 #endif
 
 #if 1
@@ -467,7 +489,7 @@ top:
 			if ((depth >= 15 && endMoves - cur >= 32) || (depth >= 10 && endMoves - cur >= 64) || (depth >= 5 && endMoves - cur >= 96) )
 				super_sort(cur, endMoves);
 			else
-				partial_insertion_sort(cur, endMoves, -3000 * depth);
+				partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
 #endif
 
 #else
@@ -475,7 +497,7 @@ top:
 			// TODO : このへん係数調整したほうが良いのでは…。
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
 			//   sortできるなら全部したほうが良い。
-			partial_insertion_sort(cur, endMoves, -3000 * depth);
+			partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
 #endif
 		}
 
