@@ -1879,16 +1879,11 @@ namespace {
 			&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*8*/
 			&&  eval - futility_margin(depth, improving) - (ss - 1)->statScore / 256 >= beta
 			&&  eval >= beta
-			&&  eval < VALUE_KNOWN_WIN + MAX_PLY * 2 /*26305*/) // larger than VALUE_KNOWN_WIN, but smaller than TB wins.
+			&&  eval < 29462) // smaller than TB wins
 
-			// 詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
-			// Stockfishでは、上の最後の条件は、
-			//   &&  eval < 26305) // larger than VALUE_KNOWN_WIN, but smaller than TB wins.
-			// となっているが、StockfishではVALUE_KNOWN_WIN == 10000で、これより十分大きく、
-			// TB winより小さな値として26305となっている。
-			// やねうら王では、VALUE_KNOWN_WINは mateと1000しか離れていないため、
-			// VALUE_KNOWN_WIN + MAX_PLY * 2で代用する。(そこまではfutility pruningして良いという考え)
-			// そこを超えるとmateのスコアになってくるので futilityで刈るのは危ない。
+			// 29462の根拠はよくわからないが、VALUE_TB_WIN_IN_MAX_PLY より少し小さい値にしたいようだ。
+			// そこまではfutility pruningで枝刈りして良いと言うことなのだろう。
+			// また、詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
 			
 			return eval;
 		// 次のようにするより、単にevalを返したほうが良いらしい。
@@ -1945,11 +1940,11 @@ namespace {
 				// これをもう少しちゃんと検証しなおす。
 
 				// Do not return unproven mate or TB scores
-				// 証明されていないmate scoreはreturnで返さない。
-				if (nullValue >= VALUE_TB_WIN_IN_MAX_PLY)
-					nullValue = beta;
+				// 証明されていないmate scoreやTB scoreはreturnで返さない。
 
-				if (thisThread->nmpMinPly || (abs(beta) < VALUE_KNOWN_WIN && depth < PARAM_NULL_MOVE_RETURN_DEPTH/*13*/ ))
+	            nullValue = std::min(nullValue, VALUE_TB_WIN_IN_MAX_PLY-1);
+
+	            if (thisThread->nmpMinPly || depth < PARAM_NULL_MOVE_RETURN_DEPTH/*14*/)
 					return nullValue;
 
 				ASSERT_LV3(!thisThread->nmpMinPly); // 再帰的な検証は認めていない。
@@ -2116,11 +2111,10 @@ namespace {
 			&& (tte->bound() & BOUND_LOWER)
 			&& tte->depth() >= depth - 3
 			&& ttValue >= probCutBeta
-			&& abs(ttValue) <= VALUE_KNOWN_WIN
-			&& abs(beta) <= VALUE_KNOWN_WIN
+			&& abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY
+			&& abs(beta)    < VALUE_TB_WIN_IN_MAX_PLY
 			)
 			return probCutBeta;
-
 
 		// -----------------------
 		// moves loopに入る前の準備
@@ -2378,7 +2372,7 @@ namespace {
 					&& move == ttMove
 					&& !excludedMove // 再帰的なsingular延長を除外する。
 				/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
-					&& abs(ttValue) < VALUE_KNOWN_WIN // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
+					&& abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 					&& (tte->bound() & BOUND_LOWER)
 					&& tte->depth() >= depth - 3)
 					// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != MOVE_NONE)
@@ -3263,7 +3257,7 @@ namespace {
 			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
 				&& !givesCheck
 				&&  to_sq(move) != prevSq
-				&&  futilityBase > -VALUE_KNOWN_WIN
+				&&  futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
 			//	&&  type_of(move) != PROMOTION) // TODO : これ入れたほうがいいのか？
 				)
 			{

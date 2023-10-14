@@ -674,6 +674,8 @@ constexpr bool pretty_jp = false;
 #define HASH_KEY_BITS 64
 #endif
 
+// ここ、typedef ではなく usingで書きたいが、現時点でKey64が未定義なので…。
+
 #if HASH_KEY_BITS <= 64
 #define HASH_KEY Key64
 #elif HASH_KEY_BITS <= 128

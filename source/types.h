@@ -21,6 +21,22 @@
 #include <algorithm>    // std::max()を使うので仕方ない
 #include <limits>		// std::numeric_limitsを使うので仕方ない
 
+#if defined(_MSC_VER)
+// Disable some silly and noisy warnings from MSVC compiler
+#pragma warning(disable: 4127) // Conditional expression is constant
+#pragma warning(disable: 4146) // Unary minus operator applied to unsigned type
+#pragma warning(disable: 4800) // Forcing value to bool 'true' or 'false'
+#endif
+
+/// Predefined macros hell:
+///
+/// __GNUC__                Compiler is GCC, Clang or ICX
+/// __clang__               Compiler is Clang or ICX
+/// __INTEL_LLVM_COMPILER   Compiler is ICX
+/// _MSC_VER                Compiler is MSVC
+/// _WIN32                  Building on Windows (any)
+/// _WIN64                  Building on Windows 64 bit
+
 // --------------------
 //  型の最小値・最大値
 // --------------------
@@ -358,7 +374,7 @@ static bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 constexpr int MAX_PLY = MAX_PLY_NUM;
 
 // 探索深さを表現する型
-typedef int Depth;
+using Depth = int;
 
 enum : int {
 
@@ -421,13 +437,6 @@ enum Value: int32_t
 
 	VALUE_MATE_IN_MAX_PLY  =   VALUE_MATE - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
 	VALUE_MATED_IN_MAX_PLY = -VALUE_MATE_IN_MAX_PLY , // MAX_PLYで詰まされるときのスコア。
-
-
-	// 勝ち手順が何らか証明されているときのスコア下限値
-	// Stockfishでは10000に設定されているが、あまり低い数字にすると、
-	// 評価値(evaluate()の返し値)がこれを超えてしまい、誤動作する。
-	// やねうら王では、ぎりぎりの値にしておきたい。
-	VALUE_KNOWN_WIN = int(VALUE_MATE_IN_MAX_PLY) - 1000,
 
 	// 千日手による優等局面への突入したときのスコア
 	// これある程度離しておかないと、置換表に書き込んで、相手番から見て、これから

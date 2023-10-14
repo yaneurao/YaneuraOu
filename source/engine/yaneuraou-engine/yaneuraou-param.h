@@ -133,11 +133,11 @@ PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 198;
 
 
 // null moveでbeta値を上回ったときに、これ以下ならreturnするdepth。適用depth。
-// 元の値 = 13
+// 元の値 = 14
 // 他のNULL_MOVEの値が悪いと、この枝刈りを適用しないほうが強くなるわけで、
 // このdepthがどんどん高い値に発散してしまうので注意。
 // [PARAM] min:4,max:16,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 13;
+PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 14;
 
 
 //
