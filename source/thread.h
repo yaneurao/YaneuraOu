@@ -252,7 +252,7 @@ struct MainThread: public Thread
 // Threads(スレッドオブジェクト)はglobalに配置するし、スレッドの初期化の際には
 // スレッドが保持する思考エンジンが使う変数等がすべてが初期化されていて欲しいからである。
 // スレッドの生成はset(options["Threads"])で行い、スレッドの終了はset(0)で行なう。
-struct ThreadPool: public std::vector<Thread*>
+struct ThreadPool
 {
 	// mainスレッドに思考を開始させる。
 	void start_thinking(const Position& pos, StateListPtr& states , const Search::LimitsType& limits , bool ponderMode = false);
@@ -265,7 +265,7 @@ struct ThreadPool: public std::vector<Thread*>
 	void set(size_t requested);
 
 	// mainスレッドを取得する。これはthis[0]がそう。
-	MainThread* main() { return static_cast<MainThread*>(at(0)); }
+	MainThread* main() { return static_cast<MainThread*>(threads.front()); }
 
 	// 今回、goコマンド以降に探索したノード数
 	// →　これはPosition::do_move()を呼び出した回数。
@@ -287,6 +287,13 @@ struct ThreadPool: public std::vector<Thread*>
 	//                 増えて行ってないなら、同じ深さを再度探索するのに用いる。
 	std::atomic_bool stop , increaseDepth;
 
+	auto cbegin() const noexcept { return threads.cbegin(); }
+	auto begin() noexcept { return threads.begin(); }
+	auto end() noexcept { return threads.end(); }
+	auto cend() const noexcept { return threads.cend(); }
+	auto size() const noexcept { return threads.size(); }
+	auto empty() const noexcept { return threads.empty(); }
+
 	// === やねうら王独自拡張 ===
 
 	// main thread以外の探索スレッドがすべて終了しているか。
@@ -298,11 +305,14 @@ private:
 	// 現局面までのStateInfoのlist
 	StateListPtr setupStates;
 
+	// vector<Thread*>からこのclassを継承させるのはやめて、このメンバーとして持たせるようにした。
+	std::vector<Thread*> threads;
+
 	// Threadクラスの特定のメンバー変数を足し合わせたものを返す。
 	uint64_t accumulate(std::atomic<uint64_t> Thread::* member) const {
 
 		uint64_t sum = 0;
-		for (Thread* th : *this)
+		for (Thread* th : threads)
 			sum += (th->*member).load(std::memory_order_relaxed);
 		return sum;
 	}

@@ -69,8 +69,9 @@ void Thread::clear()
 // 待機していたスレッドを起こして探索を開始させる
 void Thread::start_searching()
 {
-	std::lock_guard<std::mutex> lk(mutex);
+	mutex.lock();
 	searching = true;
+    mutex.unlock(); // Unlock before notifying saves a few CPU-cycles
 	cv.notify_one(); // idle_loop()で回っているスレッドを起こす。(次の処理をさせる)
 }
 
@@ -126,6 +127,11 @@ void Thread::idle_loop() {
 // スレッド数を変更する。
 void ThreadPool::set(size_t requested)
 {
+	// bindThreadの都合があるので、スレッドをいったんすべて解体して、再度作り直す。
+	// ただし、__EMSCRIPTEN__の時は、スレッド数がrequestedと同じならスレッドを作り直さず、
+	// また、いったんすべて解放する処理も端折る。
+
+
 #if defined(__EMSCRIPTEN__)
 	// yaneuraou.wasm
 	// ブラウザのメインスレッドをブロックしないようstockfish.wasmと同様の実装に修正
@@ -133,29 +139,29 @@ void ThreadPool::set(size_t requested)
 		return;
 #endif
 
-	if (size() > 0) { // いったんすべてのスレッドを解体(NUMA対策)
+	if (threads.size() > 0) { // いったんすべてのスレッドを解体(NUMA対策)
 		main()->wait_for_search_finished();
 
 #if !defined(__EMSCRIPTEN__)
-		while (size() > 0)
-			delete back(), pop_back();
+		while (threads.size() > 0)
+			delete threads.back(), threads.pop_back();
 #else
 		// yaneuraou.wasm
-		while (size() > requested)
-			delete back(), pop_back();
+		while (threads.size() > requested)
+			delete threads.back(), threads.pop_back();
 #endif
 	}
 
 	if (requested > 0) { // 要求された数だけのスレッドを生成
 #if !defined(__EMSCRIPTEN__)
-		push_back(new MainThread(0));
+		threads.push_back(new MainThread(0));
 
 		while (size() < requested)
-			push_back(new Thread(size()));
+			threads.push_back(new Thread(size()));
 #else
 		// yaneuraou.wasm
 		while (size() < requested)
-			push_back(size() ? new Thread(size()) : new MainThread(0));
+			threads.push_back(size() ? new Thread(size()) : new MainThread(0));
 #endif
 		clear();
 
@@ -179,7 +185,7 @@ void ThreadPool::set(size_t requested)
 // ThreadPool::clear()は、threadPoolのデータを初期値に設定する。
 void ThreadPool::clear() {
 
-	for (Thread* th : *this)
+	for (Thread* th : threads)
 		th->clear();
 
 	main()->callsCnt = 0;
@@ -233,9 +239,9 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	}
 
 	// After ownership transfer 'states' becomes empty, so if we stop the search
-	// and call 'go' again without setting a new position states.get() == NULL.
+	// and call 'go' again without setting a new position states.get() == nullptr.
 	// 所有権の移動後、statesが空になるので、探索を停止させ、
-	// "go"をstate.get() == NULLである新しいpositionをセットせずに再度呼び出す。
+	// "go"をstate.get() == nullptrである新しいpositionをセットせずに再度呼び出す。
 
 	ASSERT_LV3(states.get() || setupStates.get());
 
@@ -288,16 +294,16 @@ Thread* ThreadPool::get_best_thread() const {
 	// 単にcompleteDepthが深いほうのスレッドを採用しても良さそうだが、スコアが良いほうの探索深さのほうが
 	// いい指し手を発見している可能性があって楽観合議のような効果があるようだ。
 
-	Thread* bestThread = front();
+	Thread* bestThread = threads.front();
 	std::map<Move, int64_t> votes;
 	Value minScore = VALUE_NONE;
 
 	// Find minimum score of all threads
-	for (Thread* th : *this)
+	for (Thread* th : threads)
 		minScore = std::min(minScore, th->rootMoves[0].score);
 
 	// Vote according to score and depth, and select the best thread
-	for (Thread* th : *this)
+	for (Thread* th : threads)
 	{
 		votes[th->rootMoves[0].pv[0]] +=
 			(th->rootMoves[0].score - minScore + 14) * int(th->completedDepth);
@@ -323,8 +329,8 @@ Thread* ThreadPool::get_best_thread() const {
 
 void ThreadPool::start_searching() {
 
-	for (Thread* th : *this)
-		if (th != front())
+	for (Thread* th : threads)
+		if (th != threads.front())
 			th->start_searching();
 }
 
@@ -334,8 +340,8 @@ void ThreadPool::start_searching() {
 
 void ThreadPool::wait_for_search_finished() const {
 
-	for (Thread* th : *this)
-		if (th != front())
+	for (Thread* th : threads)
+		if (th != threads.front())
 			th->wait_for_search_finished();
 }
 
@@ -343,8 +349,8 @@ void ThreadPool::wait_for_search_finished() const {
 // すべて終了していればtrueが返る。
 bool ThreadPool::search_finished() const
 {
-	for (Thread* th : *this)
-		if (th != front())
+	for (Thread* th : threads)
+		if (th != threads.front())
 			if (th->is_searching())
 				return false;
 

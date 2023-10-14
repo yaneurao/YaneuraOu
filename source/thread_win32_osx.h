@@ -29,7 +29,7 @@ void* start_routine(void* ptr)
     P* p = reinterpret_cast<P*>(ptr);
     (p->first->*(p->second))(); // Call member function pointer
     delete p;
-    return NULL;
+    return nullptr;
 }
 
 class NativeThread {
@@ -44,12 +44,12 @@ public:
         pthread_attr_setstacksize(attr, TH_STACK_SIZE);
         pthread_create(&thread, attr, start_routine<T>, new P(obj, fun));
     }
-    void join() { pthread_join(thread, NULL); }
+    void join() { pthread_join(thread, nullptr); }
 };
 
 #else // Default case: use STL classes
 
-typedef std::thread NativeThread;
+using NativeThread = std::thread;
 
 #endif
 
