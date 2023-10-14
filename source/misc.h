@@ -106,80 +106,6 @@ void dbg_mean_of(int v);
 // このとき、以下の関数を呼び出すと、その統計情報をcerrに出力する。
 void dbg_print();
 
-// RunningAverage : a class to calculate a running average of a series of values.
-// For efficiency, all computations are done with integers.
-//
-// 置換表のhit率などを集計するためのクラス。
-// ttHitAverageとして、Threadクラスが持っている。
-//
-// cf. Detect search explosions : https://github.com/official-stockfish/Stockfish/commit/73018a03375b4b72ee482eb5a4a2152d7e4f0aac
-// →　二重の探索延長によって組合せ爆発が生じてiterationが進みにくくなるのを回避する狙い。
-//
-class RunningAverage {
-public:
-
-	// Reset the running average to rational value p / q
-	void set(int64_t p, int64_t q)
-	{
-		average = p * PERIOD * RESOLUTION / q;
-	}
-
-	// Update average with value v
-	//
-	// これは、ttHit(置換表にhitしたかのフラグ)の実行時の平均を近似するために用いられる。
-	// 移動平均を算出している。
-	void update(int64_t v)
-	{
-		average = RESOLUTION * v + (PERIOD - 1) * average / PERIOD;
-	}
-
-	// Test if average is strictly greater than rational a / b
-	bool is_greater(int64_t a, int64_t b)
-	{
-		return b * average > a * (PERIOD * RESOLUTION);
-	}
-
-	int64_t value() const
-	{
-		return average / (PERIOD * RESOLUTION);
-	}
-
-private:
-	static constexpr int64_t PERIOD = 4096;
-	static constexpr int64_t RESOLUTION = 1024;
-	int64_t average;
-};
-
-//
-// 探索でtrendと楽観値の計算で用いるsigmoid関数。
-// →　やねうら王では使っていない。
-//
-/// sigmoid(t, x0, y0, C, P, Q) implements a sigmoid-like function using only integers,
-/// with the following properties:
-///
-///  -  sigmoid is centered in (x0, y0)
-///  -  sigmoid has amplitude [-P/Q , P/Q] instead of [-1 , +1]
-///  -  limit is (y0 - P/Q) when t tends to -infinity
-///  -  limit is (y0 + P/Q) when t tends to +infinity
-///  -  the slope can be adjusted using C > 0, smaller C giving a steeper sigmoid
-///  -  the slope of the sigmoid when t = x0 is P/(Q*C)
-///  -  sigmoid is increasing with t when P > 0 and Q > 0
-///  -  to get a decreasing sigmoid, change sign of P
-///  -  mean value of the sigmoid is y0
-///
-/// Use <https://www.desmos.com/calculator/jhh83sqq92> to draw the sigmoid
-
-inline int64_t sigmoid(int64_t t, int64_t x0,
-	int64_t y0,
-	int64_t  C,
-	int64_t  P,
-	int64_t  Q)
-{
-	ASSERT_LV3(C > 0);
-	ASSERT_LV3(Q != 0);
-	return y0 + P * (t - x0) / (Q * (std::abs(t - x0) + C));
-}
-
 // --------------------
 //  Time[ms] wrapper
 // --------------------
@@ -225,6 +151,46 @@ std::ostream& operator<<(std::ostream&, SyncCout);
 
 #define sync_cout std::cout << IO_LOCK
 #define sync_endl std::endl << IO_UNLOCK
+
+// --------------------
+//   from Stockfish
+// --------------------
+
+// Stockfish にあるけどやねうら王では使ってない。
+
+//// align_ptr_up() : get the first aligned element of an array.
+//// ptr must point to an array of size at least `sizeof(T) * N + alignment` bytes,
+//// where N is the number of elements in the array.
+//template <uintptr_t Alignment, typename T>
+//T* align_ptr_up(T* ptr)
+//{
+//  static_assert(alignof(T) < Alignment);
+//
+//  const uintptr_t ptrint = reinterpret_cast<uintptr_t>(reinterpret_cast<char*>(ptr));
+//  return reinterpret_cast<T*>(reinterpret_cast<char*>((ptrint + (Alignment - 1)) / Alignment * Alignment));
+//}
+//
+//
+//// IsLittleEndian : true if and only if the binary is compiled on a little endian machine
+//static inline const union { uint32_t i; char c[4]; } Le = { 0x01020304 };
+//static inline const bool IsLittleEndian = (Le.c[0] == 4);
+//
+//
+//template <typename T, std::size_t MaxSize>
+//class ValueList {
+//
+//public:
+//  std::size_t size() const { return size_; }
+//  void push_back(const T& value) { values_[size_++] = value; }
+//  const T* begin() const { return values_; }
+//  const T* end() const { return values_ + size_; }
+//  const T& operator[](int index) const { return values_[index]; }
+//
+//private:
+//  T values_[MaxSize];
+//  std::size_t size_ = 0;
+//};
+
 
 // --------------------
 //       乱数
@@ -278,16 +244,16 @@ static std::ostream& operator<<(std::ostream& os, PRNG& prng)
 
 inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
 #if defined(__GNUC__) && defined(IS_64BIT)
-	__extension__ typedef unsigned __int128 uint128;
-	return ((uint128)a * (uint128)b) >> 64;
+    __extension__ using uint128 = unsigned __int128;
+    return (uint128(a) * uint128(b)) >> 64;
 #else
 	// 64bit同士の掛け算を64bitを32bit 2つに分割して、筆算のようなことをするコード
-	uint64_t aL = (uint32_t)a, aH = a >> 32;
-	uint64_t bL = (uint32_t)b, bH = b >> 32;
-	uint64_t c1 = (aL * bL) >> 32;
-	uint64_t c2 = aH * bL + c1;
-	uint64_t c3 = aL * bH + (uint32_t)c2;
-	return aH * bH + (c2 >> 32) + (c3 >> 32);
+    uint64_t aL = uint32_t(a), aH = a >> 32;
+    uint64_t bL = uint32_t(b), bH = b >> 32;
+    uint64_t c1 = (aL * bL) >> 32;
+    uint64_t c2 = aH * bL + c1;
+    uint64_t c3 = aL * bH + uint32_t(c2);
+    return aH * bH + (c2 >> 32) + (c3 >> 32);
 #endif
 }
 

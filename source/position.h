@@ -633,6 +633,20 @@ public:
 	// 捕獲する指し手であるか。
 	bool capture(Move m) const { return !is_drop(m) && piece_on(to_sq(m)) != NO_PIECE; }
 
+
+	// Stockfishにはcapture_stage()というメソッドが追加された。下記のコード。
+	// これは、捕獲する指し手かQUEENにpromoteする指し手かのどちらかであるかを判定する。
+	// 将棋で言うとcapture_or_valuable_promotion()みたいなもの。
+
+	//// returns true if a move is generated from the capture stage
+	//// having also queen promotions covered, i.e. consistency with the capture stage move generation
+	//// is needed to avoid the generation of duplicate moves.
+	//bool capture_stage(Move m) const {
+	//  assert(is_ok(m));
+	//  return  capture(m) || promotion_type(m) == QUEEN;
+	//}
+
+
 	// 入玉時の宣言勝ち
 	// Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
 	// 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。
