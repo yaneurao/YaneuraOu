@@ -1442,14 +1442,13 @@ namespace {
 			// Step 3. Mate distance pruning.
 			// -----------------------
 
-
-			// Even if we mate at the next move our score
+			// Step 3. Mate distance pruning. Even if we mate at the next move our score
 			// would be at best mate_in(ss->ply+1), but if alpha is already bigger because
 			// a shorter mate was found upward in the tree then there is no need to search
 			// because we will never beat the current alpha. Same logic but with reversed
-			// signs applies also in the opposite condition of being mated instead of giving
-			// mate. In this case return a fail-high score.
-
+			// signs apply also in the opposite condition of being mated instead of giving
+			// mate. In this case, return a fail-high score.
+						
 			// 詰みまでの手数による枝刈り
 
 			// rootから5手目の局面だとして、このnodeのスコアが5手以内で
@@ -1636,7 +1635,10 @@ namespace {
 		// Step 5. Tablebases probe
 		// chessだと終盤データベースというのがある。
 		// これは将棋にはないが、将棋には代わりに宣言勝ちというのがある。
-		// ここは、やねうら王独自のコード。
+
+		// 《StockfishのStep 5.のコードは割愛》
+
+		// 以下は、やねうら王独自のコード。
 
 		{
 			// 宣言勝ちの指し手が置換表上に登録されていることがある
@@ -2005,7 +2007,7 @@ namespace {
 		{
 			ASSERT_LV3(probCutBeta < VALUE_INFINITE);
 
-			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, depth - 3, &captureHistory);
+			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
 			bool ttPv = ss->ttPv;  // このあとの探索でss->ttPvを潰してしまうのでtte->save()のときはこっちを用いる。
 			//bool captureOrPromotion;
 			// ↑このStockfishのコード、ここで宣言しなくてもいいと思う。[2022/04/13]
@@ -2021,14 +2023,15 @@ namespace {
 
 				if (move != excludedMove && pos.legal(move))
 				{
-					// 現状、prob cutでは 歩の成りも含まれる。
-					ASSERT_LV3(pos.capture_or_pawn_promotion(move) /* || promotion_type(move) == QUEEN */);
+	                // assert(pos.capture_stage(move));
+					// → Stockfishでは、capture or Queenへのpromote
 
-					const bool captureOrPromotion = true;
+					// 現状、やねうら王のprob cutでは 歩の成りも含まれる。
+					ASSERT_LV3(pos.capture_or_pawn_promotion(move));
 
 					ss->currentMove = move;
 					ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck                ]
-																			  [captureOrPromotion         ]
+																			  [true                       ] // captureOrPromotion
 																			  [to_sq(move)                ]
 																			  [pos.moved_piece_after(move)];
 

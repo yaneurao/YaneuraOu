@@ -106,7 +106,7 @@ enum StatsType { NoCaptures, Captures };
 // やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
 // そのため、(SQ_NB + 7)まで移動元がある。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-using ButterflyHistory = Stats<int16_t, 14365, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB>;
+using ButterflyHistory = Stats<int16_t, 7183, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB>;
 
 /// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
 /// move, see www.chessprogramming.org/Countermove_Heuristic
@@ -179,7 +179,7 @@ public:
 	// 通常探索(search)のProbCutの処理から呼び出されるの専用。
 	// threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
 	// capture_or_pawn_promotion()に該当する指し手しか返さない。
-	MovePicker(const Position& pos_, Move ttMove_, Value threshold_, Depth d,
+	MovePicker(const Position& pos_, Move ttMove_, Value threshold_,
 		const CapturePieceToHistory* cph);
 
 

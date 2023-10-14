@@ -176,8 +176,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 
 // 通常探索時にProbCutの処理から呼び出されるの専用
 // th = 枝刈りのしきい値
-MovePicker::MovePicker(const Position& p, Move ttm, Value th , Depth d , const CapturePieceToHistory* cph)
-			: pos(p), captureHistory(cph) , ttMove(ttm),threshold(th) , depth(d) {
+MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePieceToHistory* cph)
+			: pos(p), captureHistory(cph) , ttMove(ttm), threshold(th) {
 
 	ASSERT_LV3(!pos.in_check());
 
@@ -189,6 +189,10 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th , Depth d , const C
 								&& pos.see_ge(ttm, threshold));
 
 }
+
+/// MovePicker::score() assigns a numerical value to each move in a list, used
+/// for sorting. Captures are ordered by Most Valuable Victim (MVV), preferring
+/// captures with a good history. Quiets moves are ordered using the history tables.
 
 // QUIETS、EVASIONS、CAPTURESの指し手のオーダリングのためのスコアリング。似た処理なので一本化。
 template<MOVE_GEN_TYPE Type>
