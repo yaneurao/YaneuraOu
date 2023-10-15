@@ -12,6 +12,8 @@
 //   includes
 // -----------------------
 
+#include "../../search.h"
+
 #include <sstream>
 #include <fstream>
 #include <iomanip>
@@ -19,7 +21,6 @@
 #include <cstring>	// memset()
 
 #include "../../position.h"
-#include "../../search.h"
 #include "../../thread.h"
 #include "../../misc.h"
 #include "../../tt.h"
@@ -206,7 +207,7 @@ namespace {
 
 	// 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
 
-	// Reductions lookup table, initialized at startup
+	// Reductions lookup table initialized at startup
 	// 探索深さを減らすためのReductionテーブル。起動時に初期化する。
 	int Reductions[MAX_MOVES]; // [depth or moveNumber]
 
@@ -216,8 +217,9 @@ namespace {
 	// delta, rootDelta は、staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やしたいので、
 	// そのためのフラグ。(これがtrueだとreduction量が1増える)
 	Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
-		int r = Reductions[d] * Reductions[mn];
-		return (r + PARAM_REDUCTION_ALPHA/*1463*/ - int(delta) * 1024 / int(rootDelta)) / 1024 + (!i && r > PARAM_REDUCTION_BETA/*1010*/);
+		int reductionScale = Reductions[d] * Reductions[mn];
+		return (reductionScale + PARAM_REDUCTION_ALPHA/*1560*/ - int(delta) * PARAM_REDUCTION_GAMMA/*945*/ / int(rootDelta)) / 1024
+			+ (!i && reductionScale > PARAM_REDUCTION_BETA/*1010*/);
 	}
 
 	// 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
@@ -235,8 +237,10 @@ namespace {
 	//   MovePicker::move_next(true)で呼び出されることとなり、QUIETの指し手が生成されずに、whileループを抜けて
 	//   moveCount == 0 かつ、ループを抜けたので合法手がない判定になり、詰みの局面だと錯覚する。
 	constexpr int futility_move_count(bool improving, int depth) {
-		return (3 + depth * depth) / (2 - improving);
+		return improving ? (3 + depth * depth)
+						 : (3 + depth * depth) / 2;
 	}
+
 
 	// History and stats update bonus, based on depth
 	// depthに基づく、historyとstatsのupdate bonus
@@ -253,7 +257,7 @@ namespace {
 	// Add a small random component to draw evaluations to avoid 3fold-blindness
 	// 引き分け時の評価値VALUE_DRAW(0)の代わりに±1の乱数みたいなのを与える。
 	Value value_draw(Thread* thisThread) {
-		return VALUE_DRAW + Value(2 * (thisThread->nodes & 1) - 1);
+	    return VALUE_DRAW - 1 + Value(thisThread->nodes & 0x2);
 	}
 
 	// Skill structure is used to implement strength limit. If we have an uci_elo then
@@ -362,19 +366,19 @@ void Search::init()
 	// pvとnon pvのときのreduction定数
 	// 0.05とか変更するだけで勝率えらく変わる
 
+	// EVAL_LEARNの時は、1スレで探索しないといけないので、1スレで最強になるように枝刈りを甘くする必要がある。
+	// つまりは、この時、Threads.size() == 1と見做す必要がある。
+
+	u64 thread_size =
+#if defined(EVAL_LEARN)
+		1
+#else
+		Threads.size()
+#endif
+		;
+
 	for (int i = 1; i < MAX_MOVES; ++i)
-		Reductions[i] = int(20.81 * std::log(i));
-
-	// Stockfish11.1で現在のスレッド数設定に依存する項が追加された。(以下コード)
-	// このため、スレッド数が確定するisreadyタイミングで初期化する必要があるが、
-	// Stockfish11.1のコードは、Search::init()でやっているがこれは起動時に呼び出されるので誤り。
-	// つまりは、正しく実装されてないので、この項を追加する効果は怪しい。
-	// やねうら王では追加しないでおく。
-	//
-	// ※　デフォルトのスレッド数設定が4だとして、 (std::log(4) / 2) という項を加えて強くなったにすぎない。
-
-	//Reductions[i] = int((20.81 + std::log(Threads.size()) / 2) * std::log(i));
-	// cf. Increase reductions with thread count : https://github.com/official-stockfish/Stockfish/commit/135caee606c86ade9e9c199ef469661c374eb9ba
+	    Reductions[i] = int((20.37 + std::log(thread_size) / 2) * std::log(i));
 }
 
 /// Search::clear() resets search state to its initial value

@@ -78,15 +78,20 @@ PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 203;
 
 
 // Reductionの計算式に出てくる定数
-// 元の値 = 1463 ,step = 32
+// 元の値 = 1560 ,step = 32
 // [PARAM] min:0,max:1024,step:16,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1463;
+PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1560;
 
 // Reductionの計算式に出てくる定数
 // このパラメーター怖くて調整できない。
-// 元の値 = 1010 , step = 128
-// [PARAM] min:600,max:1500,step:128,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BETA = 1010;
+// 元の値 = 791 , step = 128
+// [PARAM] min:300,max:1500,step:128,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_REDUCTION_BETA = 791;
+
+// Reductionの計算式に出てくる定数
+// 元の値 = 945 , step = 128
+// [PARAM] min:300,max:1500,step:128,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_REDUCTION_GAMMA = 945;
 
 //
 // null move dynamic pruning
