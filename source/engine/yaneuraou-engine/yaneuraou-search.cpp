@@ -356,6 +356,22 @@ namespace {
 void Search::init()
 {
 	// 時間がかかるものは、"isready"応答(Search::clear())でやるべき。
+	// また、スレッド数など、起動時には决定しておらず、"isready"のタイミングでしか決定していないものも
+	// "isready"応答でやるべき。
+
+	// ※
+	// Reductionsテーブルの初期化は、Threads.size()に依存するから、
+	// Search::clear()に移動させた。
+
+}
+
+/// Search::clear() resets search state to its initial value
+// isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
+void Search::clear()
+{
+	// 前の探索の終了を待たないと、"bestmove"応答を受け取る前に次のisreadyコマンドを送ってくる不埒なGUIがあるとも限らない。
+	// 実際、"bestmove"を受け取るのを待つコードを書くと受信側のコードが複雑化するので、ここで一つ前の探索の終了を待ってあげるのは良いコード。
+	Threads.main()->wait_for_search_finished();
 
 	// -----------------------
 	//   テーブルの初期化
@@ -369,7 +385,10 @@ void Search::init()
 	// EVAL_LEARNの時は、1スレで探索しないといけないので、1スレで最強になるように枝刈りを甘くする必要がある。
 	// つまりは、この時、Threads.size() == 1と見做す必要がある。
 
-	u64 thread_size =
+	//for (int i = 1; i < MAX_MOVES; ++i)
+	//	Reductions[i] = int(20.81 * std::log(i));
+
+	size_t THREAD_SIZE =
 #if defined(EVAL_LEARN)
 		1
 #else
@@ -378,16 +397,9 @@ void Search::init()
 		;
 
 	for (int i = 1; i < MAX_MOVES; ++i)
-	    Reductions[i] = int((20.37 + std::log(thread_size) / 2) * std::log(i));
-}
+	    Reductions[i] = int((20.37 + std::log(THREAD_SIZE) / 2) * std::log(i));
 
-/// Search::clear() resets search state to its initial value
-// isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
-void Search::clear()
-{
-	// 前の探索の終了を待たないと、"bestmove"応答を受け取る前に次のisreadyコマンドを送ってくる不埒なGUIがあるとも限らない。
-	// 実際、"bestmove"を受け取るのを待つコードを書くと受信側のコードが複雑化するので、ここで一つ前の探索の終了を待ってあげるのは良いコード。
-	Threads.main()->wait_for_search_finished();
+	// ここ、log(THREAD_SIZE)/2 の /2 のところ、何か良さげな係数を掛けて調整すべきだと思う。
 
 	// -----------------------
 	//   探索パラメーターの初期化
@@ -399,7 +411,7 @@ void Search::clear()
 	// 探索パラメーターをファイルから読み直して欲しいのでここで行う。
 
 	init_param();
-	
+
 	// -----------------------
 	//   定跡の読み込み
 	// -----------------------
