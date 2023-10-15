@@ -338,7 +338,7 @@ namespace {
 
 	// 指し手moveによってtoの地点の駒が捕獲できることがわかっている時の、駒を捕獲する価値
 	// moveが成りの指し手である場合、その価値も上乗せして計算する。
-	Value CapturePieceValueEg(const Position& pos, Move move)
+	Value CapturePieceValuePlusPromote(const Position& pos, Move move)
 	{
 		return (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
 			+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(from_sq(move))] : VALUE_ZERO);
@@ -2279,7 +2279,7 @@ namespace {
 						&& !PvNode
 						&& lmrDepth < 6
 						&& !ss->inCheck
-						&& ss->staticEval + 281 + 179 * lmrDepth + CapturePieceValueEg(pos,move)
+						&& ss->staticEval + 281 + 179 * lmrDepth + CapturePieceValuePlusPromote(pos,move)
 						 + captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] / 6 < alpha)
 						// やねうら王、captureHistory[to][pc]で、Stockfishと逆順なので注意。
 						continue;
@@ -3253,7 +3253,11 @@ namespace {
 		// evaluate()を呼び出していないなら呼び出しておく。
 		evaluate_with_no_return(pos);
 
-		// Loop through the moves until no moves remain or a beta cutoff occurs
+		// Step 5. Loop through all pseudo-legal moves until no moves remain
+		// or a beta cutoff occurs.
+
+		// 指し手が尽きるか、beta cutが起きるまで、
+		// すべてのpseudo-legalな指し手に対してloopする。
 
 		while ((move = mp.next_move()) != MOVE_NONE)
 		{
@@ -3274,78 +3278,116 @@ namespace {
 			givesCheck = pos.gives_check(move);
 			capture = pos.capture(move);
 
+			// 備考) ここ↑、Stockfishでは
+			//   capture = pos.capture_stage(move);
+			// になっている。
+			// 将棋でもcapture_or_pawn_promotion()のほうが良い可能性はある。
+
 			moveCount++;
 
 			//
-			// Futility pruning and moveCount pruning (~5 Elo)
+	        // Step 6. Pruning.
 			//
 
 			// 自玉に王手がかかっていなくて、敵玉に王手にならない指し手であるとき、
 			// 今回捕獲されるであろう駒による評価値の上昇分を
 			// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
-			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& !givesCheck
-				&&  to_sq(move) != prevSq
-				&&  futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
-			//	&&  type_of(move) != PROMOTION) // TODO : これ入れたほうがいいのか？
-				)
+			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY /*&& pos.non_pawn_material(us)*/)
 			{
-				//assert(type_of(move) != ENPASSANT); // Due to !pos.advanced_pawn_push
-
-				// MoveCountに基づく枝刈り
-				if (moveCount > 2)
-					continue;
-
-				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
-				// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
-				futilityValue = futilityBase + CapturePieceValueEg(pos, move);
-
-				// これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行ってして、そのあと、この値を用いないからセーフ。
-
-				// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
-				// それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
-				if (futilityValue <= alpha)
+	            // Futility pruning and moveCount pruning (~10 Elo)
+				if (   !givesCheck
+					&&  to_sq(move) != prevSq
+					&&  futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
+					&&  type_of(move) != PROMOTION  // TODO : この条件、入れたほうがいいのか？
+				)
 				{
-					bestValue = std::max(bestValue, futilityValue);
-					ASSERT_LV3(bestValue != -VALUE_INFINITE);
-					continue;
+					// MoveCountに基づく枝刈り
+					if (moveCount > 2)
+						continue;
+
+					// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
+					// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
+					futilityValue = futilityBase + CapturePieceValuePlusPromote(pos, move);
+
+					// →　これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行ってして、そのあと、この値を用いないからセーフ。
+
+					// If static eval + value of piece we are going to capture is much lower
+					// than alpha we can prune this move
+
+					// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
+					// それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
+					if (futilityValue <= alpha)
+					{
+						bestValue = std::max(bestValue, futilityValue);
+						ASSERT_LV3(bestValue != -VALUE_INFINITE);
+						continue;
+					}
+
+					// If static eval is much lower than alpha and move is not winning material
+					// we can prune this move
+
+					// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
+					// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
+
+					if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
+					{
+						bestValue = std::max(bestValue, futilityBase);
+						ASSERT_LV3(bestValue != -VALUE_INFINITE);
+						continue;
+					}
+
+					//
+					//  Detect non-capture evasions
+					//
+
+					// 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
+					// 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
+
+					// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
+
+					// If static exchange evaluation is much worse than what is needed to not
+					// fall below alpha we can prune this move
+					if (futilityBase > alpha && !pos.see_ge(move, (alpha - futilityBase) * 4))
+					{
+						bestValue = alpha;
+						continue;
+					}
 				}
 
-				// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
-				// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
+				// movecount pruning for quiet check evasions
+				// quietな指し手による王手回避のためのmovecountによる枝刈り。
 
-				if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
-				{
-					bestValue = std::max(bestValue, futilityBase);
-					ASSERT_LV3(bestValue != -VALUE_INFINITE);
+				// 王手回避でquietな指し手は良いとは思えないから、捕獲する指し手を好むようにする。
+				// だから、もし、qsearchで2つのquietな王手回避に失敗したら、
+				// そこ以降(captureから生成しているのでそこ以降もquietな指し手)も良くないと
+				// 考えるのは理に適っている。
+
+				// We prune after the second quiet check evasion move, where being 'in check' is
+				// implicitly checked through the counter, and being a 'quiet move' apart from
+				// being a tt move is assumed after an increment because captures are pushed ahead.
+				if (quietCheckEvasions > 1)
+					break;
+
+				// Continuation history based pruning (~3 Elo)
+				// Continuation historyベースの枝刈り
+				// ※ Stockfish12でqsearch()にも導入された。
+				if (  !capture
+					&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < 0
+					&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < 0)
 					continue;
-				}
+
+
+				// Do not search moves with bad enough SEE values (~5 Elo)
+				if (!pos.see_ge(move, Value(-90)))
+					continue;
 			}
-
-			//
-			//  Detect non-capture evasions
-			//
-
-			// 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
-			// 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
-
-			// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
-
-			// Do not search moves with negative SEE values (~5 Elo)
-			if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& !pos.see_ge(move))
-				continue;
-
 
 			// TODO : prefetchは、入れると遅くなりそうだが、many coreだと違うかも。
 			// Speculative prefetch as early as possible
 			//prefetch(TT.first_entry(pos.key_after(move)));
 
-			// -----------------------
-			//     局面を1手進める
-			// -----------------------
-
+	        // Update the current move
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
 
@@ -3354,33 +3396,13 @@ namespace {
 																	  [to_sq(move)                ]
 																	  [pos.moved_piece_after(move)];
 
-
-			// Continuation history based pruning (~2 Elo)
-			// Continuation historyベースの枝刈り
-			// ※ Stockfish12でqsearch()にも導入された。
-			if (  !capture
-				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold
-				&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < CounterMovePruneThreshold)
-				continue;
-
-			// movecount pruning for quiet check evasions
-			// quietな指し手による王手回避のためのmovecountによる枝刈り。
-
-			// 王手回避でquietな指し手は良いとは思えないから、捕獲する指し手を好むようにする。
-			// だから、もし、qsearchで2つのquietな王手回避に失敗したら、
-			// そこ以降(captureから生成しているのでそこ以降もquietな指し手)も良くないと
-			// 考えるのは理に適っている。
-
-			if (  bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-				&& quietCheckEvasions > 1
-				&& !capture
-				&& ss->inCheck)
-				continue;
-
 			quietCheckEvasions += !capture && ss->inCheck;
 
-			// Make and search the move
+			// -----------------------
+			//     局面を1手進める
+			// -----------------------
+
+	        // Step 7. Make and search the move
 			// 1手動かして、再帰的にqsearch()を呼ぶ
 			pos.do_move(move, st, givesCheck);
 			value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha, depth - 1);
@@ -3388,7 +3410,7 @@ namespace {
 
 			ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
 
-			// Check for a new best move
+			// Step 8. Check for a new best move
 			// bestValue(≒alpha値)を更新するのか
 			if (value > bestValue)
 			{
@@ -3402,7 +3424,7 @@ namespace {
 						// fail-highの場合もPVは更新する。
 						update_pv(ss->pv, move, (ss + 1)->pv);
 
-					if (PvNode && value < beta) // Update alpha here!
+					if (value < beta) // Update alpha here!
 						// alpha値の更新はこのタイミングで良い。
 						// なぜなら、このタイミング以外だと枝刈りされるから。(else以下を読むこと)
 						alpha = value;
@@ -3417,6 +3439,7 @@ namespace {
 		// 指し手を調べ終わった
 		// -----------------------
 
+		// Step 9. Check for mate
 		// All legal moves have been searched. A special case: if we're in check
 		// and no legal moves were found, it is checkmate.
 
