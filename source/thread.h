@@ -293,6 +293,9 @@ struct ThreadPool
 	// すべて終了していればtrueが返る。
 	bool search_finished() const;
 
+	// thread_pool[n]のようにでアクセスしたいので…。
+	Thread* operator[](size_t n) { return threads[n];}
+
 private:
 
 	// 現局面までのStateInfoのlist
