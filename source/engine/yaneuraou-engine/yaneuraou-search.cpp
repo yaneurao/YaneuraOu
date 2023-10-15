@@ -260,10 +260,12 @@ namespace {
 	    return VALUE_DRAW - 1 + Value(thisThread->nodes & 0x2);
 	}
 
-	// Skill structure is used to implement strength limit. If we have an uci_elo then
-	// we convert it to a suitable fractional skill level using anchoring to CCRL Elo
-	// (goldfish 1.13 = 2000) and a fit through Ordo derived Elo for match (TC 60+0.6)
-	// results spanning a wide range of k values.
+	// Skill structure is used to implement strength limit.
+	// If we have a UCI_Elo, we convert it to an appropriate skill level, anchored to the Stash engine.
+	// This method is based on a fit of the Elo results for games played between the master at various
+	// skill levels and various versions of the Stash engine, all ranked at CCRL.
+	// Skill 0 .. 19 now covers CCRL Blitz Elo from 1320 to 3190, approximately
+	// Reference: https://github.com/vondele/Stockfish/commit/a08b8d4e9711c20acedbfe17d618c3c384b339ec
 	//
 	// Skill構造体は強さの制限の実装に用いられる。
 	// (わざと手加減して指すために用いる)
@@ -272,7 +274,10 @@ namespace {
 		// uci_elo     : 0以外ならば、そのelo ratingになるように調整される。
 		Skill(int skill_level, int uci_elo) {
 			if (uci_elo)
-				level = std::clamp(std::pow((uci_elo - 1346.6) / 143.4, 1 / 0.806), 0.0, 20.0);
+			{
+				double e = double(uci_elo - 1320) / (3190 - 1320);
+				level = std::clamp((((37.2473 * e - 40.8525) * e + 22.2943) * e - 0.311438), 0.0, 19.0);
+			}
 			else
 				level = double(skill_level);
 		}
@@ -769,8 +774,11 @@ void search_thread_init(Thread* th, Stack* ss , Move pv[])
 	std::memset(ss - 7, 0, 10 * sizeof(Stack));
 
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
-	for (int i = 7; i > 0; i--)
+	for (int i = 7; i > 0; --i)
+	{
 		(ss - i)->continuationHistory = &th->continuationHistory[0][0][SQ_ZERO][NO_PIECE]; // Use as a sentinel
+	    (ss - i)->staticEval = VALUE_NONE;
+	}
 
 	// Stack(探索用の構造体)上のply(手数)は事前に初期化しておけば探索時に代入する必要がない。
 	for (int i = 0; i <= MAX_PLY + 2; ++i)
@@ -798,10 +806,13 @@ void Thread::search()
 	//      variables
 	// ---------------------
 
-  // To allow access to (ss-7) up to (ss+2), the stack must be oversized.
-  // The former is needed to allow update_continuation_histories(ss-1, ...),
-  // which accesses its argument at ss-6, also near the root.
-  // The latter is needed for statScore and killer initialization.
+	// Allocate stack with extra size to allow access from (ss-7) to (ss+2)
+	// (ss-7) is needed for update_continuation_histories(ss-1, ...) which accesses (ss-6)
+	// (ss+2) is needed for initialization of statScore and killers
+
+	// (ss-7)から(ss+2)へのアクセスを許可するために、追加のサイズでスタックを割り当てます
+	// (ss-7)はupdate_continuation_histories(ss-1, ...)のために必要であり、これは(ss-6)にアクセスします
+	// (ss+2)はstatScoreとkillersの初期化のために必要です
 
 	// continuationHistoryのため、(ss-7)から(ss+2)までにアクセスしたいので余分に確保しておく。
 	Stack stack[MAX_PLY + 10], *ss = stack + 7;
@@ -824,12 +835,12 @@ void Thread::search()
 	// totBestMoveChanges : 直近でbestMoveが変化した回数の統計。読み筋の安定度の目安にする。
 	double timeReduction = 1.0 , totBestMoveChanges = 0;;
 
-	// この局面の手番側
-	Color us = rootPos.side_to_move();
-
 	// 反復深化の時に1回ごとのbest valueを保存するための配列へのindex
 	// 0から3までの値をとる。
 	int iterIdx = 0;
+
+	// この局面の手番側
+	Color us = rootPos.side_to_move();
 
 	// 探索部、学習部のスレッドの共通初期化コード
 	search_thread_init(this,ss,pv);
@@ -860,27 +871,16 @@ void Thread::search()
 	Skill skill((int)Options["SkillLevel"], 0);
 
 	// When playing with strength handicap enable MultiPV search that we will
-	// use behind the scenes to retrieve a set of possible moves.
+	// use behind-the-scenes to retrieve a set of possible moves.
 
 	// 強さの手加減が有効であるとき、MultiPVを有効にして、その指し手のなかから舞台裏で指し手を探す。
 	// ※　SkillLevelが有効(設定された値が20未満)のときは、MultiPV = 4で探索。
+
 	if (skill.enabled())
-		multiPV = std::max(multiPV, (size_t)4);
+		multiPV = std::max(multiPV, size_t(4));
 
 	// この局面での指し手の数を上回ってはいけない
 	multiPV = std::min(multiPV, rootMoves.size());
-
-	//complexityAverage.set(202, 1);
-	// →導入せず
-
-	//trend = SCORE_ZERO;
-	//optimism[ us] = Value(39);
-	//optimism[~us] = -optimism[us];
-
-	// Contemptの処理は、やねうら王ではMainThread::search()で行っているのでここではやらない。
-	// Stockfishもそうすべきだと思う。
-	//int ct = int(Options["Contempt"]) * PawnValueEg / 100; // From centipawns
-	// →　Stockfishこのコードなくなった？[2021/09/24]
 
 	// ---------------------
 	//   反復深化のループ
@@ -922,8 +922,11 @@ void Thread::search()
 		if (mainThread)
 			totBestMoveChanges /= 2;
 
-		// Save the last iteration's scores before first PV line is searched and
+		// Save the last iteration's scores before the first PV line is searched and
 		// all the move scores except the (new) PV are set to -VALUE_INFINITE.
+
+		// 最初のPVラインが探索される前に、最後のイテレーションのスコアを保存し、
+		// (新しい)PVを除くすべての指し手のスコアを-VALUE_INFINITEに設定します。
 
 		// aspiration window searchのために反復深化の前回のiterationのスコアをコピーしておく
 		for (RootMove& rm : rootMoves)
@@ -1383,9 +1386,8 @@ namespace {
 		// captureCount			: 調べた駒を捕獲する指し手の数(capturesSearched[]用のカウンター)
 		// quietCount			: 調べた駒を捕獲しない指し手の数(quietsSearched[]用のカウンター)
 		// improvement			: improvingフラグのもうちょっと細かい版(int型なので)  improving = improvement > 0
-		// complexity           : 局面の複雑性。
 		// →この計算に psq_score()が必要なのだが、これ将棋で実装してないのでcomplexityの計算しないことにする。
-		int moveCount, captureCount, quietCount, improvement /*, complexity*/;
+		int moveCount, captureCount, quietCount, improvement;
 
 		// -----------------------
 		// Step 1. Initialize node
@@ -1762,8 +1764,16 @@ namespace {
 			ss->staticEval = eval = VALUE_NONE;
 			improving = false;
 			improvement = 0;
-			//complexity = 0;
 			goto moves_loop;
+		}
+		else if (excludedMove)
+		{
+			// Providing the hint that this node's accumulator will be used often brings significant Elo gain (~13 Elo)
+
+			//Eval::NNUE::hint_common_parent_position(pos);
+			// TODO : → 今回のNNUEの計算は端折れるのか？
+
+			eval = ss->staticEval;
 		}
 		else if (ss->ttHit)
 		{
@@ -1778,18 +1788,13 @@ namespace {
 			if (eval == VALUE_NONE)
 				ss->staticEval = eval = evaluate(pos);
 
-			// 引き分けっぽい評価値であるなら、いくぶん揺らす。(0を±1として扱う)
-			// (千日手回避のため)
-			// 将棋ではこの処理どうなのかな…。
-			// 
-			// ※　そもそも千日手時のスコアがデフォルトではVALUE_DRAW==0ではないので
-			// 　　このコードだとうまく動作しない。
+			//else if (PvNode)
+			//	Eval::NNUE::hint_common_parent_position(pos);
 
-	        // // Randomize draw evaluation
-			// if (eval == VALUE_DRAW)
-			//	   eval = value_draw(thisThread);
+			// → TODO : hint_common_parent_position()実装するか検討する。
 
-			// ttValue can be used as a better position evaluation (~4 Elo)
+	        // ttValue can be used as a better position evaluation (~7 Elo)
+
 			// ttValueのほうがこの局面の評価値の見積もりとして適切であるならそれを採用する。
 			// 1. ttValue > evaluate()でかつ、ttValueがBOUND_LOWERなら、真の値はこれより大きいはずだから、
 			//   evalとしてttValueを採用して良い。
@@ -1805,7 +1810,10 @@ namespace {
 		{
 			ss->staticEval = eval = evaluate(pos);
 
-	        // Save static evaluation into transposition table
+			// Save static evaluation into the transposition table
+
+			// static evalの値を置換表に保存する。
+
 			// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
 			// ※　bonus分だけ加算されているが静止探索の値ということで…。
 			//
