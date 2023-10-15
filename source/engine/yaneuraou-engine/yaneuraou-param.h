@@ -195,6 +195,12 @@ PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 5;
 PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4334;
 
 
+// update_all_stats()で、静止探索時のquietMoveとみなすbestvalueとbetaの差(PAWN_VALUEより少し小さな値)
+// 元の値 = 90 , step = 5
+// [PARAM] min:10,max:200,step:90,interval:5,time_rate:1,fixed
+PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 90;
+
+
 //
 // etc..
 // 
