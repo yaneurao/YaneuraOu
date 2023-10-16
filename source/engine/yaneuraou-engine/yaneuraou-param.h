@@ -115,7 +115,8 @@ PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 85;
 PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 147;
 
 
-// 元の値 = 14695 , step = 4000
+// 一つ前のStockfishではこの値は14695。
+// 元の値 = 17257 , step = 4000
 // [PARAM] min:0,max:50000,step:500,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN0 = 14695;
 
@@ -175,6 +176,16 @@ PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 4;
 // 元の値 = 768 , step = 64
 // [PARAM] min:0,max:1024,step:64,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_SINGULAR_MARGIN = 768;
+
+//
+// extension
+//
+
+// QUIETなTTの指し手に関して、historyがこの値以上なら延長する
+// 以前のStockfishだとこの値は5491。
+// 元の値 = 4194 , step = 64
+// [PARAM] min:1024,max:8192,step:128,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_QUIET_TT_EXTENSION = 5491;
 
 
 //

@@ -1589,7 +1589,8 @@ namespace {
 			// このままこの値でreturnして良い。
 			)
 		{
-			// If ttMove is quiet, update move sorting heuristics on TT hit (~1 Elo)
+	        // If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
+			// ttMoveがquietの指し手である場合、置換表ヒット時に指し手のソート用ヒューリスティクスを更新します。
 
 			// 置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
 			// ただし、捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
@@ -1601,7 +1602,7 @@ namespace {
 			// その時に行われる誤ったβcut(枝刈り)は許容できる。(non PVで生じることなのでそこまで探索に対して悪い影響がない)
 			// cf. https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
 
-			// ttMoveがMOVE_WINであることはありうるので注意が必要。
+			// やねうら王ではttMoveがMOVE_WINであることはありうるので注意が必要。
 			// is_ok(m)==falseの時、Position::to_move(m)がmをそのまま帰すことは保証されている。
 			// そのためttMoveがMOVE_WINでありうる。これはstatのupdateをされると困るのでis_ok()で弾く必要がある。
 			// is_ok()は、ttMove == MOVE_NONEの時はfalseなのでこの条件を省略できる。
@@ -1610,17 +1611,18 @@ namespace {
 			{
 				if (ttValue >= beta)
 				{
-					// Bonus for a quiet ttMove that fails high (~3 Elo)
+	                // Bonus for a quiet ttMove that fails high (~2 Elo)
 					// fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
 
 					if (!ttCapture)
 						update_quiet_stats(pos, ss, ttMove, stat_bonus(depth));
 
-					// Extra penalty for early quiet moves of the previous ply (~0 Elo)
+	                // Extra penalty for early quiet moves of the previous ply (~0 Elo on STC, ~2 Elo on LTC)
 					// 1手前の早い時点のquietの指し手に対する追加のペナルティ
-					// 1手前は置換表の指し手であるのでNULL MOVEではありえない。
 
-					if ((ss - 1)->moveCount <= 2 && !priorCapture)
+					// 1手前がMOVE_NULLであることを考慮する必要がある。
+
+	                if (prevSq != SQ_NONE && (ss-1)->moveCount <= 2 && !priorCapture)
 						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
 
 				}
@@ -1917,7 +1919,7 @@ namespace {
 
 
 		// -----------------------
-		// Step 9. Null move search with verification search (~22 Elo)
+	    // Step 9. Null move search with verification search (~35 Elo)
 		// -----------------------
 
 		//  検証用の探索つきのnull move探索。PV nodeではやらない。
@@ -2159,12 +2161,17 @@ namespace {
 		moveCountPruning = false;
 
 		// Indicate PvNodes that will probably fail low if the node was searched
-		// at a depth equal or greater than the current depth, and the result of this search was a fail low.
+		// at a depth equal to or greater than the current depth, and the result
+		// of this search was a fail low.
+
+		// 現在の深さと同じかそれ以上の深さでノードが探索され、
+		// その探索の結果がfail lowだった場合、おそらくfail lowになるであろうPvNodesを示す。
+
 		// ノードが現在のdepth以上で探索され、fail lowである時に、PvNodeがfail lowしそうであるかを示すフラグ。
-		bool likelyFailLow =   PvNode
-							&& ttMove
+		bool likelyFailLow =    PvNode
+							&&  ttMove
 							&& (tte->bound() & BOUND_UPPER)
-							&& tte->depth() >= depth;
+							&&  tte->depth() >= depth;
 
 
 		// -----------------------
@@ -2186,27 +2193,32 @@ namespace {
 			if (move == excludedMove)
 				continue;
 
+			// Check for legality
+			// 指し手の合法性のチェック
+
+			// root nodeなら、rootMovesになければlegalではないのでこのチェックは不要だが、
+			// root nodeは全体から見ると極わずかなのでそのチェックを端折るほうが良いようだ。
+
+			// 非合法手はほとんど含まれていないから、以前はこの判定はdo_move()の直前まで遅延させたほうが得だったが、
+			// do_move()するまでの枝刈りが増えてきたので、ここでやったほうが良いようだ。
+
+			if (!pos.legal(move))
+				continue;
+
 			// At root obey the "searchmoves" option and skip moves not listed in Root
-			// Move List. As a consequence any illegal move is also skipped. In MultiPV
-			// mode we also skip PV moves which have been already searched and those
-			// of lower "TB rank" if we are in a TB root position.
+			// Move List. In MultiPV mode we also skip PV moves that have been already
+			// searched and those of lower "TB rank" if we are in a TB root position.
 
+			// ルートで "searchmoves" オプションに従い、Root Move Listにリストされていない手をスキップします。
+			// MultiPVモードでは、既に検索されたPVの手や、TBルート位置にいる場合のTBランクが低い手も
+			// スキップします。
+			// ※　root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
 
-			// root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
 			// Stockfishでは、2行目、
 			//  thisThread->rootMoves.end() + thisThread->pvLast となっているが
 			// 将棋ではこの処理不要なのでやねうら王ではpvLastは使わない。
 			if (rootNode && !std::count(thisThread->rootMoves.begin() + thisThread->pvIdx,
 										thisThread->rootMoves.end()   , move))
-				continue;
-
-			// Check for legality
-			// moveの合法性をチェック。
-
-			// root nodeなら、rootMovesになければlegalではない。
-			// 非合法手はほとんど含まれていないから、以前はこの判定はdo_move()の直前まで遅延させたほうが得だったが、
-			// do_move()するまでの枝刈りが増えてきたので、ここでやったほうが良いようだ。
-			if (!rootNode && !pos.legal(move))
 				continue;
 
 			// do_move()した指し手の数のインクリメント
@@ -2463,13 +2475,15 @@ namespace {
 					)
 					extension = 1;
 
-				// Quiet ttMove extensions (~0 Elo)
-				// PV nodeで quietなttは良い指し手のはずだから延長するというもの。
+			    // Quiet ttMove extensions (~1 Elo)
+				// 駒を取らない置換表の指し手に関する延長
+
+				// PV nodeでquietなttは良い指し手のはずだから延長するというもの。
 
 				else if (PvNode
 					&& move == ttMove
 					&& move == ss->killers[0]
-					&& (*contHist[0])[to_sq(move)][movedPiece] >= 5491)
+					&& (*contHist[0])[to_sq(move)][movedPiece] >= PARAM_QUIET_TT_EXTENSION /*4194*/)
 					extension = 1;
 			}
 
@@ -2518,7 +2532,7 @@ namespace {
 			bool doDeeperSearch = false;
 
 			// -----------------------
-			// Step 17. Late moves reduction / extension (LMR, ~98 Elo)
+		    // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
 			// -----------------------
 			// depthを減らした探索。LMR(Late Move Reduction)
 
@@ -2526,8 +2540,12 @@ namespace {
 			// depthを減らして探索させて、その指し手がfail highしたら元のdepthで再度探索するという手法
 
 			// We use various heuristics for the sons of a node after the first son has
-			// been searched. In general we would like to reduce them, but there are many
+			// been searched. In general, we would like to reduce them, but there are many
 			// cases where we extend a son if it has good chances to be "interesting".
+
+			// 最初の子ノードが探索された後、他の子ノードに対してさまざまなヒューリスティクスを使用します。
+			// 一般的には、これらを削減したいのですが、"興味深い" 可能性が高い場合には、
+			// 子ノードを拡張するケースが多いです。
 
 			// moveCountが大きいものなどは探索深さを減らしてざっくり調べる。
 			// alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
