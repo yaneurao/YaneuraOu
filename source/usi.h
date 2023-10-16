@@ -27,8 +27,10 @@ namespace USI
 	// "100セントポーン"の利点を出力します。
 	// これは、fishtest LTCタイムコントロールでの自己対局においてです。
 
+#if defined(USE_PIECE_VALUE)
 	// → やねうら王の場合、PawnValue = 90なので Value = 90なら 100として出力する必要がある。
 	const int NormalizeToPawnValue = Eval::PawnValue;
+#endif
 
 	class Option;
 
