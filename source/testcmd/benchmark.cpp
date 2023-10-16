@@ -17,6 +17,8 @@ using namespace std;
 //  USI拡張コマンド "bench"(ベンチマーク)
 // ----------------------------------
 
+namespace {
+
 // benchmark用デフォルトの局面集
 const vector<string> BenchSfen =
 {
@@ -34,6 +36,20 @@ const vector<string> BenchSfen =
 	// cf. http://d.hatena.ne.jp/ak11/20110508/p1
 	"sfen l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w RGgsn5p 1",
 };
+
+} // namespace
+
+/// setup_bench() builds a list of UCI commands to be run by bench. There
+/// are five parameters: TT size in MB, number of search threads that
+/// should be used, the limit value spent for each position, a file name
+/// where to look for positions in FEN format, and the type of the limit:
+/// depth, perft, nodes and movetime (in milliseconds). Examples:
+///
+/// bench                            : search default positions up to depth 13
+/// bench 64 1 15                    : search default positions up to depth 15 (TT = 64MB)
+/// bench 64 1 100000 default nodes  : search default positions for 100K nodes each
+/// bench 64 4 5000 current movetime : search current position with 4 threads for 5 sec
+/// bench 16 1 5 blah perft          : run a perft 5 on positions in file "blah"
 
 void bench_cmd(Position& current, istringstream& is)
 {

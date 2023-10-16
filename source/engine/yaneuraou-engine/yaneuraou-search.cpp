@@ -1333,7 +1333,7 @@ namespace {
 		// capturesSearched : 駒を捕獲する指し手(+歩の成り)
 		// quietsSearched   : 駒を捕獲しない指し手(-歩の成り)
 		// この[32]と[64]のところ、値を変えても強さにあまり影響なかったので固定化する。
-		Move pv[MAX_PLY + 1], capturesSearched[32], quietsSearched[64];
+		Move pv[MAX_PLY + 1], capturesSearched[32], quietsSearched[32];
 
 		// do_move()するときに必要
 		StateInfo st;
@@ -2247,6 +2247,7 @@ namespace {
 			// 指し手で捕獲する指し手、もしくは歩の成りである。
 			// 【検証資料 12.】extend checksのときのcaptureOrPawnPromotionをどう扱うか。
 
+		    //capture = pos.capture_stage(move);
 			capture    = pos.capture(move);
 
 			// 今回移動させる駒(移動後の駒)
@@ -2776,13 +2777,19 @@ namespace {
 
 				} else {
 
-					// All other moves but the PV are set to the lowest value: this
+		            // All other moves but the PV, are set to the lowest value: this
 					// is not a problem when sorting because the sort is stable and the
 					// move position in the list is preserved - just the PV is pushed up.
+
+					// PV以外のすべての手は最低値に設定されます。
+					// これはソート時に問題とならないです。
+					// なぜなら、ソートは安定しており、リスト内の手の位置は保持されているからです
+					// - PVだけが上に押し上げられます。
 
 					// root nodeにおいてα値を更新しなかったのであれば、この指し手のスコアを-VALUE_INFINITEにしておく。
 					// こうしておかなければ、stable_sort()しているにもかかわらず、前回の反復深化のときの値との
 					// 大小比較してしまい指し手の順番が入れ替わってしまうことによるオーダリング性能の低下がありうる。
+
 					rm.score = -VALUE_INFINITE;
 				}
 			}
@@ -2828,23 +2835,32 @@ namespace {
 				}
 			}
 
-			// If the move is worse than some previously searched move, remember it to update its stats later
+			// If the move is worse than some previously searched move, remember it, to update its stats later
 			// もしその指し手が、以前に探索されたいくつかの指し手より悪い場合は、あとで統計を取る時のために記憶しておく。
 
-			if (move != bestMove)
+			if (move != bestMove && moveCount <= 32)
 			{
-				// 探索した駒を捕獲する指し手を32手目まで
-				if (capture && captureCount < 32)
+				// 探索した駒を捕獲する指し手
+				if (capture)
 					capturesSearched[captureCount++] = move;
 
-				// 探索した駒を捕獲しない指し手を64手目までquietsSearchedに登録しておく。
-				// あとでhistoryなどのテーブルに加点/減点するときに使う。
-
-				else if (!capture && quietCount < 64)
+				// 探索した駒を捕獲しない指し手
+				else
 					quietsSearched[quietCount++] = move;
+
+				// これら↑は、あとでhistoryなどのテーブルに加点/減点するときに使う。
 			}
+
 		}
 		// end of while
+
+		// The following condition would detect a stop only after move loop has been
+		// completed. But in this case, bestValue is valid because we have fully
+		// searched our subtree, and we can anyhow save the result in TT.
+		/*
+		   if (Threads.stop)
+			return VALUE_DRAW;
+		*/
 
 		// -----------------------
 		// Step 21. Check for mate and stalemate
@@ -2913,7 +2929,7 @@ namespace {
 		*/
 
 		// If no good move is found and the previous position was ttPv, then the previous
-		// opponent move is probably good and the new position is added to the search tree.
+		// opponent move is probably good and the new position is added to the search tree. (~7 Elo)
 
 		// もし良い指し手が見つからず(bestValueがalphaを更新せず)、前の局面はttPvを選んでいた場合は、
 		// 前の相手の手がおそらく良い手であり、新しい局面が探索木に追加される。
