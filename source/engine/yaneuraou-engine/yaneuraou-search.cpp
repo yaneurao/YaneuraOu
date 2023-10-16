@@ -1489,7 +1489,6 @@ namespace {
 		// rootからの手数
 		ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
-		(ss + 1)->ttPv			= false;
 		(ss + 1)->excludedMove	= bestMove = MOVE_NONE;
 
 		// 2手先のkillerの初期化。
@@ -1501,8 +1500,8 @@ namespace {
 
 		// 前の指し手で移動させた先の升目
 		// → null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
-		// → StockfishでMOVE_NULLの時は、prevSq == SQ_NBとして扱うように変更になった。[2023/10/15]
-	    Square prevSq           = is_ok((ss-1)->currentMove) ? to_sq((ss-1)->currentMove) : SQ_NB;
+		// → StockfishでMOVE_NULLの時は、prevSq == SQ_NONEとして扱うように変更になった。[2023/10/15]
+	    Square prevSq           = is_ok((ss-1)->currentMove) ? to_sq((ss-1)->currentMove) : SQ_NONE;
 
 		// Initialize statScore to zero for the grandchildren of the current position.
 		// So statScore is shared between all grandchildren and only the first grandchild
@@ -2026,10 +2025,6 @@ namespace {
 			ASSERT_LV3(probCutBeta < VALUE_INFINITE);
 
 			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
-			bool ttPv = ss->ttPv;  // このあとの探索でss->ttPvを潰してしまうのでtte->save()のときはこっちを用いる。
-			//bool captureOrPromotion;
-			// ↑このStockfishのコード、ここで宣言しなくてもいいと思う。[2022/04/13]
-			ss->ttPv = false;
 
 			// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 			// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
@@ -2078,7 +2073,7 @@ namespace {
 							&& ttValue != VALUE_NONE))
 						{
 							ASSERT_LV3(pos.legal_promote(move));
-							tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
+							tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv,
 								BOUND_LOWER,
 								depth - (PARAM_PROBCUT_DEPTH - 1), move, ss->staticEval);
 						}
@@ -2087,10 +2082,6 @@ namespace {
 				}
 
 			} // end of while
-
-
-			// ss->ttPvはprobCutの探索で書き換えてしまったかも知れないので復元する。
-			ss->ttPv = ttPv;
 		}
 
 		// -----------------------
@@ -2154,7 +2145,7 @@ namespace {
 		Piece prevPc = pos.piece_on(prevSq);
 
 		// 1手前の指し手(1手前のtoとPiece)に対応するよさげな応手を統計情報から取得。
-		Move countermove = thisThread->counterMoves[prevSq][prevPc];
+		Move countermove = prevSq != SQ_NONE ? thisThread->counterMoves[prevSq][prevPc] : MOVE_NONE;
 
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
 										  &captureHistory,
@@ -2466,7 +2457,6 @@ namespace {
 
 				else if (givesCheck
 					&& depth > 9
-					&& abs(ss->staticEval) > 71
 					// この条件、やねうら王で独自追加。
 					// →　王手延長は、開き王手と駒損しない王手に限定する。
 					&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move))
@@ -2893,8 +2883,9 @@ namespace {
 			bestValue = excludedMove ? alpha : mated_in(ss->ply);
 
 
-	    // If there is a move which produces search value greater than alpha we update stats of searched moves
-		// bestMoveがあるならこの指し手に基いてhistoryのupdateを行なう。
+	    // If there is a move that produces search value greater than alpha we update stats of searched moves
+		// // alphaよりも大きな探索値を生み出す手がある場合、探索された手の統計を更新します
+
 		else if (bestMove)
 
 			// quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
@@ -2904,13 +2895,13 @@ namespace {
 
 
 		// Bonus for prior countermove that caused the fail low
+		// fail lowを引き起こした1手前のcountermoveに対するボーナス
 
 		// bestMoveがない == fail lowしているケース。
 		// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
 		// 【計測資料 15.】search()でfail lowしているときにhistoryのupdateを行なう条件
 
-		else if (  (depth >= 4 || PvNode)
-				&& !priorCapture)
+	    else if (!priorCapture && prevSq != SQ_NONE)
 		{
 			//Assign extra bonus if current node is PvNode or cutNode
 			//or fail low was really bad
@@ -3277,8 +3268,8 @@ namespace {
 		// will be generated.
 
 		// 取り合いの指し手だけ生成する
-		// searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうる。この場合、SQ_NBを設定する。
-	    Square prevSq = is_ok((ss-1)->currentMove) ? to_sq((ss-1)->currentMove) : SQ_NB;
+		// searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうる。この場合、SQ_NONEを設定する。
+	    Square prevSq = is_ok((ss-1)->currentMove) ? to_sq((ss-1)->currentMove) : SQ_NONE;
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
 										  &thisThread->captureHistory,
 										  contHist,
@@ -3614,7 +3605,7 @@ namespace {
 
 	// update_all_stats()は、bestmoveが見つかったときにそのnodeの探索の終端で呼び出される。
 	// 統計情報一式を更新する。
-	// prevSq : 直前の指し手の駒の移動先。直前の指し手がMOVE_NONEの時はSQ_NB
+	// prevSq : 直前の指し手の駒の移動先。直前の指し手がMOVE_NONEの時はSQ_NONE
 
 	void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
 		Move* quietsSearched, int quietCount, Move* capturesSearched, int captureCount, Depth depth) {
@@ -3660,8 +3651,8 @@ namespace {
 
 		// (ss-1)->ttHit : 一つ前のnodeで置換表にhitしたか
 
-		// MOVE_NULLの場合、Stockfishでは65(移動後の升がSQ_NBであることを保証している。やねうら王もそう変更した。)
-		if (   prevSq != SQ_NB
+		// MOVE_NULLの場合、Stockfishでは65(移動後の升がSQ_NONEであることを保証している。やねうら王もそう変更した。)
+		if (   prevSq != SQ_NONE
 			&& ((ss-1)->moveCount == 1 + (ss-1)->ttHit || ((ss-1)->currentMove == (ss-1)->killers[0]))
 			&& !pos.captured_piece())
 			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -quietMoveBonus);
