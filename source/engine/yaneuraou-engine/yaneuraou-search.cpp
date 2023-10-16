@@ -1385,9 +1385,7 @@ namespace {
 		// moveCount			: 調べた指し手の数(合法手に限る)
 		// captureCount			: 調べた駒を捕獲する指し手の数(capturesSearched[]用のカウンター)
 		// quietCount			: 調べた駒を捕獲しない指し手の数(quietsSearched[]用のカウンター)
-		// improvement			: improvingフラグのもうちょっと細かい版(int型なので)  improving = improvement > 0
-		// →この計算に psq_score()が必要なのだが、これ将棋で実装してないのでcomplexityの計算しないことにする。
-		int moveCount, captureCount, quietCount, improvement;
+		int moveCount, captureCount, quietCount;
 
 		// -----------------------
 		// Step 1. Initialize node
@@ -1763,18 +1761,19 @@ namespace {
 			
 			ss->staticEval = eval = VALUE_NONE;
 			improving = false;
-			improvement = 0;
 			goto moves_loop;
 		}
-		else if (excludedMove)
-		{
-			// Providing the hint that this node's accumulator will be used often brings significant Elo gain (~13 Elo)
+		//else if (excludedMove)
+		//{
+		//	// Providing the hint that this node's accumulator will be used often brings significant Elo gain (~13 Elo)
 
-			//Eval::NNUE::hint_common_parent_position(pos);
-			// TODO : → 今回のNNUEの計算は端折れるのか？
+		//	//Eval::NNUE::hint_common_parent_position(pos);
+		//	// TODO : → 今回のNNUEの計算は端折れるのか？
 
-			eval = ss->staticEval;
-		}
+		//	eval = ss->staticEval;
+		//}
+		// TODO : ↑入れるとR50ぐらい弱くなる。何か初期化を忘れているのか？
+
 		else if (ss->ttHit)
 		{
 			// Never assume anything about values stored in TT
@@ -1831,10 +1830,13 @@ namespace {
 		//   evalベースの枝刈り
 		// -----------------------
 
-		// Use static evaluation difference to improve quiet move ordering (~3 Elo)
+	    // Use static evaluation difference to improve quiet move ordering (~4 Elo)
 
 		// 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
 		// 王手のときはここにはこない。(上のinCheckのなかでMOVES_LOOPに突入。)
+
+		// is_ok()はMOVE_NULLかのチェック。
+		// 1手前でMOVE_NULLではなく、王手がかかっておらず、駒を取る指し手ではなかったなら…。
 
 		if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
 		{
@@ -1852,19 +1854,18 @@ namespace {
 		// ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
 		//   枝刈りを甘くして調べないといけないのでimproving扱いとする。
 
-		improvement =	  (ss-2)->staticEval != VALUE_NONE ? ss->staticEval - (ss-2)->staticEval
-						: (ss-4)->staticEval != VALUE_NONE ? ss->staticEval - (ss-4)->staticEval
-						:                                    175;
+		// Set up the improving flag, which is true if current static evaluation is
+		// bigger than the previous static evaluation at our turn (if we were in
+		// check at our previous move we look at static evaluation at move prior to it
+		// and if we were in check at move prior to it flag is set to true) and is
+		// false otherwise. The improving flag is used in various pruning heuristics.
+		improving =   (ss-2)->staticEval != VALUE_NONE ? ss->staticEval > (ss-2)->staticEval
+					: (ss-4)->staticEval != VALUE_NONE ? ss->staticEval > (ss-4)->staticEval
+					: true;
+
+		// Step 7. Razoring (~1 Elo)
+
 		// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
-
-		// やねうら王ではpsq_score()を実装していないのでcomplexityは導入せず[2022/04/13]
-
-		//complexity = abs(ss->staticEval - (us == WHITE ? eg_value(pos.psq_score()) : -eg_value(pos.psq_score())));
-
-		//thisThread->complexityAverage.update(complexity);
-
-		// improvingフラグは、improvementをbool化したもの。
-		improving = improvement > 0;
 
 		// -----------------------
 		// Step 7. Razoring.
@@ -1928,10 +1929,7 @@ namespace {
 			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN0/*14695*/
 			&&  eval >= beta
 			&&  eval >= ss->staticEval
-			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*15*/ * depth
-								- improvement / PARAM_NULL_MOVE_MARGIN3 /* 15 */
-								+ PARAM_NULL_MOVE_MARGIN4 /*198*/
-								/* + complexity / 28 */
+			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*24*/ * depth + PARAM_NULL_MOVE_MARGIN4 /*281*/
 			&& !excludedMove
 		//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 			&&  ss->ply >= thisThread->nmpMinPly

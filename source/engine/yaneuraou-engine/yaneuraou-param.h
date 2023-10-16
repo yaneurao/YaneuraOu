@@ -119,19 +119,13 @@ PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 147;
 // [PARAM] min:0,max:50000,step:500,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN0 = 14695;
 
-// 元の値 = 15 , step = 2
+// 元の値 = 24 , step = 2
+// Stockfishの前バージョンではこの値は15。
 // [PARAM] min:10,max:60,step:2,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 15;
 
-// 元の値 = 22 , step = 2
-// [PARAM] min:10,max:60,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 22;
-
-// 元の値 = 15 , step = 4
-// [PARAM] min:5,max:40,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN3 = 15;
-
-// 元の値 = 198 , step = 50
+// 元の値 = 281 , step = 50
+// Stockfishの前バージョンではこの値は198。
 // [PARAM] min:0,max:400,step:30,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 198;
 
