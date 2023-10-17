@@ -137,11 +137,6 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 14;
 // ProbCut
 //
 
-// probcutの前提depth
-// 元の値 = 4 , step = 1
-// [PARAM] min:3,max:10,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_DEPTH = 4;
-
 // probcutのmargin
 //    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2
 //   improvingの効果怪しいので抑え気味にしておく。

@@ -846,10 +846,7 @@ void Thread::search()
 	// 探索部、学習部のスレッドの共通初期化コード
 	search_thread_init(this,ss,pv);
 
-	// 反復深化のiterationが浅いうちはaspiration searchを使わない。
-	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)とする。
-	bestValue = delta = alpha = -VALUE_INFINITE;
-	beta = VALUE_INFINITE;
+	bestValue = -VALUE_INFINITE;
 
 	if (mainThread)
 	{
@@ -2018,7 +2015,7 @@ namespace {
 		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*168*/ - PARAM_PROBCUT_MARGIN2/*70*/ * improving;
 
 		// -----------------------
-		// Step 11. ProbCut (~4 Elo)
+		// Step 11. ProbCut (~10 Elo)
 		// -----------------------
 
 		// If we have a good enough capture (or queen promotion) and a reduced search returns a value
@@ -2028,21 +2025,20 @@ namespace {
 		// 前の手を（ほぼ）安全に枝刈りすることができます。
 
 		if (   !PvNode
-			&&  depth > PARAM_PROBCUT_DEPTH/*4*/
+			&&  depth > 3
 			&&  abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
 			
-			// if value from transposition table is lower than probCutBeta, don't attempt probCut
+	        // If value from transposition table is lower than probCutBeta, don't attempt probCut
 			// there and in further interactions with transposition table cutoff depth is set to depth - 3
 			// because probCut search has depth set to depth - 4 but we also do a move before it
-			// so effective depth is equal to depth - 3
+			// So effective depth is equal to depth - 3
 
 			// もし置換表から取り出したvalueがprobCutBetaより小さいなら、そこではprobCutを試みず、
 			// 置換表との相互作用では、cutoff depthをdepth - 3に設定されます。
 			// なぜなら、probCut searchはdepth - 4に設定されていますが、我々はその前に指すので、
 			// 実効的な深さはdepth - 3と同じになるからです。
 
-			&& !(  ss->ttHit
-				&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH-1)
+			&& !(  tte->depth() >= depth - 3
 				&& ttValue != VALUE_NONE
 				&& ttValue < probCutBeta))
 		{
@@ -2083,34 +2079,25 @@ namespace {
 					// よさげであったので、普通に探索する
 
 					if (value >= probCutBeta)
-						value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, depth - PARAM_PROBCUT_DEPTH, !cutNode);
+						value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, depth - 4, !cutNode);
 
 					pos.undo_move(move);
 
 					if (value >= probCutBeta)
 					{
-						// if transposition table doesn't have equal or more deep info write probCut data into it
-						// もし置換表が、等しいかより深く探索した情報ではないなら、probCutの情報をそこに書く
+	                    // Save ProbCut data into transposition table
+						// ProbCutのdataを置換表に保存する。
 
-						if (! (ss->ttHit
-							&& tte->depth() >= depth - (PARAM_PROBCUT_DEPTH - 1)
-							&& ttValue != VALUE_NONE))
-						{
-							ASSERT_LV3(pos.legal_promote(move));
-							tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv,
-								BOUND_LOWER,
-								depth - (PARAM_PROBCUT_DEPTH - 1), move, ss->staticEval);
-						}
+						tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval);
 						return value;
 					}
 				}
 
 			} // end of while
-		}
 
-		// -----------------------
-		// Step 11. ProbCut (~10 Elo)
-		// -----------------------
+			//Eval::NNUE::hint_common_parent_position(pos);
+
+		}
 
 		// When in check, search starts here
 		// 王手がかかっている局面では、探索はここから始まる。
