@@ -30,10 +30,14 @@
 //
 
 // 深さに比例したfutility pruning
-// 元の値 = 168 , step = 20
+// 元の値 = 126 , step = 20
 // [PARAM] min:100,max:300,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 168;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 126;
 
+// 深さに比例したfutility pruning
+// 元の値 = 42 , step = 4
+// [PARAM] min:10,max:200,step:10,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 42;
 // 
 
 // 元の値 = 138 , step = 20
@@ -48,9 +52,11 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 118;
 
 // futility pruningの適用depth。
 // この制限自体が要らない可能性がある。→　そうでもなかった。
-// 元の値 = 8 , step = 1
+// 元の値 = 9 , step = 1
 // [PARAM] min:5,max:15,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 8;
+PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 9;
+
+
 
 // 親nodeでのfutilityの適用depth。
 // この枝刈り、depthの制限自体が要らないような気がする。→　そうでもなかった。

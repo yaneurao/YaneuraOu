@@ -198,11 +198,10 @@ namespace {
 	enum NodeType { NonPV, PV , Root};
 
 	// Futility margin
-	// RazoringはStockfish12で効果がないとされてしまい除去された。
-
 	// depth(残り探索深さ)に応じたfutility margin。
-	Value futility_margin(Depth d, bool improving) {
-		return Value(PARAM_FUTILITY_MARGIN_ALPHA1/*168*/ * (d - improving));
+	// ※ RazoringはStockfish12で効果がないとされてしまい除去された。
+	Value futility_margin(Depth d, bool noTtCutNode, bool improving) {
+		return Value((PARAM_FUTILITY_MARGIN_ALPHA1/*126*/  - PARAM_FUTILITY_MARGIN_ALPHA2/*42*/ * noTtCutNode) * (d - improving));
 	}
 
 	// 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
@@ -1881,11 +1880,13 @@ namespace {
 		}
 
 		// -----------------------
-		// Step 8. Futility pruning: child node (~25 Elo).
-		//         The depth condition is important for mate finding.
+		// Step 8. Futility pruning: child node (~40 Elo)
 		// -----------------------
 
 		//   Futility pruning : 子ノード (王手がかかっているときはスキップする)
+
+		// The depth condition is important for mate finding.
+		// depthの条件は詰みを発見するために重要である。
 
 		// このあとの残り探索深さによって、評価値が変動する幅はfutility_margin(depth)だと見積れるので
 		// evalからこれを引いてbetaより大きいなら、beta cutが出来る。
@@ -1896,15 +1897,21 @@ namespace {
 		// Stockfish10でnonPVにのみの適用に変更になった。
 
 		if (   !ss->ttPv
-			&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*8*/
-			&&  eval - futility_margin(depth, improving) - (ss - 1)->statScore / 256 >= beta
+			&&  depth < 9
+			&&  eval - futility_margin(depth, cutNode && !ss->ttHit, improving) - (ss-1)->statScore / 321 >= beta
 			&&  eval >= beta
-			&&  eval < 29462) // smaller than TB wins
+			&&  eval < 29462 // smaller than TB wins
+			&& !(  !ttCapture
+				 && ttMove
+				 && thisThread->mainHistory[us][from_to(ttMove)] < 989))
 
 			// 29462の根拠はよくわからないが、VALUE_TB_WIN_IN_MAX_PLY より少し小さい値にしたいようだ。
 			// そこまではfutility pruningで枝刈りして良いと言うことなのだろう。
 			// また、詰み絡み等だとmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
-			
+
+			// ※　統計値(mainHistoryとかstatScoreとか)のしきい値に関しては、やねうら王ではStockfishから調整しないことにしているので、
+			// 上のif式に出てくる定数については調整しないことにする。
+
 			return eval;
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
