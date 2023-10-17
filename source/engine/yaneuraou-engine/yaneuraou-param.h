@@ -185,12 +185,6 @@ PARAM_DEFINE PARAM_QUIET_TT_EXTENSION = 5491;
 PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 5;
 
 
-// historyの値によってreductionするときの係数
-// 元の値 = 4334 , step = 500
-// [PARAM] min:2000,max:8000,step:250,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4334;
-
-
 // update_all_stats()で、静止探索時のquietMoveとみなすbestvalueとbetaの差(PAWN_VALUEより少し小さな値)
 // 元の値 = 90 , step = 5
 // [PARAM] min:10,max:200,step:10,interval:5,time_rate:1,fixed

@@ -2269,30 +2269,34 @@ namespace {
 			// 今回の指し手で王手になるかどうか
 			givesCheck = pos.gives_check(move);
 
-			// -----------------------
-			// Step 14. Pruning at shallow depth (~98 Elo). Depth conditions are important for mate finding.
-			// -----------------------
-
-			// 浅い深さでの枝刈り
-
 			// Calculate new depth for this move
 			// 今回の指し手に関して新しいdepth(残り探索深さ)を計算する。
 			newDepth = depth - 1;
 
 			Value delta = beta - alpha;
 
+		    Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
+
+			// -----------------------
+		    // Step 14. Pruning at shallow depth (~120 Elo). Depth conditions are important for mate finding.
+			// -----------------------
+
+			// 浅い深さでの枝刈り。深さの条件は詰みの発見のために重要である。
+
 			if (  !rootNode
 				// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
 			//	&& pos.non_pawn_material(us)  // これに相当する処理、将棋でも必要だと思う。
 				&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
 			{
-				// Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~7 Elo)
-				// move countベースの枝刈りを実行するかどうかのフラグ
-				moveCountPruning = moveCount >= futility_move_count(improving, depth);
+				// Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~8 Elo)
+				// もしmovecountがFutilityMoveCountのしきい値を超えていたなら、quietな指し手をskipする。
+				// ※　moveCountPruningとはmoveCountベースの枝刈りを実行するかどうかのフラグ
+				if (!moveCountPruning)
+					moveCountPruning = moveCount >= futility_move_count(improving, depth);
 
 				// Reduced depth of the next LMR search
 				// 次のLMR探索における軽減された深さ
-				int lmrDepth = std::max(newDepth - reduction(improving, depth, moveCount, delta, thisThread->rootDelta), 0);
+				int lmrDepth = newDepth - r;
 
 				if (   capture
 					|| givesCheck)
@@ -2571,7 +2575,82 @@ namespace {
 			// 指し手で1手進める
 			pos.do_move(move, st, givesCheck);
 
-			bool doDeeperSearch = false;
+			// Decrease reduction if position is or has been on the PV and not likely to fail low. (~3 Elo)
+			// Decrease further on cutNodes. (~1 Elo)
+			// この局面がPV上にあり、fail lowしそうであるならreductionを減らす
+			// (fail lowしてしまうとまた探索をやりなおさないといけないので)
+			if (   ss->ttPv
+				&& !likelyFailLow)
+				r -= cutNode && tte->depth() >= depth ? 3 : 2;
+
+			// 【計測資料 4.】相手のmoveCountが高いときにreductionを減らす
+			// →　古い計測なので当時はこのコードないほうが良かったが、Stockfish10では入れたほうが良さげ。
+
+			// Decrease reduction if opponent's move count is high (~1 Elo)
+			// 相手の(1手前の)move countが大きければ、reductionを減らす。
+			// 相手の指し手をたくさん読んでいるのにこちらだけreductionするとバランスが悪いから。
+
+			// ※ この > 7 の 7は調整が必要かも。
+			if ((ss - 1)->moveCount > 7)
+				r--;
+
+			// Increase reduction for cut nodes (~3 Elo)
+			// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
+			// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
+			// if (cutNode)という条件式は暗黙に && !PvNode を含む。
+
+			// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
+
+			if (cutNode)
+				r += 2;
+
+			// Increase reduction if ttMove is a capture (~3 Elo)
+			// 【計測資料 3.】置換表の指し手がcaptureのときにreduction量を増やす。
+
+			if (ttCapture)
+				r++;
+
+			// Decrease reduction for PvNodes (~2 Elo)
+			// PvNodeではreductionを減らす。
+
+			if (PvNode)
+				r--;
+
+			// Decrease reduction if ttMove has been singularly extended (~1 Elo)
+			// ttMoveがsingular extensionで延長されたならreductionを減らす。
+			if (singularQuietLMR)
+				r--;
+
+			// TODO : あとで実装する。
+			// Position::has_repeated実装しないと…。
+
+#if 0
+			// Increase reduction on repetition (~1 Elo)
+			// 千日手模様ならreductionを増やす。
+			// →　4手前とmoveが同じであるケースのみ調べる。
+			if (   move == (ss-4)->currentMove
+				&& pos.has_repeated())
+				r += 2;
+#endif
+
+			// Increase reduction if next ply has a lot of fail high (~5 Elo)
+			if ((ss+1)->cutoffCnt > 3)
+				r++;
+
+			// Decrease reduction for first generated move (ttMove)
+			else if (move == ttMove)
+				r--;
+
+			// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
+			// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
+			ss->statScore = 2 * thisThread->mainHistory[from_to(move)][us]
+							+ (*contHist[0])[to_sq(move)][movedPiece]
+							+ (*contHist[1])[to_sq(move)][movedPiece]
+							+ (*contHist[3])[to_sq(move)][movedPiece]
+							- 3848;
+			
+			// Decrease/increase reduction for moves with a good/bad history (~25 Elo)
+			r -= ss->statScore / (10216 + 3855 * (depth > 5 && depth < 23));
 
 			// -----------------------
 		    // Step 17. Late moves reduction / extension (LMR, ~117 Elo)
@@ -2592,6 +2671,9 @@ namespace {
 			// moveCountが大きいものなどは探索深さを減らしてざっくり調べる。
 			// alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
 
+			// あとで修正する。
+			bool doDeeperSearch = false;
+
 			if (   depth >= 2
 				&& moveCount > 1 + (PvNode && ss->ply <= 1)
 				&& (   !ss->ttPv
@@ -2600,66 +2682,6 @@ namespace {
 			{
 				// Reduction量
 				Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
-
-				// Decrease reduction if position is or has been on the PV
-				// and node is not likely to fail low. (~3 Elo)
-				// この局面がPV上にあり、fail lowしそうであるならreductionを減らす
-				// (fail lowしてしまうとまた探索をやりなおさないといけないので)
-				if (   ss->ttPv
-					&& !likelyFailLow)
-					r -= 2 ;
-
-				// 【計測資料 4.】相手のmoveCountが高いときにreductionを減らす
-				// →　古い計測なので当時はこのコードないほうが良かったが、Stockfish10では入れたほうが良さげ。
-
-				// Decrease reduction if opponent's move count is high (~1 Elo)
-				// 相手の(1手前の)move countが大きければ、reductionを減らす。
-				// 相手の指し手をたくさん読んでいるのにこちらだけreductionするとバランスが悪いから。
-
-				// ※ この > 7 の 7は調整が必要かも。
-				if ((ss - 1)->moveCount > 7)
-					r--;
-
-				// Increase reduction for cut nodes (~3 Elo)
-				// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
-				// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
-				// if (cutNode)という条件式は暗黙に && !PvNode を含む。
-
-				// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
-
-				if (cutNode && move != ss->killers[0])
-					r += 2;
-
-				// Increase reduction if ttMove is a capture (~3 Elo)
-				// 【計測資料 3.】置換表の指し手がcaptureのときにreduction量を増やす。
-
-				if (ttCapture)
-					r++;
-
-				// Decrease reduction at PvNodes if bestvalue
-				// is vastly different from static evaluation
-
-				// PvNodesでbestValueが静的評価(評価関数の返し値)と大きく異るなら
-				// reductionを減らす。
-				if (PvNode && !ss->inCheck && abs(ss->staticEval - bestValue) > 250)
-					r--;
-
-				// Decrease reduction for PvNodes based on depth
-				if (PvNode)
-					r -= 1 + 15 / ( 3 + depth );
-
-
-				// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
-				// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
-				ss->statScore = thisThread->mainHistory[from_to(move)][us]
-								+ (*contHist[0])[to_sq(move)][movedPiece]
-								+ (*contHist[1])[to_sq(move)][movedPiece]
-								+ (*contHist[3])[to_sq(move)][movedPiece]
-								- PARAM_REDUCTION_BY_HISTORY/*4334*/; // 修正項
-
-
-				// Decrease/increase reduction for moves with a good/bad history (~30 Elo)
-				r -= ss->statScore / 15914;
 
 				// In general we want to cap the LMR depth search at newDepth. But if reductions
 				// are really negative and movecount is low, we allow this move to be searched
