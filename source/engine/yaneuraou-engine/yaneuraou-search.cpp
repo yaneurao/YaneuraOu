@@ -244,7 +244,9 @@ namespace {
 	// History and stats update bonus, based on depth
 	// depthに基づく、historyとstatsのupdate bonus
 	int stat_bonus(Depth d) {
-		return std::min((9 * d + 270) * d - 311, 2145);
+	    return std::min(334 * d - 531, 1538);
+		// やねうら王では、Stockfishの統計値、統計ボーナスに関して手を加えないことにしているので
+		// この値はStockfishの値そのまま。
 	}
 
 	// チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
@@ -1146,7 +1148,8 @@ void Thread::search()
 		if (!Threads.stop)
 			completedDepth = rootDepth;
 
-		if (rootMoves[0].pv[0] != lastBestMove) {
+		if (rootMoves[0].pv[0] != lastBestMove)
+		{
 			lastBestMove = rootMoves[0].pv[0];
 			lastBestMoveDepth = rootDepth;
 		}
@@ -1190,7 +1193,8 @@ void Thread::search()
 
 		// -- やねうら王独自の処理ここまで↑↑↑
 
-		// もしSkillLevelが有効であり、時間いっぱいになったなら、準最適なbest moveを選ぶ。
+	    // If the skill level is enabled and time is up, pick a sub-optimal best move
+		// もしSkillLevelが有効であり、タイムアップになったなら、(手加減用として)最適っぽいbest moveを選ぶ。
 		if (skill.enabled() && skill.time_to_pick(rootDepth))
 			skill.pick_best(multiPV);
 
@@ -1224,16 +1228,11 @@ void Thread::search()
 				double bestMoveInstability = 1.073 + std::max(1.0, 2.25 - 9.9 / rootDepth)
 													* totBestMoveChanges / Threads.size();
 
-#if 0
-				int complexity = mainThread->complexityAverage.value();
-				double complexPosition = std::clamp(1.0 + (complexity - 326) / 1618.1, 0.5, 1.5);
-				double totalTime = Time.optimum() * fallingEval * reduction * bestMoveInstability * complexPosition;
-				// →　やねうら王ではcomplexityを導入しないので、以前のコードにしておく。
-#endif
+				double totalTime = Time.optimum() * fallingEval * reduction * bestMoveInstability;
 
-				// 合法手が1手しかないときはtotalTime = 0となり、即指しする計算式。
-				double totalTime = rootMoves.size() == 1 ? 0 :
-					Time.optimum() * fallingEval * reduction * bestMoveInstability;
+				// 合法手が1手しかないときはtotalTime = 0として、即指しする。(これはやねうら王独自改良)
+				if (rootMoves.size() == 1)
+					totalTime = 0;
 
 				// bestMoveが何度も変更になっているならunstablePvFactorが大きくなる。
 				// failLowが起きてなかったり、1つ前の反復深化から値がよくなってたりするとimprovingFactorが小さくなる。
@@ -1280,7 +1279,8 @@ void Thread::search()
 
 	mainThread->previousTimeReduction = timeReduction;
 
-	// もしSkillLevelが有効なら、最善応手列を準最適なそれと入れ替える。
+	// If the skill level is enabled, swap the best PV line with the sub-optimal one
+	// もしSkillLevelが有効なら、最善応手列を(手加減用として)最適っぽい応手列と入れ替える。
 	if (skill.enabled())
 		std::swap(rootMoves[0], *std::find(rootMoves.begin(), rootMoves.end(),
 			skill.best ? skill.best : skill.pick_best(multiPV)));
