@@ -256,9 +256,9 @@ PARAM_DEFINE PARAM_QSEARCH_FORCE_EVAL = 0;
 
 // aspiration searchの増加量。
 // 古い評価関数では20ぐらいがベストだったが、NNUEでは17がベストのようだ。
-// 元の値 = 16 , step = 1
-// [PARAM] min:12,max:40,step:1,interval:2,time_rate:1, fixed
-PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 16;
+// 元の値 = 10 , step = 1
+// [PARAM] min:6,max:40,step:1,interval:2,time_rate:1, fixed
+PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 10;
 
 
 //

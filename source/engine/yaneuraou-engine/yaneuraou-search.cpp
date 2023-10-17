@@ -974,42 +974,29 @@ void Thread::search()
 			// Reset aspiration window starting size
 			// aspiration windowの開始サイズをリセットする			
 
-			// この値は 5～10ぐらいがベスト？ Stockfish7～10では、5。Stockfish 12では4
-			if (rootDepth >= 4)
-			{
-				Value prev = rootMoves[pvIdx].averageScore;
+			Value prev = rootMoves[pvIdx].averageScore;
 
-				// aspiration windowの幅
-				// 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
-				// 精度の悪い評価関数だとこの幅を小さくしすぎると再探索が増えて探索効率が低下する。
-				// やねうら王のKPP評価関数では35～40ぐらいがベスト。
-				// やねうら王のKPPT(Apery WCSC26)ではStockfishのまま(18付近)がベスト。
-				// もっと精度の高い評価関数を用意すべき。
-				// この値はStockfish10では20に変更された。
-				// Stockfish 12(NNUEを導入した)では17に変更された。
-				// Stockfish 12.1では16に変更された。
-				delta = Value(PARAM_ASPIRATION_SEARCH_DELTA) + int(prev) * prev / 19178;
+			// aspiration windowの幅
+			// 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
+			// 精度の悪い評価関数だとこの幅を小さくしすぎると再探索が増えて探索効率が低下する。
+			// やねうら王のKPP評価関数では35～40ぐらいがベスト。
+			// やねうら王のKPPT(Apery WCSC26)ではStockfishのまま(18付近)がベスト。
+			// もっと精度の高い評価関数を用意すべき。
+			// この値はStockfish10では20に変更された。
+			// Stockfish 12(NNUEを導入した)では17に変更された。
+			// Stockfish 12.1では16に変更された。
+			// Stockfish 16では10に変更された。
 
-				alpha = std::max(prev - delta, -VALUE_INFINITE);
-				beta  = std::min(prev + delta,  VALUE_INFINITE);
+			delta = Value(PARAM_ASPIRATION_SEARCH_DELTA /*10*/) + int(prev) * prev / 17470;
+			alpha = std::max(prev - delta,-VALUE_INFINITE);
+			beta  = std::min(prev + delta, VALUE_INFINITE);
 
-#if 0
-				// Adjust trend and optimism based on root move's previousScore
-				// trendと楽観の値をrootの指し手のpreviousScoreを基に調整する。(動的なcontempt)
+			// Adjust optimism based on root move's previousScore (~4 Elo)
+			int opt = 113 * prev / (std::abs(prev) + 109);
 
-				// ※　trendは千日手を受け入れるスコア。
-				//     勝ってるほうは千日手にはしたくないし、負けてるほうは千日手やむなしという…。
-
-				int tr = sigmoid(prev, 3, 8, 90, 125, 1);
-
-				trend = (us == WHITE ?  make_score(tr, tr / 2)
-					                 : -make_score(tr, tr / 2));
-
-				int opt = sigmoid(prev, 8, 17, 144, 13966, 183);
-				optimism[us] = Value(opt);
-				optimism[~us] = -optimism[us];
-#endif
-			}
+			//optimism[ us] = Value(opt);
+			//optimism[~us] = -optimism[us];
+			// → このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
 
 			// Start with a small aspiration window and, in the case of a fail
 			// high/low, re-search with a bigger window until we don't fail
@@ -1109,7 +1096,7 @@ void Thread::search()
 					break;
 
 				// delta を等比級数的に大きくしていく
-				delta += delta / 4 + 2;
+				delta += delta / 3;
 
 				ASSERT_LV3(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
 			}
@@ -1213,20 +1200,19 @@ void Thread::search()
 			{
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
 
-				double fallingEval = (69 + 12 * (mainThread->bestPreviousAverageScore - bestValue)
-										 +  6 * (mainThread->iterValue[iterIdx] - bestValue)) / 781.4;
+				double fallingEval = (69 + 13 * (mainThread->bestPreviousAverageScore - bestValue)
+										+  6 * (mainThread->iterValue[iterIdx] - bestValue)) / 619.6;
 				fallingEval = std::clamp(fallingEval, 0.5, 1.5);
 
 				// If the bestMove is stable over several iterations, reduce time accordingly
 				// もしbestMoveが何度かのiterationにおいて安定しているならば、思考時間もそれに応じて減らす
 
-				timeReduction = lastBestMoveDepth + 10 < completedDepth ? 1.63 : 0.73;
-				double reduction = (1.56 + mainThread->previousTimeReduction) / (2.20 * timeReduction);
+				timeReduction = lastBestMoveDepth + 8 < completedDepth ? 1.57 : 0.65;
+				double reduction = (1.4 + mainThread->previousTimeReduction) / (2.08 * timeReduction);
 
 				// rootでのbestmoveの不安定性。
 				// bestmoveが不安定であるなら思考時間を増やしたほうが良い。
-				double bestMoveInstability = 1.073 + std::max(1.0, 2.25 - 9.9 / rootDepth)
-													* totBestMoveChanges / Threads.size();
+				double bestMoveInstability = 1 + 1.8 * totBestMoveChanges / Threads.size();
 
 				double totalTime = Time.optimum() * fallingEval * reduction * bestMoveInstability;
 
@@ -4304,7 +4290,7 @@ namespace Learner
 					else
 						break;
 
-					delta += delta / 4 + 2;
+	                delta += delta / 3;
 					ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
 
 					// 暴走チェック
