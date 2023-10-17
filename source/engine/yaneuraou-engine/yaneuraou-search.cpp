@@ -1492,6 +1492,7 @@ namespace {
 
 		// 2手先のkillerの初期化。
 		(ss + 2)->killers[0]	= (ss + 2)->killers[1] = MOVE_NONE;
+		(ss + 2)->cutoffCnt     = 0;
 
 		ss->doubleExtensions	= (ss - 1)->doubleExtensions;
 
@@ -1671,8 +1672,16 @@ namespace {
 					bestValue = mate_in(ss->ply + 1); // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
 
 					ASSERT_LV3(pos.legal_promote(m));
-					tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						MAX_PLY, m, ss->staticEval);
+
+					if (is_ok(m))
+						tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
+							MAX_PLY, m, ss->staticEval);
+
+					// [2023/10/17]
+					// →　MOVE_WINの値は、置換表に書き出さないほうがいいと思う。
+					// probeでこのMOVE_WINのケースを完全に考慮するのは非常に難しい。
+					// is_ok(m)は、MOVE_WINではない通常の指し手(トライルールの時の51玉のような指し手)は
+					// 置換表に書き出すという処理。
 
 					// 読み筋にMOVE_WINも出力するためには、このときpv配列を更新したほうが良いが
 					// ここから更新する手段がない…。
@@ -1833,7 +1842,9 @@ namespace {
 
 		if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
 		{
-			int bonus = std::clamp(-16 * int((ss - 1)->staticEval + ss->staticEval), -2000, 2000);
+	        int bonus = std::clamp(-18 * int((ss-1)->staticEval + ss->staticEval), -1812, 1812);
+			// この右辺の↑係数、調整すべきだろうけども、4 Eloのところ調整しても…みたいな意味はある。
+
 			thisThread->mainHistory[from_to((ss-1)->currentMove)][~us] << bonus;
 		}
 
@@ -1861,18 +1872,22 @@ namespace {
 		// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
 
 		// -----------------------
-		// Step 7. Razoring.
+		// Step 7. Razoring (~1 Elo)
 		// -----------------------
 
 		// If eval is really low check with qsearch if it can exceed alpha, if it can't,
 		// return a fail low.
+	    // Adjust razor margin according to cutoffCnt. (~1 Elo)
+
+		// evalが非常に低い場合、qsearchを使用してalphaを超えるかどうかを確認します。
+		// 超えられない場合、fail lowを返します。
+		// cutoffCntに応じてrazorのマージンを調整します
 
 		// eval が alpha よりもずっと下にある場合、qsearch が alpha よりも上に押し上げることが
 		// できるかどうかをチェックし、もしできなければ fail low を返す。
 
-		if (  !PvNode
-			&& depth <= 7
-			&& eval < alpha - 348 - 258 * depth * depth)
+		// TODO : ここのパラメーター調整するか考える。
+		if (eval < alpha - 492 - (257 - 200 * ((ss+1)->cutoffCnt > 3)) * depth * depth)
 		{
 			value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
 			if (value < alpha)
@@ -1991,19 +2006,43 @@ namespace {
 		}
 
 		// -----------------------
-		// Step 10. ProbCut (~4 Elo)
+		// Step 10. If the position doesn't have a ttMove, decrease depth by 2
+		// (or by 4 if the TT entry for the current position was hit and the stored depth is greater than or equal to the current depth).
+		// Use qsearch if depth is equal or below zero (~9 Elo)
 		// -----------------------
 
+		// この局面にttMoveがない場合、深さを2減少させます
+		// （または、現在の位置のTTエントリがヒットし、保存されている深さが現在の深さ以上の場合は4減少させます）
+		// 深さがゼロ以下の場合はqsearchを使用します。
+
+		// ※　このあとも置換表にヒットしないであろうから、ここを浅めで探索しておく。
+		// (次に他のスレッドがこの局面に来たときには置換表にヒットするのでそのときにここの局面の
+		//   探索が完了しているほうが助かるため)
+
+		if (    PvNode
+			&& !ttMove)
+			depth -= 2 + 2 * (ss->ttHit && tte->depth() >= depth);
+
+		if (depth <= 0)
+			return qsearch<PV>(pos, ss, alpha, beta);
+
+		if (    cutNode
+			&&  depth >= 8
+			&& !ttMove)
+			depth -= 2;
+
 		// probCutに使うbeta値。
-		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*179*/ - PARAM_PROBCUT_MARGIN2/*46*/ * improving;
+		probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*168*/ - PARAM_PROBCUT_MARGIN2/*70*/ * improving;
 
-		// ProbCut(王手のときはスキップする)
+		// -----------------------
+		// Step 11. ProbCut (~4 Elo)
+		// -----------------------
 
-		// If we have a good enough capture and a reduced search returns a value
+		// If we have a good enough capture (or queen promotion) and a reduced search returns a value
 		// much above beta, we can (almost) safely prune the previous move.
-
-		// もし、このnodeで非常に良いcaptureの指し手があり(例えば、SEEの値が動かす駒の価値を上回るようなもの)
-		// 探索深さを減らしてざっくり見てもbetaを非常に上回る値を返すようなら、このnodeをほぼ安全に枝刈りすることが出来る。
+		// 十分に良い捕獲する指し手(注:例えば、SEEの値が動かす駒の価値を上回るようなもの)（またはクイーンへの昇格）を持っており、
+		// reduceされた探索(注:深さを減らしたざっくりとした探索)がbetaよりもはるかに高い値を返す場合、
+		// 前の手を（ほぼ）安全に枝刈りすることができます。
 
 		if (   !PvNode
 			&&  depth > PARAM_PROBCUT_DEPTH/*4*/
@@ -2087,23 +2126,8 @@ namespace {
 		}
 
 		// -----------------------
-		// Step 11. If the position is not in TT, decrease depth by 2 or 1 depending on node type (~3 Elo)
+		// Step 11. ProbCut (~10 Elo)
 		// -----------------------
-
-		// 局面がTTになかったのなら、探索深さを2下げる。
-		// ※　このあとも置換表にヒットしないであろうから、ここを浅めで探索しておく。
-		// (次に他のスレッドがこの局面に来たときには置換表にヒットするのでそのときにここの局面の
-		//   探索が完了しているほうが助かるため)
-		
-		if (   PvNode
-			&& depth >= 3
-			&& !ttMove)
-			depth -= 2;
-
-		if (   cutNode
-			&& depth >= 8
-			&& !ttMove)
-			depth--;
 
 		// When in check, search starts here
 		// 王手がかかっている局面では、探索はここから始まる。
@@ -2116,16 +2140,15 @@ namespace {
 		Eval::evaluate_with_no_return(pos);
 
 		// -----------------------
-		// Step 12. A small Probcut idea, when we are in check (~0 Elo)
+	    // Step 12. A small Probcut idea, when we are in check (~4 Elo)
 		// -----------------------
 
-		probCutBeta = beta + 481;
+	    probCutBeta = beta + PARAM_PROBCUT_MARGIN3 /*416*/;
 		if (   ss->inCheck
 			&& !PvNode
-			&& depth >= 2
 			&& ttCapture
 			&& (tte->bound() & BOUND_LOWER)
-			&& tte->depth() >= depth - 3
+			&& tte->depth() >= depth - 4
 			&& ttValue >= probCutBeta
 			&& abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY
 			&& abs(beta)    < VALUE_TB_WIN_IN_MAX_PLY
@@ -2819,26 +2842,34 @@ namespace {
 					if (PvNode && !rootNode)
 						update_pv(ss->pv, move, (ss + 1)->pv);
 
-					// Update alpha! Always alpha < beta
-					// alpha値を更新したので更新しておく
-					if (PvNode && value < beta)
+					if (value >= beta)
 					{
-						alpha = value;
+						ss->cutoffCnt += 1 + !ttMove;
+						ASSERT_LV3(value >= beta); // Fail high
 
-						// PvNodeでalpha値を更新した。
-						// このとき相手からの詰みがあるかどうかを調べるなどしたほうが良いなら
-						// ここに書くべし。
-
-					}
-					else
-					{
 						// value >= beta なら fail high(beta cut)
 
 						// また、non PVであるなら探索窓の幅が0なのでalphaを更新した時点で、value >= betaが言えて、
 						// beta cutである。
-
-						ASSERT_LV3(value >= beta); // Fail high
 						break;
+					}
+					else
+					{
+						// Reduce other moves if we have found at least one score improvement (~2 Elo)
+						// 少なくとも1つのスコアの改善が見られた場合、他の手(の探索深さ)を削減します。
+
+						if (   depth > 2
+							&& depth < 12
+							&& beta  <  13828
+							&& value > -11369)
+							depth -= 2;
+
+						ASSERT_LV3(depth > 0);
+						alpha = value; // Update alpha! Always alpha < beta
+
+						// alpha値を更新したので更新しておく
+						// このとき相手からの詰みがあるかどうかを調べるなどしたほうが良いなら
+						// ここに書くべし。
 					}
 				}
 			}
