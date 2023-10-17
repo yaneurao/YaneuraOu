@@ -1954,13 +1954,10 @@ namespace {
 		{
 			ASSERT_LV3(eval - beta >= 0);
 
-			// Null move dynamic reduction based on depth, eval and complexity of position
-			// 残り探索深さと評価値によるnull moveの深さを動的に減らす
-			Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*147*/, 5)
-					+ (PARAM_NULL_MOVE_DYNAMIC_ALPHA/*1024*/ +  PARAM_NULL_MOVE_DYNAMIC_BETA/*85*/ * depth) / 256
-					//- (complexity > 753)
-					// →　やねうら王では complexityを導入せず
-				;
+			// Null move dynamic reduction based on depth and eval
+			// 残り探索深さと評価値によってnull moveの深さを動的に減らす
+			Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*152*/, 6) + depth / 3 + 4;
+
 
 			ss->currentMove = MOVE_NULL;
 			// null moveなので、王手はかかっていなくて駒取りでもない。
@@ -2952,15 +2949,11 @@ namespace {
 
 	    else if (!priorCapture && prevSq != SQ_NONE)
 		{
-			//Assign extra bonus if current node is PvNode or cutNode
-			//or fail low was really bad
-			bool extraBonus =  PvNode
-							|| cutNode
-							|| bestValue < alpha - 70 * depth;
-
-			// continuation historyのupdate。PvNodeかcutNodeならボーナスを2倍する。
-			update_continuation_histories(ss - 1, /*pos.piece_on(prevSq)*/prevPc, prevSq, stat_bonus(depth) * (1 + extraBonus));
+			int bonus = (depth > 6) + (PvNode || cutNode) + (bestValue < alpha - PARAM_COUNTERMOVE_FAILLOW_MARGIN /*653*/) + ((ss-1)->moveCount > 11);
+			update_continuation_histories(ss-1, pos.piece_on(prevSq), prevSq, stat_bonus(depth) * bonus);
+			thisThread->mainHistory[~us][from_to((ss-1)->currentMove)] << stat_bonus(depth) * bonus / 2;
 		}
+
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
 		// ゆえにStockfishのここのコードは不要。(maxValueでcapする必要がない)
 		/*

@@ -103,22 +103,9 @@ PARAM_DEFINE PARAM_REDUCTION_GAMMA = 945;
 // null move dynamic pruning
 //
 
-// null move dynamic pruningのときの
-//  Reduction = (α + β * depth ) / 256 + ...みたいなαとβ
-
-// 256倍されていることに注意。
-// 元の値 = 1024 , step = 128
-// [PARAM] min:500,max:1500,step:64,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_ALPHA = 1024;
-
-// 256倍されていることに注意。85なら85/256 = 1/3とほぼ等価。
-// 元の値 = 85 , step = 24
-// [PARAM] min:50,max:120,step:3,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_BETA = 85;
-
-// 元の値 = 147 , step = 40
+// 元の値 = 152 , step = 40
 // [PARAM] min:50,max:400,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 147;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 152;
 
 
 // 一つ前のStockfishではこの値は14695。
@@ -217,12 +204,11 @@ PARAM_DEFINE PARAM_REDUCTION_BY_HISTORY = 4334;
 
 // update_all_stats()で、静止探索時のquietMoveとみなすbestvalueとbetaの差(PAWN_VALUEより少し小さな値)
 // 元の値 = 90 , step = 5
-// [PARAM] min:10,max:200,step:90,interval:5,time_rate:1,fixed
+// [PARAM] min:10,max:200,step:10,interval:5,time_rate:1,fixed
 PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 90;
 
-
 //
-// etc..
+// mate..
 // 
 
 // 静止探索での1手詰め
@@ -248,6 +234,16 @@ PARAM_DEFINE PARAM_SEARCH_MATE1 = 1;
 PARAM_DEFINE PARAM_WEAK_MATE_PLY = 1;
 
 
+//
+// misc
+//
+
+// fail lowを引き起こしたcounter moveにbonus与える時のevalのmargin値。
+// 元の値 = 653 , step = 10
+// [PARAM] min:10,max:200,step:10,interval:5,time_rate:1,fixed
+PARAM_DEFINE PARAM_COUNTERMOVE_FAILLOW_MARGIN = 653;
+
+
 // qsearch()でnull moveのときもevaluate()を呼び出す。
 // この値が0(false)ならば、null moveのときはeval = 前局面にEval::Tempoを加算した値 とする。
 // 計測できる差にならない。
@@ -264,6 +260,10 @@ PARAM_DEFINE PARAM_QSEARCH_FORCE_EVAL = 0;
 // [PARAM] min:12,max:40,step:1,interval:2,time_rate:1, fixed
 PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 16;
 
+
+//
+// move picker
+//
 
 // MovePickerの quietのvalue計算用の係数
 // 注意 : この調整をONにするためには movepick.cpp の
@@ -293,6 +293,7 @@ PARAM_DEFINE MOVE_PICKER_Q_PARAM4 = 16;
 PARAM_DEFINE MOVE_PICKER_Q_PARAM5 = 16;
 
 
+
 // ABテスト用
 // [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE AB_TEST1 = 1;
@@ -300,6 +301,7 @@ PARAM_DEFINE AB_TEST1 = 1;
 // ABテスト用
 // [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE AB_TEST2 = 1;
+
 
 
 
