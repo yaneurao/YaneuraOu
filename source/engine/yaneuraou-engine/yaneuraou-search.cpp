@@ -1301,6 +1301,22 @@ namespace {
 		if (depth <= 0)
 			return qsearch<PvNode ? PV : NonPV>(pos, ss, alpha, beta);
 
+		// 次の指し手で引き分けに持ち込めてかつ、betaが引き分けのスコアより低いなら
+		// 早期枝刈りが実施できる。
+		// →　将棋だとあまり千日手が起こらないので効果がなさげ。
+#if 0
+		// Check if we have an upcoming move that draws by repetition, or
+		// if the opponent had an alternative move earlier to this position.
+		if (   !rootNode
+			&& alpha < VALUE_DRAW
+			&& pos.has_game_cycle(ss->ply))
+		{
+			alpha = value_draw(pos.this_thread());
+			if (alpha >= beta)
+				return alpha;
+		}
+#endif
+
 		ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
 		ASSERT_LV3(PvNode || (alpha == beta - 1));
 		ASSERT_LV3(0 < depth && depth < MAX_PLY);
@@ -2350,7 +2366,7 @@ namespace {
 			}
 
 			// -----------------------
-			// Step 15. Extensions (~66 Elo)
+		    // Step 15. Extensions (~100 Elo)
 			// -----------------------
 
 			// We take care to not overdo to avoid search getting stuck.
@@ -2362,11 +2378,14 @@ namespace {
 
 				// singular延長と王手延長。
 
-				// Singular extension search (~58 Elo). If all moves but one fail low on a
+				// Singular extension search (~94 Elo). If all moves but one fail low on a
 				// search of (alpha-s, beta-s), and just one fails high on (alpha, beta),
 				// then that move is singular and should be extended. To verify this we do
-				// a reduced search on all the other moves but the ttMove and if the
-				// result is lower than ttValue minus a margin, then we will extend the ttMove.
+				// a reduced search on all the other moves but the ttMove and if the result
+				// is lower than ttValue minus a margin, then we will extend the ttMove. Note
+				// that depth margin and singularBeta margin are known for having non-linear
+				// scaling. Their values are optimized to time controls of 180+1.8 and longer
+				// so changing them requires tests at this type of time controls.
 
 				// (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
 				// 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
@@ -2388,19 +2407,19 @@ namespace {
 
 				// singular延長をするnodeであるか。
 				if (!rootNode
-					&& depth >= PARAM_SINGULAR_EXTENSION_DEPTH /* 4 */ + 2 * (PvNode && tte->is_pv())
-					&& move == ttMove
+		            &&  depth >= 4 - (thisThread->completedDepth > 24) + 2 * (PvNode && tte->is_pv())
+					&&  move == ttMove
 					&& !excludedMove // 再帰的なsingular延長を除外する。
 				/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
-					&& abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
+					&&  abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 					&& (tte->bound() & BOUND_LOWER)
-					&& tte->depth() >= depth - 3)
+					&&  tte->depth() >= depth - 3)
 					// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != MOVE_NONE)
 					// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
 					// null window searchするときに大きなコストを伴いかねないから。)
 				{
 					// このmargin値は評価関数の性質に合わせて調整されるべき。
-					Value singularBeta = ttValue - PARAM_SINGULAR_MARGIN/* == 3 * 256 */ * depth / 256;
+		            Value singularBeta = ttValue - (64 + PARAM_SINGULAR_MARGIN/* 57 */ * (ss->ttPv && !PvNode)) * depth / 64;
 					Depth singularDepth = (depth - 1) / 2;
 
 					// move(ttMove)の指し手を以下のsearch()での探索から除外
@@ -2560,15 +2579,13 @@ namespace {
 					&& !likelyFailLow)
 					r -= 2 ;
 
-				// Decrease reduction if opponent's move count is high (~5 Elo)
-				// 相手の指し手(1手前の指し手)のmove countが高い場合、reduction量を減らす。
-				// 相手の指し手をたくさん読んでいるのにこちらだけreductionするとバランスが悪いから。
-
 				// 【計測資料 4.】相手のmoveCountが高いときにreductionを減らす
 				// →　古い計測なので当時はこのコードないほうが良かったが、Stockfish10では入れたほうが良さげ。
 
 				// Decrease reduction if opponent's move count is high (~1 Elo)
 				// 相手の(1手前の)move countが大きければ、reductionを減らす。
+				// 相手の指し手をたくさん読んでいるのにこちらだけreductionするとバランスが悪いから。
+
 				// ※ この > 7 の 7は調整が必要かも。
 				if ((ss - 1)->moveCount > 7)
 					r--;

@@ -157,17 +157,11 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 416;
 // singular extension
 //
 
-// singular extensionの前提depth。
-// これ変更すると他のパラメーターががらっと変わるので固定しておく。
-// 元の値 = 4 , step = 1
-// [PARAM] min:2,max:13,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 4;
-
-// singular extensionのmarginを計算するときの係数(Stockfishのコードから256倍にscalingしてある)
-// +64すると自己対局だとすごく強くなって見えるかもしれないが、まやかしである。
-// 元の値 = 768 , step = 64
-// [PARAM] min:0,max:1024,step:64,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_SINGULAR_MARGIN = 768;
+// singular extensionのmarginを計算するときの係数
+// 自己対局だとすごく強くなって見えるかもしれないが、まやかしである。
+// 元の値 = 57 , step = 8
+// [PARAM] min:0,max:1024,step:8,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_SINGULAR_MARGIN = 57;
 
 //
 // extension
