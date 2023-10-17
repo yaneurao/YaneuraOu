@@ -1494,27 +1494,14 @@ namespace {
 		// 2手先のkillerの初期化。
 		(ss + 2)->killers[0]	= (ss + 2)->killers[1] = MOVE_NONE;
 
-		// Update the running average statistics for double extensions
 		ss->doubleExtensions	= (ss - 1)->doubleExtensions;
-		ss->depth				= depth;
 
 		// 前の指し手で移動させた先の升目
 		// → null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
 		// → StockfishでMOVE_NULLの時は、prevSq == SQ_NONEとして扱うように変更になった。[2023/10/15]
 	    Square prevSq           = is_ok((ss-1)->currentMove) ? to_sq((ss-1)->currentMove) : SQ_NONE;
 
-		// Initialize statScore to zero for the grandchildren of the current position.
-		// So statScore is shared between all grandchildren and only the first grandchild
-		// starts with statScore = 0. Later grandchildren start with the last calculated
-		// statScore of the previous grandchild. This influences the reduction rules in
-		// LMR which are based on the statScore of parent position.
-
-		// statScoreを現nodeの孫nodeのためにゼロ初期化。
-		// statScoreは孫nodeの間でshareされるので、最初の孫だけがstatScore = 0で開始する。
-		// そのあと、孫は前の孫が計算したstatScoreから計算していく。
-		// このように計算された親局面のstatScoreは、LMRにおけるreduction rulesに影響を与える。
-		if (!rootNode)
-			(ss + 2)->statScore = 0;
+	    ss->statScore        = 0;
 	
 		// -----------------------
 		// Step 4. Transposition table lookup.
@@ -1564,7 +1551,15 @@ namespace {
 		// ここ、capture_or_promotion()とかcapture_or_pawn_promotion()とか色々変えてみたが、
 		// 現在では、capture()にするのが良いようだ。[2022/04/13]
 
+	    // ttCapture = ttMove && pos.capture_stage(ttMove);
+
 		ttCapture = ttMove && pos.capture(ttMove);
+
+		// At this point, if excluded, skip straight to step 6, static eval. However,
+		// to save indentation, we list the condition in all code between here and there.
+
+		// この段階で、除外されている場合(excludedMoveがある場合)は、ステップ6の静的評価に直接スキップします。
+		// しかし、インデントを節約するため、ここからそこまでのすべてのコードに条件を列挙します。
 
 		// 置換表にhitしなかった時は、PV nodeのときだけttPvとして扱う。
 		// これss->ttPVに保存してるけど、singularの判定等でsearchをss+1ではなくssで呼び出すことがあり、
@@ -1577,17 +1572,15 @@ namespace {
 		// 置換表の値による枝刈り
 
 		if (  !PvNode                  // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
-			&& ss->ttHit               // 置換表の指し手がhitして
-			&& tte->depth() > depth - (thisThread->id() % 2 == 1)   // 置換表に登録されている探索深さのほうが深くて
-									   // ↑ スレッドごとに探索がばらけるように。
-			&& ttValue != VALUE_NONE   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
-			&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-				                : (tte->bound() & BOUND_UPPER))
+	        && !excludedMove
+	        && tte->depth() > depth    // 置換表に登録されている探索深さのほうが深くて
+		    && ttValue != VALUE_NONE   // Possible in case of TT access race or if !ttHit
+									   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
+			&& (tte->bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
 			// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 			// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 			// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
 			// このままこの値でreturnして良い。
-			)
 		{
 	        // If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
 			// ttMoveがquietの指し手である場合、置換表ヒット時に指し手のソート用ヒューリスティクスを更新します。

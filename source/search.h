@@ -13,8 +13,6 @@
 namespace Search {
 
 #if defined(USE_MOVE_PICKER)
-	// countermoves based pruningで使う閾値
-	constexpr int CounterMovePruneThreshold = 0;
 
 	// -----------------------
 	//  探索のときに使うStack
@@ -28,7 +26,6 @@ namespace Search {
 		Move excludedMove;			// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
 		Move killers[2];			// killer move
 		Value staticEval;			// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
-		Depth depth;				// 残り探索深さ。
 		int statScore;				// 一度計算したhistoryの合計値をcacheしておくのに用いる。
 		int moveCount;				// このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
 
