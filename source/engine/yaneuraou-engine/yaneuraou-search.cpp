@@ -1367,7 +1367,8 @@ namespace {
 		//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
 		// didLMR				: LMRを行ったのフラグ
 		// priorCapture         : 1つ前の局面は駒を取る指し手か？
-		bool givesCheck, improving, didLMR, priorCapture;
+		// singularQuietLMR     : quiet(駒を取らない) singular extensionを行ったかのフラグ。LMRで用いる。
+		bool givesCheck, improving, didLMR, priorCapture, singularQuietLMR;
 
 		// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 		// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
@@ -2167,7 +2168,7 @@ namespace {
 
 		value = bestValue;
 
-		moveCountPruning = false;
+		moveCountPruning = singularQuietLMR = false;
 
 		// Indicate PvNodes that will probably fail low if the node was searched
 		// at a depth equal to or greater than the current depth, and the result
@@ -2440,34 +2441,63 @@ namespace {
 						dbg_hit_on(extension == 1);
 #endif
 
+						// 駒を取らないsingular extensionを行ったのか？
+						singularQuietLMR = !ttCapture;
+
 						// Avoid search explosion by limiting the number of double extensions
 						// 2重延長を制限することで探索の組合せ爆発を回避する。
+
+						// TODO : ここのパラメーター、調整すべきか？
+
 						if (!PvNode
-							&& value < singularBeta - 26
-							&& ss->doubleExtensions <= 8)
+							&& value < singularBeta - 18
+							&& ss->doubleExtensions <= 11)
+						{
 							extension = 2;
+							depth += depth < 15;
+						}
 					}
 
 					// Multi-cut pruning
-					// Our ttMove is assumed to fail high, and now we failed high also on a reduced
-					// search without the ttMove. So we assume this expected Cut-node is not singular,
-					// 今回のttMoveはfail highであろうし、そのttMoveなしでdepthを減らした探索においてもfail highした。
-					// that multiple moves fail high, and we can prune the whole subtree by returning
-					// a soft bound.
-					// だから、この期待されるCut-nodeはsingularではなく、複数の指し手でfail highすると考えられる。
-					// よって、hard beta boundを返すことでこの部分木全体を枝刈りする。
+					// Our ttMove is assumed to fail high, and now we failed high also on a
+					// reduced search without the ttMove. So we assume this expected cut-node
+					// is not singular, that multiple moves fail high, and we can prune the
+					// whole subtree by returning a softbound.
+
+					// マルチカット枝刈り
+					// 私たちのttMoveはfail highすると想定されており、
+					// 今、ttMoveなしの(この局面でttMoveの指し手を候補手から除外した)、
+					// reduced search(探索深さを減らした探索)でもfail highしました。
+					// したがって、この予想されるカットノードはsingular(1つだけ傑出した指し手)ではないと想定し、
+					// 複数の手がfail highすると考え、softboundを返すことで全サブツリーを枝刈りすることができます。
+
+					// 訳注)
+					// 
+					//  cut-node  : αβ探索において早期に枝刈りできるnodeのこと。
+					//              つまり、searchの引数で渡されたbetaを上回ることがわかったのでreturnできる(これをbeta cutと呼ぶ)
+					//              できるようなnodeのこと。
+					// 
+					//  softbound : lowerbound(下界)やupperbound(上界)のように真の値がその値より大きい(小さい)
+					//              ことがわかっているような値のこと。
+
 					else if (singularBeta >= beta)
 						return singularBeta;
 
 					// If the eval of ttMove is greater than beta, we reduce it (negative extension)
 					// ttMoveのevalがbetaより大きいなら、extensionを減らす(負の延長)
 
+					// If the eval of ttMove is greater than beta, we reduce it (negative extension) (~7 Elo)
 					else if (ttValue >= beta)
-						extension = -2;
+						extension = -2 - !PvNode;
 
-					// If the eval of ttMove is less than alpha and value, we reduce it (negative extension)
-					else if (ttValue <= alpha && ttValue <= value)
+					// If we are on a cutNode, reduce it based on depth (negative extension) (~1 Elo)
+					else if (cutNode)
+						extension = depth < 19 ? -2 : -1;
+
+					// If the eval of ttMove is less than value, we reduce it (negative extension) (~1 Elo)
+					else if (ttValue <= value)
 						extension = -1;
+
 				}
 
 				// Check extensions (~1 Elo)
