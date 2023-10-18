@@ -34,19 +34,14 @@ namespace Zobrist {
 
 // 王手情報の初期化
 template <bool doNullMove , Color Us>
-void Position::set_check_info(StateInfo* si) const {
+void Position::set_check_info() const {
 
-	//: si->blockersForKing[WHITE] = slider_blockers(pieces(BLACK), square<KING>(WHITE),si->pinners[WHITE]);
-	//: si->blockersForKing[BLACK] = slider_blockers(pieces(WHITE), square<KING>(BLACK),si->pinners[BLACK]);
-
-	// ↓Stockfishのこの部分の実装、将棋においては良くないので、以下のように変える。
-	// ※　将棋においては駒の動きが上下対称ではないので手番を引数で渡す必要がある。
-
+	// null moveのときは前の局面でこの情報は設定されているので更新する必要がない。
+	// ※　やねうら王独自の改良
 	if (!doNullMove)
 	{
-		// null moveのときは前の局面でこの情報は設定されているので更新する必要がない。
-		si->blockersForKing[WHITE] = slider_blockers(BLACK, king_square(WHITE), si->pinners[WHITE]);
-		si->blockersForKing[BLACK] = slider_blockers(WHITE, king_square(BLACK), si->pinners[BLACK]);
+		update_slider_blockers(WHITE);
+		update_slider_blockers(BLACK);
 	}
 
 	constexpr Color Them = ~Us;
@@ -61,27 +56,27 @@ void Position::set_check_info(StateInfo* si) const {
 	Bitboard occ = pieces();
 
 	// この指し手が二歩でないかは、この時点でテストしない。指し手生成で除外する。なるべくこの手のチェックは遅延させる。
-	si->checkSquares[PAWN]   = pawnEffect<Them>  (ksq);
-	si->checkSquares[KNIGHT] = knightEffect<Them>(ksq);
-	si->checkSquares[SILVER] = silverEffect<Them>(ksq);
-	si->checkSquares[BISHOP] = bishopEffect      (ksq, occ);
-	si->checkSquares[ROOK]   = rookEffect        (ksq, occ);
-	si->checkSquares[GOLD]   = goldEffect<Them>  (ksq);
+	st->checkSquares[PAWN]   = pawnEffect<Them>  (ksq);
+	st->checkSquares[KNIGHT] = knightEffect<Them>(ksq);
+	st->checkSquares[SILVER] = silverEffect<Them>(ksq);
+	st->checkSquares[BISHOP] = bishopEffect      (ksq, occ);
+	st->checkSquares[ROOK]   = rookEffect        (ksq, occ);
+	st->checkSquares[GOLD]   = goldEffect<Them>  (ksq);
 
 	// 香で王手になる升は利きを求め直さずに飛車で王手になる升を香のstep effectでマスクしたものを使う。
-	si->checkSquares[LANCE]  = si->checkSquares[ROOK] & lanceStepEffect<Them>(ksq);
+	st->checkSquares[LANCE]  = st->checkSquares[ROOK] & lanceStepEffect<Them>(ksq);
 
 	// 王を移動させて直接王手になることはない。それは自殺手である。
-	si->checkSquares[KING]   = Bitboard(ZERO);
+	st->checkSquares[KING]   = Bitboard(ZERO);
 
 	// 成り駒。この初期化は馬鹿らしいようだが、gives_check()は指し手ごとに呼び出されるので、その処理を軽くしたいので
 	// ここでの初期化は許容できる。(このコードはdo_move()に対して1回呼び出されるだけなので)
-	si->checkSquares[PRO_PAWN]   = si->checkSquares[GOLD];
-	si->checkSquares[PRO_LANCE]  = si->checkSquares[GOLD];
-	si->checkSquares[PRO_KNIGHT] = si->checkSquares[GOLD];
-	si->checkSquares[PRO_SILVER] = si->checkSquares[GOLD];
-	si->checkSquares[HORSE]      = si->checkSquares[BISHOP] | kingEffect(ksq);
-	si->checkSquares[DRAGON]     = si->checkSquares[ROOK]   | kingEffect(ksq);
+	st->checkSquares[PRO_PAWN]   = st->checkSquares[GOLD];
+	st->checkSquares[PRO_LANCE]  = st->checkSquares[GOLD];
+	st->checkSquares[PRO_KNIGHT] = st->checkSquares[GOLD];
+	st->checkSquares[PRO_SILVER] = st->checkSquares[GOLD];
+	st->checkSquares[HORSE]      = st->checkSquares[BISHOP] | kingEffect(ksq);
+	st->checkSquares[DRAGON]     = st->checkSquares[ROOK]   | kingEffect(ksq);
 }
 
 // ----------------------------------
@@ -289,7 +284,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 
 	// --- StateInfoの更新
 
-	set_state(st);
+	set_state();
 
 	// 現局面で王手がかかっているならst->continuous_check[them] = 1にしないと
 	// 連続王手の千日手の判定が不正確な気がするが、どのみち2回目の出現を負け扱いしているのでまあいいか..
@@ -490,7 +485,7 @@ const std::string Position::sfen_to_flipped_sfen(std::string sfen)
 	return pos.flipped_sfen();
 }
 
-void Position::set_state(StateInfo* si) const {
+void Position::set_state() const {
 
 	// --- bitboard
 
@@ -498,22 +493,22 @@ void Position::set_state(StateInfo* si) const {
 	st->checkersBB = attackers_to(~sideToMove, king_square(sideToMove));
 
 	// 王手情報の初期化
-	set_check_info<false>(si);
+	set_check_info<false>();
 
 	// --- hash keyの計算
-	si->board_key_ = sideToMove == BLACK ? Zobrist::zero : Zobrist::side;
-	si->hand_key_ = Zobrist::zero;
+	st->board_key_ = sideToMove == BLACK ? Zobrist::zero : Zobrist::side;
+	st->hand_key_ = Zobrist::zero;
 	for (auto sq : pieces())
 	{
 		auto pc = piece_on(sq);
-		si->board_key_ += Zobrist::psq[sq][pc];
+		st->board_key_ += Zobrist::psq[sq][pc];
 	}
 	for (auto c : COLOR)
 		for (PieceType pr = PAWN; pr < PIECE_HAND_NB; ++pr)
-			si->hand_key_ += Zobrist::hand[c][pr] * (int64_t)hand_count(hand[c], pr); // 手駒はaddにする(差分計算が楽になるため)
+			st->hand_key_ += Zobrist::hand[c][pr] * (int64_t)hand_count(hand[c], pr); // 手駒はaddにする(差分計算が楽になるため)
 
 	// --- hand
-	si->hand = hand[sideToMove];
+	st->hand = hand[sideToMove];
 
 }
 
@@ -617,52 +612,67 @@ std::string Position::moves_from_start(bool is_pretty) const
 //      ある升へ利いている駒など
 // ----------------------------------
 
-// Position::slider_blockers() は、c側の長い利きを持つ駒(sliders)から、升sへの利きを
-// 遮っている先後の駒の位置をBitboardで返す。ただし、２重に遮っている場合はそれらの駒は返さない。
-// もし、この関数のこの返す駒を取り除いた場合、升sに対してsliderによって利きがある状態になる。
-// 升sにある玉に対してこの関数を呼び出した場合、それはpinされている駒と両王手の候補となる駒である。
-// また、升sにある玉は~c側のKINGであるとする。
+void Position::update_slider_blockers(Color c) const
+{
+	Square ksq =  king_square(c);
 
-Bitboard Position::slider_blockers(Color c, Square s , Bitboard& pinners) const {
+	st->blockersForKing[ c] = ZERO;
+	st->pinners        [~c] = ZERO;
 
-	Bitboard blockers(ZERO);
+	// Snipers are sliders that attack 's' when a piece and other snipers are removed
+	// snipersとは、pinされている駒が取り除かれたときに王の升に利きが発生する大駒である。
 
-	// pinnersは返し値。
-	pinners = Bitboard(ZERO);
-	
+	// Bitboard snipers = (  (attacks_bb<  ROOK>(ksq) & pieces(QUEEN, ROOK))
+	//                    | (attacks_bb<BISHOP>(ksq) & pieces(QUEEN, BISHOP))) & pieces(~c);
+
 	// cが与えられていないと香の利きの方向を確定させることが出来ない。
 	// ゆえに将棋では、この関数は手番を引数に取るべき。(チェスとはこの点において異なる。)
 
-	// snipersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。
 	Bitboard snipers =
-		( (pieces(ROOK_DRAGON)  & rookStepEffect(s))
-		| (pieces(BISHOP_HORSE) & bishopStepEffect(s))
+		( (pieces(ROOK_DRAGON)  & rookStepEffect(ksq))
+		| (pieces(BISHOP_HORSE) & bishopStepEffect(ksq))
 		// 香に関しては攻撃駒が先手なら、玉より下側をサーチして、そこにある先手の香を探す。
-		| (pieces(LANCE) & lanceStepEffect(~c, s))
-		) & pieces(c);
+		| (pieces(LANCE) & lanceStepEffect(~c, ksq))
 
-	//Bitboard occupancy = pieces() ^ snipers;
+		) & pieces(~c);
+
+#if 0
+	// snipersを取り除いた障害物(駒)
+	Bitboard occupancy = pieces() ^ snipers;
+
+	while (snipers)
+	{
+		Square sniperSq = snipers.pop();
+		Bitboard b = between_bb(ksq, sniperSq) & occupancy;
+
+		if (b && !b.more_than_one())
+		{
+			st->blockersForKing[c] |= b;
+			if (b & pieces(c))
+				st->pinners[~c] |= sniperSq;
+		}
+	}
+#endif
 
 	// ↑このStockfishの元のコード、snipersを除いた盤上の駒で考えているが、
 	// ^王 歩 角 飛
 	// このような状況で飛車に対して角を取り除いてから敵玉への射線を考えるので、
 	// 歩がslider_blocker扱いになってしまう。つまり、このコードは間違っているのでは？
-	
+
 	while (snipers)
 	{
 		Square sniperSq = snipers.pop();
-		Bitboard b = between_bb(s, sniperSq) & pieces() /* occupancy */;
+		Bitboard b = between_bb(ksq, sniperSq) & pieces() /* occupancy */;
 
 		// snipperと玉との間にある駒が1個であるなら。
 		if (b && !b.more_than_one())
 		{
-			blockers |= b;
+			st->blockersForKing[c] |= b;
 			if (b & pieces(~c))
 				// sniperと玉に挟まれた駒が玉と同じ色の駒であるなら、pinnerに追加。
-				pinners |= sniperSq;
+				st->pinners[~c] |= sniperSq;
 		}
 	}
-	return blockers;
 }
 
 
@@ -1494,7 +1504,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	st->hand = hand[Them];
 
 	// このタイミングで王手関係の情報を更新しておいてやる。
-	set_check_info<false>(st);
+	set_check_info<false>();
 
 	//ASSERT_LV5(evalList.is_valid(*this));
 
@@ -1754,7 +1764,7 @@ void Position::do_null_move(StateInfo& newSt) {
 
 	sideToMove = ~sideToMove;
 
-	set_check_info<true>(st);
+	set_check_info<true>();
 
 	//st->repetition = 0;
 

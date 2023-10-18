@@ -85,6 +85,7 @@ struct StateInfo {
 	// color = 相手側 なら 両王手の候補となる駒。
 
 	// 自玉に対して(敵駒によって)pinされている駒
+	// blockersForKing[c]は、c側の玉に対するpin駒
 	Bitboard blockersForKing[COLOR_NB];
 
 	// 自玉に対してpinしている(可能性のある)敵の大駒。
@@ -422,11 +423,16 @@ public:
 	}
 #endif
 
-	// 升sに対して、c側の大駒に含まれる長い利きを持つ駒の利きを遮っている駒のBitboardを返す(先後の区別なし)
-	// ※　Stockfishでは、sildersを渡すようになっているが、大駒のcolorを渡す実装のほうが優れているので変更。
-	// [Out] pinnersとは、pinされている駒が取り除かれたときに升sに利きが発生する大駒である。これは返し値。
-	// また、升sにある玉は~c側のKINGであるとする。
-	Bitboard slider_blockers(Color c, Square s, Bitboard& pinners) const;
+
+	/// update_slider_blockers() calculates st->blockersForKing[c] and st->pinners[~c],
+	/// which store respectively the pieces preventing king of color c from being in check
+	/// and the slider pieces of color ~c pinning pieces of color c to the king.
+
+	// update_slider_blockers()はst->blockersForKing[c]およびst->pinners[~c]を計算します。
+	// これらはそれぞれ、色cの王が王手状態になるのを防ぐ駒と、色cの駒を王にピン留めする手番~cの
+	// スライダー駒を格納しています。
+
+	void update_slider_blockers(Color c) const;
 
 	// c側の駒Ptの利きのある升を表現するBitboardを返す。(MovePickerで用いている。)
 	template<Color C , PieceType Pt> Bitboard attacks_by() const;
@@ -707,18 +713,26 @@ public:
 	static void UnitTest(Test::UnitTester&);
 
 private:
-	// StateInfoの初期化(初期化するときに内部的に用いる)
-	void set_state(StateInfo* si) const;
+
+	/// Position::set_state() computes the hash keys of the position, and other
+	/// data that once computed is updated incrementally as moves are made.
+	/// The function is only used when a new position is set up
+
+	// Position::set_state()は、局面のハッシュキーおよび、
+	// 一度計算されると手が指されるたびに差分更新されるその他のデータを計算します。
+	// この関数は、新しい局面が設定されたときのみ使用されます。
+
+	void set_state() const;
 
 	// 王手になるbitboard等を更新する。set_state()とdo_move()のときに自動的に行われる。
 	// null moveのときは利きの更新を少し端折れるのでフラグを渡すことに。
 	template <bool doNullMove,Color Us>
-	void set_check_info(StateInfo* si) const;
+	void set_check_info() const;
 
 	template <bool doNullMove>
-	void set_check_info(StateInfo* si) const
+	void set_check_info() const
 	{
-		sideToMove == BLACK ? set_check_info<doNullMove, BLACK>(si) : set_check_info<doNullMove, WHITE>(si);
+		sideToMove == BLACK ? set_check_info<doNullMove, BLACK>() : set_check_info<doNullMove, WHITE>();
 	}
 
 	// do_move()の先後分けたもの。内部的に呼び出される。

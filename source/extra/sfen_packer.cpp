@@ -464,7 +464,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 	update_bitboards();
 	update_kingSquare();
 
-	set_state(st);
+	set_state();
 
 	// --- effect
 
