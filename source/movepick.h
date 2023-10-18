@@ -100,31 +100,32 @@ enum StatsType { NoCaptures, Captures };
 /// (~11 elo)
 // ButterflyHistoryは、 現在の探索中にquietな指し手がどれくらい成功/失敗したかを記録し、
 // reductionと指し手オーダリングの決定のために用いられる。
-// 添字は[from_to][color]の順。
 // cf. http://chessprogramming.wikispaces.com/Butterfly+Boards
 // 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
 // やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
 // そのため、(SQ_NB + 7)まで移動元がある。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+// やねうら王では、添字は[from_to][color]の順。
 using ButterflyHistory = Stats<int16_t, 7183, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB>;
 
 /// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
 /// move, see www.chessprogramming.org/Countermove_Heuristic
-// CounterMoveHistoryは、直前の指し手の[to][piece]によってindexされるcounter moves(応手)を格納する。
+// CounterMoveHistoryは、直前の指し手の[piece][to]によってindexされるcounter moves(応手)を格納する。
 /// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+//    やねうら王では、[to][piece]の順。
 using CounterMoveHistory = Stats<Move, NOT_USED, SQ_NB , PIECE_NB>;
 
 /// CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
-// CapturePieceToHistoryは、指し手の[to][piece][captured piece type]で示される。
-// ※　Stockfishとは、添字の順番を変更してあるので注意。
-//     Stockfishでは、[piece][to][captured piece type]の順。
+// CapturePieceToHistoryは、指し手の [piece][to][captured piece type]で示される。
+// ※　やねうら王ではStockfishとは、添字の順番を変更してあるので注意。
+//	やねうら王では、[to][piece][captured piece type]の順。
 using CapturePieceToHistory = Stats<int16_t, 10692, SQ_NB, PIECE_NB , PIECE_TYPE_NB>;
 
 /// PieceToHistory is like ButterflyHistory but is addressed by a move's [piece][to]
-/// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[to][piece]で示される。
+/// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[piece][to]で示される。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-//     Stockfishでは[piece][to]の順。
+//     やねうら王では[to][piece]の順。
 using PieceToHistory = Stats<int16_t, 29952, SQ_NB , PIECE_NB>;
 
 /// ContinuationHistory is the combined history of a given pair of moves, usually
@@ -135,6 +136,8 @@ using PieceToHistory = Stats<int16_t, 29952, SQ_NB , PIECE_NB>;
 // 普通、1手前によって与えられる現在の指し手(によるcombined history)
 // このnested history tableは、ButterflyBoardsの代わりに、PieceToHistoryをベースとしている。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+//   Stockfishでは、 [pc][to]の順。
+// 　やねうら王では、[to][pc]の順。
 using ContinuationHistory = Stats<PieceToHistory, NOT_USED, SQ_NB , PIECE_NB>;
 
 

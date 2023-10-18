@@ -57,6 +57,10 @@ void Thread::clear()
 			// Tweak history initialization : https://github.com/official-stockfish/Stockfish/commit/7d44b43b3ceb2eebc756709432a0e291f885a1d2
 
 			for (auto& to : continuationHistory[inCheck][c])
+				// ↑Stockfishでは [pc][to]の順、
+				//   やねうら王では[to][pc]の順だから
+				// ここではStockfishではpcが来るのが正しいのだが、なぜか
+				// Stockfishのソースコード、変数名がtoになっている。
 				for (auto& h : to)
 					h->fill(-71);
 

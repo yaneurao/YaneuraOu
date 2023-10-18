@@ -279,10 +279,19 @@ void MovePicker::score()
 			PieceType moved_piece = type_of(pos.moved_piece_before(m));
 
 			m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
+								// ↑mainHistoryに関して
+								// Stockfishは [c][from_to]の順
+								// やねうら王は[from_to][c]の順
+								// なので注意。
 					+ 2 * (*continuationHistory[0])[movedSq][movedPiece]
 					+     (*continuationHistory[1])[movedSq][movedPiece]
 					+     (*continuationHistory[3])[movedSq][movedPiece]
 					+     (*continuationHistory[5])[movedSq][movedPiece]
+								// ↑continuationHistoryに関して
+								// Stockfishは、 [pc][sq]の順
+								// やねうら王は、[sq][pc]の順
+								// なので注意。
+
 				//	移動元の駒が安い駒で当たりになっている場合、移動させることでそれを回避できるなら価値を上げておく。
 #if 0
 					+     (threatened & from_sq(m) ?
@@ -336,8 +345,16 @@ void MovePicker::score()
 			else
 				// 捕獲しない指し手に関してはhistoryの値の順番
 				m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
+									// ↑mainHistoryに関して
+									// Stockfishは [c][from_to]の順
+									// やねうら王は[from_to][c]の順
+									// なので注意。
 						+ 2 * (*continuationHistory[0])[to_sq(m)][pos.moved_piece_after(m)]
 						- (1 << 28);
+								// ↑continuationHistoryに関して
+								// Stockfishは、 [pc][sq]の順
+								// やねうら王は、[sq][pc]の順
+								// なので注意。
 
 		}
 	}
