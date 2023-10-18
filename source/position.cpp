@@ -632,7 +632,7 @@ void Position::update_slider_blockers(Color c) const
 		( (pieces(ROOK_DRAGON)  & rookStepEffect(ksq))
 		| (pieces(BISHOP_HORSE) & bishopStepEffect(ksq))
 		// 香に関しては攻撃駒が先手なら、玉より下側をサーチして、そこにある先手の香を探す。
-		| (pieces(LANCE) & lanceStepEffect(~c, ksq))
+		| (pieces(LANCE) & lanceStepEffect(c, ksq))
 
 		) & pieces(~c);
 
