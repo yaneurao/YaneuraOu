@@ -335,19 +335,13 @@ public:
 
 	// --- Bitboard
 
-	// 先手か後手か、いずれかの駒がある場所が1であるBitboardが返る。
-	Bitboard pieces() const { return byTypeBB[ALL_PIECES]; }
-
 	// c == BLACK : 先手の駒があるBitboardが返る
 	// c == WHITE : 後手の駒があるBitboardが返る
-	Bitboard pieces(Color c) const { ASSERT_LV3(is_ok(c)); return byColorBB[c]; }
-
+	Bitboard pieces(Color c) const;
+	
 	// ↑のtemplate版
 	template<Color C>
 	Bitboard pieces() const { ASSERT_LV3(is_ok(C)); return byColorBB[C]; }
-
-	// 駒がない升が1になっているBitboardが返る
-	Bitboard empties() const { return pieces() ^ Bitboard(1); }
 
 	// 駒に対応するBitboardを得る。
 	// ・引数でcの指定がないものは先後両方の駒が返る。
@@ -355,28 +349,24 @@ public:
 	//		PieceTypeの GOLDS(金相当の駒) , HDK(馬・龍・玉) , BISHOP_HORSE(角・馬) , ROOK_DRAGON(飛車・龍)などが指定できる。
 	//   ※　詳しくは、PieceTypeの定義を見ること。
 	// ・引数でPieceTypeを複数取るものはそれらの駒のBitboardを合成したものが返る。
+	// ・pr として ALL_PIECESを指定した場合、先手か後手か、いずれかの駒がある場所が1であるBitboardが返る。
 
-	Bitboard pieces(PieceType pr) const { ASSERT_LV3(pr < PIECE_BB_NB); return byTypeBB[pr]; }
-	Bitboard pieces(PieceType pr1, PieceType pr2) const { return pieces(pr1) | pieces(pr2); }
-	Bitboard pieces(PieceType pr1, PieceType pr2, PieceType pr3) const { return pieces(pr1) | pieces(pr2) | pieces(pr3); }
-	Bitboard pieces(PieceType pr1, PieceType pr2, PieceType pr3, PieceType pr4) const { return pieces(pr1) | pieces(pr2) | pieces(pr3) | pieces(pr4); }
-	Bitboard pieces(PieceType pr1, PieceType pr2, PieceType pr3, PieceType pr4, PieceType pr5) const { return pieces(pr1) | pieces(pr2) | pieces(pr3) | pieces(pr4) | pieces(pr5); }
+	Bitboard pieces(PieceType pr = ALL_PIECES) const { ASSERT_LV3(pr < PIECE_BB_NB); return byTypeBB[pr]; }
+	template<typename ...PieceTypes> Bitboard pieces(PieceType pt, PieceTypes... pts) const;
 
 	// ↑のtemplate版
 	template <PieceType PR>
 	Bitboard pieces() const { ASSERT_LV3(PR < PIECE_BB_NB); return byTypeBB[PR]; }
-
-	Bitboard pieces(Color c, PieceType pr) const { return pieces(pr) & pieces(c); }
-	Bitboard pieces(Color c, PieceType pr1, PieceType pr2) const { return pieces(pr1, pr2) & pieces(c); }
-	Bitboard pieces(Color c, PieceType pr1, PieceType pr2, PieceType pr3) const { return pieces(pr1, pr2, pr3) & pieces(c); }
-	Bitboard pieces(Color c, PieceType pr1, PieceType pr2, PieceType pr3, PieceType pr4) const { return pieces(pr1, pr2, pr3, pr4) & pieces(c); }
-	Bitboard pieces(Color c, PieceType pr1, PieceType pr2, PieceType pr3, PieceType pr4, PieceType pr5) const { return pieces(pr1, pr2, pr3, pr4, pr5) & pieces(c); }
+	template<typename ...PieceTypes> Bitboard pieces(Color c, PieceTypes... pts) const;
 
 	// ↑のtemplate版
 	template<Color C>
 	Bitboard pieces(PieceType pr) const { return pieces(pr) & pieces(C); }
 	template<Color C,PieceType PR>
 	Bitboard pieces() const { return pieces(PR) & pieces(C); }
+
+	// 駒がない升が1になっているBitboardが返る
+	Bitboard empties() const { return pieces() ^ Bitboard(1); }
 
 	// --- 王手
 
@@ -838,6 +828,20 @@ private:
 	Eval::EvalList evalList;
 #endif
 };
+
+template<typename ...PieceTypes>
+inline Bitboard Position::pieces(PieceType pt, PieceTypes... pts) const {
+  return pieces(pt) | pieces(pts...);
+}
+
+inline Bitboard Position::pieces(Color c) const {
+  return byColorBB[c];
+}
+
+template<typename ...PieceTypes>
+inline Bitboard Position::pieces(Color c, PieceTypes... pts) const {
+  return pieces(c) & pieces(pts...);
+}
 
 // sに利きのあるc側の駒を列挙する。
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
