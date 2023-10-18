@@ -1013,6 +1013,7 @@ private:
 // 盤面(盤上の駒 + 手駒)に対して、Zobrist Hashでそれに対応する値を計算する。
 typedef uint64_t Key;
 
+#if 0
 // 合同法による擬似乱数生成器
 // 探索で、excludedMoveを考慮した局面のhash keyが欲しいので、それを生成するために
 // excludedMoveをseedとする擬似乱数を発生させる必要があり、そこで用いられる。
@@ -1025,6 +1026,9 @@ typedef uint64_t Key;
 constexpr Key make_key(uint64_t seed) {
 	return (seed * 6364136223846793005ULL + 1442695040888963407ULL) & ~1ULL;
 }
+
+// →　この関数はStockfish 16で使わなくなった。
+#endif
 
 // --------------------
 //        探索

@@ -1505,17 +1505,26 @@ namespace {
 		// Step 4. Transposition table lookup.
 		// -----------------------
 
-		// 置換表のlookup。前回の全探索の置換表の値を上書きする部分探索のスコアは
-		// 欲しくないので、excluded moveがある場合には異なる局面キーを用いる。
+		// 置換表のlookup。
 
 		// このnodeで探索から除外する指し手。ss->excludedMoveのコピー。
 		excludedMove = ss->excludedMove;
 
-		// excludedMoveがある(singular extension時)は、異なるentryにアクセスするように。
-		// ただし、このときpos.key()のbit0を破壊することは許されないので、make_key()でbit0はクリアしておく。
-		// excludedMoveがMOVE_NONEの時はkeyを変更してはならない。
-		posKey = excludedMove == MOVE_NONE ? pos.hash_key() : pos.hash_key() ^ HASH_KEY(make_key(excludedMove));
+		// excludedMoveがある(singular extension時)は、
+		// 前回の全探索の置換表の値を上書きする部分探索のスコアは
+		// 欲しくないので、excluded moveがある場合には異なるhash keyを用いて
+		// 異なるTTEntryを読み書きすべきだと思うが、
+		// Stockfish 16で、同じTTEntryを用いるようになった。
+		// (ただしexcluded moveがある時に探索した結果はTTEntryにsaveしない)
+		// つまり、probeして情報だけ利用する感じのようだ。情報は使えるということなのだろうか…。
 
+		//posKey = excludedMove == MOVE_NONE ? pos.hash_key() : pos.hash_key() ^ HASH_KEY(make_key(excludedMove));
+		// ↑このときpos.key()のbit0を破壊することは許されないので、make_key()でbit0はクリアしておく。
+		// excludedMoveがMOVE_NONEの時はkeyを変更してはならない。
+
+		// ↓Stockfish 16で異なるTTEntryを使わないようになって次のように単純化された。
+
+		posKey = pos.hash_key();
 		tte = TT.probe(posKey, ss->ttHit);
 
 		// 置換表上のスコア
@@ -1655,12 +1664,12 @@ namespace {
 		// 以下は、やねうら王独自のコード。
 
 		{
-			// 宣言勝ちの指し手が置換表上に登録されていることがある
-			// ただしPV nodeではこれを信用しない。
-			if (ttMove == MOVE_WIN && !PvNode)
-			{
-				return mate_in(ss->ply + 1);
-			}
+			//// 宣言勝ちの指し手が置換表上に登録されていることがある
+			//// ただしPV nodeではこれを信用しない。
+			//if (ttMove == MOVE_WIN && !PvNode)
+			//{
+			//	return mate_in(ss->ply + 1);
+			//}
 
 			// 置換表にhitしていないときは宣言勝ちの判定をまだやっていないということなので今回やる。
 			// PvNodeでは置換表の指し手を信用してはいけないので毎回やる。
@@ -1698,6 +1707,16 @@ namespace {
 		//    1手詰みか？
 		// -----------------------
 
+		// excludedMoveがある時には本当は、それを除外して詰み探索をする必要があるが、
+		// 詰みがある場合は、singular extensionの判定の前までにbeta cutするので、結局、
+		// 詰みがあるのにexcludedMoveが設定されているということはありえない。
+		// よって、「excludedMoveは設定されていない」時だけ詰みがあるかどうかを調べれば良く、
+		// この条件を詰み探索の事前条件に追加することができる。
+		// 
+		// ただし、excludedMoveがある時、singular extensionの事前条件を満たすはずで、
+		// singular extensionはttMoveが存在することがその条件に含まれるから、ss->ttHit == trueに
+		// なっているはずなので、以下の条件にある!ss->ttHitが、!excludedMoveの代わりとなっている。
+
 		if (PARAM_SEARCH_MATE1)
 		{
 			// RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
@@ -1705,6 +1724,7 @@ namespace {
 			// depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
 			// 見つけたときのリターン(見返り)が少ない。
 			// ただ、静止探索で入れている以上、depth == 1でも1手詰めを判定したほうがよさげではある。
+
 			if (!rootNode && !ss->ttHit && !ss->inCheck)
 			{
 				if (PARAM_WEAK_MATE_PLY == 1)
@@ -1768,17 +1788,15 @@ namespace {
 			improving = false;
 			goto moves_loop;
 		}
-		//else if (excludedMove)
-		//{
-		//	// Providing the hint that this node's accumulator will be used often brings significant Elo gain (~13 Elo)
+		else if (excludedMove)
+		{
+			// Providing the hint that this node's accumulator will be used often brings significant Elo gain (~13 Elo)
 
-		//	//Eval::NNUE::hint_common_parent_position(pos);
-		//	// TODO : → 今回のNNUEの計算は端折れるのか？
+			//Eval::NNUE::hint_common_parent_position(pos);
+			// TODO : → 今回のNNUEの計算は端折れるのか？
 
-		//	eval = ss->staticEval;
-		//}
-		// TODO : ↑入れるとR50ぐらい弱くなる。何か初期化を忘れているのか？
-
+			eval = ss->staticEval;
+		}
 		else if (ss->ttHit)
 		{
 			// Never assume anything about values stored in TT
@@ -1823,9 +1841,9 @@ namespace {
 			//
 			// また、excludedMoveがある時は、これを置換表に保存するのは危ない。
 			// cf . Add / remove leaves from search tree ttPv : https://github.com/official-stockfish/Stockfish/commit/c02b3a4c7a339d212d5c6f75b3b89c926d33a800
+			// 上の方にある else if (excludedMove) でこの条件は除外されている。
 
-			if (!excludedMove)
-				tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
+			tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
 
 			// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
 			// 実行したという証にはなるので意味がある。
