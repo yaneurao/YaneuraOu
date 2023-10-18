@@ -1912,7 +1912,7 @@ namespace {
 			&&  eval < 29462 // smaller than TB wins
 			&& !(  !ttCapture
 				 && ttMove
-				 && thisThread->mainHistory[us][from_to(ttMove)] < 989))
+				 && thisThread->mainHistory[from_to(ttMove)][us] < 989))
 
 			// 29462の根拠はよくわからないが、VALUE_TB_WIN_IN_MAX_PLY より少し小さい値にしたいようだ。
 			// そこまではfutility pruningで枝刈りして良いと言うことなのだろう。
@@ -2740,7 +2740,7 @@ namespace {
 			if (PvNode && (moveCount == 1 || (value > alpha && (rootNode || value < beta))))
 			{
 				// 次のnodeのPVポインターはこのnodeのpvバッファを指すようにしておく。
-				(ss + 1)->pv = pv;
+				(ss + 1)->pv    = pv;
 				(ss + 1)->pv[0] = MOVE_NONE;
 
 				// full depthで探索するときはcutNodeにしてはいけない。
@@ -2980,7 +2980,7 @@ namespace {
 		{
 			int bonus = (depth > 6) + (PvNode || cutNode) + (bestValue < alpha - PARAM_COUNTERMOVE_FAILLOW_MARGIN /*653*/) + ((ss-1)->moveCount > 11);
 			update_continuation_histories(ss-1, pos.piece_on(prevSq), prevSq, stat_bonus(depth) * bonus);
-			thisThread->mainHistory[~us][from_to((ss-1)->currentMove)] << stat_bonus(depth) * bonus / 2;
+			thisThread->mainHistory[from_to((ss-1)->currentMove)][~us] << stat_bonus(depth) * bonus / 2;
 		}
 
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
