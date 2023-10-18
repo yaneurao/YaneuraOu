@@ -60,27 +60,28 @@ PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 9;
 
 // 親nodeでのfutilityの適用depth。
 // この枝刈り、depthの制限自体が要らないような気がする。→　そうでもなかった。
-// 元の値 = 11
+// 元の値 = 13
 // [PARAM] min:5,max:20,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 11;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 13;
 
 // 親nodeでのfutility margin
-// 元の値 = 122 , step = 30
+// 元の値 = 115 , step = 30
 // [PARAM] min:100,max:400,step:20,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 122;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 115;
 
-// 元の値 = 25 , step = 4
+// 元の値 = 122 , step = 2
+// [PARAM] min:100,max:400,step:2,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 122;
+
+
+// 元の値 = 27 , step = 2
 // [PARAM] min:15,max:50,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 25;
-
-// 元の値 = 20 , step = 4
-// [PARAM] min:10,max:30,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2 = 20;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 27;
 
 // lmrのときのseeの値。
-// 元の値 = 203 ,step = 40
+// 元の値 = 185 ,step = 40
 // [PARAM] min:0,max:300,step:20,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 203;
+PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 185;
 
 
 // Reductionの計算式に出てくる定数
@@ -180,9 +181,9 @@ PARAM_DEFINE PARAM_QUIET_TT_EXTENSION = 5491;
 
 // historyによる枝刈りをする深さ。適用depth。
 // Stockfish10からこの値を大きくしすぎると良くないようだ。
-// 元の値 = 5 , step = 1
+// 元の値 = 6 , step = 1
 // [PARAM] min:2,max:16,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 5;
+PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 6;
 
 
 // update_all_stats()で、静止探索時のquietMoveとみなすbestvalueとbetaの差(PAWN_VALUEより少し小さな値)

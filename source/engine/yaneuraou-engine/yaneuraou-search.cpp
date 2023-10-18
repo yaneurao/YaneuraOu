@@ -1291,11 +1291,6 @@ namespace {
 		// root nodeであるか
 		constexpr bool rootNode = nodeType == Root;
 		
-		// 次の最大探索深さ。
-		// これを超える深さでsearch()を再帰的に呼び出さない。
-		// 延長されすぎるのを回避する。
-		const Depth maxNextDepth = rootNode ? depth : depth + 1;
-
 		// Dive into quiescence search when the depth reaches zero
 		// 残り探索深さが1手未満であるなら静止探索を呼び出す
 		if (depth <= 0)
@@ -1365,17 +1360,16 @@ namespace {
 		//   このフラグを各種枝刈りのmarginの決定に用いる
 		//   cf. Tweak probcut margin with 'improving' flag : https://github.com/official-stockfish/Stockfish/commit/c5f6bd517c68e16c3ead7892e1d83a6b1bb89b69
 		//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
-		// didLMR				: LMRを行ったのフラグ
 		// priorCapture         : 1つ前の局面は駒を取る指し手か？
 		// singularQuietLMR     : quiet(駒を取らない) singular extensionを行ったかのフラグ。LMRで用いる。
-		bool givesCheck, improving, didLMR, priorCapture, singularQuietLMR;
+		bool givesCheck, improving, priorCapture, singularQuietLMR;
 
 		// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 		// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
 		// moveCountPruning		: moveCountによって枝刈りをするかのフラグ(quietの指し手を生成しない)
 		// ttCapture			: 置換表の指し手がcaptureする指し手であるか
 		// pvExact				: PvNodeで置換表にhitして、しかもBOUND_EXACT
-		bool capture, doFullDepthSearch, moveCountPruning, ttCapture;
+		bool capture, moveCountPruning, ttCapture;
 
 		// moveによって移動させる駒
 		Piece movedPiece;
@@ -2313,19 +2307,17 @@ namespace {
 						continue;
 #endif
 
-					// Futility pruning for captures (~0 Elo)
-					if (   !pos.empty(to_sq(move))
-						&& !givesCheck
-						&& !PvNode
-						&& lmrDepth < 6
+					// Futility pruning for captures (~2 Elo)
+					if (   !givesCheck
+						&& lmrDepth < 7
 						&& !ss->inCheck
-						&& ss->staticEval + 281 + 179 * lmrDepth + CapturePieceValuePlusPromote(pos,move)
-						 + captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] / 6 < alpha)
+						&& ss->staticEval + 188 + 206 * lmrDepth + CapturePieceValuePlusPromote(pos, move)
+						 + captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] / 7 < alpha)
 						// やねうら王、captureHistory[to][pc]で、Stockfishと逆順なので注意。
 						continue;
 
-					// SEE based pruning (~9 Elo)
-					if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1 /*203*/) * depth)) // (~25 Elo)
+					// SEE based pruning for captures and checks (~11 Elo)
+					if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1 /*185*/) * depth))
 						continue;
 				}
 				else
@@ -2336,25 +2328,27 @@ namespace {
 					int history = (*contHist[0])[to_sq(move)][movedPiece]
 								+ (*contHist[1])[to_sq(move)][movedPiece]
 								+ (*contHist[3])[to_sq(move)][movedPiece];
+								// contHist[][]はStockfishと逆順なので注意。
 
-					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*5*/
+					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*6*/
 						&& history < -3875 * (depth - 1))
-						// contHist[][]はStockfishと逆順なので注意。
 						continue;
 
-					// mainHistory[][]もStockfishと逆順なので注意。
-					history += thisThread->mainHistory[from_to(move)][ us];
+					history += 2 * thisThread->mainHistory[from_to(move)][ us];
+										// mainHistory[][]もStockfishと逆順なので注意。
 
-					// Futility pruning: parent node (~9 Elo)
+					lmrDepth += history / 5793;
+					lmrDepth = std::max(lmrDepth, -2);
+
+					// Futility pruning: parent node (~13 Elo)
 					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
 
 					// パラメーター調整の係数を調整したほうが良いのかも知れないが、
 					// ここ、そんなに大きなEloを持っていないので、調整しても無意味。
 
 					if (   !ss->inCheck
-						&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*11*/
-						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*122*/ + PARAM_FUTILITY_MARGIN_BETA/*138*/ * lmrDepth
-							+ history / 60 <= alpha )
+						&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*13*/
+						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*115*/ + PARAM_FUTILITY_AT_PARENT_NODE_ALPHA /*122*/ * lmrDepth <= alpha)
 						continue;
 
 					// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
@@ -2364,8 +2358,10 @@ namespace {
 
 					// 【計測資料 20.】SEEが負の指し手を枝刈りする/しない
 
-					if (!pos.see_ge(move, Value( - PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*25*/ * lmrDepth * lmrDepth
-						- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA2/*20*/ * lmrDepth )))
+					lmrDepth = std::max(lmrDepth, 0);
+
+					// Prune moves with negative SEE (~4 Elo)
+					if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 /*27*/ * lmrDepth * lmrDepth)))
 						continue;
 				}
 			}
@@ -2671,76 +2667,67 @@ namespace {
 			// moveCountが大きいものなどは探索深さを減らしてざっくり調べる。
 			// alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
 
-			// あとで修正する。
-			bool doDeeperSearch = false;
-
 			if (   depth >= 2
 				&& moveCount > 1 + (PvNode && ss->ply <= 1)
 				&& (   !ss->ttPv
 					|| !capture
 					|| (cutNode && (ss-1)->moveCount > 1)))
 			{
-				// Reduction量
-				Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
+				// In general we want to cap the LMR depth search at newDepth, but when
+				// reduction is negative, we allow this move a limited search extension
+				// beyond the first move depth. This may lead to hidden double extensions.
 
-				// In general we want to cap the LMR depth search at newDepth. But if reductions
-				// are really negative and movecount is low, we allow this move to be searched
-				// deeper than the first move (this may lead to hidden double extensions).
+				// 一般的には、LMRの深さの探索をnewDepthで制限したいと考えていますが、
+				// 削減がマイナスの場合、この手に最初の手の深さを超える限定的な探索の延長を許可します。
+				// これにより、隠れた二重の延長が生じる可能性があります。
 
-				int deeper =  r >= -1					? 0
-							: moveCount <= 4			? 2
-							: PvNode && depth > 4       ? 1
-							: cutNode && moveCount <= 8 ? 1
-							:							  0;
-
-				// depth >= 3なのでqsearchは呼ばれないし、かつ、
-				// moveCount > 1 すなわち、このnodeの2手目以降なのでsearch<NonPv>が呼び出されるべき。
-
-				Depth d = std::clamp(newDepth - r, 1, newDepth + deeper);
+		        Depth d = std::clamp(newDepth - r, 1, newDepth + 1);
 
 				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
 
-				//
-				// ここにその他の枝刈り、何か入れるべき(かも)
-				//
-
-				// If the son is reduced and fails high it will be re-searched at full depth
-				// 上の探索によりalphaを更新しそうだが、いい加減な探索なので信頼できない。まともな探索で検証しなおす。
-
-				doFullDepthSearch = value > alpha && d < newDepth;
-				doDeeperSearch = value > (alpha + 78 + 11 * (newDepth - d));
-				didLMR = true;
-			}
-			else
-			{
-				// non PVか、PVでも2手目以降であればfull depth searchを行なう。
-				doFullDepthSearch = !PvNode || moveCount > 1;
-				didLMR = false;
-			}
-
-
-			// -----------------------
-			// Step 18. Full depth search when LMR is skipped or fails high
-			// -----------------------
-
-			// Full depth search。LMRがskipされたか、LMRにおいてfail highを起こしたなら元の探索深さで探索する。
-
-			// ※　静止探索は残り探索深さはdepth = 0として開始されるべきである。(端数があるとややこしいため)
-			if (doFullDepthSearch)
-			{
-				value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth + doDeeperSearch, !cutNode);
-
-				// If the move passed LMR update its stats
-				if (didLMR)
+				// Do a full-depth search when reduced LMR search fails high
+				// 深さを減らしたLMR探索がfail highをした時、full depth(元の探索深さ)で探索する。
+				if (value > alpha && d < newDepth)
 				{
-					int bonus = value > alpha ?  stat_bonus(newDepth)
-											  : -stat_bonus(newDepth);
+					// Adjust full-depth search based on LMR results - if the result
+					// was good enough search deeper, if it was bad enough search shallower
 
-					if (capture)
-						bonus /= 6;
+					// TODO : あとでこのへんのパラメーターも調整する。
+
+					const bool doDeeperSearch = value > (bestValue + 51 + 10 * (newDepth - d));
+					const bool doEvenDeeperSearch = value > alpha + 700 && ss->doubleExtensions <= 6;
+					const bool doShallowerSearch = value < bestValue + newDepth;
+
+					ss->doubleExtensions = ss->doubleExtensions + doEvenDeeperSearch;
+
+					newDepth += doDeeperSearch - doShallowerSearch + doEvenDeeperSearch;
+
+					if (newDepth > d)
+						value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth, !cutNode);
+
+					int bonus = value <= alpha ? -stat_bonus(newDepth)
+							  : value >= beta  ?  stat_bonus(newDepth)
+											   :  0;
 
 					update_continuation_histories(ss, movedPiece, to_sq(move), bonus);
 				}
+			}
+
+			// -----------------------
+			// Step 18. Full-depth search when LMR is skipped. If expected reduction is high, reduce its depth by 1.
+			// -----------------------
+
+			// LMRがskipされた時にFull depth searchする。もし期待されたreductionが大きいなら、その(reductionする)depthを1ずつ減らす。
+
+			else if (!PvNode || moveCount > 1)
+			{
+				// Increase reduction for cut nodes and not ttMove (~1 Elo)
+				// cut nodeのためにreductionを増やす。ttMove以外。
+
+				if (!ttMove && cutNode)
+					r += 2;
+
+				value = -search<NonPV>(pos, ss+1, -(alpha+1), -alpha, newDepth - (r > 3), !cutNode);
 			}
 
 			// For PV nodes only, do a full PV search on the first move or after a fail
@@ -2749,6 +2736,7 @@ namespace {
 
 			// PV nodeにおいては、full depth searchがfail highしたならPV nodeとしてsearchしなおす。
 			// ただし、value >= betaなら、正確な値を求めることにはあまり意味がないので、これはせずにbeta cutしてしまう。
+
 			if (PvNode && (moveCount == 1 || (value > alpha && (rootNode || value < beta))))
 			{
 				// 次のnodeのPVポインターはこのnodeのpvバッファを指すようにしておく。
@@ -2756,8 +2744,7 @@ namespace {
 				(ss + 1)->pv[0] = MOVE_NONE;
 
 				// full depthで探索するときはcutNodeにしてはいけない。
-				value = -search<PV>(pos, ss + 1, -beta, -alpha,
-									std::min(maxNextDepth, newDepth), false);
+		        value = -search<PV>(pos, ss+1, -beta, -alpha, newDepth, false);
 			}
 
 			// -----------------------
