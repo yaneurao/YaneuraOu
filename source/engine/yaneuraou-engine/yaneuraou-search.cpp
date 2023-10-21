@@ -1432,7 +1432,15 @@ namespace {
 
 			// 教師局面生成時には、これをオフにしたほうが良いかも知れない。
 			// ただし、そのときであっても連続王手の千日手は有効にしておく。
-			auto draw_type = pos.is_repetition(/*ss->ply*/);
+
+			//auto draw_type = pos.is_repetition();
+			// →　優等局面・劣等局面はrootより遡って判定しない。
+			// (USIで出力する評価値がVALUE_SUPERIORになるのはちょっと嫌だし、
+			// 　優等局面に突入するからと言って即詰みを逃がすのもちょっと嫌)
+			// cf. https://github.com/yaneurao/YaneuraOu/issues/264
+
+			auto draw_type = pos.is_repetition2(16, ss->ply);
+
 			if (draw_type != REPETITION_NONE)
 				return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 

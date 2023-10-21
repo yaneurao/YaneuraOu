@@ -2074,7 +2074,7 @@ RepetitionState Position::is_repetition(int repPly /* = 16 */) const
 	return REPETITION_NONE;
 }
 
-// is_repetition()の、千日手が見つかった時に、原局面から何手遡ったかを返すバージョン。
+// is_repetition()の、千日手が見つかった時に、現局面から何手遡ったかを返すバージョン。
 // found_plyにその値が返ってくる。
 RepetitionState Position::is_repetition(int repPly, int& found_ply) const
 {
@@ -2115,6 +2115,60 @@ RepetitionState Position::is_repetition(int repPly, int& found_ply) const
 				return REPETITION_DRAW;
 			}
 			else {
+				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+				if (hand_is_equal_or_superior(st->hand, stp->hand))
+					return REPETITION_SUPERIOR;
+				if (hand_is_equal_or_superior(stp->hand, st->hand))
+					return REPETITION_INFERIOR;
+			}
+		}
+	}
+
+	// 同じhash keyの局面が見つからなかったので…。
+	return REPETITION_NONE;
+}
+
+// is_repetition()の、千日手が見つかった時に、現局面から何手遡ったかを返すバージョン。
+// found_plyにその値が返ってくる。
+RepetitionState Position::is_repetition2(int repPly, int sup_rep_ply) const
+{
+	// pliesFromNullが未初期化になっていないかのチェックのためのassert
+	ASSERT_LV3(st->pliesFromNull >= 0);
+
+	// 遡り可能な手数。
+	// 最大でもrepPly手までしか遡らないことにする。
+	int end = std::min(repPly, st->pliesFromNull);
+
+	// 少なくとも4手かけないと千日手にはならないから、4手前から調べていく。
+	if (end < 4)
+		return REPETITION_NONE;
+
+	StateInfo* stp = st->previous->previous;
+
+	for (int i = 4; i <= end ; i += 2)
+	{
+		stp = stp->previous->previous;
+
+		// board_key : 盤上の駒のみのhash(手駒を除く)
+		// 盤上の駒が同じ状態であるかを判定する。
+		if (stp->board_key() == st->board_key())
+		{
+			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+			if (stp->hand == st->hand)
+			{
+				// 自分が王手をしている連続王手の千日手なのか？
+				if (i <= st->continuousCheck[sideToMove])
+					return REPETITION_LOSE;
+
+				// 相手が王手をしている連続王手の千日手なのか？
+				if (i <= st->continuousCheck[~sideToMove])
+					return REPETITION_WIN;
+
+				return REPETITION_DRAW;
+			}
+			else if (i < sup_rep_ply) {
+					// ↑rootより遡らないための措置
+
 				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
 				if (hand_is_equal_or_superior(st->hand, stp->hand))
 					return REPETITION_SUPERIOR;
