@@ -21,12 +21,15 @@
 // the calls at compile time), try to load them at runtime. To do this we need
 // first to define the corresponding function pointers.
 extern "C" {
-	typedef bool(*fun1_t)(LOGICAL_PROCESSOR_RELATIONSHIP,
-		PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
-	typedef bool(*fun2_t)(USHORT, PGROUP_AFFINITY);
-	typedef bool(*fun3_t)(HANDLE, CONST GROUP_AFFINITY*, PGROUP_AFFINITY);
-	typedef bool(*fun4_t)(USHORT, PGROUP_AFFINITY, USHORT, PUSHORT);
-	typedef WORD(*fun5_t)();
+using fun1_t = bool(*)(LOGICAL_PROCESSOR_RELATIONSHIP,
+                       PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
+using fun2_t = bool(*)(USHORT, PGROUP_AFFINITY);
+using fun3_t = bool(*)(HANDLE, CONST GROUP_AFFINITY*, PGROUP_AFFINITY);
+using fun4_t = bool(*)(USHORT, PGROUP_AFFINITY, USHORT, PUSHORT);
+using fun5_t = WORD(*)();
+using fun6_t = bool(*)(HANDLE, DWORD, PHANDLE);
+using fun7_t = bool(*)(LPCSTR, LPCSTR, PLUID);
+using fun8_t = bool(*)(HANDLE, BOOL, PTOKEN_PRIVILEGES, DWORD, PTOKEN_PRIVILEGES, PDWORD);
 }
 
 #endif
@@ -495,12 +498,11 @@ void std_aligned_free(void* ptr) {
 // Windows
 #if defined(_WIN32)
 
-static void* aligned_large_pages_alloc_windows(size_t allocSize) {
+static void* aligned_large_pages_alloc_windows([[maybe_unused]] size_t allocSize) {
 
 	// Windows 64bit用専用。
 	// Windows 32bit用ならこの機能は利用できない。
 	#if !defined(_WIN64)
-		(void)allocSize; // suppress unused-parameter compiler warning
 		return nullptr;
 	#else
 
@@ -509,8 +511,8 @@ static void* aligned_large_pages_alloc_windows(size_t allocSize) {
 	if (!Options["LargePageEnable"])
 		return nullptr;
 
-	HANDLE hProcessToken{ };
-	LUID luid{ };
+	HANDLE hProcessToken { };
+	LUID luid { };
 	void* mem = nullptr;
 
 	const size_t largePageSize = GetLargePageMinimum();
@@ -521,17 +523,36 @@ static void* aligned_large_pages_alloc_windows(size_t allocSize) {
 	if (!largePageSize)
 		return nullptr;
 
+	// Dynamically link OpenProcessToken, LookupPrivilegeValue and AdjustTokenPrivileges
+
+	HMODULE hAdvapi32 = GetModuleHandle(TEXT("advapi32.dll"));
+
+	if (!hAdvapi32)
+		hAdvapi32 = LoadLibrary(TEXT("advapi32.dll"));
+
 	// Large Pageを使うには、SeLockMemory権限が必要。
 	// cf. http://awesomeprojectsxyz.blogspot.com/2017/11/windows-10-home-how-to-enable-lock.html
 
-	// We need SeLockMemoryPrivilege, so try to enable it for the process
-	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hProcessToken))
+	auto fun6 = fun6_t((void(*)())GetProcAddress(hAdvapi32, "OpenProcessToken"));
+	if (!fun6)
+		return nullptr;
+	auto fun7 = fun7_t((void(*)())GetProcAddress(hAdvapi32, "LookupPrivilegeValueA"));
+	if (!fun7)
+		return nullptr;
+	auto fun8 = fun8_t((void(*)())GetProcAddress(hAdvapi32, "AdjustTokenPrivileges"));
+	if (!fun8)
 		return nullptr;
 
-	if (LookupPrivilegeValue(NULL, SE_LOCK_MEMORY_NAME, &luid))
+	// We need SeLockMemoryPrivilege, so try to enable it for the process
+	if (!fun6( // OpenProcessToken()
+		GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hProcessToken))
+			return nullptr;
+
+	if (fun7( // LookupPrivilegeValue(nullptr, SE_LOCK_MEMORY_NAME, &luid)
+		nullptr, "SeLockMemoryPrivilege", &luid))
 	{
-		TOKEN_PRIVILEGES tp{ };
-		TOKEN_PRIVILEGES prevTp{ };
+		TOKEN_PRIVILEGES tp { };
+		TOKEN_PRIVILEGES prevTp { };
 		DWORD prevTpLen = 0;
 
 		tp.PrivilegeCount = 1;
@@ -539,18 +560,19 @@ static void* aligned_large_pages_alloc_windows(size_t allocSize) {
 		tp.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
 
 		// Try to enable SeLockMemoryPrivilege. Note that even if AdjustTokenPrivileges() succeeds,
-		// we still need to query GetLastError() to ensure that the privileges were actually obtained...
-		if (AdjustTokenPrivileges(
-			hProcessToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), &prevTp, &prevTpLen) &&
+		// we still need to query GetLastError() to ensure that the privileges were actually obtained.
+		if (fun8( // AdjustTokenPrivileges()
+				hProcessToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), &prevTp, &prevTpLen) &&
 			GetLastError() == ERROR_SUCCESS)
 		{
-			// round up size to full pages and allocate
+			// Round up size to full pages and allocate
 			allocSize = (allocSize + largePageSize - 1) & ~size_t(largePageSize - 1);
 			mem = VirtualAlloc(
-				NULL, allocSize, MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, PAGE_READWRITE);
+				nullptr, allocSize, MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES, PAGE_READWRITE);
 
-			// privilege no longer needed, restore previous state
-			AdjustTokenPrivileges(hProcessToken, FALSE, &prevTp, 0, NULL, NULL);
+			// Privilege no longer needed, restore previous state
+			fun8( // AdjustTokenPrivileges ()
+				hProcessToken, FALSE, &prevTp, 0, nullptr, nullptr);
 		}
 	}
 
@@ -558,7 +580,7 @@ static void* aligned_large_pages_alloc_windows(size_t allocSize) {
 
 	return mem;
 
-	#endif
+	#endif // _WIN64
 }
 
 void* aligned_large_pages_alloc(size_t allocSize) {
@@ -595,7 +617,7 @@ void* aligned_large_pages_alloc(size_t allocSize) {
 	// fall back to regular, page aligned, allocation if necessary
 	// 4KB単位であることは保証されているはず..
 	if (!ptr)
-		ptr = VirtualAlloc(NULL, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+		ptr = VirtualAlloc(nullptr, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 
 	// VirtualAlloc()はpage size(4KB)でalignされていること自体は保証されているはず。
 
@@ -733,7 +755,7 @@ namespace WinProcGroup {
 	/// API and returns the best node id for the thread with index idx. Original
 	/// code from Texel by Peter Österlund.
 
-	int best_node(size_t idx) {
+	static int best_node(size_t idx) {
 
 		// スレッド番号idx(0 ～ 論理コア数-1)に対して
 		// 適切なNUMA NODEとCPU番号を設定する。
@@ -752,7 +774,7 @@ namespace WinProcGroup {
 		DWORD byteOffset = 0;
 
 		// Early exit if the needed API is not available at runtime
-		HMODULE k32 = GetModuleHandle(L"Kernel32.dll");
+		HMODULE k32 = GetModuleHandle(TEXT("Kernel32.dll"));
 		auto fun1 = (fun1_t)(void(*)())GetProcAddress(k32, "GetLogicalProcessorInformationEx");
 		if (!fun1)
 			return -1;
@@ -839,10 +861,10 @@ namespace WinProcGroup {
 			return;
 
 		// Early exit if the needed API are not available at runtime
-		HMODULE k32 = GetModuleHandle(L"Kernel32.dll");
-		auto fun2 = (fun2_t)(void(*)())GetProcAddress(k32, "GetNumaNodeProcessorMaskEx");
-		auto fun3 = (fun3_t)(void(*)())GetProcAddress(k32, "SetThreadGroupAffinity");
-		auto fun4 = (fun4_t)(void(*)())GetProcAddress(k32, "GetNumaNodeProcessorMask2");
+		HMODULE k32 = GetModuleHandle(TEXT("Kernel32.dll"));
+		auto fun2 = (fun2_t)((void(*)())GetProcAddress(k32, "GetNumaNodeProcessorMaskEx"));
+		auto fun3 = (fun3_t)((void(*)())GetProcAddress(k32, "SetThreadGroupAffinity"));
+		auto fun4 = (fun4_t)((void(*)())GetProcAddress(k32, "GetNumaNodeProcessorMask2"));
 
 		if (!fun2 || !fun3)
 			return;
@@ -2255,13 +2277,13 @@ namespace StringExtension
 
 namespace CommandLine {
 
-	string argv0;            // path+name of the executable binary, as given by argv[0]
-	string binaryDirectory;  // path of the executable directory
-	string workingDirectory; // path of the working directory
+	std::string argv0;            // path+name of the executable binary, as given by argv[0]
+	std::string binaryDirectory;  // path of the executable directory
+	std::string workingDirectory; // path of the working directory
 
-	void init(int argc, char* argv[]) {
-		(void)argc;
-		string pathSeparator;
+	void init([[maybe_unused]] int argc, char* argv[]) {
+
+		std::string pathSeparator;
 
 		// extract the path+name of the executable binary
 		argv0 = argv[0];

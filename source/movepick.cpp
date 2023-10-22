@@ -424,7 +424,7 @@ top:
 	case GOOD_CAPTURE:
 		if (select<Next>([&]() {
 				// moveは駒打ちではないからsee()の内部での駒打ちは判定不要だが…。
-				return pos.see_ge(*cur, Value(-69 * cur->value / 1024)) ?
+                return pos.see_ge(*cur, Value(-cur->value)) ?
 						// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
 						true : (*endBadCaptures++ = *cur, false); }))
 			return *(cur -1);
@@ -450,6 +450,7 @@ top:
 		// 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
 		// pseudo_legalでない指し手以外に歩や大駒の不成なども除外
 		if (select<Next>([&]() { return    *cur != MOVE_NONE
+			                          //&& !pos.capture_stage(*cur)
 										&& !pos.capture_or_pawn_promotion(*cur)
 										&&  pos.pseudo_legal(*cur); }))
 			return *(cur - 1);
