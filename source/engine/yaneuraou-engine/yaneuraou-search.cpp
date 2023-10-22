@@ -3427,7 +3427,7 @@ namespace {
 
 			// futilityの基準となる値をbestValueにmargin値を加算したものとして、
 			// これを下回るようであれば枝刈りする。
-			futilityBase = std::min(ss->staticEval, bestValue) + PARAM_FUTILITY_MARGIN_QUIET /*118 → 200*/;
+			futilityBase = ss->staticEval + PARAM_FUTILITY_MARGIN_QUIET /*118 → 200*/;
 
 		}
 
