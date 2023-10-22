@@ -2798,46 +2798,46 @@ void Position::UnitTest(Test::UnitTester& tester)
 		}
 	}
 
-#if 0
 	// ランダムプレイヤーでの対局
 	{
-		auto section2 = tester.section("GamesOfRandomPlayer");
-
-		// 対局回数
+		// 対局回数→0ならskip
 		s64 random_player_loop = tester.options["random_player_loop"];
-
-		// seed固定乱数(再現性ある乱数)
-		PRNG my_rand;
-		StateInfo si[512];
-
-		for (s64 i = 0; i < random_player_loop; ++i)
+		if (random_player_loop)
 		{
-			// 平手初期化
-			hirate_init();
-			bool fail = false;
+			auto section2 = tester.section("GamesOfRandomPlayer");
 
-			// 512手目まで
-			for (int ply = 0; ply < 512; ++ply)
+			// seed固定乱数(再現性ある乱数)
+			PRNG my_rand;
+			StateInfo si[512];
+
+			for (s64 i = 0; i < random_player_loop; ++i)
 			{
-				MoveList<LEGAL_ALL> ml(pos);
+				// 平手初期化
+				hirate_init();
+				bool fail = false;
 
-				// 指し手がない == 負け == 終了
-				if (ml.size() == 0)
-					break;
+				// 512手目まで
+				for (int ply = 0; ply < 512; ++ply)
+				{
+					MoveList<LEGAL_ALL> ml(pos);
 
-				Move m = ml.at(size_t(my_rand.rand(ml.size()))).move;
+					// 指し手がない == 負け == 終了
+					if (ml.size() == 0)
+						break;
 
-				pos.do_move(m,si[ply]);
+					Move m = ml.at(size_t(my_rand.rand(ml.size()))).move;
 
-				if (!pos.pos_is_ok())
-					fail = true;
+					pos.do_move(m,si[ply]);
+
+					if (!pos.pos_is_ok())
+						fail = true;
+				}
+
+				// 今回のゲームのなかでおかしいものがなかったか
+				tester.test(string("game ")+to_string(i+1),!fail);
 			}
-
-			// 今回のゲームのなかでおかしいものがなかったか
-			tester.test(string("game ")+to_string(i+1),!fail);
 		}
 	}
-#endif
 
 }
 

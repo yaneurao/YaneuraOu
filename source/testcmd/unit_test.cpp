@@ -114,7 +114,7 @@ namespace Test
 
 		// 入力文字列を解釈
 		string token;
-		s64 random_player_loop = 1000; // ランダムプレイヤーの対局回数
+		s64 random_player_loop = 0; // ランダムプレイヤーの対局回数(0を指定するとskip)
 		while (is >> token)
 		{
 			if (token == "random_player_loop")

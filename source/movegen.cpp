@@ -7,14 +7,14 @@
 using namespace std;
 using namespace BB_Table;
 
-// mlist_startからmlist_endまで(mlist_endは含まない)の指し手がpseudo_legalであるかを
-// 調べて、すべてpseudo_legalならばtrueを返す。
+// mlist_startからmlist_endまで(mlist_endは含まない)の指し手がpseudo_legal_s<true>であるかを
+// 調べて、すべてがそうであるならばtrueを返す。
 bool pseudo_legal_check(const Position& pos, ExtMove* mlist_start, ExtMove* mlist_end)
 {
 	bool all_ok = true;
 
 	for (auto it = mlist_start; it != mlist_end; ++it)
-		all_ok = pos.pseudo_legal(it->move);
+		all_ok = pos.pseudo_legal_s<true>(it->move);
 
 	// Debug用に、非合法手があった時に局面とその指し手を出力する。
 #if 0
