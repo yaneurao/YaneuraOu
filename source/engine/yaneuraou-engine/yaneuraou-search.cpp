@@ -1531,6 +1531,40 @@ namespace {
 		// excludedMoveがMOVE_NONEの時はkeyを変更してはならない。
 
 		// ↓Stockfish 16で異なるTTEntryを使わないようになって次のように単純化された。
+		//    cf. https://github.com/official-stockfish/Stockfish/commit/8d3457a9966f8c744ab7f8536be408196ccd8af9
+
+		/**
+		excluded moveについて詳しく。
+
+		singular extensionとは、置換表から拾ってきた指し手だけがすこぶるよろしい指し手である時、
+		一本道の変化だから、この指し手はもっと延長してあげようということである。駒のただ捨てなどで
+		指し手を引き伸ばすような水平線効果を抑える役割もある。(たぶん)
+
+		だから、置換表の指し手を除外して同じnodeで探索しなおす必要がある。
+		この時の探索における置換表に元あった指し手をexcluded moveと呼ぶ。
+
+		つまり、この時の探索結果は、excluded moveを除外して得られた探索結果なので、
+		同じTTEntry(置換表のエントリー)に書き出すのはおかしいわけである。
+
+		だからexcluded moveがある時は、局面のhash keyを、このexcluded moveを
+		考慮したhash keyに変更して別のTTEntryを用いるようにしていた。
+
+		そのコードが上の pos.hash_key() ^ HASH_KEY(make_key(excludedMove) の部分である。
+		(make_keyはexcludedMoveをseedとする疑似乱数を生成する)
+
+		ところが、これをStockfishの上のcommitは、廃止するというのである。
+
+		メリットとしては、make_keyで全然違うTTEntryを見に行くとCPUのcacheにmiss hitするので、
+		そこで遅くなるのだが、同じTTEntryを見に行くなら、間違いなくCPU cacheにhitするというものである。
+		また、元エントリーの値のうち、staticEval(evaluate()した時の値)ぐらいは使えるんじゃね？ということである。
+
+		デメリットとしては、この時の探索結果をそのTTEntryに保存してしまうとそれはexcluded moveがない時の
+		探索結果としては正しくないので、このような保存はできないということである。
+		それにより、次回も同じexcluded moveでsingular extensionする時に今回の探索結果が活用できない
+		というのはある。
+
+		そのどちらが得なのかということのようである。
+		**/
 
 		posKey = pos.hash_key();
 		tte = TT.probe(posKey, ss->ttHit);
@@ -1950,13 +1984,7 @@ namespace {
 			&&  eval >= beta
 			&&  eval < 29462 // smaller than TB wins
 			&& !(  !ttCapture
-				 && ttMove
-				 && thisThread->mainHistory[from_to(ttMove)][us] < 989))
-								// ↑mainHistoryに関して
-								// Stockfishは [c][from_to]の順
-								// やねうら王は[from_to][c]の順
-								// なので注意。
-
+				 && ttMove))
 
 			// 29462の根拠はよくわからないが、VALUE_TB_WIN_IN_MAX_PLY より少し小さい値にしたいようだ。
 			// そこまではfutility pruningで枝刈りして良いと言うことなのだろう。
@@ -2012,15 +2040,12 @@ namespace {
 
 			pos.undo_null_move();
 
-			if (nullValue >= beta)
+		    // Do not return unproven mate or TB scores
+			// 証明されていないmate scoreやTB scoreはreturnで返さない。
+	        if (nullValue >= beta && nullValue < VALUE_TB_WIN_IN_MAX_PLY)
 			{
 				// 1手パスしてもbetaを上回りそうであることがわかったので
 				// これをもう少しちゃんと検証しなおす。
-
-				// Do not return unproven mate or TB scores
-				// 証明されていないmate scoreやTB scoreはreturnで返さない。
-
-	            nullValue = std::min(nullValue, VALUE_TB_WIN_IN_MAX_PLY-1);
 
 	            if (thisThread->nmpMinPly || depth < PARAM_NULL_MOVE_RETURN_DEPTH/*14*/)
 					return nullValue;
@@ -2152,7 +2177,7 @@ namespace {
 						// ProbCutのdataを置換表に保存する。
 
 						tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval);
-						return value;
+						return value - (probCutBeta - beta);
 					}
 				}
 
@@ -2196,7 +2221,7 @@ namespace {
 		// continuationHistory[1]  = Follow up Move History  : 2手前の自分の指し手の継続手
 		// continuationHistory[3]  = Follow up Move History2 : 4手前からの継続手
 		const PieceToHistory* contHist[] = { (ss - 1)->continuationHistory	, (ss - 2)->continuationHistory,
-												nullptr						, (ss - 4)->continuationHistory ,
+											 (ss - 3)->continuationHistory	, (ss - 4)->continuationHistory ,
 												nullptr						, (ss - 6)->continuationHistory };
 
 		// 1手前の指し手(1手前のtoとPiece)に対応するよさげな応手を統計情報から取得。
@@ -3410,9 +3435,7 @@ namespace {
 		//     1手ずつ調べる
 		// -----------------------
 
-		const PieceToHistory* contHist[] = { (ss - 1)->continuationHistory, (ss - 2)->continuationHistory,
-												nullptr					  , (ss - 4)->continuationHistory,
-												nullptr					  , (ss - 6)->continuationHistory };
+		const PieceToHistory* contHist[] = { (ss - 1)->continuationHistory, (ss - 2)->continuationHistory };
 
 		// Initialize a MovePicker object for the current position, and prepare
 		// to search the moves. Because the depth is <= 0 here, only captures,
@@ -3844,17 +3867,19 @@ namespace {
 	// ※　Stockfish 10で6手前も見るようになった。
 	void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 	{
-		for (int i : {1, 2, 4, 6})
+		for (int i : {1, 2, 3, 4, 6})
 		{
 	        // Only update the first 2 continuation histories if we are in check
 			if (ss->inCheck && i > 2)
 				break;
 			if (is_ok((ss - i)->currentMove))
-				(*(ss - i)->continuationHistory)[to][pc] << bonus;
+				(*(ss - i)->continuationHistory)[to][pc] << bonus / (1 + 3 * (i == 3));
 							// ↑continuationHistoryに関して
 							// Stockfishは、 [inCheck][capture][pc][sq]の順
 							// やねうら王は、[inCheck][capture][sq][pc]の順
 							// なので注意。
+
+							// (1 + 3 * (i == 3)) は、 i==3は弱くしか影響しないので4で割ると言う意味。
 		}
 	}
 

@@ -264,8 +264,8 @@ void MovePicker::score()
 			// ここに来るCAPTURESに歩の成りを含めているので、捕獲する駒(pos.piece_on(to_sq(m)))がNO_PIECEで
 			// ある可能性については考慮しておく必要がある。
 
-			m.value = 6 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
-					 +    (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))];
+			m.value = 7 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
+					 +    (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))] / 16;
 		}
 		else if constexpr (Type == QUIETS)
 		{
@@ -274,19 +274,20 @@ void MovePicker::score()
 			// →　指し手オーダリングは、quietな指し手の間での優劣を付けたいわけで、
 			//    駒を成るような指し手はどうせevaluate()で大きな値がつくからそっちを先に探索することになる。
 
-			Piece movedPiece = pos.moved_piece_after(m);
-			Square movedSq = to_sq(m);
-			PieceType moved_piece = type_of(pos.moved_piece_before(m));
+			Piece     pc = pos.moved_piece_after(m);
+			//PieceType pt = type_of(pos.moved_piece_before(m));
+			Square    to = to_sq(m);
 
-			m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
+			m.value =  2 * (*mainHistory)[from_to(m)][pos.side_to_move()]
 								// ↑mainHistoryに関して
 								// Stockfishは [c][from_to]の順
 								// やねうら王は[from_to][c]の順
 								// なので注意。
-					+ 2 * (*continuationHistory[0])[movedSq][movedPiece]
-					+     (*continuationHistory[1])[movedSq][movedPiece]
-					+     (*continuationHistory[3])[movedSq][movedPiece]
-					+     (*continuationHistory[5])[movedSq][movedPiece]
+					+ 2 * (*continuationHistory[0])[to][pc]
+					+     (*continuationHistory[1])[to][pc]
+					+     (*continuationHistory[2])[to][pc] / 4
+					+     (*continuationHistory[3])[to][pc]
+					+     (*continuationHistory[5])[to][pc]
 								// ↑continuationHistoryに関して
 								// Stockfishは、 [pc][sq]の順
 								// やねうら王は、[sq][pc]の順
@@ -338,10 +339,14 @@ void MovePicker::score()
 			//		T1,b5000,1095 - 118 - 1047(51.12% R7.79) win black : white = 52.33% : 47.67%
 			//  →　moved_piece_before()のほうで問題なさげ。[2017/5/20]
 
+			// TODO : ここcapture_or_pawn_promotion()のほうが良い可能性がある。[2023/10/21]
 			if (pos.capture(m))
 				// 捕獲する指し手に関しては簡易SEE + MVV/LVA
 				m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-				        - (Value)(LVA(type_of(pos.moved_piece_before(m))));
+						// TODO : ここ、moved_piece_after()のほうが良い可能性がある。[2023/10/21]
+				        - (Value)(LVA(type_of(pos.moved_piece_before(m))))
+                        + (1 << 28);
+						
 			else
 				// 捕獲しない指し手に関してはhistoryの値の順番
 				m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
@@ -349,8 +354,7 @@ void MovePicker::score()
 									// Stockfishは [c][from_to]の順
 									// やねうら王は[from_to][c]の順
 									// なので注意。
-						+ 2 * (*continuationHistory[0])[to_sq(m)][pos.moved_piece_after(m)]
-						- (1 << 28);
+						  +   (*continuationHistory[0])[to_sq(m)][pos.moved_piece_after(m)];
 								// ↑continuationHistoryに関して
 								// Stockfishは、 [pc][sq]の順
 								// やねうら王は、[sq][pc]の順
