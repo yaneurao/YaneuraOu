@@ -134,6 +134,9 @@ public:
 	// aspiration searchのrootでの beta - alpha
 	Value rootDelta;
 
+	// ↓Stockfishでは思考開始時に評価関数から設定しているが、やねうら王では使っていないのでコメントアウト。
+	//Value rootSimpleEval;
+
 #if defined(USE_MOVE_PICKER)
 	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
 	CounterMoveHistory counterMoves;
