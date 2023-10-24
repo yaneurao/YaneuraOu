@@ -260,7 +260,8 @@ void MovePicker::score()
 			// MVV-LVAだが、将棋ではLVAあんまり関係なさげだが(複数の駒である1つの駒が取れるケースがチェスより少ない)、
 			// Stockfish 9に倣いMVV + captureHistoryで処理する。
 
-			// 歩の成りは別途考慮してもいいような気はするのだが…。
+			// TODO : 歩の成りは別途考慮してもいいような気はするのだが…。
+			// 
 			// ここに来るCAPTURESに歩の成りを含めているので、捕獲する駒(pos.piece_on(to_sq(m)))がNO_PIECEで
 			// ある可能性については考慮しておく必要がある。
 
@@ -410,7 +411,12 @@ top:
 	case QCAPTURE_INIT:
 		cur = endBadCaptures = moves;
 
-		endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, cur) : generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
+		// CAPTURE_INITのあとはこのあと残りの指し手を生成する必要があるので、generate_all_legal_movesがtrueなら、CAPTURE_PRO_PLUSで歩の成らずの指し手も生成する。
+		// PROBCUT_INIT、QCAPTURE_INITの時は、このあと残りの指し手を生成しないので歩の成らずを生成しても仕方がない。
+		if (stage == CAPTURE_INIT)
+			endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, cur) : generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
+		else
+			endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
