@@ -218,7 +218,7 @@ namespace {
 	Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
 		int reductionScale = Reductions[d] * Reductions[mn];
 		return (reductionScale + PARAM_REDUCTION_ALPHA/*1560*/ - int(delta) * PARAM_REDUCTION_GAMMA/*945*/ / int(rootDelta)) / 1024
-			+ (!i && reductionScale > PARAM_REDUCTION_BETA/*1010*/);
+			+ (!i && reductionScale > PARAM_REDUCTION_BETA/*791*/);
 	}
 
 	// 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
@@ -365,9 +365,11 @@ void Search::init()
 	// また、スレッド数など、起動時には决定しておらず、"isready"のタイミングでしか決定していないものも
 	// "isready"応答でやるべき。
 
-	// ※
-	// Reductionsテーブルの初期化は、Threads.size()に依存するから、
-	// Search::clear()に移動させた。
+	//for (int i = 1; i < MAX_MOVES; ++i)
+	//	Reductions[i] = int((20.37 + std::log(Threads.size()) / 2) * std::log(i));
+	// →
+	// 　このReductionsテーブルの初期化は、Threads.size()に依存するから、
+	// 　Search::clear()に移動させた。
 
 }
 
@@ -403,7 +405,7 @@ void Search::clear()
 		;
 
 	for (int i = 1; i < MAX_MOVES; ++i)
-	    Reductions[i] = int((20.37 + std::log(THREAD_SIZE) / 2) * std::log(i));
+	    Reductions[i] = int((PARAM_REDUCTIONS_PARAM1 / 100.0 /*20.37*/  + std::log(THREAD_SIZE) / 2) * std::log(i));
 
 	// ここ、log(THREAD_SIZE)/2 の /2 のところ、何か良さげな係数を掛けて調整すべきだと思う。
 
@@ -438,6 +440,7 @@ void Search::clear()
 	// -----------------------
 
 #if defined(YANEURAOU_ENGINE_NNUE)
+	// エンジンオプションのFV_SCALEでEval::NNUE::FV_SCALEを初期化する。
 	init_fv_scale();
 #endif
 
@@ -464,7 +467,9 @@ void MainThread::search()
 
 	Time.init(Limits, us, rootPos.game_ply());
 
-	// 今回、通常探索をしたかのフラグ(やねうら王独自拡張)
+	// --- やねうら王独自拡張
+
+	// 今回、通常探索をしたかのフラグ
 	// このフラグがtrueなら(定跡にhitしたり1手詰めを発見したりしたので)探索をスキップした。
 	bool search_skipped = true;
 
@@ -840,12 +845,12 @@ void Thread::search()
 	// totBestMoveChanges : 直近でbestMoveが変化した回数の統計。読み筋の安定度の目安にする。
 	double timeReduction = 1.0 , totBestMoveChanges = 0;;
 
+	// この局面の手番側
+	Color us = rootPos.side_to_move();
+
 	// 反復深化の時に1回ごとのbest valueを保存するための配列へのindex
 	// 0から3までの値をとる。
 	int iterIdx = 0;
-
-	// この局面の手番側
-	Color us = rootPos.side_to_move();
 
 	// 探索部、学習部のスレッドの共通初期化コード
 	search_thread_init(this,ss,pv);
@@ -899,9 +904,9 @@ void Thread::search()
 	// 2つ目のrootDepth (Threads.main()->rootDepth)は深さで探索量を制限するためのもの。
 	// main threadのrootDepthがLimits.depthを超えた時点で、
 	// slave threadはこのループを抜けて良いのでこういう書き方になっている。
-	while (++rootDepth < MAX_PLY
-		&& !Threads.stop
-		&& !(Limits.depth && mainThread && rootDepth > Limits.depth))
+	while (   ++rootDepth < MAX_PLY
+		   && !Threads.stop
+		   && !(Limits.depth && mainThread && rootDepth > Limits.depth))
 	{
 		// Stockfish9にはslave threadをmain threadより先行させるコードがここにあったが、
 		// Stockfish10で廃止された。
@@ -1201,19 +1206,19 @@ void Thread::search()
 			{
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
 
-				double fallingEval = (69 + 13 * (mainThread->bestPreviousAverageScore - bestValue)
-										+  6 * (mainThread->iterValue[iterIdx] - bestValue)) / 619.6;
+				double fallingEval = (66 + 14 * (mainThread->bestPreviousAverageScore - bestValue)
+										+  6 * (mainThread->iterValue[iterIdx] - bestValue)) / 583.0;
 				fallingEval = std::clamp(fallingEval, 0.5, 1.5);
 
 				// If the bestMove is stable over several iterations, reduce time accordingly
 				// もしbestMoveが何度かのiterationにおいて安定しているならば、思考時間もそれに応じて減らす
 
-				timeReduction = lastBestMoveDepth + 8 < completedDepth ? 1.57 : 0.65;
-				double reduction = (1.4 + mainThread->previousTimeReduction) / (2.08 * timeReduction);
+				timeReduction = lastBestMoveDepth + 8 < completedDepth ? 1.56 : 0.69;
+				double reduction = (1.4 + mainThread->previousTimeReduction) / (2.03 * timeReduction);
 
 				// rootでのbestmoveの不安定性。
 				// bestmoveが不安定であるなら思考時間を増やしたほうが良い。
-				double bestMoveInstability = 1 + 1.8 * totBestMoveChanges / Threads.size();
+				double bestMoveInstability = 1 + 1.79 * totBestMoveChanges / Threads.size();
 
 				double totalTime = Time.optimum() * fallingEval * reduction * bestMoveInstability;
 
@@ -1590,6 +1595,7 @@ namespace {
 		ASSERT_LV3(pos.legal_promote(ttMove));
 
 		// pos.to_move()でlegalityのcheckに引っかかったパターンなので置換表にhitしなかったことにする。
+		// →　TTのhash衝突で先手なのに後手の指し手を取ってきたパターンとかもある。
 		if (tte->move().to_u16() && !ttMove)
 			ss->ttHit = false;
 
@@ -1599,6 +1605,8 @@ namespace {
 
 		// ここ、capture_or_promotion()とかcapture_or_pawn_promotion()とか色々変えてみたが、
 		// 現在では、capture()にするのが良いようだ。[2022/04/13]
+		// →　捕獲する指し手で一番小さい価値上昇は歩の捕獲(+ 2*PAWN_VALUE)なのでこれぐらいの差になるもの
+		//     歩の成り、香の成り、桂の成り　ぐらいは調べても良さそうな…。
 
 	    // ttCapture = ttMove && pos.capture_stage(ttMove);
 
@@ -1954,6 +1962,8 @@ namespace {
 		// できるかどうかをチェックし、もしできなければ fail low を返す。
 
 		// TODO : ここのパラメーター調整するか考える。
+		// → ~1 Eloだとなー。
+
 		if (eval < alpha - 492 - (257 - 200 * ((ss+1)->cutoffCnt > 3)) * depth * depth)
 		{
 			value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
@@ -2008,7 +2018,7 @@ namespace {
 		//  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
 		if (!PvNode
 			&& (ss - 1)->currentMove != MOVE_NULL
-			&& (ss - 1)->statScore < PARAM_NULL_MOVE_MARGIN0/*14695*/
+			&& (ss - 1)->statScore < 17257
 			&&  eval >= beta
 			&&  eval >= ss->staticEval
 			&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*24*/ * depth + PARAM_NULL_MOVE_MARGIN4 /*281*/
@@ -2144,6 +2154,8 @@ namespace {
 					// → Stockfishでは、capture or Queenへのpromote
 
 					// 現状、やねうら王のprob cutでは 歩の成りも含まれる。
+					// MovePickerはprob cutの時に、
+					// (GenerateAllLegalMovesオプションがオンであっても)歩の成らずは返してこないことは保証している。
 					ASSERT_LV3(pos.capture_or_pawn_promotion(move));
 
 					ss->currentMove = move;
@@ -2506,7 +2518,7 @@ namespace {
 					// null window searchするときに大きなコストを伴いかねないから。)
 				{
 					// このmargin値は評価関数の性質に合わせて調整されるべき。
-		            Value singularBeta = ttValue - (64 + PARAM_SINGULAR_MARGIN/* 57 */ * (ss->ttPv && !PvNode)) * depth / 64;
+		            Value singularBeta = ttValue - (PARAM_SINGULAR_MARGIN1 /*64*/ + PARAM_SINGULAR_MARGIN2/* 57 */ * (ss->ttPv && !PvNode)) * depth / 64;
 					Depth singularDepth = (depth - 1) / 2;
 
 					// move(ttMove)の指し手を以下のsearch()での探索から除外
@@ -2599,6 +2611,7 @@ namespace {
 					&& depth > 9
 					// この条件、やねうら王で独自追加。
 					// →　王手延長は、開き王手と駒損しない王手に限定する。
+					//  将棋だと王手でどんどん延長させる局面があり、探索が終わらなくなる。
 					&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move))
 					)
 					extension = 1;
@@ -2611,7 +2624,7 @@ namespace {
 				else if (PvNode
 					&& move == ttMove
 					&& move == ss->killers[0]
-					&& (*contHist[0])[to_sq(move)][movedPiece] >= PARAM_QUIET_TT_EXTENSION /*4194*/)
+					&& (*contHist[0])[to_sq(move)][movedPiece] >= 4194)
 						// ↑contHistに関して
 						// Stockfishは、 [pc][sq]の順
 						// やねうら王は、[sq][pc]の順
@@ -2794,10 +2807,9 @@ namespace {
 					// Adjust full-depth search based on LMR results - if the result
 					// was good enough search deeper, if it was bad enough search shallower
 
-					// TODO : あとでこのへんのパラメーターも調整する。
-
-					const bool doDeeperSearch = value > (bestValue + 51 + 10 * (newDepth - d));
-					const bool doEvenDeeperSearch = value > alpha + 700 && ss->doubleExtensions <= 6;
+					const bool doDeeperSearch = value >
+						(bestValue + PARAM_LMR_MARGIN1 /*51*/ + PARAM_LMR_MARGIN2 /*10*/ * (newDepth - d));
+					const bool doEvenDeeperSearch = value > alpha + PARAM_LMR_MARGIN3/*700*/ && ss->doubleExtensions <= 6;
 					const bool doShallowerSearch = value < bestValue + newDepth;
 
 					ss->doubleExtensions = ss->doubleExtensions + doEvenDeeperSearch;

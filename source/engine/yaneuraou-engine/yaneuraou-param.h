@@ -49,7 +49,7 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 138;
 // 1つ前のバージョンの値 = 118。
 // 元の値 = 200 , step = 20
 // [PARAM] min:50,max:200,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 118;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 200;
 
 // futility pruningの適用depth。
 // この制限自体が要らない可能性がある。→　そうでもなかった。
@@ -66,12 +66,12 @@ PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 9;
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 13;
 
 // 親nodeでのfutility margin
-// 元の値 = 115 , step = 30
-// [PARAM] min:100,max:400,step:20,interval:1,time_rate:1,fixed
+// 元の値 = 115 , step = 10
+// [PARAM] min:100,max:400,step:10,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 115;
 
-// 元の値 = 122 , step = 2
-// [PARAM] min:100,max:400,step:2,interval:1,time_rate:1,fixed
+// 元の値 = 122 , step = 5
+// [PARAM] min:100,max:400,step:5,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 122;
 
 
@@ -84,10 +84,14 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 27;
 // [PARAM] min:0,max:300,step:20,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 185;
 
+// Reductionsテーブルの初期化用
+// 元の値 = 2037 ,step = 8
+// [PARAM] min:1500,max:2500,step:8,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2037;
 
 // Reductionの計算式に出てくる定数
 // 元の値 = 1560 ,step = 32
-// [PARAM] min:0,max:1024,step:16,interval:1,time_rate:1,fixed
+// [PARAM] min:0,max:1024,step:128,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1560;
 
 // Reductionの計算式に出てくる定数
@@ -110,20 +114,16 @@ PARAM_DEFINE PARAM_REDUCTION_GAMMA = 945;
 PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 152;
 
 
-// 一つ前のStockfishではこの値は14695。
-// 元の値 = 17257 , step = 4000
-// [PARAM] min:0,max:50000,step:500,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN0 = 14695;
 
 // 元の値 = 24 , step = 2
 // Stockfishの前バージョンではこの値は15。
 // [PARAM] min:10,max:60,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 15;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 24;
 
 // 元の値 = 281 , step = 50
 // Stockfishの前バージョンではこの値は198。
 // [PARAM] min:0,max:400,step:30,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 198;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 281;
 
 
 
@@ -159,21 +159,33 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 416;
 // singular extension
 //
 
-// singular extensionのmarginを計算するときの係数
+// singular extensionのsingular betaを計算するときのマージン
+// 元の値 = 64 , step = 8
+// [PARAM] min:0,max:1024,step:8,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_SINGULAR_MARGIN1 = 64;
+
+// singular extensionのsingular betaを計算するときの係数
 // 自己対局だとすごく強くなって見えるかもしれないが、まやかしである。
 // 元の値 = 57 , step = 8
-// [PARAM] min:0,max:1024,step:8,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_SINGULAR_MARGIN = 57;
+// [PARAM] min:0,max:1024,step:8,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 57;
 
 //
-// extension
+// LMR
 //
 
-// QUIETなTTの指し手に関して、historyがこの値以上なら延長する
-// 以前のStockfishだとこの値は5491。
-// 元の値 = 4194 , step = 64
-// [PARAM] min:1024,max:8192,step:128,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_QUIET_TT_EXTENSION = 5491;
+// LMRのパラメーター
+// 元の値 = 51 , step = 4
+// [PARAM] min:0,max:128,step:4,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_LMR_MARGIN1 = 51;
+
+// 元の値 = 10 , step = 1
+// [PARAM] min:0,max:128,step:1,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_LMR_MARGIN2 = 10;
+
+// 元の値 = 700 , step = 1
+// [PARAM] min:0,max:1024,step:100,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_LMR_MARGIN3 = 700;
 
 
 //
