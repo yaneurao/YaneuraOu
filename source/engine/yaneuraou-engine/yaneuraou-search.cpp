@@ -4218,6 +4218,9 @@ void init_param()
 
 #if defined (EVAL_LEARN)
 
+#include "../../testcmd/unit_test.h"
+#include "../../position.h"
+
 namespace Learner
 {
 	// 学習用に、1つのスレッドからsearch,qsearch()を呼び出せるようなスタブを用意する。
@@ -4303,7 +4306,7 @@ namespace Learner
 	}
 
 	// 読み筋と評価値のペア。Learner::search(),Learner::qsearch()が返す。
-	typedef std::pair<Value, std::vector<Move> > ValueAndPV;
+	using ValueAndPV = std::pair<Value, std::vector<Move>>;
 
 	// 静止探索。
 	//
@@ -4495,6 +4498,59 @@ namespace Learner
 
 		return ValueAndPV(bestValue, pvs);
 	}
+
+	// UnitTest : プレイヤー同士の対局
+	void UnitTest(Test::UnitTester& tester)
+	{
+		// 対局回数→0ならskip
+		s64 auto_player_loop = tester.options["auto_player_loop"];
+		if (auto_player_loop)
+		{
+			Position pos;
+			StateInfo si;
+
+			// 平手初期化
+			auto hirate_init  = [&] { pos.set_hirate(&si, Threads.main()); };
+			// 探索深さ
+			auto depth = int(tester.options["auto_player_depth"]);
+
+			auto section2 = tester.section("GamesOfAutoPlayer");
+
+			// seed固定乱数(再現性ある乱数)
+			PRNG my_rand;
+			StateInfo s[512];
+
+			for (s64 i = 0; i < auto_player_loop; ++i)
+			{
+				// 平手初期化
+				hirate_init();
+				bool fail = false;
+
+				// 512手目まで
+				for (int ply = 0; ply < 512; ++ply)
+				{
+					MoveList<LEGAL_ALL> ml(pos);
+
+					// 指し手がない == 負け == 終了
+					if (ml.size() == 0)
+						break;
+
+					// depth 6で探索
+					auto r = search(pos, depth);
+					//Move m = ml.at(size_t(my_rand.rand(ml.size()))).move;
+
+					pos.do_move(r.second[0],s[ply]);
+
+					if (!pos.pos_is_ok())
+						fail = true;
+				}
+
+				// 今回のゲームのなかでおかしいものがなかったか
+				tester.test(std::string("game ")+std::to_string(i+1),!fail);
+			}
+		}
+	}
+
 
 }
 #endif
