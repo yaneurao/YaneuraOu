@@ -1,7 +1,9 @@
 # -*- coding: utf8 -*-
 '''
-やねうら王 2017 Earlyのランダムパラメーター機能で探索パラメーターを変化させて
+やねうら王 2016 Lateのランダムパラメーター機能で探索パラメーターを変化させて
 対局させたときのログを集計して一番勝率の高いものを選ぶための分析スクリプト。
+
+2023.10.25 : Python 3系に対応させた。
 '''
 import os
 import sys
@@ -17,9 +19,9 @@ res["draw"] = 0
 
 def analyze_log(file_path):
 
-#	print "file_path = " + file_path
+	#	print "file_path = " + file_path
 
-	with open(file_path, 'rb') as fi:
+	with open(file_path, 'r', encoding='utf-8') as fi:
 
 		last_line = ""
 		for line in fi.readlines():
@@ -48,6 +50,7 @@ def analyze_log(file_path):
 					params[q[0]][q[1]][result] += 1
 
 			last_line = line
+		print(file_path + " total : " + rating(res["win"],res["lose"],res["draw"]))
 
 def rating(win,lose,draw):
 	total = win + lose
@@ -63,16 +66,14 @@ def rating(win,lose,draw):
 
 	return str(win) + " - " + str(draw) + " - " + str(lose) + "(" + str(round(win_rate*100,2)) + "%" + rating + ")"
 
-
-if __name__ == '__main__':
-
-#	print os.path.join(sys.argv[1], '*', 'log')
+def main():
+	#	print os.path.join(sys.argv[1], '*', 'log')
 	for file_path in sorted(glob.glob(os.path.join(sys.argv[1], '*.log'))):
 		fig = analyze_log(file_path)
 		sys.stdout.write(".")
-	print
+	print()
 
-	print ("total : " + rating(res["win"],res["lose"],res["draw"]))
+	print("total : " + rating(res["win"],res["lose"],res["draw"]))
 
 	t_win = t_lose = t_draw = 0
 	first = True
@@ -88,9 +89,9 @@ if __name__ == '__main__':
 				if "draw" in result:
 					t_draw += result["draw"]
 			total = t_win+t_lose+t_draw
-			print "  total : " + rating(t_win,t_lose,t_draw)
+			print("  total : " + rating(t_win,t_lose,t_draw))
 
-		print key + ":"
+		print(key + ":")
 
 		for key2,result in sorted(param.items(),key = lambda x:int(x[0])):
 			win = lose = draw = 0
@@ -100,5 +101,9 @@ if __name__ == '__main__':
 				lose = result["lose"]
 			if "draw" in result:
 				draw = result["draw"]
-			print "  " + key2 + " : " + rating(win,lose,draw)
+			print("  " + key2 + " : " + rating(win,lose,draw))
+
+
+if __name__ == '__main__':
+	main()
 
