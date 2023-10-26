@@ -261,7 +261,7 @@ struct ThreadPool
 	void set(size_t requested);
 
 	// mainスレッドを取得する。これはthis[0]がそう。
-	MainThread* main() { return static_cast<MainThread*>(threads.front()); }
+	MainThread* main() const { return static_cast<MainThread*>(threads.front()); }
 
 	// 今回、goコマンド以降に探索したノード数
 	// →　これはPosition::do_move()を呼び出した回数。
@@ -289,15 +289,14 @@ struct ThreadPool
 	auto cend() const noexcept { return threads.cend(); }
 	auto size() const noexcept { return threads.size(); }
 	auto empty() const noexcept { return threads.empty(); }
+	// thread_pool[n]のようにでアクセスしたいので…。
+	auto operator[](size_t i) const noexcept { return threads[i];}
 
 	// === やねうら王独自拡張 ===
 
 	// main thread以外の探索スレッドがすべて終了しているか。
 	// すべて終了していればtrueが返る。
 	bool search_finished() const;
-
-	// thread_pool[n]のようにでアクセスしたいので…。
-	Thread* operator[](size_t n) { return threads[n];}
 
 private:
 

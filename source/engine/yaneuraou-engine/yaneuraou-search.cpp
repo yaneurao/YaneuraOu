@@ -382,6 +382,19 @@ void Search::clear()
 	Threads.main()->wait_for_search_finished();
 
 	// -----------------------
+	//   探索パラメーターの初期化
+	// -----------------------
+
+	// 探索パラメーターを動的に調整する場合は、
+	// このタイミングでファイルから探索パラメーターを読み込む。
+	// エンジンを終了させずに連続対局を行うときに"isready"コマンドに対して
+	// 探索パラメーターをファイルから読み直して欲しいのでここで行う。
+
+	init_param();
+
+	// テーブルの初期化は、↑で探索パラメーターを読み込んだあとに行われなければならない。
+
+	// -----------------------
 	//   テーブルの初期化
 	// -----------------------
 
@@ -405,20 +418,9 @@ void Search::clear()
 		;
 
 	for (int i = 1; i < MAX_MOVES; ++i)
-	    Reductions[i] = int((PARAM_REDUCTIONS_PARAM1 / 100.0 /*20.37*/  + std::log(THREAD_SIZE) / 2) * std::log(i));
+	    Reductions[i] = int((PARAM_REDUCTIONS_PARAM1 / 100.0 /*(100で割ったあとの数値が)20.37*/  + std::log(THREAD_SIZE) / 2) * std::log(i));
 
 	// ここ、log(THREAD_SIZE)/2 の /2 のところ、何か良さげな係数を掛けて調整すべきだと思う。
-
-	// -----------------------
-	//   探索パラメーターの初期化
-	// -----------------------
-
-	// 探索パラメーターを動的に調整する場合は、
-	// このタイミングでファイルから探索パラメーターを読み込む。
-	// エンジンを終了させずに連続対局を行うときに"isready"コマンドに対して
-	// 探索パラメーターをファイルから読み直して欲しいのでここで行う。
-
-	init_param();
 
 	// -----------------------
 	//   定跡の読み込み
@@ -1250,9 +1252,7 @@ void Thread::search()
 				}
 				// 前回からdepthが増えたかのチェック。
 				// depthが増えて行っていないなら、同じ深さで再度探索する。
-				else if (Threads.increaseDepth
-					&& !mainThread->ponder
-					&&  Time.elapsed() > totalTime * 0.58)
+				else if (!mainThread->ponder && Time.elapsed() > totalTime * 0.50)
 					Threads.increaseDepth = false;
 				else
 					Threads.increaseDepth = true;
@@ -1509,7 +1509,7 @@ namespace {
 
 		// 前の指し手で移動させた先の升目
 		// → null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
-		// → StockfishでMOVE_NULLの時は、prevSq == SQ_NONEとして扱うように変更になった。[2023/10/15]
+		// → Stockfish 16でMOVE_NULLの時は、prevSq == SQ_NONEとして扱うように変更になった。[2023/10/15]
 	    Square prevSq           = is_ok((ss-1)->currentMove) ? to_sq((ss-1)->currentMove) : SQ_NONE;
 
 	    ss->statScore        = 0;
@@ -1672,7 +1672,7 @@ namespace {
 
 					// 1手前がMOVE_NULLであることを考慮する必要がある。
 
-	                if (prevSq != SQ_NONE && (ss-1)->moveCount <= 2 && !priorCapture)
+	                if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 2 && !priorCapture)
 						update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
 
 				}
@@ -1767,7 +1767,7 @@ namespace {
 		// singular extensionはttMoveが存在することがその条件に含まれるから、ss->ttHit == trueに
 		// なっているはずなので、以下の条件にある!ss->ttHitが、!excludedMoveの代わりとなっている。
 
-		if (PARAM_SEARCH_MATE1)
+		if (PARAM_SEARCH_MATE1 /* && !excludedMove*/)
 		{
 			// RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
 			// 置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
@@ -2025,7 +2025,7 @@ namespace {
 			&& !excludedMove
 		//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 			&&  ss->ply >= thisThread->nmpMinPly
-        //  &&  beta > VALUE_TB_LOSS_IN_MAX_PLY
+            &&  beta > VALUE_TB_LOSS_IN_MAX_PLY
 			)
 		{
 			ASSERT_LV3(eval - beta >= 0);
@@ -3096,8 +3096,8 @@ namespace {
 	    else if (!priorCapture && prevSq != SQ_NONE)
 		{
 			int bonus = (depth > 6) + (PvNode || cutNode) + (bestValue < alpha - PARAM_COUNTERMOVE_FAILLOW_MARGIN /*653*/) + ((ss-1)->moveCount > 11);
-			update_continuation_histories(ss-1, pos.piece_on(prevSq), prevSq, stat_bonus(depth) * bonus);
-			thisThread->mainHistory[from_to((ss-1)->currentMove)][~us] << stat_bonus(depth) * bonus / 2;
+			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, stat_bonus(depth) * bonus);
+			thisThread->mainHistory[from_to((ss - 1)->currentMove)][~us] << stat_bonus(depth) * bonus / 2;
 											// ↑mainHistoryに関して
 											// Stockfishは [c][from_to]の順
 											// やねうら王は[from_to][c]の順
@@ -3335,7 +3335,8 @@ namespace {
 			// alphaとは区別しなければならない。
 			bestValue = futilityBase = -VALUE_INFINITE;
 
-		else {
+		else
+		{
 
 			// -----------------------
 			//      一手詰め判定
@@ -3405,7 +3406,7 @@ namespace {
 				{
 					// Stockfish相当のコード
 					ss->staticEval = bestValue = (ss-1)->currentMove != MOVE_NULL ? evaluate(pos)
-																				  : -(ss-1)->staticEval;
+																				  : -(ss - 1)->staticEval;
 
 
 					// 1手前の局面(相手の手番)において 評価値が 500だとしたら、
@@ -3872,7 +3873,7 @@ namespace {
 	}
 
 	// update_continuation_histories() updates histories of the move pairs formed
-	// by moves at ply -1, -2, -4, and -6 with current move.
+	// by moves at ply -1, -2, -3, -4, and -6 with current move.
 
 	// update_continuation_histories() は、形成された手のペアの履歴を更新します。
 	// 1,2,4,6手前の指し手と現在の指し手との指し手ペアによってcontinuationHistoryを更新する。

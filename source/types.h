@@ -739,6 +739,8 @@ static Move16 reverse_move(Move m) { return make_move16(to_sq(m), from_sq(m)); }
 
 // 指し手を反転させる(盤面を180°回転させた指し手にする)
 // 駒打ちもちゃんと考慮する。mがMOVE_NONEでも良い。(MOVE_NONEが返る)
+// ※　この関数はやねうら王独自拡張。
+//   定跡のprobeで180°反転させた盤面にもhitして欲しいのでそのヘルパー関数として追加した。
 static Move16 flip_move(Move16 m) {
 
 	return 
@@ -1016,7 +1018,7 @@ private:
 
 // 局面のハッシュキー
 // 盤面(盤上の駒 + 手駒)に対して、Zobrist Hashでそれに対応する値を計算する。
-typedef uint64_t Key;
+using Key = uint64_t;
 
 #if 0
 // 合同法による擬似乱数生成器

@@ -1,8 +1,8 @@
 ﻿#ifndef _SEARCH_H_INCLUDED_
 #define _SEARCH_H_INCLUDED_
 
-#include <cstdint>
-#include <vector>
+//#include <cstdint>
+//#include <vector>
 
 #include "config.h"
 #include "misc.h"
