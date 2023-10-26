@@ -2808,7 +2808,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 
 			// seed固定乱数(再現性ある乱数)
 			PRNG my_rand;
-			StateInfo si[512];
+			StateInfo s[512];
 
 			for (s64 i = 0; i < random_player_loop; ++i)
 			{
@@ -2827,7 +2827,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 
 					Move m = ml.at(size_t(my_rand.rand(ml.size()))).move;
 
-					pos.do_move(m,si[ply]);
+					pos.do_move(m,s[ply]);
 
 					if (!pos.pos_is_ok())
 						fail = true;
