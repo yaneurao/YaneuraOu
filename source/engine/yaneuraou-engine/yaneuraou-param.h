@@ -33,26 +33,26 @@
 
 // 重要度　★★★★☆
 // 元の値 = 126 , step = 20
-// [PARAM] min:100,max:300,step:10,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 136;
+// [PARAM] min:100,max:300,step:5,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 131;
 
 // 重要度　★★★☆☆
 // 元の値 = 42 , step = 10
-// [PARAM] min:10,max:200,step:5,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 42;
+// [PARAM] min:10,max:200,step:2,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 44;
 
 // 重要度　★★★★☆
 // 元の値 = 138 , step = 20
-// [PARAM] min:100,max:240,step:5,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 138;
+// [PARAM] min:100,max:240,step:2,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 136;
 
 
 // 静止探索でのfutility pruning
 // 重要度　★★★★☆
 // 1つ前のバージョンの値 = 118。
 // 元の値 = 200 , step = 20
-// [PARAM] min:50,max:300,step:5,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 175;
+// [PARAM] min:50,max:300,step:5,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 180;
 
 // futility pruningの適用depth。
 // 重要度　★★★☆☆
@@ -73,52 +73,51 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 13;
 // 親nodeでのfutility margin
 // 重要度　★★★★☆
 // 元の値 = 115 , step = 10
-// [PARAM] min:100,max:400,step:10,interval:1,time_rate:1,
+// [PARAM] min:100,max:400,step:5,interval:1,time_rate:1,
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 115;
 
 // 重要度　★★★☆☆
 // 元の値 = 122 , step = 5
-// [PARAM] min:100,max:400,step:5,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 117;
+// [PARAM] min:100,max:400,step:3,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 119;
 
 // 重要度　★★★★☆
 // 元の値 = 27 , step = 2
-// [PARAM] min:15,max:50,step:2,interval:1,time_rate:1,
+// [PARAM] min:15,max:50,step:2,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 27;
 
 
 // lmrのときのseeの値。
-// 重要度　★★★★☆
+// 重要度　★★★☆☆
 // 元の値 = 185 ,step = 40
-// [PARAM] min:0,max:300,step:10,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 175;
+// [PARAM] min:0,max:300,step:10,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 185;
 
 
 // Reductionsテーブルの初期化用
 // 重要度　★★★★★
 // 前のバージョンの値 = 2057
 // 元の値 = 2037 ,step = 8
-// [PARAM] min:1500,max:2500,step:4,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2039;
+// [PARAM] min:1500,max:2500,step:4,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2031;
 
 // Reductionの計算式に出てくる定数
-// 重要度　★★★☆☆
+// 重要度　★★★★☆
 // 元の値 = 1560 ,step = 128
 // [PARAM] min:0,max:2048,step:128,interval:1,time_rate:1,
 PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1560;
 
 // Reductionの計算式に出てくる定数
-// 重要度　★★★☆☆
-// このパラメーター怖くて調整できない。
+// 重要度　★★★★☆
 // 元の値 = 791 , step = 128
-// [PARAM] min:300,max:1500,step:64,interval:2,time_rate:1,
+// [PARAM] min:300,max:1500,step:32,interval:1,time_rate:1,
 PARAM_DEFINE PARAM_REDUCTION_BETA = 791;
 
 // Reductionの計算式に出てくる定数
-// 重要度　★★★☆☆
+// 重要度　★★★★☆
 // 元の値 = 945 , step = 128
-// [PARAM] min:300,max:1500,step:64,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_REDUCTION_GAMMA = 689;
+// [PARAM] min:300,max:1500,step:32,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_REDUCTION_GAMMA = 625;
 
 //
 // null move dynamic pruning
@@ -126,8 +125,8 @@ PARAM_DEFINE PARAM_REDUCTION_GAMMA = 689;
 
 // 重要度　★★★☆☆
 // 元の値 = 152 , step = 10
-// [PARAM] min:50,max:400,step:10,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 152;
+// [PARAM] min:50,max:400,step:5,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 157;
 
 
 
@@ -140,8 +139,8 @@ PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 24;
 // 元の値 = 281 , step = 50
 // 重要度　★★★☆☆
 // Stockfishの前バージョンではこの値は198。
-// [PARAM] min:0,max:400,step:15,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 266;
+// [PARAM] min:0,max:400,step:10,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 281;
 
 
 
@@ -152,7 +151,7 @@ PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 266;
 // このdepthがどんどん高い値に発散してしまうので注意。
 // この値は、低くなるのが正しいチューニングだと思う。
 // [PARAM] min:4,max:16,step:1,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 13;
+PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 12;
 
 
 //
@@ -176,7 +175,7 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 70;
 // 重要度　★★★☆☆
 // 元の値 = 416 , step = 10
 // [PARAM] min:20,max:500,step:10,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 416;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 406;
 
 //
 // singular extension
@@ -185,15 +184,15 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 416;
 // singular extensionのsingular betaを計算するときのマージン
 // 重要度　★★★★☆
 // 元の値 = 64 , step = 8
-// [PARAM] min:0,max:1024,step:8,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_SINGULAR_MARGIN1 = 72;
+// [PARAM] min:0,max:1024,step:4,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_SINGULAR_MARGIN1 = 64;
 
 // singular extensionのsingular betaを計算するときの係数
 // 重要度　★★★★☆
 // 自己対局だとすごく強くなって見えるかもしれないが、まやかしである。
 // 元の値 = 57 , step = 8
-// [PARAM] min:0,max:1024,step:8,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 65;
+// [PARAM] min:0,max:1024,step:4,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 57;
 
 //
 // LMR
@@ -202,8 +201,8 @@ PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 65;
 // LMRのパラメーター
 // 重要度　★★★★☆
 // 元の値 = 51 , step = 4
-// [PARAM] min:0,max:128,step:4,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_LMR_MARGIN1 = 55;
+// [PARAM] min:0,max:128,step:2,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_LMR_MARGIN1 = 53;
 
 // 重要度　★★☆☆☆
 // →　重要なパラメーターではあるが、下手にいじらないほうがよさげ。
@@ -214,7 +213,7 @@ PARAM_DEFINE PARAM_LMR_MARGIN2 = 10;
 // 重要度　★★★☆☆
 // 元の値 = 700 , step = 1
 // [PARAM] min:0,max:1024,step:100,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_LMR_MARGIN3 = 600;
+PARAM_DEFINE PARAM_LMR_MARGIN3 = 700;
 
 
 //
@@ -224,14 +223,14 @@ PARAM_DEFINE PARAM_LMR_MARGIN3 = 600;
 // historyによる枝刈りをする深さ。適用depth。
 // 重要度　★★★☆☆
 // 元の値 = 6 , step = 1
-// [PARAM] min:2,max:16,step:1,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 5;
+// [PARAM] min:2,max:16,step:1,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 6;
 
 
 // update_all_stats()で、静止探索時のquietMoveとみなすbestvalueとbetaの差(PAWN_VALUEより少し小さな値)
 // 重要度　★★★☆☆
 // 元の値 = 90 , step = 30
-// [PARAM] min:10,max:200,step:15,interval:1,time_rate:1,
+// [PARAM] min:10,max:200,step:10,interval:1,time_rate:1,
 PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 90;
 
 //
@@ -271,7 +270,7 @@ PARAM_DEFINE PARAM_WEAK_MATE_PLY = 1;
 // fail lowを引き起こしたcounter moveにbonus与える時のevalのmargin値。
 // 重要度　★★★☆☆
 // 元の値 = 653 , step = 50
-// [PARAM] min:10,max:1000,step:50,interval:1,time_rate:1,
+// [PARAM] min:10,max:1000,step:25,interval:1,time_rate:1,
 PARAM_DEFINE PARAM_COUNTERMOVE_FAILLOW_MARGIN = 653;
 
 
@@ -280,7 +279,7 @@ PARAM_DEFINE PARAM_COUNTERMOVE_FAILLOW_MARGIN = 653;
 // →　調整が難しいパラメーター。下手にいじらないほうがよさげ。
 // 古い評価関数では20ぐらいがベストだったが、NNUEでは17がベストのようだ。評価関数の精度向上とともに徐々に小さくなってきている。
 // 元の値 = 10 , step = 1
-// [PARAM] min:5,max:30,step:1,interval:1,time_rate:1,
+// [PARAM] min:5,max:30,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 9;
 
 
