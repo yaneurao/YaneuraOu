@@ -668,9 +668,27 @@ private:
 static std::ostream& operator<<(std::ostream& os, Move m)   { os << to_usi_string(m); return os; }
 static std::ostream& operator<<(std::ostream& os, Move16 m) { os << to_usi_string(m); return os; }
 
+// 指し手がおかしくないかをテストする
+// ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。
+// これら２つの定数は、移動元と移動先が等しい値になっている。このテストだけをする。
+// MOVE_WIN(宣言勝ちの指し手は)は、falseが返る。
+constexpr bool is_ok(Move m) {
+  // return move_from(m)!=move_to(m);
+  // とやりたいところだが、駒打ちでfromのbitを使ってしまっているのでそれだとまずい。
+  // 駒打ちのbitも考慮に入れるために次のように書く。
+  return (m >> 7) != (m & 0x7f);
+}
+static bool is_ok(Move16 m) { return m.is_ok(); }
+
 // 指し手の移動元の升を返す。
-constexpr Square from_sq(Move   m) { return Square((m          >> 7) & 0x7f); }
-static    Square from_sq(Move16 m) { return Square((m.to_u16() >> 7) & 0x7f); }
+constexpr Square from_sq(Move   m) {
+	ASSERT_LV3(is_ok(m));
+	return Square((m          >> 7) & 0x7f);
+}
+static    Square from_sq(Move16 m) {
+	ASSERT_LV3(is_ok(m));
+	return Square((m.to_u16() >> 7) & 0x7f);
+}
 
 // 指し手の移動先の升を返す。
 constexpr Square to_sq(Move   m) { return Square(m          & 0x7f); }
@@ -727,20 +745,6 @@ static Move16 flip_move(Move16 m) {
         is_promote(m)  ? make_move_promote16(Flip(from_sq(m))     , Flip(to_sq(m))):
 					     make_move16        (Flip(from_sq(m))     , Flip(to_sq(m)));
 }
-
-
-// 指し手がおかしくないかをテストする
-// ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。
-// これら２つの定数は、移動元と移動先が等しい値になっている。このテストだけをする。
-// MOVE_WIN(宣言勝ちの指し手は)は、falseが返る。
-constexpr bool is_ok(Move m) {
-  // return move_from(m)!=move_to(m);
-  // とやりたいところだが、駒打ちでfromのbitを使ってしまっているのでそれだとまずい。
-  // 駒打ちのbitも考慮に入れるために次のように書く。
-  return (m >> 7) != (m & 0x7f);
-}
-
-static bool is_ok(Move16 m) { return m.is_ok(); }
 
 // 見た目に、わかりやすい形式で表示する
 std::string pretty(Move m);
