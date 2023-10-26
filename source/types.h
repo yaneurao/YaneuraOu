@@ -681,6 +681,7 @@ constexpr bool is_ok(Move m) {
 static bool is_ok(Move16 m) { return m.is_ok(); }
 
 // 指し手の移動元の升を返す。
+// → ここ、ASSERT使っててconstexpr式として評価できないかも？
 constexpr Square from_sq(Move   m) {
 	ASSERT_LV3(is_ok(m));
 	return Square((m          >> 7) & 0x7f);

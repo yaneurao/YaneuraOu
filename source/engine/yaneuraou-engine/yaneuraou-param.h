@@ -72,9 +72,9 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 13;
 
 // 親nodeでのfutility margin
 // 重要度　★★★★☆
-// 元の値 = 115 , step = 10
-// [PARAM] min:100,max:400,step:5,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 115;
+// 元の値 = 80 , step = 10
+// [PARAM] min:100,max:400,step:10,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 80;
 
 // 重要度　★★★☆☆
 // 元の値 = 122 , step = 5

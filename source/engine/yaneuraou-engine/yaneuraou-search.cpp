@@ -2384,8 +2384,7 @@ namespace {
 				// 次のLMR探索における軽減された深さ
 				int lmrDepth = newDepth - r;
 
-				if (   capture
-					|| givesCheck)
+				if (   capture || givesCheck)
 				{
 
 #if 0
@@ -2400,13 +2399,18 @@ namespace {
 #endif
 
 					// Futility pruning for captures (~2 Elo)
-					if (   !givesCheck
-						&& lmrDepth < 7
-						&& !ss->inCheck
-						&& ss->staticEval + 188 + 206 * lmrDepth + CapturePieceValuePlusPromote(pos, move)
-						 + captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] / 7 < alpha)
-						// やねうら王、captureHistory[to][pc]で、Stockfishと逆順なので注意。
-						continue;
+					if (!givesCheck && lmrDepth < 7 && !ss->inCheck)
+					{
+						Piece capturedPiece = pos.piece_on(to_sq(move));
+						// TODO : ここのパラメーター、調整すべきか？ 2 Eloだから無視していいか…。
+						int   futilityEval =
+							ss->staticEval + 239 + 291 * lmrDepth + CapturePieceValuePlusPromote(pos, move)
+							+ captureHistory[to_sq(move)][movedPiece][type_of(capturedPiece)] / 7;
+						// やねうら王、captureHistory[to][pc][captured]で、Stockfishの[pc][to][captured]とは前2つが逆順なので注意。
+
+						if (futilityEval < alpha)
+							continue;
+					}
 
 					// SEE based pruning for captures and checks (~11 Elo)
 					if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1 /*185*/) * depth))
@@ -2414,9 +2418,6 @@ namespace {
 				}
 				else
 				{
-					// // Continuation history based pruning (~20 Elo)
-					// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip) : ~20 Elo
-
 					int history = (*contHist[0])[to_sq(move)][movedPiece]
 								+ (*contHist[1])[to_sq(move)][movedPiece]
 								+ (*contHist[3])[to_sq(move)][movedPiece];
@@ -2425,8 +2426,10 @@ namespace {
 								// やねうら王は、[sq][pc]の順
 								// なので注意。
 
-					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*6*/
-						&& history < -3875 * (depth - 1))
+					// Continuation history based pruning (~2 Elo)
+					// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip)
+
+					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*6*/ && history < -3498 * depth)
 						continue;
 
 					history += 2 * thisThread->mainHistory[from_to(move)][ us];
@@ -2435,7 +2438,7 @@ namespace {
 												// やねうら王は[from_to][c]の順
 												// なので注意。
 
-					lmrDepth += history / 5793;
+					lmrDepth += history / 7815;
 					lmrDepth = std::max(lmrDepth, -2);
 
 					// Futility pruning: parent node (~13 Elo)
@@ -2446,7 +2449,7 @@ namespace {
 
 					if (   !ss->inCheck
 						&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*13*/
-						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*115*/ + PARAM_FUTILITY_AT_PARENT_NODE_ALPHA /*122*/ * lmrDepth <= alpha)
+						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*80*/ + PARAM_FUTILITY_AT_PARENT_NODE_ALPHA /*122*/ * lmrDepth <= alpha)
 						continue;
 
 					// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
