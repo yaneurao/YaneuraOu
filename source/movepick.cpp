@@ -265,8 +265,8 @@ void MovePicker::score()
 			// ここに来るCAPTURESに歩の成りを含めているので、捕獲する駒(pos.piece_on(to_sq(m)))がNO_PIECEで
 			// ある可能性については考慮しておく必要がある。
 
-			m.value = 7 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
-					 +    (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))] / 16;
+			m.value = (7 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
+					 +    (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))]) / 16;
 		}
 		else if constexpr (Type == QUIETS)
 		{
@@ -526,7 +526,8 @@ top:
 
 #else
 
-			// TODO : このへん係数調整したほうが良いのでは…。
+			// TODO: あとで比較する。
+			//partial_insertion_sort(cur, endMoves, -3000 * depth);
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
 			//   sortできるなら全部したほうが良い。
 			partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());

@@ -1993,8 +1993,7 @@ namespace {
 			&&  eval - futility_margin(depth, cutNode && !ss->ttHit, improving) - (ss-1)->statScore / 321 >= beta
 			&&  eval >= beta
 			&&  eval < 29462 // smaller than TB wins
-			&& !(  !ttCapture
-				 && ttMove))
+			&& (!ttMove || ttCapture))
 
 			// 29462の根拠はよくわからないが、VALUE_TB_WIN_IN_MAX_PLY より少し小さい値にしたいようだ。
 			// そこまではfutility pruningで枝刈りして良いと言うことなのだろう。
