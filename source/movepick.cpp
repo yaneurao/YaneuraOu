@@ -300,14 +300,19 @@ void MovePicker::score()
 			//PieceType pt = type_of(pos.moved_piece_before(m));
 			Square    to = to_sq(m);
 
-			m.value =  2 * (*mainHistory)(pos.side_to_move(), from_to(m))
-					+  2 * (*continuationHistory[0])(pc,to)
-					+      (*continuationHistory[1])(pc,to)
-					+      (*continuationHistory[2])(pc,to) / 4
-					+      (*continuationHistory[3])(pc,to)
-					+      (*continuationHistory[5])(pc,to)
+			m.value  =  2 * (*mainHistory)(pos.side_to_move(), from_to(m));
+			m.value +=  2 * (*continuationHistory[0])(pc,to);
+			m.value +=      (*continuationHistory[1])(pc,to);
+			m.value +=      (*continuationHistory[2])(pc,to) / 4;
+			m.value +=      (*continuationHistory[3])(pc,to);
+			m.value +=      (*continuationHistory[5])(pc,to);
 
-				//	移動元の駒が安い駒で当たりになっている場合、移動させることでそれを回避できるなら価値を上げておく。
+			// bonus for checks
+            //m.value += bool(pos.check_squares(pt) & to) * 16384;
+			// TODO : あとで効果を検証する[2023/10/29]
+
+
+			//	移動元の駒が安い駒で当たりになっている場合、移動させることでそれを回避できるなら価値を上げておく。
 #if 0
 					+     (threatened & from_sq(m) ?
 							 (type_of(pos.moved_piece_before(m)) == QUEEN && !(to_sq(m) & threatenedByRook ) ? 50000

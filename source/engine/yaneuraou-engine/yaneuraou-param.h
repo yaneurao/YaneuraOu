@@ -34,21 +34,21 @@ PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2037;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
-// 元の値 = 1560 ,step = 128
-// [PARAM] min:0,max:2048,step:16,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1592;
+// 元の値 = 1487 ,step = 128
+// [PARAM] min:0,max:2048,step:128,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1487;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
-// 元の値 = 791 , step = 128
-// [PARAM] min:300,max:1500,step:32,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_REDUCTION_BETA = 855;
+// 元の値 = 808 , step = 128
+// [PARAM] min:300,max:1500,step:128,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_REDUCTION_BETA = 808;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
-// 元の値 = 945 , step = 128
-// [PARAM] min:300,max:1500,step:32,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_REDUCTION_GAMMA = 945;
+// 元の値 = 976 , step = 128
+// [PARAM] min:300,max:1500,step:128,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_REDUCTION_GAMMA = 976;
 
 
 
@@ -59,14 +59,14 @@ PARAM_DEFINE PARAM_REDUCTION_GAMMA = 945;
 // 深さに比例したfutility pruning
 
 // 重要度　★★★★☆
-// 元の値 = 126 , step = 20
+// 元の値 = 125 , step = 20
 // [PARAM] min:100,max:300,step:10,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 126;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 125;
 
-// 重要度　★★★☆☆
-// 元の値 = 42 , step = 10
+// 重要度　★★★★☆
+// 元の値 = 43 , step = 10
 // [PARAM] min:10,max:200,step:5,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 42;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 43;
 
 // 重要度　★★★★☆
 // 元の値 = 138 , step = 30
@@ -99,19 +99,19 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 13;
 
 // 親nodeでのfutility margin
 // 重要度　★★★★☆
-// 元の値 = 80 , step = 10
+// 元の値 = 77 , step = 10
 // [PARAM] min:50,max:400,step:10,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 80;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1 = 77;
 
 // 重要度　★★★☆☆
-// 元の値 = 122 , step = 10
+// 元の値 = 124 , step = 10
 // [PARAM] min:100,max:400,step:5,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 122;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 124;
 
 // 重要度　★★★★☆
-// 元の値 = 27 , step = 2
+// 元の値 = 26 , step = 2
 // [PARAM] min:15,max:50,step:1,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 27;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 26;
 
 
 // lmrのときのseeの値。
@@ -241,9 +241,9 @@ PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 90;
 
 // fail lowを引き起こしたcounter moveにbonus与える時のevalのmargin値。
 // 重要度　★★★☆☆
-// 元の値 = 653 , step = 50
+// 元の値 = 657 , step = 50
 // [PARAM] min:10,max:1000,step:15,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_COUNTERMOVE_FAILLOW_MARGIN = 653;
+PARAM_DEFINE PARAM_COUNTERMOVE_FAILLOW_MARGIN = 657;
 
 
 // aspiration searchの増加量。

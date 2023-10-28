@@ -201,7 +201,7 @@ namespace {
 	// depth(残り探索深さ)に応じたfutility margin。
 	// ※ RazoringはStockfish12で効果がないとされてしまい除去された。
 	Value futility_margin(Depth d, bool noTtCutNode, bool improving) {
-		return Value((PARAM_FUTILITY_MARGIN_ALPHA1/*126*/  - PARAM_FUTILITY_MARGIN_ALPHA2/*42*/ * noTtCutNode) * (d - improving));
+		return Value((PARAM_FUTILITY_MARGIN_ALPHA1/*125*/  - PARAM_FUTILITY_MARGIN_ALPHA2/*43*/ * noTtCutNode) * (d - improving));
 	}
 
 	// 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
@@ -217,8 +217,8 @@ namespace {
 	// そのためのフラグ。(これがtrueだとreduction量が1増える)
 	Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
 		int reductionScale = Reductions[d] * Reductions[mn];
-		return (reductionScale + PARAM_REDUCTION_ALPHA/*1560*/ - int(delta) * PARAM_REDUCTION_GAMMA/*945*/ / int(rootDelta)) / 1024
-			+ (!i && reductionScale > PARAM_REDUCTION_BETA/*791*/);
+		return (reductionScale + PARAM_REDUCTION_ALPHA/*1487*/ - int(delta) * PARAM_REDUCTION_GAMMA/*976*/ / int(rootDelta)) / 1024
+			+ (!i && reductionScale > PARAM_REDUCTION_BETA/*808*/);
 	}
 
 	// 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
@@ -244,7 +244,7 @@ namespace {
 	// History and stats update bonus, based on depth
 	// depthに基づく、historyとstatsのupdate bonus
 	int stat_bonus(Depth d) {
-	    return std::min(334 * d - 531, 1538);
+	    return std::min(357 * d - 483, 1511);
 		// やねうら王では、Stockfishの統計値、統計ボーナスに関して手を加えないことにしているので
 		// この値はStockfishの値そのまま。
 	}
@@ -1951,11 +1951,19 @@ namespace {
 		// TODO : ここのパラメーター調整するか考える。
 		// → ~1 Eloだとなー。
 
-		if (eval < alpha - 492 - (257 - 200 * ((ss+1)->cutoffCnt > 3)) * depth * depth)
+		if (eval < alpha - 474 - (270 - 174 * ((ss+1)->cutoffCnt > 3)) * depth * depth)
 		{
 			value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
 			if (value < alpha)
+			{
+				if (!priorCapture && prevSq != SQ_NONE)
+				{
+					int bonus = (depth > 6) + (PvNode || cutNode) + (value < alpha - 658) + ((ss-1)->moveCount > 11);
+					update_continuation_histories(ss-1, pos.piece_on(prevSq), prevSq, stat_bonus(depth) * bonus);
+					thisThread->mainHistory(~us,from_to((ss-1)->currentMove)) << stat_bonus(depth) * bonus * 57 / 100;
+				}
 				return value;
+			}
 		}
 
 		// -----------------------
@@ -2023,7 +2031,7 @@ namespace {
 
 			ss->currentMove = MOVE_NULL;
 			// null moveなので、王手はかかっていなくて駒取りでもない。
-			// よって、continuationHistory[0(王手かかってない)][0(駒取りではない)][SQ_ZERO][NO_PIECE]
+			// よって、continuationHistory[0(王手かかってない)][0(駒取りではない)][NO_PIECE][SQ_ZERO]
 			ss->continuationHistory = &thisThread->continuationHistory[0][0](NO_PIECE, SQ_ZERO);
 
 			pos.do_null_move(st);
@@ -2396,13 +2404,13 @@ namespace {
 					// Continuation history based pruning (~2 Elo)
 					// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip)
 
-					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*6*/ && history < -3498 * depth)
+					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*6*/ && history < -3645 * depth)
 						continue;
 
 					history += 2 * thisThread->mainHistory(us, from_to(move));
 
-					lmrDepth += history / 7815;
-					lmrDepth = std::max(lmrDepth, -2);
+					lmrDepth += history / 7836;
+					lmrDepth = std::max(lmrDepth, -1);
 
 					// Futility pruning: parent node (~13 Elo)
 					// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
@@ -2412,7 +2420,7 @@ namespace {
 
 					if (   !ss->inCheck
 						&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*13*/
-						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*80*/ + PARAM_FUTILITY_AT_PARENT_NODE_ALPHA /*122*/ * lmrDepth <= alpha)
+						&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*77*/ + PARAM_FUTILITY_AT_PARENT_NODE_ALPHA /*124*/ * lmrDepth <= alpha)
 						continue;
 
 					// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
@@ -2425,7 +2433,7 @@ namespace {
 					lmrDepth = std::max(lmrDepth, 0);
 
 					// Prune moves with negative SEE (~4 Elo)
-					if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 /*27*/ * lmrDepth * lmrDepth)))
+					if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 /*26*/ * lmrDepth * lmrDepth)))
 						continue;
 				}
 			}
@@ -3042,13 +3050,14 @@ namespace {
 
 	    else if (!priorCapture && prevSq != SQ_NONE)
 		{
-			int bonus = (depth > 6) + (PvNode || cutNode) + (bestValue < alpha - PARAM_COUNTERMOVE_FAILLOW_MARGIN /*653*/)
-				      + ((ss-1)->moveCount > 11);
+			int bonus = (depth > 6) + (PvNode || cutNode) + (bestValue < alpha - PARAM_COUNTERMOVE_FAILLOW_MARGIN /*657*/)
+				      + ((ss-1)->moveCount > 10);
 			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
 										  stat_bonus(depth) * bonus);
 
 			thisThread->mainHistory(~us, from_to((ss - 1)->currentMove))
-				<< stat_bonus(depth) * bonus / 2;
+				<< stat_bonus(depth) * bonus * 61 / 100;
+			// TODO : ここ、61/100ではなく78/128とかのほうが良いかも？(定数だからC++の最適化で自動的にそうなる？)
 		}
 
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
