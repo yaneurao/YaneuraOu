@@ -439,7 +439,10 @@ top:
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
-		partial_insertion_sort(cur, endMoves, -3000 * depth);
+
+		// captureの指し手はそんなに数多くないので全数ソートで問題ないし、全数ソートした方が良い。
+		partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
+
 		++stage;
 		goto top;
 
@@ -546,10 +549,9 @@ top:
 #else
 
 			// TODO: あとで比較する。
-			//partial_insertion_sort(cur, endMoves, -3000 * depth);
+			partial_insertion_sort(cur, endMoves, -3000 * depth);
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
-			//   sortできるなら全部したほうが良い。
-			partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
+			//   sortできるなら全部したほうが良いがどうせ早い段階で枝刈りされるのでほとんど効果がない。
 #endif
 		}
 
