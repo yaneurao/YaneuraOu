@@ -110,31 +110,138 @@ enum StatsType { NoCaptures, Captures };
 // reductionと指し手オーダリングの決定のために用いられる。
 // cf. http://chessprogramming.wikispaces.com/Butterfly+Boards
 // 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
-// やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
-// そのため、(SQUARE_NB + 7)まで移動元がある。
-// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-// やねうら王では、添字は[from_to][color]の順。
-using ButterflyHistory = Stats<int16_t, 7183, int(SQUARE_NB + 7) * int(SQUARE_NB) , COLOR_NB>;
+
+//using ButterflyHistory = Stats<int16_t, 7183, COLOR_NB, int(SQUARE_NB) * int(SQUARE_NB)>;
+
+// ↑ このような配列、将棋では添字順を入れ替えて、history[c][to]をhistory[to][c]としたい。
+// すなわち、こう
+// using ButterflyHistory = Stats<int16_t, 7183, int(SQUARE_NB + 7) * int(SQUARE_NB) , COLOR_NB>;
+// 書きたい。
+// 
+// これは、配列の末尾側サイズは2のべき乗になっている方がアドレッシングが簡単で高速なコードが生成されるため。
+// 
+// しかし逆順にしているのを忘れてしまい、Stockfishのコードを参考にする時に色々面倒である。
+// 
+// そこで、以下⇓のようなwrapper classを書いて、このopeator()を通じてアクセスを行うことにする。
+// これにより、添字の順番はStockfishと同じ形になり、かつ、コンパイル時に引数の型チェックがなされる。
+
+struct ButterflyHistory
+{
+	using T = int16_t;         // StatsEntryの型
+	static constexpr int D = 7183; // StatsEntryの範囲
+
+	// 必ず以下のアクセッサを通してアクセスすること。
+	// ※ 引数の順番は、Stockfishの配列の添字の順番と合わせてある。
+
+	const StatsEntry<T, D>& operator() (Color c, int from_to) const {
+        return stats[from_to][c];
+    }
+
+	StatsEntry<T, D>& operator() (Color c, int from_to) {
+        return stats[from_to][c];
+    }
+	void fill(T t) { stats.fill(t); }
+
+private:
+	// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+	// やねうら王の実際の格納配列(stats)では、添字は[from_to][color]の順。
+
+	// また、やねうら王では、ここのfrom_toで用いられるfromは、駒打ちのときに特殊な値になっていて、
+	// 盤上のfromとは区別される。そのため、(SQUARE_NB + 7)まで移動元がある。
+	Stats<T, D , int(SQUARE_NB + 7) * int(SQUARE_NB) , COLOR_NB> stats;
+};
+
 
 /// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
 /// move, see www.chessprogramming.org/Countermove_Heuristic
 // CounterMoveHistoryは、直前の指し手の[piece][to]によってindexされるcounter moves(応手)を格納する。
 /// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
-// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-//    やねうら王では、[to][piece]の順。
-using CounterMoveHistory = Stats<Move, NOT_USED, SQUARE_NB , PIECE_NB>;
+
+//using CounterMoveHistory = Stats<Move, NOT_USED, PIECE_NB, SQUARE_NB>;
+
+struct CounterMoveHistory
+{
+	using T = Move;                // StatsEntryの型
+	static constexpr int D = NOT_USED; // StatsEntryの範囲
+
+	// 必ず以下のアクセッサを通してアクセスすること。
+	// ※ 引数の順番は、Stockfishの配列の添字の順番と合わせてある。
+
+	const StatsEntry<T, D>& operator() (Piece pc, Square sq) const {
+        return stats[sq][pc];
+    }
+
+	StatsEntry<T, D>& operator() (Piece pc, Square sq) {
+        return stats[sq][pc];
+    }
+
+	void fill(T t) { stats.fill(t); }
+
+private:
+	// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+	//    やねうら王の実際の格納配列(stats)では、[to][piece]の順。
+	Stats<T, D , SQUARE_NB, PIECE_NB> stats;
+};
 
 /// CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
 // CapturePieceToHistoryは、指し手の [piece][to][captured piece type]で示される。
-// ※　やねうら王ではStockfishとは、添字の順番を変更してあるので注意。
-//	やねうら王では、[to][piece][captured piece type]の順。
-using CapturePieceToHistory = Stats<int16_t, 10692, SQUARE_NB, PIECE_NB , PIECE_TYPE_NB>;
+
+//using CapturePieceToHistory = Stats<int16_t, 10692, PIECE_NB, SQUARE_NB, PIECE_TYPE_NB>;
+
+struct CapturePieceToHistory
+{
+	using T = int16_t;          // StatsEntryの型
+	static constexpr int D = 10692; // StatsEntryの範囲
+
+	// 必ず以下のアクセッサを通してアクセスすること。
+	// ※ 引数の順番は、Stockfishの配列の添字の順番と合わせてある。
+
+	const StatsEntry<T, D>& operator() (Piece moved_pc, Square sq, PieceType captured_pt) const {
+        return stats[sq][moved_pc][captured_pt];
+    }
+
+	StatsEntry<T, D>& operator() (Piece moved_pc, Square sq, PieceType captured_pt) {
+        return stats[sq][moved_pc][captured_pt];
+    }
+
+	void fill(T t) { stats.fill(t); }
+
+private:
+	// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+	//    やねうら王の実際の格納配列(stats)では、[to][piece][captured piece type]の順。
+	Stats<T, D , SQUARE_NB, PIECE_NB , PIECE_TYPE_NB> stats;
+};
+
 
 /// PieceToHistory is like ButterflyHistory but is addressed by a move's [piece][to]
 /// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[piece][to]で示される。
-// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-//     やねうら王では[to][piece]の順。
-using PieceToHistory = Stats<int16_t, 29952, SQUARE_NB , PIECE_NB>;
+
+//using PieceToHistory = Stats<int16_t, 29952, PIECE_NB, SQUARE_NB>;
+
+struct PieceToHistory
+{
+	using T = int16_t;          // StatsEntryの型
+	static constexpr int D = 29952; // StatsEntryの範囲
+
+	// 必ず以下のアクセッサを通してアクセスすること。
+	// ※ 引数の順番は、Stockfishの配列の添字の順番と合わせてある。
+
+	const StatsEntry<T, D>& operator() (Piece pc , Square to) const {
+        return stats[to][pc];
+    }
+
+	StatsEntry<T, D>& operator() (Piece pc , Square to) {
+        return stats[to][pc];
+    }
+
+	void fill(T t) { stats.fill(t); }
+
+private:
+	// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+	//    やねうら王の実際の格納配列(stats)では、[to][piece]の順。
+	Stats<T, D , SQUARE_NB, PIECE_NB> stats;
+};
+
 
 /// ContinuationHistory is the combined history of a given pair of moves, usually
 /// the current one given a previous one. The nested history table is based on
@@ -143,18 +250,70 @@ using PieceToHistory = Stats<int16_t, 29952, SQUARE_NB , PIECE_NB>;
 // ContinuationHistoryは、与えられた2つの指し手のhistoryを組み合わせたもので、
 // 普通、1手前によって与えられる現在の指し手(によるcombined history)
 // このnested history tableは、ButterflyBoardsの代わりに、PieceToHistoryをベースとしている。
-// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-//   Stockfishでは、 [pc][to]の順。
-// 　やねうら王では、[to][pc]の順。
-using ContinuationHistory = Stats<PieceToHistory, NOT_USED, SQUARE_NB , PIECE_NB>;
+//using ContinuationHistory = Stats<PieceToHistory, NOT_USED, PIECE_NB, SQUARE_NB>;
+
+struct ContinuationHistory
+{
+	using T = PieceToHistory;      // StatsEntryの型
+	static constexpr int D = NOT_USED; // StatsEntryの範囲
+
+	// 必ず以下のアクセッサを通してアクセスすること。
+	// ※ 引数の順番は、Stockfishの配列の添字の順番と合わせてある。
+
+	const StatsEntry<T, D>& operator() (Piece pc , Square to) const {
+        return stats[to][pc];
+    }
+
+	StatsEntry<T, D>& operator() (Piece pc , Square to) {
+        return stats[to][pc];
+    }
+
+	void fill(int16_t t) {
+		// thread.cppにあった初期化コード
+		for(auto& to :stats)
+			for(auto& h : to)
+				h->fill(t);
+	}
+
+private:
+	// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+	//    やねうら王の実際の格納配列(stats)では、[to][piece]の順。
+	Stats<T, D, SQUARE_NB, PIECE_NB> stats;
+};
 
 #if defined(ENABLE_PAWN_HISTORY)
 // PawnStructureHistory is addressed by the pawn structure and a move's [piece][to]
 // 歩の陣形に対するhistory。
-// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-//   Stockfishでは、 [pawn_key][pc][to]の順。
-// 　やねうら王では、[pawn_key][to][pc]の順。
-using PawnHistory = Stats<int16_t, 8192, PAWN_HISTORY_SIZE, SQUARE_NB , PIECE_NB>;
+//using PawnHistory = Stats<int16_t, 8192, PAWN_HISTORY_SIZE, PIECE_NB, SQUARE_NB>;
+
+struct PawnHistory
+{
+	using T = int16_t;         // StatsEntryの型
+	static constexpr int D = 8192; // StatsEntryの範囲
+
+	// 必ず以下のアクセッサを通してアクセスすること。
+	// ※ 引数の順番は、Stockfishの配列の添字の順番と合わせてある。
+
+	const StatsEntry<T, D>& operator() (int pawn_key, Piece pc , Square to) const {
+        return stats[pawn_key][to][pc];
+    }
+
+	StatsEntry<T, D>& operator() (int pawn_key, Piece pc , Square to) {
+        return stats[pawn_key][to][pc];
+    }
+
+	void fill(T t) {
+		stats.fill(t);
+	}
+
+private:
+	// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+	//    やねうら王の実際の格納配列(stats)では、
+	// 	     Stockfishでは、 [pawn_key][pc][to]の順。
+	//		 やねうら王では、[pawn_key][to][pc]の順。
+	Stats<T, D, PAWN_HISTORY_SIZE, SQUARE_NB, PIECE_NB> stats;
+};
+
 #endif
 
 // -----------------------

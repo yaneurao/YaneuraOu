@@ -48,24 +48,24 @@ void Thread::clear()
 	pawnHistory.fill(0);
 #endif
 
-	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
+	// ここは、未初期化のときに[NO_PIECE][SQ_ZERO]を指すので、ここを-1で初期化しておくことによって、
 	// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
+
+	// ほとんどの履歴エントリがいずれにせよ後で負になるため、
+	// 開始値を「正しい」方向に少しシフトさせるため、-71で埋めている。
+	// この効果は、深度が深くなるほど薄れるので、長時間思考させる時には
+	// あまり意味がないが、無駄ではないらしい。
+	// Tweak history initialization : https://github.com/official-stockfish/Stockfish/commit/7d44b43b3ceb2eebc756709432a0e291f885a1d2
 
 	for (bool inCheck : { false, true })
 		for (StatsType c : { NoCaptures, Captures })
-			// ほとんどの履歴エントリがいずれにせよ後で負になるため、
-			// 開始値を「正しい」方向に少しシフトさせるため、-71で埋めている。
-			// この効果は、深度が深くなるほど薄れるので、長時間思考させる時には
-			// あまり意味がないが、無駄ではないらしい。
-			// Tweak history initialization : https://github.com/official-stockfish/Stockfish/commit/7d44b43b3ceb2eebc756709432a0e291f885a1d2
+			//for (auto& to : continuationHistory[inCheck][c])
+			//	for (auto& h : to)
+			//		h->fill(-71);
 
-			for (auto& to : continuationHistory[inCheck][c])
-				// ↑Stockfishでは [pc][to]の順、
-				//   やねうら王では[to][pc]の順だから
-				// ここではStockfishではpcが来るのが正しいのだが、なぜか
-				// Stockfishのソースコード、変数名がtoになっている。
-				for (auto& h : to)
-					h->fill(-71);
+			// ↑この初期化コードは、ContinuationHistory::fill()に移動させた。
+
+			continuationHistory[inCheck][c].fill(-71);
 
 #endif
 }

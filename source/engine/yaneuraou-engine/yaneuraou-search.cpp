@@ -784,11 +784,7 @@ void search_thread_init(Thread* th, Stack* ss , Move pv[])
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 7; i > 0; --i)
 	{
-		(ss - i)->continuationHistory = &th->continuationHistory[0][0][SQ_ZERO][NO_PIECE]; // Use as a sentinel
-				// ↑continuationHistoryに関して
-				// Stockfishは、 [inCheck][capture][pc][sq]の順
-				// やねうら王は、[inCheck][capture][sq][pc]の順
-				// なので注意。
+		(ss - i)->continuationHistory = &th->continuationHistory[0][0](NO_PIECE, SQ_ZERO); // Use as a sentinel
 	    (ss - i)->staticEval = VALUE_NONE;
 	}
 
@@ -1681,12 +1677,7 @@ namespace {
 				else if (!ttCapture)
 				{
 					int penalty = -stat_bonus(depth);
-					thisThread->mainHistory[from_to(ttMove)][us] << penalty;
-								// ↑mainHistoryに関して
-								// Stockfishは [c][from_to]の順
-								// やねうら王は[from_to][c]の順
-								// なので注意。
-
+					thisThread->mainHistory(us, from_to(ttMove)) << penalty;
 					update_continuation_histories(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
 				}
 			}
@@ -1916,11 +1907,7 @@ namespace {
 	        int bonus = std::clamp(-18 * int((ss-1)->staticEval + ss->staticEval), -1812, 1812);
 			// この右辺の↑係数、調整すべきだろうけども、4 Eloのところ調整しても…みたいな意味はある。
 
-			thisThread->mainHistory[from_to((ss-1)->currentMove)][~us] << bonus;
-							// ↑mainHistoryに関して
-							// Stockfishは [c][from_to]の順
-							// やねうら王は[from_to][c]の順
-							// なので注意。
+			thisThread->mainHistory(~us, from_to((ss-1)->currentMove)) << bonus;
 		}
 
 		// Set up the improvement variable, which is the difference between the current
@@ -2037,11 +2024,7 @@ namespace {
 			ss->currentMove = MOVE_NULL;
 			// null moveなので、王手はかかっていなくて駒取りでもない。
 			// よって、continuationHistory[0(王手かかってない)][0(駒取りではない)][SQ_ZERO][NO_PIECE]
-			ss->continuationHistory = &thisThread->continuationHistory[0][0][SQ_ZERO][NO_PIECE];
-				// ↑continuationHistoryに関して
-				// Stockfishは、 [inCheck][capture][pc][sq]の順
-				// やねうら王は、[inCheck][capture][sq][pc]の順
-				// なので注意。
+			ss->continuationHistory = &thisThread->continuationHistory[0][0](NO_PIECE, SQ_ZERO);
 
 			pos.do_null_move(st);
 
@@ -2162,14 +2145,10 @@ namespace {
 					ASSERT_LV3(pos.capture_or_pawn_promotion(move));
 
 					ss->currentMove = move;
-					ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck                ]
-																			  [true                       ] // captureOrPromotion
-																			  [to_sq(move)                ]
-																			  [pos.moved_piece_after(move)];
-														// ↑continuationHistoryに関して
-														// Stockfishは、 [inCheck][capture][pc][sq]の順
-														// やねうら王は、[inCheck][capture][sq][pc]の順
-														// なので注意。
+					ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck                ]
+																			   [true                       ]) // captureOrPromotion
+																			   (pos.moved_piece_after(move),
+																			    to_sq(move)                );
 
 					pos.do_move(move, st);
 
@@ -2241,12 +2220,7 @@ namespace {
 
 		// 1手前の指し手(1手前のtoとPiece)に対応するよさげな応手を統計情報から取得。
 		// 1手前がnull moveの時prevSq == SQ_NONEになるのでこのケースは除外する。
-		Move countermove = prevSq != SQ_NONE ? thisThread->counterMoves[prevSq][pos.piece_on(prevSq)] : MOVE_NONE;
-															// ※ ↑counterMovesに関して
-															// Stockfishは  [pc][to]の順
-															// やねうら王は [to][pc]の順
-															// なので注意。
-
+		Move countermove = prevSq != SQ_NONE ? thisThread->counterMoves(pos.piece_on(prevSq), prevSq) : MOVE_NONE;
 
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
 										  &captureHistory,
@@ -2392,18 +2366,6 @@ namespace {
 
 				if (   capture || givesCheck)
 				{
-
-#if 0
-					// Stockfishでは削除された枝刈り。これはあったほうが良いかも。
-					// →　計測したら誤差だったのでコメントアウト
-					// 
-					// Capture history based pruning when the move doesn't give check
-					if (  !givesCheck
-						&& lmrDepth < 1
-						&& captureHistory[to_sq(move)][movedPiece][type_of(pos.piece_on(to_sq(move)))] < 0)
-						continue;
-#endif
-
 					// Futility pruning for captures (~2 Elo)
 					if (!givesCheck && lmrDepth < 7 && !ss->inCheck)
 					{
@@ -2411,8 +2373,7 @@ namespace {
 						// TODO : ここのパラメーター、調整すべきか？ 2 Eloだから無視していいか…。
 						int   futilityEval =
 							ss->staticEval + 239 + 291 * lmrDepth + CapturePieceValuePlusPromote(pos, move)
-							+ captureHistory[to_sq(move)][movedPiece][type_of(capturedPiece)] / 7;
-						// やねうら王、captureHistory[to][pc][captured]で、Stockfishの[pc][to][captured]とは前2つが逆順なので注意。
+							+ captureHistory(movedPiece, to_sq(move), type_of(capturedPiece)) / 7;
 
 						if (futilityEval < alpha)
 							continue;
@@ -2424,16 +2385,11 @@ namespace {
 				}
 				else
 				{
-					int history = (*contHist[0])[to_sq(move)][movedPiece]
-								+ (*contHist[1])[to_sq(move)][movedPiece]
-								+ (*contHist[3])[to_sq(move)][movedPiece]
-								// ↑contHistに関して
-								// Stockfishは、 [pc][sq]の順
-								// やねうら王は、[sq][pc]の順
-								// なので注意。
+					int history = (*contHist[0])(movedPiece, to_sq(move))
+								+ (*contHist[1])(movedPiece, to_sq(move))
+								+ (*contHist[3])(movedPiece, to_sq(move))
 #if defined(ENABLE_PAWN_HISTORY)
-								+ thisThread->pawnHistory[pawn_structure(pos)][to_sq(move)][movedPiece]
-								// ↑pawnHistoryもやねうら王では[sq][pc]の順なので注意。
+								+ thisThread->pawnHistory(pawn_structure(pos), movedPiece, to_sq(move))
 #endif
 						;
 
@@ -2443,11 +2399,7 @@ namespace {
 					if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*6*/ && history < -3498 * depth)
 						continue;
 
-					history += 2 * thisThread->mainHistory[from_to(move)][ us];
-												// ↑mainHistoryに関して
-												// Stockfishは [c][from_to]の順
-												// やねうら王は[from_to][c]の順
-												// なので注意。
+					history += 2 * thisThread->mainHistory(us, from_to(move));
 
 					lmrDepth += history / 7815;
 					lmrDepth = std::max(lmrDepth, -2);
@@ -2638,11 +2590,7 @@ namespace {
 				else if (PvNode
 					&& move == ttMove
 					&& move == ss->killers[0]
-					&& (*contHist[0])[to_sq(move)][movedPiece] >= 4194)
-						// ↑contHistに関して
-						// Stockfishは、 [pc][sq]の順
-						// やねうら王は、[sq][pc]の順
-						// なので注意。
+					&& (*contHist[0])(movedPiece, to_sq(move)) >= 4194)
 					extension = 1;
 			}
 
@@ -2676,14 +2624,10 @@ namespace {
 			// Update the current move (this must be done after singular extension search)
 			// 現在このスレッドで探索している指し手を更新しておく。(これは、singular extension探索のあとになされるべき)
 			ss->currentMove = move;
-			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck]
-																	  [capture    ]
-																	  [to_sq(move)]
-																	  [movedPiece ];
-												// ↑continuationHistoryに関して
-												// Stockfishは、 [inCheck][capture][pc][sq]の順
-												// やねうら王は、[inCheck][capture][sq][pc]の順
-												// なので注意。
+			ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck]
+																	   [capture    ])
+																	   (movedPiece ,
+																		to_sq(move));
 
 			// -----------------------
 			// Step 16. Make the move
@@ -2760,18 +2704,10 @@ namespace {
 
 			// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 			// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
-			ss->statScore = 2 * thisThread->mainHistory[from_to(move)][us]
-											// ↑mainHistoryに関して
-											// Stockfishは [c][from_to]の順
-											// やねうら王は[from_to][c]の順
-											// なので注意。
-							+ (*contHist[0])[to_sq(move)][movedPiece]
-							+ (*contHist[1])[to_sq(move)][movedPiece]
-							+ (*contHist[3])[to_sq(move)][movedPiece]
-								// ↑contHistに関して
-								// Stockfishは、 [pc][sq]の順
-								// やねうら王は、[sq][pc]の順
-								// なので注意。
+			ss->statScore = 2 * thisThread->mainHistory(us, from_to(move))
+							+ (*contHist[0])(movedPiece, to_sq(move))
+							+ (*contHist[1])(movedPiece, to_sq(move))
+							+ (*contHist[3])(movedPiece, to_sq(move))
 							- 3848;
 			
 			// Decrease/increase reduction for moves with a good/bad history (~25 Elo)
@@ -3106,13 +3042,13 @@ namespace {
 
 	    else if (!priorCapture && prevSq != SQ_NONE)
 		{
-			int bonus = (depth > 6) + (PvNode || cutNode) + (bestValue < alpha - PARAM_COUNTERMOVE_FAILLOW_MARGIN /*653*/) + ((ss-1)->moveCount > 11);
-			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, stat_bonus(depth) * bonus);
-			thisThread->mainHistory[from_to((ss - 1)->currentMove)][~us] << stat_bonus(depth) * bonus / 2;
-											// ↑mainHistoryに関して
-											// Stockfishは [c][from_to]の順
-											// やねうら王は[from_to][c]の順
-											// なので注意。
+			int bonus = (depth > 6) + (PvNode || cutNode) + (bestValue < alpha - PARAM_COUNTERMOVE_FAILLOW_MARGIN /*653*/)
+				      + ((ss-1)->moveCount > 11);
+			update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
+										  stat_bonus(depth) * bonus);
+
+			thisThread->mainHistory(~us, from_to((ss - 1)->currentMove))
+				<< stat_bonus(depth) * bonus / 2;
 		}
 
 		// 将棋ではtable probe使っていないのでmaxValue関係ない。
@@ -3607,12 +3543,8 @@ namespace {
 				// Continuation historyベースの枝刈り
 				// ※ Stockfish12でqsearch()にも導入された。
 				if (  !capture
-					&& (*contHist[0])[to_sq(move)][pos.moved_piece_after(move)] < 0
-					&& (*contHist[1])[to_sq(move)][pos.moved_piece_after(move)] < 0)
-							// ↑contHistに関して
-							// Stockfishは、 [pc][sq]の順
-							// やねうら王は、[sq][pc]の順
-							// なので注意。
+					&& (*contHist[0])(pos.moved_piece_after(move), to_sq(move)) < 0
+					&& (*contHist[1])(pos.moved_piece_after(move), to_sq(move)) < 0)
 					continue;
 
 
@@ -3629,14 +3561,10 @@ namespace {
 			// 現在このスレッドで探索している指し手を保存しておく。
 			ss->currentMove = move;
 
-			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck                ]
-																	  [capture                    ]
-																	  [to_sq(move)                ]
-																	  [pos.moved_piece_after(move)];
-									// ↑continuationHistoryに関して
-									// Stockfishは、 [inCheck][capture][pc][sq]の順
-									// やねうら王は、[inCheck][capture][sq][pc]の順
-									// なので注意。
+			ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck                ]
+																	   [capture                    ])
+										                               (pos.moved_piece_after(move),
+																		to_sq(move)                );
 
 			quietCheckEvasions += !capture && ss->inCheck;
 
@@ -3843,26 +3771,19 @@ namespace {
 			// Increase stats for the best move in case it was a quiet move
 			update_quiet_stats(pos, ss, bestMove, bestMoveBonus);
 #if defined(ENABLE_PAWN_HISTORY)
-			thisThread->pawnHistory[pawn_structure(pos)][to_sq(bestMove)][moved_piece]
+			thisThread->pawnHistory(pawn_structure(pos), moved_piece, to_sq(bestMove))
 	          << quietMoveBonus;
-			// ↑やねうら王、pawnHistoryは[to][pc]順なので注意。
 #endif
 
 			// Decrease stats for all non-best quiet moves
 			for (int i = 0; i < quietCount; ++i)
 			{
 #if defined(ENABLE_PAWN_HISTORY)
-				thisThread->pawnHistory[pawn_structure(pos)][to_sq(quietsSearched[i])][pos.moved_piece_after(quietsSearched[i])]
-												   
-							  << -bestMoveBonus;
-				// ↑やねうら王、pawnHistoryは[to][pc]順なので注意。
+				thisThread->pawnHistory(pawn_structure(pos), pos.moved_piece_after(quietsSearched[i]), to_sq(quietsSearched[i]))
+					<< -bestMoveBonus;
 #endif
 
-				thisThread->mainHistory[from_to(quietsSearched[i])][us] << -bestMoveBonus;
-								// ↑mainHistoryに関して
-								// Stockfishは [c][from_to]の順
-								// やねうら王は[from_to][c]の順
-								// なので注意。
+				thisThread->mainHistory(us, from_to(quietsSearched[i])) << -bestMoveBonus;
 
 				update_continuation_histories(ss, pos.moved_piece_after(quietsSearched[i]), to_sq(quietsSearched[i]), -bestMoveBonus);
 			}
@@ -3870,9 +3791,7 @@ namespace {
 		else {
 			// Increase stats for the best move in case it was a capture move
 	        captured = type_of(pos.piece_on(to_sq(bestMove)));
-			captureHistory[to_sq(bestMove)][moved_piece][captured] << quietMoveBonus;
-			// ※　StockfishはcaptureHistory↑は[pc][to][captured]の順
-			//     やねうら王は、               [to][pc][captured]の順なので注意。
+			captureHistory(moved_piece, to_sq(bestMove), captured) << quietMoveBonus;
 		}
 
 		// Extra penalty for a quiet early move that was not a TT move or
@@ -3891,10 +3810,10 @@ namespace {
 
 		for (int i = 0; i < captureCount; ++i)
 		{
+			// TODO : ここ、moved_piece_before()で、捕獲前の駒の価値で考えたほうがいいような？
 			moved_piece = pos.moved_piece_after(capturesSearched[i]);
 			captured = type_of(pos.piece_on(to_sq(capturesSearched[i])));
-			captureHistory[to_sq(capturesSearched[i])][moved_piece][captured] << -quietMoveBonus;
-			// Stockfishは[pc][to][captured]の順なので注意。
+			captureHistory(moved_piece, to_sq(capturesSearched[i]), captured) << -quietMoveBonus;
 		}
 	}
 
@@ -3915,12 +3834,7 @@ namespace {
 			if (ss->inCheck && i > 2)
 				break;
 			if (is_ok((ss - i)->currentMove))
-				(*(ss - i)->continuationHistory)[to][pc] << bonus / (1 + 3 * (i == 3));
-							// ↑continuationHistoryに関して
-							// Stockfishは、 [inCheck][capture][pc][sq]の順
-							// やねうら王は、[inCheck][capture][sq][pc]の順
-							// なので注意。
-
+				(*(ss - i)->continuationHistory)(pc, to) << bonus / (1 + 3 * (i == 3));
 							// (1 + 3 * (i == 3)) は、 i==3は弱くしか影響しないので4で割ると言う意味。
 		}
 	}
@@ -3947,11 +3861,7 @@ namespace {
 		Color us = pos.side_to_move();
 
 		Thread* thisThread = pos.this_thread();
-		thisThread->mainHistory[from_to(move)][us] << bonus;
-						// ↑mainHistoryに関して
-						// Stockfishは [c][from_to]の順
-						// やねうら王は[from_to][c]の順
-						// なので注意。
+		thisThread->mainHistory(us, from_to(move)) << bonus;
 		update_continuation_histories(ss, pos.moved_piece_after(move), to_sq(move), bonus);
 
 		// Update countermove history
@@ -3959,11 +3869,7 @@ namespace {
 		{
 			// 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
 			Square prevSq = to_sq((ss - 1)->currentMove);
-			thisThread->counterMoves[prevSq][pos.piece_on(prevSq)] = move;
-						// ※ ↑counterMovesに関して
-						// Stockfishは  [pc][to]の順
-						// やねうら王は [to][pc]の順
-						// なので注意。
+			thisThread->counterMoves(pos.piece_on(prevSq), prevSq) = move;
 		}
 	}
 

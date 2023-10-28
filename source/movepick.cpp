@@ -286,7 +286,8 @@ void MovePicker::score()
 			// ある可能性については考慮しておく必要がある。
 
 			m.value = (7 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))])
-					 +    (*captureHistory)[to_sq(m)][pos.moved_piece_after(m)][type_of(pos.piece_on(to_sq(m)))]) / 16;
+					   + (*captureHistory)(pos.moved_piece_after(m), to_sq(m), type_of(pos.piece_on(to_sq(m)))))
+					  / 16;
 		}
 		else if constexpr (Type == QUIETS)
 		{
@@ -299,20 +300,12 @@ void MovePicker::score()
 			//PieceType pt = type_of(pos.moved_piece_before(m));
 			Square    to = to_sq(m);
 
-			m.value =  2 * (*mainHistory)[from_to(m)][pos.side_to_move()]
-								// ↑mainHistoryに関して
-								// Stockfishは [c][from_to]の順
-								// やねうら王は[from_to][c]の順
-								// なので注意。
-					+ 2 * (*continuationHistory[0])[to][pc]
-					+     (*continuationHistory[1])[to][pc]
-					+     (*continuationHistory[2])[to][pc] / 4
-					+     (*continuationHistory[3])[to][pc]
-					+     (*continuationHistory[5])[to][pc]
-								// ↑continuationHistoryに関して
-								// Stockfishは、 [pc][sq]の順
-								// やねうら王は、[sq][pc]の順
-								// なので注意。
+			m.value =  2 * (*mainHistory)(pos.side_to_move(), from_to(m))
+					+  2 * (*continuationHistory[0])(pc,to)
+					+      (*continuationHistory[1])(pc,to)
+					+      (*continuationHistory[2])(pc,to) / 4
+					+      (*continuationHistory[3])(pc,to)
+					+      (*continuationHistory[5])(pc,to)
 
 				//	移動元の駒が安い駒で当たりになっている場合、移動させることでそれを回避できるなら価値を上げておく。
 #if 0
@@ -336,8 +329,7 @@ void MovePicker::score()
 					;
 
 #if defined(ENABLE_PAWN_HISTORY)
-			m.value += pawnHistory[pawn_structure(pos)][to][pc];
-			// pawnHistoryもやねうら王では[to][pc]の順なので注意。
+			m.value += pawnHistory(pawn_structure(pos), pc, to);
 #endif
 
 		}
@@ -375,18 +367,10 @@ void MovePicker::score()
 						
 			else
 				// 捕獲しない指し手に関してはhistoryの値の順番
-				m.value =     (*mainHistory)[from_to(m)][pos.side_to_move()]
-									// ↑mainHistoryに関して
-									// Stockfishは [c][from_to]の順
-									// やねうら王は[from_to][c]の順
-									// なので注意。
-						  +   (*continuationHistory[0])[to_sq(m)][pos.moved_piece_after(m)]
-								// ↑continuationHistoryに関して
-								// Stockfishは、 [pc][sq]の順
-								// やねうら王は、[sq][pc]の順
-								// なので注意。
+				m.value =     (*mainHistory)(pos.side_to_move(), from_to(m))
+						  +   (*continuationHistory[0])(pos.moved_piece_after(m), to_sq(m))
 #if defined(ENABLE_PAWN_HISTORY)
-						  +    pawnHistory[pawn_structure(pos)][to_sq(m)][pos.moved_piece_after(m)]
+						  +    pawnHistory(pawn_structure(pos), pos.moved_piece_after(m), to_sq(m))
 								// ↑pawnHistoryもやねうら王では[to][pc]の順なので注意。
 #endif
 				;
