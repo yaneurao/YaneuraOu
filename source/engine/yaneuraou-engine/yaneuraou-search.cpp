@@ -4323,6 +4323,25 @@ namespace Learner
 	// 読み筋と評価値のペア。Learner::search(),Learner::qsearch()が返す。
 	using ValueAndPV = std::pair<Value, std::vector<Move>>;
 
+	// 対局の初期化。
+	// 置換表のクリアとhistory table等のクリアを行う。
+	//
+	// 注意 : この関数の呼び出しは必須ではない。
+	// 
+	// Learner::search()での1回の対局(初期局面から詰み局面に至るまで)ごとに
+	// この関数は呼び出したほうが良い指し手が指せるが、
+	// このクリア時間が馬鹿にならない。(例えば、depth = 9での対局において対局時間の30%に相当)
+	//
+	// この関数を呼び出すなせば、そのバランスを考慮した上で呼び出すこと。
+	// 
+	void init_for_game(Position& pos)
+	{
+		auto thisThread = pos.this_thread();
+
+		TT.clear();          // 置換表のクリア
+		thisThread->clear(); // history table等のクリア
+	}
+
 	// 静止探索。
 	//
 	// 前提条件) pos.set_this_thread(Threads[thread_id])で探索スレッドが設定されていること。
