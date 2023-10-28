@@ -13,10 +13,17 @@
 
 //#include "movegen.h"
 #include "types.h"
+#include "position.h"
 
 // -----------------------
 //		history
 // -----------------------
+
+#if defined(ENABLE_PAWN_HISTORY)
+// 歩の陣形に対するhistory
+constexpr int PAWN_HISTORY_SIZE = 512;
+inline int pawn_structure(const Position& pos) { return pos.pawn_key() & (PAWN_HISTORY_SIZE - 1); }
+#endif
 
 /// StatsEntryはstat tableの値を格納する。これは、大抵数値であるが、指し手やnestされたhistoryでさえありうる。
 /// 多次元配列であるかのように呼び出し側でstats tablesを用いるために、
@@ -38,6 +45,7 @@ public:
 	// このStatsEntry(Statsの1要素)に対して"<<"演算子でbonus値の加算が出来るようにしておく。
 	// 値が範囲外にならないように制限してある。
 	void operator<<(int bonus) {
+
 		ASSERT_LV3(abs(bonus) <= D); // 範囲が[-D,D]であるようにする。
 		// オーバーフローしないことを保証する。
 		static_assert(D <= std::numeric_limits<T>::max(), "D overflows T");
@@ -103,10 +111,10 @@ enum StatsType { NoCaptures, Captures };
 // cf. http://chessprogramming.wikispaces.com/Butterfly+Boards
 // 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
 // やねうら王では、ここで用いられるfromは、駒打ちのときに特殊な値になっていて、盤上のfromとは区別される。
-// そのため、(SQ_NB + 7)まで移動元がある。
+// そのため、(SQUARE_NB + 7)まで移動元がある。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
 // やねうら王では、添字は[from_to][color]の順。
-using ButterflyHistory = Stats<int16_t, 7183, int(SQ_NB + 7) * int(SQ_NB) , COLOR_NB>;
+using ButterflyHistory = Stats<int16_t, 7183, int(SQUARE_NB + 7) * int(SQUARE_NB) , COLOR_NB>;
 
 /// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
 /// move, see www.chessprogramming.org/Countermove_Heuristic
@@ -114,19 +122,19 @@ using ButterflyHistory = Stats<int16_t, 7183, int(SQ_NB + 7) * int(SQ_NB) , COLO
 /// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
 //    やねうら王では、[to][piece]の順。
-using CounterMoveHistory = Stats<Move, NOT_USED, SQ_NB , PIECE_NB>;
+using CounterMoveHistory = Stats<Move, NOT_USED, SQUARE_NB , PIECE_NB>;
 
 /// CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
 // CapturePieceToHistoryは、指し手の [piece][to][captured piece type]で示される。
 // ※　やねうら王ではStockfishとは、添字の順番を変更してあるので注意。
 //	やねうら王では、[to][piece][captured piece type]の順。
-using CapturePieceToHistory = Stats<int16_t, 10692, SQ_NB, PIECE_NB , PIECE_TYPE_NB>;
+using CapturePieceToHistory = Stats<int16_t, 10692, SQUARE_NB, PIECE_NB , PIECE_TYPE_NB>;
 
 /// PieceToHistory is like ButterflyHistory but is addressed by a move's [piece][to]
 /// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[piece][to]で示される。
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
 //     やねうら王では[to][piece]の順。
-using PieceToHistory = Stats<int16_t, 29952, SQ_NB , PIECE_NB>;
+using PieceToHistory = Stats<int16_t, 29952, SQUARE_NB , PIECE_NB>;
 
 /// ContinuationHistory is the combined history of a given pair of moves, usually
 /// the current one given a previous one. The nested history table is based on
@@ -138,8 +146,16 @@ using PieceToHistory = Stats<int16_t, 29952, SQ_NB , PIECE_NB>;
 // ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
 //   Stockfishでは、 [pc][to]の順。
 // 　やねうら王では、[to][pc]の順。
-using ContinuationHistory = Stats<PieceToHistory, NOT_USED, SQ_NB , PIECE_NB>;
+using ContinuationHistory = Stats<PieceToHistory, NOT_USED, SQUARE_NB , PIECE_NB>;
 
+#if defined(ENABLE_PAWN_HISTORY)
+// PawnStructureHistory is addressed by the pawn structure and a move's [piece][to]
+// 歩の陣形に対するhistory。
+// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
+//   Stockfishでは、 [pawn_key][pc][to]の順。
+// 　やねうら王では、[pawn_key][to][pc]の順。
+using PawnHistory = Stats<int16_t, 8192, PAWN_HISTORY_SIZE, SQUARE_NB , PIECE_NB>;
+#endif
 
 // -----------------------
 //   MovePicker
@@ -169,6 +185,9 @@ public:
 	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* mh,
 		const CapturePieceToHistory* cph,
 		const PieceToHistory** ch,
+#if defined(ENABLE_PAWN_HISTORY)
+		const PawnHistory&,
+#endif
 		Move cm,
 		const Move* killers_p);
 
@@ -177,14 +196,20 @@ public:
 	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* mh ,
 		const CapturePieceToHistory* cph , 
 		const PieceToHistory** ch,
+#if defined(ENABLE_PAWN_HISTORY)
+		const PawnHistory&,
+#endif
 		Square recapSq);
 
 	// 通常探索(search)のProbCutの処理から呼び出されるの専用。
 	// threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
 	// capture_or_pawn_promotion()に該当する指し手しか返さない。
 	MovePicker(const Position& pos_, Move ttMove_, Value threshold_,
-		const CapturePieceToHistory* cph);
-
+		const CapturePieceToHistory* cph
+#if defined(ENABLE_PAWN_HISTORY)
+		, const PawnHistory&
+#endif
+	);
 
 	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
 	// 指し手が尽きればMOVE_NONEが返る。
@@ -211,6 +236,9 @@ private:
 	const ButterflyHistory* mainHistory;
 	const CapturePieceToHistory* captureHistory;
 	const PieceToHistory** continuationHistory;
+#if defined(ENABLE_PAWN_HISTORY)
+	const PawnHistory& pawnHistory;
+#endif
 
 	// 置換表の指し手(コンストラクタで渡される)
 	Move ttMove;

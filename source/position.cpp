@@ -23,6 +23,9 @@ std::string SFEN_HIRATE = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGK
 namespace Zobrist {
 	HASH_KEY zero;							// ゼロ(==0)
 	HASH_KEY side;							// 手番(==1)
+#if defined(ENABLE_PAWN_HISTORY)
+	HASH_KEY noPawns;                       // 歩の陣形に関して盤上に歩が一枚もない時のhash key
+#endif
 	HASH_KEY psq[SQ_NB_PLUS1][PIECE_NB];	// 駒pcが盤上sqに配置されているときのZobrist Key
 	HASH_KEY hand[COLOR_NB][PIECE_HAND_NB];	// c側の手駒prが一枚増えるごとにこれを加算するZobristKey
 	HASH_KEY depth[MAX_PLY];				// 深さも考慮に入れたHASH KEYを作りたいときに用いる(実験用)
@@ -107,6 +110,11 @@ void Position::init() {
 
 	for (int i = 0; i < MAX_PLY; ++i)
 		SET_HASH(Zobrist::depth[i], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
+
+
+#if defined(ENABLE_PAWN_HISTORY)
+	SET_HASH(Zobrist::noPawns, rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
+#endif
 }
 
 // depthに応じたZobrist Hashを得る。depthを含めてhash keyを求めたいときに用いる。
@@ -497,15 +505,26 @@ void Position::set_state() const {
 
 	// --- hash keyの計算
 	st->board_key_ = sideToMove == BLACK ? Zobrist::zero : Zobrist::side;
-	st->hand_key_ = Zobrist::zero;
+	st->hand_key_  = Zobrist::zero;
+#if defined(ENABLE_PAWN_HISTORY)
+	st->pawnKey_   = Zobrist::noPawns;
+#endif
 	for (auto sq : pieces())
 	{
 		auto pc = piece_on(sq);
 		st->board_key_ += Zobrist::psq[sq][pc];
+
+#if defined(ENABLE_PAWN_HISTORY)
+        if (type_of(pc) == PAWN)
+            st->pawnKey_ ^= Zobrist::psq[sq][pc];
+#endif
 	}
 	for (auto c : COLOR)
 		for (PieceType pr = PAWN; pr < PIECE_HAND_NB; ++pr)
 			st->hand_key_ += Zobrist::hand[c][pr] * (int64_t)hand_count(hand[c], pr); // 手駒はaddにする(差分計算が楽になるため)
+
+	// pawnKeyは、手駒の歩も考慮したほうがいいんだろうけど手駒に応じた更新が面倒なので端折っておく。
+	// TODO : あとで実装するかも。
 
 	// --- hand
 	st->hand = hand[sideToMove];
@@ -1258,6 +1277,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		h -= Zobrist::hand[Us][pr];
 		k += Zobrist::psq[to][pc];
 
+#if defined(ENABLE_PAWN_HISTORY)
+		// 打ち歩なら、pawnKeyの更新が必要
+		if (pr == PAWN)
+			st->pawnKey_ ^= Zobrist::psq[to][pc];
+#endif
+
 		// なるべく早い段階でのTTに対するprefetch
 		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
 		const HASH_KEY key = k + h;
@@ -1374,6 +1399,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			k -= Zobrist::psq[to][to_pc];
 			h += Zobrist::hand[Us][pr];
 
+#if defined(ENABLE_PAWN_HISTORY)
+			// 歩を捕獲したならば、その歩をpawnKeyから除去。
+			if (type_of(to_pc)==PAWN)
+				st->pawnKey_ ^= Zobrist::psq[to][to_pc];
+#endif
+
 			// 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
 			st->capturedPiece = to_pc;
 
@@ -1423,6 +1454,17 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
 		k -= Zobrist::psq[from][moved_pc];
 		k += Zobrist::psq[to][moved_after_pc];
+
+#if defined(ENABLE_PAWN_HISTORY)
+		// 歩の移動ならば歩を除去
+		if (type_of(moved_pc)==PAWN)
+		{
+			st->pawnKey_ ^= Zobrist::psq[from][moved_pc];
+			// 成ってないなら移動先の歩の除去も。
+			if (!is_promote(m))
+				st->pawnKey_ ^= Zobrist::psq[to][moved_pc];
+		}
+#endif
 
 		// 駒打ちでないときはprefetchはこの時点まで延期される。
 		const HASH_KEY key = k + h;

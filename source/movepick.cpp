@@ -136,9 +136,15 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
 	const CapturePieceToHistory* cph ,
 	const PieceToHistory** ch,
+#if defined(ENABLE_PAWN_HISTORY)
+	const PawnHistory& ph,
+#endif
 	Move cm,
 	const Move* killers)
 	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch),
+#if defined(ENABLE_PAWN_HISTORY)
+	pawnHistory(ph),
+#endif
 	ttMove(ttm), refutations{ { killers[0], 0 },{ killers[1], 0 },{ cm, 0 } }, depth(d)
 {
 	// 通常探索から呼び出されているので残り深さはゼロより大きい。
@@ -157,9 +163,16 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 // rs : recapture square
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
 	const CapturePieceToHistory* cph,
-	const PieceToHistory** ch,
-	Square rs)
-	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch) , ttMove(ttm), recaptureSquare(rs), depth(d)
+	const PieceToHistory** ch
+#if defined(ENABLE_PAWN_HISTORY)
+	, const PawnHistory& ph
+#endif
+	, Square rs)
+	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch)
+#if defined(ENABLE_PAWN_HISTORY)
+	, pawnHistory(ph)
+#endif
+	, ttMove(ttm), recaptureSquare(rs), depth(d)
 {
 
 	// 静止探索から呼び出されているので残り深さはゼロ以下。
@@ -176,8 +189,15 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 
 // 通常探索時にProbCutの処理から呼び出されるの専用
 // th = 枝刈りのしきい値
-MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePieceToHistory* cph)
-			: pos(p), captureHistory(cph) , ttMove(ttm), threshold(th) {
+MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePieceToHistory* cph
+#if defined(ENABLE_PAWN_HISTORY)
+	, const PawnHistory& ph
+#endif
+	): pos(p), captureHistory(cph)
+#if defined(ENABLE_PAWN_HISTORY)
+	, pawnHistory(ph)
+#endif
+	, ttMove(ttm), threshold(th) {
 
 	ASSERT_LV3(!pos.in_check());
 
@@ -315,6 +335,11 @@ void MovePicker::score()
 				// →　強くならなかったのでコメントアウト。
 					;
 
+#if defined(ENABLE_PAWN_HISTORY)
+			m.value += pawnHistory[pawn_structure(pos)][to][pc];
+			// pawnHistoryもやねうら王では[to][pc]の順なので注意。
+#endif
+
 		}
 		else // Type == EVASIONS
 		{
@@ -355,11 +380,16 @@ void MovePicker::score()
 									// Stockfishは [c][from_to]の順
 									// やねうら王は[from_to][c]の順
 									// なので注意。
-						  +   (*continuationHistory[0])[to_sq(m)][pos.moved_piece_after(m)];
+						  +   (*continuationHistory[0])[to_sq(m)][pos.moved_piece_after(m)]
 								// ↑continuationHistoryに関して
 								// Stockfishは、 [pc][sq]の順
 								// やねうら王は、[sq][pc]の順
 								// なので注意。
+#if defined(ENABLE_PAWN_HISTORY)
+						  +    pawnHistory[pawn_structure(pos)][to_sq(m)][pos.moved_piece_after(m)]
+								// ↑pawnHistoryもやねうら王では[to][pc]の順なので注意。
+#endif
+				;
 
 		}
 	}

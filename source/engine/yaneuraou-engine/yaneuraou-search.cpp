@@ -2137,7 +2137,11 @@ namespace {
 		{
 			ASSERT_LV3(probCutBeta < VALUE_INFINITE);
 
-			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
+			MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory
+#if defined(ENABLE_PAWN_HISTORY)
+				, thisThread->pawnHistory
+#endif
+			);
 
 			// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 			// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
@@ -2247,6 +2251,9 @@ namespace {
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
 										  &captureHistory,
 										  contHist,
+#if defined(ENABLE_PAWN_HISTORY)
+										  thisThread->pawnHistory,
+#endif
 										  countermove,
 										  ss->killers);
 
@@ -2419,11 +2426,16 @@ namespace {
 				{
 					int history = (*contHist[0])[to_sq(move)][movedPiece]
 								+ (*contHist[1])[to_sq(move)][movedPiece]
-								+ (*contHist[3])[to_sq(move)][movedPiece];
+								+ (*contHist[3])[to_sq(move)][movedPiece]
 								// ↑contHistに関して
 								// Stockfishは、 [pc][sq]の順
 								// やねうら王は、[sq][pc]の順
 								// なので注意。
+#if defined(ENABLE_PAWN_HISTORY)
+								+ thisThread->pawnHistory[pawn_structure(pos)][to_sq(move)][movedPiece]
+								// ↑pawnHistoryもやねうら王では[sq][pc]の順なので注意。
+#endif
+						;
 
 					// Continuation history based pruning (~2 Elo)
 					// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip)
@@ -3463,6 +3475,9 @@ namespace {
 		MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
 										  &thisThread->captureHistory,
 										  contHist,
+#if defined(ENABLE_PAWN_HISTORY)
+										  thisThread->pawnHistory,
+#endif
 										  prevSq);
 
 		// 王手回避の指し手のうちquiet(駒を捕獲しない)な指し手の数
@@ -3827,10 +3842,22 @@ namespace {
 
 			// Increase stats for the best move in case it was a quiet move
 			update_quiet_stats(pos, ss, bestMove, bestMoveBonus);
+#if defined(ENABLE_PAWN_HISTORY)
+			thisThread->pawnHistory[pawn_structure(pos)][to_sq(bestMove)][moved_piece]
+	          << quietMoveBonus;
+			// ↑やねうら王、pawnHistoryは[to][pc]順なので注意。
+#endif
 
 			// Decrease stats for all non-best quiet moves
 			for (int i = 0; i < quietCount; ++i)
 			{
+#if defined(ENABLE_PAWN_HISTORY)
+				thisThread->pawnHistory[pawn_structure(pos)][to_sq(quietsSearched[i])][pos.moved_piece_after(quietsSearched[i])]
+												   
+							  << -bestMoveBonus;
+				// ↑やねうら王、pawnHistoryは[to][pc]順なので注意。
+#endif
+
 				thisThread->mainHistory[from_to(quietsSearched[i])][us] << -bestMoveBonus;
 								// ↑mainHistoryに関して
 								// Stockfishは [c][from_to]の順

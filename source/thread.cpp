@@ -44,6 +44,9 @@ void Thread::clear()
 	counterMoves.fill(MOVE_NONE);
 	mainHistory.fill(0);
 	captureHistory.fill(0);
+#if defined(ENABLE_PAWN_HISTORY)
+	pawnHistory.fill(0);
+#endif
 
 	// ここは、未初期化のときに[SQ_ZERO][NO_PIECE]を指すので、ここを-1で初期化しておくことによって、
 	// history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。

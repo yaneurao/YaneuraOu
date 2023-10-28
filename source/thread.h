@@ -149,6 +149,10 @@ public:
 	// →　この改造、レーティングがほぼ上がっていない。悪い改造のような気がする。
 	ContinuationHistory continuationHistory[2][2];
 
+#if defined(ENABLE_PAWN_HISTORY)
+	PawnHistory pawnHistory;
+#endif
+
 #endif
 
 	// Stockfish10ではスレッドごとにcontemptを保持するように変わった。

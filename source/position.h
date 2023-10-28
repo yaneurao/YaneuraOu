@@ -60,6 +60,13 @@ struct StateInfo {
 	HASH_KEY board_hash_key()     const { return board_key_            ; }
 	HASH_KEY hand_hash_key()      const { return              hand_key_; }
 
+#if defined(ENABLE_PAWN_HISTORY)
+	// 歩の陣形に対するhash key
+	HASH_KEY pawnKey_;
+	Key pawn_key()                const { return hash_key_to_key(pawn_hash_key()) >> 1;  }
+	HASH_KEY pawn_hash_key()      const { return pawnKey_;               }
+#endif
+
 	// 現局面で手番側に対して王手をしている駒のbitboard
 	Bitboard checkersBB;
 
@@ -554,6 +561,12 @@ public:
 	// prefetchできるとずいぶん速くなるのでこの関数を用意しておく。
 	Key      key_after     (Move m) const;
 	HASH_KEY hash_key_after(Move m) const;
+
+#if defined(ENABLE_PAWN_HISTORY)
+	// 歩の陣形に対するhash key
+	// やねうら王ではbit0を手番に用いているので、ここを使わないように >> 1して値を返す。
+	Key pawn_key() const { return st->pawn_key() >> 1; }
+#endif
 
 	// --- misc
 
