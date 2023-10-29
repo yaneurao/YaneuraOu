@@ -138,6 +138,10 @@ void bench_cmd(Position& current, istringstream& is)
 	// Optionsの影響を受けると嫌なので、その他の条件を固定しておく。
 	limits.enteringKingRule = EKR_NONE;
 
+	// ConsiderationModeをオフにしておかないとPV出力の時に置換表を漁るのでその時にdo_move()をして
+	// 探索ノード数が加算されてしまい、depth固定のbenchなのに探索ノード数が変化することがある。
+	Options["ConsiderationMode"] = false;
+
 	// テスト用の局面
 	// "default"=デフォルトの局面、"current"=現在の局面、それ以外 = ファイル名とみなしてそのsfenファイルを読み込む
 	if (fenFile == "default")
@@ -148,10 +152,12 @@ void bench_cmd(Position& current, istringstream& is)
 		SystemIO::ReadAllLines(fenFile, fens);
 
 	// 評価関数の読み込み等
-	is_ready();
+	// 
+	// 備考)
+	// is_ready()でSearch::clear()が呼び出されて、やねうら王探索部のSearch::clear()でTT::clear()と、Thread::clear()が呼び出されて、
+	// そのなかでhistory tableなどすべてのテーブルがクリアされることは保証されている。
 
-//	TT.clear();
-	// → is_ready()のなかでsearch::clear()が呼び出されて、そのなかでTT.clear()しているのでこの初期化は不要。
+	is_ready();
 
 	// トータルの探索したノード数
 #if !defined(YANEURAOU_ENGINE_DEEP)
