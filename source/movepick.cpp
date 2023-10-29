@@ -524,34 +524,21 @@ top:
 			// (depthが低いときに真面目に全要素ソートするのは無駄だから)
 
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
+
 			// 以下のSuperSortを有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
 
-#if 0
-			partial_super_sort(cur, endMoves , std::numeric_limits<int>::min());
-#endif
-
-#if 0
 			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
-			if (depth >= 10 && endMoves - cur >= 64)
-				partial_super_sort(cur, endMoves , std::numeric_limits<int>::min());
-			else
-				partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
-#endif
-
-#if 1
-			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
+			// (もうちょっと条件を精査した方がいいな…)
 			if ((depth >= 15 && endMoves - cur >= 32) || (depth >= 10 && endMoves - cur >= 64) || (depth >= 5 && endMoves - cur >= 96) )
-				super_sort(cur, endMoves);
+				partial_super_sort(cur, endMoves , -3000 * depth);
 			else
-				partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
-#endif
-
+				partial_insertion_sort(cur, endMoves, -3000 * depth);
 #else
 
-			// TODO: あとで比較する。
 			partial_insertion_sort(cur, endMoves, -3000 * depth);
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
 			//   sortできるなら全部したほうが良いがどうせ早い段階で枝刈りされるのでほとんど効果がない。
+
 #endif
 		}
 
