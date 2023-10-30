@@ -978,7 +978,7 @@ void Thread::search()
 			// Reset aspiration window starting size
 			// aspiration windowの開始サイズをリセットする			
 
-			Value prev = rootMoves[pvIdx].averageScore;
+			Value avg = rootMoves[pvIdx].averageScore;
 
 			// aspiration windowの幅
 			// 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
@@ -991,15 +991,13 @@ void Thread::search()
 			// Stockfish 12.1では16に変更された。
 			// Stockfish 16では10に変更された。
 
-			delta = Value(PARAM_ASPIRATION_SEARCH_DELTA /*10*/) + int(prev) * prev / 17470;
-			alpha = std::max(prev - delta,-VALUE_INFINITE);
-			beta  = std::min(prev + delta, VALUE_INFINITE);
+			delta = Value(PARAM_ASPIRATION_SEARCH_DELTA /*10*/) + int(avg) * avg / 15335;
+			alpha = std::max(avg - delta,-VALUE_INFINITE);
+			beta  = std::min(avg + delta, VALUE_INFINITE);
 
 			// Adjust optimism based on root move's previousScore (~4 Elo)
-			int opt = 113 * prev / (std::abs(prev) + 109);
-
-			//optimism[ us] = Value(opt);
-			//optimism[~us] = -optimism[us];
+			//optimism[ us]  = 103 * (avg + 33) / (std::abs(avg + 34) + 119);
+			//optimism[~us] = -116 * (avg + 40) / (std::abs(avg + 12) + 123);
 			// → このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
 
 			// Start with a small aspiration window and, in the case of a fail
@@ -2010,7 +2008,7 @@ namespace {
 		//  検証用の探索つきのnull move探索。PV nodeではやらない。
 
 		//  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
-		if (!PvNode
+		if (   !PvNode
 			&& (ss - 1)->currentMove != MOVE_NULL
 			&& (ss - 1)->statScore < 17257
 			&&  eval >= beta
