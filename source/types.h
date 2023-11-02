@@ -608,7 +608,12 @@ constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 struct Move16;
 
 // Move16 : 16bit形式の指し手
-//   指し手 bit0..6 = 移動先のSquare、bit7..13 = 移動元のSquare(駒打ちのときは駒種)、bit14..駒打ちか、bit15..成りか
+//   bit0..6  : 移動先のSquare
+//   bit7..13 : 移動元のSquare
+//				駒打ちのときはPieceType。例: 歩打ちの時は、ここのbitは、0001b、香打ちの時は0010b。
+//   bit14    : 駒打ちかのフラグ
+//   bit15    : 成りかのフラグ
+//   
 // Move   : 32bit形式の指し手
 //   上位16bitには、この指し手によってto(移動後の升)に来る駒(先後の区別あり)が格納されている。つまりは Piece(5bit)が上位16bitに来る。
 //   move = move16 + (piece << 16)
@@ -702,6 +707,10 @@ static    bool is_drop(Move16 m){ return (m.to_u16() & MOVE_DROP)!=0; }
 
 // fromとtoをシリアライズする。駒打ちのときのfromは普通の移動の指し手とは異なる。
 // この関数は、0 ～ ((SQ_NB+7) * SQ_NB - 1)までの値が返る。
+// ※ is_drop() == trueの時、from_sq(m)は、打つ駒のPieceTypeが返る。NO_PIECE = 0で、ここが空番であることに注意。
+//    ゆえに、is_drop()==trueの時は、from_sq(m)にSQ_NB-1を足して、打つ駒がPAWN(= 1)の時にSQ_NBになるようにしてやる必要がある。
+// 注) 駒打ちに関して、先手の駒と後手の駒の区別はしない。
+// 　　これは、この関数は、MovePickerのButterflyHistoryで使うから必要なのだが、そこでは指し手の手番(Color)を別途持っているから。
 constexpr int from_to(Move   m) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(m); }
 static    int from_to(Move16 m) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(m); }
 
@@ -711,6 +720,8 @@ static    bool is_promote(Move16 m) { return (m.to_u16() & MOVE_PROMOTE)!=0; }
 
 // 駒打ち(is_drop()==true)のときの打った駒
 // 先後の区別なし。PAWN～ROOKまでの値が返る。
+// ※ 打つ駒のPieceTypeはMoveの bit7..13に格納されている。
+// ※ assert(is_drop(m))はあってもいいかも。
 constexpr PieceType move_dropped_piece(Move   m) { return (PieceType)((m          >> 7) & 0x7f); }
 static    PieceType move_dropped_piece(Move16 m) { return (PieceType)((m.to_u16() >> 7) & 0x7f); }
 

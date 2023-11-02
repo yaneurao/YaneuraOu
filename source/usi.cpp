@@ -304,6 +304,12 @@ namespace USI
 					moves[ply] = m;
 					ss << " " << m;
 
+					// 注)
+					// このdo_moveで Position::nodesが加算されるので探索ノード数に影響が出る。
+					// benchコマンドで探索ノード数が一致しない場合、これが原因。
+					// → benchコマンドでは、ConsiderationMode = falseにすることで
+					// 　PV表示のためにdo_move()を呼び出さないようにした。
+
 					pos_->do_move(m, si[ply]);
 					++ply;
 				}

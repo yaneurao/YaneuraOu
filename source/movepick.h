@@ -25,9 +25,9 @@ constexpr int PAWN_HISTORY_SIZE = 512;
 inline int pawn_structure(const Position& pos) { return pos.pawn_key() & (PAWN_HISTORY_SIZE - 1); }
 #endif
 
-/// StatsEntryはstat tableの値を格納する。これは、大抵数値であるが、指し手やnestされたhistoryでさえありうる。
-/// 多次元配列であるかのように呼び出し側でstats tablesを用いるために、
-/// 生の値を用いる代わりに、history updateを行なうentry上でoperator<<()を呼び出す。
+// StatsEntryはstat tableの値を格納する。これは、大抵数値であるが、指し手やnestされたhistoryでさえありうる。
+// 多次元配列であるかのように呼び出し側でstats tablesを用いるために、
+// 生の値を用いる代わりに、history updateを行なうentry上でoperator<<()を呼び出す。
 
 // T : このEntryの実体
 // D : abs(entry) <= Dとなるように制限される。
@@ -74,10 +74,10 @@ public:
 	}
 };
 
-/// Statsは、様々な統計情報を格納するために用いられる汎用的なN-次元配列である。
-/// 1つ目のtemplate parameterであるTは、配列の基本的な型を示し、2つ目の
-/// template parameterであるDは、<< operatorで値を更新するときに、値を[-D,D]の範囲に
-/// 制限する。最後のparameter(SizeとSizes)は、配列の次元に用いられる。
+// Statsは、様々な統計情報を格納するために用いられる汎用的なN-次元配列である。
+// 1つ目のtemplate parameterであるTは、配列の基本的な型を示し、2つ目の
+// template parameterであるDは、<< operatorで値を更新するときに、値を[-D,D]の範囲に
+// 制限する。最後のparameter(SizeとSizes)は、配列の次元に用いられる。
 template <typename T, int D, int Size, int... Sizes>
 struct Stats : public std::array<Stats<T, D, Sizes...>, Size>
 {
@@ -97,15 +97,17 @@ struct Stats : public std::array<Stats<T, D, Sizes...>, Size>
 template <typename T, int D, int Size>
 struct Stats<T, D, Size> : public std::array<StatsEntry<T, D>, Size> {};
 
+// In stats table, D=0 means that the template parameter is not used
 // stats tableにおいて、Dを0にした場合、このtemplate parameterは用いないという意味。
 enum StatsParams { NOT_USED = 0 };
+
 enum StatsType { NoCaptures, Captures };
 
-/// ButterflyHistory records how often quiet moves have been successful or
-/// unsuccessful during the current search, and is used for reduction and move
-/// ordering decisions. It uses 2 tables (one for each color) indexed by
-/// the move's from and to squares, see www.chessprogramming.org/Butterfly_Boards
-/// (~11 elo)
+// ButterflyHistory records how often quiet moves have been successful or
+// unsuccessful during the current search, and is used for reduction and move
+// ordering decisions. It uses 2 tables (one for each color) indexed by
+// the move's from and to squares, see www.chessprogramming.org/Butterfly_Boards
+// (~11 elo)
 // ButterflyHistoryは、 現在の探索中にquietな指し手がどれくらい成功/失敗したかを記録し、
 // reductionと指し手オーダリングの決定のために用いられる。
 // cf. http://chessprogramming.wikispaces.com/Butterfly+Boards
@@ -127,7 +129,7 @@ enum StatsType { NoCaptures, Captures };
 
 struct ButterflyHistory
 {
-	using T = int16_t;         // StatsEntryの型
+	using T = int16_t;             // StatsEntryの型
 	static constexpr int D = 7183; // StatsEntryの範囲
 
 	// 必ず以下のアクセッサを通してアクセスすること。
@@ -148,21 +150,33 @@ private:
 
 	// また、やねうら王では、ここのfrom_toで用いられるfromは、駒打ちのときに特殊な値になっていて、
 	// 盤上のfromとは区別される。そのため、(SQUARE_NB + 7)まで移動元がある。
+	// 例) from = SQUARE_NB     の時、歩打ち
+	//     from = SQUARE_NB + 1 の時、香打ち
+	//         …
+	// 注) 打ち駒に関して、先手と後手の歩打ちを区別する必要はない。
+	// 　　なぜなら、このButterflyHistoryではその指し手の手番(Color)の区別をしているから。
+	// 
 	Stats<T, D , int(SQUARE_NB + 7) * int(SQUARE_NB) , COLOR_NB> stats;
 };
 
 
-/// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
-/// move, see www.chessprogramming.org/Countermove_Heuristic
+// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
+// move, see www.chessprogramming.org/Countermove_Heuristic
 // CounterMoveHistoryは、直前の指し手の[piece][to]によってindexされるcounter moves(応手)を格納する。
-/// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
+// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
 
 //using CounterMoveHistory = Stats<Move, NOT_USED, PIECE_NB, SQUARE_NB>;
 
 struct CounterMoveHistory
 {
-	using T = Move;                // StatsEntryの型
+	using T = Move;                    // StatsEntryの型
 	static constexpr int D = NOT_USED; // StatsEntryの範囲
+
+	//
+	// メモ)
+	// StockfishのMove、移動させる駒の情報は持っていないのだが、
+	// 将棋でもMove16で十分である可能性はある。
+	//
 
 	// 必ず以下のアクセッサを通してアクセスすること。
 	// ※ 引数の順番は、Stockfishの配列の添字の順番と合わせてある。
@@ -183,7 +197,7 @@ private:
 	Stats<T, D , SQUARE_NB, PIECE_NB> stats;
 };
 
-/// CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
+// CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
 // CapturePieceToHistoryは、指し手の [piece][to][captured piece type]で示される。
 
 //using CapturePieceToHistory = Stats<int16_t, 10692, PIECE_NB, SQUARE_NB, PIECE_TYPE_NB>;
@@ -213,8 +227,8 @@ private:
 };
 
 
-/// PieceToHistory is like ButterflyHistory but is addressed by a move's [piece][to]
-/// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[piece][to]で示される。
+// PieceToHistory is like ButterflyHistory but is addressed by a move's [piece][to]
+// PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[piece][to]で示される。
 
 //using PieceToHistory = Stats<int16_t, 29952, PIECE_NB, SQUARE_NB>;
 
@@ -243,10 +257,10 @@ private:
 };
 
 
-/// ContinuationHistory is the combined history of a given pair of moves, usually
-/// the current one given a previous one. The nested history table is based on
-/// PieceToHistory instead of ButterflyBoards.
-/// (~63 elo)
+// ContinuationHistory is the combined history of a given pair of moves, usually
+// the current one given a previous one. The nested history table is based on
+// PieceToHistory instead of ButterflyBoards.
+// (~63 elo)
 // ContinuationHistoryは、与えられた2つの指し手のhistoryを組み合わせたもので、
 // 普通、1手前によって与えられる現在の指し手(によるcombined history)
 // このnested history tableは、ButterflyBoardsの代わりに、PieceToHistoryをベースとしている。
@@ -269,7 +283,7 @@ struct ContinuationHistory
     }
 
 	void fill(int16_t t) {
-		// thread.cppにあった初期化コード
+		// Stockfish 16のthread.cppにあった初期化コード
 		for(auto& to :stats)
 			for(auto& h : to)
 				h->fill(t);
@@ -321,6 +335,14 @@ private:
 // -----------------------
 
 // 指し手オーダリング器
+
+
+// MovePicker class is used to pick one pseudo-legal move at a time from the
+// current position. The most important method is next_move(), which returns a
+// new pseudo-legal move each time it is called, until there are no moves left,
+// when MOVE_NONE is returned. In order to improve the efficiency of the
+// alpha-beta algorithm, MovePicker attempts to return the moves which are most
+// likely to get a cut-off first.
 //
 // MovePickerクラスは、現在の局面から、(呼び出し)一回につきpseudo legalな指し手を一つ取り出すのに用いる。
 // 最も重要なメソッドはnext_move()であり、これは、新しいpseudo legalな指し手を呼ばれるごとに返し、
@@ -336,10 +358,10 @@ class MovePicker
 
 public:
 	// このクラスは指し手生成バッファが大きいので、コピーして使うような使い方は禁止。
-	MovePicker(const MovePicker&) = delete;
+	MovePicker(const MovePicker&)            = delete;
 	MovePicker& operator=(const MovePicker&) = delete;
 
-	// 通常探索(search)から呼び出されるとき用。
+	// 通常探索(main search)から呼び出されるとき用のコンストラクタ。
 	// cm = counter move , killers_p = killerの指し手へのポインタ
 	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* mh,
 		const CapturePieceToHistory* cph,
@@ -360,7 +382,8 @@ public:
 #endif
 		Square recapSq);
 
-	// 通常探索(search)のProbCutの処理から呼び出されるの専用。
+	// 通常探索時にProbCutの処理から呼び出されるのコンストラクタ。
+	// SEEの値がth以上となるcaptureの指してだけを生成する。
 	// threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
 	// capture_or_pawn_promotion()に該当する指し手しか返さない。
 	MovePicker(const Position& pos_, Move ttMove_, Value threshold_,
@@ -389,14 +412,14 @@ private:
 	ExtMove* begin() { return cur; }
 	ExtMove* end() { return endMoves; }
 
-	const Position& pos;
+	const Position&              pos;
 
 	// コンストラクタで渡されたhistroyのポインタを保存しておく変数。
-	const ButterflyHistory* mainHistory;
+	const ButterflyHistory*      mainHistory;
 	const CapturePieceToHistory* captureHistory;
-	const PieceToHistory** continuationHistory;
+	const PieceToHistory**       continuationHistory;
 #if defined(ENABLE_PAWN_HISTORY)
-	const PawnHistory& pawnHistory;
+	const PawnHistory&           pawnHistory;
 #endif
 
 	// 置換表の指し手(コンストラクタで渡される)
@@ -424,9 +447,13 @@ private:
 	Depth depth;
 
 	// 指し手生成バッファ
-	// 最大合法手の数 = 593 , これを要素数が16の倍数になるようにpaddingすると608。
-	// メモリアドレスが32byteの倍数になるようにcurを使いたいので+3して、611。
-	ExtMove moves[MAX_MOVES + 11];
+	// 最大合法手の数 = 593 , これを要素数が32の倍数になるようにpaddingすると608。
+	// 32byteの倍数になるようにcurを使いたいので+3(ttmoveとkillerの分)して、611。
+#if !defined(USE_SUPER_SORT)
+	ExtMove moves[MAX_MOVES];
+#else
+	ExtMove moves[611];
+#endif
 };
 
 #endif // defined(USE_MOVE_PICKER)

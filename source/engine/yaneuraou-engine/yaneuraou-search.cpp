@@ -218,7 +218,8 @@ namespace {
 	Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
 		int reductionScale = Reductions[d] * Reductions[mn];
 		return (reductionScale + PARAM_REDUCTION_ALPHA/*1487*/ - int(delta) * PARAM_REDUCTION_GAMMA/*976*/ / int(rootDelta)) / 1024
-			+ (!i && reductionScale > PARAM_REDUCTION_BETA/*808*/);
+			+ (!i && reductionScale > PARAM_REDUCTION_BETA/*808*/ );
+		// PARAM_REDUCTION_BETAの値、将棋ではもう少し小さくして、reductionの適用範囲を広げた方がいいかも？
 	}
 
 	// 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
@@ -1328,8 +1329,14 @@ namespace {
 		// pv               : このnodeからのPV line(読み筋)
 		// capturesSearched : 駒を捕獲する指し手(+歩の成り)
 		// quietsSearched   : 駒を捕獲しない指し手(-歩の成り)
-		// この[32]と[64]のところ、値を変えても強さにあまり影響なかったので固定化する。
-		Move pv[MAX_PLY + 1], capturesSearched[32], quietsSearched[32];
+
+		// Stockfish 16では64から32になったが、将棋ではハズレのquietの指し手が大量にあるので
+		// それがベストとは限らない。
+
+		// →　比較したところ、64より32の方がわずかに良かったので、とりあえず32にしておく。(V7.73m2とV7.73mとの比較)
+
+		constexpr int MAX_SEARCHED = 32 /*32*/;
+		Move pv[MAX_PLY + 1], capturesSearched[MAX_SEARCHED], quietsSearched[MAX_SEARCHED];
 
 		// do_move()するときに必要
 		StateInfo st;
@@ -2973,7 +2980,7 @@ namespace {
 			// If the move is worse than some previously searched move, remember it, to update its stats later
 			// もしその指し手が、以前に探索されたいくつかの指し手より悪い場合は、あとで統計を取る時のために記憶しておく。
 
-			if (move != bestMove && moveCount <= 32)
+			if (move != bestMove && moveCount <= MAX_SEARCHED)
 			{
 				// 探索した駒を捕獲する指し手
 				if (capture)
@@ -3766,14 +3773,15 @@ namespace {
 
 	    int quietMoveBonus = stat_bonus(depth + 1);
 
-		// Stockfishではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
-		// Stockfishでは、capture()からcapture_stage()に変更された。[2023/10/15
+		// Stockfish 14ではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
+		// Stockfish 16では、capture()からcapture_stage()に変更された。[2023/10/15]
 		if (!pos.capture(bestMove))
 		{
 			// PARAM_UPDATE_ALL_STATS_EVAL_TH は、PawnValueより少し小さな値がベストっぽい。
+			// ※ StockfishではPawnValueが210ぐらいなので、それを考慮すること。
 
-			int bestMoveBonus = bestValue > beta + PARAM_UPDATE_ALL_STATS_EVAL_TH ? quietMoveBonus		// larger bonus
-															                      : stat_bonus(depth);	// smaller bonus
+			int bestMoveBonus = bestValue > beta + PARAM_UPDATE_ALL_STATS_EVAL_TH /*168*/ ? quietMoveBonus		// larger bonus
+															                              : stat_bonus(depth);	// smaller bonus
 
 			// Increase stats for the best move in case it was a quiet move
 			update_quiet_stats(pos, ss, bestMove, bestMoveBonus);
