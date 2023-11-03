@@ -129,9 +129,6 @@ void bench_cmd(Position& current, istringstream& is)
 	if (Options.count("BookFile"))
 		Options["BookFile"] = string("no_book");
 
-	// ベンチマークモードにしておかないとPVの出力のときに置換表を漁られて探索に影響がある。
-	limits.bench = true;
-
 	// すべての合法手を生成するのか
 	limits.generate_all_legal_moves = Options["GenerateAllLegalMoves"];
 

@@ -83,19 +83,27 @@ namespace Eval {
 		KingValue = 15000,
 	};
 
-	// 駒の価値のテーブル(後手の駒は負の値)
+	// 駒の価値のテーブル
+	// ※　後手の駒は負の値なので注意。
+	// →　後手の駒に対してプラスの値が欲しいなら、PieceValue[type_of(pc)]のようにする。
 	extern int PieceValue[PIECE_NB];
 
 	// 駒の交換値(＝捕獲したときの価値の上昇値)
 	// 例)「と」を取ったとき、評価値の変動量は手駒歩+盤面の「と」。
 	// MovePickerとSEEの計算で用いる。
+	// ※  後手の駒に対してもプラスの値が返るので注意。
 	extern int CapturePieceValue[PIECE_NB];
 
 	// 駒を成ったときの成る前との価値の差。SEEで用いる。
 	// 駒の成ったものと成っていないものとの価値の差
 	// ※　PAWNでもPRO_PAWNでも　と金 - 歩 の価値が返る。
-	// ※  後手の駒に対してもプラスの値が返る。
+	// ※  後手の駒に対してもプラスの値が返るので注意。
 	extern int ProDiffPieceValue[PIECE_NB];
+
+	// 指し手moveによってtoの地点の駒が捕獲できることがわかっている時の、駒を捕獲する価値
+	// moveが成りの指し手である場合、その価値も上乗せして計算する。
+	extern Value CapturePieceValuePlusPromote(const Position& pos, Move move);
+
 #endif
 
 

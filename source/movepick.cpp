@@ -267,10 +267,9 @@ void MovePicker::score()
 
 			// ここに来るCAPTURESに歩の成りを含めているので、捕獲する駒(pos.piece_on(to_sq(m)))がNO_PIECEで
 			// ある可能性については考慮しておく必要がある。
+			// → Eval::CapturePieceValuePlusPromote()を用いて計算。
 
-			m.value = (7 * int(Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-								// 歩の成り = ProDiffPieceValue[PAWN]を加算。
-						       + (is_promote(m) ? Eval::ProDiffPieceValue[pos.moved_piece_after(m)] : 0) )
+			m.value = (7 * int(Eval::CapturePieceValuePlusPromote(pos, m))
 					   + (*captureHistory)(pos.moved_piece_after(m), to_sq(m), type_of(pos.piece_on(to_sq(m)))))
 					  / 16;
 		}
