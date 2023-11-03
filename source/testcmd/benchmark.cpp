@@ -137,6 +137,8 @@ void bench_cmd(Position& current, istringstream& is)
 
 	// ConsiderationModeをオフにしておかないとPV出力の時に置換表を漁るのでその時にdo_move()をして
 	// 探索ノード数が加算されてしまい、depth固定のbenchなのに探索ノード数が変化することがある。
+	limits.consideration_mode = false;
+	// 探索部でこっち⇓のオプションの値を見てlimits.consideration_modeに反映させるようなコードが書いてあるかも知れないので両方。
 	Options["ConsiderationMode"] = false;
 
 	// テスト用の局面

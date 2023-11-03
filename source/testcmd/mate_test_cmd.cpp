@@ -548,8 +548,10 @@ namespace {
 
 		Search::LimitsType limits;
 
-		// ベンチマークモードにしておかないとPVの出力のときに置換表を漁られて探索に影響がある。
-		limits.bench = true;
+		// ConsiderationModeをオフにしておかないとPV出力の時に置換表を漁るのでその時にdo_move()をして
+		// 探索ノード数が加算されてしまい、depth固定のbenchなのに探索ノード数が変化することがある。
+		limits.consideration_mode = false;
+		// →　ただし、探索部でこのオプションの値を上書きしていないものとする。
 
 		// 探索制限
 		limits.nodes = 0;
