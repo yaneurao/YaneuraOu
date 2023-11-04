@@ -86,6 +86,7 @@ namespace Eval {
 	// 駒の価値のテーブル
 	// ※　後手の駒は負の値なので注意。
 	// →　後手の駒に対してプラスの値が欲しいなら、PieceValue[type_of(pc)]のようにする。
+	//   StockfishのPieceValue()は、負の値は帰ってこないので注意。
 	extern int PieceValue[PIECE_NB];
 
 	// 駒の交換値(＝捕獲したときの価値の上昇値)
@@ -102,6 +103,7 @@ namespace Eval {
 
 	// 指し手moveによってtoの地点の駒が捕獲できることがわかっている時の、駒を捕獲する価値
 	// moveが成りの指し手である場合、その価値も上乗せして計算する。
+	// ※　to_sq(move)に駒がない場合もこの関数の呼び出しは合法。(VALUE_NONEが返る)
 	extern Value CapturePieceValuePlusPromote(const Position& pos, Move move);
 
 #endif

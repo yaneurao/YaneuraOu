@@ -327,13 +327,27 @@ void MovePicker::score()
 		{
 			// 王手回避の指し手をスコアリングする。
 
+			//if (pos.capture_stage(m))
 			if (pos.capture_or_pawn_promotion(m))
 				// 捕獲する指し手に関しては簡易SEE + MVV/LVA
 				// 被害が小さいように、LVA(価値の低い駒)を動かして取ることを優先されたほうが良いので駒に価値の低い順に番号をつける。そのためのテーブル。
 				// ※ LVA = Least Valuable Aggressor。cf.MVV-LVA
 
+				// ここ、moved_piece_before()を用いるのが正しい。
+				// そうしておかないと、同じto,fromである角成りと角成らずの2つの指し手がある時、
+				// moved_piece_after()だと、角成りの方は、取られた時の損失が多いとみなされてしまい、
+				// オーダリング上、後回しになってしまう。
+
+				//m.value = PieceValue[pos.piece_on(to_sq(m))] - Value(type_of(pos.moved_piece(m)))
+				//		+ (1 << 28);
+
+				// 上記のStockfishのコードのValue()は関数ではなく単にValue型へcastしているだけ。
+				// 駒番号順に価値が低いと考えて(普通は成り駒ではないから)、LVAとしてそれを優先して欲しいという意味。
+
 				m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-				        - Eval::PieceValue[type_of(pos.moved_piece_after(m))]
+				        - (Eval::PieceValue[type_of(pos.moved_piece_before(m))]/16)
+							// →　/32 は、価値の低い駒にして欲しいが、まずはCapturePieceValueの大きな順になって欲しいので、
+							// スケールを小さくしている。
                         + (1 << 28);
 						
 			else
