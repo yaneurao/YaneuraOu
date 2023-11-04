@@ -92,11 +92,12 @@ struct StateInfo {
 	// color = 相手側 なら 両王手の候補となる駒。
 
 	// 自玉に対して(敵駒によって)pinされている駒
-	// blockersForKing[c]は、c側の玉に対するpin駒
+	// blockersForKing[c]は、c側の玉に対するpin駒。すなわちc側,~c側、どちらの駒をも含む。
 	Bitboard blockersForKing[COLOR_NB];
 
 	// 自玉に対してpinしている(可能性のある)敵の大駒。
 	// 自玉に対して上下左右方向にある敵の飛車、斜め十字方向にある敵の角、玉の前方向にある敵の香、…
+	// ※ pinners[BLACK]は、BLACKの王に対して(pin駒が移動した時に)王手になる駒だから、WHITE側の駒。
 	Bitboard pinners[COLOR_NB];
 
 	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
@@ -400,7 +401,9 @@ public:
 	Bitboard check_squares(PieceType pt) const { ASSERT_LV3(pt!= NO_PIECE_TYPE && pt < PIECE_TYPE_NB); return st->checkSquares[pt]; }
 
 	// c側の玉に対してpinしている駒
-	//Bitboard pinners(Color c) const;
+	// ※ pinされているではなく、pinしているということに注意。
+	// 　すなわち、pinされている駒が移動した時に、この大駒によって王が素抜きにあう。
+	Bitboard pinners(Color c) const { return st->pinners[c]; }
 
 	// c側の玉に対して、指し手mが空き王手となるのか。
 	bool is_discovery_check_on_king(Color c, Move m) const { return st->blockersForKing[c] & from_sq(m); }
@@ -446,6 +449,11 @@ public:
 	// update_slider_blockers()はst->blockersForKing[c]およびst->pinners[~c]を計算します。
 	// これらはそれぞれ、色cの王が王手状態になるのを防ぐ駒と、色cの駒を王にピン留めする手番~cの
 	// スライダー駒を格納しています。
+	// ※　「ピン留め」とは、移動させた時に開き王手となること。
+	// 
+	// 注意)
+	// 	 王 歩 ^飛 ^飛
+	//  のようなケースにおいては、この両方の飛車がpinnersとして列挙される。(SEEの処理でこういう列挙がなされて欲しいので)
 
 	void update_slider_blockers(Color c) const;
 

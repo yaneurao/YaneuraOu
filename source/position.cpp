@@ -648,47 +648,34 @@ void Position::update_slider_blockers(Color c) const
 	// ゆえに将棋では、この関数は手番を引数に取るべき。(チェスとはこの点において異なる。)
 
 	Bitboard snipers =
-		( (pieces(ROOK_DRAGON)  & rookStepEffect(ksq))
-		| (pieces(BISHOP_HORSE) & bishopStepEffect(ksq))
-		// 香に関しては攻撃駒が先手なら、玉より下側をサーチして、そこにある先手の香を探す。
-		| (pieces(LANCE) & lanceStepEffect(c, ksq))
-
+		(
+		    (pieces(ROOK_DRAGON ) & rookStepEffect(ksq    ))
+		  | (pieces(BISHOP_HORSE) & bishopStepEffect(ksq  ))
+		  // 香に関しては先手玉へのsniperなら、玉より上側をサーチして、そこにある後手の香を探す必要がある。
+		  | (pieces(LANCE       ) & lanceStepEffect(c, ksq))
 		) & pieces(~c);
 
-#if 0
 	// snipersを取り除いた障害物(駒)
 	Bitboard occupancy = pieces() ^ snipers;
+
+	// 1.
+	//   王 歩 ^角 ^飛
+	//   のようなケースはない(王から見て斜め方向にいる角しか列挙していないのでsnipersのbitboardは王の横方向に角がいることはない。)
+
+	// 2.
+	//    王 歩 ^飛 ^飛
+	//  のようなケースにおいては、この両方の飛車がpinnersとして列挙されて欲しい。(SEEの処理でこういう列挙がなされて欲しいので)
 
 	while (snipers)
 	{
 		Square sniperSq = snipers.pop();
 		Bitboard b = between_bb(ksq, sniperSq) & occupancy;
 
-		if (b && !b.more_than_one())
-		{
-			st->blockersForKing[c] |= b;
-			if (b & pieces(c))
-				st->pinners[~c] |= sniperSq;
-		}
-	}
-#endif
-
-	// ↑このStockfishの元のコード、snipersを除いた盤上の駒で考えているが、
-	// ^王 歩 角 飛
-	// このような状況で飛車に対して角を取り除いてから敵玉への射線を考えるので、
-	// 歩がslider_blocker扱いになってしまう。つまり、このコードは間違っているのでは？
-
-	while (snipers)
-	{
-		Square sniperSq = snipers.pop();
-		Bitboard b = between_bb(ksq, sniperSq) & pieces() /* occupancy */;
-
 		// snipperと玉との間にある駒が1個であるなら。
 		if (b && !b.more_than_one())
 		{
 			st->blockersForKing[c] |= b;
-			if (b & pieces(~c))
-				// sniperと玉に挟まれた駒が玉と同じ色の駒であるなら、pinnerに追加。
+			if (b & pieces(c))
 				st->pinners[~c] |= sniperSq;
 		}
 	}
@@ -2006,7 +1993,7 @@ bool Position::see_ge(Move m, Value threshold) const
 
 		// pinnersが元の升にいる限りにおいては、pinされた駒から王以外への移動は許さない。
 
-		if (!(st->pinners[~stm] & occupied))
+		if (!(pinners(~stm) & occupied))
 			stmAttackers &= ~st->blockersForKing[stm];
 
 		// 手番側のtoに利いている駒がもうないなら、手番側の負けである。
