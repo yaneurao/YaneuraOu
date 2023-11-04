@@ -1922,6 +1922,11 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// この右辺の↑係数、調整すべきだろうけども、4 Eloのところ調整しても…みたいな意味はある。
 
 		thisThread->mainHistory(~us, from_to((ss-1)->currentMove)) << bonus;
+
+#if defined(ENABLE_PAWN_HISTORY)
+		if (type_of(pos.piece_on(prevSq)) != PAWN && type_of((ss - 1)->currentMove) != PROMOTION)
+            thisThread->pawnHistory[pawn_structure(pos)][pos.piece_on(prevSq)][prevSq] << bonus / 4;
+#endif
 	}
 
 	// Set up the improvement variable, which is the difference between the current
@@ -1969,15 +1974,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	{
 		value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
 		if (value < alpha)
-		{
-			if (!priorCapture && prevSq != SQ_NONE)
-			{
-				int bonus = (depth > 6) + (PvNode || cutNode) + (value < alpha - 658) + ((ss-1)->moveCount > 11);
-				update_continuation_histories(ss-1, pos.piece_on(prevSq), prevSq, stat_bonus(depth) * bonus);
-				thisThread->mainHistory(~us,from_to((ss-1)->currentMove)) << stat_bonus(depth) * bonus * 57 / 100;
-			}
 			return value;
-		}
 	}
 
 	// -----------------------
@@ -2152,7 +2149,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
 		while ((move = mp.next_move()) != MOVE_NONE)
 		{
-			// ↑Stockfishでは省略してあるけど、この"{"、省略するとbugの原因になりうる。
+			// ↑Stockfishでは省略してあるけど、この"{"、省略するとbugの原因になりうるので追加しておく。
 
 			ASSERT_LV3(pos.pseudo_legal(move) && pos.legal_promote(move));
 
@@ -2165,6 +2162,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 				// MovePickerはprob cutの時に、
 				// (GenerateAllLegalMovesオプションがオンであっても)歩の成らずは返してこないことは保証している。
 				ASSERT_LV3(pos.capture_or_pawn_promotion(move));
+
+				// Prefetch the TT entry for the resulting position
+                //prefetch(TT.first_entry(pos.key_after(move)));
+				// → 将棋だとこのprefetch、効果がなさげなのでコメントアウト。
 
 				ss->currentMove = move;
 				ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck                ]
@@ -3070,8 +3071,7 @@ moves_loop:
 										stat_bonus(depth) * bonus);
 
 		thisThread->mainHistory(~us, from_to((ss - 1)->currentMove))
-			<< stat_bonus(depth) * bonus * 61 / 100;
-		// TODO : ここ、61/100ではなく78/128とかのほうが良いかも？(定数だからC++の最適化で自動的にそうなる？)
+			<< stat_bonus(depth) * bonus / 2;
 	}
 
 	// 将棋ではtable probe使っていないのでmaxValue関係ない。
