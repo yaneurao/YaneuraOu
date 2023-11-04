@@ -46,6 +46,7 @@ namespace Eval
 	Value CapturePieceValuePlusPromote(const Position& pos, Move move)
 	{
 		return (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
+			// 駒が成る時は、駒の移動元であるfrom_sq(move)はまだ成っていない駒であることが保証される。
 			+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(from_sq(move))] : VALUE_ZERO);
 	}
 

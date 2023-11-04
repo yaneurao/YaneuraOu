@@ -1123,5 +1123,21 @@ inline Bitboard attacks_bb(Square s, Bitboard occupied) {
 	return effects_from(PC, s, occupied);
 }
 
+/// least_significant_square_bb() returns the bitboard of the least significant
+/// square of a non-zero bitboard. It is equivalent to square_bb(lsb(bb)).
+
+// pop_lsb()の、Bitboardを返す版。
+// ※　Stockfishとの互換性のために用意。
+
+inline Bitboard least_significant_square_bb(Bitboard b) {
+	//return b & -b;
+	// →　Stockfishはチェスが64升だから盤面のBitboardが64bit整数に収まるのだが、
+	//    やねうら王では一工夫必要。
+
+	u64 q0 = b.extract64<0>();
+	u64 q1 = b.extract64<1>();
+	return (q0 != 0) ? Bitboard(q0 & -q0 , q1) : Bitboard(q0, q1 & -q1);
+}
+
 
 #endif // #ifndef _BITBOARD_H_

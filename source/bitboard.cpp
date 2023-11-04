@@ -1090,8 +1090,8 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 		const Bitboard one_bb(1, 0);
 		bool all_ok = true;
 
-		all_ok = zero_bb.decrement() == minus_one;
-		all_ok = one_bb.decrement()  == zero_bb;
+		all_ok &= zero_bb.decrement() == minus_one;
+		all_ok &= one_bb.decrement()  == zero_bb;
 
 		tester.test("decrement(method)", all_ok);
 	}
@@ -1102,6 +1102,17 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 
 		tester.test("attacks_bb<B_KNIGHT>",attacks_bb<B_KNIGHT>(SQ_77) == (Bitboard(SQ_85) | Bitboard(SQ_65)));
 		tester.test("attacks_bb<W_KNIGHT>",attacks_bb<W_KNIGHT>(SQ_77) == (Bitboard(SQ_89) | Bitboard(SQ_69)));
+	}
+	{
+		bool all_ok = true;
+		Bitboard bb;
+
+		bb = Bitboard(SQ_22) | Bitboard(SQ_77);
+		all_ok &= least_significant_square_bb(bb) == Bitboard(SQ_22);
+		bb = Bitboard(SQ_99) | Bitboard(SQ_87);
+		all_ok &= least_significant_square_bb(bb) == Bitboard(SQ_87);
+
+		tester.test("least_significant_square_bb",all_ok);
 	}
 }
 

@@ -1812,220 +1812,238 @@ void Position::undo_null_move()
 
 #if defined (USE_SEE)
 
-namespace {
-
-	using namespace Eval;
-	using namespace Effect8;
-
-	// min_attacker()はsee_ge()で使われるヘルパー関数であり、(目的升toに利く)
-	// 手番側の最も価値の低い攻撃駒の場所を特定し、その見つけた駒をビットボードから取り除き
-	// その背後にあった遠方駒をスキャンする。(あればstmAttackersに追加する)
-
-	// またこの関数はmin_attacker<PAWN>()として最初呼び出され、PAWNの攻撃駒がなければ次に
-	// KNIGHTの..というように徐々に攻撃駒をアップグレードしていく。
-
-	// occupied = 駒のある場所のbitboard。今回発見された駒は取り除かれる。
-	// stmAttackers = 手番側の攻撃駒
-	// attackers = toに利く駒(先後両方)。min_attacker(toに利く最小の攻撃駒)を見つけたら、その駒を除去して
-	//  その影にいたtoに利く攻撃駒をattackersに追加する。
-	// uncapValue = 最後にこの駒が取れなかったときにこの駒が「成り」の指し手だった場合、その価値分の損失が
-	// 出るのでそれが返る。
-
-	// 返し値は今回発見されたtoに利く最小の攻撃駒。これがtoの地点において成れるなら成ったあとの駒を返すべき。
-
-	PieceType min_attacker(const Position& pos, const Square& to
-		, const Bitboard& stmAttackers, Bitboard& occupied, Bitboard& attackers
-	) {
-
-		// 駒種ごとのbitboardのうち、攻撃駒の候補を調べる
-	//:      Bitboard b = stmAttackers & bb[Pt];
-
-		// 歩、香、桂、銀、金(金相当の駒)、角、飛、馬、龍…の順で取るのに使う駒を調べる。
-		// 金相当の駒については、細かくしたほうが良いかどうかは微妙。
-
-		Bitboard b;
-		b = stmAttackers & pos.pieces(PAWN);   if (b) goto found;
-		b = stmAttackers & pos.pieces(LANCE);  if (b) goto found;
-		b = stmAttackers & pos.pieces(KNIGHT); if (b) goto found;
-		b = stmAttackers & pos.pieces(SILVER); if (b) goto found;
-		b = stmAttackers & pos.pieces(GOLDS);  if (b) goto found;
-		b = stmAttackers & pos.pieces(BISHOP); if (b) goto found;
-		b = stmAttackers & pos.pieces(ROOK);   if (b) goto found;
-		b = stmAttackers & pos.pieces(HORSE);  if (b) goto found;
-		b = stmAttackers & pos.pieces(DRAGON); if (b) goto found;
-
-		// 攻撃駒があるというのが前提条件だから、以上の駒で取れなければ、最後は玉でtoの升に移動出来て駒を取れるはず。
-		// 玉を移動させた結果、影になっていた遠方駒によってこの王が取られることはないから、
-		// sqに利く遠方駒が追加されることはなく、このままreturnすれば良い。
-
-		return KING;
-
-	found:;
-
-		// bにあった駒を取り除く
-
-		Square sq = b.pop();
-		occupied ^= sq;
-
-		// このときpinされているかの判定を入れられるなら入れたほうが良いのだが…。
-		// この攻撃駒の種類によって場合分け
-
-		// sqにあった駒が消えるので、toから見てsqの延長線上にある駒を追加する。
-
-		auto dirs = directions_of(to, sq);
-		if (dirs) switch(pop_directions(dirs))
-		{
-		// 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
-		case DIRECT_RU: attackers |= rayEffect<DIRECT_RU>(to, occupied) & pos.pieces<BISHOP_HORSE>(); break;
-		case DIRECT_LD: attackers |= rayEffect<DIRECT_LD>(to, occupied) & pos.pieces<BISHOP_HORSE>(); break;
-		case DIRECT_RD: attackers |= rayEffect<DIRECT_RD>(to, occupied) & pos.pieces<BISHOP_HORSE>(); break;
-		case DIRECT_LU: attackers |= rayEffect<DIRECT_LU>(to, occupied) & pos.pieces<BISHOP_HORSE>(); break;
-
-		// 上方向に移動した時の背後の駒によってtoの地点に利くのは、後手の香 + 先後の飛車
-		case DIRECT_U : attackers |= rayEffect<DIRECT_U >(to, occupied) & (pos.pieces<ROOK_DRAGON>() | pos.pieces<WHITE, LANCE>()); break;
-
-		// 下方向に移動した時の背後の駒によってtoの地点に利くのは、先手の香 + 先後の飛車
-		case DIRECT_D : attackers |= rayEffect<DIRECT_D >(to, occupied) & (pos.pieces<ROOK_DRAGON>() | pos.pieces<BLACK, LANCE>()); break;
-
-		// 左右方向に移動した時の背後の駒によってtoの地点に利くのは、飛車・龍。
-		case DIRECT_L : attackers |= rayEffect<DIRECT_L> (to, occupied) & pos.pieces<ROOK_DRAGON>(); break;
-		case DIRECT_R : attackers |= rayEffect<DIRECT_R> (to, occupied) & pos.pieces<ROOK_DRAGON>(); break;
-
-		default: UNREACHABLE; break;
-		}
-		else {
-			// DIRECT_MISC
-			ASSERT_LV3(!(bishopStepEffect(to) & sq));
-			ASSERT_LV3(!((rookStepEffect(to) & sq)));
-		}
-
-		// toに利く攻撃駒は、occupiedのその升が1になっている駒に限定する。
-		// 処理した駒はoccupiedのその升が0になるので自動的に除外される。
-		attackers &= occupied;
-
-		// この駒が成れるなら、成りの値を返すほうが良いかも。
-		// ※　最後にこの地点に残る駒を返すべきなのか。相手が取る/取らないを選択するので。
-		return type_of(pos.piece_on(sq));
-	}
-
-} // namespace
+// Tests if the SEE (Static Exchange Evaluation)
+// value of move is greater or equal to the given threshold. We'll use an
+// algorithm similar to alpha-beta pruning with a null window.
 
 
-/// Position::see() is a static exchange evaluator: It tries to estimate the
-/// material gain or loss resulting from a move.
-
-// Position::see()は静的交換評価器(SEE)である。これは、指し手による駒による得失の結果
-// を見積ろうと試みる。
-
-// 最初に動かす駒側の手番から見た値が返る。
-
+// Position::see()は指し手のSEE(静的交換評価)の値が、与えられたthreshold(しきい値)以上であるかをテストする。
+// null windowの時のalpha-beta法に似たアルゴリズムを用いる。
+//
 // ※　SEEの解説についてはググれ。
 //
 // ある升での駒の取り合いの結果、どれくらい駒得/駒損するかを評価する。
 // 最初に引数として、指し手mが与えられる。この指し手に対して、同金のように取り返され、さらに同歩成のように
-// 取り返していき、最終的な結果(評価値のうちの駒割りの部分の増減)を返すのが本来のSEE。
-
+// (価値の低い駒を優先して用いて)取り返していき、最終的な結果(評価値のうちの駒割りの部分の増減)を返すのが本来のSEE。
+//
 // ただし、途中の手順では、同金とした場合と同金としない場合とで、(そのプレイヤーは自分が)得なほうを選択できるものとする。
-
+//
 // ※　KINGを敵の利きに移動させる手は非合法手なので、ここで与えられる指し手にはそのような指し手は含まないものとする。
 // また、SEEの地点(to)の駒をKINGで取る手は含まれるが、そのKINGを取られることは考慮しなければならない。
 // 最後になった駒による成りの上昇値は考えない。
-
-// このseeの最終的な値が、vを以上になるかどうかを判定する。
-// こういう設計にすることで早期にvを超えないことが確定した時点でreturn出来る。
+//
+// このseeの最終的な値が、しきい値threshold以上になるかどうかを判定するのがsee_ge()である。
+// こういう設計にすることで早期にthresholdを超えないことが確定した時点でreturn出来る。
 
 bool Position::see_ge(Move m, Value threshold) const
 {
-	// null windowのときのαβ探索に似たアルゴリズムを用いる。
+	ASSERT_LV3(is_ok(m));
 
-	// 少し無駄ではあるが、Stockfishの挙動をなるべく忠実に再現する。
+    //// Only deal with normal moves, assume others pass a simple SEE
+    //if (type_of(m) != NORMAL)
+    //    return VALUE_ZERO >= threshold;
 
 	bool drop = is_drop(m);
-	// 駒の移動元(駒打ちの場合は)、移動先
+
+	// 以下、Stockfishの挙動をなるべく忠実に再現する。
+
+	// 駒の移動元(駒打ちの場合は)と移動先。
 	// dropのときにはSQ_NBにしておくことで、pieces() ^ fromを無効化するhack
 	Square from = drop ? SQ_NB : from_sq(m);
-	Square to = to_sq(m);
+	Square to   = to_sq(m);
 
-	// 次にtoの升で捕獲される駒
-	// 成りなら成りを評価したほうが良い可能性があるが、このあとの取り合いで指し手の成りを評価していないので…。
-	PieceType nextVictim = drop ? move_dropped_piece(m) : type_of(piece_on(from));
+	// → 将棋だと、駒打ちで、SEE > 0になることはないので(打った駒を取られてマイナスになることはあっても)
+	//  threshold > 0なら、即座に falseが返せる。
+	//if (drop && threshold > 0)
+	//	return false;
+	// → この判定、以下の条件式が含むから、無駄。
 
-	// 以下のwhileで想定している手番。
-	// 移動させる駒側の手番から始まるものとする。
-	// 次に列挙すべきは、この駒を取れる敵の駒なので、相手番に。
-	// ※「stm」とは"side to move"(手番側)を意味する用語。
-	Color us = color_of(moved_piece_after(m));
-	Color stm = ~us;
+	// toの地点にある駒の価値がthreshold以上ではない。
+	// この場合、取り返されなかったとしても、条件を満たすことはないので即座にfalseを返せる。
 
-	// 取り合いにおける収支。取った駒の価値と取られた駒の価値の合計。
-	// いまthresholdを超えるかどうかが問題なので、この分だけbiasを加えておく。
-	Value balance = (Value)Eval::CapturePieceValue[piece_on(to)] - threshold;
+	//int swap = PieceValue[piece_on(to)] - threshold;
+	// →　StockfishのPieceValueは負の値は返ってこないが、やねうら王では後手の駒の価値は負の値になっているので、
+	//    type_of()を用いて先手の駒に変換してからPieceValueを用いる必要があることに注意。
+    int swap = Eval::PieceValue[type_of(piece_on(to))] - threshold;
+	if (swap < 0)
+        return false;
 
-	// この時点でマイナスになっているので早期にリターン。
-	if (balance < VALUE_ZERO)
-		return false;
+	// この時点で、
+	//   PieceValue[piece_on(to)] - 最初に動かす駒の価値 >= threshold
+	// なら、取り返されたところですでにしきい値以上になることは確定しているのでtrueが返せる。
 
-	// nextVictim == Kingの場合もある。玉が取られる指し手は考えなくて良いので
-	// この場合プラス収支と考えてよく、CapturePieceValue[KING] == 0が格納されているので
-	// 以下の式によりtrueが返る。
+	//swap = PieceValue[piece_on(from)] - swap;
+    swap = Eval::PieceValue[type_of(piece_on(from))] - swap;
+    if (swap <= 0)
+        return true;
 
-	balance -= (Value)Eval::CapturePieceValue[nextVictim];
+    //assert(color_of(piece_on(from)) == sideToMove);
+    ASSERT_LV3(drop || color_of(piece_on(from)) == sideToMove);
 
-	if (balance >= VALUE_ZERO)
-		return true;
+    Bitboard occupied  = pieces() ^ from ^ to;  // xoring to is important for pinned piece logic
+    Color    stm       = sideToMove;
+    Bitboard attackers = attackers_to(to, occupied);
+    Bitboard stmAttackers, bb;
+    int      res = 1;
 
-	// 相手側の手番ならtrue、自分側の手番であるならfalse
-	bool relativeStm = true;
+    while (true)
+    {
+        stm = ~stm;
+        attackers &= occupied;
 
-	// いま、以下のwhileのなかで想定している手番側の、sqの地点に利く駒
-	Bitboard stmAttackers;
+        // If stm has no more attackers then give up: stm loses
+		// 手番側がtoに利く駒が尽きたなら、お手上げ。(see_geの判定は)手番側の負け。
+        if (!(stmAttackers = attackers & pieces(stm)))
+            break;
 
-	// 盤上の駒(取り合いしていくうちにここから駒が無くなっていく)
-	// すでにfromとtoの駒は取られたはずなので消しておく。
-	Bitboard occupied = pieces() ^ from ^ to;
+        // Don't allow pinned pieces to attack as long as there are
+        // pinners on their original square.
+        if (pinners(~stm) & occupied)
+        {
+            stmAttackers &= ~blockers_for_king(stm);
 
-	// すべてのattackerを列挙する。
-	Bitboard attackers = attackers_to(to, occupied) & occupied;
+            if (!stmAttackers)
+                break;
+        }
 
-	while (true)
-	{
-		stmAttackers = attackers & pieces(stm);
+        res ^= 1;
 
-		// pinnersが元の升にいる限りにおいては、pinされた駒から王以外への移動は許さない。
+        // Locate and remove the next least valuable attacker, and add to
+        // the bitboard 'attackers' any X-ray attackers behind it.
 
-		if (!(pinners(~stm) & occupied))
-			stmAttackers &= ~st->blockersForKing[stm];
+		// 歩で取れるなら、まず歩で取る。
+        if ((bb = stmAttackers & pieces(PAWN)))
+        {
+			// この時点で、歩で取れることは確定した。
 
-		// 手番側のtoに利いている駒がもうないなら、手番側の負けである。
-		if (!stmAttackers)
-			break;
+			// この時点でPawnValue以上に得しているなら、この歩を取り返されたところで、手抜いてthresholdを下回らないので、returnできる。
+            if ((swap = Eval::PawnValue - swap) < res)
+                break;
 
-		// 次に価値の低い攻撃駒を調べて取り除く。
+            //occupied ^= least_significant_square_bb(bb);
+            //attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+			// →　チェスではPAWNで取る時、PAWNが斜めに移動するので、toの斜め(X-ray)にある駒を
+			//    attackersとして追加する必要があるが、将棋の場合は、歩の背後にいる香・飛車を追加する必要がある。
+        }
 
-		nextVictim = min_attacker(*this, to, stmAttackers, occupied, attackers);
+		// 香を試す(将棋only)
+        else if ((bb = stmAttackers & pieces(LANCE)))
+        {
+            if ((swap = Eval::LanceValue - swap) < res)
+                break;
+        }
 
-		stm = ~stm; // 相手番に
+        else if ((bb = stmAttackers & pieces(KNIGHT)))
+        {
+            if ((swap = Eval::KnightValue - swap) < res)
+                break;
+            occupied ^= least_significant_square_bb(bb);
 
-		// Negamax the balance with alpha = balance, beta = balance+1 and
-		// add nextVictim's value.
-		//
-		//      (balance, balance+1) -> (-balance-1, -balance)
-		//
-		ASSERT_LV3(balance < VALUE_ZERO);
+			// 桂で取ったところでその背後にある駒がattckersに追加されることはないので、whileに戻る。
+			continue;
+        }
 
-		balance = -balance - 1 - CapturePieceValue[nextVictim];
+		// 銀を試す(将棋only)
+        else if ((bb = stmAttackers & pieces(SILVER)))
+        {
+            if ((swap = Eval::SilverValue - swap) < res)
+                break;
+        }
+		// 金を試す(将棋only)
+        else if ((bb = stmAttackers & pieces(GOLDS)))
+        {
+			// ここ、今回捕獲する金相当の駒の価値にすべきかも知れないが、
+			// この時点ではまだ今回動かす駒の移動元が得られていないので、その処理書きにくい。
+            if ((swap = Eval::GoldValue - swap) < res)
+                break;
+        }
 
-		// もしbalanceがnextVictimを取り去っても依然として非負(0か正)であるなら、これをもって勝利である。
-		// ただし最後に玉が残って、相手側がまだattackerを持っているときはstmを反転しないといけないので注意。
-		if (balance >= VALUE_ZERO)
+		else if ((bb = stmAttackers & pieces(BISHOP)))
+        {
+            if ((swap = Eval::BishopValue - swap) < res)
+                break;
+            //occupied ^= least_significant_square_bb(bb);
+            //attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+        }
+
+        else if ((bb = stmAttackers & pieces(ROOK)))
+        {
+            if ((swap = Eval::RookValue - swap) < res)
+                break;
+            //occupied ^= least_significant_square_bb(bb);
+            //attackers |= attacks_bb<ROOK>(to, occupied) & pieces(ROOK, QUEEN);
+        }
+
+		// 馬を試す(将棋only)
+		else if ((bb = stmAttackers & pieces(HORSE)))
+        {
+            if ((swap = Eval::HorseValue - swap) < res)
+                break;
+            //occupied ^= least_significant_square_bb(bb);
+            //attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+        }
+
+		// 竜を試す(将棋only)
+        else if ((bb = stmAttackers & pieces(DRAGON)))
+        {
+            if ((swap = Eval::DragonValue - swap) < res)
+                break;
+            //occupied ^= least_significant_square_bb(bb);
+            //attackers |= attacks_bb<ROOK>(to, occupied) & pieces(ROOK, QUEEN);
+        }
+
+#if 0
+        else if ((bb = stmAttackers & pieces(QUEEN)))
+        {
+            if ((swap = QueenValue - swap) < res)
+                break;
+            occupied ^= least_significant_square_bb(bb);
+            attackers |= (attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN))
+                       | (attacks_bb<ROOK>(to, occupied) & pieces(ROOK, QUEEN));
+        }
+#endif
+        else  // KING
+              // If we "capture" with the king but the opponent still has attackers,
+              // reverse the result.
+            return (attackers & ~pieces(stm)) ? res ^ 1 : res;
+
+
+		// 今回移動させてtoの駒を取るための駒の移動元の升
+		Square sq = bb.pop();
+		// bbにあった駒を取り除く
+		occupied ^= sq;
+
+		// sqにあった駒が消えるので、toから見てsqの延長線上にある駒を追加する。
+
+		auto dirs = directions_of(to, sq);
+
+		// 桂以外の移動なので8方向であるはず。
+		ASSERT_LV3(dirs);
+
+		switch(pop_directions(dirs))
 		{
-			if (nextVictim == KING && (attackers & pieces(stm)))
-				stm = ~stm;
-			break;
+		// 斜め方向なら斜め方向の升をスキャンしてその上にある角・馬を足す
+		case DIRECT_RU: attackers |= rayEffect<DIRECT_RU>(to, occupied) & pieces<BISHOP_HORSE>(); break;
+		case DIRECT_LD: attackers |= rayEffect<DIRECT_LD>(to, occupied) & pieces<BISHOP_HORSE>(); break;
+		case DIRECT_RD: attackers |= rayEffect<DIRECT_RD>(to, occupied) & pieces<BISHOP_HORSE>(); break;
+		case DIRECT_LU: attackers |= rayEffect<DIRECT_LU>(to, occupied) & pieces<BISHOP_HORSE>(); break;
+
+		// 上方向に移動した時の背後の駒によってtoの地点に利くのは、後手の香 + 先後の飛車
+		case DIRECT_U : attackers |= rayEffect<DIRECT_U >(to, occupied) & (pieces<ROOK_DRAGON>() | pieces<WHITE, LANCE>()); break;
+
+		// 下方向に移動した時の背後の駒によってtoの地点に利くのは、先手の香 + 先後の飛車
+		case DIRECT_D : attackers |= rayEffect<DIRECT_D >(to, occupied) & (pieces<ROOK_DRAGON>() | pieces<BLACK, LANCE>()); break;
+
+		// 左右方向に移動した時の背後の駒によってtoの地点に利くのは、飛車・龍。
+		case DIRECT_L : attackers |= rayEffect<DIRECT_L> (to, occupied) & pieces<ROOK_DRAGON>(); break;
+		case DIRECT_R : attackers |= rayEffect<DIRECT_R> (to, occupied) & pieces<ROOK_DRAGON>(); break;
+
+		default: UNREACHABLE; break;
 		}
-		ASSERT_LV3(nextVictim != KING);
+
 	}
-	return us != stm; // 上のループは、手番側のtoへの利きがある駒が尽きたときに抜ける
+
+    return bool(res);
 }
 
 #endif // defined (USE_SEE)
@@ -2779,6 +2797,30 @@ void Position::UnitTest(Test::UnitTester& tester)
 
 			tester.test("bishop's unpromoted move",all);
 		}
+	}
+	{
+		// see_ge()のテスト
+		auto section = tester.section("see_ge");
+		StateInfo s[512];
+
+		// 平手初期化
+		hirate_init();
+
+		// 76歩、34歩の局面を作る。
+		m = pos.to_move(make_move16(SQ_77, SQ_76));
+		pos.do_move(m, s[0]);
+		m = pos.to_move(make_move16(SQ_33, SQ_34));
+		pos.do_move(m, s[1]);
+		// 22角成りの指し手について
+		m = pos.to_move(make_move16(SQ_88, SQ_22));
+		// 角を取るが、同銀と取り返されて、駒の損得なし。
+
+		bool all_ok = true;
+		all_ok &=  pos.see_ge(m,VALUE_ZERO); // see_ge(m, 0) == true
+		all_ok &= !pos.see_ge(m,(Value)1);   // see_ge(m, 1) == false
+		all_ok &=  pos.see_ge(m,(Value)-1);  // see_ge(m,-1) == true  
+
+		tester.test("pos1", all_ok);
 	}
 
 	{
