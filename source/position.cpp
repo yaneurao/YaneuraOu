@@ -2806,6 +2806,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			tester.test("bishop's unpromoted move",all);
 		}
 	}
+#if defined (USE_SEE)
 	{
 		// see_ge()のテスト
 		auto section = tester.section("see_ge");
@@ -2853,9 +2854,8 @@ void Position::UnitTest(Test::UnitTester& tester)
 		// この局面で33馬は、同桂でタダ。(see値は)馬損。
 		m = pos.to_move(make_move16(SQ_22, SQ_33));
 		tester.test("pos2move", see_ge_th(- Eval::HorseValue ));
-
-
 	}
+#endif
 
 	{
 		// それ以外のテスト

@@ -2433,15 +2433,16 @@ moves_loop:
 				// Futility pruning: parent node (~13 Elo)
 				// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
 
-				// パラメーター調整の係数を調整したほうが良いのかも知れないが、
-				// ここ、そんなに大きなEloを持っていないので、調整しても無意味。
+				// →　パラメーター調整の係数を調整したほうが良いのかも知れないが、
+				// 　ここ、そんなに大きなEloを持っていないので、調整しても…。
 
 				if (   !ss->inCheck
 					&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*13*/
-					&& ss->staticEval + PARAM_FUTILITY_AT_PARENT_NODE_MARGIN1/*77*/ + PARAM_FUTILITY_AT_PARENT_NODE_ALPHA /*124*/ * lmrDepth <= alpha)
+					&& ss->staticEval + (bestValue < ss->staticEval - 62 ? 123 : 77)
+						+ PARAM_FUTILITY_AT_PARENT_NODE_ALPHA /*127*/ * lmrDepth <= alpha)
 					continue;
 
-				// ※　このLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
+				// ※　以下のLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
 
 				// Prune moves with negative SEE (~3 Elo)
 				// 将棋ではseeが負の指し手もそのあと詰むような場合があるから、あまり無碍にも出来ないようだが…。
