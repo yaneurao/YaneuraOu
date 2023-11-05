@@ -266,6 +266,7 @@ public:
 	Thread* this_thread() const { return thisThread; }
 
 	// 盤面上の駒を返す。
+	// ※ sq == SQ_NBの時、NO_PIECEが返ることは保証されている。
 	Piece piece_on(Square sq) const { ASSERT_LV3(sq <= SQ_NB); return board[sq]; }
 
 	// ある升に駒がないならtrueを返す。

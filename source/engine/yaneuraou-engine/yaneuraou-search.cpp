@@ -883,7 +883,10 @@ size_t multiPV = Options["MultiPV"];
 // SkillLevelの実装
 //Skill skill(Options["SkillLevel"], Options["USI_LimitStrength"] ? int(Options["USI_Elo"]) : 0);
 // ↑これでエンジンオプション2つも増えるのやだな…。気が向いたらサポートすることにする。
-Skill skill((int)Options["SkillLevel"], 0);
+//Skill skill((int)Options["SkillLevel"], 0);
+
+Skill skill(20, 0);
+
 
 // When playing with strength handicap enable MultiPV search that we will
 // use behind-the-scenes to retrieve a set of possible moves.

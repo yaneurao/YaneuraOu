@@ -1849,6 +1849,7 @@ bool Position::see_ge(Move m, Value threshold) const
 
 	// 駒の移動元(駒打ちの場合は)と移動先。
 	// dropのときにはSQ_NBにしておくことで、pieces() ^ fromを無効化するhack
+	// ※　piece_on(SQ_NB)で NO_PIECE が返ることは保証されている。
 	Square from = drop ? SQ_NB : from_sq(m);
 	Square to   = to_sq(m);
 
@@ -1873,8 +1874,12 @@ bool Position::see_ge(Move m, Value threshold) const
 	// なら、取り返されたところですでにしきい値以上になることは確定しているのでtrueが返せる。
 
 	//swap = PieceValue[piece_on(from)] - swap;
-    swap = Eval::PieceValue[type_of(piece_on(from))] - swap;
-    if (swap <= 0)
+
+	// →　駒打ちの時は、移動元にその駒がないので、これを復元してやる必要がある。
+	PieceType from_pt = drop ? move_dropped_piece(m) : type_of(piece_on(from));
+    swap = Eval::PieceValue[from_pt] - swap;
+
+	if (swap <= 0)
         return true;
 
     //assert(color_of(piece_on(from)) == sideToMove);
@@ -2040,6 +2045,9 @@ bool Position::see_ge(Move m, Value threshold) const
 
 		default: UNREACHABLE; break;
 		}
+
+		// SEEって、最後、toの地点で成れるなら、その成ることによる価値上昇分も考慮すべきだと思うのだが、
+		// そうすると早期枝刈りができないことになるので、とりあえず、このままでいいや。
 
 	}
 
@@ -2806,21 +2814,47 @@ void Position::UnitTest(Test::UnitTester& tester)
 		// 平手初期化
 		hirate_init();
 
+		// see_geのしきい値がv以下の時だけtrueが返ってくるかをテストする。
+		// つまりはsee値がvであるかをテストする関数。
+		auto see_ge_th = [&](int v)
+			{
+				Value th = Value(v);
+				bool all_ok = true;
+				all_ok &=  pos.see_ge(m,th    );   // see_ge(m, th) == true
+				all_ok &= !pos.see_ge(m,th + 1);   // see_ge(m,  1) == false
+				all_ok &=  pos.see_ge(m,th - 1);   // see_ge(m, -1) == true
+				return all_ok;
+			};
+
 		// 76歩、34歩の局面を作る。
 		m = pos.to_move(make_move16(SQ_77, SQ_76));
 		pos.do_move(m, s[0]);
 		m = pos.to_move(make_move16(SQ_33, SQ_34));
 		pos.do_move(m, s[1]);
 		// 22角成りの指し手について
-		m = pos.to_move(make_move16(SQ_88, SQ_22));
-		// 角を取るが、同銀と取り返されて、駒の損得なし。
+		m = pos.to_move(make_move_promote16(SQ_88, SQ_22));
+		// 角を取るが、see値は、同銀と取り返されて、駒の損得なし。
 
-		bool all_ok = true;
-		all_ok &=  pos.see_ge(m,VALUE_ZERO); // see_ge(m, 0) == true
-		all_ok &= !pos.see_ge(m,(Value)1);   // see_ge(m, 1) == false
-		all_ok &=  pos.see_ge(m,(Value)-1);  // see_ge(m,-1) == true  
+		tester.test("pos1move", see_ge_th(0));
 
-		tester.test("pos1", all_ok);
+		pos.do_move(m, s[2]);
+		// 馬を取り返さずにあえて84歩
+		m = pos.to_move(make_move16(SQ_83, SQ_24));
+		pos.do_move(m, s[3]);
+
+		// この局面で31馬は、同金とされて、(see値は)馬、銀の交換 = 馬を損して銀を得する
+		m = pos.to_move(make_move16(SQ_22, SQ_31));
+		tester.test("pos2move", see_ge_th( - Eval::HorseValue + Eval::SilverValue ));
+
+		// この局面で33角打ちは、同桂で同馬。(see値は)角損 + 桂得。
+		m = pos.to_move(make_move_drop16(BISHOP, SQ_33));
+		tester.test("pos2drop", see_ge_th( - Eval::BishopValue + Eval::KnightValue ));
+
+		// この局面で33馬は、同桂でタダ。(see値は)馬損。
+		m = pos.to_move(make_move16(SQ_22, SQ_33));
+		tester.test("pos2move", see_ge_th(- Eval::HorseValue ));
+
+
 	}
 
 	{
