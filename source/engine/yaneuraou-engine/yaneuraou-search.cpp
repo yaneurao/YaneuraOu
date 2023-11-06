@@ -1987,7 +1987,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 #if defined(ENABLE_PAWN_HISTORY)
 		if (type_of(pos.piece_on(prevSq)) != PAWN && type_of((ss - 1)->currentMove) != PROMOTION)
-            thisThread->pawnHistory[pawn_structure(pos)][pos.piece_on(prevSq)][prevSq] << bonus / 4;
+            thisThread->pawnHistory(pawn_structure(pos),pos.piece_on(prevSq),prevSq) << bonus / 4;
 #endif
 	}
 
@@ -2221,7 +2221,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 			if (move != excludedMove && pos.legal(move))
 			{
-				ASSERT_LV3(pos.capture_stage(move));
+				//ASSERT_LV3(pos.capture_stage(move));
+				// moveは歩の成りも返ってくるが、これがcapture_stage()と一致するとは限らない。
 
 				// ※　MovePickerはprob cutの時に、
 				// (GenerateAllLegalMovesオプションがオンであっても)歩の成らずは返してこないことは保証している。
@@ -2231,10 +2232,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 				// → 将棋だとこのprefetch、効果がなさげなのでコメントアウト。
 
 				ss->currentMove = move;
-				ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck                ]
-																			[true                       ]) // captureOrPromotion
-																			(pos.moved_piece_after(move),
-																			to_sq(move)                );
+				ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck                      ]
+																			[/*/true*/pos.capture_stage(move)])
+																			(pos.moved_piece_after(move)      ,
+																			to_sq(move)                      );
 
 				pos.do_move(move, st);
 
@@ -3307,7 +3308,13 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// Step 2. Check for an immediate draw or maximum ply reached
 
 	//if (pos.is_draw(ss->ply) || ss->ply >= MAX_PLY)
-	// →　将棋、千日手の頻度がチェスほどではないのでqsearch()で千日手判定を行う効果に乏しい。
+	// →　将棋、千日手の頻度がチェスほどではないのでqsearch()で千日手判定を行う効果に乏しいかと思ったのだが、
+	//    このチェックしないとqsearchでMAX_PLYまで行くので弱くなる。
+
+	auto draw_type = pos.is_repetition2(16, ss->ply);
+
+	if (draw_type != REPETITION_NONE)
+		return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
 	if (ss->ply >= MAX_PLY)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());

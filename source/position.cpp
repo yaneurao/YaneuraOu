@@ -2598,10 +2598,13 @@ void Position::UnitTest(Test::UnitTester& tester)
 		m = pos.to_move(m16);
 		tester.test("make_move(SQ_77, SQ_76) is pseudo_legal == true", pos.pseudo_legal(m) == true);
 
+#if 0
 		// 後手の駒の場合、現在の手番の駒ではないので、pseudo_legalではない。(pseudo_legalは手番側の駒であることを保証する)
 		m16 = make_move16(SQ_83, SQ_84);
 		m = pos.to_move(m16);
+		// →　pos.to_move()で現在の手番側の駒ではないからMOVE_NONEが返るか…。このテスト、意味ないな。
 		tester.test("make_move(SQ_83, SQ_84) is pseudo_legal == false", pos.pseudo_legal(m) == false);
+#endif
 
 		// 88の先手の角を22に移動。これは途中に駒があって移動できないのでpseudo_legalではない。
 		// (pseudo_legalは、その駒が移動できる(移動先の升にその駒の利きがある)ことを保証する)

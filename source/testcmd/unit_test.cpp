@@ -157,7 +157,7 @@ namespace Test
 
 		// --- 各classに対するUnitTest
 
-#if defined(YANEURAOU_ENGINE) && defined (EVAL_LEARN)
+#if defined(YANEURAOU_ENGINE) && defined(EVAL_LEARN)
 		// 自己対局のテスト(これはデバッガで追いかけたいことがあるので、他のをすっ飛ばして最初にやって欲しい)
 		tester.run(Learner::UnitTest);
 #endif
