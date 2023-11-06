@@ -296,7 +296,7 @@ private:
 };
 
 #if defined(ENABLE_PAWN_HISTORY)
-// PawnStructureHistory is addressed by the pawn structure and a move's [piece][to]
+// PawnHistory is addressed by the pawn structure and a move's [piece][to]
 // 歩の陣形に対するhistory。
 //using PawnHistory = Stats<int16_t, 8192, PAWN_HISTORY_SIZE, PIECE_NB, SQUARE_NB>;
 

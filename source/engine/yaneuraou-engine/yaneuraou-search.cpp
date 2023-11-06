@@ -244,11 +244,18 @@ constexpr int futility_move_count(bool improving, int depth) {
 
 // History and stats update bonus, based on depth
 // depthに基づく、historyとstatsのupdate bonus
-int stat_bonus(Depth d) {
-	return std::min(357 * d - 483, 1511);
-	// やねうら王では、Stockfishの統計値、統計ボーナスに関して手を加えないことにしているので
+
+int stat_bonus(Depth d) { return std::min(364 * d - 438, 1501); }
+	// →　やねうら王では、Stockfishの統計値、統計ボーナスに関して手を加えないことにしているので
 	// この値はStockfishの値そのまま。
-}
+
+// History and stats update malus, based on depth
+// depthに基づく、historyとstatsのupdate malus
+// ※ malus(「悪い」、「不利益」みたいな意味)は
+// 「統計的なペナルティ」または「マイナスの修正値」を計算するために使用される。
+// この関数は、ある行動が望ましくない結果をもたらした場合に、その行動の評価を減少させるために使われる
+int stat_malus(Depth d) { return std::min(452 * d - 452, 1478); }
+
 
 #if 0
 // チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
@@ -1738,14 +1745,14 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 				// 1手前がMOVE_NULLであることを考慮する必要がある。
 
 	            if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 2 && !priorCapture)
-					update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_bonus(depth + 1));
+					update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_malus(depth + 1));
 
 			}
 			// Penalty for a quiet ttMove that fails low (~1 Elo)
 			// fails lowのときのquiet ttMoveに対するペナルティ
 			else if (!ttCapture)
 			{
-				int penalty = -stat_bonus(depth);
+				int penalty = -stat_malus(depth);
 				thisThread->mainHistory(us, from_to(ttMove)) << penalty;
 				update_continuation_histories(ss, pos.moved_piece_after(ttMove), to_sq(ttMove), penalty);
 			}
@@ -2525,10 +2532,9 @@ moves_loop:
 			// Singular extension search (~94 Elo). If all moves but one fail low on a
 			// search of (alpha-s, beta-s), and just one fails high on (alpha, beta),
 			// then that move is singular and should be extended. To verify this we do
-			// a reduced search on all the other moves but the ttMove and if the result
-			// is lower than ttValue minus a margin, then we will extend the ttMove. Note
-			// that depth margin and singularBeta margin are known for having non-linear
-			// scaling. Their values are optimized to time controls of 180+1.8 and longer
+            // a reduced search on the position excluding the ttMove and if the result
+            // is lower than ttValue minus a margin, then we will extend the ttMove.
+            // Note: the depth margin and singularBeta margin are known for having non-linear
 			// so changing them requires tests at this type of time controls.
 
 			// (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
@@ -2597,10 +2603,10 @@ moves_loop:
 				}
 
 				// Multi-cut pruning
-				// Our ttMove is assumed to fail high, and now we failed high also on a
-				// reduced search without the ttMove. So we assume this expected cut-node
-				// is not singular, that multiple moves fail high, and we can prune the
-				// whole subtree by returning a softbound.
+                // Our ttMove is assumed to fail high based on the bound of the TT entry,
+                // and if after excluding the ttMove with a reduced search we fail high over the original beta,
+                // we assume this expected cut-node is not singular (multiple moves fail high),
+                // and we can prune the whole subtree by returning a softbound.
 
 				// マルチカット枝刈り
 				// 私たちのttMoveはfail highすると想定されており、
@@ -2621,18 +2627,33 @@ moves_loop:
 				else if (singularBeta >= beta)
 					return singularBeta;
 
-				// If the eval of ttMove is greater than beta, we reduce it (negative extension)
-				// ttMoveのevalがbetaより大きいなら、extensionを減らす(負の延長)
+				// Negative extensions
+                // If other moves failed high over (ttValue - margin) without the ttMove on a reduced search,
+                // but we cannot do multi-cut because (ttValue - margin) is lower than the original beta,
+                // we do not know if the ttMove is singular or can do a multi-cut,
+                // so we reduce the ttMove in favor of other moves based on some conditions:
 
-				// If the eval of ttMove is greater than beta, we reduce it (negative extension) (~7 Elo)
+				// 負の延長
+				// もしttMoveを使用せずに(ttValue - margin)以上で他の手がreduced search(簡略化した探索)で高いスコアを出したが、
+				// (ttValue - margin)が元のbetaよりも低いためにマルチカットを行えない場合、
+				// ttMoveがsingularかマルチカットが可能かはわからないので、
+				// いくつかの条件に基づいて他の手を優先してttMoveを減らします：
+
+				// If the ttMove is assumed to fail high over currnet beta (~7 Elo)
+				// ttMoveが現在のベータを超えて高いスコアを出すと仮定される場合（約7 Elo)
+
 				else if (ttValue >= beta)
 					extension = -2 - !PvNode;
 
-				// If we are on a cutNode, reduce it based on depth (negative extension) (~1 Elo)
+				// If we are on a cutNode but the ttMove is not assumed to fail high over current beta (~1 Elo)
+				// もしカットノードにいるが、ttMoveが現在のベータを超えて高いスコアを出すとは想定されていない場合（約1 Elo）
+
 				else if (cutNode)
 					extension = depth < 19 ? -2 : -1;
 
-				// If the eval of ttMove is less than value, we reduce it (negative extension) (~1 Elo)
+				// If the ttMove is assumed to fail low over the value of the reduced search (~1 Elo)
+				// もしttMoveがreduced searchの値を下回って失敗すると仮定される場合（約1 Elo）
+
 				else if (ttValue <= value)
 					extension = -1;
 
@@ -2772,9 +2793,14 @@ moves_loop:
 		if ((ss + 1)->cutoffCnt > 3)
 			r++;
 
-		// Decrease reduction for first generated move (ttMove)
+		// Set reduction to 0 for first generated move (ttMove)
+        // Nullifies all previous reduction adjustments to ttMove and leaves only history to do them
+
+		// 最初に生成された手（ttMove）の減少値を0に設定する
+		// ttMoveに対するこれまでの全ての減少調整を無効にし、historyのみがそれを行うことにする
+
 		else if (move == ttMove)
-			r--;
+			r = 0;
 
 		// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 		// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
@@ -2843,7 +2869,7 @@ moves_loop:
 				if (newDepth > d)
 					value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
 
-				int bonus = value <= alpha ? -stat_bonus(newDepth)
+				int bonus = value <= alpha ? -stat_malus(newDepth)
 						  : value >= beta  ?  stat_bonus(newDepth)
 										   :  0;
 
@@ -3299,9 +3325,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
-	// Decide whether or not to include checks: this fixes also the type of
-	// TT entry depth that we are going to use. Note that in qsearch we use
-	// only two types of depth in TT: DEPTH_QS_CHECKS or DEPTH_QS_NO_CHECKS.
+	// Decide the replacement and cutoff priority of the qsearch TT entries
+	//qsearchのTTエントリの置き換えとカットオフの優先順位を決定する
 
 	// 置換表に登録するdepthはあまりマイナスの値だとおかしいので、
 	// 王手がかかっているときは、DEPTH_QS_CHECKS(=0)、王手がかかっていないときはDEPTH_QS_NO_CHECKS(-1)とみなす。
@@ -3830,6 +3855,7 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 	PieceType captured;
 
 	int quietMoveBonus = stat_bonus(depth + 1);
+	int quietMoveMalus = stat_malus(depth + 1);
 
 	// Stockfish 14ではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
 	// Stockfish 16では、capture()からcapture_stage()に変更された。[2023/10/15]
@@ -3849,18 +3875,21 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 	        << quietMoveBonus;
 #endif
 
+		int moveMalus     = bestValue > beta + PARAM_UPDATE_ALL_STATS_EVAL_TH /*168*/ ? quietMoveMalus      // larger malus
+							    													  : stat_malus(depth);  // smaller malus
+
 		// Decrease stats for all non-best quiet moves
 		for (int i = 0; i < quietCount; ++i)
 		{
 #if defined(ENABLE_PAWN_HISTORY)
 			thisThread->pawnHistory(pawn_structure(pos), pos.moved_piece_after(quietsSearched[i]), to_sq(quietsSearched[i]))
-				<< -bestMoveBonus;
+				<< -moveMalus;
 #endif
 
-			thisThread->mainHistory(us, from_to(quietsSearched[i])) << -bestMoveBonus;
+			thisThread->mainHistory(us, from_to(quietsSearched[i])) << -moveMalus;
 
 			update_continuation_histories(ss, pos.moved_piece_after(quietsSearched[i]),
-				to_sq(quietsSearched[i]), -bestMoveBonus);
+				to_sq(quietsSearched[i]), -moveMalus);
 		}
 	}
 	else {
@@ -3876,10 +3905,10 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 
 	// MOVE_NULLの場合、Stockfishでは65(移動後の升がSQ_NONEであることを保証している。やねうら王もそう変更した。)
 	if (   prevSq != SQ_NONE
-		&& ((ss - 1)->moveCount == 1 + (ss - 1)->ttHit
-			|| ((ss - 1)->currentMove == (ss - 1)->killers[0]))
+		&& (    (ss - 1)->moveCount   == 1 + (ss - 1)->ttHit
+			|| ((ss - 1)->currentMove ==     (ss - 1)->killers[0]))
 		&& !pos.captured_piece())
-		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -quietMoveBonus);
+		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -quietMoveMalus);
 
 	// Decrease stats for all non-best capture moves
 	// 捕獲する指し手でベストではなかったものをすべて減点する。
@@ -3889,7 +3918,7 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 		// TODO : ここ、moved_piece_before()で、捕獲前の駒の価値で考えたほうがいいような？
 		moved_piece = pos.moved_piece_after(capturesSearched[i]);
 		captured    = type_of(pos.piece_on(to_sq(capturesSearched[i])));
-		captureHistory(moved_piece, to_sq(capturesSearched[i]), captured) << -quietMoveBonus;
+		captureHistory(moved_piece, to_sq(capturesSearched[i]), captured) << -quietMoveMalus;
 	}
 }
 
