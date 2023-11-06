@@ -196,7 +196,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePiece
 	// ProbCutにおいて、SEEが与えられたthresholdの値以上の指し手のみ生成する。
 	// (置換表の指し手も、この条件を満たさなければならない)
 	// 置換表の指し手がないなら、次のstageから開始する。
-	stage = PROBCUT_TT + !(ttm  && pos.capture_or_pawn_promotion(ttm)
+	stage = PROBCUT_TT + !(ttm  && pos.capture_stage(ttm)
 								&& pos.pseudo_legal(ttm)
 								&& pos.see_ge(ttm, threshold));
 
@@ -327,8 +327,7 @@ void MovePicker::score()
 		{
 			// 王手回避の指し手をスコアリングする。
 
-			//if (pos.capture_stage(m))
-			if (pos.capture_or_pawn_promotion(m))
+			if (pos.capture_stage(m))
 				// 捕獲する指し手に関しては簡易SEE + MVV/LVA
 				// 被害が小さいように、LVA(価値の低い駒)を動かして取ることを優先されたほうが良いので駒に価値の低い順に番号をつける。そのためのテーブル。
 				// ※ LVA = Least Valuable Aggressor。cf.MVV-LVA
@@ -473,8 +472,7 @@ top:
 		// 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
 		// pseudo_legalでない指し手以外に歩や大駒の不成なども除外
 		if (select<Next>([&]() { return    *cur != MOVE_NONE
-			                          //&& !pos.capture_stage(*cur)
-										&& !pos.capture_or_pawn_promotion(*cur)
+			                            && !pos.capture_stage(*cur)
 										&&  pos.pseudo_legal(*cur); }))
 			return *(cur - 1);
 

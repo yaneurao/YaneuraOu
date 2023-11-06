@@ -672,6 +672,17 @@ public:
 	//  return  capture(m) || promotion_type(m) == QUEEN;
 	//}
 
+	// →　互換性維持のために、capture_stageを定義。
+	bool capture_stage(Move m) const
+	{
+		//return capture_or_valuable_promotion(m);
+		//return capture_or_pawn_promotion(m);
+
+		// →　V7.73y3とy4,y5の比較。
+		// 単にcapture()にするのが一番良かった。
+
+		return capture(m);
+	}
 
 	// 入玉時の宣言勝ち
 	// Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
