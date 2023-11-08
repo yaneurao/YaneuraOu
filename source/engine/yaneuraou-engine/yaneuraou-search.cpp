@@ -2205,11 +2205,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	{
 		ASSERT_LV3(probCutBeta < VALUE_INFINITE);
 
-		MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory
-#if defined(ENABLE_PAWN_HISTORY)
-			, thisThread->pawnHistory
-#endif
-		);
+		MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
 
 		// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 		// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
@@ -2314,7 +2310,7 @@ moves_loop:
 										&captureHistory,
 										contHist,
 #if defined(ENABLE_PAWN_HISTORY)
-										thisThread->pawnHistory,
+										&thisThread->pawnHistory,
 #endif
 										countermove,
 										ss->killers);
@@ -3225,7 +3221,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	constexpr bool PvNode = nodeType == PV;
 
 	ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
-	ASSERT_LV3(PvNode || alpha == beta - 1);
+	ASSERT_LV3(PvNode || (alpha == beta - 1));
 	ASSERT_LV3(depth <= 0);
 
 	// Stockfishではここで千日手に突入できるかのチェックがあるようだが将棋でこれをやっても強くならないので導入しない。
@@ -3309,10 +3305,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	//if (pos.is_draw(ss->ply) || ss->ply >= MAX_PLY)
 	// →　将棋、千日手の頻度がチェスほどではないのでqsearch()で千日手判定を行う効果に乏しいかと思ったのだが、
-	//    このチェックしないとqsearchでMAX_PLYまで行くので弱くなる。
+	//    このチェックしないとqsearchでttMoveの指し手で進め続けてMAX_PLYまで行くので弱くなる。
 
 	auto draw_type = pos.is_repetition2(16, ss->ply);
-
 	if (draw_type != REPETITION_NONE)
 		return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
@@ -3523,7 +3518,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 										&thisThread->captureHistory,
 										contHist,
 #if defined(ENABLE_PAWN_HISTORY)
-										thisThread->pawnHistory,
+										&thisThread->pawnHistory,
 #endif
 										prevSq);
 
@@ -3646,9 +3641,10 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// Continuation history based pruning (~3 Elo)
 			// Continuation historyベースの枝刈り
 			// ※ Stockfish12でqsearch()にも導入された。
-			if (  !capture
+			if (   !capture
 				&& (*contHist[0])(pos.moved_piece_after(move), to_sq(move)) < 0
-				&& (*contHist[1])(pos.moved_piece_after(move), to_sq(move)) < 0)
+				&& (*contHist[1])(pos.moved_piece_after(move), to_sq(move)) < 0
+				)
 				continue;
 
 

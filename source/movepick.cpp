@@ -127,7 +127,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 	const CapturePieceToHistory* cph ,
 	const PieceToHistory** ch,
 #if defined(ENABLE_PAWN_HISTORY)
-	const PawnHistory& ph,
+	const PawnHistory* ph,
 #endif
 	Move cm,
 	const Move* killers)
@@ -150,13 +150,13 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 
 // Constructor for quiescence search
 //
-// 静止探索から呼び出される時用。
-// rs : recapture square
+// qsearch(静止探索)から呼び出される時用。
+// rs : recapture square(直前の駒の移動先。この駒を取り返す指し手をいまから生成する)
 MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHistory* mh,
 	const CapturePieceToHistory* cph,
 	const PieceToHistory** ch
 #if defined(ENABLE_PAWN_HISTORY)
-	, const PawnHistory& ph
+	, const PawnHistory* ph
 #endif
 	, Square rs)
 	: pos(p), mainHistory(mh), captureHistory(cph) , continuationHistory(ch)
@@ -170,8 +170,6 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 	ASSERT_LV3(d <= 0);
 
 	// 王手がかかっているなら王手回避のフェーズへ。さもなくばQSEARCHのフェーズへ。
-	// 歩の不成、香の2段目への不成、大駒の不成を除外
-
 	stage = (pos.in_check() ? EVASION_TT : QSEARCH_TT) + !(ttm && pos.pseudo_legal(ttm));
 }
 
@@ -181,16 +179,9 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 // 通常探索時にProbCutの処理から呼び出されるのコンストラクタ。
 // th = 枝刈りのしきい値
 // SEEの値がth以上となるcaptureの指し手(歩の成りは含む)だけを生成する。
-MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePieceToHistory* cph
-#if defined(ENABLE_PAWN_HISTORY)
-	, const PawnHistory& ph
-#endif
-	): pos(p), captureHistory(cph)
-#if defined(ENABLE_PAWN_HISTORY)
-	, pawnHistory(ph)
-#endif
-	, ttMove(ttm), threshold(th) {
-
+MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePieceToHistory* cph)
+	: pos(p), captureHistory(cph) , ttMove(ttm), threshold(th)
+{
 	ASSERT_LV3(!pos.in_check());
 
 	// ProbCutにおいて、SEEが与えられたthresholdの値以上の指し手のみ生成する。
@@ -286,6 +277,9 @@ void MovePicker::score()
 			Square    to = to_sq(m);
 
 			m.value  =  2 * (*mainHistory)(pos.side_to_move(), from_to(m));
+#if defined(ENABLE_PAWN_HISTORY)
+			m.value +=  2 * (*pawnHistory)(pawn_structure(pos), pc, to);
+#endif
 			m.value +=  2 * (*continuationHistory[0])(pc,to);
 			m.value +=      (*continuationHistory[1])(pc,to);
 			m.value +=      (*continuationHistory[2])(pc,to) / 4;
@@ -317,11 +311,6 @@ void MovePicker::score()
 #endif
 				// →　強くならなかったのでコメントアウト。
 					;
-
-#if defined(ENABLE_PAWN_HISTORY)
-			m.value += pawnHistory(pawn_structure(pos), pc, to);
-#endif
-
 		}
 		else // Type == EVASIONS
 		{
@@ -354,8 +343,7 @@ void MovePicker::score()
 				m.value =     (*mainHistory)(pos.side_to_move(), from_to(m))
 						  +   (*continuationHistory[0])(pos.moved_piece_after(m), to_sq(m))
 #if defined(ENABLE_PAWN_HISTORY)
-						  +    pawnHistory(pawn_structure(pos), pos.moved_piece_after(m), to_sq(m))
-								// ↑pawnHistoryもやねうら王では[to][pc]の順なので注意。
+						  +   (*pawnHistory)(pawn_structure(pos), pos.moved_piece_after(m), to_sq(m))
 #endif
 				;
 
@@ -523,12 +511,12 @@ top:
 			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
 			// (もうちょっと条件を精査した方がいいな…)
 			if ((depth >= 15 && endMoves - cur >= 32) || (depth >= 10 && endMoves - cur >= 64) || (depth >= 5 && endMoves - cur >= 96) )
-				partial_super_sort(cur, endMoves , -3000 * depth);
+				partial_super_sort(cur, endMoves , -1960 - 3130 * depth);
 			else
-				partial_insertion_sort(cur, endMoves, -3000 * depth);
+				partial_insertion_sort(cur, endMoves, -1960 - 3130 * depth);
 #else
 
-			partial_insertion_sort(cur, endMoves, -3000 * depth);
+			partial_insertion_sort(cur, endMoves, -1960 - 3130 * depth);
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
 			//   sortできるなら全部したほうが良いがどうせ早い段階で枝刈りされるのでほとんど効果がない。
 
@@ -585,13 +573,13 @@ top:
 
 	// 静止探索用の指し手を返す処理
 	case QCAPTURE_:
-		// depthがDEPTH_QS_RECAPTURES(-5)より深いなら、recaptureの升に移動する指し手(直前で取られた駒を取り返す指し手)のみを生成。
+		// depthがDEPTH_QS_RECAPTURES(-5)以下(深い)なら、recaptureの升に移動する指し手(直前で取られた駒を取り返す指し手)のみを生成。
 		if (select<Next>([&]() { return    depth > DEPTH_QS_RECAPTURES
 										|| to_sq(*cur) == recaptureSquare; }))
 			return *(cur - 1);
 
 		// 指し手がなくて、depthが0(DEPTH_QS_CHECKS)より深いなら、これで終了
-		// depthが0のときは特別に、王手になる指し手も試す。
+		// depthが0のときは特別に、王手になる指し手も生成する。
 		if (depth != DEPTH_QS_CHECKS)
 			return MOVE_NONE;
 

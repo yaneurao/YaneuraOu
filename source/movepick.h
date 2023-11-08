@@ -367,7 +367,7 @@ public:
 		const CapturePieceToHistory* cph,
 		const PieceToHistory** ch,
 #if defined(ENABLE_PAWN_HISTORY)
-		const PawnHistory&,
+		const PawnHistory*,
 #endif
 		Move cm,
 		const Move* killers_p);
@@ -378,7 +378,7 @@ public:
 		const CapturePieceToHistory* cph , 
 		const PieceToHistory** ch,
 #if defined(ENABLE_PAWN_HISTORY)
-		const PawnHistory&,
+		const PawnHistory*,
 #endif
 		Square recapSq);
 
@@ -387,11 +387,7 @@ public:
 	// threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
 	// capture_or_pawn_promotion()に該当する指し手しか返さない。
 	MovePicker(const Position& pos_, Move ttMove_, Value threshold_,
-		const CapturePieceToHistory* cph
-#if defined(ENABLE_PAWN_HISTORY)
-		, const PawnHistory&
-#endif
-	);
+		const CapturePieceToHistory* cph);
 
 	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
 	// 指し手が尽きればMOVE_NONEが返る。
@@ -419,7 +415,7 @@ private:
 	const CapturePieceToHistory* captureHistory;
 	const PieceToHistory**       continuationHistory;
 #if defined(ENABLE_PAWN_HISTORY)
-	const PawnHistory&           pawnHistory;
+	const PawnHistory*           pawnHistory;
 #endif
 
 	// 置換表の指し手(コンストラクタで渡される)
