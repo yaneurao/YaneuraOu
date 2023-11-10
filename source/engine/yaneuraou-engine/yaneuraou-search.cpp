@@ -3333,7 +3333,11 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	if (draw_type != REPETITION_NONE)
 		return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
-	if (ss->ply >= MAX_PLY)
+	//// 16手以内の循環になってないのにqsearchで16手も延長している場合、
+	//// 置換表の指し手だけで長い循環になっている可能性が高く、
+	//// これは引き分け扱いにしてしまう。(やねうら王独自改良)
+
+	if (ss->ply >= MAX_PLY || depth <= -16)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());
 
 	if (pos.game_ply() > Limits.max_game_ply)
@@ -3689,8 +3693,36 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 
 			// Do not search moves with bad enough SEE values (~5 Elo)
+			// SEEが十分悪い指し手は探索しない。
+
+			
+			if (!PARAM_QSEARCH_PRUNE_LE0_SEE_MOVE)
+			{
+
+				// →　無駄な王手ラッシュみたいなのを抑制できる？
+				// これ-90だとPawnValue == 90なので歩損は許してしまう。
+				//   歩損を許さないように +1 して、歩損する指し手は延長しないようにするほうがいいか？
+				//  →　 captureの時の歩損は、歩で取る、同角、同角みたいな局面なのでそこにはあまり意味なさげ。
+
 			if (!pos.see_ge(move, Value(-90)))
 				continue;
+
+			} else {
+
+				// ⇓ Stockfish 13の頃のコード。see <= 0 なら枝刈りしてしまう。
+
+				// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
+				// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
+
+				// →　置換表の指し手はcaptureではない指し手があるので、それは枝刈りする。
+
+				if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
+				{
+					bestValue = std::max(bestValue, futilityBase);
+					ASSERT_LV3(bestValue != -VALUE_INFINITE);
+					continue;
+				}
+			}
 		}
 
 		// TODO : prefetchは、入れると遅くなりそうだが、many coreだと違うかも。

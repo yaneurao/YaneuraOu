@@ -29,26 +29,26 @@
 // 重要度　★★★★★
 // 前のバージョンの値 = 2057
 // 元の値 = 2037 ,step = 8
-// [PARAM] min:1500,max:2500,step:1,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2035;
+// [PARAM] min:1500,max:2500,step:4,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2037;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
 // 元の値 = 1487 ,step = 128
-// [PARAM] min:0,max:2048,step:64,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1615;
+// [PARAM] min:0,max:2048,step:128,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1487;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
 // 元の値 = 808 , step = 128
 // [PARAM] min:300,max:1500,step:64,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_REDUCTION_BETA = 552;
+PARAM_DEFINE PARAM_REDUCTION_BETA = 808;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
 // 元の値 = 976 , step = 128
-// [PARAM] min:300,max:1500,step:32,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_REDUCTION_GAMMA = 976;
+// [PARAM] min:300,max:1500,step:64,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_REDUCTION_GAMMA = 1104;
 
 
 
@@ -60,18 +60,18 @@ PARAM_DEFINE PARAM_REDUCTION_GAMMA = 976;
 
 // 重要度　★★★★☆
 // 元の値 = 125 , step = 20
-// [PARAM] min:100,max:300,step:5,interval:2,time_rate:1,
+// [PARAM] min:100,max:300,step:20,interval:2,time_rate:1,
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 125;
 
 // 重要度　★★★★☆
 // 元の値 = 43 , step = 10
-// [PARAM] min:10,max:200,step:2,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 38;
+// [PARAM] min:10,max:200,step:10,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 43;
 
 // 重要度　★★★★☆
 // 元の値 = 138 , step = 30
-// [PARAM] min:100,max:240,step:5,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 100;
+// [PARAM] min:100,max:240,step:30,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 138;
 
 
 // 静止探索でのfutility pruning
@@ -79,7 +79,7 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 100;
 // 1つ前のバージョンの値 = 118。
 // 元の値 = 200 , step = 10
 // [PARAM] min:50,max:300,step:10,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 200;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 128;
 
 // futility pruningの適用depth。
 // 重要度　★★★☆☆
@@ -99,20 +99,20 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 13;
 
 // 重要度　★★★☆☆
 // 元の値 = 127 , step = 10
-// [PARAM] min:100,max:400,step:1,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 127;
+// [PARAM] min:100,max:400,step:10,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 137;
 
 // 重要度　★★★★☆
 // 元の値 = 26 , step = 2
-// [PARAM] min:15,max:50,step:1,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 27;
+// [PARAM] min:15,max:50,step:2,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 26;
 
 
 // lmrのときのseeの値。
 // 重要度　★★★★☆
 // 元の値 = 185 ,step = 40
-// [PARAM] min:0,max:300,step:5,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 215;
+// [PARAM] min:0,max:300,step:20,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 185;
 
 
 
@@ -122,19 +122,19 @@ PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 215;
 
 // 重要度　★★★☆☆
 // 元の値 = 152 , step = 10
-// [PARAM] min:50,max:400,step:3,interval:2,time_rate:1,
+// [PARAM] min:50,max:400,step:10,interval:2,time_rate:1,
 PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 152;
 
 // 重要度　★★★☆☆
 // 元の値 = 24 , step = 2
 // Stockfishの前バージョンではこの値は15。
 // [PARAM] min:10,max:60,step:1,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 20;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 23;
 
 // 元の値 = 281 , step = 50
 // 重要度　★★★☆☆
 // Stockfishの前バージョンではこの値は198。
-// [PARAM] min:0,max:400,step:5,interval:2,time_rate:1,
+// [PARAM] min:0,max:400,step:50,interval:2,time_rate:1,
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 281;
 
 
@@ -159,18 +159,18 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 14;
 //   improvingの効果怪しいので抑え気味にしておく。
 // 元の値 = 168 , step = 20
 // [PARAM] min:100,max:300,step:5,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 183;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 168;
 
 // 元の値 = 70 , step = 10
 // 重要度　★★★☆☆
-// [PARAM] min:20,max:100,step:1,interval:2,time_rate:1,
+// [PARAM] min:20,max:100,step:10,interval:2,time_rate:1,
 PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 70;
 
 // 前のバージョンのStockfishではこの値は481。
 // 重要度　★★★☆☆
 // 元の値 = 416 , step = 10
-// [PARAM] min:20,max:500,step:4,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 408;
+// [PARAM] min:20,max:500,step:10,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 416;
 
 //
 // singular extension
@@ -179,15 +179,15 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 408;
 // singular extensionのsingular betaを計算するときのマージン
 // 重要度　★★★★☆
 // 元の値 = 64 , step = 8
-// [PARAM] min:0,max:1024,step:8,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_SINGULAR_MARGIN1 = 64;
+// [PARAM] min:0,max:1024,step:4,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_SINGULAR_MARGIN1 = 72;
 
 // singular extensionのsingular betaを計算するときの係数
 // 重要度　★★★★☆
 // 自己対局だとすごく強くなって見えるかもしれないが、まやかしである。
 // 元の値 = 57 , step = 8
-// [PARAM] min:0,max:1024,step:4,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 49;
+// [PARAM] min:0,max:1024,step:8,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 57;
 
 //
 // LMR
@@ -196,18 +196,19 @@ PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 49;
 // LMRのパラメーター
 // 重要度　★★★★☆
 // 元の値 = 51 , step = 4
-// [PARAM] min:0,max:128,step:1,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_LMR_MARGIN1 = 53;
+// [PARAM] min:0,max:128,step:4,interval:1,time_rate:1,
+PARAM_DEFINE PARAM_LMR_MARGIN1 = 51;
 
 // 重要度　★★☆☆☆
 // →　重要なパラメーターではあるが、下手にいじらないほうがよさげ。
 // 元の値 = 10 , step = 1
-// [PARAM] min:0,max:128,step:1,interval:1,time_rate:1,
+// min:0,max:128,step:1,interval:1,time_rate:1,
+// [PARAM] min:11,max:12,step:1,interval:1,time_rate:1,
 PARAM_DEFINE PARAM_LMR_MARGIN2 = 11;
 
 // 重要度　★★★☆☆
 // 元の値 = 700 , step = 100
-// [PARAM] min:0,max:1024,step:4,interval:2,time_rate:1,
+// [PARAM] min:0,max:1024,step:50,interval:2,time_rate:1,
 PARAM_DEFINE PARAM_LMR_MARGIN3 = 700;
 
 
@@ -226,8 +227,8 @@ PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 6;
 // StockfishではPawnValueが210ぐらいなので、それを考慮すること。
 // 重要度　★★★☆☆
 // 元の値 = 168 , step = 30
-// [PARAM] min:10,max:200,step:5,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 80;
+// [PARAM] min:10,max:300,step:30,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 168;
 
 
 //
@@ -237,8 +238,8 @@ PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 80;
 // fail lowを引き起こしたcounter moveにbonus与える時のevalのmargin値。
 // 重要度　★★★☆☆
 // 元の値 = 657 , step = 50
-// [PARAM] min:10,max:1000,step:5,interval:2,time_rate:1,
-PARAM_DEFINE PARAM_COUNTERMOVE_FAILLOW_MARGIN = 677;
+// [PARAM] min:10,max:1000,step:50,interval:2,time_rate:1,
+PARAM_DEFINE PARAM_COUNTERMOVE_FAILLOW_MARGIN = 657;
 
 
 // aspiration searchの増加量。
@@ -259,6 +260,12 @@ PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 10;
 // 元の値 = 0 , step = 1
 // [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_QSEARCH_FORCE_EVAL = 0;
+
+// qsearchの時に、see<=0の指し手を枝刈りするか。
+// 重要度　★★★★☆
+// 元の値 = 0 , step = 1
+// [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_QSEARCH_PRUNE_LE0_SEE_MOVE = 0;
 
 
 //
