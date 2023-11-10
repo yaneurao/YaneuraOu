@@ -155,6 +155,11 @@ namespace Test
 		auto limits_org = Search::Limits;
 		tester.after_run = [&]() { Search::Limits = limits_org; };
 
+		// ConsiderationModeをオフにしておかないとPV出力の時に置換表を漁るのでその時にdo_move()をして
+		// 探索ノード数が加算されてしまい、depth固定のbenchなのに探索ノード数や読み筋が変化することがある。
+		// (これが変化されてしまうと再現性がなくなってしまい、デバッグする時に都合が悪い。)
+		Search::Limits.consideration_mode = false;
+
 		// --- 各classに対するUnitTest
 
 #if defined(YANEURAOU_ENGINE) && defined(EVAL_LEARN)

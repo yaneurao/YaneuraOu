@@ -3211,6 +3211,28 @@ moves_loop:
 template <NodeType nodeType>
 Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 {
+	// チェスと異なり将棋では、手駒があるため、王手を無条件で延長するとかなりの長手数、王手が続くことがある。
+	// 手駒が複数あると、その組み合わせをすべて延長してしまうことになり、組み合わせ爆発を容易に起こす。
+	//
+	// この点は、Stockfishを参考にする時に、必ず考慮しなければならない。
+	//
+	// ここでは、以下の対策をする。
+	// 1. qsearch(静止探索)ではcaptures(駒を取る指し手)とchecks(王手の指し手)のみをMovePickerで生成
+	// 2. 王手の指し手は、depthがDEPTH_QS_CHECKS(== 0)の時だけ生成。
+	// 3. capturesの指し手は、depthがDEPTH_QS_RECAPTURES(== -5)以下なら、直前に駒が移動した升に移動するcaptureの手だけを生成。(取り返す手)
+	// 4. captureでも歩損以上の損をする指し手は延長しない。
+	// 5. 連続王手の千日手は検出する
+	// これらによって、王手ラッシュや連続王手で追い回して千日手(実際は反則負け)に至る手順を排除している。
+	//
+	// ただし、置換表の指し手に関してはdepth < DEPTH_QS_CHECKS でも王手の指し手が交じるので、
+	// 置換表の指し手のみで循環するような場合、探索が終わらなくなる。
+	// 
+	// そこで、
+	// 6. depth < -16 なら、置換表の指し手を無視する
+	// のような対策が必要だと思う。
+	//  →　引き分け扱いすることにした。
+	// 
+
 	// -----------------------
 	//     変数宣言
 	// -----------------------
@@ -3560,7 +3582,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	    // Step 6. Pruning.
 		//
 
-		// 自玉に王手がかかっていなくて、敵玉に王手にならない指し手であるとき、
+		// moveが王手にならない指し手であり、1手前で相手が移動した駒を取り返す指し手でもなく、
 		// 今回捕獲されるであろう駒による評価値の上昇分を
 		// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
@@ -3570,7 +3592,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			if (   !givesCheck
 				&&  to_sq(move) != prevSq
 				&&  futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
-				&&  type_of(move) != PROMOTION  // TODO : この条件、入れたほうがいいのか？
+				&&  type_of(move) != PROMOTION
+				// この最後の条件、入れたほうがいいのか？
+				//  →　captureとcheckしか生成してないのでどちらでも影響が軽微。
 			)
 			{
 				// MoveCountに基づく枝刈り
@@ -3615,6 +3639,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 				// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
 
+#if 1
 				// If static exchange evaluation is much worse than what is needed to not
 				// fall below alpha we can prune this move
 				if (futilityBase > alpha && !pos.see_ge(move, (alpha - futilityBase) * 4))
@@ -3622,6 +3647,21 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 					bestValue = alpha;
 					continue;
 				}
+#else
+				// 以下は、Stockfishの古いコードだが、⇓こちらの方が将棋に適合するかも。
+				// 無駄な王手回避を抑制できる。
+				//
+				// TODO : 
+				// ここで生成されている指し手は、成りと歩の成りだけだが、SEEで歩の成りに加点していないので、
+				// ここでcontinueしてしまう。
+				// そもそもqsearchで歩の成りは生成しなくていいような気もする。
+
+				// Do not search moves with negative SEE values (~5 Elo)
+				// captureでも駒損する指し手は枝刈りする。
+				if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
+					&& !pos.see_ge(move))
+					continue;
+#endif
 			}
 
 			// movecount pruning for quiet check evasions
@@ -3918,7 +3958,9 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 
 	for (int i = 0; i < captureCount; ++i)
 	{
-		// TODO : ここ、moved_piece_before()で、捕獲前の駒の価値で考えたほうがいいような？
+		// ここ、moved_piece_before()で、捕獲前の駒の価値で考えたほうがいいか？
+		// → MovePickerでcaptureHistoryを用いる時に、moved_piece_afterの方で表引きしてるので、
+		//  それに倣う必要がある。
 		moved_piece = pos.moved_piece_after(capturesSearched[i]);
 		captured    = type_of(pos.piece_on(to_sq(capturesSearched[i])));
 		captureHistory(moved_piece, to_sq(capturesSearched[i]), captured) << -quietMoveMalus;
