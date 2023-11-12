@@ -14,7 +14,7 @@ if(!fs.existsSync("source/Makefile")) {
 (async () => {
   await new Promise((resolve) => {
     let child = exec(
-      `docker pull emscripten/emsdk:latest`,
+      `docker pull emscripten/emsdk:3.1.43`,
       { cwd: cwd, stdio: "inherit" },
       (_error, _stdout, _stderr) => { resolve(); },
     );
@@ -23,7 +23,7 @@ if(!fs.existsSync("source/Makefile")) {
   });
   await new Promise((resolve) => {
     let child = exec(
-      `docker run --rm -v ${cwd}:/src emscripten/emsdk:latest node script/wasm_build.js ${args.join(" ")}`,
+      `docker run --rm -v ${cwd}:/src emscripten/emsdk:3.1.43 node script/wasm_build.js ${args.join(" ")}`,
       { cwd: cwd, stdio: "inherit" },
       (_error, _stdout, _stderr) => { resolve(); },
     );

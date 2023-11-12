@@ -38,11 +38,11 @@ jobs:
 
       - name: docker pull
         run: |
-          docker pull emscripten/emsdk:latest
+          docker pull emscripten/emsdk:3.1.43
 
       - name: build wasm
         run: |
-          docker run --rm -v ${PWD}/main:/src emscripten/emsdk:latest node script/wasm_build.js ${{ matrix.edition }}
+          docker run --rm -v ${PWD}/main:/src emscripten/emsdk:3.1.43 node script/wasm_build.js ${{ matrix.edition }}
 
       - uses: actions/upload-artifact@v2
         with:
