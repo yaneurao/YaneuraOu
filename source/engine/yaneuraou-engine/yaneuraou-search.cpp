@@ -2566,7 +2566,8 @@ moves_loop:
 				// null window searchするときに大きなコストを伴いかねないから。)
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
-		        Value singularBeta  = ttValue - (PARAM_SINGULAR_MARGIN1 /*64*/ + PARAM_SINGULAR_MARGIN2/* 57 */ * (ss->ttPv && !PvNode)) * depth / 64;
+		        Value singularBeta  = ttValue
+					- (PARAM_SINGULAR_MARGIN1 /*64*/ + PARAM_SINGULAR_MARGIN2/* 57 */ * (ss->ttPv && !PvNode)) * depth / 64;
 				Depth singularDepth = (depth - 1) / 2;
 
 				// move(ttMove)の指し手を以下のsearch()での探索から除外
@@ -2588,7 +2589,7 @@ moves_loop:
 					// Avoid search explosion by limiting the number of double extensions
 					// 2重延長を制限することで探索の組合せ爆発を回避する。
 
-					// TODO : ここのパラメーター、調整すべきか？
+					// TODO : ここのパラメーター、調整すべきかも？
 
 					if (!PvNode
 						&& value < singularBeta - 18
@@ -2667,7 +2668,8 @@ moves_loop:
 
 			else if (givesCheck
 				&& depth > 9
-				// この条件、やねうら王で独自追加。
+				// !!重要!!
+				// この条件、やねうら王では独自に追加している。
 				// →　王手延長は、開き王手と駒損しない王手に限定する。
 				//  将棋だと王手でどんどん延長させる局面があり、探索が終わらなくなる。
 				&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move))
@@ -2743,7 +2745,7 @@ moves_loop:
 		// 相手の(1手前の)move countが大きければ、reductionを減らす。
 		// 相手の指し手をたくさん読んでいるのにこちらだけreductionするとバランスが悪いから。
 
-		// ※ この > 7 の 7は調整が必要かも。
+		// TODO : この > 7 の 7は調整が必要かも。
 		if ((ss - 1)->moveCount > 7)
 			r--;
 
@@ -2781,8 +2783,7 @@ moves_loop:
 		// Increase reduction on repetition (~1 Elo)
 		// 千日手模様ならreductionを増やす。
 		// →　4手前とmoveが同じであるケースのみ調べる。
-		if (   move == (ss-4)->currentMove
-			&& pos.has_repeated())
+		if (move == (ss-4)->currentMove && pos.has_repeated())
 			r += 2;
 #endif
 

@@ -113,7 +113,7 @@ void Position::init() {
 
 
 #if defined(ENABLE_PAWN_HISTORY)
-	SET_HASH(Zobrist::noPawns, rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
+	Zobrist::noPawns = Zobrist::zero;
 #endif
 }
 
@@ -1443,11 +1443,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		k += Zobrist::psq[to][moved_after_pc];
 
 #if defined(ENABLE_PAWN_HISTORY)
-		// 歩の移動ならば歩を除去
+		// 歩の移動ならば移動元の歩を除去
 		if (type_of(moved_pc)==PAWN)
 		{
 			st->pawnKey_ ^= Zobrist::psq[from][moved_pc];
-			// 成ってないなら移動先の歩の除去も。
+
+			// 成ってないなら移動先に歩を配置
 			if (!is_promote(m))
 				st->pawnKey_ ^= Zobrist::psq[to][moved_pc];
 		}

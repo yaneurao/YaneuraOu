@@ -930,7 +930,14 @@ constexpr int MAX_MOVES = 600;
 // 生成する指し手の種類
 enum MOVE_GEN_TYPE
 {
-	// LEGAL/LEGAL_ALL以外は自殺手が含まれることがある(pseudo-legal)ので、do_moveの前にPosition::legal()でのチェックが必要。
+	//
+	// 注意)
+	// 指し手生成器で生成される指し手はすべてpseudo-legalであるが、
+	// LEGAL/LEGAL_ALL以外は自殺手が含まれることがある。
+	// (pseudo-legalは自殺手も含むので)
+	// 
+	// そのため、do_moveの前にPosition::legal()でのチェックが必要である。
+	//
 
 	NON_CAPTURES,           // 駒を取らない指し手
 	CAPTURES,               // 駒を取る指し手
