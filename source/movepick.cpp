@@ -334,7 +334,7 @@ void MovePicker::score()
 
 				m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
 				        - (Eval::PieceValue[type_of(pos.moved_piece_before(m))]/16)
-							// →　/32 は、価値の低い駒にして欲しいが、まずはCapturePieceValueの大きな順になって欲しいので、
+							// →　/16 は、価値の低い駒にして欲しいが、まずはCapturePieceValueの大きな順になって欲しいので、
 							// スケールを小さくしている。
                         + (1 << 28);
 						
@@ -408,8 +408,11 @@ top:
 		// PROBCUT_INIT、QCAPTURE_INITの時は、このあと残りの指し手を生成しないので歩の成らずを生成しても仕方がない。
 		if (stage == CAPTURE_INIT)
 			endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, cur) : generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
-		else
+		else if (stage == PROBCUT_INIT)
 			endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
+		else if (stage == QCAPTURE_INIT)
+			// qsearchでは歩の成りは不要。駒を取る手だけ生成すれば十分。
+			endMoves = generateMoves<CAPTURES>(pos, cur);
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
@@ -605,15 +608,17 @@ top:
 		// QUIET_CHECKS_PRO_MINUSがあれば良いのだが、実装が難しいので、QUIET_CHECKSで生成して、このあとQCHECK_で歩の成る指し手を除外する。
 		cur = moves;
 
-		endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<QUIET_CHECKS_ALL>(pos, cur) : generateMoves<QUIET_CHECKS>(pos, cur);
+		//endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<QUIET_CHECKS_ALL>(pos, cur) : generateMoves<QUIET_CHECKS>(pos, cur);
+		// → qsearch()なので歩の成らずは生成しなくてもいいや..
+		endMoves = generateMoves<QUIET_CHECKS>(pos, cur);
 
 		++stage;
 		[[fallthrough]];
 
 	// 王手になる指し手を一手ずつ返すフェーズ
 	case QCHECK:
-		// return select<Next>([](){ return true; });
-		return select<Next>([&]() { return !pos.pawn_promotion(*cur); });
+		return select<Next>([](){ return true; });
+		//return select<Next>([&]() { return !pos.pawn_promotion(*cur); });
 
 		// 王手する指し手は、即詰みを狙うものであり、駒捨てとかがあるからオーダリングが難しく、効果に乏しいのでオーダリングしない。
 
