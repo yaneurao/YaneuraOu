@@ -504,23 +504,35 @@ top:
 			// 指し手を部分的にソートする。depthに線形に依存する閾値で。
 			// (depthが低いときに真面目に全要素ソートするのは無駄だから)
 
+			// メモ書き)
+			//
+			// 将棋では平均合法手は100手程度。(以前は80手程度だったが、AI同士の対局では
+			// 終局までの平均手数が伸びたので相対的に終盤が多くなり、終盤は手駒を持っていることが多いから、
+			// そのため平均合法手が増えた。)
+			// また、合法手の最大は、593手。
+			// 
+			// それに対して、チェスの平均合法手は40手、合法手の最大は、218手と言われている。
+			//
+			// insertion sortの計算量は、O(n^2) で、将棋ではわりと悩ましいところ。
+			// sortする個数が64以上などはquick sortに切り替えるなどした方がいい可能性もある。
+
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 
 			// 以下のSuperSortを有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
 
-			// depth大きくて指し手の数も多い時だけsuper sortを使うとどう？
-			// (もうちょっと条件を精査した方がいいな…)
-			if ((depth >= 15 && endMoves - cur >= 32) || (depth >= 10 && endMoves - cur >= 64) || (depth >= 5 && endMoves - cur >= 96) )
-				partial_super_sort(cur, endMoves , -1960 - 3130 * depth);
+			if (PARAM_MOVEPICKER_USE_SUPERSORT)
+				partial_insertion_sort(cur, endMoves, -PARAM_MOVEPICKER_SORT_TH1 /*1960*/ - PARAM_MOVEPICKER_SORT_ALPHA1 /*3130*/ * depth);
 			else
-				partial_insertion_sort(cur, endMoves, -1960 - 3130 * depth);
-#else
-
-			partial_insertion_sort(cur, endMoves, -1960 - 3130 * depth);
-			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
-			//   sortできるなら全部したほうが良いがどうせ早い段階で枝刈りされるのでほとんど効果がない。
-
 #endif
+				partial_insertion_sort(cur, endMoves, - PARAM_MOVEPICKER_SORT_TH2 /*1960*/ - PARAM_MOVEPICKER_SORT_ALPHA2 /*3130*/ * depth);
+
+			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
+			//   sort時間がゼロでできるなら全部した方が良いがどうせ早い段階で枝刈りされるのでほとんど効果がない。
+			//
+			//   ここでsortする数、将棋ではチェスと同じ程度の個数になるように、減らすようにチューニングした方が良い。
+			//   つまり、PARAM_MOVEPICKER_SORT_THとPARAM_MOVEPICKER_SORT_ALPHAの絶対値を小さめにする。
+			//   super sortを用いる時は、PARAM_MOVEPICKER_SORT_ALPHAを少し大きめにした方がいいかも知れない。
+			//   (ただし、それでもStockfishの値は大きすぎるっぽい)
 		}
 
 		++stage;

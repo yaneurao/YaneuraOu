@@ -98,6 +98,7 @@ void partial_super_sort(ExtMove* start, ExtMove* end , int limit)
 
 #if defined(IS_64BIT)
 	// →　64bitの値とみなしてstd::partitionしたほうが速い。
+	// super sortはAVX2用のコードなので、ここを実行する時はlittle endianと仮定できる。
 	std::int64_t limit64 = static_cast<int64_t>(limit) << 32;
 	auto mid = (ExtMove*)std::partition((int64_t*)start, (int64_t*)end, [limit64](const int64_t& mov) { return mov >= limit64; });
 #else
@@ -109,7 +110,7 @@ void partial_super_sort(ExtMove* start, ExtMove* end , int limit)
 	{
 		// 要素数 7以下は insertion_sortのほうが速い。
 		// 要素数 8以上になると32要素のSuperSortのほうが速い。
-		// (すべてCPU cacheに載っていることが前提なので、新たなバッファを用いる場合SuperSortもう少し不利かも)
+		// (すべてCPU cacheに載っていることが前提なので、新たなバッファを用いる場合、SuperSortはもう少し不利かも)
 		// SuperSortはAVX2を酷使するのでもう少し大きな値でないと使いたくはないが、
 		// 32要素目まで全部ソートされるのでその利点はある。
 
