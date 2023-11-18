@@ -1049,8 +1049,8 @@ void Thread::search()
 			beta  = std::min(avg + delta, VALUE_INFINITE);
 
 			// Adjust optimism based on root move's previousScore (~4 Elo)
-			//optimism[ us]  = 103 * (avg + 33) / (std::abs(avg + 34) + 119);
-			//optimism[~us] = -116 * (avg + 40) / (std::abs(avg + 12) + 123);
+            //optimism[us]  = 110 * avg / (std::abs(avg) + 121);
+            //optimism[~us] = -optimism[us];
 			// → このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
 
 			// Start with a small aspiration window and, in the case of a fail
@@ -2686,6 +2686,12 @@ moves_loop:
 				&& move == ss->killers[0]
 				&& (*contHist[0])(movedPiece, to_sq(move)) >= 4194)
 				extension = 1;
+
+            // Recapture extensions (~1 Elo)
+            else if (PvNode && move == ttMove && to_sq(move) == prevSq
+                     && captureHistory(movedPiece, to_sq(move), type_of(pos.piece_on(to_sq(move))))
+                          > 4000)
+                extension = 1;
 		}
 
 		// -----------------------
@@ -2844,7 +2850,13 @@ moves_loop:
 			// 削減がマイナスの場合、この手に最初の手の深さを超える限定的な探索の延長を許可します。
 			// これにより、隠れた二重の延長が生じる可能性があります。
 
-		    Depth d = std::clamp(newDepth - r, 1, newDepth + 1);
+            // To prevent problems when the max value is less than the min value,
+            // std::clamp has been replaced by a more robust implementation.
+			// 最大値が最小値より小さい場合の問題を防ぐために、
+			// std::clampはより堅牢な実装に置き換えられました。
+			// 備考) C++の仕様上、std::clamp(x, min, max)は、min > maxの時に未定義動作である。
+
+            Depth d = std::max(1, std::min(newDepth - r, newDepth + 1));
 
 			value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
 
