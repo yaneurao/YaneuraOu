@@ -283,20 +283,13 @@ PARAM_DEFINE PARAM_MOVEPICKER_SORT_ALPHA1 = 3130;
 // 重要度　★★★★★
 // 元の値 = 1960 , step = 1
 // [PARAM] min:-1000,max:3000,step:480,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_MOVEPICKER_SORT_TH2 = 480;
+PARAM_DEFINE PARAM_MOVEPICKER_SORT_TH2 = 1960;
 
 // move pickerでsortする係数 (super sort使用しない時)
 // 重要度　★★★★★
 // 元の値 = 3130 , step = 1
 // [PARAM] min:0,max:6000,step:500,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_MOVEPICKER_SORT_ALPHA2 = 2630;
-
-// move pickerでsuper sortを用いるか
-// 重要度　★★★★☆
-// 元の値 = 0 , step = 1
-// [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_MOVEPICKER_USE_SUPERSORT = 1;
-
+PARAM_DEFINE PARAM_MOVEPICKER_SORT_ALPHA2 = 3130;
 
 //
 // mate..

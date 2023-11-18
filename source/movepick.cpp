@@ -520,14 +520,11 @@ top:
 			// sortする個数が64以上などはquick sortに切り替えるなどした方がいい可能性もある。
 
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
-
-			// 以下のSuperSortを有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
-
-			if (PARAM_MOVEPICKER_USE_SUPERSORT)
-				partial_insertion_sort(cur, endMoves, -PARAM_MOVEPICKER_SORT_TH1 /*1960*/ - PARAM_MOVEPICKER_SORT_ALPHA1 /*3130*/ * depth);
-			else
+			// SuperSortを有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
+			partial_super_sort    (cur, endMoves, - PARAM_MOVEPICKER_SORT_TH1 /*1960*/ - PARAM_MOVEPICKER_SORT_ALPHA1 /*3130*/ * depth);
+#else
+			partial_insertion_sort(cur, endMoves, - PARAM_MOVEPICKER_SORT_TH2 /*1960*/ - PARAM_MOVEPICKER_SORT_ALPHA2 /*3130*/ * depth);
 #endif
-				partial_insertion_sort(cur, endMoves, - PARAM_MOVEPICKER_SORT_TH2 /*1960*/ - PARAM_MOVEPICKER_SORT_ALPHA2 /*3130*/ * depth);
 
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
 			//   sort時間がゼロでできるなら全部した方が良いがどうせ早い段階で枝刈りされるのでほとんど効果がない。
