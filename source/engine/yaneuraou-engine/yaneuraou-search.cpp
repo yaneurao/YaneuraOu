@@ -2571,7 +2571,7 @@ moves_loop:
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
 		        Value singularBeta  = ttValue
 					- (PARAM_SINGULAR_MARGIN1 /*64*/ + PARAM_SINGULAR_MARGIN2/* 57 */ * (ss->ttPv && !PvNode)) * depth / 64;
-				Depth singularDepth = (depth - 1) / 2;
+				Depth singularDepth = newDepth / 2;
 
 				// move(ttMove)の指し手を以下のsearch()での探索から除外
 
@@ -2867,14 +2867,10 @@ moves_loop:
 				// Adjust full-depth search based on LMR results - if the result
 				// was good enough search deeper, if it was bad enough search shallower
 
-				const bool doDeeperSearch     = value >
-					(bestValue + PARAM_LMR_MARGIN1 /*51*/ + PARAM_LMR_MARGIN2 /*10*/ * (newDepth - d));
-				const bool doEvenDeeperSearch = value > alpha + PARAM_LMR_MARGIN3/*700*/ && ss->doubleExtensions <= 6;
-				const bool doShallowerSearch  = value < bestValue + newDepth;
+				const bool doDeeperSearch     = value > (bestValue + 51 + 10 * (newDepth - d)); // (~1 Elo)
+				const bool doShallowerSearch  = value <  bestValue + newDepth;                  // (~2 Elo)
 
-				ss->doubleExtensions = ss->doubleExtensions + doEvenDeeperSearch;
-
-				newDepth += doDeeperSearch - doShallowerSearch + doEvenDeeperSearch;
+				newDepth += doDeeperSearch - doShallowerSearch;
 
 				if (newDepth > d)
 					value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);

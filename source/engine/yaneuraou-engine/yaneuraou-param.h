@@ -204,11 +204,6 @@ PARAM_DEFINE PARAM_LMR_MARGIN1 = 51;
 // [PARAM] min:13,max:14,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_LMR_MARGIN2 = 13;
 
-// 重要度　★★★☆☆
-// 元の値 = 700 , step = 100
-// [PARAM] min:0,max:1024,step:50,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_LMR_MARGIN3 = 700;
-
 
 //
 // pruning by history
