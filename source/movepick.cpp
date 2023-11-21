@@ -171,6 +171,12 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 
 	// 王手がかかっているなら王手回避のフェーズへ。さもなくばQSEARCHのフェーズへ。
 	stage = (pos.in_check() ? EVASION_TT : QSEARCH_TT) + !(ttm && pos.pseudo_legal(ttm));
+
+	// ⇨ Stockfish 16のコード、ttm(置換表の指し手)は無条件でこのMovePickerが返す1番目の指し手としているが、これだと
+	//    TTの指し手だけで千日手になってしまうことがある。これは、将棋ではわりと起こりうる。
+	//    対策としては、qsearchで千日手チェックをしたり、SEEが悪いならskipするなど。
+	//  ※　ここでStockfish 14のころのように置換表の指し手に条件をつけるのは良さなさげ。(V7.74l3 と V7.74mとの比較)
+
 }
 
 // Constructor for ProbCut: we generate captures with SEE greater

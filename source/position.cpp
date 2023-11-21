@@ -2184,8 +2184,9 @@ RepetitionState Position::is_repetition(int repPly, int& found_ply) const
 	return REPETITION_NONE;
 }
 
-// is_repetition()の、千日手が見つかった時に、現局面から何手遡ったかを返すバージョン。
-// found_plyにその値が返ってくる。
+// 普通の千日手、連続王手の千日手等を判定する。
+// そこまでの局面と同一局面であるかを、局面を遡って調べる。
+// rootより遡って優等局面を判定したくない時に用いる。
 RepetitionState Position::is_repetition2(int repPly, int sup_rep_ply) const
 {
 	// pliesFromNullが未初期化になっていないかのチェックのためのassert
@@ -2430,6 +2431,14 @@ Move Position::DeclarationWin() const
 // ----------------------------------
 //      内部情報の正当性のテスト
 // ----------------------------------
+
+// Performs some consistency checks for the position object
+// and raise an assert if something wrong is detected.
+// This is meant to be helpful when debugging.
+
+// この処理は、局面オブジェクトに対していくつかの整合性チェックを行い、
+// 何かおかしい箇所が検出された場合にassertを発生させます。
+// これはデバッグ時に役立つことを意図しています。
 
 bool Position::pos_is_ok() const
 {

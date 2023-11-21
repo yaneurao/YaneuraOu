@@ -141,6 +141,9 @@ static TimePoint now() {
 //  sync_out/sync_endl
 // --------------------
 
+// Used to serialize access to std::cout
+// to avoid multiple threads writing at the same time.
+
 // スレッド排他しながらcoutに出力するために使う。
 // 例)
 // sync_out << "bestmove " << m << sync_endl;

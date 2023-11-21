@@ -403,6 +403,8 @@ void dbg_print() {
 //  sync_out/sync_endl
 // --------------------
 
+// Used to serialize access to std::cout
+// to avoid multiple threads writing at the same time.
 std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 
 	static std::mutex m;
@@ -638,7 +640,7 @@ void* aligned_large_pages_alloc(size_t allocSize) {
 	constexpr size_t alignment = 4096; // assumed small page size
 #endif
 
-	// round up to multiples of alignment
+	// Round up to multiples of alignment
 	size_t size = ((allocSize + alignment - 1) / alignment) * alignment;
 	void* mem = std_aligned_alloc(alignment, size);
 #if defined(MADV_HUGEPAGE)
@@ -751,7 +753,7 @@ namespace WinProcGroup {
 #else
 
 
-	/// best_node() retrieves logical processor information using Windows specific
+	/// best_node() retrieves logical processor information using Windows-specific
 	/// API and returns the best node id for the thread with index idx. Original
 	/// code from Texel by Peter Österlund.
 
@@ -826,8 +828,7 @@ namespace WinProcGroup {
 				groups.push_back(n);
 
 		// In case a core has more than one logical processor (we assume 2) and we
-		// have still threads to allocate, then spread them evenly across available
-		// nodes.
+		// still have threads to allocate, spread them evenly across available nodes.
 
 		// 論理プロセッサー数を上回ってスレッドを割り当てたいならば、あとは均等に
 		// 各NUMA NODEに割り当てていくしかない。
@@ -2285,7 +2286,7 @@ namespace CommandLine {
 
 		std::string pathSeparator;
 
-		// extract the path+name of the executable binary
+		// Extract the path+name of the executable binary
 		argv0 = argv[0];
 
 #ifdef _WIN32
@@ -2301,7 +2302,7 @@ namespace CommandLine {
 		pathSeparator = "/";
 #endif
 
-		// extract the working directory
+		// Extract the working directory
 		workingDirectory = "";
 		char buff[40000];
 		char* cwd = GETCWD(buff, 40000);
@@ -2316,7 +2317,7 @@ namespace CommandLine {
 		else
 			binaryDirectory.resize(pos + 1);
 
-		// pattern replacement: "./" at the start of path is replaced by the working directory
+		// Pattern replacement: "./" at the start of path is replaced by the working directory
 		if (binaryDirectory.find("." + pathSeparator) == 0)
 			binaryDirectory.replace(0, 1, workingDirectory);
 	}

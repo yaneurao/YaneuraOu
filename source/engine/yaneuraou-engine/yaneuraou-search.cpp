@@ -2107,6 +2107,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// よって、continuationHistory[0(王手かかってない)][0(駒取りではない)][NO_PIECE][SQ_ZERO]
 		ss->continuationHistory = &thisThread->continuationHistory[0][0](NO_PIECE, SQ_ZERO);
 
+		// 王手がかかっている局面では ⇑の方にある goto moves_loop; によってそっちに行ってるので、
+		// ここでは現局面で手番側に王手がかかっていない = 直前の指し手(非手番側)は王手ではない ことがわかっている。
+		// do_null_move()は、この条件を満たす必要がある。
+
 		pos.do_null_move(st);
 
 		Value nullValue = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, !cutNode);
@@ -2164,8 +2168,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	if (depth <= 0)
 		return qsearch<PV>(pos, ss, alpha, beta);
 
-    // For cutNodes without a ttMove, we decrease depth by 2
-    // if current depth >= 8.
+	// For cutNodes without a ttMove, we decrease depth by 2 if depth is high enough.
 
 	if (    cutNode
 		&&  depth >= 8
@@ -2532,7 +2535,7 @@ moves_loop:
             // a reduced search on the position excluding the ttMove and if the result
             // is lower than ttValue minus a margin, then we will extend the ttMove.
             // Note: the depth margin and singularBeta margin are known for having non-linear
-			// so changing them requires tests at this type of time controls.
+			// so changing them requires tests at these types of time controls.
 
 			// (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
 			// 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
@@ -2637,7 +2640,7 @@ moves_loop:
 				// ttMoveがsingularかマルチカットが可能かはわからないので、
 				// いくつかの条件に基づいて他の手を優先してttMoveを減らします：
 
-				// If the ttMove is assumed to fail high over currnet beta (~7 Elo)
+				// If the ttMove is assumed to fail high over current beta (~7 Elo)
 				// ttMoveが現在のベータを超えて高いスコアを出すと仮定される場合（約7 Elo)
 
 				else if (ttValue >= beta)
@@ -2782,9 +2785,6 @@ moves_loop:
 		if (singularQuietLMR)
 			r--;
 
-		// TODO : あとで実装する。
-		// Position::has_repeated実装しないと…。
-
 #if 0
 		// Increase reduction on repetition (~1 Elo)
 		// 千日手模様ならreductionを増やす。
@@ -2797,7 +2797,7 @@ moves_loop:
 		if ((ss + 1)->cutoffCnt > 3)
 			r++;
 
-		// Set reduction to 0 for first generated move (ttMove)
+		// Set reduction to 0 for first picked move (ttMove) (~2 Elo)
         // Nullifies all previous reduction adjustments to ttMove and leaves only history to do them
 
 		// 最初に生成された手（ttMove）の減少値を0に設定する
@@ -3486,7 +3486,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		} else {
 
-			// In case of null move search use previous static eval with a different sign
+			// In case of null move search, use previous static eval with a different sign
 
 			// 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
 			// NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)

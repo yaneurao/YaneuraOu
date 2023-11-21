@@ -593,6 +593,8 @@ void getoption_cmd(istringstream& is)
 		sync_cout << "No such option: " << name << sync_endl;
 }
 
+// Called when the engine receives the "go" UCI command. The function sets the
+// thinking time and other parameters from the input string then stars with a search
 
 // go()は、思考エンジンがUSIコマンドの"go"を受け取ったときに呼び出される。
 // この関数は、入力文字列から思考時間とその他のパラメーターをセットし、探索を開始する。

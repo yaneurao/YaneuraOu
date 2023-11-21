@@ -271,7 +271,7 @@ PARAM_DEFINE PARAM_QSEARCH_PRUNE_LE0_SEE_MOVE = 0;
 // 重要度　★★★★★
 // 元の値 = 1960 , step = 1
 // [PARAM] min:0,max:3000,step:480,interval:1,time_rate:1
-PARAM_DEFINE PARAM_MOVEPICKER_SORT_TH1 = 1960;
+PARAM_DEFINE PARAM_MOVEPICKER_SORT_TH1 = 2500;
 
 // move pickerでsortする係数 (super sort使用時)
 // 重要度　★★★★★

@@ -19,7 +19,7 @@ namespace USI
 	// to the UCI centipawn result used in output. This value is derived from
 	// the win_rate_model() such that Stockfish outputs an advantage of
 	// "100 centipawns" for a position if the engine has a 50% probability to win
-	// from this position in selfplay at fishtest LTC time control.
+	// from this position in self-play at fishtest LTC time control.
 
 	// evaluateまたはsearchによって報告される内部値をUSIの出力で使用されるUSIのcenti-pawnの値に正規化します
 	// この値はwin_rate_model()から派生しており、
@@ -29,6 +29,7 @@ namespace USI
 
 #if defined(USE_PIECE_VALUE)
 	// → やねうら王の場合、PawnValue = 90なので Value = 90なら 100として出力する必要がある。
+	// Stockfish 16ではこの値は328になっている。
 	const int NormalizeToPawnValue = Eval::PawnValue;
 #endif
 

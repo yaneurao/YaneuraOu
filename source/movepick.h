@@ -103,11 +103,11 @@ enum StatsParams { NOT_USED = 0 };
 
 enum StatsType { NoCaptures, Captures };
 
-// ButterflyHistory records how often quiet moves have been successful or
-// unsuccessful during the current search, and is used for reduction and move
-// ordering decisions. It uses 2 tables (one for each color) indexed by
-// the move's from and to squares, see www.chessprogramming.org/Butterfly_Boards
-// (~11 elo)
+// ButterflyHistory records how often quiet moves have been successful or unsuccessful
+// during the current search, and is used for reduction and move ordering decisions.
+// It uses 2 tables (one for each color) indexed by the move's from and to squares,
+// see www.chessprogramming.org/Butterfly_Boards (~11 elo)
+
 // ButterflyHistoryは、 現在の探索中にquietな指し手がどれくらい成功/失敗したかを記録し、
 // reductionと指し手オーダリングの決定のために用いられる。
 // cf. http://chessprogramming.wikispaces.com/Butterfly+Boards
