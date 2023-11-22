@@ -1905,9 +1905,16 @@ void Position::do_null_move(StateInfo& newSt) {
 
 	set_check_info<true>();
 
-	//st->repetition = 0;
+	// 手番が変わるので手番側の手駒情報であるst->handの更新が必要。
+	st->hand = hand[sideToMove];
 
-	//assert(pos_is_ok());
+	// 現局面には王手はかかっていないので、直前には王手はされていない、すなわちこの関数が呼び出された時の
+	// 非手番側(いまのsideToMove)である
+	//   st->continuousCheck[sideToMove] == 0
+	// が言える。連続王手の千日手の誤判定を防ぐためにこの関数が呼び出された時の手番側(~sideToMove)も
+	// 0にリセットする必要がある。
+	ASSERT_LV3(st->continuousCheck[sideToMove] == 0);
+	st->continuousCheck[~sideToMove] = 0;
 
 #if defined(ANALYSE_MODE)
 	st->repetition       = 0;
@@ -2638,7 +2645,7 @@ bool Position::pos_is_ok() const
 		}
 	}
 	for (auto c : COLOR)
-		for (Piece pr = PIECE_HAND_ZERO; pr < PIECE_HAND_NB; ++pr)
+		for (PieceType pr = PIECE_HAND_ZERO; pr < PIECE_HAND_NB; ++pr)
 		{
 			int ct = hand_count(hand[c], pr);
 			count += ct;
@@ -2653,20 +2660,23 @@ bool Position::pos_is_ok() const
 		if (ptc[pt] != ptc0[pt])
 			return false;
 #endif
+	// 3) st->handは手番側の駒でなければならない。
+	if (st->hand != hand[sideToMove])
+		return false;
 
-	// 3) 王手している駒
+	// 4) 王手している駒
 	if (st->checkersBB != attackers_to(~sideToMove, king_square(sideToMove)))
 		return false;
 
-	// 4) 相手玉が取れるということはないか
+	// 5) 相手玉が取れるということはないか
 	if (effected_to(sideToMove, king_square(~sideToMove)))
 		return false;
 
-	// 5) occupied bitboardは合っているか
+	// 6) occupied bitboardは合っているか
 	if ((pieces() != (pieces(BLACK) | pieces(WHITE))) || (pieces(BLACK) & pieces(WHITE)))
 		return false;
 
-	// 6) 王手している駒は敵駒か
+	// 7) 王手している駒は敵駒か
 	if (checkers() & pieces(side_to_move()))
 		return false;
 
@@ -2828,6 +2838,40 @@ void Position::UnitTest(Test::UnitTester& tester)
 		auto rep = pos.is_repetition(16, found_ply);
 
 		tester.test("REPETITION_DRAW", rep == REPETITION_DRAW && found_ply == 4);
+
+		StateInfo s[512];
+		// 初期局面から先手の飛車が46,後手玉が54に移動している局面。
+		// ここから56飛(46)→44玉(54)→46飛(56)→54玉(44)で先手の反則負け
+		pos_init("lnsg1gsnl/1r5b1/ppppppppp/4k4/9/5R3/PPPPPPPPP/1B7/LNSGKGSNL b - 1");
+
+		m = pos.to_move(make_move16(SQ_46,SQ_56));
+		pos.do_move(m,s[0]);
+		m = pos.to_move(make_move16(SQ_54,SQ_44));
+		pos.do_move(m,s[1]);
+		m = pos.to_move(make_move16(SQ_56,SQ_46));
+		pos.do_move(m,s[2]);
+		m = pos.to_move(make_move16(SQ_44,SQ_54));
+		pos.do_move(m,s[3]);
+
+		// いま先手番であり、先手の反則負けが確定しているはず。
+		auto draw_value = pos.is_repetition();
+		tester.test("REPETITION_LOSE", draw_value == REPETITION_LOSE);
+
+		// 初期局面から先手の飛車が56,後手玉が54に移動している局面。(王手がかかっていて後手番)
+		// ここから44玉(54)→46飛(56)→54玉(44)→56飛(46)で(後手番において)先手の反則負け
+		pos_init("lnsg1gsnl/1r5b1/ppppppppp/4k4/9/4R4/PPPPPPPPP/1B7/LNSGKGSNL w - 1");
+
+		m = pos.to_move(make_move16(SQ_54,SQ_44));
+		pos.do_move(m,s[0]);
+		m = pos.to_move(make_move16(SQ_56,SQ_46));
+		pos.do_move(m,s[1]);
+		m = pos.to_move(make_move16(SQ_44,SQ_54));
+		pos.do_move(m,s[2]);
+		m = pos.to_move(make_move16(SQ_46,SQ_56));
+		pos.do_move(m,s[3]);
+
+		draw_value = pos.is_repetition();
+		tester.test("REPETITION_WIN", draw_value == REPETITION_WIN);
 	}
 
 	// 入玉のテスト
@@ -3045,6 +3089,17 @@ void Position::UnitTest(Test::UnitTester& tester)
 #endif
 
 	{
+		// null moveのテスト
+		auto section = tester.section("nullmove");
+		matsuri_init();
+		StateInfo s[512];
+
+		// null moveして、局面情報がおかしくならないかのテスト。
+		pos.do_null_move(s[0]);
+		tester.test("pos_is_ok()",pos.pos_is_ok());
+	}
+
+	{
 		// それ以外のテスト
 		auto section = tester.section("misc");
 		{
@@ -3071,7 +3126,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			{
 				u64 nodes = perft(pos, d);
 				u64 pn = p_nodes[d];
-				tester.test("depth " + to_string(d) + " = " + to_string(pn), nodes == pn);
+				tester.test("depth " + to_string(d) + " = " + to_string(pn), nodes == pn && pos.pos_is_ok());
 			}
 		}
 
@@ -3085,7 +3140,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			{
 				u64 nodes = perft(pos, d);
 				u64 pn = p_nodes[d];
-				tester.test("depth " + to_string(d) + " = " + to_string(nodes), nodes == pn);
+				tester.test("depth " + to_string(d) + " = " + to_string(nodes), nodes == pn && pos.pos_is_ok());
 			}
 		}
 	}
