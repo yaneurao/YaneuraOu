@@ -681,10 +681,14 @@ void Position::update_slider_blockers(Color c) const
 	}
 }
 
+// Computes a bitboard of all pieces which attack a given square.
+// Slider attacks use the occupied bitboard to indicate occupancy.
 
 // sに利きのあるc側の駒を列挙する。先後両方。
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
-// sq == SQ_NBでの呼び出しは合法。Bitboard(ZERO)が返る。
+//
+// また、sq == SQ_NBでの呼び出しは合法。この時、Bitboard(ZERO)が返る。
+//
 Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const
 {
 	ASSERT_LV3(sq <= SQ_NB);
@@ -1536,6 +1540,109 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// このタイミングで王手関係の情報を更新しておいてやる。
 	set_check_info<false>();
 
+#if defined(ANALYSE_MODE)
+
+	// Calculate the repetition info. It is the ply distance from the previous
+    // occurrence of the same position, negative in the 3-fold case, or zero
+    // if the position was not repeated.
+
+	// 繰り返し情報を計算します。これは、同じ局面の前回の発生からの手数で(1,2回目)、
+	// 3回繰り返しの場合は負の値、または局面が繰り返されていない場合はゼロです。
+	// ⇨　要するに千日手成立時にだけ負。つまり、やねうら王では、1,2,3回目は正、4回目を負。
+
+    st->repetition       = 0;
+	st->repetition_times = 0;
+	st->repetition_type  = REPETITION_NONE;
+
+	//int end        = std::min(st->rule50, st->pliesFromNull);
+    int end          = std::min(16, st->pliesFromNull); // 遡り最大16手
+
+	// ※　チェスは終局までの平均手数が100手程度らしいが、将棋AIの対局では平均手数は160手以上で
+	// 　長い手数の対局では300手以上になることも珍しくはないので、初手まで千日手判定のために遡ると
+	//   ここで非常に時間がかかり、R40程度弱くなってしまう。
+
+	// 最低でも4手はないと同一局面に戻ってこない。
+	if (end >= 4)
+    {
+		StateInfo* stp = st->previous->previous;
+        for (int i = 4; i <= end; i += 2)
+        {
+            stp = stp->previous->previous;
+            if (stp->board_key() == st->board_key())
+            {
+				// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+				if (stp->hand == st->hand)
+				{
+					// 同一局面が見つかった。
+
+					// 以下、Stockfishのコードは利用せず、将棋風に書き換えてある。
+
+					// 繰り返し回数のカウント
+					st->repetition_times = stp->repetition_times + 1;
+
+					// (同一局面の)3回目までは正(4回目以降は負)の手数にする。
+					// ※　st->repetition_timesは、4回目の時点において、3になっている。
+					// これにより、
+					//  if (st->repetition && st->repetition < ply)
+					// のようなif式は必ず成立するようになる。(plyはrootからの手数とする)
+					// 
+					st->repetition       = st->repetition_times >= 3 ? -i : i;
+
+					// 自分が王手をしている連続王手の千日手なのか？
+					// 相手が王手をしている連続王手の千日手なのか？
+					st->repetition_type =  (i <= st->continuousCheck[ sideToMove]) ? REPETITION_LOSE
+										 : (i <= st->continuousCheck[~sideToMove]) ? REPETITION_WIN
+										 : REPETITION_DRAW;
+
+					// 途中が連続王手でない場合、4回目の同一局面で連続王手の千日手は成立せず、普通の千日手となる。
+					// 
+					// よって、例えば、3..4回目までの間が連続王手であっても、前回(2..3回目までの間)がREPETITION_DRAW
+					// であれば、今回をREPETITION_DRAWとして扱わなければならない。
+					//
+					// これは、『将棋ガイドブック』P.14に以下のように書かれている。
+					// 
+					// > 一局中同一局面の最初と4回目出現の局面の間の一方の指し手が王手の連続であった時、
+					// > 連続王手をしていた側にとって4回目の同一局面が出現した時
+
+					// 同様の理屈により、1..2回目が先手の連続王手で、2..3回目が後手の連続王手のような場合も、
+					// このまま4回目に達した場合、これは普通の千日手局面である。
+					// ゆえに、3回目以降の同一局面の出現において、
+					// 前回のrepetition_typeと今回のrepetition_typeが異なるならば、今回のrepetition_typeを
+					// 普通の千日手(REPETITION_DRAW)として扱わなければならない。
+
+					if (stp->repetition_times && st->repetition_type != stp->repetition_type)
+						st->repetition_type = REPETITION_DRAW;
+
+					break;
+
+	            } else {
+
+					// 盤上の駒は一致したが、手駒が一致しないケース。
+
+					// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+
+					if (hand_is_equal_or_superior(st ->hand, stp->hand))
+					{
+						st->repetition_type = REPETITION_SUPERIOR;
+						st->repetition      = i;
+						// 劣等局面かつ千日手局面とかもありうるのだが、超レアケースなので考えないことにする。
+						break;
+					}
+
+					if (hand_is_equal_or_superior(stp->hand, st ->hand))
+					{
+						st->repetition_type = REPETITION_INFERIOR;
+						st->repetition      = i;
+						break;
+					}
+
+					// 上記のどちらにも該当しない場合は、盤上の駒がたまたま一致しただけの局面。
+				}
+			}
+        }
+    }
+#endif
+
 	//ASSERT_LV5(evalList.is_valid(*this));
 
 	//state()->dirtyPiece.do_update(evalList);
@@ -1729,6 +1836,8 @@ void Position::undo_move_impl(Move m)
 
 	// ASSERT_LV5(evalList.is_valid(*this));
 	//evalList.is_valid(*this);
+
+	//ASSERT(pos_is_ok());
 }
 
 // do_move()を先後分けたdo_move_impl<>()を呼び出す。
@@ -1800,6 +1909,12 @@ void Position::do_null_move(StateInfo& newSt) {
 
 	//assert(pos_is_ok());
 
+#if defined(ANALYSE_MODE)
+	st->repetition       = 0;
+	st->repetition_times = 0;
+#endif
+
+	//ASSERT(pos_is_ok());
 }
 
 void Position::undo_null_move()
@@ -2061,6 +2176,24 @@ bool Position::see_ge(Move m, Value threshold) const
 //      千日手判定
 // ----------------------------------
 
+#if 0
+// Tests whether the position is drawn by 50-move rule
+// or by repetition. It does not detect stalemates.
+// この処理は、局面が50手ルールまたは繰り返しによって
+// 引き分けになっているかどうかをテストします。ステイルメイトは検出されません。
+bool Position::is_draw(int ply) const {
+
+    if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
+        return true;
+
+    // Return a draw score if a position repeats once earlier but strictly
+    // after the root, or repeats twice before or at the root.
+    return st->repetition && st->repetition < ply;
+}
+#endif
+
+#if !defined(ANALYSE_MODE)
+
 // 連続王手の千日手等で引き分けかどうかを返す
 RepetitionState Position::is_repetition(int repPly /* = 16 */) const
 {
@@ -2117,7 +2250,7 @@ RepetitionState Position::is_repetition(int repPly /* = 16 */) const
 				return REPETITION_DRAW;
 			}
 			else {
-				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はこの対象とはしていない)
 				if (hand_is_equal_or_superior(st->hand, stp->hand))
 					return REPETITION_SUPERIOR;
 				if (hand_is_equal_or_superior(stp->hand, st->hand))
@@ -2129,6 +2262,47 @@ RepetitionState Position::is_repetition(int repPly /* = 16 */) const
 	// 同じhash keyの局面が見つからなかったので…。
 	return REPETITION_NONE;
 }
+#else
+
+// 正確な千日手の判定。
+RepetitionState Position::is_repetition(int ply) const
+{
+    // Return a draw score if a position repeats once earlier but strictly
+    // after the root, or repeats twice before or at the root.
+	// ルートより厳密に後である場合に局面が一度繰り返された場合、
+	// またはルートの前またはルートで局面が2回繰り返された場合に、引き分けのスコアを返します。
+	// ⇨　将棋では、「2回」ではなく「3回」。(現局面を含めると4回目の同一局面の出現)
+
+	// ※　基本的にrootより遡って判定しないのだが、しかし、4回目の同一局面の場合は、強制的に千日手となるため、
+	// 　ここで探索は打ち切られなければならない。よって、4回目の同一局面の場合のみ、plyに関わらず
+	//   REPETITION_NONE以外が返る。
+
+    if (st->repetition && st->repetition < ply)
+	{
+		ASSERT_LV3(st->repetition_type != REPETITION_NONE);
+		return st->repetition_type;
+	}
+
+	return REPETITION_NONE;
+}
+
+// Tests whether there has been at least one repetition
+// of positions since the last capture or pawn move.
+bool Position::has_repeated() const {
+
+    StateInfo* stc = st;
+    //int        end = std::min(st->rule50, st->pliesFromNull);
+    int        end = std::min(16, st->pliesFromNull);
+    while (end-- >= 4)
+    {
+        if (stc->repetition)
+            return true;
+
+        stc = stc->previous;
+    }
+    return false;
+}
+#endif
 
 // is_repetition()の、千日手が見つかった時に、現局面から何手遡ったかを返すバージョン。
 // found_plyにその値が返ってくる。

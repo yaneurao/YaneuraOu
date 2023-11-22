@@ -103,8 +103,21 @@ struct StateInfo {
 	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
 	Bitboard checkSquares[PIECE_TYPE_NB];
 
-//  循環局面の何回目であるか  
-//	int        repetition;
+#if defined(ANALYSE_MODE)
+	//  循環局面であることを示す。
+	//   0    = 循環なし
+	//   ply  = ply前の局面と同じ局面であることを表す。(ply > 0) 3回目までの繰り返し。
+	//  -ply  = ply前の局面と同じ局面であることを示す。4回目の繰り返しに到達していることを示す。
+	int        repetition;
+
+	// ※　以下の2つはやねうら王独自拡張。
+
+	//  繰り返された回数 - 1。
+	//  ※ repetition != 0の時に意味をなす。
+	int             repetition_times;
+	//  その時の繰り返しの種類
+	RepetitionState repetition_type;
+#endif
 
 	// この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
 	int continuousCheck[COLOR_NB];
@@ -351,6 +364,12 @@ public:
 	//					 ここにss->plyを渡すことで優等局面の判定のためにrootより遡らない。
 	RepetitionState is_repetition2(int rep_ply = 16 , int sup_rep_ply = 16) const;
 	
+#if defined(ANALYSE_MODE)
+	// Tests whether there has been at least one repetition
+	// of positions since the last capture or pawn move.
+	bool has_repeated() const;
+#endif
+
 	// --- Bitboard
 
 	// c == BLACK : 先手の駒があるBitboardが返る

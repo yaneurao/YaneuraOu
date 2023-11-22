@@ -1510,7 +1510,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
         //    return (ss->ply >= MAX_PLY && !ss->inCheck) ? evaluate(pos)
         //                                                : value_draw(pos.this_thread());
 
-		auto draw_type = pos.is_repetition2(16, ss->ply);
+		auto draw_type = pos.is_repetition(ss->ply);
 
 		if (draw_type != REPETITION_NONE)
 			return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
@@ -3338,7 +3338,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// →　将棋、千日手の頻度がチェスほどではないのでqsearch()で千日手判定を行う効果に乏しいかと思ったのだが、
 	//    このチェックしないとqsearchでttMoveの指し手で進め続けてMAX_PLYまで行くので弱くなる。
 
-	auto draw_type = pos.is_repetition2(16, ss->ply);
+	auto draw_type = pos.is_repetition(ss->ply);
 	if (draw_type != REPETITION_NONE)
 		return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
