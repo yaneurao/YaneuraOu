@@ -265,6 +265,7 @@
 // #define FOR_TOURNAMENT
 
 // sortが少し高速化されるらしい。
+// 注意)
 // 安定ソートではないので並び順が以前のとは異なるから、benchコマンドの探索ノード数は変わる。
 // CPU targetによって実装が変わるのでCPUによってbenchコマンドの探索ノード数は変わる。
 // #define USE_SUPER_SORT
@@ -292,7 +293,7 @@
 
 
 // 探索パラメーターのチューニングを行うモード
-// ※　使い方は、"docs/解説.txt" の 「探索パラメーターのチューニングについて」をご覧ください。
+// ※　使い方は、やねうら王Wiki の 「探索パラメーターのチューニングについて」をご覧ください。
 //
 // 実行時に"param/yaneuraou-param.h" からパラメーターファイルを読み込むので
 // "source/engine/yaneuraou-engine/yaneuraou-param.h"をそこに配置すること。
@@ -377,6 +378,7 @@
 
 
 // Pawn Historyの有効化。これ、計測したら少し弱くなっていたのでデフォルトでは無効化しておくことにした。
+//  ⇨　計測資料 V7.74k1 , V7.74k2
 // #define ENABLE_PAWN_HISTORY
 
 
@@ -447,8 +449,6 @@ constexpr int MAX_PLY_NUM = 246;
 	// 定跡生成絡み
 	#define ENABLE_MAKEBOOK_CMD
 
-	// パラメーターの自動調整絡み
-	#define USE_GAMEOVER_HANDLER
 	//#define LONG_EFFECT_LIBRARY
 
 	// GlobalOptionsは有効にしておく。
@@ -585,6 +585,13 @@ constexpr int MAX_PLY_NUM = 246;
 // 正しく計算できない。そのため、EVAL_HASHを動的に無効化するためのオプションを用意する。
 #if defined(EVAL_LEARN)
 	#define USE_GLOBAL_OPTIONS
+#endif
+
+// パラメーター自動調整を行う時は、結果をファイルに書き出す必要があるので
+// USIの"gameover"に対してそれに対して応答するハンドラを設定してやる必要がある。
+
+#if defined(TUNING_SEARCH_PARAMETERS) && !defined(USE_GAMEOVER_HANDLER)
+	#define USE_GAMEOVER_HANDLER
 #endif
 
 // --------------------
