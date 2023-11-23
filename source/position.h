@@ -103,7 +103,6 @@ struct StateInfo {
 	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
 	Bitboard checkSquares[PIECE_TYPE_NB];
 
-#if defined(ANALYSE_MODE)
 	//  循環局面であることを示す。
 	//   0    = 循環なし
 	//   ply  = ply前の局面と同じ局面であることを表す。(ply > 0) 3回目までの繰り返し。
@@ -117,7 +116,6 @@ struct StateInfo {
 	int             repetition_times;
 	//  その時の繰り返しの種類
 	RepetitionState repetition_type;
-#endif
 
 	// この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
 	int continuousCheck[COLOR_NB];
@@ -356,19 +354,9 @@ public:
 	// REPETITION_NONEではない時は、found_plyにその値が返ってくる。	// ※　定跡生成の時にしか使わない。
 	RepetitionState is_repetition(int rep_ply , int& found_ply) const;
 
-	// 普通の千日手、連続王手の千日手等を判定する。
-	// そこまでの局面と同一局面であるかを、局面を遡って調べる。
-	// rootより遡って優等局面を判定したくない時に用いる。
-	// rep_ply         : 遡る手数。デフォルトでは16手。あまり大きくすると速度低下を招く。
-	// sup_rep_ply     : 優等局面・劣等局面のために遡る手数。
-	//					 ここにss->plyを渡すことで優等局面の判定のためにrootより遡らない。
-	RepetitionState is_repetition2(int rep_ply = 16 , int sup_rep_ply = 16) const;
-	
-#if defined(ANALYSE_MODE)
 	// Tests whether there has been at least one repetition
 	// of positions since the last capture or pawn move.
 	bool has_repeated() const;
-#endif
 
 	// --- Bitboard
 
