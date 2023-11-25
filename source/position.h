@@ -103,19 +103,22 @@ struct StateInfo {
 	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
 	Bitboard checkSquares[PIECE_TYPE_NB];
 
+#if !defined(ENABLE_QUICK_DRAW)
 	//  循環局面であることを示す。
 	//   0    = 循環なし
 	//   ply  = ply前の局面と同じ局面であることを表す。(ply > 0) 3回目までの繰り返し。
 	//  -ply  = ply前の局面と同じ局面であることを示す。4回目の繰り返しに到達していることを示す。
-	int        repetition;
+	int repetition;
 
 	// ※　以下の2つはやねうら王独自拡張。
 
 	//  繰り返された回数 - 1。
 	//  ※ repetition != 0の時に意味をなす。
-	int             repetition_times;
+	int repetition_times;
+
 	//  その時の繰り返しの種類
 	RepetitionState repetition_type;
+#endif
 
 	// この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
 	int continuousCheck[COLOR_NB];
@@ -344,19 +347,37 @@ public:
 	// ※　mの移動元の駒が現在の手番の駒でなければ、MOVE_NONEが返ることは保証される。
 	// ※  mの移動元に駒がない場合も、MOVE_NONEが返ることは保証される。
 	Move to_move(Move16 m) const;
-	
+
+	// 1. ENABLE_QUICK_DRAWがdefineされている時
+	//		この関数は無視される。
+	//
+	// 2. ENABLE_QUICK_DRAWがdefineされていない時
+	// 　　is_repetition() , has_repeted()で最大で何手前からの千日手をチェックするか。デフォルト16手。
+	// 
+	// ※　これを MAX_PLY に設定すると初手からのチェックになるが、将棋はチェスと異なり
+	// 　　終局までの平均手数がわりと長いので、そこまでするとスピードダウンしてR40ほど弱くなる。
+	void set_max_repetition_ply(int ply){ max_repetition_ply = ply;}
+
 	// 普通の千日手、連続王手の千日手等を判定する。
 	// そこまでの局面と同一局面であるかを、局面を遡って調べる。
-	// rep_ply         : 遡る手数。デフォルトでは16手。あまり大きくすると速度低下を招く。
-	RepetitionState is_repetition(int rep_ply = 16) const;
+	// 
+	// 1. ENABLE_QUICK_DRAWがdefineされている時(大会用に少しでも強くしたい時)
+	// plyは無視される。遡る手数は16手固定。
+	//
+	// 2. ENABLE_QUICK_DRAWがdefineされていない時(正確に千日手の判定を行いたい時)
+	// 遡る手数は、set_max_repetition_ply()で設定された手数だけ遡る。
+	// ply         : rootからの手数。3回目の同一局面の出現まではrootよりは遡って千日手と判定しない。4回目は判定する。
+	RepetitionState is_repetition(int ply = 16) const;
 
 	// is_repetition()の、千日手が見つかった時に、現局面から何手遡ったかを返すバージョン。
 	// REPETITION_NONEではない時は、found_plyにその値が返ってくる。	// ※　定跡生成の時にしか使わない。
-	RepetitionState is_repetition(int rep_ply , int& found_ply) const;
+	RepetitionState is_repetition(int ply , int& found_ply) const;
 
+#if !defined(ENABLE_QUICK_DRAW)
 	// Tests whether there has been at least one repetition
 	// of positions since the last capture or pawn move.
 	bool has_repeated() const;
+#endif
 
 	// --- Bitboard
 
@@ -884,6 +905,9 @@ private:
 	//   このとき、undo_move()で戻れるようにStateInfo::previousに前のstの値を設定しておく。
 	// undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
 	StateInfo* st;
+
+	// set_max_repetition_ply()で設定される、千日手の最大遡り手数
+	int max_repetition_ply = 16;
 
 #if defined(USE_EVAL_LIST)
 	// 評価関数で用いる駒のリスト

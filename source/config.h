@@ -381,21 +381,17 @@
 //  ⇨　計測資料 V7.74k1 , V7.74k2
 // #define ENABLE_PAWN_HISTORY
 
+// 千日手検出を簡略化する
+// (これをオフにするとR5～10程度弱くなるが、これをオンにすると優等局面で評価値31111が出力されたりするので、
+// 検討目的なら、これをオンにするのは好ましくない。)
+// #define ENABLE_QUICK_DRAW
+
 // ===============================================================
 // ここ以降では、↑↑↑で設定した内容に基づき必要なdefineを行う。
 // ===============================================================
 
 // 通常探索時の最大探索深さ
 constexpr int MAX_PLY_NUM = 246;
-
-// is_repetition()で最大で何手前からの千日手をチェックするか。
-// 
-// これを
-//   MAX_REPETITION_PLY = MAX_PLY;
-// にすると初手からのチェックになるが、将棋はチェスと異なり
-// 終局までの平均手数がわりと長いので、そこまでするとスピードダウンしてR40ほど弱くなる。
-constexpr int MAX_REPETITION_PLY = 16;
-
 
 // デバッグ時の標準出力への局面表示などに日本語文字列を用いる。
 
@@ -575,6 +571,9 @@ constexpr int MAX_REPETITION_PLY = 16;
 	#undef ENABLE_TEST_CMD
 	#undef USE_GLOBAL_OPTIONS
 	#undef KEEP_LAST_MOVE
+
+	// 千日手検出を簡略化する
+	#define ENABLE_QUICK_DRAW
 #endif
 
 // --------------------
