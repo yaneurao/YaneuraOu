@@ -63,7 +63,7 @@ struct StateInfo {
 #if defined(ENABLE_PAWN_HISTORY)
 	// 歩の陣形に対するhash key
 	HASH_KEY pawnKey_;
-	Key pawn_key()                const { return hash_key_to_key(pawn_hash_key()) >> 1;  }
+	Key      pawn_key()           const { return hash_key_to_key(pawn_hash_key()) >> 1;  }
 	HASH_KEY pawn_hash_key()      const { return pawnKey_;               }
 #endif
 

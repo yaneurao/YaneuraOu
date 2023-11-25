@@ -2080,7 +2080,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// Step 9. Null move search with verification search (~35 Elo)
 	// -----------------------
 
-	//  検証用の探索つきのnull move探索。PV nodeではやらない。
+	// 検証用の探索つきのnull move探索。PV nodeではやらない。
 
 	//  evalの見積りがbetaを超えているので1手パスしてもbetaは超えそう。
 	if (   !PvNode
@@ -2594,7 +2594,7 @@ moves_loop:
 
 					// TODO : ここのパラメーター、調整すべきかも？
 
-					if (!PvNode
+					if (  !PvNode
 						&& value < singularBeta - 18
 						&& ss->doubleExtensions <= 11)
 					{
@@ -2808,10 +2808,10 @@ moves_loop:
 
 		// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 		// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
-		ss->statScore = 2 * thisThread->mainHistory(us, from_to(move))
-						+ (*contHist[0])(movedPiece, to_sq(move))
-						+ (*contHist[1])(movedPiece, to_sq(move))
-						+ (*contHist[3])(movedPiece, to_sq(move))
+		ss->statScore =   2 * thisThread->mainHistory(us, from_to(move))
+						+     (*contHist[0])(movedPiece, to_sq(move))
+						+     (*contHist[1])(movedPiece, to_sq(move))
+						+     (*contHist[3])(movedPiece, to_sq(move))
 						- 3848;
 			
 		// Decrease/increase reduction for moves with a good/bad history (~25 Elo)
@@ -2952,7 +2952,7 @@ moves_loop:
 		if (rootNode)
 		{
 			RootMove& rm = *std::find(thisThread->rootMoves.begin(),
-										thisThread->rootMoves.end(), move);
+									  thisThread->rootMoves.end()  , move);
 
 			// rootの平均スコアを求める。aspiration searchで用いる。
 			rm.averageScore = rm.averageScore != -VALUE_INFINITE ? (2 * value + rm.averageScore) / 3 : value;
@@ -3713,8 +3713,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				//   歩損を許さないように +1 して、歩損する指し手は延長しないようにするほうがいいか？
 				//  →　 captureの時の歩損は、歩で取る、同角、同角みたいな局面なのでそこにはあまり意味なさげ。
 
-			if (!pos.see_ge(move, Value(-90)))
-				continue;
+				if (!pos.see_ge(move, Value(-90)))
+					continue;
 
 			} else {
 
@@ -3742,10 +3742,10 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		// 現在このスレッドで探索している指し手を保存しておく。
 		ss->currentMove = move;
 
-		ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck                ]
+		ss->continuationHistory = &(thisThread->continuationHistory [ss->inCheck                ]
 																	[capture                    ])
 										                            (pos.moved_piece_after(move),
-																	to_sq(move)                );
+																	 to_sq(move)                );
 
 		quietCheckEvasions += !capture && ss->inCheck;
 

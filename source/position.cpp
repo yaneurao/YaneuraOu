@@ -2587,7 +2587,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 
 		// is_ok(m) == falseな指し手に対して、to_move()がその指し手をそのまま返すことを保証する。
 		tester.test("MOVE_NONE", pos.to_move(MOVE_NONE) == MOVE_NONE);
-		tester.test("MOVE_WIN" , pos.to_move(MOVE_WIN) == MOVE_WIN);
+		tester.test("MOVE_WIN" , pos.to_move(MOVE_WIN ) == MOVE_WIN );
 		tester.test("MOVE_NULL", pos.to_move(MOVE_NULL) == MOVE_NULL);
 
 		// 88の角を22に不成で移動。(非合法手) 移動後の駒は先手の角。

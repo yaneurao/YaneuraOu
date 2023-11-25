@@ -824,27 +824,27 @@ constexpr int PIECE_BITS[PIECE_HAND_NB] = { 0, 0 /*歩*/, 8 /*香*/, 12 /*桂*/,
 // PieceType(歩,香,桂,銀,金,角,飛)を手駒に変換するテーブル
 constexpr Hand PIECE_TO_HAND[PIECE_HAND_NB] = {
 	(Hand)0,
-	(Hand)(1 << PIECE_BITS[PAWN])   /*歩*/,
-	(Hand)(1 << PIECE_BITS[LANCE])  /*香*/,
+	(Hand)(1 << PIECE_BITS[PAWN  ]) /*歩*/,
+	(Hand)(1 << PIECE_BITS[LANCE ]) /*香*/,
 	(Hand)(1 << PIECE_BITS[KNIGHT]) /*桂*/,
 	(Hand)(1 << PIECE_BITS[SILVER]) /*銀*/,
 	(Hand)(1 << PIECE_BITS[BISHOP]) /*角*/,
-	(Hand)(1 << PIECE_BITS[ROOK])   /*飛*/,
-	(Hand)(1 << PIECE_BITS[GOLD])   /*金*/
+	(Hand)(1 << PIECE_BITS[ROOK  ]) /*飛*/,
+	(Hand)(1 << PIECE_BITS[GOLD  ]) /*金*/
 };
 
 // その持ち駒を表現するのに必要なbit数のmask(例えば3bitなら2の3乗-1で7)
-constexpr int PIECE_BIT_MASK[PIECE_HAND_NB] = { 0,31/*歩は5bit*/,7/*香は3bit*/,7/*桂*/,7/*銀*/,3/*角*/,3/*飛*/,7/*金*/ };
+constexpr int PIECE_BIT_MASK[PIECE_HAND_NB] = { 0, 31/*歩は5bit*/, 7/*香は3bit*/, 7/*桂*/, 7/*銀*/, 3/*角*/, 3/*飛*/, 7/*金*/ };
 
 constexpr u32 PIECE_BIT_MASK2[PIECE_HAND_NB] = {
 	0,
-	PIECE_BIT_MASK[PAWN]   << PIECE_BITS[PAWN]  ,
-	PIECE_BIT_MASK[LANCE]  << PIECE_BITS[LANCE] ,
+	PIECE_BIT_MASK[PAWN  ] << PIECE_BITS[PAWN  ],
+	PIECE_BIT_MASK[LANCE ] << PIECE_BITS[LANCE ],
 	PIECE_BIT_MASK[KNIGHT] << PIECE_BITS[KNIGHT],
 	PIECE_BIT_MASK[SILVER] << PIECE_BITS[SILVER],
 	PIECE_BIT_MASK[BISHOP] << PIECE_BITS[BISHOP],
-	PIECE_BIT_MASK[ROOK]   << PIECE_BITS[ROOK]  ,
-	PIECE_BIT_MASK[GOLD]   << PIECE_BITS[GOLD]
+	PIECE_BIT_MASK[ROOK  ] << PIECE_BITS[ROOK  ],
+	PIECE_BIT_MASK[GOLD  ] << PIECE_BITS[GOLD  ]
 };
 
 // 駒の枚数が格納されているbitが1となっているMASK。(駒種を得るときに使う)

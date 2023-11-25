@@ -269,6 +269,13 @@ void MovePicker::score()
 			m.value = (7 * int(Eval::CapturePieceValuePlusPromote(pos, m))
 					   + (*captureHistory)(pos.moved_piece_after(m), to_sq(m), type_of(pos.piece_on(to_sq(m)))))
 					  / 16;
+			// →　係数を掛けたり全体を16で割ったりしているのは、
+			// このあと、GOOD_CAPTURE で、
+			//	return pos.see_ge(*cur, Value(-cur->value))
+			// のようにしてあって、要するにsee_ge()の時のスケール(PieceValue)に変換するため。
+			// 
+			// Stockfishとは駒点が異なるので、この部分の係数を調整する必要がある。
+			//
 		}
 		else if constexpr (Type == QUIETS)
 		{

@@ -1,9 +1,9 @@
 
 # === ビルドターゲット (build target) ===
 
-# normal     : 通常使用用
+# normal     : 通常使用版(配布用の実行ファイルはこちら)
 # evallearn  : 教師局面からの学習用
-# tournament : 大会で使う用
+# tournament : 大会で使う用(通常版よりややEloが高いが使える機能に制限がある)
 
 # === ビルドオプション (build options) ===
 

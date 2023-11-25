@@ -239,14 +239,14 @@ namespace USI
 				auto pos_ = const_cast<Position*>(&pos);
 				Move moves[MAX_PLY + 1];
 				StateInfo si[MAX_PLY];
-				size_t ply = 0;
+				int ply = 0;
 
 				while ( ply < MAX_PLY )
 				{
 					// 千日手はそこで終了。ただし初手はPVを出力。
 					// 千日手がベストのとき、置換表を更新していないので
 					// 置換表上はMOVE_NONEがベストの指し手になっている可能性があるので早めに検出する。
-					auto rep = pos.is_repetition(int(ply));
+					auto rep = pos.is_repetition(ply);
 					if (rep != REPETITION_NONE && ply >= 1)
 					{
 						// 千日手でPVを打ち切るときはその旨を表示
@@ -258,7 +258,7 @@ namespace USI
 
 					// まず、rootMoves.pvを辿れるところまで辿る。
 					// rootMoves[i].pv[0]は宣言勝ちの指し手(MOVE_WIN)の可能性があるので注意。
-					if (ply < rootMoves[i].pv.size())
+					if (ply < int(rootMoves[i].pv.size()))
 						m = rootMoves[i].pv[ply];
 					else
 					{
