@@ -181,6 +181,9 @@
 // ";"で区切って複数指定できる。
 // #define ENGINE_OPTIONS "FV_SCALE=24;BookFile=no_book"
 
+// NNUE評価関数で、推論時のオーバーフローを防ぐ。
+// これオンにすると0.5%ぐらいnpsが低下する。オフで運用できるならオフでいいと思う。
+// #define NNUE_FIX_OVERFLOW
 
 // ---------------------
 //  置換表絡みの設定
@@ -476,6 +479,7 @@ constexpr int MAX_PLY_NUM = 246;
 
 	#if defined(YANEURAOU_ENGINE_NNUE)
 		#define EVAL_NNUE
+		#define NNUE_FIX_OVERFLOW
 
 		// 学習のためにOpenBLASを使う
 		// "../openblas/lib/libopenblas.dll.a"をlibとして追加すること。
@@ -571,6 +575,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#undef ENABLE_TEST_CMD
 	#undef USE_GLOBAL_OPTIONS
 	#undef KEEP_LAST_MOVE
+	#undef NNUE_FIX_OVERFLOW
 
 	// 千日手検出を簡略化する
 	#define ENABLE_QUICK_DRAW
