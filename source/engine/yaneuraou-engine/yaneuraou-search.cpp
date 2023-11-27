@@ -4114,71 +4114,71 @@ Move Skill::pick_best(size_t multiPV) {
 // main threadからしか呼び出されないのでロジックがシンプルになっている。
 void MainThread::check_time()
 {
-// When using nodes, ensure checking rate is not lower than 0.1% of nodes
-// 4096回に1回ぐらいのチェックで良い。
-if (--callsCnt > 0)
-	return;
+	// When using nodes, ensure checking rate is not lower than 0.1% of nodes
+	// 4096回に1回ぐらいのチェックで良い。
+	if (--callsCnt > 0)
+		return;
 
-// "stop"待ちなので以降の判定不要。
-if (Threads.main()->time_to_return_bestmove)
-	return ;
+	// "stop"待ちなので以降の判定不要。
+	if (Threads.main()->time_to_return_bestmove)
+		return ;
 
-// Limits.nodesが指定されているときは、そのnodesの0.1%程度になるごとにチェック。
-// さもなくばデフォルトの値を使う。
-// このデフォルト値、ある程度小さくしておかないと、通信遅延分のマージンを削ったときに
-// ちょうど1秒を超えて計測2秒になり、損をしうるという議論があるようだ。
-// cf. Check the clock every 1024 nodes : https://github.com/official-stockfish/Stockfish/commit/8db75dd9ec05410136898aa2f8c6dc720b755eb8
-// main threadでしか判定しないからチェックに要するコストは微小だと思われる。
+	// Limits.nodesが指定されているときは、そのnodesの0.1%程度になるごとにチェック。
+	// さもなくばデフォルトの値を使う。
+	// このデフォルト値、ある程度小さくしておかないと、通信遅延分のマージンを削ったときに
+	// ちょうど1秒を超えて計測2秒になり、損をしうるという議論があるようだ。
+	// cf. Check the clock every 1024 nodes : https://github.com/official-stockfish/Stockfish/commit/8db75dd9ec05410136898aa2f8c6dc720b755eb8
+	// main threadでしか判定しないからチェックに要するコストは微小だと思われる。
 
-// When using nodes, ensure checking rate is not lower than 0.1% of nodes
-// → NodesLimitを有効にした時、その指定されたノード数の0.1%程度の誤差であって欲しいのでそれくらいの頻度でチェックする。
+	// When using nodes, ensure checking rate is not lower than 0.1% of nodes
+	// → NodesLimitを有効にした時、その指定されたノード数の0.1%程度の誤差であって欲しいのでそれくらいの頻度でチェックする。
 
-callsCnt = Limits.nodes ? std::min(512, int(Limits.nodes / 1024)) : 512;
+	callsCnt = Limits.nodes ? std::min(512, int(Limits.nodes / 1024)) : 512;
 
-// 1秒ごとにdbg_print()を呼び出す処理。
-// dbg_print()は、dbg_hit_on()呼び出しによる統計情報を表示する。
+	// 1秒ごとにdbg_print()を呼び出す処理。
+	// dbg_print()は、dbg_hit_on()呼び出しによる統計情報を表示する。
 
-static TimePoint lastInfoTime = now();
-TimePoint tick = now();
+	static TimePoint lastInfoTime = now();
+	TimePoint tick = now();
 
-// 1秒ごとに
-if (tick - lastInfoTime >= 1000)
-{
-	lastInfoTime = tick;
-	dbg_print();
-}
-
-// We should not stop pondering until told so by the GUI
-// ponder中においては、GUIがstopとかponderhitとか言ってくるまでは止まるべきではない。
-if (ponder)
-	return;
-
-// "ponderhit"時は、そこからの経過時間で考えないと、elapsed > Time.maximum()になってしまう。
-// elapsed_from_ponderhit()は、"ponderhit"していないときは"go"コマンドからの経過時間を返すのでちょうど良い。
-TimePoint elapsed = Time.elapsed_from_ponderhit();
-
-// 今回のための思考時間を完璧超えているかの判定。
-
-// 反復深化のループ内でそろそろ終了して良い頃合いになると、Time.search_endに停止させて欲しい時間が代入される。
-// (それまではTime.search_endはゼロであり、これは終了予定時刻が未確定であることを示している。)
-// ※　前半部分、やねうら王、独自実装。
-if ((Limits.use_time_management() &&
-	(elapsed > Time.maximum() || (Time.search_end > 0 && elapsed > Time.search_end)))
-	|| (Limits.movetime && elapsed >= Limits.movetime)
-	|| (Limits.nodes && Threads.nodes_searched() >= uint64_t(Limits.nodes))
-	)
-{
-	if (Limits.wait_stop)
+	// 1秒ごとに
+	if (tick - lastInfoTime >= 1000)
 	{
-		// stopが来るまで待つので、Threads.stopは変化させない。
-		// 代わりに"info string time to return bestmove."と出力する。
-		output_time_to_return_bestmove();
-
-	} else {
-
-		Threads.stop = true;
+		lastInfoTime = tick;
+		dbg_print();
 	}
-}
+
+	// We should not stop pondering until told so by the GUI
+	// ponder中においては、GUIがstopとかponderhitとか言ってくるまでは止まるべきではない。
+	if (ponder)
+		return;
+
+	// "ponderhit"時は、そこからの経過時間で考えないと、elapsed > Time.maximum()になってしまう。
+	// elapsed_from_ponderhit()は、"ponderhit"していないときは"go"コマンドからの経過時間を返すのでちょうど良い。
+	TimePoint elapsed = Time.elapsed_from_ponderhit();
+
+	// 今回のための思考時間を完璧超えているかの判定。
+
+	// 反復深化のループ内でそろそろ終了して良い頃合いになると、Time.search_endに停止させて欲しい時間が代入される。
+	// (それまではTime.search_endはゼロであり、これは終了予定時刻が未確定であることを示している。)
+	// ※　前半部分、やねうら王、独自実装。
+	if ((Limits.use_time_management() &&
+		(elapsed > Time.maximum() || (Time.search_end > 0 && elapsed > Time.search_end)))
+		|| (Limits.movetime && elapsed >= Limits.movetime)
+		|| (Limits.nodes && Threads.nodes_searched() >= uint64_t(Limits.nodes))
+		)
+	{
+		if (Limits.wait_stop)
+		{
+			// stopが来るまで待つので、Threads.stopは変化させない。
+			// 代わりに"info string time to return bestmove."と出力する。
+			output_time_to_return_bestmove();
+
+		} else {
+
+			Threads.stop = true;
+		}
+	}
 }
 
 // --- Stockfishの探索のコード、ここまで。

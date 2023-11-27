@@ -46,7 +46,7 @@ enum Stages: int {
 	GOOD_CAPTURE,				// 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
 	REFUTATION,					// killer move,counter move
 	QUIET_INIT,					// (QUIETの指し手生成)
-	QUIET_,						// CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
+	QUIET,						// CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
 	BAD_CAPTURE,				// 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らないが…)
 
 	// 将棋ではBAD_CAPTUREをQUIET_の前にやったほうが良いという従来説は以下の実験データにより覆った。
@@ -75,10 +75,26 @@ enum Stages: int {
 
 	QSEARCH_TT,					// 置換表の指し手を返すフェーズ
 	QCAPTURE_INIT,				// (QCAPTUREの指し手生成)
-	QCAPTURE_,					// 捕獲する指し手 + 歩を成る指し手を一手ずつ返す
+	QCAPTURE,					// 捕獲する指し手 + 歩を成る指し手を一手ずつ返す
 	QCHECK_INIT,				// 王手となる指し手を生成
 	QCHECK						// 王手となる指し手(- 歩を成る指し手)を返すフェーズ
 };
+
+/*
+状態遷移の順番は、
+	王手がかかっていない時。
+		通常探索時 : MAIN_TT → CAPTURE_INIT → GOOD_CAPTURE → REFUTATION → QUIET_INIT → QUIET → BAD_CAPTURE
+		ProbCut時  : PROBCUT_TT → PROBCUT_INIT → PROBCUT
+		静止探索時 : QSEARCH_TT → QCAPTURE_INIT → QCAPTURE → (王手を生成するなら) QCHECK_INIT → QCHECK
+
+		※ 通常探索時にしか、REFUTATIONを呼び出していないので、すなわちProbCut時と静止探索時には
+			killerとかcountermoveの生成はしない。
+		※ 通常探索時に GOOD_CAPTUREとBAD_CAPTUREがあるのは、前者でスコアが悪かった指し手をBAD_CAPTUREに回すためである。
+
+	王手がかかっている時。
+		通常探索、静止探索共通 : EVASION_TT → EVASION_INIT → EVASION
+
+*/
 
 // -----------------------
 //   partial insertion sort
@@ -554,7 +570,7 @@ top:
 	// 駒を捕獲しない指し手を返す。
 	// (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
 	// ※　これ、指し手の数が多い場合、AVXを使って一気に削除しておいたほうが良いのでは..
-	case QUIET_:
+	case QUIET:
 		if (   !skipQuiets
 			&& select<Next>([&]() { return  *cur != refutations[0].move
 										 && *cur != refutations[1].move
@@ -594,10 +610,10 @@ top:
 	// PROBCUTの指し手を返す
 	case PROBCUT:
 		return select<Next>([&]() { return pos.see_ge(*cur, threshold); });
-		// threadshold以上のSEE値で、ベストのものを一つ
+		// threadshold以上のSEE値で、ベストのものを一つずつ返す
 
 	// 静止探索用の指し手を返す処理
-	case QCAPTURE_:
+	case QCAPTURE:
 		// depthがDEPTH_QS_RECAPTURES(-5)以下(深い)なら、recaptureの升に移動する指し手(直前で取られた駒を取り返す指し手)のみを生成。
 		if (select<Next>([&]() { return    depth > DEPTH_QS_RECAPTURES
 										|| to_sq(*cur) == recaptureSquare; }))
