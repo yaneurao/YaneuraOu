@@ -11,6 +11,9 @@
 
 // 以下、やねうら王独自拡張
 
+// search(),qsearch()の時にcaptureの指し手として歩の成りも含めるか
+#define GENERATE_PRO_PLUS
+
 #include "search.h" // Search::Limits.generate_all_legal_movesによって生成される指し手を変えたいので…。
 
 // パラメーターの自動調整フレームワークからパラメーターの値を読み込む
@@ -191,7 +194,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 	// ⇨ Stockfish 16のコード、ttm(置換表の指し手)は無条件でこのMovePickerが返す1番目の指し手としているが、これだと
 	//    TTの指し手だけで千日手になってしまうことがある。これは、将棋ではわりと起こりうる。
 	//    対策としては、qsearchで千日手チェックをしたり、SEEが悪いならskipするなど。
-	//  ※　ここでStockfish 14のころのように置換表の指し手に条件をつけるのは良さなさげ。(V7.74l3 と V7.74mとの比較)
+	//  ※　ここでStockfish 14のころのように置換表の指し手に条件をつけるのは良くなさげ。(V7.74l3 と V7.74mとの比較)
 
 }
 
@@ -209,9 +212,19 @@ MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePiece
 	// ProbCutにおいて、SEEが与えられたthresholdの値以上の指し手のみ生成する。
 	// (置換表の指し手も、この条件を満たさなければならない)
 	// 置換表の指し手がないなら、次のstageから開始する。
-	stage = PROBCUT_TT + !(ttm  && pos.capture_stage(ttm)
+	stage = PROBCUT_TT + !(ttm
+#if defined(GENERATE_PRO_PLUS)
+								&& pos.capture_or_pawn_promotion(ttm)
+#else
+								&& pos.capture(ttm)
+#endif
+								// 注意 : ⇑ ProbCutの指し手生成(PROBCUT_INIT)で、
+								// 歩の成りも生成するなら、ここはcapture_or_pawn_promotion()、しないならcapture()にすること。
+								// ただし、TTの指し手は優遇した方が良い可能性もある。
 								&& pos.pseudo_legal(ttm)
 								&& pos.see_ge(ttm, threshold));
+	// ⇨ qsearch()のTTと同様、置換表の指し手に関してはsee_geの条件、
+	// つけないほうがいい可能性があるが、やってみたら良くなかった。(V774v2 vs V774v3)
 
 }
 
@@ -433,15 +446,20 @@ top:
 	case QCAPTURE_INIT:
 		cur = endBadCaptures = moves;
 
+#if defined(GENERATE_PRO_PLUS)
 		// CAPTURE_INITのあとはこのあと残りの指し手を生成する必要があるので、generate_all_legal_movesがtrueなら、CAPTURE_PRO_PLUSで歩の成らずの指し手も生成する。
 		// PROBCUT_INIT、QCAPTURE_INITの時は、このあと残りの指し手を生成しないので歩の成らずを生成しても仕方がない。
 		if (stage == CAPTURE_INIT)
 			endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, cur) : generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
 		else if (stage == PROBCUT_INIT)
+			// ProbCutでは、歩の成りも生成する。
 			endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
 		else if (stage == QCAPTURE_INIT)
 			// qsearchでは歩の成りは不要。駒を取る手だけ生成すれば十分。
 			endMoves = generateMoves<CAPTURES>(pos, cur);
+#else
+		endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<CAPTURES_ALL>(pos, cur) : generateMoves<CAPTURES>(pos, cur);
+#endif
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
@@ -492,7 +510,13 @@ top:
 		// 直前にCAPTURES_PRO_PLUSで生成している指し手を除外
 		// pseudo_legalでない指し手以外に歩や大駒の不成なども除外
 		if (select<Next>([&]() { return    *cur != MOVE_NONE
-			                            && !pos.capture_stage(*cur)
+#if defined(GENERATE_PRO_PLUS)
+			                            && !pos.capture_or_pawn_promotion(*cur)
+#else
+										&& !pos.capture(*cur)
+#endif
+										// 注意 : ここ⇑、CAPTURE_INITで生成した指し手に歩の成りが混じっているなら、
+										//		capture_or_pawn_promotion()の方を用いなければならないので注意。
 										&&  pos.pseudo_legal(*cur); }))
 			return *(cur - 1);
 
@@ -528,7 +552,12 @@ top:
 			cur = (ExtMove*)Math::align((size_t)cur, 32);
 #endif
 
+#if defined(GENERATE_PRO_PLUS)
 			endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(pos, cur) : generateMoves<NON_CAPTURES_PRO_MINUS>(pos, cur);
+#else
+			endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<NON_CAPTURES_ALL          >(pos, cur) : generateMoves<NON_CAPTURES          >(pos, cur);
+#endif
+			// 注意 : ここ⇑、CAPTURE_INITで生成した指し手に歩の成りの指し手が含まれているなら、それを除外しなければならない。
 
 			// 駒を捕獲しない指し手に対してオーダリングのためのスコアをつける
 			score<QUIETS>();

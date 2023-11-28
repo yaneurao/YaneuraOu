@@ -56,6 +56,9 @@ public:
 		entry += (bonus * D - entry * abs(bonus)) / (D * 5 / 4);
 
 		//
+
+		// 解説)
+		// 
 		// この式は、
 		// 1) bouns == D (最大値)のとき、右辺が bonus - entry になって、entry == bonud == Dとなる。
 		//     すなわち、絶対にDは超えない。
