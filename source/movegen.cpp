@@ -910,7 +910,9 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 	// GenTypeの末尾に"ALL"とついているものがその対象。
 	const bool All = (GenType == EVASIONS_ALL) || (GenType == CHECKS_ALL)     || (GenType == LEGAL_ALL)
 		|| (GenType == NON_EVASIONS_ALL)       || (GenType == RECAPTURES_ALL) || (GenType == QUIET_CHECKS_ALL)
-		|| (GenType == CAPTURES_PRO_PLUS_ALL)  || (GenType == NON_CAPTURES_PRO_MINUS_ALL);
+		|| (GenType == CAPTURES_ALL)           || (GenType == NON_CAPTURES_ALL)
+		|| (GenType == CAPTURES_PRO_PLUS_ALL)  || (GenType == NON_CAPTURES_PRO_MINUS_ALL)
+		;
 
 	if (GenType == LEGAL || GenType == LEGAL_ALL)
 	{
@@ -959,7 +961,9 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 		GenType == NON_EVASIONS_ALL           ? NON_EVASIONS           :
 		GenType == RECAPTURES_ALL             ? RECAPTURES             :
 		GenType == EVASIONS_ALL               ? EVASIONS               :
+		GenType == CAPTURES_ALL               ? CAPTURES               :
 		GenType == CAPTURES_PRO_PLUS_ALL      ? CAPTURES_PRO_PLUS      :
+		GenType == NON_CAPTURES_ALL           ? NON_CAPTURES           :
 		GenType == NON_CAPTURES_PRO_MINUS_ALL ? NON_CAPTURES_PRO_MINUS :
 		GenType; // さもなくば元のまま。
 	return generateMoves<GenType2, All>(pos, mlist, recapSq);
@@ -978,6 +982,9 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist)
 
 template ExtMove* generateMoves<NON_CAPTURES          >(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<CAPTURES              >(const Position& pos, ExtMove* mlist);
+
+template ExtMove* generateMoves<NON_CAPTURES_ALL      >(const Position& pos, ExtMove* mlist);
+template ExtMove* generateMoves<CAPTURES_ALL          >(const Position& pos, ExtMove* mlist);
 
 template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS    >(const Position& pos, ExtMove* mlist);
 template ExtMove* generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(const Position& pos, ExtMove* mlist);
