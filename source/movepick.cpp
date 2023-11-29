@@ -11,7 +11,7 @@
 
 // 以下、やねうら王独自拡張
 
-// search(),qsearch()の時にcaptureの指し手として歩の成りも含めるか
+// search(),qsearch()の時にcaptureの指し手として歩の成りも含める。(V7.74w1 vs V7.74w2)
 #define GENERATE_PRO_PLUS
 
 #include "search.h" // Search::Limits.generate_all_legal_movesによって生成される指し手を変えたいので…。
@@ -32,6 +32,19 @@ extern void super_sort(ExtMove* start, ExtMove* end);
 #endif
 
 namespace {
+
+// -----------------------
+//   LVA
+// -----------------------
+
+// 被害が小さいように、LVA(価値の低い駒)を動かして取るほうが優先されたほうが良いので駒に価値の低い順に番号をつける。そのためのテーブル。
+// ※ LVA = Least Valuable Aggressor。cf.MVV-LVA
+
+constexpr Value LVATable[PIECE_WHITE] = {
+  Value(0), Value(1) /*歩*/, Value(2)/*香*/, Value(3)/*桂*/, Value(4)/*銀*/, Value(7)/*角*/, Value(8)/*飛*/, Value(6)/*金*/,
+  Value(10000)/*王*/, Value(5)/*と*/, Value(5)/*杏*/, Value(5)/*圭*/, Value(5)/*全*/, Value(9)/*馬*/, Value(10)/*龍*/,Value(11)/*成金*/
+};
+constexpr Value LVA(const PieceType pt) { return LVATable[pt]; }
   
 // -----------------------
 //   指し手オーダリング
@@ -294,6 +307,8 @@ void MovePicker::score()
 			// ここに来るCAPTURESに歩の成りを含めているので、捕獲する駒(pos.piece_on(to_sq(m)))がNO_PIECEで
 			// ある可能性については考慮しておく必要がある。
 			// → Eval::CapturePieceValuePlusPromote()を用いて計算。
+			// → しかしこのあとsee_ge()の引数に使うのだが、see_ge()ではpromotionの価値を考慮してないので、
+			//    ここでpromotionの価値まで足し込んでしまうとそこと整合性がとれなくなるのか…。
 
 			m.value = (7 * int(Eval::CapturePieceValuePlusPromote(pos, m))
 					   + (*captureHistory)(pos.moved_piece_after(m), to_sq(m), type_of(pos.piece_on(to_sq(m)))))
@@ -358,7 +373,7 @@ void MovePicker::score()
 		{
 			// 王手回避の指し手をスコアリングする。
 
-			if (pos.capture_stage(m))
+			if (pos.capture_or_promotion(m))
 				// 捕獲する指し手に関しては簡易SEE + MVV/LVA
 				// 被害が小さいように、LVA(価値の低い駒)を動かして取ることを優先されたほうが良いので駒に価値の低い順に番号をつける。そのためのテーブル。
 				// ※ LVA = Least Valuable Aggressor。cf.MVV-LVA
@@ -374,14 +389,19 @@ void MovePicker::score()
 				// 上記のStockfishのコードのValue()は関数ではなく単にValue型へcastしているだけ。
 				// 駒番号順に価値が低いと考えて(普通は成り駒ではないから)、LVAとしてそれを優先して欲しいという意味。
 
-				m.value = (Value)Eval::CapturePieceValue[pos.piece_on(to_sq(m))]
-				        - (Eval::PieceValue[type_of(pos.moved_piece_before(m))]/16)
-							// →　/16 は、価値の低い駒にして欲しいが、まずはCapturePieceValueの大きな順になって欲しいので、
-							// スケールを小さくしている。
+				m.value = Eval::CapturePieceValuePlusPromote(pos, m)
+				        - Value(LVA(type_of(pos.moved_piece_before(m))))
+						// ↑ここ、LVAテーブル使わずにPieceValueを64で割るとかできなくもないが、
+						// 　下手にやると、香と桂にような価値が近い駒に対して優先順位がつけられない。
+						//   愚直にLVAテーブル使うべき。
                         + (1 << 28);
+                        // ⇑これは、captureの指し手のスコアがそうでない指し手のスコアより
+                        //   常に大きくなるようにするための下駄履き。
+						// ※　captureの指し手の方がそうでない指し手より稀なので、この下駄履きは、
+						//     captureの時にしておく。
 						
 			else
-				// 捕獲しない指し手に関してはhistoryの値の順番
+				// それ以外の指し手に関してはhistoryの値の順番
 				m.value =     (*mainHistory)(pos.side_to_move(), from_to(m))
 						  +   (*continuationHistory[0])(pos.moved_piece_after(m), to_sq(m))
 #if defined(ENABLE_PAWN_HISTORY)
