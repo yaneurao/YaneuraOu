@@ -1389,7 +1389,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// capturesSearched : 駒を捕獲する指し手(+歩の成り)
 	// quietsSearched   : 駒を捕獲しない指し手(-歩の成り)
 
-	// Stockfish 16では64から32になったが、将棋ではハズレのquietの指し手が大量にあるので
+	// Stockfish 16ではquietsSearchedが[64]から[32]になったが、
+	// 将棋ではハズレのquietの指し手が大量にあるので
 	// それがベストとは限らない。
 
 	// →　比較したところ、64より32の方がわずかに良かったので、とりあえず32にしておく。(V7.73mとV7.73m2との比較)
@@ -1723,7 +1724,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// is_ok(m)==falseの時、Position::to_move(m)がmをそのまま帰すことは保証されている。
 		// そのためttMoveがMOVE_WINでありうる。これはstatのupdateをされると困るのでis_ok()で弾く必要がある。
 		// is_ok()は、ttMove == MOVE_NONEの時はfalseなのでこの条件を省略できる。
-		// → 置換表にMOVE_WIN格納するの、筋が悪すぎるのでやめることにした。
+		// ⇨　MOVE_WIN書き出すの、筋が良くないし、入玉自体が超レアケースなので棋力に影響しないし、これやめることにする。
 
 		// If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
 		// 置換表にhitした時に、ttMoveがquietの指し手であるなら、指し手並び替えheuristics(quiet_statsのこと)を更新する。
@@ -1782,10 +1783,13 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	{
 		// 宣言勝ちの指し手が置換表上に登録されていることがある
 		// ただしPV nodeではこれを信用しない。
-		//if (ttMove == MOVE_WIN && !PvNode)
-		//{
-		//	return mate_in(ss->ply + 1);
-		//}
+		// ⇨　MOVE_WIN、置換表に書き出さないことにした。
+		/*
+		if (ttMove == MOVE_WIN && !PvNode)
+		{
+			return mate_in(ss->ply + 1);
+		}
+		*/
 
 		// 置換表にhitしていないときは宣言勝ちの判定をまだやっていないということなので今回やる。
 		// PvNodeでは置換表の指し手を信用してはいけないので毎回やる。
@@ -1810,6 +1814,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 				// probeでこのMOVE_WINのケースを完全に考慮するのは非常に難しい。
 				// is_ok(m)は、MOVE_WINではない通常の指し手(トライルールの時の51玉のような指し手)は
 				// 置換表に書き出すという処理。
+				// ⇨　宣言勝ちのルールを変更している時のことをあまり考慮しても仕方ないが、
+				//  　宣言勝ちがあること自体、超レアケースなので、
+				//    is_ok()の判定コスト自体は無視できる。
 
 				// 読み筋にMOVE_WINも出力するためには、このときpv配列を更新したほうが良いが
 				// ここから更新する手段がない…。
@@ -3382,7 +3389,12 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	tte     = TT.probe(posKey, ss->ttHit);
 	ttValue = ss->ttHit ? value_from_tt(tte->value(), ss->ply /* pos.rule50_count() */) : VALUE_NONE;
 	ttMove  = ss->ttHit ? pos.to_move(tte->move()) : MOVE_NONE;
+
 	// ⇑ここ、tte->move()はMove16なので、やねうら王ではpos.to_move()でMoveに変換する必要があることに注意。
+	// pos.to_move()でlegalityのcheckに引っかかったパターンなので置換表にhitしなかったことにする。
+	if (tte->move().to_u16() && !ttMove)
+		ss->ttHit = false;
+
 	pvHit   = ss->ttHit && tte->is_pv();
 
 	ASSERT_LV3(pos.legal_promote(ttMove));
@@ -3416,14 +3428,14 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// Step 4. Static evaluation of the position
 
 	if (ss->inCheck)
+	{
 
 		// bestValueはalphaとは違う。
 		// 王手がかかっているときは-VALUE_INFINITEを初期値として、すべての指し手を生成してこれを上回るものを探すので
 		// alphaとは区別しなければならない。
 		bestValue = futilityBase = -VALUE_INFINITE;
 
-	else
-	{
+	} else {
 
 		// -----------------------
 		//      一手詰め判定
@@ -3442,7 +3454,15 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			if (PARAM_WEAK_MATE_PLY == 1)
 			{
 				if (Mate::mate_1ply(pos) != MOVE_NONE)
+				{
+					//bestValue = mate_in(ss->ply + 1);
+					//tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
+					//	MAX_PLY, move, /* ss->staticEval */ bestValue);
+
+					// ⇨　置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
+
 					return mate_in(ss->ply + 1);
+				}
 			}
 			else
 			{
