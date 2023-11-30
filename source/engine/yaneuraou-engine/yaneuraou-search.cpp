@@ -993,7 +993,8 @@ void Thread::search()
 		//size_t pvFirst = 0;
 		//pvLast         = 0;
 
-		// 探索深さが増えているかのフラグがfalseならカウンターを1増やす
+		// 探索深さを増やすかのフラグがfalseなら、同じ深さを探索したことになるので、
+		// searchAgainCounterカウンターを1増やす
 		if (!Threads.increaseDepth)
 			searchAgainCounter++;
 
@@ -1352,7 +1353,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	// root nodeであるか
 	constexpr bool rootNode = nodeType == Root;
-		
+
 	// Dive into quiescence search when the depth reaches zero
 	// 残り探索深さが1手未満であるなら静止探索を呼び出す
 	if (depth <= 0)
@@ -1499,17 +1500,15 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// 教師局面生成時には、これをオフにしたほうが良いかも知れない。
 		// ただし、そのときであっても連続王手の千日手は有効にしておく。
 
-		//auto draw_type = pos.is_repetition();
-		// →　優等局面・劣等局面はrootより遡って判定しない。
-		// (USIで出力する評価値がVALUE_SUPERIORになるのはちょっと嫌だし、
-		// 　優等局面に突入するからと言って即詰みを逃がすのもちょっと嫌)
-		// cf. https://github.com/yaneurao/YaneuraOu/issues/264
-
         //if (Threads.stop.load(std::memory_order_relaxed) || pos.is_draw(ss->ply)
         //    || ss->ply >= MAX_PLY)
         //    return (ss->ply >= MAX_PLY && !ss->inCheck) ? evaluate(pos)
         //                                                : value_draw(pos.this_thread());
 
+		// →　優等局面・劣等局面はrootより遡って判定しない。
+		// (USIで出力する評価値がVALUE_SUPERIORになるのはちょっと嫌だし、
+		// 　優等局面に突入するからと言って即詰みを逃がすのもちょっと嫌)
+		// cf. https://github.com/yaneurao/YaneuraOu/issues/264
 		auto draw_type = pos.is_repetition(ss->ply);
 
 		if (draw_type != REPETITION_NONE)
@@ -3340,11 +3339,11 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	auto draw_type = pos.is_repetition(ss->ply);
 	if (draw_type != REPETITION_NONE)
-		return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
+		return value_from_tt(draw_value(draw_type, us), ss->ply);
 
-	//// 16手以内の循環になってないのにqsearchで16手も延長している場合、
-	//// 置換表の指し手だけで長い循環になっている可能性が高く、
-	//// これは引き分け扱いにしてしまう。(やねうら王独自改良)
+	// 16手以内の循環になってないのにqsearchで16手も延長している場合、
+	// 置換表の指し手だけで長い循環になっている可能性が高く、
+	// これは引き分け扱いにしてしまう。(やねうら王独自改良)
 
 	if (ss->ply >= MAX_PLY || depth <= -16)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());
@@ -4186,170 +4185,170 @@ void MainThread::check_time()
 // 探索パラメーターの初期化
 void init_param()
 {
-// -----------------------
-//   parameters.hの動的な読み込み
-// -----------------------
+	// -----------------------
+	//   parameters.hの動的な読み込み
+	// -----------------------
 
 #if defined (TUNING_SEARCH_PARAMETERS)
-{
-	std::vector<std::string> param_names = {
-		// このheader fileは、yaneuraou-param.hからparam_conv.pyによって自動生成される。
-		#include "param/yaneuraou-param-string.h"
-	};
+	{
+		std::vector<std::string> param_names = {
+			// このheader fileは、yaneuraou-param.hからparam_conv.pyによって自動生成される。
+			#include "param/yaneuraou-param-string.h"
+		};
 
-	std::vector<int*> param_vars = {
-		// このheader fileは、yaneuraou-param.hからparam_conv.pyによって自動生成される。
-		#include "param/yaneuraou-param-array.h"
-	};
+		std::vector<int*> param_vars = {
+			// このheader fileは、yaneuraou-param.hからparam_conv.pyによって自動生成される。
+			#include "param/yaneuraou-param-array.h"
+		};
 
-	std::fstream fs;
+		std::fstream fs;
 
-	std::string path = Path::Combine(Directory::GetCurrentFolder(), PARAM_FILE);
+		std::string path = Path::Combine(Directory::GetCurrentFolder(), PARAM_FILE);
 		
-	fs.open( path.c_str(), std::ios::in);
-	if (fs.fail())
-	{
-		std::cout << "info string Error! : can't read " << path << std::endl;
-		return;
-	}
-
-	size_t count = 0;
-	std::string line, last_line;
-
-	// bufのなかにある部分文字列strの右側にある数値を読む。
-	auto get_num = [](const std::string& buf, const std::string& str)
-	{
-		auto pos = buf.find(str);
-		ASSERT_LV3(pos != std::string::npos);
-
-		auto s = buf.substr(pos + str.size());
-		if (s.empty() || !(('0' <= s[0] && s[0] <= '9') || s[0] == '-' || s[0] == ' '))
+		fs.open( path.c_str(), std::ios::in);
+		if (fs.fail())
 		{
-			std::cout << "Error : Parse Error " << buf << "   ==>   " << s << std::endl;
-			return 0;
+			std::cout << "info string Error! : can't read " << path << std::endl;
+			return;
 		}
 
-		return stoi(s);
-		// ここで落ちてたら、paramファイルとして、変な文をparseしている。
-	};
+		size_t count = 0;
+		std::string line, last_line;
 
-	std::vector<bool> founds(param_vars.size());
-
-	while (!fs.eof())
-	{
-		getline(fs, line);
-		if (line.find("PARAM_DEFINE") != std::string::npos)
+		// bufのなかにある部分文字列strの右側にある数値を読む。
+		auto get_num = [](const std::string& buf, const std::string& str)
 		{
-			for (size_t i = 0; i < param_names.size(); ++i)
+			auto pos = buf.find(str);
+			ASSERT_LV3(pos != std::string::npos);
+
+			auto s = buf.substr(pos + str.size());
+			if (s.empty() || !(('0' <= s[0] && s[0] <= '9') || s[0] == '-' || s[0] == ' '))
 			{
-				auto pos = line.find(param_names[i]);
-				if (pos != std::string::npos)
+				std::cout << "Error : Parse Error " << buf << "   ==>   " << s << std::endl;
+				return 0;
+			}
+
+			return stoi(s);
+			// ここで落ちてたら、paramファイルとして、変な文をparseしている。
+		};
+
+		std::vector<bool> founds(param_vars.size());
+
+		while (!fs.eof())
+		{
+			getline(fs, line);
+			if (line.find("PARAM_DEFINE") != std::string::npos)
+			{
+				for (size_t i = 0; i < param_names.size(); ++i)
 				{
-					char c = line[pos + param_names[i].size()];
-					// ここ、パラメーター名のあと、スペースか"="か来るのを確認しておかないと
-					// "PARAM_T1" が "PARAM_T10" に誤爆する。
-					if (!(c == '\t' || c == ' ' || c == '='))
-						continue;
+					auto pos = line.find(param_names[i]);
+					if (pos != std::string::npos)
+					{
+						char c = line[pos + param_names[i].size()];
+						// ここ、パラメーター名のあと、スペースか"="か来るのを確認しておかないと
+						// "PARAM_T1" が "PARAM_T10" に誤爆する。
+						if (!(c == '\t' || c == ' ' || c == '='))
+							continue;
 
-					count++;
+						count++;
 
-					// "="の右側にある数値を読む。
-					*param_vars[i] = get_num(line, "=");
+						// "="の右側にある数値を読む。
+						*param_vars[i] = get_num(line, "=");
 
-					// 見つかった
-					founds[i] = true;
+						// 見つかった
+						founds[i] = true;
 
 #if defined(USE_RANDOM_PARAMETERS)
-					// PARAM_DEFINEの一つ前の行には次のように書いてあるはずなので、
-					// USE_RANDOM_PARAMETERSのときは、このstepをプラスかマイナス方向に加算してやる。
-					// ただし、fixedと書いてあるパラメーターに関しては除外する。
-					// interval = 2だと、-2*step,-step,+0,+step,2*stepの5つを試す。
+						// PARAM_DEFINEの一つ前の行には次のように書いてあるはずなので、
+						// USE_RANDOM_PARAMETERSのときは、このstepをプラスかマイナス方向に加算してやる。
+						// ただし、fixedと書いてあるパラメーターに関しては除外する。
+						// interval = 2だと、-2*step,-step,+0,+step,2*stepの5つを試す。
 
-					// [PARAM] min:100,max:240,step:3,interval:1,time_rate:1,fixed
+						// [PARAM] min:100,max:240,step:3,interval:1,time_rate:1,fixed
 
-					// "fixed"と書かれているパラメーターはないものとして扱う。
-					if (last_line.find("fixed") != std::string::npos)
-					{
-						param_names[i] = "FIXED";
+						// "fixed"と書かれているパラメーターはないものとして扱う。
+						if (last_line.find("fixed") != std::string::npos)
+						{
+							param_names[i] = "FIXED";
+							goto NEXT;
+						}
+
+						static PRNG rand;
+						int param_step = get_num(last_line, "step:");
+						int param_min = get_num(last_line, "min:");
+						int param_max = get_num(last_line, "max:");
+						int param_interval = get_num(last_line, "interval:");
+
+						// 現在の値
+						int v = *param_vars[i];
+
+						// とりうる値の候補
+						std::vector<int> a;
+
+						for (int j = 0; j <= param_interval; ++j)
+						{
+							// j==0のときは同じ値であり、これはのちに除外される。
+							a.push_back(std::max(v - param_step * j, param_min));
+							a.push_back(std::min(v + param_step * j, param_max));
+						}
+
+						// 重複除去。
+						// 1) std::unique()は隣接要素しか削除しないので事前にソートしている。
+						// 2) std::unique()では末尾にゴミが残るのでそれをerase()で消している。
+						std::sort(a.begin(), a.end());
+						a.erase(std::unique(a.begin(), a.end()), a.end());
+
+						// 残ったものから1つをランダムに選択
+						if (a.size() == 0)
+						{
+							std::cout << "Error : param is out of range -> " << line << std::endl;
+						} else {
+							*param_vars[i] = a[rand.rand(a.size())];
+						}
+#endif
+
+						//            cout << param_names[i] << " = " << *param_vars[i] << endl;
 						goto NEXT;
 					}
-
-					static PRNG rand;
-					int param_step = get_num(last_line, "step:");
-					int param_min = get_num(last_line, "min:");
-					int param_max = get_num(last_line, "max:");
-					int param_interval = get_num(last_line, "interval:");
-
-					// 現在の値
-					int v = *param_vars[i];
-
-					// とりうる値の候補
-					std::vector<int> a;
-
-					for (int j = 0; j <= param_interval; ++j)
-					{
-						// j==0のときは同じ値であり、これはのちに除外される。
-						a.push_back(std::max(v - param_step * j, param_min));
-						a.push_back(std::min(v + param_step * j, param_max));
-					}
-
-					// 重複除去。
-					// 1) std::unique()は隣接要素しか削除しないので事前にソートしている。
-					// 2) std::unique()では末尾にゴミが残るのでそれをerase()で消している。
-					std::sort(a.begin(), a.end());
-					a.erase(std::unique(a.begin(), a.end()), a.end());
-
-					// 残ったものから1つをランダムに選択
-					if (a.size() == 0)
-					{
-						std::cout << "Error : param is out of range -> " << line << std::endl;
-					} else {
-						*param_vars[i] = a[rand.rand(a.size())];
-					}
-#endif
-
-					//            cout << param_names[i] << " = " << *param_vars[i] << endl;
-					goto NEXT;
 				}
+				std::cout << "Error : param not found! in yaneuraou-param.h -> " << line << std::endl;
+
+			NEXT:;
 			}
-			std::cout << "Error : param not found! in yaneuraou-param.h -> " << line << std::endl;
-
-		NEXT:;
+			last_line = line; // 1つ前の行を記憶しておく。
 		}
-		last_line = line; // 1つ前の行を記憶しておく。
-	}
-	fs.close();
+		fs.close();
 
-	// 読み込んだパラメーターの数が合致しないといけない。
-	// 見つかっていなかったパラメーターを表示させる。
-	if (count != param_names.size())
-	{
-		for (size_t i = 0; i < founds.size(); ++i)
-			if (!founds[i])
-				std::cout << "Error : param not found in " << path << " -> " << param_names[i] << std::endl;
-	}
+		// 読み込んだパラメーターの数が合致しないといけない。
+		// 見つかっていなかったパラメーターを表示させる。
+		if (count != param_names.size())
+		{
+			for (size_t i = 0; i < founds.size(); ++i)
+				if (!founds[i])
+					std::cout << "Error : param not found in " << path << " -> " << param_names[i] << std::endl;
+		}
 
 #if defined(ENABLE_OUTPUT_GAME_RESULT)
-	{
-		if (!result_log.is_open())
-			result_log.open(Options["PARAMETERS_LOG_FILE_PATH"], std::ios::app);
-		// 今回のパラメーターをログファイルに書き出す。
-		for (size_t i = 0; i < param_names.size(); ++i)
 		{
-			if (param_names[i] == "FIXED")
-				continue;
+			if (!result_log.is_open())
+				result_log.open(Options["PARAMETERS_LOG_FILE_PATH"], std::ios::app);
+			// 今回のパラメーターをログファイルに書き出す。
+			for (size_t i = 0; i < param_names.size(); ++i)
+			{
+				if (param_names[i] == "FIXED")
+					continue;
 
-			result_log << param_names[i] << ":" << *param_vars[i] << ",";
+				result_log << param_names[i] << ":" << *param_vars[i] << ",";
+			}
+			result_log << std::endl << std::flush;
 		}
-		result_log << std::endl << std::flush;
-	}
 #endif
 
-	// Evalのパラメーター初期化
-	// 上のコードでパラメーターが変更された可能性があるのでこのタイミングで再度呼び出す。
-	Eval::init();
+		// Evalのパラメーター初期化
+		// 上のコードでパラメーターが変更された可能性があるのでこのタイミングで再度呼び出す。
+		Eval::init();
 
-}
+	}
 
 #endif
 }
@@ -4585,15 +4584,11 @@ ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodes
 			// それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
 			selDepth = 0;
 
-			// depth 4以上においてはaspiration searchに切り替える。
-			if (rootDepth >= 4)
-			{
-				Value prev = rootMoves[pvIdx].averageScore;
-				delta = Value(PARAM_ASPIRATION_SEARCH_DELTA) + int(prev) * prev / 19178;
+			Value avg = rootMoves[pvIdx].averageScore;
+			delta = Value(PARAM_ASPIRATION_SEARCH_DELTA) + int(avg) * avg / 15335;
 
-				alpha = std::max(prev - delta, -VALUE_INFINITE);
-				beta  = std::min(prev + delta,  VALUE_INFINITE);
-			}
+			alpha = std::max(avg - delta, -VALUE_INFINITE);
+			beta  = std::min(avg + delta,  VALUE_INFINITE);
 
 			// aspiration search
 			int failedHighCnt = 0;

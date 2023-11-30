@@ -86,7 +86,7 @@ namespace Eval {
 	// 駒の価値のテーブル
 	// ※　後手の駒は負の値なので注意。
 	// →　後手の駒に対してプラスの値が欲しいなら、PieceValue[type_of(pc)]のようにする。
-	//   StockfishのPieceValue()は、負の値は帰ってこないので注意。
+	//   StockfishのPieceValue()は、負の値は返ってこないので注意。
 	extern int PieceValue[PIECE_NB];
 
 	// 駒の交換値(＝捕獲したときの価値の上昇値)

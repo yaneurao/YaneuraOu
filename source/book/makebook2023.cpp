@@ -328,6 +328,9 @@ namespace MakeBook2023
 		{
 			hashbit_check();
 
+			// 千日手の遡り手数を初手まで遡ることにする。
+			pos.set_max_repetition_ply(MAX_PLY);
+
 			string readbook_path;
 			string writebook_path;
 			string root_sfens_path ;

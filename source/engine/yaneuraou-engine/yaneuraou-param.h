@@ -316,18 +316,6 @@ PARAM_DEFINE PARAM_SEARCH_MATE1 = 1;
 PARAM_DEFINE PARAM_WEAK_MATE_PLY = 1;
 
 
-//
-// move picker
-//
-
-// MovePickerの quietのvalue計算用の係数
-// 注意 : この調整をONにするためには movepick.cpp の
-// 　以下の変数を使ってあるところの #if を有効化("#if 1"を"#if 0"に変更)
-// 　する必要がある。
-
-// →　すべて掃除されてなくなった
-
-
 // ABテスト用
 // 重要度　★☆☆☆☆
 // [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
