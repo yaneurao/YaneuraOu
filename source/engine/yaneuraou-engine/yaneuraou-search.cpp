@@ -1863,13 +1863,30 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 					// staticEvalの代わりに詰みのスコア書いてもいいのでは..
 					ASSERT_LV3(pos.legal_promote(move));
 					tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						MAX_PLY, move, /* ss->staticEval */ bestValue);
+						    std::min(MAX_PLY - 1, depth + 6), move, /* ss->staticEval */ bestValue);
 
 					// ■　【計測資料 39.】 mate1plyの指し手を見つけた時に置換表の指し手でbeta cutする時と同じ処理をする。
 
 					// 兄弟局面でこのmateの指し手がよい指し手ある可能性があるので
 					// ここでttMoveでbeta cutする時と同様の処理を行うと短い時間ではわずかに強くなるっぽいのだが
 					// 長い時間で計測できる差ではなかったので削除。
+
+					/*
+						1手詰めを発見した時に、save()でdepthをどのように設定すべきか問題について。
+
+						即詰みは絶対であり、MAX_PLYの深さで探索した時の結果と同じであるから、
+						以前はMAX_PLYにしていたのだが、よく考えたら、即詰みがあるなら上位ノードで
+						枝刈りが発生してこのノードにはほぼ再訪問しないと考えられるのでこんなものが
+						置換表に残っている価値に乏しく、また、MAX_PLYにしてしまうと、
+						TTEntryのreplacement strategy上、depthが大きなTTEntryはかなりの優先度になり
+						いつまでもreplacementされない。
+
+						こんな情報、lostしたところで1手詰めならmate1ply()で一手も進めずに得られる情報であり、
+						最優先にreplaceすべきTTEntryにも関わらずである。
+
+						かと言ってDEPTH_NONEにするとtt->depth()が 0 になってしまい、枝刈りがされなくなる。
+						そこで、depth + 6 ぐらいがベストであるようだ。
+					*/
 
 					return bestValue;
 				}
@@ -1884,7 +1901,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 					ASSERT_LV3(pos.legal_promote(move));
 					tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						MAX_PLY, move, /* ss->staticEval */ bestValue);
+						std::min(MAX_PLY - 1, depth + 8), move, /* ss->staticEval */ bestValue);
 
 					return bestValue;
 				}
@@ -3457,7 +3474,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				{
 					//bestValue = mate_in(ss->ply + 1);
 					//tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-					//	MAX_PLY, move, /* ss->staticEval */ bestValue);
+					//	std::min(MAX_PLY - 1, depth + 6), move, /* ss->staticEval */ bestValue);
 
 					// ⇨　置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
 
@@ -4035,7 +4052,8 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 // 1手前に対する現在の指し手 ≒ counterMove  (応手)
 // 2手前に対する現在の指し手 ≒ followupMove (継続手)
 // 4手前に対する現在の指し手 ≒ followupMove (継続手)
-// ※　Stockfish 10で6手前も見るようになった。
+// ⇨　Stockfish 10で6手前も見るようになった。
+// ⇨　Stockfish 16で3手前も見るようになった。
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 {
 	for (int i : {1, 2, 3, 4, 6})
