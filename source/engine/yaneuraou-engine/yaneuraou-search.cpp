@@ -2008,7 +2008,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
 	{
-	    int bonus = std::clamp(-18 * int((ss-1)->staticEval + ss->staticEval), -1812, 1812);
+	    int bonus = std::clamp(-14 * int((ss - 1)->staticEval + ss->staticEval), -1449, 1449);
 		// この右辺の↑係数、調整すべきだろうけども、4 Eloのところ調整しても…みたいな意味はある。
 
 		thisThread->mainHistory(~us, from_to((ss-1)->currentMove)) << bonus;
@@ -2097,7 +2097,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// ※　統計値(mainHistoryとかstatScoreとか)のしきい値に関しては、やねうら王ではStockfishから調整しないことにしているので、
 		// 上のif式に出てくる定数については調整しないことにする。
 
-		return eval;
+		return (eval + beta) / 2;
 
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
@@ -2866,7 +2866,7 @@ moves_loop:
 		// alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
 
 		if (   depth >= 2
-			&& moveCount > 1 + (PvNode && ss->ply <= 1)
+			&& moveCount > 1 + rootNode
 			&& (   !ss->ttPv
 				|| !capture
 				|| (cutNode && (ss - 1)->moveCount > 1)))
@@ -2896,8 +2896,8 @@ moves_loop:
 				// Adjust full-depth search based on LMR results - if the result
 				// was good enough search deeper, if it was bad enough search shallower
 
-				const bool doDeeperSearch     = value > (bestValue + 51 + 10 * (newDepth - d)); // (~1 Elo)
-				const bool doShallowerSearch  = value <  bestValue + newDepth;                  // (~2 Elo)
+				const bool doDeeperSearch     = value > (bestValue + 50 + 2 * newDepth); // (~1 Elo)
+				const bool doShallowerSearch  = value <  bestValue + newDepth;           // (~2 Elo)
 
 				newDepth += doDeeperSearch - doShallowerSearch;
 
@@ -3994,7 +3994,7 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 	PieceType captured;
 
 	int quietMoveBonus = stat_bonus(depth + 1);
-	int quietMoveMalus = stat_malus(depth + 1);
+	int quietMoveMalus = stat_malus(depth    );
 
 	// Stockfish 14ではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
 	// Stockfish 16では、capture()からcapture_stage()に変更された。[2023/10/15]
