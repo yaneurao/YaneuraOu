@@ -2019,7 +2019,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
 	{
-	    int bonus = std::clamp(-18 * int((ss-1)->staticEval + ss->staticEval), -1812, 1812);
+	    int bonus = std::clamp(-14 * int((ss - 1)->staticEval + ss->staticEval), -1449, 1449);
 		// この右辺の↑係数、調整すべきだろうけども、4 Eloのところ調整しても…みたいな意味はある。
 
 		thisThread->mainHistory(~us, from_to((ss-1)->currentMove)) << bonus;
