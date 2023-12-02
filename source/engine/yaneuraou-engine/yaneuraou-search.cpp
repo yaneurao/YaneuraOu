@@ -2008,7 +2008,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
 	{
-	    int bonus = std::clamp(-14 * int((ss - 1)->staticEval + ss->staticEval), -1449, 1449);
+	    int bonus = std::clamp(-18 * int((ss-1)->staticEval + ss->staticEval), -1812, 1812);
 		// この右辺の↑係数、調整すべきだろうけども、4 Eloのところ調整しても…みたいな意味はある。
 
 		thisThread->mainHistory(~us, from_to((ss-1)->currentMove)) << bonus;
@@ -3759,34 +3759,13 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// Do not search moves with bad enough SEE values (~5 Elo)
 			// SEEが十分悪い指し手は探索しない。
 
-			
-			if (!PARAM_QSEARCH_PRUNE_LE0_SEE_MOVE)
-			{
+			// →　無駄な王手ラッシュみたいなのを抑制できる？
+			// これ-90だとPawnValue == 90なので歩損は許してしまう。
+			//   歩損を許さないように +1 して、歩損する指し手は延長しないようにするほうがいいか？
+			//  →　 captureの時の歩損は、歩で取る、同角、同角みたいな局面なのでそこにはあまり意味なさげ。
 
-				// →　無駄な王手ラッシュみたいなのを抑制できる？
-				// これ-90だとPawnValue == 90なので歩損は許してしまう。
-				//   歩損を許さないように +1 して、歩損する指し手は延長しないようにするほうがいいか？
-				//  →　 captureの時の歩損は、歩で取る、同角、同角みたいな局面なのでそこにはあまり意味なさげ。
-
-				if (!pos.see_ge(move, Value(-90)))
-					continue;
-
-			} else {
-
-				// ⇓ Stockfish 13の頃のコード。see <= 0 なら枝刈りしてしまう。
-
-				// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
-				// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
-
-				// →　置換表の指し手はcaptureではない指し手があるので、それは枝刈りする。
-
-				if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
-				{
-					bestValue = std::max(bestValue, futilityBase);
-					ASSERT_LV3(bestValue != -VALUE_INFINITE);
-					continue;
-				}
-			}
+			if (!pos.see_ge(move, Value(-90)))
+				continue;
 		}
 
 		// TODO : prefetchは、入れると遅くなりそうだが、many coreだと違うかも。

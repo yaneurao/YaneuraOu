@@ -255,12 +255,6 @@ PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 10;
 // [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_QSEARCH_FORCE_EVAL = 0;
 
-// qsearchの時に、see<=0の指し手を枝刈りするか。
-// 重要度　★★★★☆
-// 元の値 = 0 , step = 1
-// [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_QSEARCH_PRUNE_LE0_SEE_MOVE = 0;
-
 // MovePicker
 
 // move pickerでsortする閾値 (super sort使用時)
