@@ -53,9 +53,7 @@ public:
 		// この式は、Stockfishのコードそのまま。
 		// 試行錯誤の結果っぽくて、数学的な根拠はおそらくない。
 
-		entry += (bonus * D - entry * abs(bonus)) / (D * 5 / 4);
-
-		//
+		entry += bonus - entry * abs(bonus) / D;
 
 		// 解説)
 		// 
