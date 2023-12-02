@@ -242,10 +242,13 @@ constexpr int futility_move_count(bool improving, int depth) {
 }
 
 
+#if 1
+// Stockfish 16の式。
+
 // History and stats update bonus, based on depth
 // depthに基づく、historyとstatsのupdate bonus
 
-int stat_bonus(Depth d) { return std::min(364 * d - 438, 1501); }
+int stat_bonus(Depth d) { return std::min(291 * d - 350, 1200); }
 	// →　やねうら王では、Stockfishの統計値、統計ボーナスに関して手を加えないことにしているので
 	// この値はStockfishの値そのまま。
 
@@ -254,7 +257,15 @@ int stat_bonus(Depth d) { return std::min(364 * d - 438, 1501); }
 // ※ malus(「悪い」、「不利益」みたいな意味)は
 // 「統計的なペナルティ」または「マイナスの修正値」を計算するために使用される。
 // この関数は、ある行動が望ましくない結果をもたらした場合に、その行動の評価を減少させるために使われる
-int stat_malus(Depth d) { return std::min(452 * d - 452, 1478); }
+int stat_malus(Depth d) { return std::min(361 * d - 361, 1182); }
+
+#else
+
+// 場合によってはStockfish 14の時の式の方が良さげ。(V7.74z6 vs V7.74z12 , V7.74taya-t20 vs V7.74taya-t30)
+int stat_bonus(Depth d) { return std::min(336 * d - 547, 1561); }
+int stat_malus(Depth d) { return std::min(336 * d - 547, 1561); }
+
+#endif
 
 
 #if 0
