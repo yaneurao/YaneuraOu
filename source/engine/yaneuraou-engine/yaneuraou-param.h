@@ -133,7 +133,7 @@ PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 24;
 // 元の値 = 281 , step = 50
 // 重要度　★★★☆☆
 // [PARAM] min:0,max:400,step:50,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN4 = 281;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 281;
 
 
 
@@ -218,6 +218,7 @@ PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 6;
 
 // update_all_stats()で、静止探索時のquietMoveとみなすbestvalueとbetaの差(PawnValueより少し小さな値)
 // StockfishではPawnValueが210ぐらいなので、それを考慮すること。
+// Stockfish 14 だと 145 , Stockfish 16だと 168。
 // 重要度　★★★☆☆
 // 元の値 = 168 , step = 30
 // [PARAM] min:10,max:300,step:30,interval:1,time_rate:1,fixed

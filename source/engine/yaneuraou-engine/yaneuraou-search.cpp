@@ -901,6 +901,10 @@ void Thread::search()
 	// ※　Stockfishのここにあったコードはこの関数に移動。
 	search_thread_init(this,ss,pv);
 
+	// Stockfish 14の頃は、反復深化のiterationが浅いうちはaspiration searchを使わず
+	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)としていたが、Stockfish 16では、
+	// 浅いうちからaspiration searchを使うようになったので、alpha,betaの初期化はここでやらなくなった。
+
 	bestValue = -VALUE_INFINITE;
 
 	if (mainThread)
@@ -1302,6 +1306,7 @@ void Thread::search()
 						Time.search_end = std::max(Time.round_up(Time.elapsed_from_ponderhit()), Time.minimum());
 					}
 				}
+
 				// 前回からdepthが増えたかのチェック。
 				// depthが増えて行っていないなら、同じ深さで再度探索する。
 				else if (!mainThread->ponder && Time.elapsed() > totalTime * 0.50)
@@ -2078,9 +2083,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// Stockfish10でnonPVにのみの適用に変更になった。
 
 	if (   !ss->ttPv
-		&&  depth < 9
+		&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*9*/
 		&&  eval - futility_margin(depth, cutNode && !ss->ttHit, improving)
-				- (ss-1)->statScore / 321 >= beta
+				- (ss - 1)->statScore / 321 >= beta
 		&&  eval >= beta
 		&&  eval < 29462 // smaller than TB wins
 		&& (!ttMove || ttCapture))
@@ -2111,11 +2116,12 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		&& (ss - 1)->statScore < 17257
 		&&  eval >= beta
 		&&  eval >= ss->staticEval
-		&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*24*/ * depth + PARAM_NULL_MOVE_MARGIN4 /*281*/
+		&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*24*/ * depth + PARAM_NULL_MOVE_MARGIN2 /*281*/
 		&& !excludedMove
 	//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 		&&  ss->ply >= thisThread->nmpMinPly
         &&  beta > VALUE_TB_LOSS_IN_MAX_PLY
+		// 同じ手番側に連続してnull moveを適用しない
 		)
 	{
 		ASSERT_LV3(eval - beta >= 0);
@@ -3081,8 +3087,12 @@ moves_loop:
 
 					if (   depth > 2
 						&& depth < 12
-						&& beta  <  13828
-						&& value > -11369)
+						&& beta  <  13828 /* VALUE_TB_WIN_IN_MAX_PLY */
+						&& value > -11369 /* VALUE_TB_LOSS_IN_MAX_PLY*/)
+						// ⇨　ここのマジックナンバー、何かよくわからん。
+						// もともと、VALUE_TB_WIN_IN_MAX_PLYとVALUE_TB_LOSS_IN_MAX_PLYだったのが、
+						// 以下のcommitでパラメーターtuning対象となったようで…。
+						// Search tuning at very long time control : https://github.com/official-stockfish/Stockfish/commit/472e726bff0d0e496dc8359cc071726a76317a72
 						depth -= 2;
 
 					ASSERT_LV3(depth > 0);
@@ -3361,6 +3371,12 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// →　将棋、千日手の頻度がチェスほどではないのでqsearch()で千日手判定を行う効果に乏しいかと思ったのだが、
 	//    このチェックしないとqsearchでttMoveの指し手で進め続けてMAX_PLYまで行くので弱くなる。
 
+#if 0
+	// 千日手チェックは、MovePickerでcaptures(駒を取る指し手しか生成しない)なら、
+	// 千日手チェックしない方が強いようだ。
+	// ただし、MovePickerで、TTの指し手に対してもcapturesであるという制限をかけないと
+	// TTの指し手だけで無限ループになるので、注意が必要。
+	
 	auto draw_type = pos.is_repetition(ss->ply);
 	if (draw_type != REPETITION_NONE)
 		return value_from_tt(draw_value(draw_type, us), ss->ply);
@@ -3368,8 +3384,11 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// 16手以内の循環になってないのにqsearchで16手も延長している場合、
 	// 置換表の指し手だけで長い循環になっている可能性が高く、
 	// これは引き分け扱いにしてしまう。(やねうら王独自改良)
+	if (depth <= -16)
+		return draw_value(REPETITION_DRAW, pos.side_to_move());
+#endif
 
-	if (ss->ply >= MAX_PLY || depth <= -16)
+	if (ss->ply >= MAX_PLY)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());
 
 	if (pos.game_ply() > Limits.max_game_ply)
@@ -4057,13 +4076,16 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 {
 	for (int i : {1, 2, 3, 4, 6})
+	//for (int i : {1, 2, 4, 6})
+	// ⇨　TODO : 3手前も更新するの、強くなってない気がする。(V7.74taya-t20 vs V7.74taya-t21)
 	{
 	    // Only update the first 2 continuation histories if we are in check
 		if (ss->inCheck && i > 2)
 			break;
 		if (is_ok((ss - i)->currentMove))
 			(*(ss - i)->continuationHistory)(pc, to) << bonus / (1 + 3 * (i == 3));
-						// (1 + 3 * (i == 3)) は、 i==3は弱くしか影響しないので4で割ると言う意味。
+						// ⇨　(1 + 3 * (i == 3)) は、 i==3は弱くしか影響しないので4で割ると言う意味。
+			//(*(ss - i)->continuationHistory)(pc, to) << bonus;
 	}
 }
 
