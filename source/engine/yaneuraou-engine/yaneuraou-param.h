@@ -75,8 +75,7 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 108;
 
 // 静止探索でのfutility pruning
 // 重要度　★★★★☆
-// 1つ前のバージョンの値 = 118。
-// 元の値 = 200 , step = 10
+// 元の値 = Stockfish 14 : 200 , Stockfish 16 : 200 , step = 20
 // [PARAM] min:50,max:300,step:30,interval:1,time_rate:1,
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 170;
 
@@ -92,17 +91,18 @@ PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 9;
 // 親nodeでのfutilityの適用depth。
 // 重要度　★★★☆☆
 // この枝刈り、depthの制限自体が要らないような気がする。→　そうでもなかった。→こんなdepthいじらんほうがマシ
-// 元の値 = 13
+// 元の値 = Stockfish 14 : 12 , Stockfish 16 : 13
 // [PARAM] min:5,max:20,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 13;
 
+// 親nodeでのfutility margin
 // 重要度　★★★☆☆
-// 元の値 = 127 , step = 10
+// 元の値 = Stockfish 14 : 112 , Stockfish 16 : 127 , step = 10
 // [PARAM] min:100,max:400,step:10,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 127;
 
 // 重要度　★★★★☆
-// 元の値 = 26 , step = 2
+// 元の値 = Stockfish 14 : 31 , Stockfish 16 : 26 , step = 2
 // [PARAM] min:15,max:50,step:2,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 26;
 
@@ -121,7 +121,7 @@ PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 175;
 //
 
 // 重要度　★★★☆☆
-// 元の値 = 152 , step = 10
+// 元の値 = Stockfish 14 : 173 , Stockfish 16 : 152 , step = 10
 // [PARAM] min:50,max:400,step:10,interval:1,time_rate:1,
 PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 132;
 
@@ -173,6 +173,12 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 416;
 //
 // singular extension
 //
+
+// singular extensionの前提depth。
+// これ変更すると他のパラメーターががらっと変わるので固定しておく。
+// 元の値 = Stockfish 14 : 4 , Stockfish 16 : 4 , step = 1
+// [PARAM] min:2,max:13,step:1,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 4;
 
 // singular extensionのsingular betaを計算するときのマージン
 // 重要度　★★★★☆

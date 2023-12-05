@@ -2139,7 +2139,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 		// Null move dynamic reduction based on depth and eval
 		// 残り探索深さと評価値によってnull moveの深さを動的に減らす
-		Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA/*152*/, 6) + depth / 3 + 4;
+		Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA, 6) + depth / 3 + 4;
 
 
 		ss->currentMove         = MOVE_NULL;
@@ -2505,7 +2505,7 @@ moves_loop:
 				}
 
 				// SEE based pruning for captures and checks (~11 Elo)
-				if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1 /*185*/) * depth))
+				if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1) * depth))
 					continue;
 			}
 			else
@@ -2551,7 +2551,8 @@ moves_loop:
 				lmrDepth = std::max(lmrDepth, 0);
 
 				// Prune moves with negative SEE (~4 Elo)
-				if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 /*26*/ * lmrDepth * lmrDepth)))
+				// lmrDepthの2乗に比例するのでこのパラメーターの影響はすごく大きい。
+				if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
 					continue;
 			}
 		}
@@ -2599,7 +2600,7 @@ moves_loop:
 			if (!rootNode
 				&&  move == ttMove
 				&& !excludedMove // 再帰的なsingular延長を除外する。
-		        &&  depth >= 4 - (thisThread->completedDepth > 24) + 2 * (PvNode && tte->is_pv())
+		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH - (thisThread->completedDepth > 24) + 2 * (PvNode && tte->is_pv())
 			/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
 				&&  abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 				&& (tte->bound() & BOUND_LOWER)
@@ -2794,7 +2795,6 @@ moves_loop:
 		// 相手の(1手前の)move countが大きければ、reductionを減らす。
 		// 相手の指し手をたくさん読んでいるのにこちらだけreductionするとバランスが悪いから。
 
-		// TODO : この > 7 の 7は調整が必要かも。
 		if ((ss - 1)->moveCount > 7)
 			r--;
 
@@ -2931,10 +2931,10 @@ moves_loop:
 
 		else if (!PvNode || moveCount > 1)
 		{
-			// Increase reduction for cut nodes and not ttMove (~1 Elo)
-			// cut nodeのためにreductionを増やす。ttMove以外。
 
-			if (!ttMove && cutNode)
+            // Increase reduction if ttMove is not present (~1 Elo)
+			// ttMoveが存在しないならreductionを増やす。
+            if (!ttMove)
 				r += 2;
 
 			// Note that if expected reduction is high, we reduce search depth by 1 here
@@ -3718,7 +3718,6 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 				// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
 
-#if 1
 				// If static exchange evaluation is much worse than what is needed to not
 				// fall below alpha we can prune this move
 				if (futilityBase > alpha && !pos.see_ge(move, (alpha - futilityBase) * 4))
@@ -3726,21 +3725,6 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 					bestValue = alpha;
 					continue;
 				}
-#else
-				// 以下は、Stockfishの古いコードだが、⇓こちらの方が将棋に適合するかも。
-				// 無駄な王手回避を抑制できる。
-				//
-				// TODO : 
-				// ここで生成されている指し手は、成りと歩の成りだけだが、SEEで歩の成りに加点していないので、
-				// ここでcontinueしてしまう。
-				// そもそもqsearchで歩の成りは生成しなくていいような気もする。
-
-				// Do not search moves with negative SEE values (~5 Elo)
-				// captureでも駒損する指し手は枝刈りする。
-				if (    bestValue > VALUE_TB_LOSS_IN_MAX_PLY
-					&& !pos.see_ge(move))
-					continue;
-#endif
 			}
 
 			// movecount pruning for quiet check evasions
