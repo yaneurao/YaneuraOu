@@ -1169,7 +1169,7 @@ void Thread::search()
 				// delta を等比級数的に大きくしていく
 				delta += delta / 3;
 
-				ASSERT_LV3(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
+				ASSERT_LV3(-VALUE_INFINITE <= alpha && beta <= VALUE_INFINITE);
 			}
 
 			// MultiPVの候補手をスコア順に再度並び替えておく。
@@ -1672,7 +1672,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// tte->move()にはMOVE_WINも含まれている可能性がある。
 	// この時、pos.to_move(MOVE_WIN) == MOVE_WINなので、ttMove == MOVE_WINとなる。
 
-	ttMove = rootNode   ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
+	ttMove =  rootNode  ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
 			: ss->ttHit ? pos.to_move(tte->move())
 		                : MOVE_NONE;
 
@@ -1789,10 +1789,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// -----------------------
 
 	// Step 5. Tablebases probe
+	// 《StockfishのStep 5.のコードは割愛》
+
 	// chessだと終盤データベースというのがある。
 	// これは将棋にはないが、将棋には代わりに宣言勝ちというのがある。
-
-	// 《StockfishのStep 5.のコードは割愛》
 
 	// 以下は、やねうら王独自のコード。
 
@@ -2017,12 +2017,12 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// is_ok()はMOVE_NULLかのチェック。
 	// 1手前でMOVE_NULLではなく、王手がかかっておらず、駒を取る指し手ではなかったなら…。
 
-	if (is_ok((ss-1)->currentMove) && !(ss-1)->inCheck && !priorCapture)
+	if (is_ok((ss - 1)->currentMove) && !(ss - 1)->inCheck && !priorCapture)
 	{
 	    int bonus = std::clamp(-14 * int((ss - 1)->staticEval + ss->staticEval), -1449, 1449);
 		// この右辺の↑係数、調整すべきだろうけども、4 Eloのところ調整しても…みたいな意味はある。
 
-		thisThread->mainHistory(~us, from_to((ss-1)->currentMove)) << bonus;
+		thisThread->mainHistory(~us, from_to((ss - 1)->currentMove)) << bonus;
 
 #if defined(ENABLE_PAWN_HISTORY)
 		if (type_of(pos.piece_on(prevSq)) != PAWN && type_of((ss - 1)->currentMove) != PROMOTION)
@@ -3158,12 +3158,12 @@ moves_loop:
 
 
 	// Stockfishでは、ここのコードは以下のようになっているが、これは、
-	// 自玉に王手がかかっておらず指し手がない場合(stalemate)、引き分けだから。
+	// 自玉に王手がかかっておらず指し手がない場合は、stalemateで引き分けだから。
 	/*
 	if (!moveCount)
 		bestValue = excludedMove ? alpha :
-						ss->inCheck ? mated_in(ss->ply)
-									: VALUE_DRAW;
+					 ss->inCheck ? mated_in(ss->ply)
+								 : VALUE_DRAW;
 	*/
 
 	// ※　⇓ここ⇓、Stockfishのコードをそのままコピペしてこないように注意！
@@ -3671,9 +3671,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			if (   !givesCheck
 				&&  to_sq(move) != prevSq
 				&&  futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
-				&&  type_of(move) != PROMOTION
+				// &&  type_of(move) != PROMOTION
 				// この最後の条件、入れたほうがいいのか？
-				//  →　captureとcheckしか生成してないのでどちらでも影響が軽微。
+				// →　入れない方が良さげ。(V7.74taya-t50 VS V7.74taya-t51)
 			)
 			{
 				// MoveCountに基づく枝刈り
@@ -3759,7 +3759,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			//   歩損を許さないように +1 して、歩損する指し手は延長しないようにするほうがいいか？
 			//  →　 captureの時の歩損は、歩で取る、同角、同角みたいな局面なのでそこにはあまり意味なさげ。
 
-			if (!pos.see_ge(move, Value(-90)))
+			if (!pos.see_ge(move, Value(- PARAM_BAD_ENOUGH_SEE_VALUE)))
 				continue;
 		}
 
@@ -3788,7 +3788,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha, depth - 1);
 		pos.undo_move(move);
 
-		ASSERT_LV3(value > -VALUE_INFINITE && value < VALUE_INFINITE);
+		ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
 
 		// Step 8. Check for a new best move
 		// bestValue(≒alpha値)を更新するのか
@@ -3878,7 +3878,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	//
 	// よってsearch(),qsearch()のassertは次のように書くべきである。
 
-	ASSERT_LV3(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
+	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
 
 	return bestValue;
 }

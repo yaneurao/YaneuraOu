@@ -101,7 +101,9 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 13;
 // [PARAM] min:100,max:400,step:10,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_ALPHA = 127;
 
-// 重要度　★★★★☆
+// 重要度　★★★★★
+// このパラメーター、lmrDepth * lmrDepthに比例するので、影響がすごく大きい。
+// 調整には気をつけること。
 // 元の値 = Stockfish 14 : 31 , Stockfish 16 : 26 , step = 2
 // [PARAM] min:15,max:50,step:2,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 26;
@@ -210,6 +212,16 @@ PARAM_DEFINE PARAM_LMR_MARGIN1 = 51;
 // [PARAM] min:13,max:14,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_LMR_MARGIN2 = 13;
 
+//
+// in qsearch
+//
+
+// 重要度　★★☆☆☆
+// →　重要なパラメーターではあるが、下手にいじらないほうがよさげ。
+// 元の値 = Stockfish 14 : 95 , Stockfish 16 : 90 , step = 10
+// min:0,max:128,step:1,interval:1,time_rate:1,
+// [PARAM] min:50,max:200,step:10,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 90;
 
 //
 // pruning by history
