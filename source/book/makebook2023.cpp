@@ -24,6 +24,7 @@
 #include <deque>
 #include <algorithm>
 #include <limits>
+#include <random>
 #include "book.h"
 #include "../thread.h"
 #include "../position.h"
@@ -338,9 +339,8 @@ namespace MakeBook2023
 			// 次の思考対象とすべきsfenを書き出す時のその局面の数。
 			u64 next_nodes = 0;
 
-			// plyが1手小さいごとに加点されるボーナス
-			// (plyが1手大きいごとに減点されるペナルティとも言える)
-			float bonus = 0;
+			// leaf nodeの指し手に加える乱数の大きさ
+			int leaf_move_rand = 0;
 
 			is >> readbook_path >> writebook_path;
 
@@ -350,7 +350,7 @@ namespace MakeBook2023
 			if (next)
 			{
 				is >> next_nodes;
-				is >> bonus;
+				is >> leaf_move_rand;
 			}
 
 			cout << "[ PetaShock makebook CONFIGURATION ]" << endl;
@@ -358,8 +358,8 @@ namespace MakeBook2023
 			if (next)
 			{
 				// 書き出すsfenの数
-				cout << "write next_sfens   : " << next_nodes << endl;
-				cout << "eval bonus for ply : " << bonus << endl;
+				cout << "write next_sfens : " << next_nodes << endl;
+				cout << "leaf move rand   : " << leaf_move_rand << endl;
 
 				// これは現状ファイル名固定でいいや。
 				root_sfens_path = Path::Combine("book","root_sfens.txt");
@@ -691,63 +691,28 @@ namespace MakeBook2023
 			//         queue.push(parent)
 
 
-			// 評価値ボーナスはplyに対して与えられるので初期局面からの手数が必須。
-			if (bonus != 0)
+			// leaf nodeの指し手の評価値に乱数を加える。
+			if (leaf_move_rand != 0)
 			{
-				// BFSして初期局面からの手数を計算する。
-				cout << "BFS for eval bonus for ply." << endl;
+				cout << "add random bonus for every leaf move." << endl;
 				progress.check(book_nodes.size());
+
+				// 乱数生成器
+				std::random_device rd;
+				std::mt19937 gen(rd());
+
+				// 正規分布を定義（平均 = 0 , 標準偏差 = leaf_move_rand）
+				std::normal_distribution<> d(0, leaf_move_rand);
 
 				u64 counter = 0;
 
-				for(auto root_sfen : root_sfens)
+				for(size_t i = 0 ; i < book_nodes.size() ; i++)
 				{
-					// 作業対象nodeが入っているqueue
-					// このqueueは処理順は問題ではないので両端queueでなくて良いからvectorで実装しておく。
-					deque<BookNodeIndexPly> queue;
-					deque<StateInfo> si;
-					BookTools::feed_position_string(pos, root_sfen, si);
-					auto hash_key = pos.state()->hash_key();
-					if (this->hashkey_to_index.count(hash_key) > 0)
-					{
-						BookNodeIndex index = hashkey_to_index[hash_key];
-						int ply = pos.game_ply();
-						queue.push_back(BookNodeIndexPly(index , ply));
-					}
+					BookNode& book_node = book_nodes[i];
+					for(auto& move : book_node.moves)
+						move.vd.value += d(gen);
 
-					while (queue.size())
-					{
-						BookNodeIndexPly ip = queue[0];
-						queue.pop_front();
-						int ply = ip.ply;
-
-						auto& book_node = book_nodes[ip.index];
-
-						// このnodeは計算済みであるか？
-						if (book_node.ply !=0)
-							continue;
-
-						// 忘れないうちに代入しておく。
-						book_node.ply = ply;
-
-						for(auto& book_move : book_node.moves)
-						{
-							BookNodeIndex next = book_move.next;
-							if (next == BookNodeIndexNull)
-							{
-								// leaf moveなのでせっかくだからここでevalを補整しとくか…。
-								if (bonus != 0)
-								{
-									// 先手から見たvalueなので後手なら反転させて考える必要がある。
-									book_move.vd.value -= (int)((book_node.color == BLACK ? 1 : -1) * ply * bonus);
-								}
-							} else {
-								queue.push_back(BookNodeIndexPly(next,ply+1));
-							}
-						}
-
-						progress.check(++counter);
-					}
+					progress.check(++counter);
 				}
 			}
 
@@ -1273,8 +1238,11 @@ namespace Book
 			// ペタショックnext
 			// ペタショック手法と組み合わせてmin-maxして、有望な局面をsfen形式でテキストファイルに書き出す。
 			//   makebook peta_shock_next book.db sfens.txt 1000
-			//   makebook peta_shock_next book.db sfens.txt 1000 1.2
-			// 1000局面を書き出す。1.2はplyが1手早いことに対する評価値のbonus。
+			//   makebook peta_shock_next book.db sfens.txt 1000 20
+			// ⇨　1000局面を書き出す。20はleaf nodeの指し手の評価値に加える乱数の大きさ。
+			// 　 この場合、評価値に、平均 = 0 , 標準偏差 = 20 ガウスノイズを加算する。
+			// 　　(これを加えることで序盤の指し手を開拓しやすくなる)
+
 			MakeBook2023::PetaShock ps;
 			ps.make_book(pos, is , true);
 			return 1;
