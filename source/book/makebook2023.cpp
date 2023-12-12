@@ -720,8 +720,16 @@ namespace MakeBook2023
 				for(size_t i = 0 ; i < book_nodes.size() ; i++)
 				{
 					BookNode& book_node = book_nodes[i];
+
+					// leaf nodeでbest move以外の指し手が展開されるのは嫌だ。
+					// 
+					// そこで、このnodeの指し手すべてに同一のノイズを加算する。
+					// こうすることでbest valueを持つmoveが展開される。
+					// (その指し手がleaf nodeでないなら、それが伝播してきて置き換わるから問題なし)
+
+					int noise = int(d(gen));
 					for(auto& move : book_node.moves)
-						move.vd.value += int(d(gen));
+						move.vd.value += noise;
 
 					progress.check(++counter);
 				}
@@ -928,8 +936,10 @@ namespace MakeBook2023
 							continue;
 
 						// 一つでもdepthが0ではない
-						// valueでsortされてないことに注意。
 						bool depth_not_zero = false;
+
+						// best valueのmoveを探す。
+						// ※ valueでsortされてないことに注意。
 						size_t best_index = 0;
 						int best_value = int_min;
 						for(size_t j = 0 ; j < moves.size() ; j++)
