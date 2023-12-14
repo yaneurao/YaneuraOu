@@ -189,6 +189,12 @@ using StateListPtr = std::unique_ptr<StateList>;
 struct PackedSfen {
 	u8 data[32];
 
+	// 手番を返す。
+	Color color() const {
+		// これは、data[0]のbit0に格納されていることは保証されている。
+		return Color(data[0] & 1);
+	}
+
 	// std::unordered_mapで使用できるように==と!=を定義しておく。
 
 	bool operator==(const PackedSfen& rhs) const {

@@ -31,6 +31,7 @@
 #include "../misc.h"
 
 using namespace std;
+using namespace Book;
 
 namespace MakeBook2023
 {
@@ -49,14 +50,14 @@ namespace MakeBook2023
 	const int BOOK_VALUE_NONE = -99999;
 
 	// 定跡で千日手手順の時のdepth。∞であることがわかる特徴的な定数にしておくといいと思う。
-	const int BOOK_DEPTH_INF = 9999;
+	const int BOOK_DEPTH_INF = 999;
 
 	// 千日手の状態
 	// 最終的には書き出した定跡DBのdepthに反映させる。
 	// depth
-	//  +10000 : 先手は千日手を打開できない。
-	//  +20000 : 後手は千日手を打開できない。
-	//  +30000 : 先手・後手ともに千日手を打開できない。
+	//  +1000 : 先手は千日手を打開できない。
+	//  +2000 : 後手は千日手を打開できない。
+	//  +3000 : 先手・後手ともに千日手を打開できない。
 	struct DrawState
 	{
 		DrawState(u8 state):state(state){}
@@ -133,10 +134,10 @@ namespace MakeBook2023
 		}
 
 		// depthに変換する。
-		// stateを1万倍しておく。
-		int to_depth() const
+		// stateを1000倍しておく。
+		u16 to_depth() const
 		{
-			return state * 10000;
+			return state * 1000;
 		}
 	};
 
@@ -153,7 +154,7 @@ namespace MakeBook2023
 			: value(value) , depth(depth) , draw_state(state){}
 
 		int value;
-		int depth;
+		u16 depth;
 		DrawState draw_state;
 
 		// 比較オペレーター
@@ -252,11 +253,10 @@ namespace MakeBook2023
 	// 高速化のために、hashkeyで行き来をする。
 	struct BookNode
 	{
-		// この局面の手番(これがないと探索するときに不便)
-		Color color;
-
 		// このnodeからの出次数
-		u64 out_count = 0;
+		// 合法手が最大でMAX_MOVESしかないのでこれ以上このnodeから
+		// 出ていくことはありえない。つまり、10bitにも収まる。
+		u16 out_count = 0;
 
 		// このnodeへの入次数
 		//u64 in_count = 0;
@@ -274,10 +274,19 @@ namespace MakeBook2023
 		vector<BookMove> moves;
 
 		// key(この局面からhash keyを逆引きしたい時に必要になるので仕方なく追加してある)
-		HASH_KEY key;
+		//HASH_KEY key;
+		// ⇨　packed sfenから復元したらいいから削除。
 
 		// 初期局面からの手数
-		int ply = 0;
+		//u16 ply = 0;
+		// ⇨　もったいない。使わないから削除。
+
+		// 手番を返す。
+		// これはメンバーのpacked_sfenから情報を取り出す。
+		Color color() const { return packed_sfen.color(); }
+
+		// 局面図
+		PackedSfen packed_sfen;
 	};
 
 	// 後退解析IVで用いる構造体。
@@ -296,6 +305,7 @@ namespace MakeBook2023
 		ValueDepth best;
 	};
 
+/*
 	// plyを求めるためにBFSする時に必要な構造体
 	struct BookNodeIndexPly
 	{
@@ -305,6 +315,7 @@ namespace MakeBook2023
 		BookNodeIndex index;
 		int ply;
 	};
+*/
 
 	// hashkeyのbit数をチェックする。
 	void hashbit_check()
@@ -431,7 +442,7 @@ namespace MakeBook2023
 					if (book_move.move == MOVE_NONE)
 						continue;
 
-					if (book_move.vd.is_superior(best, node.color))
+					if (book_move.vd.is_superior(best, node.color()))
 					{
 						best = book_move.vd;
 						best_index = i;
@@ -442,7 +453,7 @@ namespace MakeBook2023
 					else if (parent_vd.value == book_move.vd.value)
 					{
 						// valueが同じなのでdraw_stateはORしていく必要がある。
-						parent_vd.draw_state.select(best.draw_state, node.color);
+						parent_vd.draw_state.select(best.draw_state, node.color());
 
 						// depthに関しては、bestのdepthを採用すればbestの指し手を追いかけていった時の手数になる。
 						parent_vd.depth = best.depth;
@@ -562,24 +573,21 @@ namespace MakeBook2023
 			book.foreach([&](string sfen, const Book::BookMovesPtr book_moves){
 
 				// 同じ値のキーがすでに登録されていないかをチェックしておく。
-				if (this->sfen_to_index.count(sfen) > 0)
+				StateInfo si, si2;
+				pos.set(sfen, &si, Threads.main());
+				auto hash_key = pos.hash_key();
+				if (this->hashkey_to_index.count(hash_key) > 0)
 				{
 					cout << "Error! : Hash Conflict! Rebuild with a set HASH_KEY_BITS == 128 or 256." << endl;
 					Tools::exit();
 				}
 
-				StateInfo si,si2;
-				pos.set(sfen,&si,Threads.main());
-
 				// 局面ひとつ登録する。
 				BookNodeIndex index = (BookNodeIndex)this->book_nodes.size();
 				this->book_nodes.emplace_back(BookNode());
-
-				auto key = pos.state()->hash_key();
-				this->sfen_to_index[sfen]   = index;
-				this->hashkey_to_index[key] = index;
-				// 逆引きするのに必要なのでhash keyも格納しておく。
-				book_nodes.back().key = key;
+				this->hashkey_to_index[hash_key] = index;
+				// 局面をpacked sfenにして保存しておく。
+				pos.sfen_pack(this->book_nodes.back().packed_sfen);
 
 				progress.check(++counter);
 			});
@@ -601,15 +609,16 @@ namespace MakeBook2023
 
 				StateInfo si,si2;
 				pos.set(sfen,&si,Threads.main());
-				HASH_KEY key = pos.state()->hash_key();
+				HASH_KEY hash_key = pos.state()->hash_key();
 				// 先に定跡局面は登録したので、このindexが存在することは保証されている。
-				BookNodeIndex index = this->hashkey_to_index[key];
+				BookNodeIndex index = this->hashkey_to_index[hash_key];
 
 				// いまからこのBookNodeを設定していく。
 				BookNode& book_node = this->book_nodes[index];
 
-				// 手番をBookNodeに保存しておく。
-				book_node.color = pos.side_to_move();
+				//// 手番をBookNodeに保存しておく。
+				//book_node.color = pos.side_to_move();
+				// ⇨　これはpacked_sfenを登録した時に自動的に登録されている。
 
 				// ここから全合法手で一手進めて既知の局面に行き着くかを調べる。
 				for(auto move:MoveList<LEGAL_ALL>(pos))
@@ -641,7 +650,7 @@ namespace MakeBook2023
 						//  draw_state = 先後ともに回避できない
 						BookMove book_move(move,
 							ValueDepth(
-								draw_value(REPETITION_DRAW, book_node.color),
+								draw_value(REPETITION_DRAW, book_node.color()),
 								BOOK_DEPTH_INF,
 								DrawState(3)
 							),
@@ -922,14 +931,11 @@ namespace MakeBook2023
 					// これはmin-max探索した時のPVのleaf node。
 					cout << "Low Depth           : step IV  -> pick up next sfens to search." << endl;
 
-					progress.reset(sfen_to_index.size());
+					progress.reset(book_nodes.size());
 
-					size_t i = 0;
-					for(auto&sfen_index : sfen_to_index)
+					for(size_t i = 0; i < book_nodes.size() ; ++i)
 					{
-						auto& sfen  = sfen_index.first;
-						auto& index = sfen_index.second;
-						auto& book_node = book_nodes[index];
+						auto& book_node = book_nodes[i];
 
 						auto& moves = book_node.moves;
 						if (moves.size() == 0)
@@ -962,7 +968,7 @@ namespace MakeBook2023
 							if (is_ok(move))
 							{
 								StateInfo si, si2;
-								pos.set(sfen, &si ,Threads.main());
+								pos.set_from_packed_sfen(book_node.packed_sfen, &si ,Threads.main());
 								pos.do_move(move, si2);
 								auto write_sfen = pos.sfen();
 								write_sfens.emplace(write_sfen);
@@ -1159,7 +1165,13 @@ namespace MakeBook2023
 								if (is_deleted)
 								{
 									// このnodeのすべて枝が死んだのでこのnodeは消滅させる。
-									hashkey_to_index.erase(book_node.key);
+
+									// hash_keyをBookNodeが保持していないのでpacked sfenから復元する。(ちょっと嫌だけど仕方がない)
+									StateInfo si;
+									pos.set_from_packed_sfen(book_node.packed_sfen, &si, Threads.main());
+									auto hash_key = pos.hash_key();
+									hashkey_to_index.erase(hash_key);
+									// ⇨　この処理本当に必要なのかよく考える。
 
 									// 親に伝播させる。
 									for(auto& parent_move : book_node.parents)
@@ -1242,20 +1254,22 @@ namespace MakeBook2023
 			} else {
 
 				// メモリ上の定跡DBを再構成。
+				// この時点でもうhash_key_to_index不要なので解放する。
+				// (clear()では解放されないので、swap trickを用いる。)
+				unordered_map<HASH_KEY,BookNodeIndex>().swap(this->hashkey_to_index);
+
 				cout << "Rebuild MemoryBook  : " << endl;
-				progress.reset(sfen_to_index.size());
-				counter = 0;
+				progress.reset(book_nodes.size());
 
 				// これはメモリ上にまずBook classを用いて定跡DBを構築して、それを書き出すのが間違いがないと思う。
 				Book::MemoryBook new_book;
-				for(auto&sfen_index : sfen_to_index)
+				StateInfo si;
+				for(size_t i = 0 ; i < book_nodes.size() ; i++)
 				{
-					auto& sfen  = sfen_index.first;
-					auto& index = sfen_index.second;
-					auto& book_node = book_nodes[index];
+					auto& book_node = book_nodes[i];
 
 					// FlippedBookがtrueなら、後手番の局面は書き出さない。
-					if (flipped_book && book_node.color == WHITE)
+					if (flipped_book && book_node.color() == WHITE)
 						continue;
 
 					Book::BookMoves bookMoves;
@@ -1265,11 +1279,14 @@ namespace MakeBook2023
 						bookMoves.push_back(bookMove);
 					}
 					shared_ptr<Book::BookMoves> bookMovesPtr(new Book::BookMoves(bookMoves));
+
+					pos.set_from_packed_sfen(book_node.packed_sfen, &si, Threads.main());
+					string sfen = pos.sfen();
 					new_book.append(sfen, bookMovesPtr);
 
-					progress.check(++counter);
+					progress.check(i);
 				}
-				progress.check(sfen_to_index.size());
+				progress.check(book_nodes.size());
 
 				// 定跡ファイルの書き出し
 				new_book.write_book(writebook_path);
@@ -1307,11 +1324,6 @@ namespace MakeBook2023
 
 		// 定跡本体
 		vector<BookNode> book_nodes;
-
-		// sfen文字列からBookMoveIndexへのmapper
-		// this->book_nodesの何番目の要素であるかが返る。
-		// sfen文字列は先頭の"sfen "と、末尾の手数は省略されているものとする。
-		unordered_map<string,BookNodeIndex> sfen_to_index;
 
 		// 同様に、HASH_KEYからBookMoveIndexへのmapper
 		unordered_map<HASH_KEY,BookNodeIndex> hashkey_to_index;
