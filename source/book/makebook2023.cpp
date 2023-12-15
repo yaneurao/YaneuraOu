@@ -17,6 +17,20 @@
 // 
 // エンジンオプションのFlippedBookがtrueなら、先手番の局面しか書き出さない。(後手番の局面はそれをflipした局面が書き出されているはずだから)
 //
+/*
+	やねうら王のペタショックコマンドは後退解析をしている。
+	疑似コードで書くと以下のようになる。
+
+	MAX_PLY回繰り返す:
+		for node in nodes:
+			v = nodeのなかで一番良い指し手の評価値
+			for parent in node.parents:
+				parentからnodeに行く指し手の評価値 = v
+
+	nodesは定跡DB上のすべての定跡局面を意味します。
+	node.parentは、このnodeに遷移できる親nodeのlistです。
+	また、子nodeを持っている指し手の評価値は0(千日手スコア)で初期化されているものとする。
+*/
 
 #include <sstream>
 #include <vector>
@@ -29,6 +43,10 @@
 #include "../thread.h"
 #include "../position.h"
 #include "../misc.h"
+
+// MemoryBookクラスを用いる。読み書きのオーバーヘッドがあるしメモリ消費量も増えるが、
+// お作法の良い定跡ファイルができあがる。
+//#define USE_MEMORY_BOOK_CLASS
 
 using namespace std;
 using namespace Book;
@@ -202,6 +220,8 @@ namespace MakeBook2023
 
 			// depthベースの比較。評価値の符号で場合分けが生ずる。
 			// 一貫性をもたせるためにvalueが千日手スコアの場合は、先手ならdepthの小さいほうを目指すことにしておく。
+			// →　省メモリ化のため、定跡読み込み時に先手の局面に変換してメモリに格納することにしたため、
+			//    先後の区別ができなくなってしまった。
 			auto dv = draw_value(REPETITION_DRAW, color);
 			if ((this->value > dv) || (this->value == dv && (color == BLACK)))
 				return this->depth < v.depth;
@@ -332,6 +352,11 @@ namespace MakeBook2023
 	// ペタショック化
 	class PetaShock
 	{
+	private:
+		// 盤面を反転させた局面も定跡に登録するかのフラグ。
+		// makebookコマンドのオプションでON/OFF切り替えられるようにすべきか？
+		const bool register_flipped_position = true;
+
 	public:
 
 		// 定跡をペタショック化する。
@@ -345,7 +370,7 @@ namespace MakeBook2023
 
 			string readbook_path;
 			string writebook_path;
-			string root_sfens_path ;
+			string root_sfens_path;
 
 			// 次の思考対象とすべきsfenを書き出す時のその局面の数。
 			u64 next_nodes = 0;
@@ -354,6 +379,9 @@ namespace MakeBook2023
 			int eval_noise = 0;
 			// 1番目の指し手のdepthが0なら、その指し手で進めた局面を列挙するモード。
 			bool low_depth = false;
+
+			// 書き出す時にメモリを超節約する。
+			bool memory_saving = false;
 
 			is >> readbook_path >> writebook_path;
 
@@ -372,6 +400,13 @@ namespace MakeBook2023
 						low_depth = true;
 				}
 
+			} else {
+				string token;
+				while (is >> token)
+				{
+					if (token == "memory_saving")
+						memory_saving = true;
+				}
 			}
 
 			cout << "[ PetaShock makebook CONFIGURATION ]" << endl;
@@ -379,13 +414,18 @@ namespace MakeBook2023
 			if (next)
 			{
 				// 書き出すsfenの数
-				cout << "write next_sfens : " << next_nodes << endl;
-				cout << "eval_noise       : " << eval_noise << endl;
-				cout << "low_depth        : " << low_depth << endl;
+				cout << "write next_sfens   : " << next_nodes << endl;
+				cout << "eval_noise         : " << eval_noise << endl;
+				cout << "low_depth          : " << low_depth << endl;
 
 				// これは現状ファイル名固定でいいや。
 				root_sfens_path = Path::Combine("book","root_sfens.txt");
 				cout << "root_sfens_path    : " << root_sfens_path << endl;
+
+			} else {
+
+				cout << "memory_saving      : " << memory_saving << endl;
+
 			}
 
 			cout << "readbook_path      : " << readbook_path  << endl;
@@ -523,10 +563,6 @@ namespace MakeBook2023
 			// 盤面を反転させた局面が元の定跡DBにどれだけ含まれていたかを示すカウンター。
 			u64 flipped_counter = 0;
 
-			// 盤面を反転させた局面も定跡に登録するかのフラグ。
-			// makebookコマンドのオプションでON/OFF切り替えられるようにすべきか？
-			const bool register_flipped_position = true;
-
 			// 反転局面の登録
 			if (register_flipped_position)
 			{
@@ -567,6 +603,9 @@ namespace MakeBook2023
 
 			counter = 0;
 			progress.reset(book.size());
+
+			// ここで登録される局面数の上限はわかっているので、途中でresizeが発生しないように上限分だけ確保しておく。
+			book_nodes.reserve(book.size() * (register_flipped_position ? 2 : 1));
 
 			// まず、出現する局面すべてのsfenに対して、それをsfen_to_hashkeyに登録する。
 			// sfen文字列の末尾に手数が付与されているなら、それを除外する。→ IgnoreBookPly = trueなので除外されている。
@@ -1252,12 +1291,14 @@ namespace MakeBook2023
 				}
 
 			} else {
+				// 通常のpeta_shockコマンド時の処理。(peta_shock_nextコマンドではなく)
 
 				// メモリ上の定跡DBを再構成。
 				// この時点でもうhash_key_to_index不要なので解放する。
 				// (clear()では解放されないので、swap trickを用いる。)
-				unordered_map<HASH_KEY,BookNodeIndex>().swap(this->hashkey_to_index);
+				HashKey2Index().swap(this->hashkey_to_index);
 
+#if defined(USE_MEMORY_BOOK_CLASS)
 				cout << "Rebuild MemoryBook  : " << endl;
 				progress.reset(book_nodes.size());
 
@@ -1291,6 +1332,137 @@ namespace MakeBook2023
 				// 定跡ファイルの書き出し
 				new_book.write_book(writebook_path);
 				write_counter = new_book.size();
+#else
+
+				// MemoryBookを用いるとオーバーヘッドが大きいので自前で直接ファイルに書き出す。
+
+				size_t n = book_nodes.size();
+
+				if (memory_saving)
+				{
+					// メモリ超絶節約モード
+
+					cout << "Sorting a book      : " << endl;
+
+					// 並び替えを行う。
+					// ただしbook_nodes直接並び替えるのはメモリ移動量が大きいのでindexのみをsortする。
+					// ⇨　あー、これ、sfen文字列でsortしないといけないのか…わりと大変か…。
+					vector<BookNodeIndex> book_indices(n);
+					for(size_t i = 0 ; i < n ; ++i)
+						book_indices[i] = BookNodeIndex(i);
+
+					// nの64倍ぐらいで終わるんちゃうんか？
+					progress.reset(n * 64);
+					u64 c = 0;
+					StateInfo si;
+
+					// カスタム比較関数
+					auto customCompare = [&](int i, int j){
+						// packed sfenをunpackして文字列として比較。unpackがN * log(N)回ぐらい走るのでわりとキツイか…。
+						auto sfen_i = pos.sfen_unpack(book_nodes[i].packed_sfen);
+						auto sfen_j = pos.sfen_unpack(book_nodes[j].packed_sfen);
+
+						// 進捗出力用
+						c = min(c + 1 , n * 64);
+						progress.check(c);
+						return sfen_i < sfen_j;
+					};
+					sort(book_indices.begin(), book_indices.end(), customCompare);
+					progress.check(n * 64);
+
+					cout << "Write book directly : " << endl;
+
+					SystemIO::TextWriter writer;
+					if (writer.Open(writebook_path).is_not_ok())
+					{
+						cout << "Error! : open file erro , path = " << writebook_path << endl;
+						return;
+					}
+
+					progress.reset(n - 1);
+
+					// バージョン識別用文字列
+					writer.WriteLine("#YANEURAOU-DB2016 1.00");
+
+					for(size_t i = 0 ; i < n ; ++i)
+					{
+						auto& book_node = book_nodes[book_indices[i]];
+						auto  sfen      = pos.sfen_unpack(book_node.packed_sfen);
+
+						// sfenを出力。上でsortしているのでsfen文字列順で並び替えされているはず。
+						writer.WriteLine("sfen " + sfen);
+
+						// 指し手を出力
+						for(auto& move : book_node.moves)
+							writer.WriteLine(to_usi_string(move.move) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
+
+						progress.check(i);
+					}
+				} else {
+
+					// ⇑ sort中にpacked sfenのunpackをしてメモリ節約するのは無謀であったか…。
+
+					cout << "Unpack sfens        : " << endl;
+
+					// 並び替えを行う。
+					// ただしbook_nodes直接並び替えるのはメモリ移動量が大きいのでindexのみをsortする。
+					// ⇨　あー、これ、sfen文字列でsortしないといけないのか…わりと大変か…。
+					using BookNodeIndexString = pair<BookNodeIndex,string>;
+					vector<BookNodeIndexString> book_indices(n);
+					progress.reset(n - 1);
+					for(size_t i = 0 ; i < n ; ++i)
+					{
+						auto sfen = pos.sfen_unpack(book_nodes[i].packed_sfen);
+						book_indices[i] = BookNodeIndexString(BookNodeIndex(i), sfen);
+						progress.check(i);
+					}
+
+					cout << "Sorting book_nodes  : " << endl;
+					sort(book_indices.begin(), book_indices.end(),
+						[&](BookNodeIndexString& i, BookNodeIndexString& j){
+						return i.second < j.second;
+					});
+
+					// ⇑ここでsfenをunpackしてしまうなら、最初からsfenで持っておいたほうがいい気がするし、
+					// あるいは、このままsortなしで書き出したほうがいいような気もする。
+					// (sortは改めてやるとして)
+
+					// しかしsortするのも丸読みしないといけないから大変か…。
+					// この時点で要らないものをいったん解放できると良いのだが…。
+
+					cout << "Write book directly : " << endl;
+
+					SystemIO::TextWriter writer;
+					if (writer.Open(writebook_path).is_not_ok())
+					{
+						cout << "Error! : open file erro , path = " << writebook_path << endl;
+						return;
+					}
+
+					progress.reset(n - 1);
+
+					// バージョン識別用文字列
+					writer.WriteLine("#YANEURAOU-DB2016 1.00");
+
+					for(size_t i = 0 ; i < n ; ++i)
+					{
+						auto& book_node = book_nodes[book_indices[i].first];
+						auto& sfen = book_indices[i].second;
+
+						// sfenを出力。上でsortしているのでsfen文字列順で並び替えされているはず。
+						writer.WriteLine("sfen " + sfen);
+
+						// 指し手を出力
+						for(auto& move : book_node.moves)
+							writer.WriteLine(to_usi_string(move.move) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
+
+						progress.check(i);
+					}
+				}
+
+				cout << "write " + writebook_path << endl;
+
+#endif
 			}
 
 			cout << "[ PetaShock Result ]" << endl;
@@ -1326,7 +1498,8 @@ namespace MakeBook2023
 		vector<BookNode> book_nodes;
 
 		// 同様に、HASH_KEYからBookMoveIndexへのmapper
-		unordered_map<HASH_KEY,BookNodeIndex> hashkey_to_index;
+		using HashKey2Index = unordered_map<HASH_KEY,BookNodeIndex>;
+		HashKey2Index hashkey_to_index;
 	};
 }
 
@@ -1342,6 +1515,8 @@ namespace Book
 			// ペタショックコマンド
 			// やねうら王の定跡ファイルに対して定跡ツリー上でmin-max探索を行い、その結果を別の定跡ファイルに書き出す。
 			//   makebook peta_shock book.db user_book1.db
+			// 先手の局面しか書き出さない。後手の局面はflip(盤面を180°回転させる)して、先手の局面として書き出す。
+			// エンジンオプションの FlippedBook を必ずオンにして用いること。
 			MakeBook2023::PetaShock ps;
 			ps.make_book(pos, is, false);
 			return 1;
@@ -1359,6 +1534,11 @@ namespace Book
 			// ⇨  leaf nodeで2番目の指し手はdepth > 0なのに1番目の指し手のdepth == 0だと、
 			// これは掘らないとおかしいので、こういう局面を探して列挙するモード。
 			// (これ以外の局面は列挙しない。列挙する局面数は制限なし。)
+			// ⇨　やってみたら対象局面がめっちゃあった。こりゃあかんわ。
+			// 
+			//   makebook peta_shock_next book.db sfens.txt 1000 minimum
+			// ⇨ memory_savingをつけるとpacked sfenのままsortするので書き出しの時にメモリがさらに節約できる。
+			//   (でも書き出すのに時間1時間ぐらいかかる)
 
 			MakeBook2023::PetaShock ps;
 			ps.make_book(pos, is , true);
