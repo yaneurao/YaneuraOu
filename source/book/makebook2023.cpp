@@ -44,10 +44,6 @@
 #include "../position.h"
 #include "../misc.h"
 
-// MemoryBookクラスを用いる。読み書きのオーバーヘッドがあるしメモリ消費量も増えるが、
-// お作法の良い定跡ファイルができあがる。
-//#define USE_MEMORY_BOOK_CLASS
-
 using namespace std;
 using namespace Book;
 
@@ -1287,7 +1283,7 @@ namespace MakeBook2023
 					// ⇨　flipした局面は登録しなくとも、元の局面に対してhitするから問題ない。
 					
 					writer.WriteLine(write_sfen);
-					++write_counter;
+					write_counter++;
 				}
 
 			} else {
@@ -1297,42 +1293,6 @@ namespace MakeBook2023
 				// この時点でもうhash_key_to_index不要なので解放する。
 				// (clear()では解放されないので、swap trickを用いる。)
 				HashKey2Index().swap(this->hashkey_to_index);
-
-#if defined(USE_MEMORY_BOOK_CLASS)
-				cout << "Rebuild MemoryBook  : " << endl;
-				progress.reset(book_nodes.size());
-
-				// これはメモリ上にまずBook classを用いて定跡DBを構築して、それを書き出すのが間違いがないと思う。
-				Book::MemoryBook new_book;
-				StateInfo si;
-				for(size_t i = 0 ; i < book_nodes.size() ; i++)
-				{
-					auto& book_node = book_nodes[i];
-
-					// FlippedBookがtrueなら、後手番の局面は書き出さない。
-					if (flipped_book && book_node.color() == WHITE)
-						continue;
-
-					Book::BookMoves bookMoves;
-					for(auto& move : book_node.moves)
-					{
-						Book::BookMove bookMove(move.move,0/*ponder move*/,move.vd.value,move.vd.depth ,0/* move_count */);
-						bookMoves.push_back(bookMove);
-					}
-					shared_ptr<Book::BookMoves> bookMovesPtr(new Book::BookMoves(bookMoves));
-
-					pos.set_from_packed_sfen(book_node.packed_sfen, &si, Threads.main());
-					string sfen = pos.sfen();
-					new_book.append(sfen, bookMovesPtr);
-
-					progress.check(i);
-				}
-				progress.check(book_nodes.size());
-
-				// 定跡ファイルの書き出し
-				new_book.write_book(writebook_path);
-				write_counter = new_book.size();
-#else
 
 				// MemoryBookを用いるとオーバーヘッドが大きいので自前で直接ファイルに書き出す。
 
@@ -1387,6 +1347,9 @@ namespace MakeBook2023
 					for(size_t i = 0 ; i < n ; ++i)
 					{
 						auto& book_node = book_nodes[book_indices[i]];
+						if (flipped_book && book_node.color() == WHITE)
+							continue;
+
 						auto  sfen      = pos.sfen_unpack(book_node.packed_sfen);
 
 						// sfenを出力。上でsortしているのでsfen文字列順で並び替えされているはず。
@@ -1397,6 +1360,7 @@ namespace MakeBook2023
 							writer.WriteLine(to_usi_string(move.move) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
 
 						progress.check(i);
+						write_counter++;
 					}
 				} else {
 
@@ -1449,6 +1413,9 @@ namespace MakeBook2023
 						auto& book_node = book_nodes[book_indices[i].first];
 						auto& sfen = book_indices[i].second;
 
+						if (flipped_book && book_node.color() == WHITE)
+							continue;
+
 						// sfenを出力。上でsortしているのでsfen文字列順で並び替えされているはず。
 						writer.WriteLine("sfen " + sfen);
 
@@ -1457,12 +1424,11 @@ namespace MakeBook2023
 							writer.WriteLine(to_usi_string(move.move) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
 
 						progress.check(i);
+						write_counter++;
 					}
 				}
 
 				cout << "write " + writebook_path << endl;
-
-#endif
 			}
 
 			cout << "[ PetaShock Result ]" << endl;
