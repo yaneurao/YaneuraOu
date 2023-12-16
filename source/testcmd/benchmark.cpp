@@ -48,6 +48,7 @@ const vector<string> BenchSfen =
 /// bench                            : search default positions up to depth 13
 /// bench 64 1 15                    : search default positions up to depth 15 (TT = 64MB)
 /// bench 64 1 100000 default nodes  : search default positions for 100K nodes each
+/// bench 64 1 20 default depth      : search default positions for depth 20
 /// bench 64 4 5000 current movetime : search current position with 4 threads for 5 sec
 /// bench 16 1 5 blah perft          : run a perft 5 on positions in file "blah"
 

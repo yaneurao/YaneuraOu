@@ -104,10 +104,10 @@ std::ostream& operator<<(std::ostream& os, RepetitionState rs)
 namespace Search {
 	LimitsType Limits;
 
-	/// RootMove::extract_ponder_from_tt() is called in case we have no ponder move
-	/// before exiting the search, for instance, in case we stop the search during a
-	/// fail high at root. We try hard to have a ponder move to return to the GUI,
-	/// otherwise in case of 'ponder on' we have nothing to think about.
+	// Called in case we have no ponder move before exiting the search,
+	// for instance, in case we stop the search during a fail high at root.
+	// We try hard to have a ponder move to return to the GUI,
+	// otherwise in case of 'ponder on' we have nothing to think about.
 
 	// 探索を抜ける前にponderの指し手がないとき(rootでfail highしているだとか)にこの関数を呼び出す。
 	// ponderの指し手として何かを指定したほうが、その分、相手の手番において考えられて得なので。

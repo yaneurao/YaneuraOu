@@ -492,8 +492,8 @@ namespace MakeBook2023
 				}
 
 				// 親に伝播するほうはvalueを反転させておく。
-				parent_vd.value =   - parent_vd.value;
-				parent_vd.depth = min(parent_vd.depth + 1 , BOOK_DEPTH_INF);
+				parent_vd.value =        - parent_vd.value;
+				parent_vd.depth = std::min(parent_vd.depth + 1 , BOOK_DEPTH_INF);
 
 				return best;
 			};
