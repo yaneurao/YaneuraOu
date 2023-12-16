@@ -373,8 +373,6 @@ namespace MakeBook2023
 
 			// leaf nodeの指し手に加える乱数の大きさ
 			int eval_noise = 0;
-			// 1番目の指し手のdepthが0なら、その指し手で進めた局面を列挙するモード。
-			bool low_depth = false;
 
 			// 書き出す時にメモリを超節約する。
 			bool memory_saving = false;
@@ -392,8 +390,6 @@ namespace MakeBook2023
 				{
 					if (token == "eval_noise")
 						is >> eval_noise;
-					else if (token == "low_depth")
-						low_depth = true;
 				}
 
 			} else {
@@ -412,7 +408,6 @@ namespace MakeBook2023
 				// 書き出すsfenの数
 				cout << "write next_sfens   : " << next_nodes << endl;
 				cout << "eval_noise         : " << eval_noise << endl;
-				cout << "low_depth          : " << low_depth << endl;
 
 				// これは現状ファイル名固定でいいや。
 				root_sfens_path = Path::Combine("book","root_sfens.txt");
@@ -958,303 +953,257 @@ namespace MakeBook2023
 				// 書き出すsfen
 				unordered_set<string> write_sfens;
 
-				if (low_depth)
+				// 次に探索すべき定跡局面についてsfenを書き出していく。
+				// これはmin-max探索した時のPVのleaf node。
+				cout << "Retrograde Analysis : step IV  -> pick up next sfens to search." << endl;
+
+				// rootから辿っていきPV leafに到達したらそのsfenを書き出す。
+				// そのPV leaf nodeを削除して後退解析により、各局面の評価値を更新する。
+				// これを繰り返す。
+
+				progress.reset(next_nodes * root_sfens.size());
+
+				// それぞれのroot_sfenに対して。
+				for(auto root_sfen : root_sfens)
 				{
-					// bestmoveでdepth == 0の指し手(で進めた局面)だけ書き出す。
+					deque<StateInfo> si0;
+					BookTools::feed_position_string(pos, root_sfen, si0);
 
-					// 次に探索すべき定跡局面についてsfenを書き出していく。
-					// これはmin-max探索した時のPVのleaf node。
-					cout << "Low Depth           : step IV  -> pick up next sfens to search." << endl;
-
-					progress.reset(book_nodes.size());
-
-					for(size_t i = 0; i < book_nodes.size() ; ++i)
+					// このroot_sfenの局面が定跡DB上に存在しない
+					if (hashkey_to_index.count(pos.state()->hash_key()) == 0)
 					{
-						auto& book_node = book_nodes[i];
-
-						auto& moves = book_node.moves;
-						if (moves.size() == 0)
-							continue;
-
-						// 一つでもdepthが0ではない
-						bool depth_not_zero = false;
-
-						// best valueのmoveを探す。
-						// ※ valueでsortされてないことに注意。
-						size_t best_index = 0;
-						int best_value = int_min;
-						for(size_t j = 0 ; j < moves.size() ; j++)
-						{
-							auto move = moves[j];
-							if (best_value < move.vd.value)
-							{
-								best_value = move.vd.value;
-								best_index = j;
-							}
-							auto depth = move.vd.depth;
-							depth_not_zero |= depth > 0; 
-						}
-						// best moveのdepth == 0
-						auto best_move = moves[best_index];
-						if (depth_not_zero && best_move.vd.depth == 0)
-						{
-							// bestmoveのnextはないことはわかっている。(depth == 0なので)
-							Move move = best_move.move;
-							if (is_ok(move))
-							{
-								StateInfo si, si2;
-								pos.set_from_packed_sfen(book_node.packed_sfen, &si ,Threads.main());
-								pos.do_move(move, si2);
-								auto write_sfen = pos.sfen();
-								write_sfens.emplace(write_sfen);
-							}
-						}
-
-						progress.check(i++);
+						write_sfens.emplace(pos.sfen());
+						continue;
 					}
 
-				} else {
+					u64 timeup_counter = 0;
 
-					// 次に探索すべき定跡局面についてsfenを書き出していく。
-					// これはmin-max探索した時のPVのleaf node。
-					cout << "Retrograde Analysis : step IV  -> pick up next sfens to search." << endl;
+					// 今回のroot_sfenに対して書き出した局面数
+					u64 write_counter2 = 0;
 
-					// rootから辿っていきPV leafに到達したらそのsfenを書き出す。
-					// そのPV leaf nodeを削除して後退解析により、各局面の評価値を更新する。
-					// これを繰り返す。
-
-					progress.reset(next_nodes);
-
-					// それぞれのroot_sfenに対して。
-					for(auto root_sfen : root_sfens)
+					// 所定の行数のsfenを書き出すまで回る。
+					// ただし、局面が尽きることがあるのでrootが存在しなければループは抜ける。
+					while (true)
 					{
-						u64 timeup_counter = 0;
+						deque<StateInfo> si;
+						BookTools::feed_position_string(pos, root_sfen, si);
 
-						// 所定の行数のsfenを書き出すまで回る。
-						// ただし、局面が尽きることがあるのでrootが存在しなければループは抜ける。
+						// このroot_sfenに対して規定の行数を書き出した
+						if (write_counter2 >= next_nodes)
+							break;
+
+						// 書き出す指し手がすべてのrootでなくなっていることを証明するロジックを書くのわりと面倒なので
+						// timeup_counterをカウントすることにする。
+						// next_nodesの10倍も回ったらもうあかんやろ…。
+						if (++timeup_counter > next_nodes * 10)
+							break;
+
+						// PVを辿った時の最後のParentMove
+						ParentMove last_parent_move(BookNodeIndexNull,0);
+
+						// leafの局面までの手順
+						//string sfen_path = "startpos moves ";
+
+
+						// まずPV leafまで辿る。
 						while (true)
 						{
-							deque<StateInfo> si;
-							BookTools::feed_position_string(pos, root_sfen, si);
-
-							progress.check(write_sfens.size());
-
-							// 規定の行数を書き出した or rootの局面が定跡DB上に存在しない
-							if (write_sfens.size() >= next_nodes
-								|| hashkey_to_index.count(pos.state()->hash_key()) == 0)
-								break;
-
-							// 書き出す指し手がすべてのrootでなくなっていることを証明するロジックを書くのわりと面倒なので
-							// timeup_counterをカウントすることにする。
-							// next_nodesの10倍も回ったらもうあかんやろ…。
-							if (++timeup_counter > next_nodes * 10)
-								break;
-
-							// PVを辿った時の最後のParentMove
-							ParentMove last_parent_move(BookNodeIndexNull,0);
-
-							// leafの局面までの手順
-							//string sfen_path = "startpos moves ";
-
-
-							// まずPV leafまで辿る。
-							while (true)
+							// 千日手がPVになってる。
+							if (pos.is_repetition(MAX_PLY) == REPETITION_DRAW || pos.game_ply() >= MAX_PLY )
 							{
-								// 千日手がPVになってる。
-								if (pos.is_repetition(MAX_PLY) == REPETITION_DRAW || pos.game_ply() >= MAX_PLY )
-								{
-									// たまに循環がひたすら回避されながらMAX_PLYを超えて手数が増えることがあるのでgame_ply()の判定必須。
-									// ここ、切断してはいけないところが切断される可能性があるか…。まあ仕方ないな…。
+								// たまに循環がひたすら回避されながらMAX_PLYを超えて手数が増えることがあるのでgame_ply()の判定必須。
+								// ここ、切断してはいけないところが切断される可能性があるか…。まあ仕方ないな…。
 
-									//if (last_parent_move.parent == BookNodeIndexNull)
-									//	goto NEXT_ROOT;
+								//if (last_parent_move.parent == BookNodeIndexNull)
+								//	goto NEXT_ROOT;
 
-									// この局面に至る指し手を定跡DBから除外することにより千日手にならないようにする。
-									goto AVOID_REPETITION;
-								}
-
-								auto hash_key = pos.state()->hash_key();
-								if (hashkey_to_index.count(hash_key) == 0)
-								{
-									// 局面が定跡DBの範囲から外れた。この局面は定跡未探索。このsfenを書き出しておく。
-									write_sfens.emplace(pos.sfen());
-									break;
-
-									// このnodeへのleaf node move(一つ前のnodeがleaf nodeであるはずだから、そのleaf nodeからこの局面へ至る指し手)を削除する。
-									// そのあと、そこから後退解析のようなことをしてrootに評価値を伝播する。
-								} else {
-									// bestmoveを辿っていく。
-									BookNodeIndex index = hashkey_to_index[hash_key];
-									auto& book_node = book_nodes[index];
-									auto& moves     = book_node.moves;
-									// movesが0の局面は定跡から除外されているはずなのだが…。
-									ASSERT_LV3(moves.size());
-
-									// 指し手のなかでbestを選ぶ。同じvalueならdepthが最小であること。
-									last_parent_move = ParentMove(index,0);
-
-									/*
-									// →　BOOK_VALUE_NONE、書き出すのやめることにする。これあまりいいアイデアではなかった。
-									for(auto& move : moves)
-									{
-										if (move.vd.value == BOOK_VALUE_NONE)
-										{
-											// 評価値未確定のやつ。これは値によってはこれが即PVになるのでここも探索すべき。
-											// またvalueがBOOK_VALUE_NONEであるということは子からの評価値の伝播がなかったということだから、
-											// この指し手で進めてもbook_nodesに格納されている局面には進行しないことは保証されている。
-											si.emplace_back(StateInfo());
-											pos.do_move(move.move,si.back());
-											write_sfens.emplace(pos.sfen());
-
-											pos.undo_move(move.move);
-
-											// 書き出したのでこの枝は死んだことにする。
-											move.move = MOVE_NONE;
-										}
-									}
-									*/
-
-									ValueDepth parent_vd;
-									size_t i;
-									auto best = get_bestvalue(book_node, parent_vd , i);
-									// このbestのやつのindexが必要なので何番目にあるか調べる
-									last_parent_move.move_index = (u32)i;
-
-									//sfen_path += to_usi_string(best.move) + ' ';
-
-									si.emplace_back(StateInfo());
-									pos.do_move(moves[i].move, si.back());
-								}
+								// この局面に至る指し手を定跡DBから除外することにより千日手にならないようにする。
+								goto AVOID_REPETITION;
 							}
 
-							// 手順もデバッグ用に書き出す。
-							//write_sfens.emplace_back(sfen_path);
-
-							// PV leaf nodeまで到達したので、ここからrootまで遡ってbest move,best valueの更新を行う。
-							// rootまで遡る時にparentsが複数あったりloopがあったりするので単純に遡ると組み合わせ爆発を起こす。
-							// そこで、次のアルゴリズムを用いる。
-
-							/*
-								queue = [処理すべき局面]
-								while queue:
-									p = queue.pop_left()
-									b = pの指し手がすべてMOVE_NONE(無効)になったのか
-									v = 局面pのbestvalue
-									for parent in 局面p.parents():
-										if b:
-											parentの局面pに行く指し手 = MOVE_NONE
-										else:
-											parentの局面pにいく指し手の評価値 = v
-
-										if ↑この代入によりこのparent nodeのbestvalueが変化したなら
-											queue.push_right(p)
-							*/
-							// 上記のアルゴリズムで停止すると思うのだが、この停止性の証明ができていない。
-							// 永久ループになることがある。同じ局面は2回更新しないようにする。
-
-						AVOID_REPETITION:;
-
-							deque<ParentMoveEx> queue;
-							queue.emplace_back(ParentMoveEx(last_parent_move,true,ValueDepth()));
-
-							// update済みノード
-							unordered_set<BookNodeIndex> already_searched_node;
-
-							while (queue.size())
+							auto hash_key = pos.state()->hash_key();
+							if (hashkey_to_index.count(hash_key) == 0)
 							{
-								auto pm = queue[0];
-								queue.pop_front();
+								// 局面が定跡DBの範囲から外れた。この局面は定跡未探索。このsfenを書き出しておく。
+								write_sfens.emplace(pos.sfen());
+								progress.check(write_sfens.size());
+								write_counter2++;
+								break;
 
-								auto index      = pm.parent_move.parent;
-								auto move_index = pm.parent_move.move_index;
-								bool is_deleted = pm.is_deleted;
+								// このnodeへのleaf node move(一つ前のnodeがleaf nodeであるはずだから、そのleaf nodeからこの局面へ至る指し手)を削除する。
+								// そのあと、そこから後退解析のようなことをしてrootに評価値を伝播する。
+							} else {
+								// bestmoveを辿っていく。
+								BookNodeIndex index = hashkey_to_index[hash_key];
 								auto& book_node = book_nodes[index];
+								auto& moves     = book_node.moves;
+								// movesが0の局面は定跡から除外されているはずなのだが…。
+								ASSERT_LV3(moves.size());
 
-								// 親がいなくなっている = bestmoveを求めても伝播する先かない = このnodeは死んでいる。
-								// →　ただし、rootの可能性があるので、このノードの処理は行う必要がある。
-								//if (book_node.parents.size()==0)
-								//	continue;
+								// 指し手のなかでbestを選ぶ。同じvalueならdepthが最小であること。
+								last_parent_move = ParentMove(index,0);
 
-								// 子の局面の指し手がすべてMOVE_NONEなので、子に至るこの指し手を無効化する。
-								// これでbest_valueに変化が生じるのか？
-								if (is_deleted)
+								/*
+								// →　BOOK_VALUE_NONE、書き出すのやめることにする。これあまりいいアイデアではなかった。
+								for(auto& move : moves)
 								{
-									book_node.moves[move_index].move = MOVE_NONE;
-									// これによりすべてがMOVE_NONEになったか？
-									for(auto const& move : book_node.moves)
-										is_deleted &= (move.move == MOVE_NONE);
-								}
-								else
-								{
-									// 子からの評価値を伝播させる。
-									// これによって、このnodeの指し手がすべてMOVE_NONEになることはないから
-									// そのチェックは端折ることができる。
-									book_node.moves[move_index].vd = pm.best;
-								}
+									if (move.vd.value == BOOK_VALUE_NONE)
+									{
+										// 評価値未確定のやつ。これは値によってはこれが即PVになるのでここも探索すべき。
+										// またvalueがBOOK_VALUE_NONEであるということは子からの評価値の伝播がなかったということだから、
+										// この指し手で進めてもbook_nodesに格納されている局面には進行しないことは保証されている。
+										si.emplace_back(StateInfo());
+										pos.do_move(move.move,si.back());
+										write_sfens.emplace(pos.sfen());
 
-								if (book_node.parents.size()==0)
-									continue;
+										pos.undo_move(move.move);
+
+										// 書き出したのでこの枝は死んだことにする。
+										move.move = MOVE_NONE;
+									}
+								}
+								*/
+
+								ValueDepth parent_vd;
+								size_t i;
+								auto best = get_bestvalue(book_node, parent_vd , i);
+								// このbestのやつのindexが必要なので何番目にあるか調べる
+								last_parent_move.move_index = (u32)i;
+
+								//sfen_path += to_usi_string(best.move) + ' ';
+
+								si.emplace_back(StateInfo());
+								pos.do_move(moves[i].move, si.back());
+							}
+						}
+
+						// 手順もデバッグ用に書き出す。
+						//write_sfens.emplace_back(sfen_path);
+
+						// PV leaf nodeまで到達したので、ここからrootまで遡ってbest move,best valueの更新を行う。
+						// rootまで遡る時にparentsが複数あったりloopがあったりするので単純に遡ると組み合わせ爆発を起こす。
+						// そこで、次のアルゴリズムを用いる。
+
+						/*
+							queue = [処理すべき局面]
+							while queue:
+								p = queue.pop_left()
+								b = pの指し手がすべてMOVE_NONE(無効)になったのか
+								v = 局面pのbestvalue
+								for parent in 局面p.parents():
+									if b:
+										parentの局面pに行く指し手 = MOVE_NONE
+									else:
+										parentの局面pにいく指し手の評価値 = v
+
+									if ↑この代入によりこのparent nodeのbestvalueが変化したなら
+										queue.push_right(p)
+						*/
+						// 上記のアルゴリズムで停止すると思うのだが、この停止性の証明ができていない。
+						// 永久ループになることがある。同じ局面は2回更新しないようにする。
+
+					AVOID_REPETITION:;
+
+						deque<ParentMoveEx> queue;
+						queue.emplace_back(ParentMoveEx(last_parent_move,true,ValueDepth()));
+
+						// update済みノード
+						unordered_set<BookNodeIndex> already_searched_node;
+
+						while (queue.size())
+						{
+							auto pm = queue[0];
+							queue.pop_front();
+
+							auto index      = pm.parent_move.parent;
+							auto move_index = pm.parent_move.move_index;
+							bool is_deleted = pm.is_deleted;
+							auto& book_node = book_nodes[index];
+
+							// 親がいなくなっている = bestmoveを求めても伝播する先かない = このnodeは死んでいる。
+							// →　ただし、rootの可能性があるので、このノードの処理は行う必要がある。
+							//if (book_node.parents.size()==0)
+							//	continue;
+
+							// 子の局面の指し手がすべてMOVE_NONEなので、子に至るこの指し手を無効化する。
+							// これでbest_valueに変化が生じるのか？
+							if (is_deleted)
+							{
+								book_node.moves[move_index].move = MOVE_NONE;
+								// これによりすべてがMOVE_NONEになったか？
+								for(auto const& move : book_node.moves)
+									is_deleted &= (move.move == MOVE_NONE);
+							}
+							else
+							{
+								// 子からの評価値を伝播させる。
+								// これによって、このnodeの指し手がすべてMOVE_NONEになることはないから
+								// そのチェックは端折ることができる。
+								book_node.moves[move_index].vd = pm.best;
+							}
+
+							if (book_node.parents.size()==0)
+								continue;
+
+							// 親に伝播させる。
+
+							if (is_deleted)
+							{
+								// このnodeのすべて枝が死んだのでこのnodeは消滅させる。
+
+								// hash_keyをBookNodeが保持していないのでpacked sfenから復元する。(ちょっと嫌だけど仕方がない)
+								StateInfo si;
+								pos.set_from_packed_sfen(book_node.packed_sfen, &si, Threads.main());
+								auto hash_key = pos.hash_key();
+								hashkey_to_index.erase(hash_key);
+								// ⇨　この処理本当に必要なのかよく考える。
 
 								// 親に伝播させる。
+								for(auto& parent_move : book_node.parents)
+									queue.emplace_back(parent_move, is_deleted, ValueDepth());
 
-								if (is_deleted)
+								// deleteしているので、deleteが二重になされることはないから、
+								// これによって永久ループになることはない。ゆえにこれは2回 parent nodeをupdateしても問題ない。
+
+								// ここからparentへの経路はここで絶たれたことにしておかないと
+								// 死んでいるノードだけが循環しているケースでwhileが終了しない。
+								book_node.parents.clear();
+
+							} else {
+
+								ValueDepth parent_vd;
+								size_t _;
+								auto best = get_bestvalue(book_node , parent_vd, _);
+
+								// 異なる値へのupdateの時だけ親に伝播させる。
+								if (   parent_vd != book_node.lastParentVd )
 								{
-									// このnodeのすべて枝が死んだのでこのnodeは消滅させる。
-
-									// hash_keyをBookNodeが保持していないのでpacked sfenから復元する。(ちょっと嫌だけど仕方がない)
-									StateInfo si;
-									pos.set_from_packed_sfen(book_node.packed_sfen, &si, Threads.main());
-									auto hash_key = pos.hash_key();
-									hashkey_to_index.erase(hash_key);
-									// ⇨　この処理本当に必要なのかよく考える。
+									// 次回用にlastParentVdを更新しておく。
+									book_node.lastParentVd = parent_vd;
 
 									// 親に伝播させる。
 									for(auto& parent_move : book_node.parents)
-										queue.emplace_back(parent_move, is_deleted, ValueDepth());
-
-									// deleteしているので、deleteが二重になされることはないから、
-									// これによって永久ループになることはない。ゆえにこれは2回 parent nodeをupdateしても問題ない。
-
-									// ここからparentへの経路はここで絶たれたことにしておかないと
-									// 死んでいるノードだけが循環しているケースでwhileが終了しない。
-									book_node.parents.clear();
-
-								} else {
-
-									ValueDepth parent_vd;
-									size_t _;
-									auto best = get_bestvalue(book_node , parent_vd, _);
-
-									// 異なる値へのupdateの時だけ親に伝播させる。
-									if (   parent_vd != book_node.lastParentVd )
 									{
-										// 次回用にlastParentVdを更新しておく。
-										book_node.lastParentVd = parent_vd;
+										// すでに一度updateしてあるならスキップする
+										BookNodeIndex parent = parent_move.parent;
+										if (already_searched_node.count(parent) > 0)
+											continue;
+										// これは一度updateしたのでこれ以上追加しないようにしておく。
+										already_searched_node.emplace(parent);
 
-										// 親に伝播させる。
-										for(auto& parent_move : book_node.parents)
-										{
-											// すでに一度updateしてあるならスキップする
-											BookNodeIndex parent = parent_move.parent;
-											if (already_searched_node.count(parent) > 0)
-												continue;
-											// これは一度updateしたのでこれ以上追加しないようにしておく。
-											already_searched_node.emplace(parent);
-
-											queue.emplace_back(parent_move, is_deleted, parent_vd);
-										}
+										queue.emplace_back(parent_move, is_deleted, parent_vd);
 									}
 								}
 							}
 
 						}
-
-					//NEXT_ROOT:;
-
 					}
+
+				//NEXT_ROOT:;
+
 				}
 
-				progress.check(next_nodes);
+				progress.check(next_nodes * root_sfens.size());
 
 				// write_sfensのなかにある局面とそれをflipした局面の組が含まれないかを
 				// チェックする。
@@ -1496,11 +1445,6 @@ namespace Book
 			// ⇨　1000局面を書き出す。20はleaf nodeの指し手の評価値に加える乱数の大きさ。
 			// 　 この場合、評価値に、平均 = 0 , 標準偏差 = 20 ガウスノイズを加算する。
 			// 　　(これを加えることで序盤の指し手を開拓しやすくなる)
-			//   makebook peta_shock_next book.db sfens.txt 1000 low_depth
-			// ⇨  leaf nodeで2番目の指し手はdepth > 0なのに1番目の指し手のdepth == 0だと、
-			// これは掘らないとおかしいので、こういう局面を探して列挙するモード。
-			// (これ以外の局面は列挙しない。列挙する局面数は制限なし。)
-			// ⇨　やってみたら対象局面がめっちゃあった。こりゃあかんわ。
 			// 
 			//   makebook peta_shock_next book.db sfens.txt 1000 minimum
 			// ⇨ memory_savingをつけるとpacked sfenのままsortするので書き出しの時にメモリがさらに節約できる。
