@@ -1158,6 +1158,12 @@ int USI::to_cp(Value v) {
   return 100 * v / USI::NormalizeToPawnValue;
 }
 
+// cpからValueへ。⇑の逆変換。
+Value USI::cp_to_value(int v)
+{
+	return Value((abs(v) < VALUE_MATE_IN_MAX_PLY) ? (USI::NormalizeToPawnValue * v / 100) : v);
+}
+
 // スコアを歩の価値を100として正規化して出力する。
 // USE_PIECE_VALUEが定義されていない時は正規化しようがないのでこの関数は呼び出せない。
 std::string USI::value(Value v)
@@ -1183,6 +1189,7 @@ std::string USI::value(Value v)
 
 	return ss.str();
 }
+
 #endif
 
 // Square型をUSI文字列に変換する

@@ -301,7 +301,12 @@ namespace Book
 		// bestMoveが合法手であることは保証される。
 		// GenerateAllLegalMovesがfalseの時、歩の不成の指し手を返さないことも保証する。
 		// 但し、ponderMoveが合法手であることは保証しない。
-		bool probe_impl(Position& rootPos, bool silent, Move16& bestMove, Move16& ponderMove , bool forceHit = false);
+		//
+		// 以下の3つの変数は、この関数がtrueを返した時のみ有効。
+		// bestMove   : 今回選択された指し手
+		// ponderMove : bestMoveの次の定跡の指し手 
+		// value      : bestMoveの評価値。
+		bool probe_impl(Position& rootPos, bool silent, Move16& bestMove, Move16& ponderMove , Value& value , bool forceHit = false);
 
 		// 定跡のpv文字列を生成して返す。
 		// m        : 局面posをこの指し手で進める

@@ -135,11 +135,15 @@ namespace USI
 	// Valueをcp(centi-pawn)に変換する。
 	int to_cp(Value v);
 
+	// cpからValueへ。⇑の逆変換。
+	Value cp_to_value(int v);
+
 	// USIプロトコルの形式でValue型を出力する。
 	// 歩が100になるように正規化するので、operator <<(Value)をこういう仕様にすると
 	// 実際の値と異なる表示になりデバッグがしにくくなるから、そうはしていない。
 	// USE_PIECE_VALUEが定義されていない時は正規化しようがないのでこの関数は呼び出せない。
 	std::string value(Value v);
+
 #endif
 
 	// Square型をUSI文字列に変換する

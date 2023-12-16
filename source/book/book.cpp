@@ -1087,7 +1087,8 @@ namespace Book
 
 				// さらに指し手を進める
 				Move16 bestMove16, ponderMove16;
-				if (probe_impl(pos, true, bestMove16, ponderMove16 , true /* 強制的にhitさせる */))
+				Value value;
+				if (probe_impl(pos, true, bestMove16, ponderMove16, value, true /* 強制的にhitさせる */))
 				{
 					// hitした
 
@@ -1122,7 +1123,7 @@ namespace Book
 	}
 
 	// probe()の下請け
-	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move16& bestMove , Move16& ponderMove , bool forceHit)
+	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move16& bestMove , Move16& ponderMove , Value& value, bool forceHit)
 	{
 		if (!forceHit)
 		{
@@ -1212,7 +1213,7 @@ namespace Book
 					<< " multipv " << (i + 1)
 #endif
 					<< " score cp " << it.value << " depth " << it.depth
-					<< " pv " << pv_builder(rootPos, it.move, pv_moves)
+					<< " pv" << pv_builder(rootPos, it.move, pv_moves)
 					<< " (" << fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << ")" // 採択確率
 					<< sync_endl;
 
@@ -1336,6 +1337,7 @@ namespace Book
 
 			bestMove   = bestBookMove.move;
 			ponderMove = bestBookMove.ponder;
+			value      = Value(bestBookMove.value);
 
 			// ponderが登録されていなければ、bestMoveで一手進めてそこの局面のbestを拾ってくる。
 			if (!is_ok((Move)ponderMove.to_u16()))
@@ -1367,7 +1369,8 @@ namespace Book
 	{
 		const bool silent = true;
 		Move16 bestMove16, ponderMove16;
-		if (!probe_impl(pos, silent, bestMove16, ponderMove16))
+		Value value;
+		if (!probe_impl(pos, silent, bestMove16, ponderMove16, value))
 			return MOVE_NONE;
 
 		Move bestMove = pos.to_move(bestMove16);
@@ -1386,8 +1389,9 @@ namespace Book
 			return false;
 
 		Move16 bestMove16, ponderMove16;
+		Value value;
 		auto& pos = th.rootPos;
-		if (probe_impl(pos , Limits.silent, bestMove16, ponderMove16))
+		if (probe_impl(pos , Limits.silent, bestMove16, ponderMove16, value))
 		{
 			auto & rootMoves = th.rootMoves;
 
@@ -1409,7 +1413,17 @@ namespace Book
 				// この意味では、
 				// MultiPVでの探索の時は定跡の上位の指し手をrootMoves[0..N-1]に反映させたほうが良いかも？
 
-				std::swap(rootMoves[0], *it_move);
+				auto& r = rootMoves[0];
+				std::swap(r, *it_move);
+
+				// 定跡の評価値はcp(centi-pawn)のはずだから、
+				// この逆変換をしたものを設定してやる。そうすると出力するときにcpに変換されてちょうど良くなる。
+				// ⇨　出力する逆変換の時の誤差あるの少し気持ち悪いか…。まあ仕方ないな…。定跡ファイルがcp単位になってるからな…。
+				// これは次のaspiration searchで少し探索効率が良くなるから、設定はしたいが…。
+
+				value = std::clamp(value , VALUE_MATED_IN_MAX_PLY , VALUE_MATE_IN_MAX_PLY);
+				r.previousScore = r.usiScore = r.score = USI::cp_to_value(value);
+				// ⇨　定跡の評価値0になってる方が、嬉しい意味もあるか…。
 
 				// 2手目の指し手も与えないとponder出来ない。
 				// 定跡ファイルに2手目が書いてあったなら、それをponder用に出力する。
@@ -1418,13 +1432,13 @@ namespace Book
 				//  普通の指し手でなければならない。これは、is_ok(Move)で判定できる。)
 				if (is_ok((Move)ponderMove16.to_u16()))
 				{
-					if (rootMoves[0].pv.size() <= 1)
-						rootMoves[0].pv.push_back(MOVE_NONE);
+					if (r.pv.size() <= 1)
+						r.pv.push_back(MOVE_NONE);
 
 					// これ32bit Moveに変換してあげるほうが親切なのか…。
 					StateInfo si;
 					pos.do_move(bestMove,si);
-					rootMoves[0].pv[1] = pos.to_move(ponderMove16);
+					r.pv[1] = pos.to_move(ponderMove16);
 					pos.undo_move(bestMove);
 				}
 				// この指し手を指す
