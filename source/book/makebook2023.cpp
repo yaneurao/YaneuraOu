@@ -1262,7 +1262,9 @@ namespace MakeBook2023
 
 					// nの64倍ぐらいで終わるんちゃうんか？
 					progress.reset(n * 64);
-					u64 c = 0;
+
+					// 進捗出力用カウンター
+					size_t c = 0;
 					StateInfo si;
 
 					// カスタム比較関数
