@@ -553,12 +553,10 @@ void MainThread::search()
 		// 投了の指し手と評価値をrootMoves[0]に積んでおけばUSI::pv()が良きに計らってくれる。
 		// 読み筋にresignと出力されるが、将棋所、ShogiGUIともにバグらないのでこれで良しとする。
 		rootMoves.emplace_back(MOVE_RESIGN);
+
 		// 評価値を用いないなら代入しなくて良いのだが(Stockfishはそうなっている)、
 		// このあと、↓USI::pv()を呼び出したいので、scoreをきちんと設定しておいてやる。
-		rootMoves[0].score = mated_in(0);
-
-		if (!Limits.silent)
-			sync_cout << USI::pv(rootPos, Depth(1)) << sync_endl;
+		rootMoves[0].score = rootMoves[0].usiScore = mated_in(0);
 
 		goto SKIP_SEARCH;
 	}
@@ -600,11 +598,7 @@ void MainThread::search()
 				std::swap(rootMoves[0], *it_move);
 
 				// 1手詰めのときのスコアにしておく。
-				rootMoves[0].score = mate_in(/*ss->ply*/ 1 + 1);;
-
-				// rootで宣言勝ちのときにもそのPVを出力したほうが良い。
-				if (!Limits.silent)
-					sync_cout << USI::pv(rootPos, 1) << sync_endl;
+				rootMoves[0].score = rootMoves[0].usiScore = mate_in(1);;
 
 				goto SKIP_SEARCH;
 			}
@@ -689,29 +683,37 @@ SKIP_SEARCH:;
 			Skill skill = Skill(/*(int)Options["SkillLevel"]*/ 20, 0);
 
 			// 並列して探索させていたスレッドのうち、ベストのスレッドの結果を選出する。
-			if (   int(Options["MultiPV"]) == 1
+			if (    int(Options["MultiPV"]) == 1
 				&& !Limits.depth
 				&& !skill.enabled()
-				//&& rootMoves[0].pv[0] != MOVE_NONE // やねうら王では投了の局面でMOVE_NONEを突っ込まないのでこのチェックは不要。
-				&& !search_skipped                   // 定跡などの指し手を指させるためのこのチェックが必要。
+				&&  rootMoves[0].pv[0] != MOVE_RESIGN
+				// ⇨　やねうら王では、詰んでいるときなどMOVE_RESIGNを積むので、
+				// 　rootMoves[0].pv[0]がMOVE_RESIGNでありうる。
+				// 　このとき、main thread以外のth->rootMoves[0]は、指し手がなくアクセス違反になるのでアクセスしてはならない。
+				&& !search_skipped
+				// ⇨　定跡などの指し手を指させるために、このチェックが必要。(bestThreadを変更されては困るため)
 				)
-				// やねうら王では、詰んでいるときなどMOVE_RESIGNを積むので、
-				// rootMoves[0].pv[0]がMOVE_RESIGNでありうる。
-				// このとき、main thread以外のth->rootMoves[0]は、指し手がなくアクセス違反になるので
-				// アクセスしてはならない。
-				// search_skipped のときは、bestThread == mainThreadとしておき、
-				// bestThread->rootMoves[0].pv[0]とpv[1]の指し手を出力すれば良い。
 
 				bestThread = Threads.get_best_thread();
 
-			// ベストな指し手として返すスレッドがmain threadではないのなら、
-			// その読み筋は出力していなかったはずなのでここで読み筋を出力しておく。
-			// ただし、これはiterationの途中で停止させているので中途半端なPVである可能性が高い。
-			// 検討モードではこのPVを出力しない。
-			// →　いずれにせよ、mateを見つけた時に最終的なPVを出力していないと、詰みではないscoreのPVが最終的な読み筋としてGUI上に
-			//     残ることになるからよろしくない。PV自体は必ず出力すべきなのでは。
-			if (/*bestThread != this &&*/ !Limits.silent && !Limits.consideration_mode)
+
+			if (/*bestThread != this && */
+
+				// ⇨　Stockfishでは、ベストな指し手として返すスレッドがmain threadではないのなら、
+				// 　その読み筋は出力していなかったので(探索中はmain threadしか読み筋を出力しない)ここで読み筋を出力しておくようになっている。
+
+				// 　やねうら王では、best moveを返す直前に必ず読み筋を送ることにした。
+				// →　いずれにせよ、mateを見つけた時に最終的なPVを出力していないと、詰みではないscoreのPVが最終的な読み筋としてGUI上に
+				//     残ることになるからよろしくない。PV自体は必ず出力すべき。
+
+				!Limits.silent
+				)
 				sync_cout << USI::pv(bestThread->rootPos, bestThread->completedDepth) << sync_endl;
+
+			/*
+				bestThreadがmainThreadではなくなる場合、探索した最大depthが減ることがありうる。
+				なので、最後の出力でdepthが減っていることは普通にある。これ、「あれ？」と思う挙動ではあるが…。
+			*/
 
 			output_final_pv_done = true;
 		}
@@ -1177,27 +1179,23 @@ void Thread::search()
 
 			stable_sort(rootMoves.begin() /* + pvFirst */, rootMoves.begin() + pvIdx + 1);
 
-			// メインスレッド以外はPVを出力しない。
-			// また、silentモードの場合もPVは出力しない。
-			if (mainThread && !Limits.silent && !Threads.stop)
+			if (   mainThread
+				// メインスレッド以外はPVを出力しない。
+				&& !Limits.silent
+				// また、silentモードの場合もPVは出力しない。
+				// (やねうら王独自拡張。教師生成の時などにPVが出力されたくないので)
+				&& (/* Threads.stop || */ pvIdx + 1 == multiPV || Time.elapsed() > 3000)
+				// ⇨　Stockfishは、Threads.stopが条件に入っていて、停止するときにもPVを出力している。
+				// やねうら王では、Threads::search()の最後で行うから、stopする時にはここでは出力しないことにする。
+				// ⇨　MultiPVのときは最後の候補手を求めた直後とする。MultiPVでない時は、毎回。(pvIdx == 0かつmultiPV == 1なので)
+				// ただし、MultiPVの時でも時間が3秒以上経過してからは、MultiPVのそれぞれの指し手の更新ごと。
+				&&  mainThread->lastPvInfoTime + Limits.pv_interval <= Time.elapsed()
+				// ⇨　思考エンジンオプションの"PvInterval"の出力間隔を守る。それより短い間隔では出力しない。
+				// デフォルト 300[ms]だが、これは0に設定しても問題はない。(GUI側の表示処理で詰まる可能性はある。)
+				)
 			{
-				// 停止するときにもPVを出力すべき。(少なくともnode数などは出力されるべき)
-				// (そうしないと正確な探索node数がわからなくなってしまう)
-
-				// ただし、反復深化のiterationを途中で打ち切る場合、PVが途中までしか出力されないので困る。
-				// かと言ってstopに対してPVを出力しないと、PvInterval = 300などに設定されていて短い時間で
-				// 指し手を返したときに何も読み筋が出力されない。
-				// →　これは、ここで出力するべきではない。best threadの選出後に出力する。
-
-				if (/* Threads.stop || */
-					// MultiPVのときは最後の候補手を求めた直後とする。
-					// ただし、時間が3秒以上経過してからは、MultiPVのそれぞれの指し手ごと。
-					((pvIdx + 1 == multiPV || Time.elapsed() > 3000)
-						&& (rootDepth < 3 || mainThread->lastPvInfoTime + Limits.pv_interval <= Time.elapsed())))
-				{
-					mainThread->lastPvInfoTime = Time.elapsed();
-					sync_cout << USI::pv(rootPos, rootDepth) << sync_endl;
-				}
+				mainThread->lastPvInfoTime = Time.elapsed();
+				sync_cout << USI::pv(rootPos, rootDepth) << sync_endl;
 			}
 
 		} // multi PV
