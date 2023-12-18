@@ -412,7 +412,7 @@ namespace MakeBook2023
 
 			// あるnodeのbestと親に伝播すべきparent_vdとを得るヘルパー関数。
 			// best_index : 何番目の指し手がbestであったのかを返す。
-			// すべてのnode.movesがMOVE_NONEなら、best_index == -1を返す。
+			// すべてのnode.movesがMOVE_NONEなら、best_index == size_maxを返す。
 			auto get_bestvalue = [&](BookNode& node , ValueDepth& parent_vd , size_t& best_index)
 			{
 				// まずこのnodeのbestを得る。
@@ -420,7 +420,7 @@ namespace MakeBook2023
 				// 親に伝播するbest
 				parent_vd = ValueDepth(-BOOK_VALUE_INF,BOOK_DEPTH_INF,DrawState(3));
 
-				best_index = -1;
+				best_index = size_max;
 				for(size_t i = 0 ; i< node.moves.size() ; ++i)
 				{
 					const auto& book_move = node.moves[i];
@@ -638,7 +638,7 @@ namespace MakeBook2023
 			// 合流した指し手の数
 			u64 converged_moves = 0;
 
-			progress.reset(book_nodes.size()-1);
+			progress.reset(book_nodes.size() - 1);
 			for(BookNodeIndex book_node_index = 0 ; book_node_index < BookNodeIndex(book_nodes.size()) ; ++book_node_index)
 			{
 				auto& book_node = book_nodes[book_node_index];
@@ -798,18 +798,19 @@ namespace MakeBook2023
 				{
 					progress.check(++retro_counter1);
 
-					auto& index = queue[queue.size()-1];
+					auto node_index = queue.back();
 					queue.pop_back();
-					auto& book_node = book_nodes[index];
+					auto& book_node = book_nodes[node_index];
 
 					ValueDepth parent_vd;
 					size_t _;
 					auto best = get_bestvalue(book_node , parent_vd , _);
 
-					for(auto& parent_ki : book_node.parents)
+					for(auto& pm : book_node.parents)
 					{
-						auto& parent     = book_nodes[parent_ki.parent];
-						auto& parent_move_index = parent_ki.move_index;
+						auto  parent_index      = pm.parent;
+						auto& parent            = book_nodes[parent_index];
+						auto  parent_move_index = pm.move_index;
 
 						auto& m = parent.moves[parent_move_index];
 						m.vd = parent_vd;
@@ -819,7 +820,7 @@ namespace MakeBook2023
 
 						// parentの出次数が1減る。parentの出次数が0になったなら、処理対象としてqueueに追加。
 						if (--parent.out_count == 0)
-							queue.emplace_back(index);
+							queue.emplace_back(parent_index);
 					}
 
 					// 元のnodeの入次数 = 0にするためparentsをクリア。(もう親を辿ることはない)
@@ -1031,7 +1032,7 @@ namespace MakeBook2023
 
 							// このnodeにはすでに指し手がないはずなのにどこからやってきたのだ…。
 							// このnode、DB上で元から指し手がなかったのか？あるいはroot_sfenの局面の指し手が尽きたのか？
-							if (best_index == -1)
+							if (best_index == size_max)
 								break;
 
 							// このbestのやつのindexが必要なので何番目にあるか保存しておく。(あとで切断する用)
@@ -1128,8 +1129,8 @@ namespace MakeBook2023
 							ValueDepth parent_vd;
 							size_t best_index;
 							auto best_vd = get_bestvalue(book_node, parent_vd, best_index);
-							// すべてがMOVE_NONEなら、best_index == -1になることが保証されている。
-							bool delete_flag = best_index == -1;
+							// すべてがMOVE_NONEなら、best_index == size_maxになることが保証されている。
+							bool delete_flag = best_index == size_max;
 
 							for(auto& pm : book_node.parents)
 							{
