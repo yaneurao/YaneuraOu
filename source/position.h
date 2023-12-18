@@ -262,11 +262,11 @@ public:
 	const std::string sfen() const { return sfen(game_ply()); }
 	const std::string sfen(int gamePly) const;
 
-	// sfen()の先後反転(盤面を180度回転)させた時のsfenを返す。
+	// sfen()のflip(先後反転 = 盤面を180度回転)させた時のsfenを返す。
 	const std::string flipped_sfen() const { return flipped_sfen(game_ply()); }
 	const std::string flipped_sfen(int gamePly) const;
 
-	// sfen文字列を先後反転したsfen文字列に変換する。
+	// sfen文字列をflip(先後反転)したsfen文字列に変換する。
 	static const std::string sfen_to_flipped_sfen(std::string sfen);
 
 	// 平手の初期盤面を設定する。

@@ -484,14 +484,22 @@ const std::string Position::flipped_sfen(int gamePly_) const
 	return ss.str();
 }
 
-// sfen文字列を先後反転したsfen文字列に変換する。
+// sfen文字列をflip(先後反転)したsfen文字列に変換する。
 const std::string Position::sfen_to_flipped_sfen(std::string sfen)
 {
+#if 1
 	Position pos;
 	StateInfo si;
 	pos.set(sfen,&si,Threads.main());
 	return pos.flipped_sfen();
+#else
+	// この局面クラスを利用せず文字列操作だけで求めて返す。
+	// https://yaneuraou.yaneu.com/2023/12/15/chatgpt-wrote-a-program-to-flip-a-shogi-board/
+
+	// 文字列操作だけで書く。あとで書くかも。
+#endif
 }
+
 
 void Position::set_state() const {
 

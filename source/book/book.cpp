@@ -407,7 +407,7 @@ namespace Book
 		cout << "write " + filename << endl;
 
 		// バージョン識別用文字列
-		writer.WriteLine("#YANEURAOU-DB2016 1.00");
+		writer.WriteLine(BookDBHeader2016_100);
 
 		vector<pair<string, BookMovesPtr> > vectored_book;
 
@@ -1421,6 +1421,7 @@ namespace Book
 				// ⇨　出力する逆変換の時の誤差あるの少し気持ち悪いか…。まあ仕方ないな…。定跡ファイルがcp単位になってるからな…。
 				// これは次のaspiration searchで少し探索効率が良くなるから、設定はしたいが…。
 
+				// cp_to_value()はscale downするから⇓変換後、このclampの範囲外に出ないことは保証される。scale upする場合は、注意。
 				value = std::clamp(value , VALUE_MATED_IN_MAX_PLY , VALUE_MATE_IN_MAX_PLY);
 				r.previousScore = r.usiScore = r.score = USI::cp_to_value(value);
 				// ⇨　定跡の評価値0になってる方が、嬉しい意味もあるか…。
