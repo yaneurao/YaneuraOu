@@ -956,10 +956,16 @@ namespace MakeBook2023
 				progress.reset(next_nodes * root_sfens.size());
 
 				// それぞれのroot_sfenに対して。
+				// ⇨ この、root_sfen文字列は、"startpos moves ..."みたいな文字列でありうるので
+				//   書き出すなら、これを普通のsfen文字列にしたものにしないといけないことに注意。
 				for(auto root_sfen : root_sfens)
 				{
 					deque<StateInfo> si0;
 					BookTools::feed_position_string(pos, root_sfen, si0);
+
+					// 普通のsfen文字列にしたroot_sfen。
+					string root_sfen0 = pos.sfen();
+					// root_sfenの元の手番
 					Color stm = pos.side_to_move();
 					// root局面のgame ply
 					int root_ply = pos.game_ply();
@@ -974,7 +980,8 @@ namespace MakeBook2023
 					// このroot_sfenの局面が定跡DB上に存在しない
 					if (hashkey_to_index.count(pos.hash_key()) == 0)
 					{
-						write_sfens.emplace(root_sfen);
+						write_sfens.emplace(root_sfen0);
+
 						continue;
 					}
 
