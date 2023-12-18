@@ -14,6 +14,8 @@
 
 #include <memory>
 
+// 評価関数のソースコードへの埋め込みをする時は、EVAL_EMBEDDINGをdefineして、
+// ⇓この2つのシンボルを正しく定義するembedded_nnue.cppを書けば良い。
 #if defined(EVAL_EMBEDDING)
 	extern const char*  gEmbeddedNNUEData;
 	extern const size_t gEmbeddedNNUESize;

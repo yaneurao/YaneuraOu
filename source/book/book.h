@@ -15,7 +15,7 @@ namespace Search { struct LimitsType; };
 // 定跡処理関連のnamespace
 namespace Book
 {
-	static char* BookDBHeader2016_100 = "#YANEURAOU-DB2016 1.00";
+	static const char* BookDBHeader2016_100 = "#YANEURAOU-DB2016 1.00";
 
 	// 将棋ソフト用の標準定跡ファイルフォーマットの提案 : http://yaneuraou.yaneu.com/2016/02/05/standard-shogi-book-format/
 

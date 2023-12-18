@@ -1423,7 +1423,9 @@ namespace Book
 
 				// cp_to_value()はscale downするから⇓変換後、このclampの範囲外に出ないことは保証される。scale upする場合は、注意。
 				value = std::clamp(value , VALUE_MATED_IN_MAX_PLY , VALUE_MATE_IN_MAX_PLY);
+#if defined(USE_PIECE_VALUE)
 				r.previousScore = r.usiScore = r.score = USI::cp_to_value(value);
+#endif
 				// ⇨　定跡の評価値0になってる方が、嬉しい意味もあるか…。
 
 				// 2手目の指し手も与えないとponder出来ない。

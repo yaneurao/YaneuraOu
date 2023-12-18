@@ -1053,8 +1053,9 @@ namespace MakeBook2023
 								Color  stm  = ~book_node.color();
 								string sfen = (stm != pos.side_to_move()) ? pos.flipped_sfen(ply + 1) : pos.sfen(ply + 1);
 
+								// write_sfensのinsertはここでしか行わないので、ここでcheck()すれば十分。
 								write_sfens.insert(sfen);
-								write_counter2++;
+								progress.check(write_counter2++);
 
 								// この手はないものとして、この book_node_index を起点として上流に更新していけばOK。
 								book_node.moves[best_index].move = MOVE_NONE;
@@ -1247,7 +1248,7 @@ namespace MakeBook2023
 
 					// ⇑ sort中にpacked sfenのunpackをしてメモリ節約するのは無謀であったか…。
 
-					cout << "Unpack sfens        : " << endl;
+					cout << "Unpack packed sfens : " << endl;
 
 					// 並び替えを行う。
 					// ただしbook_nodes直接並び替えるのはメモリ移動量が大きいのでindexのみをsortする。
@@ -1280,7 +1281,7 @@ namespace MakeBook2023
 					// しかしsortするのも丸読みしないといけないから大変か…。
 					// この時点で要らないものをいったん解放できると良いのだが…。
 
-					cout << "Write book directly : " << endl;
+					cout << "Write to a book DB  : " << endl;
 
 					SystemIO::TextWriter writer;
 					if (writer.Open(writebook_path).is_not_ok())
