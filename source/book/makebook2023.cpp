@@ -47,6 +47,177 @@
 using namespace std;
 using namespace Book;
 
+// ある局面の指し手の配列、std::vector<Move>だとsize_t(64bit環境で8バイト)でcapacityとかsizeとか格納するので
+// 非常にもったいない。定跡のある局面の指し手が255手を超えることはないだろうから1byteでも十分。
+// そこで、size_tではなくint16_tでサイズなどを保持しているvectorのsubsetを用意する。
+// dataポインタが8バイトなのももったいないが…。これは仕方がないか…。
+
+template <typename T>
+class SmallVector {
+public:
+    SmallVector() : data(nullptr), count(0), capacity(0) {}
+
+    // ムーブコンストラクタ
+    SmallVector(SmallVector&& other) noexcept 
+        : data(nullptr), count(0), capacity(0) {
+        swap(other);
+    }
+
+	// ムーブ代入演算子
+    SmallVector& operator=(SmallVector&& other) noexcept {
+        if (this != &other) {
+            clear();
+            swap(other);
+        }
+        return *this;
+    }
+
+	~SmallVector() {
+        clear();
+		release();
+    }
+
+    void push_back(const T& value) {
+        emplace_back(value);
+    }
+
+    template <typename... Args>
+    void emplace_back(Args&&... args) {
+        //if (count == UINT16_MAX) {
+        //    throw std::length_error("LimitedVector cannot exceed UINT16_MAX elements");
+        //}
+
+        if (count == capacity) {
+            increase_capacity();
+        }
+
+        new (&get()[count]) T(std::forward<Args>(args)...);
+        count++;
+    }
+
+    T& operator[](size_t idx) {
+        //if (idx < 0 || idx >= count) {
+        //    throw std::out_of_range("Index out of range");
+        //}
+        //return data[idx];
+
+		return get()[idx];
+    }
+
+    const T& operator[](size_t idx) const {
+        //if (idx < 0 || idx >= count) {
+        //    throw std::out_of_range("Index out of range");
+        //}
+        //return data[idx];
+
+		return get()[idx];
+    }
+
+    size_t size() const {
+        return count;
+    }
+
+    T* begin() {
+        return get();
+    }
+
+    T* end() {
+        return get() + count;
+    }
+
+    void clear() {
+        for (int i = 0; i < count; ++i) {
+            (*this)[i].~T();
+        }
+        count = 0;
+    }
+
+    void erase(T* position) {
+        //if (position < data || position >= data + count) {
+        //    throw std::out_of_range("Iterator out of range");
+        //}
+
+        position->~T(); // Call the destructor for the element to be erased
+
+        // Shift elements after position one place to the left
+        for (T* it = position; it != get() + count - 1; ++it) {
+            new (it) T(std::move(*(it + 1))); // Move construct the next element
+
+			(it + 1)->~T(); // Destroy the moved-from object
+        }
+
+        --count;
+    }
+
+    void swap(SmallVector& other) noexcept {
+        using std::swap;
+        swap(data, other.data);
+        swap(count, other.count);
+        swap(capacity, other.capacity);
+    }
+
+private:
+
+    void increase_capacity() {
+        size_t new_capacity = capacity == 0 ? 1 : capacity * 2;
+        if (new_capacity > UINT16_MAX) new_capacity = UINT16_MAX;
+
+		// 小さいなら、dataポインターが配置されているメモリ領域を使う。
+		bool embedded = new_capacity * sizeof(T) <= sizeof(T*);
+		T* new_data = embedded
+			? reinterpret_cast<T*>(&data)
+			: reinterpret_cast<T*>(new char[new_capacity * sizeof(T)]);
+
+		// 両方がembeddedである時、同じオブジェクトを指しているため、
+		// moveのあとのデストラクタ呼び出しによって壊してしまうのでやらない。
+		if (!embedded)
+		{
+			for (int i = 0; i < count; ++i) {
+				new (&new_data[i]) T(std::move((*this)[i])); // Move existing elements
+				(*this)[i].~T(); // Call destructor for moved elements
+			}
+		}
+
+		release();
+		if (!embedded)
+	        data = new_data;
+
+		capacity = int16_t(new_capacity);
+    }
+
+	// メンバー変数のdataはポインターではなく要素の格納用に使っているのか？
+	bool is_embedded() const { return sizeof(T) * capacity <= sizeof(T*);}
+
+	// dataポインターの値を返す。ただし、節約のためにここを要素に使っているなら、このアドレスを返す。
+	T* get()
+	{
+		return is_embedded() ? reinterpret_cast<T*>(&data) : data;
+	}
+
+	// dataを解放する。ただし、newしてなければ解放しない。
+	void release() {
+		if (!is_embedded())
+			delete[] reinterpret_cast<char*>(data);
+	}
+
+	// このポインターもったいないので節約のために要素が1つだけとかで
+	// それがsize_of(T*)に収まる場合はここをデータとして用いる。
+    T* data;
+
+    int16_t count;
+    int16_t capacity;
+};
+
+// ADLを利用したswapの非メンバ関数バージョン
+// SmallVectorの名前空間内で定義する
+namespace std {
+    template <typename T>
+    void swap(SmallVector<T>& a, SmallVector<T>& b) noexcept {
+        a.swap(b);
+    }
+}
+
+
 namespace MakeBook2023
 {
 	// BookMoveのポインターみたいなやつ。これで局面の行き来を行う。
@@ -289,14 +460,16 @@ namespace MakeBook2023
 
 		// このnodeの親のlist
 		// (つまり、その局面から指し手で1手進めてこの局面に到達できる)
-		vector<ParentMove> parents;
+		SmallVector<ParentMove> parents;
 
 		// 指し手
-		vector<BookMove> moves;
+		SmallVector<BookMove> moves;
 
 		// 後退解析IIの時の前回の親に伝播したValueDepthの値。
 		// 全ノード、これが前回と変わっていないなら後退解析を終了できる。
-		ValueDepth lastParentVd = ValueDepth(BOOK_VALUE_INF, 0);
+		//ValueDepth lastParentVd = ValueDepth(BOOK_VALUE_INF, 0);
+		// ⇨　メモリもったいないし大きな定跡だと循環しつづけて値が変わり続けて
+		//    役に立たないっぽいので削除。
 
 		// key(この局面からhash keyを逆引きしたい時に必要になるので仕方なく追加してある)
 		//HASH_KEY key;
@@ -647,7 +820,7 @@ namespace MakeBook2023
 				pos.set_from_packed_sfen(book_node.packed_sfen, &si, Threads.main());
 
 				// 定跡DBに登録されていた指し手
-				vector<BookMove> book_moves;
+				SmallVector<BookMove> book_moves;
 				std::swap(book_node.moves, book_moves); // swapしていったんbook_move.movesはクリアしてしまう。
 
 				// ここから全合法手で一手進めて既知の(DB上の他の)局面に行くかを調べる。
@@ -866,9 +1039,6 @@ namespace MakeBook2023
 			// MAX_PLY回だけ評価値を伝播させる。
 			for(size_t loop = 0 ; loop < MAX_PLY ; ++loop)
 			{
-				// 1つのノードでもupdateされたのか？
-				bool updated = false;
-
 				for(auto& book_node : book_nodes)
 				{
 					// 入次数1以上のnodeなのでparentがいるから、このnodeの情報をparentに伝播。
@@ -879,41 +1049,23 @@ namespace MakeBook2023
 						size_t _;
 						auto best = get_bestvalue(book_node , parent_vd, _);
 
-						// 親nodeをupdateするのか。
-						bool update_parent = false;
-
-						// valueかdepthが違う限り伝播し続けて良い。
-						if (   book_node.lastParentVd != parent_vd )
+						// このnodeの評価が決まり、更新が確定したので、これをparentに伝達する。
+						// 子:親は1:Nだが、親のある指し手によって進める子は高々1つしかいないので
+						// 子の評価値は、それぞれの親のこの局面に進む指し手の評価値としてそのまま伝播される。
+						for(auto& parent : book_node.parents)
 						{
-							book_node.lastParentVd = parent_vd;
-							updated = true;
-							update_parent = true;
-						}
+							BookNodeIndex parent_index = parent.parent;
+							BookNode&     parent_node  = book_nodes[parent_index];
+							BookMove&     parent_move  = parent_node.moves[parent.move_index];
 
-						if (update_parent)
-						{
-							// このnodeの評価が決まり、更新が確定したので、これをparentに伝達する。
-							// 子:親は1:Nだが、親のある指し手によって進める子は高々1つしかいないので
-							// 子の評価値は、それぞれの親のこの局面に進む指し手の評価値としてそのまま伝播される。
-							for(auto& parent : book_node.parents)
-							{
-								BookNodeIndex parent_index = parent.parent;
-								BookNode&     parent_node  = book_nodes[parent_index];
-								BookMove&     parent_move  = parent_node.moves[parent.move_index];
+							// 親に伝播させている以上、前回のvalueの値と異なることは確定している。
 
-								// 親に伝播させている以上、前回のvalueの値と異なることは確定している。
-
-								parent_move.vd = parent_vd;
-							}
+							parent_move.vd = parent_vd;
 						}
 					}
 
 					progress.check(++counter);
 				}
-
-				// すべてのnodeがupdateされていないならこれ以上更新を繰り返しても仕方がない。
-				if (!updated)
-					break;
 			}
 			progress.check(book_nodes.size() * MAX_PLY);
 
@@ -1056,7 +1208,8 @@ namespace MakeBook2023
 
 								// write_sfensのinsertはここでしか行わないので、ここでcheck()すれば十分。
 								write_sfens.insert(sfen);
-								progress.check(write_counter2++);
+								progress.check(write_sfens.size());
+								write_counter2++;
 
 								// この手はないものとして、この book_node_index を起点として上流に更新していけばOK。
 								book_node.moves[best_index].move = MOVE_NONE;
