@@ -1533,10 +1533,16 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		if (Threads.stop.load(std::memory_order_relaxed) || (ss->ply >= MAX_PLY))
 			return draw_value(REPETITION_DRAW, pos.side_to_move());
 
+		// 最大手数による引き分けの判定
 		if (pos.game_ply() > Limits.max_game_ply)
 		{
-			// この局面で詰んでいる可能性がある。その時はmatedのスコアを返すべき。
-			// 詰んでいないなら引き分けのスコアを返すべき。
+			// 256手ルール(エンジンオプションのMaxMovesToDraw == Limits.max_game_ply == 256)だとして
+			// 257手目(pos.game_ply() == 257)でかつ合法手があるなら、引き分け。
+			// 256手ルールでも257手目で合法手がない(詰んでいる)なら、mated。
+			// 
+			// また、連続王手の千日手で257手目に到達しているパターンがあるから、
+			// ⇑のis_repetitionの判定のあとにこの最大手数による引き分けの判定をする必要がある。
+			// 
 			// 関連)
 			//    多くの将棋ソフトで256手ルールの実装がバグっている件
 			//    https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
@@ -1791,6 +1797,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	// chessだと終盤データベースというのがある。
 	// これは将棋にはないが、将棋には代わりに宣言勝ちというのがある。
+	// 宣言勝ちと1手詰めだと1手詰めの方が圧倒的に多いので、まず1手詰め判定を行う。
 
 	// 以下は、やねうら王独自のコード。
 
@@ -3370,6 +3377,10 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	ss->inCheck        = pos.checkers();
 	moveCount          = 0;
 
+    // Used to send selDepth info to GUI (selDepth counts from 1, ply from 0)
+    if (PvNode && thisThread->selDepth < ss->ply + 1)
+        thisThread->selDepth = ss->ply + 1;
+
 	// -----------------------
 	//    最大手数へ到達したか？
 	// -----------------------
@@ -3400,16 +3411,12 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	if (ss->ply >= MAX_PLY)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());
 
+	// 最大手数の判定
+	// TODO : 連続王手の千日手でこの局面に到達している場合は、
+	// 　　　引き分けのスコアを返しているのは間違いなのだが…。
+	//       PvNodeではこれやめたほうがいいかもなー。
 	if (pos.game_ply() > Limits.max_game_ply)
-	{
-		// この局面で詰んでいる可能性がある。その時はmatedのスコアを返すべき。
-		// 詰んでいないなら引き分けのスコアを返すべき。
-		// 関連)
-		//    多くの将棋ソフトで256手ルールの実装がバグっている件
-		//    https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
-
 		return pos.is_mated() ? mated_in(ss->ply) : draw_value(REPETITION_DRAW, pos.side_to_move());
-	}
 
 	ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
@@ -3986,21 +3993,18 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 	        << quietMoveBonus;
 #endif
 
-		int moveMalus     = bestValue > beta + PARAM_UPDATE_ALL_STATS_EVAL_TH /*168*/ ? quietMoveMalus      // larger malus
-							    													  : stat_malus(depth);  // smaller malus
-
 		// Decrease stats for all non-best quiet moves
 		for (int i = 0; i < quietCount; ++i)
 		{
 #if defined(ENABLE_PAWN_HISTORY)
 			thisThread->pawnHistory(pawn_structure(pos), pos.moved_piece_after(quietsSearched[i]), to_sq(quietsSearched[i]))
-				<< -moveMalus;
+				<< -quietMoveMalus;
 #endif
 
-			thisThread->mainHistory(us, from_to(quietsSearched[i])) << -moveMalus;
+			thisThread->mainHistory(us, from_to(quietsSearched[i])) << -quietMoveMalus;
 
 			update_continuation_histories(ss, pos.moved_piece_after(quietsSearched[i]),
-				to_sq(quietsSearched[i]), -moveMalus);
+				to_sq(quietsSearched[i]), -quietMoveMalus);
 		}
 	}
 	else {
