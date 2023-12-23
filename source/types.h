@@ -422,23 +422,24 @@ enum Value: int32_t
 	// 引き分け時のスコア(千日手のスコアリングなどで用いる)
 	VALUE_DRAW = 0,
 
-	// 0手詰めのスコア(rootで詰んでいるときのscore)
-	// 例えば、3手詰めならこの値より3少ない。
-	VALUE_MATE = 32000,
+	// 無効な値
+	VALUE_NONE = 32002,
 
 	// Valueの取りうる最大値(最小値はこの符号を反転させた値)
 	VALUE_INFINITE = 32001,
 
-	// 無効な値
-	VALUE_NONE = 32002,
-
-	// チェスの終盤DBによって得られた詰みのスコアらしいが、互換性のためにこのシンボルは同様に定義しておく。
-	// Stockfishの元のコードは *2 となっているが、ここは *1 にしておかないと評価値で使える値の範囲が狭まって損。
-	VALUE_TB_WIN_IN_MAX_PLY  =  VALUE_MATE - /*2*/ 1 * MAX_PLY,
-	VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY, 
+	// 0手詰めのスコア(rootで詰んでいるときのscore)
+	// 例えば、3手詰めならこの値より3少ない。
+	VALUE_MATE = 32000,
 
 	VALUE_MATE_IN_MAX_PLY  =   VALUE_MATE - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
 	VALUE_MATED_IN_MAX_PLY = -VALUE_MATE_IN_MAX_PLY , // MAX_PLYで詰まされるときのスコア。
+
+	// チェスの終盤DBによって得られた詰みのスコアらしいが、互換性のためにこのシンボルは同様に定義しておく。
+	VALUE_TB                 = VALUE_MATE_IN_MAX_PLY - 1,
+	VALUE_TB_WIN_IN_MAX_PLY  = VALUE_MATE - MAX_PLY,
+	VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY, 
+
 
 	// 千日手による優等局面への突入したときのスコア
 	// これある程度離しておかないと、置換表に書き込んで、相手番から見て、これから

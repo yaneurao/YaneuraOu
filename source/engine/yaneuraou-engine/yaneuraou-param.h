@@ -247,12 +247,6 @@ PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 168;
 // misc
 //
 
-// fail lowを引き起こしたcounter moveにbonus与える時のevalのmargin値。
-// 重要度　★★★☆☆
-// 元の値 = 657 , step = 50
-// [PARAM] min:10,max:1000,step:25,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_COUNTERMOVE_FAILLOW_MARGIN = 657;
-
 
 // aspiration searchの増加量。
 // 重要度　★★☆☆☆

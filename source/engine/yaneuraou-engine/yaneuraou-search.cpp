@@ -3199,7 +3199,7 @@ moves_loop:
 
 	else if (!priorCapture && prevSq != SQ_NONE)
 	{
-		int bonus = (depth > 6) + (PvNode || cutNode) + (bestValue < alpha - PARAM_COUNTERMOVE_FAILLOW_MARGIN /*657*/)
+		int bonus = (depth > 6) + (PvNode || cutNode) + ((ss - 1)->statScore < -18782)
 				    + ((ss - 1)->moveCount > 10);
 		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
 										stat_bonus(depth) * bonus);
@@ -3912,11 +3912,11 @@ Value value_to_tt(Value v, int ply) {
 			: v <= VALUE_TB_LOSS_IN_MAX_PLY ? v - ply : v;
 }
 
-// value_from_tt() is the inverse of value_to_tt(): it adjusts a mate or TB score
+// Inverse of value_to_tt(): it adjusts a mate or TB score
 // from the transposition table (which refers to the plies to mate/be mated from
-// current position) to "plies to mate/be mated (TB win/loss) from the root". However,
-// for mate scores, to avoid potentially false mate scores related to the 50 moves rule
-// and the graph history interaction, we return an optimal TB score instead.
+// current position) to "plies to mate/be mated (TB win/loss) from the root".
+// However, to avoid potentially false mate or TB scores related to the 50 moves rule
+// and the graph history interaction, we return highest non-TB score instead.
 
 // value_to_tt()の逆関数
 // ply : root node からの手数。(ply_from_root)
@@ -3925,18 +3925,33 @@ Value value_from_tt(Value v, int ply) {
 	if (v == VALUE_NONE)
 		return VALUE_NONE;
 
-	if (v >= VALUE_TB_WIN_IN_MAX_PLY)  // TB win or better
+	// handle TB win or better
+	if (v >= VALUE_TB_WIN_IN_MAX_PLY)
 	{
-		//if (v >= VALUE_MATE_IN_MAX_PLY && VALUE_MATE - v > 99 - r50c)
-		//	return VALUE_MATE_IN_MAX_PLY - 1; // do not return a potentially false mate score
+		/*
+        // Downgrade a potentially false mate score
+        if (v >= VALUE_MATE_IN_MAX_PLY && VALUE_MATE - v > 100 - r50c)
+            return VALUE_TB_WIN_IN_MAX_PLY - 1;
+
+        // Downgrade a potentially false TB score.
+        if (VALUE_TB - v > 100 - r50c)
+            return VALUE_TB_WIN_IN_MAX_PLY - 1;
+		*/
 
 		return v - ply;
 	}
 
-	if (v <= VALUE_TB_LOSS_IN_MAX_PLY) // TB loss or worse
+	// handle TB loss or worse
+	if (v <= VALUE_TB_LOSS_IN_MAX_PLY)
 	{
-		//if (v <= VALUE_MATED_IN_MAX_PLY && VALUE_MATE + v > 99 - r50c)
-		//	return VALUE_MATED_IN_MAX_PLY + 1; // do not return a potentially false mate score
+		/*
+        if (v <= VALUE_MATED_IN_MAX_PLY && VALUE_MATE + v > 100 - r50c)
+            return VALUE_TB_LOSS_IN_MAX_PLY + 1;
+
+        // Downgrade a potentially false TB score.
+        if (VALUE_TB + v > 100 - r50c)
+            return VALUE_TB_LOSS_IN_MAX_PLY + 1;
+		*/
 
 		return v + ply;
 	}

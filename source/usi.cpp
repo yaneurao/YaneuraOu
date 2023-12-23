@@ -1178,6 +1178,13 @@ std::string USI::value(Value v)
 	else if (std::abs(v) < VALUE_MATE_IN_MAX_PLY)
 		//s << "cp " << v * 100 / int(Eval::PawnValue);
 		ss << "cp " << USI::to_cp(v);
+	/*
+    else if (abs(v) <= VALUE_TB)
+    {
+        const int ply = VALUE_TB - std::abs(v);  // recompute ss->ply
+        ss << "cp " << (v > 0 ? 20000 - ply : -20000 + ply);
+    }
+	*/
 	else if (v == -VALUE_MATE)
 		// USIプロトコルでは、手数がわからないときには "mate -"と出力するらしい。
 		// 手数がわからないというか詰んでいるのだが…。これを出力する方法がUSIプロトコルで定められていない。
