@@ -2235,7 +2235,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	if (   !PvNode
 		&&  depth > 3
-		&&  abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
+		&&  std::abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
 			
 	    // If value from transposition table is lower than probCutBeta, don't attempt probCut
 		// there and in further interactions with transposition table cutoff depth is set to depth - 3
@@ -2334,8 +2334,8 @@ moves_loop:
 		&& (tte->bound() & BOUND_LOWER)
 		&& tte->depth() >= depth - 4
 		&& ttValue >= probCutBeta
-		&& abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY
-		&& abs(beta)    < VALUE_TB_WIN_IN_MAX_PLY
+		&& std::abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY
+		&& std::abs(beta)    < VALUE_TB_WIN_IN_MAX_PLY
 		)
 		return probCutBeta;
 
@@ -2607,7 +2607,7 @@ moves_loop:
 				&& !excludedMove // 再帰的なsingular延長を除外する。
 		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH - (thisThread->completedDepth > 24) + 2 * (PvNode && tte->is_pv())
 			/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
-				&&  abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
+				&&  std::abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 				&& (tte->bound() & BOUND_LOWER)
 				&&  tte->depth() >= depth - 3)
 				// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != MOVE_NONE)
@@ -3859,8 +3859,11 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		ASSERT_LV5(!MoveList<LEGAL>(pos).size());
 
 		return mated_in(ss->ply); // Plies to mate from the root
-									// rootから詰みまでの手数。
+								  // rootから詰みまでの手数。
 	}
+
+    if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY)
+        bestValue = bestValue >= beta ? (3 * bestValue + beta) / 4 : bestValue;
 
 	// Save gathered info in transposition table
 	// 詰みではなかったのでこれを書き出す。

@@ -1161,7 +1161,7 @@ int USI::to_cp(Value v) {
 // cpからValueへ。⇑の逆変換。
 Value USI::cp_to_value(int v)
 {
-	return Value((abs(v) < VALUE_MATE_IN_MAX_PLY) ? (USI::NormalizeToPawnValue * v / 100) : v);
+	return Value((std::abs(v) < VALUE_MATE_IN_MAX_PLY) ? (USI::NormalizeToPawnValue * v / 100) : v);
 }
 
 // スコアを歩の価値を100として正規化して出力する。
@@ -1175,7 +1175,7 @@ std::string USI::value(Value v)
 	// 置換表上、値が確定していないことがある。
 	if (v == VALUE_NONE)
 		ss << "none";
-	else if (abs(v) < VALUE_MATE_IN_MAX_PLY)
+	else if (std::abs(v) < VALUE_MATE_IN_MAX_PLY)
 		//s << "cp " << v * 100 / int(Eval::PawnValue);
 		ss << "cp " << USI::to_cp(v);
 	else if (v == -VALUE_MATE)

@@ -6,6 +6,7 @@
 
 #include <array>
 //#include <cassert>
+#include <cmath>
 //#include <cstdint>
 //#include <cstdlib>
 #include <limits>
@@ -46,14 +47,14 @@ public:
 	// 値が範囲外にならないように制限してある。
 	void operator<<(int bonus) {
 
-		ASSERT_LV3(abs(bonus) <= D); // 範囲が[-D,D]であるようにする。
+		ASSERT_LV3(std::abs(bonus) <= D); // 範囲が[-D,D]であるようにする。
 		// オーバーフローしないことを保証する。
 		static_assert(D <= std::numeric_limits<T>::max(), "D overflows T");
 
 		// この式は、Stockfishのコードそのまま。
 		// 試行錯誤の結果っぽくて、数学的な根拠はおそらくない。
 
-		entry += bonus - entry * abs(bonus) / D;
+		entry += bonus - entry * std::abs(bonus) / D;
 
 		// 解説)
 		// 
@@ -71,7 +72,7 @@ public:
 		// ・絶対値がDを超えないように注意しながらentryにbonusを加算する
 		// 
 
-		ASSERT_LV3(abs(entry) <= D);
+		ASSERT_LV3(std::abs(entry) <= D);
 	}
 };
 
