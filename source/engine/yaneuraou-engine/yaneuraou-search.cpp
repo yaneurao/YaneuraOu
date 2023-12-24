@@ -3582,17 +3582,21 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			}
 		}
 
-		// Stand pat. Return immediately if static value is at least beta
+		// Stand pat. Return immediately if bestValue is at least beta at non-Pv nodes.
+        // At PvNodes set bestValue between alpha and beta instead
 		// 現在のbestValueは、この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
 		// 王手がかかっていないケースにおいては、この時点での静的なevalの値がbetaを上回りそうならこの時点で帰る。
 		if (bestValue >= beta)
 		{
-	        // Save gathered info in transposition table
-			if (!ss->ttHit)
-				tte->save(posKey, value_to_tt(bestValue, ss->ply), false /* ss->ttHit == false */, BOUND_LOWER,
-							DEPTH_NONE, MOVE_NONE, ss->staticEval);
+            if (!PvNode || std::abs(bestValue) >= VALUE_TB_WIN_IN_MAX_PLY)
+            {
+                if (!ss->ttHit)
+                    tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
+                              DEPTH_NONE, MOVE_NONE, ss->staticEval);
 
-			return bestValue;
+                return bestValue;
+            }
+            bestValue = std::min((alpha + beta) / 2, beta - 1);
 		}
 
 		// 王手がかかっていなくてPvNodeでかつ、bestValueがalphaより大きいならそれをalphaの初期値に使う。
