@@ -1274,14 +1274,14 @@ void Thread::search()
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
 
 				double fallingEval = (66 + 14 * (mainThread->bestPreviousAverageScore - bestValue)
-										+  6 * (mainThread->iterValue[iterIdx] - bestValue)) / 583.0;
-				fallingEval = std::clamp(fallingEval, 0.5, 1.5);
+										+  6 * (mainThread->iterValue[iterIdx] - bestValue)) / 616.6;
+				fallingEval = std::clamp(fallingEval, 0.51, 1.51);
 
 				// If the bestMove is stable over several iterations, reduce time accordingly
 				// もしbestMoveが何度かのiterationにおいて安定しているならば、思考時間もそれに応じて減らす
 
 				timeReduction = lastBestMoveDepth + 8 < completedDepth ? 1.56 : 0.69;
-				double reduction = (1.4 + mainThread->previousTimeReduction) / (2.03 * timeReduction);
+				double reduction = (1.4 + mainThread->previousTimeReduction) / (2.17 * timeReduction);
 
 				// rootでのbestmoveの不安定性。
 				// bestmoveが不安定であるなら思考時間を増やしたほうが良い。
