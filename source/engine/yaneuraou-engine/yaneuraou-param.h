@@ -72,6 +72,17 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 43;
 // [PARAM] min:100,max:240,step:30,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 108;
 
+// 重要度　★★★☆☆
+// 元の値 = Stockfish 14 : 197 , Stockfish 16 : 239 , step = 20
+// [PARAM] min:100,max:240,step:30,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_EVAL1 = 239;
+
+// 重要度　★★★☆☆
+// 元の値 = Stockfish 14 : 248 , Stockfish 16 : 291 , step = 20
+// [PARAM] min:100,max:240,step:30,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_EVAL2 = 291;
+
+
 
 // 静止探索でのfutility pruning
 // 重要度　★★★★☆
@@ -254,7 +265,13 @@ PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 168;
 // 古い評価関数では20ぐらいがベストだったが、NNUEでは17がベストのようだ。評価関数の精度向上とともに徐々に小さくなってきている。
 // 元の値 = 10 , step = 1
 // [PARAM] min:5,max:30,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_ASPIRATION_SEARCH_DELTA = 10;
+PARAM_DEFINE PARAM_ASPIRATION_SEARCH1 = 10;
+
+// aspiration searchの定数。
+// 重要度　★★☆☆☆
+// 元の値 = 14847 , step = 1000
+// [PARAM] min:10000,max:20000,step:1,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_ASPIRATION_SEARCH2 = 15335;
 
 
 // qsearch()でnull moveのときもevaluate()を呼び出す。

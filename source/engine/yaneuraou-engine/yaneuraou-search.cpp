@@ -201,7 +201,7 @@ enum NodeType { NonPV, PV , Root};
 // depth(残り探索深さ)に応じたfutility margin。
 // ※ RazoringはStockfish12で効果がないとされてしまい除去された。
 Value futility_margin(Depth d, bool noTtCutNode, bool improving) {
-	return Value((PARAM_FUTILITY_MARGIN_ALPHA1/*125*/  - PARAM_FUTILITY_MARGIN_ALPHA2/*43*/ * noTtCutNode) * (d - improving));
+	return Value((PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode) * (d - improving));
 }
 
 // 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
@@ -217,8 +217,8 @@ int Reductions[MAX_MOVES]; // [depth or moveNumber]
 // そのためのフラグ。(これがtrueだとreduction量が1増える)
 Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
 	int reductionScale = Reductions[d] * Reductions[mn];
-	return (reductionScale + PARAM_REDUCTION_ALPHA/*1487*/ - int(delta) * PARAM_REDUCTION_GAMMA/*976*/ / int(rootDelta)) / 1024
-		+ (!i && reductionScale > PARAM_REDUCTION_BETA/*808*/ );
+	return (reductionScale + PARAM_REDUCTION_ALPHA - int(delta) * PARAM_REDUCTION_GAMMA / int(rootDelta)) / 1024
+		+ (!i && reductionScale > PARAM_REDUCTION_BETA);
 	// PARAM_REDUCTION_BETAの値、将棋ではもう少し小さくして、reductionの適用範囲を広げた方がいいかも？
 }
 
@@ -242,9 +242,6 @@ constexpr int futility_move_count(bool improving, int depth) {
 }
 
 
-#if 1
-// Stockfish 16の式。
-
 // History and stats update bonus, based on depth
 // depthに基づく、historyとstatsのupdate bonus
 
@@ -258,14 +255,6 @@ int stat_bonus(Depth d) { return std::min(291 * d - 350, 1200); }
 // 「統計的なペナルティ」または「マイナスの修正値」を計算するために使用される。
 // この関数は、ある行動が望ましくない結果をもたらした場合に、その行動の評価を減少させるために使われる
 int stat_malus(Depth d) { return std::min(361 * d - 361, 1182); }
-
-#else
-
-// 場合によってはStockfish 14の時の式の方が良さげ。(V7.74z6 vs V7.74z12 , V7.74taya-t20 vs V7.74taya-t30)
-int stat_bonus(Depth d) { return std::min(336 * d - 547, 1561); }
-int stat_malus(Depth d) { return std::min(336 * d - 547, 1561); }
-
-#endif
 
 
 #if 0
@@ -1062,7 +1051,7 @@ void Thread::search()
 			// Stockfish 12.1では16に変更された。
 			// Stockfish 16では10に変更された。
 
-			delta = Value(PARAM_ASPIRATION_SEARCH_DELTA /*10*/) + int(avg) * avg / 15335;
+			delta = Value(PARAM_ASPIRATION_SEARCH1) + int(avg) * avg / PARAM_ASPIRATION_SEARCH2;
 			alpha = std::max(avg - delta,-VALUE_INFINITE);
 			beta  = std::min(avg + delta, VALUE_INFINITE);
 
@@ -2132,7 +2121,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		&& (ss - 1)->statScore < 17257
 		&&  eval >= beta
 		&&  eval >= ss->staticEval
-		&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 /*24*/ * depth + PARAM_NULL_MOVE_MARGIN2 /*281*/
+		&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 * depth + PARAM_NULL_MOVE_MARGIN2
 		&& !excludedMove
 	//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 		&&  ss->ply >= thisThread->nmpMinPly
@@ -2169,7 +2158,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			// 1手パスしてもbetaを上回りそうであることがわかったので
 			// これをもう少しちゃんと検証しなおす。
 
-	        if (thisThread->nmpMinPly || depth < PARAM_NULL_MOVE_RETURN_DEPTH/*14*/)
+	        if (thisThread->nmpMinPly || depth < PARAM_NULL_MOVE_RETURN_DEPTH)
 				return nullValue;
 
 			ASSERT_LV3(!thisThread->nmpMinPly); // Recursive verification is not allowed
@@ -2221,7 +2210,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		depth -= 2;
 
 	// probCutに使うbeta値。
-	probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*168*/ - PARAM_PROBCUT_MARGIN2/*70*/ * improving;
+	probCutBeta = beta + PARAM_PROBCUT_MARGIN1 - PARAM_PROBCUT_MARGIN2 * improving;
 
 	// -----------------------
 	// Step 11. ProbCut (~10 Elo)
@@ -2327,7 +2316,7 @@ moves_loop:
 	// Step 12. A small Probcut idea, when we are in check (~4 Elo)
 	// -----------------------
 
-	probCutBeta = beta + PARAM_PROBCUT_MARGIN3 /*416*/;
+	probCutBeta = beta + PARAM_PROBCUT_MARGIN3;
 	if (   ss->inCheck
 		&& !PvNode
 		&& ttCapture
@@ -2502,7 +2491,7 @@ moves_loop:
 					Piece capturedPiece = pos.piece_on(to_sq(move));
 					// TODO : ここのパラメーター、調整すべきか？ 2 Eloだから無視していいか…。
 					int   futilityEval =
-						ss->staticEval + 239 + 291 * lmrDepth + CapturePieceValuePlusPromote(pos, move)
+						ss->staticEval + PARAM_FUTILITY_EVAL1 + PARAM_FUTILITY_EVAL2 * lmrDepth + CapturePieceValuePlusPromote(pos, move)
 						+ captureHistory(movedPiece, to_sq(move), type_of(capturedPiece)) / 7;
 
 					if (futilityEval < alpha)
@@ -2526,7 +2515,7 @@ moves_loop:
 				// Continuation history based pruning (~2 Elo)
 				// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip)
 
-				if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH/*6*/ && history < -3645 * depth)
+				if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH && history < -3645 * depth)
 					continue;
 
 				history += 2 * thisThread->mainHistory(us, from_to(move));
@@ -2541,9 +2530,9 @@ moves_loop:
 				// 　ここ、そんなに大きなEloを持っていないので、調整しても…。
 
 				if (   !ss->inCheck
-					&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*13*/
+					&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH
 					&& ss->staticEval + (bestValue < ss->staticEval - 62 ? 123 : 77)
-						+ PARAM_FUTILITY_AT_PARENT_NODE_ALPHA /*127*/ * lmrDepth <= alpha)
+						+ PARAM_FUTILITY_AT_PARENT_NODE_ALPHA * lmrDepth <= alpha)
 					continue;
 
 				// ※　以下のLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
@@ -2616,7 +2605,7 @@ moves_loop:
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
 		        Value singularBeta  = ttValue
-					- (PARAM_SINGULAR_MARGIN1 /*64*/ + PARAM_SINGULAR_MARGIN2/* 57 */ * (ss->ttPv && !PvNode)) * depth / 64;
+					- (PARAM_SINGULAR_MARGIN1 + PARAM_SINGULAR_MARGIN2 * (ss->ttPv && !PvNode)) * depth / 64;
 				Depth singularDepth = newDepth / 2;
 
 				// move(ttMove)の指し手を以下のsearch()での探索から除外
@@ -3606,7 +3595,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		// futilityの基準となる値をbestValueにmargin値を加算したものとして、
 		// これを下回るようであれば枝刈りする。
-		futilityBase = ss->staticEval + PARAM_FUTILITY_MARGIN_QUIET /*200*/;
+		futilityBase = ss->staticEval + PARAM_FUTILITY_MARGIN_QUIET;
 
 	}
 
@@ -3626,11 +3615,11 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	Square prevSq = is_ok((ss - 1)->currentMove) ? to_sq((ss - 1)->currentMove) : SQ_NONE;
 	MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
 										&thisThread->captureHistory,
-										contHist,
+										contHist
 #if defined(ENABLE_PAWN_HISTORY)
-										&thisThread->pawnHistory,
+										,&thisThread->pawnHistory
 #endif
-										prevSq);
+										,prevSq);
 
 	// 王手回避の指し手のうちquiet(駒を捕獲しない)な指し手の数
 	int quietCheckEvasions = 0;
@@ -4004,8 +3993,8 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 		// PARAM_UPDATE_ALL_STATS_EVAL_TH は、PawnValueより少し小さな値がベストっぽい。
 		// ※ StockfishではPawnValueが210ぐらいなので、それを考慮すること。
 
-		int bestMoveBonus = bestValue > beta + PARAM_UPDATE_ALL_STATS_EVAL_TH /*168*/ ? quietMoveBonus		// larger bonus
-															                          : stat_bonus(depth);	// smaller bonus
+		int bestMoveBonus = bestValue > beta + PARAM_UPDATE_ALL_STATS_EVAL_TH ? quietMoveBonus		// larger bonus
+															                  : stat_bonus(depth);	// smaller bonus
 
 		// Increase stats for the best move in case it was a quiet move
 		update_quiet_stats(pos, ss, bestMove, bestMoveBonus);
@@ -4643,7 +4632,7 @@ ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodes
 			selDepth = 0;
 
 			Value avg = rootMoves[pvIdx].averageScore;
-			delta = Value(PARAM_ASPIRATION_SEARCH_DELTA) + int(avg) * avg / 15335;
+			delta = Value(PARAM_ASPIRATION_SEARCH1) + int(avg) * avg / PARAM_ASPIRATION_SEARCH2;
 
 			alpha = std::max(avg - delta, -VALUE_INFINITE);
 			beta  = std::min(avg + delta,  VALUE_INFINITE);
