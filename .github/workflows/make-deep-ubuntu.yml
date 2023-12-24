@@ -20,7 +20,7 @@ jobs:
       matrix:
         edition:
           - YANEURAOU_ENGINE_DEEP_ORT_CPU
-          - YANEURAOU_ENGINE_DEEP_TENSOR_RT
+          - YANEURAOU_ENGINE_DEEP_TENSOR_RT_UBUNTU
         compiler:
           - g++-10
           - g++-11

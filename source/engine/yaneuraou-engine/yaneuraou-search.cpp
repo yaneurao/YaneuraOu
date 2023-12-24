@@ -90,7 +90,7 @@ void USI::extra_option(USI::OptionsMap & o)
 	o["DrawValueWhite"] << Option(-2, -30000, 30000);
 
 	//  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
-	o["PvInterval"]     << Option(300, 0, 100000);
+	o["PvInterval"]     << Option(300, 0, 100000000);
 
 	// 投了スコア
 	o["ResignValue"]    << Option(99999, 0, 99999);

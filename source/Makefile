@@ -387,15 +387,15 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 		CPPFLAGS += -DYANEURAOU_ENGINE_DEEP
 
 		ifneq (,$(findstring TENSOR_RT,$(YANEURAOU_EDITION)))
-			CPPFLAGS += -DTENSOR_RT
+			CPPFLAGS      += -DTENSOR_RT
 			NVCC_CPPFLAGS += -DTENSOR_RT
-			LDFLAGS += -lnvinfer -lnvonnxparser -lcudart
+			LDFLAGS       += -lnvinfer -lnvonnxparser -lcudart
 
 			# YANEURAOU_EDITIONのなかにUBUNTUと言う文字列が含まれているならlinkerなどの設定をしてやる。
 			ifneq (,$(findstring UBUNTU,$(YANEURAOU_EDITION)))
 				CPPFLAGS += -I/usr/local/cuda/include
-				LDFLAGS += -L/usr/local/cuda/lib64
-				LDFLAGS += -L/usr/local/cuda/lib64/stubs
+				LDFLAGS  += -L/usr/local/cuda/lib64
+				LDFLAGS  += -L/usr/local/cuda/lib64/stubs
 			endif
 
 			CUDA_SOURCES += eval/deep/unpack.cu
