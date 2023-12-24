@@ -39,6 +39,8 @@
 #include <algorithm>
 #include <limits>
 #include <random>
+#include <utility> // For std::forward
+
 #include "book.h"
 #include "../thread.h"
 #include "../position.h"
@@ -1266,7 +1268,13 @@ namespace MakeBook2023
 
 						*/
 
-						deque<BookNodeIndex> queue;
+						//deque<BookNodeIndex> queue;
+						// ⇨　これ、queueにした方がleaf nodeからの距離の順に伝播して良いと思うのだが、
+						//    循環してて300万局面のleaf nodeから親が5万ノードほどあるので増えてくるとここの
+						//    オーバーヘッドが許容できない。
+						//    仕方なくvectorにする。
+
+						vector<BookNodeIndex> queue;
 						queue.emplace_back(book_node_index);
 
 						// update済みノード
@@ -1274,8 +1282,11 @@ namespace MakeBook2023
 
 						while (queue.size())
 						{
-							auto book_node_index = queue[0];
-							queue.pop_front();
+							//auto book_node_index = queue[0];
+							//queue.pop_front();
+
+							auto book_node_index = queue.back();
+							queue.pop_back();
 
 							auto& book_node = book_nodes[book_node_index];
 
@@ -1287,6 +1298,11 @@ namespace MakeBook2023
 
 							for(auto& pm : book_node.parents)
 							{
+								auto& parent_book_node = book_nodes[pm.parent];
+								ValueDepth parent_parent_vd;
+								size_t     parent_best_index;
+								auto parent_best_vd    = get_bestvalue(book_node, parent_parent_vd, parent_best_index);
+
 								if (delete_flag)
 									// 1a. この局面に至る親からの指し手をすべて削除。
 									book_nodes[pm.parent].moves[pm.move_index].move = MOVE_NONE;
@@ -1294,11 +1310,17 @@ namespace MakeBook2023
 									// 1b. この局面に至る親からの指し手の評価値を更新
 									book_nodes[pm.parent].moves[pm.move_index].vd = best_vd;
 
-								// 2. 親を更新対象に追加
-								if (already_updated_node.count(pm.parent) == 0)
+								// これ⇑によって親のbestに変化が生じたのか？
+								auto parent_best_vd2   = get_bestvalue(book_node, parent_parent_vd, parent_best_index);
+								if (parent_best_vd != parent_best_vd2)
 								{
-									already_updated_node.insert(pm.parent);
-									queue.push_back(pm.parent);
+									// 2. 親を更新対象に追加
+									// すでに一度でも追加しているならこれ以上は追加しない。(ループ防止)
+									if (already_updated_node.count(pm.parent) == 0)
+									{
+										already_updated_node.insert(pm.parent);
+										queue.push_back(pm.parent);
+									}
 								}
 							}
 							// 3. 親を丸ごと削除
