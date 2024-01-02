@@ -528,6 +528,9 @@ namespace MakeBook2023
 			// 書き出す時にメモリを超節約する。
 			bool memory_saving = false;
 
+			// peta_shock_nextで局面を"startpos moves.."の形式で出力する。
+			bool from_startpos = false;
+
 			is >> readbook_path >> writebook_path;
 
 			readbook_path  = Path::Combine("book",readbook_path );
@@ -541,6 +544,8 @@ namespace MakeBook2023
 				{
 					if (token == "eval_noise")
 						is >> eval_noise;
+					else if (token == "from_startpos")
+						from_startpos = true;
 				}
 
 			} else {
@@ -557,8 +562,9 @@ namespace MakeBook2023
 			if (next)
 			{
 				// 書き出すsfenの数
-				cout << "write next_sfens   : " << next_nodes << endl;
-				cout << "eval_noise         : " << eval_noise << endl;
+				cout << "write next_sfens   : " << next_nodes    << endl;
+				cout << "eval_noise         : " << eval_noise    << endl;
+				cout << "from_startpos      : " << from_startpos << endl;
 
 				// これは現状ファイル名固定でいいや。
 				root_sfens_path = Path::Combine("book","root_sfens.txt");
@@ -673,7 +679,8 @@ namespace MakeBook2023
 			if (next)
 			{
 				if (SystemIO::ReadAllLines(root_sfens_path,root_sfens).is_not_ok())
-					root_sfens.emplace_back(BookTools::get_start_sfens()[0]);
+					// root_sfens.txtが存在しないなら、startposを突っ込んでおく。
+					root_sfens.emplace_back("startpos");
 			}
 
 
@@ -1121,10 +1128,10 @@ namespace MakeBook2023
 					// 普通のsfen文字列にしたroot_sfen。
 					string root_sfen0 = pos.sfen();
 					// root_sfenの元の手番
-					Color stm = pos.side_to_move();
+					Color root_stm = pos.side_to_move();
 					// root局面のgame ply
 					int root_ply = pos.game_ply();
-					if (stm == BLACK)
+					if (root_stm == BLACK)
 					{
 						// 後手番の局面になるようにflipする。(hash key調べたいので)
 						auto white_sfen = Position::sfen_to_flipped_sfen(pos.sfen());
@@ -1135,7 +1142,10 @@ namespace MakeBook2023
 					// このroot_sfenの局面が定跡DB上に存在しない
 					if (hashkey_to_index.count(pos.hash_key()) == 0)
 					{
-						write_sfens.emplace(root_sfen0);
+						if (from_startpos)
+							write_sfens.emplace(root_sfen);
+						else
+							write_sfens.emplace(root_sfen0);
 
 						continue;
 					}
@@ -1162,8 +1172,13 @@ namespace MakeBook2023
 						if (++timeup_counter > next_nodes * 10)
 							break;
 
+						// 現在の手番
+						Color stm = root_stm;
+
 						// leafの局面までの手順
-						//string sfen_path = "startpos moves ";
+						string sfen_path = root_sfen;
+						if (!StringExtension::Contains(sfen_path,"moves"))
+							sfen_path += " moves";
 
 						// 開始局面
 						BookNodeIndex book_node_index = root_book_node_index;
@@ -1203,13 +1218,19 @@ namespace MakeBook2023
 								pos.set_from_packed_sfen(book_node.packed_sfen, &si, Threads.main());
 								Move m = book_node.moves[best_index].move;
 								pos.do_move(m, si2);
+								// ⇨　packed_sfenは先手の局面であり1手進めているから、ここでは後手の局面になっている。
 
-								// 元のDB上の局面の手番から1手進めた局面だから、そうなる手番になるように書き出す。
-								Color  stm  = ~book_node.color();
-								string sfen = (stm != pos.side_to_move()) ? pos.flipped_sfen(ply + 1) : pos.sfen(ply + 1);
+								sfen_path += ' ' + to_usi_string(stm == BLACK ? m : flip_move(m));
+
+								// 現在の手番が先手であれば、flipして先手の盤面として書き出す。
+								stm = ~stm;
+								string sfen = (stm == WHITE) ? pos.sfen(ply + 1) : pos.flipped_sfen(ply + 1);
 
 								// write_sfensのinsertはここでしか行わないので、ここでcheck()すれば十分。
-								write_sfens.insert(sfen);
+								if (from_startpos)
+									write_sfens.insert(sfen_path);
+								else
+									write_sfens.insert(sfen);
 								progress.check(write_sfens.size());
 								write_counter2++;
 
@@ -1239,6 +1260,11 @@ namespace MakeBook2023
 
 								break;
 							}
+
+							Move m = book_node.moves[best_index].move;
+							// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
+							sfen_path += ' ' + to_usi_string(stm == BLACK ? m : flip_move(m));
+							stm = ~stm;
 
 							// 次のnodeを辿る。
 							book_node_index = next_book_node_index;
@@ -1562,6 +1588,8 @@ namespace Book
 			// ⇨　1000局面を書き出す。20はleaf nodeの指し手の評価値に加える乱数の大きさ。
 			// 　 この場合、評価値に、平均 = 0 , 標準偏差 = 20 ガウスノイズを加算する。
 			// 　　(これを加えることで序盤の指し手を開拓しやすくなる)
+			//   makebook peta_shock_next book.db sfens.txt 1000 from_startpos
+			// ⇨　startpos moves ... の形式で局面を出力する。
 			// 
 			//   makebook peta_shock_next book.db sfens.txt 1000 minimum
 			// ⇨ memory_savingをつけるとpacked sfenのままsortするので書き出しの時にメモリがさらに節約できる。
