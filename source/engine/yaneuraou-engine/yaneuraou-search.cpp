@@ -1213,16 +1213,18 @@ void Thread::search()
 		{
 			// 勝ちを読みきっているのに将棋所の表示が追いつかずに、将棋所がフリーズしていて、その間の時間ロスで
 			// 時間切れで負けることがある。
-			// mateを読みきったとき、そのmateの倍以上、iterationを回しても仕方ない気がするので探索を打ち切るようにする。
+			// mateを読みきったとき、そのmateの2.5倍以上、iterationを回しても仕方ない気がするので探索を打ち切るようにする。
+			// ⇨ あと、rootで1手詰め呼び出さなくしたので、その影響もあって、VALUE_MATE == bestValueになることはあるから、この時、
+			//   rootDepth == 1で探索を終了されては困る。もう少し先まで調べて欲しいので、+2しておく。
 			if (!Limits.mate
 				&& bestValue >= VALUE_MATE_IN_MAX_PLY
-				&& (VALUE_MATE - bestValue) * 5/2 < (Value)(rootDepth))
+				&& (VALUE_MATE - bestValue + 2) * 5/2 < (Value)(rootDepth))
 				break;
 
 			// 詰まされる形についても同様。こちらはmateの2.5倍以上、iterationを回したなら探索を打ち切る。
 			if (!Limits.mate
 				&& bestValue <= VALUE_MATED_IN_MAX_PLY
-				&& (bestValue - (-VALUE_MATE)) * 5/2 < (Value)(rootDepth))
+				&& (bestValue - (-VALUE_MATE) + 2) * 5/2 < (Value)(rootDepth))
 				break;
 		}
 
