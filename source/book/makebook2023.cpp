@@ -219,9 +219,11 @@ namespace std {
     }
 }
 
-
 namespace MakeBook2023
 {
+	// peta_shockコマンド実行時にsfen文字列を一時保存するファイル名
+	string SFEN_TEMP_FILENAME = "book/sfen_tmp.txt";
+
 	// BookMoveのポインターみたいなやつ。これで局面の行き来を行う。
 	// しばらくは42億を超えることはないと思うので32bitでいいや。
 	typedef u32 BookNodeIndex;
@@ -229,15 +231,18 @@ namespace MakeBook2023
 	const BookNodeIndex BookNodeIndexNull = numeric_limits<BookNodeIndex>::max();
 
 	// BoonNodeの評価値で∞を表現する定数。
-	const int BOOK_VALUE_INF  = numeric_limits<int>::max();
+	const int BOOK_VALUE_INF  = numeric_limits<s16>::max();
 
-	// ペタショック前の定跡DBに指し手の評価値を99999にして書き出しておくと、
+	// ペタショック前の定跡DBに指し手の評価値をminにして書き出しておくと、
 	// これは指し手は存在するけど評価値は不明の指し手である。(という約束にする)
 	// これは棋譜の指し手などを定跡DBに登録する時に評価値が確定しないのでそういう時に用いる。
-	const int BOOK_VALUE_NONE = -99999;
+	const int BOOK_VALUE_NONE = numeric_limits<s16>::min();
+
+	const int BOOK_VALUE_MAX  = numeric_limits<s16>::max()-1;
+	const int BOOK_VALUE_MIN  = numeric_limits<s16>::min()+11;
 
 	// 定跡で千日手手順の時のdepth。∞であることがわかる特徴的な定数にしておくといいと思う。
-	const int BOOK_DEPTH_INF = 999;
+	const u16 BOOK_DEPTH_INF = 999;
 
 	// 千日手の状態
 	// 最終的には書き出した定跡DBのdepthに反映させる。
@@ -334,13 +339,13 @@ namespace MakeBook2023
 		ValueDepth()
 			: value(BOOK_VALUE_NONE), depth(0), draw_state(0){}
 
-		ValueDepth(int value, int depth)
+		ValueDepth(s16 value, u16 depth)
 			: value(value) , depth(depth) , draw_state(0){}
 
-		ValueDepth(int value, int depth, DrawState state)
+		ValueDepth(s16 value, u16 depth, DrawState state)
 			: value(value) , depth(depth) , draw_state(state){}
 
-		int value;
+		s16 value;
 		u16 depth;
 		DrawState draw_state;
 
@@ -407,17 +412,17 @@ namespace MakeBook2023
 	struct BookMove
 	{
 		// moveの指し手がleafである場合。
-		BookMove(Move move,int value,int depth):
+		BookMove(Move16 move,s16 value,s16 depth):
 			move(move),vd(ValueDepth(value,depth)),next(BookNodeIndexNull){}
 
 		// moveの指し手がleafではない場合。
-		BookMove(Move move,ValueDepth vd, BookNodeIndex next):
+		BookMove(Move16 move,ValueDepth vd, BookNodeIndex next):
 			move(move),vd(vd),next(next){}
 
-		// move(4) + value(4) + depth(4) + next(4) = 16 bytes
+		// move(2) + value(2) + depth(2) + draw state(1) + next(4) = 11 bytes → 12
 
 		// 指し手
-		Move move;
+		Move16 move;
 
 		// ↑の指し手を選んだ時の定跡ツリー上の評価値
 		// (定跡ツリー上でmin-max探索をした時の評価値)
@@ -443,7 +448,6 @@ namespace MakeBook2023
 	struct BookNode
 	{
 		// 引数のcは棋譜に出現したこの局面の手番。
-		// 後手の場合、packed_sfenとしてこれをflipしさせて先手番の局面を登録する。
 		BookNode(): out_count(0){}
 
 		// このnodeからの出次数
@@ -486,7 +490,8 @@ namespace MakeBook2023
 		Color color() const { return Color(color_); }
 
 		// 局面図
-		PackedSfen packed_sfen;
+		//PackedSfen packed_sfen;
+		// ⇨　メモリがもったいないから元のsfenをファイルに書き出す。(どうせ元のsfen文字列はそのまま使うので)
 	};
 
 	// hashkeyのbit数をチェックする。
@@ -505,7 +510,6 @@ namespace MakeBook2023
 	class PetaShock
 	{
 	public:
-
 		// 定跡をペタショック化する。
 		// next : これが非0の時はペタショック化ではなく次に思考対象とすべきsfenをファイルに出力する。
 		void make_book(Position& pos , istringstream& is, bool next)
@@ -626,8 +630,8 @@ namespace MakeBook2023
 				}
 
 				// 親に伝播するほうはvalueを反転させておく。
-				parent_vd.value =        - parent_vd.value;
-				parent_vd.depth = std::min(parent_vd.depth + 1 , BOOK_DEPTH_INF);
+				parent_vd.value =            - parent_vd.value;
+				parent_vd.depth = std::min(u16(parent_vd.depth + 1) , BOOK_DEPTH_INF);
 
 				return best;
 			};
@@ -712,6 +716,10 @@ namespace MakeBook2023
 			// 行番号
 			size_t line_no = 0;
 
+			// sfen文字列はファイルに書き出す。
+			SystemIO::TextWriter sfen_writer;
+			sfen_writer.Open(SFEN_TEMP_FILENAME); // ファイルここでいいかな？
+
 			while(reader.ReadLine(line).is_ok())
 			{
 				progress.check(reader.GetFilePos());
@@ -763,21 +771,26 @@ namespace MakeBook2023
 
 					string sfen = line.substr(5); // 新しいsfen文字列を"sfen "を除去して格納
 
+					// sfen文字列はテンポラリファイルに書き出しておく。(もし末尾に手数があるなら、それも含めてそのまま書き出す)
+					sfen_writer.WriteLine(sfen);
+
 					// if (ignoreBookPly)
 					StringExtension::trim_number_inplace(sfen); // 末尾の数字除去
 
-					// この局面の手番
+					// この局面の(元の)手番
 					// ⇨ "w"の文字は駒には使わないので"w"があれば後手番であることが確定する。
 					Color stm = (sfen.find('w') != std::string::npos) ? WHITE : BLACK;
 
 					// 先手番にしたsfen、後手番にしたsfen。
-					string black_sfen = stm == BLACK ? sfen : Position::sfen_to_flipped_sfen(sfen);
+					//string black_sfen = stm == BLACK ? sfen : Position::sfen_to_flipped_sfen(sfen);
 					string white_sfen = stm == WHITE ? sfen : Position::sfen_to_flipped_sfen(sfen);
 
 					// hashkey_to_indexには後手番の局面のhash keyからのindexを登録する。
 					pos.set(white_sfen, &si, Threads.main());
 					HASH_KEY white_hash_key = pos.hash_key();
 
+#if 0
+					// 念のためにエラーチェック(この時間もったいないか…)
 					if (hashkey_to_index.count(white_hash_key) > 0)
 					{
 						// 手番まで同じであるかを調べる。
@@ -794,17 +807,17 @@ namespace MakeBook2023
 						ignoreMove = true;
 						continue;
 					}
+#endif
 
 					hashkey_to_index[white_hash_key] = BookNodeIndex(book_nodes.size()); // emplace_back()する前のsize()が今回追加されるindex
 
 					// BookNode.packed_sfenには先手番の局面だけを登録する。
-					pos.set(black_sfen, &si, Threads.main());
+					//pos.set(black_sfen, &si, Threads.main());
 
 					book_nodes.emplace_back(BookNode());
 					auto& book_node = book_nodes.back();
 
 					book_node.set_color(stm); // 元の手番。これを維持してファイルに書き出さないと、sfen文字列でsortされていたのが狂う。
-					pos.sfen_pack(book_node.packed_sfen);
 
 					// この直後にやってくる指し手をこの局面の指し手として取り込む。
 					ignoreMove = false;
@@ -822,8 +835,8 @@ namespace MakeBook2023
 				Parser::LineScanner scanner(line);
 				auto move_str   = scanner.get_text();
 				auto ponder_str = scanner.get_text();
-				auto value = (int)scanner.get_number(0);
-				auto depth = (int)scanner.get_number(0);
+				auto value = (s16)std::clamp((int)scanner.get_number(0), BOOK_VALUE_MIN , BOOK_VALUE_MAX);
+				auto depth = (s16)scanner.get_number(0);
 				Move16 move16   = (move_str   == "none" || move_str   == "None" || move_str   == "resign") ? MOVE_NONE : USI::to_move16(move_str  );
 				//Move16 ponder = (ponder_str == "none" || ponder_str == "None" || ponder_str == "resign") ? MOVE_NONE : USI::to_move16(ponder_str);
 
@@ -831,17 +844,23 @@ namespace MakeBook2023
 				// posは上でblack_sfenが設定されているので先手番になるようにflipされている。
 				if (book_node.color() == WHITE)
 					move16 = flip_move(move16);
-				Move move = pos.to_move(move16);
+				//Move move = pos.to_move(move16);
+				// ⇨　この復元のためだけに先手番のposition構築するの嫌だな…。
 
+#if 0
 				// 合法手チェック。
 				if (!pos.pseudo_legal_s<true>(move) || !pos.legal(move))
 				{
 					cout << "\nError! Illegal Move : sfen = " << pos.sfen() << " , move = " << move_str << endl;
 					continue;
 				}
+				// ⇨　この合法性チェックのためにわざわざ先手番にflipした局面をセットしなおすのは
+				//   時間もったいないな…。
+#endif
 
-				book_node.moves.emplace_back(BookMove(move, value, depth));
+				book_node.moves.emplace_back(BookMove(move16, value, depth));
 			}
+			sfen_writer.Close();
 
 			// 局面の合流チェック
 
@@ -853,13 +872,24 @@ namespace MakeBook2023
 			// 合流した指し手の数
 			u64 converged_moves = 0;
 
+			SystemIO::TextReader sfen_reader;
+			sfen_reader.Open(SFEN_TEMP_FILENAME);
+
 			progress.reset(book_nodes.size() - 1);
 			for(BookNodeIndex book_node_index = 0 ; book_node_index < BookNodeIndex(book_nodes.size()) ; ++book_node_index)
 			{
 				auto& book_node = book_nodes[book_node_index];
 
 				StateInfo si,si2;
-				pos.set_from_packed_sfen(book_node.packed_sfen, &si, Threads.main());
+				string sfen;
+				sfen_reader.ReadLine(sfen);
+
+				// この局面の手番(書き出す前に判定してbook_node.colorに格納しているから、それを参照する。)
+				if (book_node.color() == WHITE)
+					sfen = Position::sfen_to_flipped_sfen(sfen);
+
+				pos.set(sfen, &si, Threads.main());
+				ASSERT_LV3(pos.side_to_move() == BLACK);
 
 				// 定跡DBに登録されていた指し手
 				SmallVector<BookMove> book_moves;
@@ -893,7 +923,7 @@ namespace MakeBook2023
 						//	value = draw_value
 						//	depth = ∞
 						//  draw_state = 先後ともに回避できない
-						BookMove book_move(move,
+						BookMove book_move(Move16(move),
 							ValueDepth(
 								draw_value(REPETITION_DRAW, book_node.color()),
 								BOOK_DEPTH_INF,
@@ -916,7 +946,7 @@ namespace MakeBook2023
 				// 定跡DB上のこの局面の指し手も登録しておく。
 				for(auto& book_move : book_moves)
 				{
-					Move move = book_move.move;
+					Move16 move = book_move.move;
 
 					// これがbook_nodeにすでに登録されているか？
 					if (std::find_if(book_node.moves.begin(),book_node.moves.end(),[&](auto& book_move){ return book_move.move == move; })== book_node.moves.end())
@@ -927,6 +957,7 @@ namespace MakeBook2023
 
 				progress.check(book_node_index);
 			}
+			sfen_reader.Close();
 
 			//cout << "converged_moves : " << converged_moves << endl;
 
@@ -1248,14 +1279,14 @@ namespace MakeBook2023
 							if (next_book_node_index == BookNodeIndexNull)
 							{
 								// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
-								Move m    = book_node.moves[best_index].move;
-								Move move = (pos.side_to_move() == BLACK) ? m : pos.to_move(flip_move(m));
+								Move16 m      = book_node.moves[best_index].move;
+								Move16 move16 = (pos.side_to_move() == BLACK) ? m : flip_move(m);
 
 								// 局面を進める
 								si1.push_back(StateInfo());
-								pos.do_move(move, si1.back());
+								pos.do_move(pos.to_move(move16), si1.back());
 
-								sfen_path += ' ' + to_usi_string(move);
+								sfen_path += ' ' + to_usi_string(move16);
 
 								string sfen = pos.sfen(ply + 1);
 
@@ -1295,15 +1326,15 @@ namespace MakeBook2023
 							}
 
 							// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
-							Move m    = book_node.moves[best_index].move;
-							Move move = (pos.side_to_move() == BLACK) ? m : pos.to_move(flip_move(m));
+							Move16 m      = book_node.moves[best_index].move;
+							Move16 move16 = (pos.side_to_move() == BLACK) ? m : flip_move(m);
 
 							// 局面を進める
 							si1.push_back(StateInfo());
-							pos.do_move(move, si1.back());
+							pos.do_move(pos.to_move(move16), si1.back());
 
 							// 棋譜も進める
-							sfen_path += ' ' + to_usi_string(move);
+							sfen_path += ' ' + to_usi_string(move16);
 
 							// 次のnodeを辿る。
 							book_node_index = next_book_node_index;
@@ -1436,16 +1467,16 @@ namespace MakeBook2023
 				// バージョン識別用文字列
 				writer.WriteLine(::Book::BookDBHeader2016_100);
 
+				sfen_reader.Open(SFEN_TEMP_FILENAME);
+
 				for(size_t i = 0 ; i < n ; ++i)
 				{
 					auto& book_node = book_nodes[i];
-					auto sfen = Position::sfen_unpack(book_node.packed_sfen);
-
-					// 元の局面がWHITEであるなら、WHITEの局面として書き出さないとsortされていたものが崩れる。
-					if (book_node.color() == WHITE)
-						sfen = Position::sfen_to_flipped_sfen(sfen);
+					string sfen;
+					sfen_reader.ReadLine(sfen); // 元のsfen(手番を含め)通りにしておく。
 
 					writer.WriteLine("sfen " + sfen);
+					writer.Flush(); // ⇦ これ呼び出さないとメモリ食ったままになる。
 
 					// 指し手を出力
 					for(auto& move : book_node.moves)
@@ -1460,6 +1491,7 @@ namespace MakeBook2023
 					write_counter++;
 
 				}
+				sfen_reader.Close();
 
 				cout << "write " + writebook_path << endl;
 			}
