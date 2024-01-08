@@ -712,9 +712,6 @@ namespace MakeBook2023
 			// 行番号
 			size_t line_no = 0;
 
-			// sfenファイルがsort済みであるかのフラグ
-			bool sorted_db = false;
-
 			while(reader.ReadLine(line).is_ok())
 			{
 				progress.check(reader.GetFilePos());
@@ -730,8 +727,7 @@ namespace MakeBook2023
 					} else if (line_no == 2)
 					{
 						// 2行目には
-						// # NOE:258,SORTED
-						// のようにエントリー数と、sfenがsort済みであるかを指定することができる。
+						// # NOE:258
 						// よって、この文字列をparseする必要がある。
 						auto splited = StringExtension::Split(line.substr(2),",");
 						for(auto command : splited)
@@ -740,11 +736,7 @@ namespace MakeBook2023
 							if (splited2.size() >= 1)
 							{
 								auto& token = splited2[0];
-								if (token == "SORTED")
-								{
-									sorted_db = true;
-									cout << "This book DB is sorted." << endl;
-								} else if (token == "NOE" && splited2.size() == 2) // numbers of entires
+								if (token == "NOE" && splited2.size() == 2) // numbers of entires
 								{
 									size_t noe = StringExtension::to_int(splited2[1],0);
 									cout << "Number of Sfen Entries = " << noe << endl;
@@ -1430,117 +1422,43 @@ namespace MakeBook2023
 
 				size_t n = book_nodes.size();
 
-				if (!sorted_db)
+				cout << "Write to a book DB  : " << endl;
+
+				SystemIO::TextWriter writer;
+				if (writer.Open(writebook_path).is_not_ok())
 				{
-					cout << "Unpack packed sfens : " << endl;
+					cout << "Error! : open file error , path = " << writebook_path << endl;
+					return;
+				}
 
-					// 並び替えを行う。
-					// ただしbook_nodes直接並び替えるのはメモリ移動量が大きいのでindexのみをsortする。
-					// ⇨　あー、これ、sfen文字列でsortしないといけないのか…わりと大変か…。
-					using BookNodeIndexString = pair<BookNodeIndex,string>;
-					vector<BookNodeIndexString> book_indices(n);
-					progress.reset(n - 1);
-					for(size_t i = 0 ; i < n ; ++i)
+				progress.reset(n - 1);
+
+				// バージョン識別用文字列
+				writer.WriteLine(::Book::BookDBHeader2016_100);
+
+				for(size_t i = 0 ; i < n ; ++i)
+				{
+					auto& book_node = book_nodes[i];
+					auto sfen = Position::sfen_unpack(book_node.packed_sfen);
+
+					// 元の局面がWHITEであるなら、WHITEの局面として書き出さないとsortされていたものが崩れる。
+					if (book_node.color() == WHITE)
+						sfen = Position::sfen_to_flipped_sfen(sfen);
+
+					writer.WriteLine("sfen " + sfen);
+
+					// 指し手を出力
+					for(auto& move : book_node.moves)
 					{
-						auto& book_node = book_nodes[i];
-						auto sfen = pos.sfen_unpack(book_node.packed_sfen);
-						// 元のDBで後手の局面は後手の局面として書き出す。(ので、ここでsfenをflipしてからsortする)
-						if (book_node.color() == WHITE)
-							sfen = Position::sfen_to_flipped_sfen(sfen);
-
-						book_indices[i] = BookNodeIndexString(BookNodeIndex(i), sfen);
-						progress.check(i);
+						// 元のDB上で後手の局面なら後手の局面として書き出したいので、
+						// 後手の局面であるなら指し手を反転させる。
+						Move16 m16 = (book_node.color() == WHITE) ? flip_move(move.move) : move.move;
+						writer.WriteLine(to_usi_string(m16) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
 					}
 
-					cout << "Sorting book_nodes  : " << endl;
-					sort(book_indices.begin(), book_indices.end(),
-						[&](BookNodeIndexString& i, BookNodeIndexString& j){
-						return i.second < j.second;
-					});
+					progress.check(i);
+					write_counter++;
 
-					// ⇑ここでsfenをunpackしてしまうなら、最初からsfenで持っておいたほうがいい気がするし、
-					// あるいは、このままsortなしで書き出したほうがいいような気もする。
-					// (sortは改めてやるとして)
-
-					// しかしsortするのも丸読みしないといけないから大変か…。
-					// この時点で要らないものをいったん解放できると良いのだが…。
-
-					cout << "Write to a book DB  : " << endl;
-
-					SystemIO::TextWriter writer;
-					if (writer.Open(writebook_path).is_not_ok())
-					{
-						cout << "Error! : open file error , path = " << writebook_path << endl;
-						return;
-					}
-
-					progress.reset(n - 1);
-
-					// バージョン識別用文字列
-					writer.WriteLine(::Book::BookDBHeader2016_100);
-
-					for(size_t i = 0 ; i < n ; ++i)
-					{
-						auto& book_node = book_nodes[book_indices[i].first];
-						auto& sfen = book_indices[i].second;
-
-						// sfenを出力。上でsortしているのでsfen文字列順で並び替えされているはず。
-						writer.WriteLine("sfen " + sfen);
-
-						// 指し手を出力
-						for(auto& move : book_node.moves)
-						{
-							// 元のDB上で後手の局面なら後手の局面として書き出したいので、
-							// 後手の局面であるなら指し手を反転させる。
-							Move16 m16 = (book_node.color() == WHITE) ? flip_move(move.move) : move.move;
-							writer.WriteLine(to_usi_string(m16) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
-						}
-
-						progress.check(i);
-						write_counter++;
-					}
-				} else {
-					// sort済みDBを読み込んだので、book_nodesのentryはsortされた順に並んでいることが保証される。
-					cout << "Skip sorting sfen." << endl;
-
-					cout << "Write to a book DB  : " << endl;
-
-					SystemIO::TextWriter writer;
-					if (writer.Open(writebook_path).is_not_ok())
-					{
-						cout << "Error! : open file error , path = " << writebook_path << endl;
-						return;
-					}
-
-					progress.reset(n - 1);
-
-					// バージョン識別用文字列
-					writer.WriteLine(::Book::BookDBHeader2016_100);
-
-					for(size_t i = 0 ; i < n ; ++i)
-					{
-						auto& book_node = book_nodes[i];
-						auto sfen = Position::sfen_unpack(book_node.packed_sfen);
-
-						// 元の局面がWHITEであるなら、WHITEの局面として書き出さないとsortされていたものが崩れる。
-						if (book_node.color() == WHITE)
-							sfen = Position::sfen_to_flipped_sfen(sfen);
-
-						writer.WriteLine("sfen " + sfen);
-
-						// 指し手を出力
-						for(auto& move : book_node.moves)
-						{
-							// 元のDB上で後手の局面なら後手の局面として書き出したいので、
-							// 後手の局面であるなら指し手を反転させる。
-							Move16 m16 = (book_node.color() == WHITE) ? flip_move(move.move) : move.move;
-							writer.WriteLine(to_usi_string(m16) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
-						}
-
-						progress.check(i);
-						write_counter++;
-
-					}
 				}
 
 				cout << "write " + writebook_path << endl;
