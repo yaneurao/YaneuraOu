@@ -525,9 +525,6 @@ namespace MakeBook2023
 			// leaf nodeの指し手に加える乱数の大きさ
 			int eval_noise = 0;
 
-			// 書き出す時にメモリを超節約する。
-			bool memory_saving = false;
-
 			// peta_shock_nextで局面を"startpos moves.."の形式で出力する。
 			bool from_startpos = false;
 
@@ -536,22 +533,23 @@ namespace MakeBook2023
 			readbook_path  = Path::Combine("book",readbook_path );
 			writebook_path = Path::Combine("book",writebook_path);
 
+			size_t hash_size_mb = 16;
+
 			if (next)
 			{
 				is >> next_nodes;
-				string token;
-				while (is >> token)
+			}
+
+			string token;
+			while (is >> token)
+			{
+				if (next)
 				{
 					if (token == "eval_noise")
 						is >> eval_noise;
 					else if (token == "from_startpos")
 						from_startpos = true;
-				}
-
-			} else {
-				string token;
-				while (is >> token)
-				{
+				} else {
 					// パラメーターがあればここでparseする。
 				}
 			}
@@ -753,6 +751,7 @@ namespace MakeBook2023
 
 									// エントリー数が事前にわかったので、その分だけそれぞれの構造体配列を確保する。
 									book_nodes.reserve(noe);
+									hashkey_to_index.reserve(noe);
 								}
 							}
 						}
@@ -785,7 +784,8 @@ namespace MakeBook2023
 
 					// hashkey_to_indexには後手番の局面のhash keyからのindexを登録する。
 					pos.set(white_sfen, &si, Threads.main());
-					auto white_hash_key = pos.hash_key();
+					HASH_KEY white_hash_key = pos.hash_key();
+
 					if (hashkey_to_index.count(white_hash_key) > 0)
 					{
 						// 手番まで同じであるかを調べる。
@@ -798,10 +798,11 @@ namespace MakeBook2023
 						}
 
 						// 単に先後反転した局面がDB上に存在しただけであったので無視する。(先に出現した局面を優先)
-						// この直後にやってくる指し手をこの局面の指し手を無視する。
+						// この直後にやってくる指し手(この局面の指し手)を無視する。
 						ignoreMove = true;
 						continue;
 					}
+
 					hashkey_to_index[white_hash_key] = BookNodeIndex(book_nodes.size()); // emplace_back()する前のsize()が今回追加されるindex
 
 					// BookNode.packed_sfenには先手番の局面だけを登録する。
@@ -810,7 +811,7 @@ namespace MakeBook2023
 					book_nodes.emplace_back(BookNode());
 					auto& book_node = book_nodes.back();
 
-					book_node.set_color(stm); // 元の手番
+					book_node.set_color(stm); // 元の手番。これを維持してファイルに書き出さないと、sfen文字列でsortされていたのが狂う。
 					pos.sfen_pack(book_node.packed_sfen);
 
 					// この直後にやってくる指し手をこの局面の指し手として取り込む。
@@ -908,13 +909,13 @@ namespace MakeBook2023
 							),
 							next_book_node_index);
 
-						book_node.moves.emplace_back(book_move);
-
 						// これが定跡DBのこの局面の指し手に登録されていないなら、
 						// これは(定跡DBにはなかった指し手で進めたら既知の局面に)合流したということだから
 						// 合流カウンターをインクリメントしておく。
 						if (std::find_if(book_node.moves.begin(),book_node.moves.end(),[&](auto& book_move){ return book_move.move == move; })== book_node.moves.end())
 							converged_moves++;
+
+						book_node.moves.emplace_back(book_move);
 					}
 
 					pos.undo_move(move);
@@ -1513,7 +1514,11 @@ namespace MakeBook2023
 					for(size_t i = 0 ; i < n ; ++i)
 					{
 						auto& book_node = book_nodes[i];
-						auto& sfen = Position::sfen_unpack(book_node.packed_sfen);
+						auto sfen = Position::sfen_unpack(book_node.packed_sfen);
+
+						// 元の局面がWHITEであるなら、WHITEの局面として書き出さないとsortされていたものが崩れる。
+						if (book_node.color() == WHITE)
+							sfen = Position::sfen_to_flipped_sfen(sfen);
 
 						writer.WriteLine("sfen " + sfen);
 
@@ -1604,7 +1609,7 @@ namespace Book
 			//   makebook peta_shock_next book.db sfens.txt 1000 from_startpos
 			// ⇨　startpos moves ... の形式で局面を出力する。
 			// 
-			//   makebook peta_shock_next book.db sfens.txt 1000 minimum
+			//   makebook peta_shock_next book.db sfens.txt 1000
 
 			MakeBook2023::PetaShock ps;
 			ps.make_book(pos, is , true);
