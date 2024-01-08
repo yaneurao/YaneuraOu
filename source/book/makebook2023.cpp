@@ -552,8 +552,7 @@ namespace MakeBook2023
 				string token;
 				while (is >> token)
 				{
-					if (token == "memory_saving")
-						memory_saving = true;
+					// パラメーターがあればここでparseする。
 				}
 			}
 
@@ -572,7 +571,7 @@ namespace MakeBook2023
 
 			} else {
 
-				cout << "memory_saving      : " << memory_saving << endl;
+				// パラメーターがあればここで出力する。
 
 			}
 
@@ -712,13 +711,54 @@ namespace MakeBook2023
 			// 指し手を無視するモード
 			bool ignoreMove = false;
 
+			// 行番号
+			size_t line_no = 0;
+
+			// sfenファイルがsort済みであるかのフラグ
+			bool sorted_db = false;
+
 			while(reader.ReadLine(line).is_ok())
 			{
 				progress.check(reader.GetFilePos());
+				line_no ++;
 
-				// バージョン識別文字列(とりあえず読み飛ばす)
+				// バージョン識別文字列など(とりあえず読み飛ばす)
 				if (line.length() >= 1 && line[0] == '#')
+				{
+					if (line_no == 1)
+					{
+						if (line != ::Book::BookDBHeader2016_100)
+							cout << "WARNING : illegal header" << endl;
+					} else if (line_no == 2)
+					{
+						// 2行目には
+						// # NOE:258,SORTED
+						// のようにエントリー数と、sfenがsort済みであるかを指定することができる。
+						// よって、この文字列をparseする必要がある。
+						auto splited = StringExtension::Split(line.substr(2),",");
+						for(auto command : splited)
+						{
+							auto splited2 = StringExtension::Split(command,":");
+							if (splited2.size() >= 1)
+							{
+								auto& token = splited2[0];
+								if (token == "SORTED")
+								{
+									sorted_db = true;
+									cout << "This book DB is sorted." << endl;
+								} else if (token == "NOE" && splited2.size() == 2) // numbers of entires
+								{
+									size_t noe = StringExtension::to_int(splited2[1],0);
+									cout << "Number of Sfen Entries = " << noe << endl;
+
+									// エントリー数が事前にわかったので、その分だけそれぞれの構造体配列を確保する。
+									book_nodes.reserve(noe);
+								}
+							}
+						}
+					}
 					continue;
+				}
 
 				// コメント行(とりあえず読み飛ばす)
 				if (line.length() >= 2 && line.substr(0, 2) == "//")
@@ -1383,73 +1423,8 @@ namespace MakeBook2023
 
 				size_t n = book_nodes.size();
 
-				if (memory_saving)
+				if (!sorted_db)
 				{
-					// メモリ超絶節約モード
-
-					cout << "Sorting a book      : " << endl;
-
-					// 並び替えを行う。
-					// ただしbook_nodes直接並び替えるのはメモリ移動量が大きいのでindexのみをsortする。
-					// ⇨　あー、これ、sfen文字列でsortしないといけないのか…わりと大変か…。
-					vector<BookNodeIndex> book_indices(n);
-					for(size_t i = 0 ; i < n ; ++i)
-						book_indices[i] = BookNodeIndex(i);
-
-					// nの64倍ぐらいで終わるんちゃうんか？
-					progress.reset(n * 64);
-
-					// 進捗出力用カウンター
-					size_t c = 0;
-					StateInfo si;
-
-					// カスタム比較関数
-					auto customCompare = [&](int i, int j){
-						// packed sfenをunpackして文字列として比較。unpackがN * log(N)回ぐらい走るのでわりとキツイか…。
-						auto sfen_i = pos.sfen_unpack(book_nodes[i].packed_sfen);
-						auto sfen_j = pos.sfen_unpack(book_nodes[j].packed_sfen);
-
-						// 進捗出力用
-						c = min(c + 1 , n * 64);
-						progress.check(c);
-						return sfen_i < sfen_j;
-					};
-					sort(book_indices.begin(), book_indices.end(), customCompare);
-					progress.check(n * 64);
-
-					cout << "Write book directly : " << endl;
-
-					SystemIO::TextWriter writer;
-					if (writer.Open(writebook_path).is_not_ok())
-					{
-						cout << "Error! : open file erro , path = " << writebook_path << endl;
-						return;
-					}
-
-					progress.reset(n - 1);
-
-					// バージョン識別用文字列
-					writer.WriteLine(Book::BookDBHeader2016_100);
-
-					for(size_t i = 0 ; i < n ; ++i)
-					{
-						auto& book_node = book_nodes[book_indices[i]];
-						auto  sfen      = pos.sfen_unpack(book_node.packed_sfen);
-
-						// sfenを出力。上でsortしているのでsfen文字列順で並び替えされているはず。
-						writer.WriteLine("sfen " + sfen);
-
-						// 指し手を出力
-						for(auto& move : book_node.moves)
-							writer.WriteLine(to_usi_string(move.move) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
-
-						progress.check(i);
-						write_counter++;
-					}
-				} else {
-
-					// ⇑ sort中にpacked sfenのunpackをしてメモリ節約するのは無謀であったか…。
-
 					cout << "Unpack packed sfens : " << endl;
 
 					// 並び替えを行う。
@@ -1488,14 +1463,14 @@ namespace MakeBook2023
 					SystemIO::TextWriter writer;
 					if (writer.Open(writebook_path).is_not_ok())
 					{
-						cout << "Error! : open file erro , path = " << writebook_path << endl;
+						cout << "Error! : open file error , path = " << writebook_path << endl;
 						return;
 					}
 
 					progress.reset(n - 1);
 
 					// バージョン識別用文字列
-					writer.WriteLine(Book::BookDBHeader2016_100);
+					writer.WriteLine(::Book::BookDBHeader2016_100);
 
 					for(size_t i = 0 ; i < n ; ++i)
 					{
@@ -1516,6 +1491,44 @@ namespace MakeBook2023
 
 						progress.check(i);
 						write_counter++;
+					}
+				} else {
+					// sort済みDBを読み込んだので、book_nodesのentryはsortされた順に並んでいることが保証される。
+					cout << "Skip sorting sfen." << endl;
+
+					cout << "Write to a book DB  : " << endl;
+
+					SystemIO::TextWriter writer;
+					if (writer.Open(writebook_path).is_not_ok())
+					{
+						cout << "Error! : open file error , path = " << writebook_path << endl;
+						return;
+					}
+
+					progress.reset(n - 1);
+
+					// バージョン識別用文字列
+					writer.WriteLine(::Book::BookDBHeader2016_100);
+
+					for(size_t i = 0 ; i < n ; ++i)
+					{
+						auto& book_node = book_nodes[i];
+						auto& sfen = Position::sfen_unpack(book_node.packed_sfen);
+
+						writer.WriteLine("sfen " + sfen);
+
+						// 指し手を出力
+						for(auto& move : book_node.moves)
+						{
+							// 元のDB上で後手の局面なら後手の局面として書き出したいので、
+							// 後手の局面であるなら指し手を反転させる。
+							Move16 m16 = (book_node.color() == WHITE) ? flip_move(move.move) : move.move;
+							writer.WriteLine(to_usi_string(m16) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
+						}
+
+						progress.check(i);
+						write_counter++;
+
 					}
 				}
 
@@ -1592,8 +1605,6 @@ namespace Book
 			// ⇨　startpos moves ... の形式で局面を出力する。
 			// 
 			//   makebook peta_shock_next book.db sfens.txt 1000 minimum
-			// ⇨ memory_savingをつけるとpacked sfenのままsortするので書き出しの時にメモリがさらに節約できる。
-			//   (でも書き出すのに時間1時間ぐらいかかる)
 
 			MakeBook2023::PetaShock ps;
 			ps.make_book(pos, is , true);

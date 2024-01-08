@@ -3628,7 +3628,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
 	// evaluate()を呼び出していないなら呼び出しておく。
-	evaluate_with_no_return(pos);
+	Eval::evaluate_with_no_return(pos);
 
 	// Step 5. Loop through all pseudo-legal moves until no moves remain
 	// or a beta cutoff occurs.
