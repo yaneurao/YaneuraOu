@@ -1168,11 +1168,10 @@ namespace MakeBook2023
 
 					// 普通のsfen文字列にしたroot_sfen。
 					string root_sfen0 = pos.sfen();
-					// root_sfenの元の手番
-					Color root_stm = pos.side_to_move();
+
 					// root局面のgame ply
 					int root_ply = pos.game_ply();
-					if (root_stm == BLACK)
+					if (pos.side_to_move() == BLACK)
 					{
 						// 後手番の局面になるようにflipする。(hash key調べたいので)
 						auto white_sfen = Position::sfen_to_flipped_sfen(pos.sfen());
@@ -1192,6 +1191,8 @@ namespace MakeBook2023
 					}
 
 					// 以下、Positionを用いずにBookNodeIndexで行き来する。
+					// ⇨　最後に局面を書き出す時にpacked_sfenが必要になるから良くなかった。
+					// ⇨　どうせここでPositionを用いて辿るのがボトルネックになっているわけではないので気にしないことにする。
 					BookNodeIndex root_book_node_index = hashkey_to_index[pos.hash_key()];
 
 					u64 timeup_counter = 0;
@@ -1213,8 +1214,8 @@ namespace MakeBook2023
 						if (++timeup_counter > next_nodes * 10)
 							break;
 
-						// 現在の手番
-						Color stm = root_stm;
+						deque<StateInfo> si1;
+						BookTools::feed_position_string(pos, root_sfen, si1);
 
 						// leafの局面までの手順
 						string sfen_path = root_sfen;
@@ -1254,18 +1255,17 @@ namespace MakeBook2023
 							// leafに到達したか？
 							if (next_book_node_index == BookNodeIndexNull)
 							{
-								// book_nodeから指し手 mで進めた局面を書き出したいので、実際に局面を復元してやってみる。
-								StateInfo si,si2;
-								pos.set_from_packed_sfen(book_node.packed_sfen, &si, Threads.main());
-								Move m = book_node.moves[best_index].move;
-								pos.do_move(m, si2);
-								// ⇨　packed_sfenは先手の局面であり1手進めているから、ここでは後手の局面になっている。
+								// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
+								Move m    = book_node.moves[best_index].move;
+								Move move = (pos.side_to_move() == BLACK) ? m : pos.to_move(flip_move(m));
 
-								sfen_path += ' ' + to_usi_string(stm == BLACK ? m : flip_move(m));
+								// 局面を進める
+								si1.push_back(StateInfo());
+								pos.do_move(move, si1.back());
 
-								// 現在の手番が先手であれば、flipして先手の盤面として書き出す。
-								stm = ~stm;
-								string sfen = (stm == WHITE) ? pos.sfen(ply + 1) : pos.flipped_sfen(ply + 1);
+								sfen_path += ' ' + to_usi_string(move);
+
+								string sfen = pos.sfen(ply + 1);
 
 								// write_sfensのinsertはここでしか行わないので、ここでcheck()すれば十分。
 								if (from_startpos)
@@ -1302,10 +1302,16 @@ namespace MakeBook2023
 								break;
 							}
 
-							Move m = book_node.moves[best_index].move;
 							// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
-							sfen_path += ' ' + to_usi_string(stm == BLACK ? m : flip_move(m));
-							stm = ~stm;
+							Move m    = book_node.moves[best_index].move;
+							Move move = (pos.side_to_move() == BLACK) ? m : pos.to_move(flip_move(m));
+
+							// 局面を進める
+							si1.push_back(StateInfo());
+							pos.do_move(move, si1.back());
+
+							// 棋譜も進める
+							sfen_path += ' ' + to_usi_string(move);
 
 							// 次のnodeを辿る。
 							book_node_index = next_book_node_index;
