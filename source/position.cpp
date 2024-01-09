@@ -988,7 +988,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 			// --- 成る指し手
 
 			// 成れない駒の成りではないことを確かめないといけない。
-			if (is_promoted_piece(pc))
+			if (is_non_promotable_piece(pc))
 				return false;
 
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
@@ -1164,7 +1164,7 @@ Move Position::to_move(Move16 m16) const
 	if (is_promote(m))
 	{
 		// 成駒や金・玉であるなら、これ以上成れない。これは非合法手である。
-		if (is_promoted_piece(moved_piece))
+		if (is_non_promotable_piece(moved_piece))
 			return MOVE_NONE;
 
 		return Move(u16(m) + ((u32)(make_promoted_piece(moved_piece) << 16)));
@@ -3097,7 +3097,58 @@ void Position::UnitTest(Test::UnitTester& tester)
 		}
 	}
 
-	// ランダムプレイヤーでの対局
+	// ランダムプレイヤーでの対局によるテスト
+
+	// packed sfenのtest
+	auto extra_test1 = [&](Position& pos)
+	{
+			PackedSfen ps;
+			StateInfo si;
+			string sfen = pos.sfen();
+			int game_ply = pos.game_ply();
+			pos.sfen_pack(ps);
+
+			Position pos2;
+			pos2.set_from_packed_sfen(ps, &si, Threads.main());
+			string sfen2 = pos2.sfen(game_ply);
+
+			return sfen == sfen2;
+	};
+
+	// 駒落ちのpacked sfenのテスト
+	auto extra_test2 = [&](Position& pos)
+	{
+			PackedSfen ps;
+			StateInfo si;
+			string sfen = pos.sfen();
+			int game_ply = pos.game_ply();
+			pos.sfen_pack(ps);
+
+			Position pos2;
+			pos2.set_from_packed_sfen(ps, &si, Threads.main());
+			// ここから駒を5枚ほど落とす。
+			int count = 0;
+			for(auto sq : SQ)
+			{
+				auto pc = pos2.piece_on(sq);
+				if (pc != NO_PIECE && type_of(pc) != KING)
+				{
+					pos2.board[sq] = NO_PIECE; // 自分のclass内なので直接書き換えてしまう。
+					if (++count >= 5)
+						break;
+				}
+			}
+			string sfen2 = pos2.sfen(game_ply);
+			pos2.sfen_pack(ps); // 駒落ちのpacked sfenができた。
+
+			Position pos3;
+			pos3.set_from_packed_sfen(ps, &si, Threads.main());
+
+			string sfen3 = pos3.sfen(game_ply);
+
+			return sfen2 == sfen3;
+	};
+
 	{
 		// 対局回数→0ならskip
 		s64 random_player_loop = tester.options["random_player_loop"];
@@ -3128,8 +3179,9 @@ void Position::UnitTest(Test::UnitTester& tester)
 
 					pos.do_move(m,s[ply]);
 
-					if (!pos.pos_is_ok())
+					if (!pos.pos_is_ok() || !extra_test1(pos) || !extra_test2(pos))
 						fail = true;
+
 				}
 
 				// 今回のゲームのなかでおかしいものがなかったか
