@@ -19,6 +19,9 @@ using namespace Effect8;
 
 std::string SFEN_HIRATE = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 
+// set_max_repetition_ply()で設定される、千日手の最大遡り手数
+int Position::max_repetition_ply = 16;
+
 // 局面のhash keyを求めるときに用いるZobrist key
 namespace Zobrist {
 	HASH_KEY zero;							// ゼロ(==0)
@@ -3103,7 +3106,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			auto section2 = tester.section("GamesOfRandomPlayer");
 
 			// seed固定乱数(再現性ある乱数)
-			PRNG my_rand;
+			PRNG my_rand(114514);
 			StateInfo s[512];
 
 			for (s64 i = 0; i < random_player_loop; ++i)
