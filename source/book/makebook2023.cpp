@@ -923,7 +923,7 @@ namespace MakeBook2023
 						//	value = draw_value
 						//	depth = ∞
 						//  draw_state = 先後ともに回避できない
-						BookMove book_move(Move16(move),
+						BookMove book_move(Move16(move.move),
 							ValueDepth(
 								draw_value(REPETITION_DRAW, book_node.color()),
 								BOOK_DEPTH_INF,
