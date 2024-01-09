@@ -46,7 +46,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 - 置換表の上限サイズは33TB(実質的に無限)まで対応しています。
 - Windows、Ubuntu、macOS、ARMなど様々なプラットフォームをサポートしています。
 
-# ふかうら王の特長
+# ふかうら王の特徴
 
 - dlshogi互換エンジンです。
 - やねうら王の思考エンジンオプションをサポートしています。

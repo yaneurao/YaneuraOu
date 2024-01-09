@@ -471,13 +471,7 @@
     <ClCompile Include="book\book.cpp">
       <Filter>リソース ファイル\book</Filter>
     </ClCompile>
-    <ClCompile Include="book\makebook2019.cpp">
-      <Filter>リソース ファイル\book</Filter>
-    </ClCompile>
     <ClCompile Include="book\makebook2015.cpp">
-      <Filter>リソース ファイル\book</Filter>
-    </ClCompile>
-    <ClCompile Include="book\makebook2021.cpp">
       <Filter>リソース ファイル\book</Filter>
     </ClCompile>
     <ClCompile Include="book\makebook.cpp">

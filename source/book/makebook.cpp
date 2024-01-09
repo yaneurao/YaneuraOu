@@ -71,15 +71,6 @@ namespace Book
 		if (makebook2015(pos, is, token))
 			return;
 
-		// 2019年以降に作ったmakebook拡張コマンド
-		if (makebook2019(pos, is, token))
-			return;
-
-#if defined(YANEURAOU_ENGINE_DEEP)
-		// 2021年に作ったmakebook拡張コマンド
-		if (makebook2021(pos, is, token))
-			return;
-#endif
 		// 2023年に作ったmakebook拡張コマンド
 		if (makebook2023(pos, is, token))
 			return;
