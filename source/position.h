@@ -185,6 +185,8 @@ using StateListPtr = std::unique_ptr<StateList>;
 //       盤面
 // --------------------
 
+#if defined(USE_SFEN_PACKER)
+
 // packされたsfen
 struct PackedSfen {
 	u8 data[32];
@@ -230,6 +232,7 @@ struct PackedSfenHash {
 		return s;
 	}
 };
+#endif
 
 // 盤面
 class Position
