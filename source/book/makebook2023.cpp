@@ -244,113 +244,21 @@ namespace MakeBook2023
 	// 定跡で千日手手順の時のdepth。∞であることがわかる特徴的な定数にしておくといいと思う。
 	const u16 BOOK_DEPTH_INF = 999;
 
-	// 千日手の状態
-	// 最終的には書き出した定跡DBのdepthに反映させる。
-	// depth
-	//  +1000 : 先手は千日手を打開できない。
-	//  +2000 : 後手は千日手を打開できない。
-	//  +3000 : 先手・後手ともに千日手を打開できない。
-	struct DrawState
-	{
-		DrawState(u8 state):state(state){}
-
-		// bit0 : 先手は千日手を打開する権利を持っていない。
-		// bit1 : 後手は千日手を打開する権利を持っていない。
-
-		// つまり、
-		//   00b : 先後千日手を打開する権利を持っている。
-		//   01b : 先手は(後手が千日手を選んだ時に)千日手を打開できない。(後手は打開できる)
-		//   10b : 後手は(先手が千日手を選んだ時に)千日手を打開できない。(先手は打開できる)
-		//   11b : 先手・後手ともに千日手を打開できない。
-
-		u8 state;
-
-		/*
-			後手番で、11bと00bとの指し手があった時に 後手は00bの指し手を選択するが、親には01b を伝播する。
-			この時、01bの指し手を選択すると、これがループである可能性がある。
-
-			A→B→C→D→A
-				  D→E
-			となっている場合、後手が誤ったほうを選択するとループになる。
-
-			だから、bestの選出は、後手は
-			  00b > 01b > 10b > 11b
-			先手は、
-			  00b > 10b > 01b > 11b
-			の順番でなければならない。
-		*/
-
-		// 比較オペレーター
-		bool operator==(const DrawState& v) const { return state==v.state;}
-		bool operator!=(const DrawState& v) const { return !(*this==v); }
-
-		// 手番cにおいて評価値が同じ時に this のほうが yより勝るか。
-		bool is_superior(DrawState y, Color c) const
-		{
-			// 先手にとってのbestを選出する順番
-			constexpr int black_[] = {1,3,2,4};
-			// 後手にとってのbestを選出する順番
-			constexpr int white_[] = {1,2,3,4};
-
-			if (c==BLACK)
-				return black_[this->state] < black_[y.state];
-			else
-				return white_[this->state] < white_[y.state];
-		}
-
-		// 手番cの時、評価値が同じでDrawStateだけ異なる指し手がある時に
-		// このnodeのDrawStateを求める。
-		// 
-		// 例)
-		//   後手番で評価値が同じである 00bと11bの指し手があるとして
-		//   後手はどちらかを選べるので、後手には千日手の権利があることになる。(先手はそれを決める権利がない)
-		//   ゆえに、このとき、このnodeの draw_stateは、01b となる。
-		//
-		//   つまり、
-		//     手番側のbitは、0と1があるなら0(bit and)
-		//     非手番側のbitは、0と1があるなら1(bit or)
-		//   をすればいいということである。
-		void select(DrawState y, Color c)
-		{
-			*this = select_static(*this, y , c);
-		}
-
-		// ↑のstatic版
-		static DrawState select_static(DrawState x , DrawState y , Color c)
-		{
-			u8 our_bit  =  c == BLACK ? 1 : 2;
-			u8 them_bit = ~c == BLACK ? 1 : 2;
-			
-			return ((x.state & our_bit ) & (y.state & our_bit ))
-				 | ((x.state & them_bit) | (y.state & them_bit));
-		}
-
-		// depthに変換する。
-		// stateを1000倍しておく。
-		u16 to_depth() const
-		{
-			return state * 1000;
-		}
-	};
 
 	// 定跡の評価値とその時のdepth、千日手の状態をひとまとめにした構造体
 	struct ValueDepth
 	{
 		ValueDepth()
-			: value(BOOK_VALUE_NONE), depth(0), draw_state(0){}
+			: value(BOOK_VALUE_NONE), depth(0){}
 
 		ValueDepth(s16 value, u16 depth)
-			: value(value) , depth(depth) , draw_state(0){}
-
-		ValueDepth(s16 value, u16 depth, DrawState state)
-			: value(value) , depth(depth) , draw_state(state){}
+			: value(value) , depth(depth){}
 
 		s16 value;
 		u16 depth;
-		DrawState draw_state;
 
 		// 比較オペレーター
-		bool operator==(const ValueDepth& v) const { return value==v.value && depth==v.depth && draw_state==v.draw_state;}
+		bool operator==(const ValueDepth& v) const { return value==v.value && depth==v.depth;}
 		bool operator!=(const ValueDepth& v) const { return !(*this==v); }
 
 		// 優れているかの比較
@@ -385,26 +293,23 @@ namespace MakeBook2023
 			if (this->value != v.value)
 				return this->value > v.value;
 
-			// DrawStateベースの比較
-
-			// 値が同じならdepthの低いほうを採用する。
-			// なぜなら、循環してきて、別の枝に進むことがあり、それはdepthが高いはずであるから。
-			if (this->draw_state != v.draw_state)
-				return this->draw_state.is_superior(v.draw_state, color);
-
 			// depthベースの比較。評価値の符号で場合分けが生ずる。
+#if 0
 			// 一貫性をもたせるためにvalueが千日手スコアの場合は、先手ならdepthの小さいほうを目指すことにしておく。
-			// →　省メモリ化のため、定跡読み込み時に先手の局面に変換してメモリに格納することにしたため、
-			//    先後の区別ができなくなってしまった。
 			auto dv = draw_value(REPETITION_DRAW, color);
 			if ((this->value > dv) || (this->value == dv && (color == BLACK)))
 				return this->depth < v.depth;
 			else
 				return this->depth > v.depth;
+#endif
+			// ⇨　省メモリ化のため、定跡読み込み時に先手の局面に変換してメモリに格納することにしたため、
+			//    先後の区別ができなくなってしまった。
+			auto dv = draw_value(REPETITION_DRAW, color);
+			if (this->value >= dv)
+				return this->depth < v.depth;
+			else
+				return this->depth > v.depth;
 		}
-
-		// depthにdraw_stateの状態を反映させる。
-		void draw_state_to_depth() { depth += draw_state.to_depth(); }
 	};
 
 	// 定跡の1つの指し手を表現する構造体
@@ -419,7 +324,7 @@ namespace MakeBook2023
 		BookMove(Move16 move,ValueDepth vd, BookNodeIndex next):
 			move(move),vd(vd),next(next){}
 
-		// move(2) + value(2) + depth(2) + draw state(1) + next(4) = 11 bytes → 12
+		// move(2) + value(2) + depth(2) + next(4) = 10 bytes → 12
 
 		// 指し手
 		Move16 move;
@@ -600,7 +505,7 @@ namespace MakeBook2023
 				// まずこのnodeのbestを得る。
 				ValueDepth best(-BOOK_VALUE_INF, BOOK_DEPTH_INF);
 				// 親に伝播するbest
-				parent_vd = ValueDepth(-BOOK_VALUE_INF,BOOK_DEPTH_INF,DrawState(3));
+				parent_vd = ValueDepth(-BOOK_VALUE_INF,BOOK_DEPTH_INF);
 
 				best_index = size_max;
 				for(size_t i = 0 ; i< node.moves.size() ; ++i)
@@ -616,22 +521,11 @@ namespace MakeBook2023
 						best = book_move.vd;
 						best_index = i;
 					}
-
-					if (parent_vd.value < book_move.vd.value)
-						parent_vd = book_move.vd;
-					else if (parent_vd.value == book_move.vd.value)
-					{
-						// valueが同じなのでdraw_stateはORしていく必要がある。
-						parent_vd.draw_state.select(best.draw_state, node.color());
-
-						// depthに関しては、bestのdepthを採用すればbestの指し手を追いかけていった時の手数になる。
-						parent_vd.depth = best.depth;
-					}
 				}
 
-				// 親に伝播するほうはvalueを反転させておく。
-				parent_vd.value =            - parent_vd.value;
-				parent_vd.depth = std::min(u16(parent_vd.depth + 1) , BOOK_DEPTH_INF);
+				// 親に伝播するほうはvalueを反転させておく。depthは+1しておく。
+				parent_vd.value =            - best.value;
+				parent_vd.depth = std::min(u16(best.depth + 1) , BOOK_DEPTH_INF);
 
 				return best;
 			};
@@ -648,12 +542,7 @@ namespace MakeBook2023
 				{
 
 					if (   best.value == book_move.vd.value
-						&& (
-								// draw_state違い。これはbestが優先されるべき。
-							   ( best.draw_state != book_move.vd.draw_state)
-								// あるいは、draw_stateは同じだが、経路の長さが違う場合。これはbestのほうのみが選ばれるべき。
-							|| ( best.draw_state == book_move.vd.draw_state && best.depth != book_move.vd.depth)
-							)
+						&& best.depth != book_move.vd.depth
 						)
 					{
 						// depthが最小でない指し手の評価値を1だけ減らしておく。
@@ -662,9 +551,6 @@ namespace MakeBook2023
 						// このnodeにしか影響はない。
 						book_move.vd.value--;
 					}
-
-					// depthにdraw stateを反映させる。
-					book_move.vd.depth += book_move.vd.draw_state.to_depth();
 				}
 			};
 
@@ -926,8 +812,7 @@ namespace MakeBook2023
 						BookMove book_move(Move16(move.move),
 							ValueDepth(
 								draw_value(REPETITION_DRAW, book_node.color()),
-								BOOK_DEPTH_INF,
-								DrawState(3)
+								BOOK_DEPTH_INF
 							),
 							next_book_node_index);
 
