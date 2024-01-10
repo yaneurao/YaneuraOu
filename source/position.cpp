@@ -3052,6 +3052,70 @@ void Position::UnitTest(Test::UnitTester& tester)
 	}
 
 	{
+		// packed sfenのテスト
+		auto section = tester.section("PackedSfen");
+
+		vector<string> test_sfens = {
+			"lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w -",
+			"lns1kgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w -",
+			"lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGK4 w -",
+			"lnsgk4/9/ppppppppp/9/9/9/PPPPPPPPP/9/LNSGK4 w GBRgbr",
+		};
+
+		// packed by cshogi
+		/*
+			board = cshogi.Board()
+			psfen = np.zeros(32, dtype=np.uint8)
+			board.set_sfen(sfen)
+			board.to_psfen(psfen)
+			print(np.array2string(psfen, separator=', '))
+		*/
+		vector<PackedSfen> packed_sfens =
+		{
+			{
+				89, 164,  81,  34,  12, 171,  68, 252,  44, 167,  68,  56,  94, 137, 240,
+				72, 132,  87,  34,  60, 167,  68,  56,  86, 137, 248,  88,  70, 137,  48,
+				188, 126
+			},
+			{
+				89, 164,  81,  34,  12, 171,  68, 252,  44, 167,  68,  56,  94, 137, 240,
+				72,   4,  18, 225,  57,  37, 194, 177,  74, 196, 199,  50,  74, 132,  97,
+				191, 126
+			},
+			{
+				89, 164,  81,  34,  88,  37, 226, 199,  41,  17, 188,  18, 129,  68, 120,
+				37, 194, 115,  74, 132,  99, 149, 136, 143, 101, 148,   8,  67, 106, 107,
+				191, 126
+			},
+			{
+				89,  36,  18,   1, 137, 128,  68,  64,  34, 144,   8, 175,  68, 120,  78,
+				137, 112, 172,  18,  97,  25,  37, 194, 112,  30, 159, 251, 252, 166, 212,
+				218,  90
+			}
+		};
+
+		bool success = true;
+		for(size_t i = 0 ; i < test_sfens.size() ; ++i)
+		{
+			auto sfen = test_sfens[i];
+			auto &packed_sfen = packed_sfens[i];
+
+			StateInfo si;
+			pos.set(sfen, &si, Threads.main());
+
+			PackedSfen ps;
+			pos.sfen_pack(ps);
+
+			// バイナリ列として一致するか。
+			success &= ps == packed_sfen;
+
+			// decodeで元のsfenになることは、このあとのランダムプレイヤーのテストで散々やっているから
+			// ここでやる必要なし。
+		}
+		tester.test("handicapped sfen",success);
+	}
+
+	{
 		// それ以外のテスト
 		auto section = tester.section("misc");
 		{

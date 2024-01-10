@@ -186,6 +186,10 @@ struct SfenPacker
 	{
 	//    cout << pos;
 
+		// 以下の書き出し順が、GOLD,BISHOP,ROOKの順になるように調整しておく。
+		// (cshogiの変換例とバイナリレベルで一致させたいため)
+		constexpr PieceType to_apery_pieces[]     = { NO_PIECE_TYPE , PAWN, LANCE, KNIGHT, SILVER, GOLD, BISHOP , ROOK };
+
 		// 駒箱枚数
 		// 最終、余った駒を駒箱として出力する必要がある。
 		int32_t hp_count[8] =
@@ -222,24 +226,29 @@ struct SfenPacker
 		for (auto c : COLOR)
 			for (PieceType pr = PAWN; pr < KING; ++pr)
 			{
-				int n = hand_count(pos.hand_of(c), pr);
+				// Aperyの手駒の並び順で列挙するように変更する。
+				PieceType pr2 = to_apery_pieces[pr];
+
+				int n = hand_count(pos.hand_of(c), pr2);
 
 				// この駒、n枚持ってるよ
 				for (int i = 0; i < n; ++i)
-					write_hand_piece_to_stream(make_piece(c, pr));
+					write_hand_piece_to_stream(make_piece(c, pr2));
 
 				// 駒箱から減らす
-				hp_count[pr] -= n;
+				hp_count[pr2] -= n;
 			}
 
 		// 最後に駒箱の分を出力
 		for (PieceType pr = PAWN ; pr < KING ; ++pr)
 		{
-			int n = hp_count[pr];
+			PieceType pr2 = to_apery_pieces[pr];
+
+			int n = hp_count[pr2];
 
 			// この駒、n枚駒箱にあるよ
 			for (int i = 0; i < n ; ++i)
-				write_piecebox_piece_to_stream(pr);
+				write_piecebox_piece_to_stream(pr2);
 		}
 
 		// 綺麗に書けた..気がする。
@@ -249,17 +258,8 @@ struct SfenPacker
 	}
 
 	// data[32]をsfen化して返す。
-	string unpack()
+	std::string unpack()
 	{
-		// 駒箱枚数
-		// 最終、余った駒を駒箱として出力する必要がある。
-		int32_t hp_count[8] =
-		{
-			0,
-			18/*PAWN*/, 4/*LANCE*/, 4/*KNIGHT*/, 4/*SILVER*/,
-			2/*BISHOP*/, 2/*ROOK*/, 4/*GOLD*/
-		};
-
 		stream.set_data(data);
 
 		// 盤上の81升
