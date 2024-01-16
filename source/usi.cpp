@@ -636,6 +636,8 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 	int max_game_ply = 0;
 	if (Options.count("MaxMovesToDraw"))
 		max_game_ply = (int)Options["MaxMovesToDraw"];
+
+	// これ0の時、何らか設定しておかないと探索部でこの手数を超えた時に引き分け扱いにしてしまうので、無限大みたいな定数の設定が必要。
 	limits.max_game_ply = (max_game_ply == 0) ? 100000 : max_game_ply;
 
 #if defined (USE_ENTERING_KING_WIN)

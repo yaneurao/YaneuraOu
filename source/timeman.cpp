@@ -110,19 +110,21 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 		return;
 	}
 
-	// 残り手数
-	// plyは平手の初期局面が1。
-	// なので、256手ルールとして、max_game_ply == 256
-	// 256手目の局面においてply == 256
-	// その1手前の局面においてply == 255
-	// これらのときにMTGが1にならないといけない。
-	// だから2足しておくのが正解。
-	const int MTG = std::min((limits.max_game_ply - ply + 2) / 2, MoveHorizon);
+	// 切れ負けであるか？
+	bool time_forfeit = limits.inc[us] == 0 && limits.byoyomi[us] == 0;
+
+	// 切れ負けルールの時は、MoveHorizonを + 40して考える。
+	const int move_horizon = time_forfeit ? MoveHorizon + 40 : MoveHorizon;
+
+	// 残りの自分の手番の回数
+	// ⇨　plyは平手の初期局面が1。256手ルールとして、max_game_ply == 256だから、256手目の局面においてply == 256
+	// 　その1手前の局面においてply == 255。ply == 255 or 256のときにMTGが1にならないといけない。だから2足しておくのが正解。
+	const int MTG = std::min(limits.max_game_ply - ply + 2, move_horizon ) / 2;
 
 	if (MTG <= 0)
 	{
 		// 本来、終局までの最大手数が指定されているわけだから、この条件で呼び出されるはずはないのだが…。
-		sync_cout << "info string max_game_ply is too small." << sync_endl;
+		sync_cout << "info string Error! : max_game_ply is too small." << sync_endl;
 		return;
 	}
 	if (MTG == 1)
@@ -170,7 +172,7 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 
 
 		// 切れ負けルールにおいては、5分を切っていたら、このratioを抑制する。
-		if (limits.inc[us] == 0 && limits.byoyomi[us] == 0)
+		if (time_forfeit)
 		{
 			// 3分     : ratio = 3.0
 			// 2分     : ratio = 2.0
