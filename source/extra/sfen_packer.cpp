@@ -359,7 +359,7 @@ struct SfenPacker
 	// 駒箱をstreamに出力する。
 	void write_piecebox_piece_to_stream(PieceType pr)
 	{
-		ASSERT_LV3(pr != NO_PIECE);
+		ASSERT_LV3(pr != NO_PIECE_TYPE);
 
 		// 駒種
 		auto c = huffman_table_piecebox[pr];
@@ -438,7 +438,6 @@ struct SfenPacker
 		return make_piece(c, pr);
 	}
 };
-
 
 // -----------------------------------
 //        Positionクラスに追加

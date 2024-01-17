@@ -25,7 +25,7 @@ struct Key256;
 /// key        16 bit : hash keyの下位16bit(bit0は除くのでbit16..1)
 /// depth       8 bit : 格納されているvalue値の探索深さ
 /// move       16 bit : このnodeの最善手(指し手16bit ≒ Move16 , Moveの上位16bitは無視される)
-/// generation  5 bit : 世代カウンター
+/// generation  5 bit : このエントリーにsave()された時のTTの世代カウンターの値
 /// pv node     1 bit : PV nodeで調べた値であるかのフラグ
 /// bound type  2 bit : 格納されているvalue値の性質(fail low/highした時の値であるだとか)
 /// value      16 bit : このnodeでのsearch()の返し値
