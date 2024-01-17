@@ -10,8 +10,8 @@
 namespace {
 
 	// これぐらい自分が指すと終局すると考えて計画を練る。
-	// 近年、将棋ソフトは終局までの平均手数が伸びているので 定跡40手 + MoveToHorizon(120) = 160に設定しておく。
-	const int MoveHorizon = 120;
+	// 近年、将棋ソフトは終局までの平均手数が伸びているので160に設定しておく。
+	const int MoveHorizon = 160;
 
 	// 思考時間のrtimeが指定されたときに用いる乱数
 	PRNG prng;
@@ -113,8 +113,10 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 	// 切れ負けであるか？
 	bool time_forfeit = limits.inc[us] == 0 && limits.byoyomi[us] == 0;
 
-	// 切れ負けルールの時は、MoveHorizonを + 40して考える。
-	const int move_horizon = time_forfeit ? MoveHorizon + 40 : MoveHorizon;
+	// 1. 切れ負けルールの時は、MoveHorizonを + 40して考える。
+	// 2. ゲーム開始直後～40手目ぐらいまでは定跡で進むし、そこまで進まなかったとしても勝負どころはそこではないので
+	// 　ゲーム開始直後～40手目付近のMoveHorizonは少し大きめに考える必要がある。逆に40手目以降、MoveHorizonは40ぐらい減らして考えていいと思う。
+	const int move_horizon = MoveHorizon + (time_forfeit ? 40 : 0) - std::min(ply , 40);
 
 	// 残りの自分の手番の回数
 	// ⇨　plyは平手の初期局面が1。256手ルールとして、max_game_ply == 256だから、256手目の局面においてply == 256
