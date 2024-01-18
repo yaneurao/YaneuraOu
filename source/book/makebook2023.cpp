@@ -239,7 +239,7 @@ namespace MakeBook2023
 	const int BOOK_VALUE_NONE = numeric_limits<s16>::min();
 
 	const int BOOK_VALUE_MAX  = numeric_limits<s16>::max()-1;
-	const int BOOK_VALUE_MIN  = numeric_limits<s16>::min()+11;
+	const int BOOK_VALUE_MIN  = numeric_limits<s16>::min()+1;
 
 	// 定跡で千日手手順の時のdepth。∞であることがわかる特徴的な定数にしておくといいと思う。
 	const u16 BOOK_DEPTH_INF = 999;
@@ -437,13 +437,14 @@ namespace MakeBook2023
 			// peta_shock_nextで局面を"startpos moves.."の形式で出力する。
 			bool from_startpos = false;
 
+			// 書き出す時に最善手と同じ評価値の指し手以外は削除する。
+			bool shrink = false;
+
 			is >> readbook_path >> writebook_path;
 
 			readbook_path  = Path::Combine("book",readbook_path );
 			writebook_path = Path::Combine("book",writebook_path);
-
-			size_t hash_size_mb = 16;
-
+			
 			if (next)
 			{
 				is >> next_nodes;
@@ -459,7 +460,8 @@ namespace MakeBook2023
 					else if (token == "from_startpos")
 						from_startpos = true;
 				} else {
-					// パラメーターがあればここでparseする。
+					if (token == "shrink")
+						shrink = true;
 				}
 			}
 
@@ -478,7 +480,7 @@ namespace MakeBook2023
 
 			} else {
 
-				// パラメーターがあればここで出力する。
+				cout << "shrink             : " << shrink << endl;
 
 			}
 
@@ -744,7 +746,8 @@ namespace MakeBook2023
 				//   時間もったいないな…。
 #endif
 
-				book_node.moves.emplace_back(BookMove(move16, value, depth));
+				book_node.moves.emplace_back(BookMove(move16, value, 0 /*depth*/));
+				// ⇨ leaf nodeのdepthは0扱いで良いのでは…。
 			}
 			sfen_writer.Close();
 
@@ -997,6 +1000,9 @@ namespace MakeBook2023
 			// MAX_PLY回だけ評価値を伝播させる。
 			for(size_t loop = 0 ; loop < MAX_PLY ; ++loop)
 			{
+				// すべてのnodeに更新がなければ終了したいので、そのためのフラグ。
+				bool node_updated = false;
+
 				for(auto& book_node : book_nodes)
 				{
 					// 入次数1以上のnodeなのでparentがいるから、このnodeの情報をparentに伝播。
@@ -1015,8 +1021,6 @@ namespace MakeBook2023
 							BookNodeIndex parent_index = parent.parent;
 							BookNode&     parent_node  = book_nodes[parent_index];
 							BookMove&     parent_move  = parent_node.moves[parent.move_index];
-
-							// 親に伝播させている以上、前回のvalueの値と異なることは確定している。
 
 							parent_move.vd = parent_vd;
 						}
@@ -1363,9 +1367,19 @@ namespace MakeBook2023
 					writer.WriteLine("sfen " + sfen);
 					writer.Flush(); // ⇦ これ呼び出さないとメモリ食ったままになる。
 
+					// 評価値順で降順sortする。
+					std::sort(book_node.moves.begin(), book_node.moves.end(),
+						[](const BookMove& x, const BookMove& y) {
+							return x.vd.value > y.vd.value;
+						});
+
 					// 指し手を出力
 					for(auto& move : book_node.moves)
 					{
+						// shrinkモードなら、最善手と異なる指し手は削除。
+						if (shrink && book_node.moves[0].vd.value != move.vd.value)
+							continue;
+
 						// 元のDB上で後手の局面なら後手の局面として書き出したいので、
 						// 後手の局面であるなら指し手を反転させる。
 						Move16 m16 = (book_node.color() == WHITE) ? flip_move(move.move) : move.move;
@@ -1432,8 +1446,9 @@ namespace Book
 			// ペタショックコマンド
 			// やねうら王の定跡ファイルに対して定跡ツリー上でmin-max探索を行い、その結果を別の定跡ファイルに書き出す。
 			//   makebook peta_shock book.db user_book1.db
-			// 先手の局面しか書き出さない。後手の局面はflip(盤面を180°回転させる)して、先手の局面として書き出す。
-			// エンジンオプションの FlippedBook を必ずオンにして用いること。
+			// 　⇨　先手か後手か、片側の局面しか書き出さない。エンジンオプションの FlippedBook を必ずオンにして用いること。
+			//   makebook peta_shock book.db user_book1.db shrink
+			//   ⇨  "shrink"を指定すると、その局面の最善手と同じ評価値の指し手のみを書き出す。
 			MakeBook2023::PetaShock ps;
 			ps.make_book(pos, is, false);
 			return 1;
