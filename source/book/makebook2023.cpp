@@ -787,10 +787,8 @@ namespace MakeBook2023
 				// ここから全合法手で一手進めて既知の(DB上の他の)局面に行くかを調べる。
 				for(auto move:MoveList<LEGAL_ALL>(pos))
 				{
-					pos.do_move(move, si2);
-
 					// moveで進めた局面が存在する時のhash値。
-					HASH_KEY next_hash = pos.state()->hash_key();
+					HASH_KEY next_hash = pos.hash_key_after(move);
 
 					if (this->hashkey_to_index.count(next_hash) > 0)
 					{
@@ -827,8 +825,6 @@ namespace MakeBook2023
 
 						book_node.moves.emplace_back(book_move);
 					}
-
-					pos.undo_move(move);
 				}
 
 				// 定跡DB上のこの局面の指し手も登録しておく。
