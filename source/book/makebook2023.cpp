@@ -1561,7 +1561,8 @@ namespace MakeBook2023
 					// ⇨　安定sortでないと、一度遭遇した局面だから、棋譜がそこまでしか得られなくなってしまう。
 					// ⇨　合流した時、棋譜を破棄した方がいいか…。
 
-					std::partial_sort(kifs.begin(), kifs.begin() + next_nodes0 , kifs.end(),
+					u64 sort_num = std::min(next_nodes0, u64(kifs.size()));
+					std::partial_sort(kifs.begin(), kifs.begin() + sort_num , kifs.end(),
 						[pv_color](const KIF_EVAL& x, const KIF_EVAL& y) {
 							// 格納されている評価値は先手から見た評価値となっている。
 							// pv_colorが先手であるなら、評価値を昇順に並び替えて前からnext_nodes0 個取り出す。
@@ -1573,7 +1574,7 @@ namespace MakeBook2023
 						});
 
 					// ここで得られた棋譜、あとでまとめて書き出す。
-					for(size_t i = 0 ; i < std::min(kifs.size(), next_nodes0) ; ++i)
+					for(u64 i = 0 ; i < sort_num ; ++i)
 					{
 						write_sfens.insert(kifs[i].first);
 						//cout << kifs[i].first << " , " << kifs[i].second << endl;
