@@ -2262,6 +2262,20 @@ namespace StringExtension
 		return v;
 	}
 
+	// Pythonの delemiter.join(v) みたいなの。
+	// 例: v = [1,2,3] に対して ' '.join(v) == "1 2 3"
+	std::string Join(const std::vector<std::string>& v , const std::string& delimiter)
+	{
+		std::string result;
+		for (size_t i = 0; i < v.size(); ++i) {
+			result += v[i];
+			if (i < v.size() - 1) {
+				result += delimiter;
+			}
+		}
+		return result;
+	}
+
 };
 
 // ----------------------------

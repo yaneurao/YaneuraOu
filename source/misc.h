@@ -1042,6 +1042,9 @@ namespace StringExtension
 	// sを文字列spで分割した文字列集合を返す。
 	extern std::vector<std::string> Split(const std::string& s , const std::string& sep);
 
+	// Pythonの delemiter.join(v) みたいなの。
+	// 例: v = [1,2,3] に対して ' '.join(v) == "1 2 3"
+	extern std::string Join(const std::vector<std::string>& v , const std::string& delimiter);
 };
 
 // --------------------

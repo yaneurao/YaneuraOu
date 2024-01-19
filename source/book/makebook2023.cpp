@@ -411,14 +411,32 @@ namespace MakeBook2023
 		}
 	}
 
+
+	enum class PETA_SHOCK_TYPE
+	{
+		PetaShock          , /* 通常のpeta shock化 */
+		PetaShockNextPV    , /* 次に掘るべき局面を求める。初期局面から最善手を辿った局面 */
+		PetaShockNextHalfPV, /* 次に掘るべき局面を求める。初期局面から先手は最善手、後手はすべての指し手、みたいな感じで辿った時の局面。 */
+	};
+
+	// SFEN棋譜とそのleaf nodeでの評価値(評価値は先手から見て)
+	typedef pair<string, s16> KIF_EVAL;
+
+
 	// ペタショック化
 	class PetaShock
 	{
 	public:
 		// 定跡をペタショック化する。
 		// next : これが非0の時はペタショック化ではなく次に思考対象とすべきsfenをファイルに出力する。
-		void make_book(Position& pos , istringstream& is, bool next)
+		void make_book(Position& pos , istringstream& is, PETA_SHOCK_TYPE type)
 		{
+			// 実行するコマンドは、PetaShock Next(1,2問わず)であるか
+			bool next = (type == PETA_SHOCK_TYPE::PetaShockNextPV    )
+				     || (type == PETA_SHOCK_TYPE::PetaShockNextHalfPV);
+			// 実行するコマンドは、PetaShock Next2であるか？
+			bool next2 = type == PETA_SHOCK_TYPE::PetaShockNextHalfPV;
+
 			hashbit_check();
 
 			// 千日手の遡り手数を初手まで遡ることにする。
@@ -431,8 +449,11 @@ namespace MakeBook2023
 			// 次の思考対象とすべきsfenを書き出す時のその局面の数。
 			u64 next_nodes = 0;
 
-			// leaf nodeの指し手に加える乱数の大きさ
+			// peta_shock_nextの時のleaf nodeの指し手に加える乱数の大きさ
 			int eval_noise = 0;
+
+			// peta_shock_next2の時の指し手を辿る評価値のlimit
+			int eval_limit = 400;
 
 			// peta_shock_nextで局面を"startpos moves.."の形式で出力する。
 			bool from_startpos = false;
@@ -459,6 +480,8 @@ namespace MakeBook2023
 						is >> eval_noise;
 					else if (token == "from_startpos")
 						from_startpos = true;
+					else if (token == "eval_limit")
+						is >> eval_limit;
 				} else {
 					if (token == "shrink")
 						shrink = true;
@@ -471,7 +494,10 @@ namespace MakeBook2023
 			{
 				// 書き出すsfenの数
 				cout << "write next_sfens   : " << next_nodes    << endl;
-				cout << "eval_noise         : " << eval_noise    << endl;
+				if (next2)
+					cout << "eval_limit         : " << eval_limit    << endl;
+				else if (next)
+					cout << "eval_noise         : " << eval_noise    << endl;
 				cout << "from_startpos      : " << from_startpos << endl;
 
 				// これは現状ファイル名固定でいいや。
@@ -496,65 +522,6 @@ namespace MakeBook2023
 			cout << "draw_value_white   : " << draw_value(REPETITION_DRAW, WHITE) << endl;
 
 			cout << endl;
-
-			// === helper function ===
-
-			// あるnodeのbestと親に伝播すべきparent_vdとを得るヘルパー関数。
-			// best_index : 何番目の指し手がbestであったのかを返す。
-			// すべてのnode.movesがMOVE_NONEなら、best_index == size_maxを返す。
-			auto get_bestvalue = [&](BookNode& node , ValueDepth& parent_vd , size_t& best_index)
-			{
-				// まずこのnodeのbestを得る。
-				ValueDepth best(-BOOK_VALUE_INF, BOOK_DEPTH_INF);
-				// 親に伝播するbest
-				parent_vd = ValueDepth(-BOOK_VALUE_INF,BOOK_DEPTH_INF);
-
-				best_index = size_max;
-				for(size_t i = 0 ; i< node.moves.size() ; ++i)
-				{
-					const auto& book_move = node.moves[i];
-
-					// MOVE_NONEならこの枝はないものとして扱う。
-					if (book_move.move == MOVE_NONE)
-						continue;
-
-					if (book_move.vd.is_superior(best, node.color()))
-					{
-						best = book_move.vd;
-						best_index = i;
-					}
-				}
-
-				// 親に伝播するほうはvalueを反転させておく。depthは+1しておく。
-				parent_vd.value =            - best.value;
-				parent_vd.depth = std::min(u16(best.depth + 1) , BOOK_DEPTH_INF);
-
-				return best;
-			};
-
-			// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
-			// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスする処理を行うヘルパー関数。
-			auto adjust_second_bestvalue = [&](BookNode& node)
-			{
-				ValueDepth vd;
-				size_t _;
-				auto best = get_bestvalue(node, vd , _);
-
-				for(auto& book_move : node.moves)
-				{
-
-					if (   best.value == book_move.vd.value
-						&& best.depth != book_move.vd.depth
-						)
-					{
-						// depthが最小でない指し手の評価値を1だけ減らしておく。
-
-						// bestの値しか親には伝播しないので、ここで引いたところで
-						// このnodeにしか影響はない。
-						book_move.vd.value--;
-					}
-				}
-			};
 
 			// 定跡の開始局面。
 			// "book/root_sfens.txt"からrootのsfen集合を読み込むことにする。
@@ -1048,348 +1015,27 @@ namespace MakeBook2023
 				}
 			}
 
+			// --- 書き出し ---
+
 			// 書き出したsfenの個数
 			u64 write_counter = 0;
 
 			if (next)
 			{
-				// 書き出すsfen
-				unordered_set<string> write_sfens;
-
-				// 次に探索すべき定跡局面についてsfenを書き出していく。
-				// これはmin-max探索した時のPVのleaf node。
-				cout << "Retrograde Analysis : step IV  -> pick up next sfens to search." << endl;
-
-				// rootから辿っていきPV leafに到達したらそのsfenを書き出す。
-				// そのPV leaf nodeを削除して後退解析により、各局面の評価値を更新する。
-				// これを繰り返す。
-
-				progress.reset(next_nodes * root_sfens.size());
-
-				// それぞれのroot_sfenに対して。
-				// ⇨ この、root_sfen文字列は、"startpos moves ..."みたいな文字列でありうるので
-				//   書き出すなら、これを普通のsfen文字列にしたものにしないといけないことに注意。
-				for(auto root_sfen : root_sfens)
-				{
-					deque<StateInfo> si0;
-					BookTools::feed_position_string(pos, root_sfen, si0);
-
-					// 普通のsfen文字列にしたroot_sfen。
-					string root_sfen0 = pos.sfen();
-
-					// root局面のgame ply
-					int root_ply = pos.game_ply();
-					if (pos.side_to_move() == BLACK)
-					{
-						// 後手番の局面になるようにflipする。(hash key調べたいので)
-						auto white_sfen = Position::sfen_to_flipped_sfen(pos.sfen());
-						StateInfo si;
-						pos.set(white_sfen, &si, Threads.main());
-					}
-
-					// このroot_sfenの局面が定跡DB上に存在しない
-					if (hashkey_to_index.count(pos.hash_key()) == 0)
-					{
-						if (from_startpos)
-							write_sfens.emplace(root_sfen);
-						else
-							write_sfens.emplace(root_sfen0);
-
-						continue;
-					}
-
-					// 以下、Positionを用いずにBookNodeIndexで行き来する。
-					// ⇨　最後に局面を書き出す時にpacked_sfenが必要になるから良くなかった。
-					// ⇨　どうせここでPositionを用いて辿るのがボトルネックになっているわけではないので気にしないことにする。
-					BookNodeIndex root_book_node_index = hashkey_to_index[pos.hash_key()];
-
-					u64 timeup_counter = 0;
-
-					// 今回のroot_sfenに対して書き出した局面数
-					u64 write_counter2 = 0;
-
-					// 所定の行数のsfenを書き出すまで回る。
-					// ただし、局面が尽きることがあるのでrootが存在しなければループは抜ける。
-					while (true)
-					{
-						// このroot_sfenに対して規定の行数を書き出した
-						if (write_counter2 >= next_nodes)
-							break;
-
-						// 書き出す指し手がすべてのrootでなくなっていることを証明するロジックを書くのわりと面倒なので
-						// timeup_counterをカウントすることにする。
-						// next_nodesの10倍も回ったらもうあかんやろ…。
-						if (++timeup_counter > next_nodes * 10)
-							break;
-
-						deque<StateInfo> si1;
-						BookTools::feed_position_string(pos, root_sfen, si1);
-
-						// leafの局面までの手順
-						string sfen_path = root_sfen;
-						if (!StringExtension::Contains(sfen_path,"moves"))
-							sfen_path += " moves";
-
-						// 開始局面
-						BookNodeIndex book_node_index = root_book_node_index;
-						int ply = root_ply;
-
-						// いままで訪問したnode。千日手チェック用。
-						unordered_set<BookNodeIndex> visited_nodes;
-
-						// まずPV leafまで辿る。
-						while (true)
-						{
-							auto& book_node = book_nodes[book_node_index];
-							visited_nodes.insert(book_node_index);
-
-							auto& moves     = book_node.moves;
-
-							ValueDepth parent_vd;
-							size_t best_index;
-							auto best = get_bestvalue(book_node, parent_vd , best_index);
-
-							// このnodeにはすでに指し手がないはずなのにどこからやってきたのだ…。
-							// このnode、DB上で元から指し手がなかったのか？あるいはroot_sfenの局面の指し手が尽きたのか？
-							if (best_index == size_max)
-								break;
-
-							// このbestのやつのindexが必要なので何番目にあるか保存しておく。(あとで切断する用)
-							auto move_index = best_index;
-
-							// 次のnode
-							BookNodeIndex next_book_node_index = book_node.moves[best_index].next;
-
-							// leafに到達したか？
-							if (next_book_node_index == BookNodeIndexNull)
-							{
-								// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
-								Move16 m      = book_node.moves[best_index].move;
-								Move16 move16 = (pos.side_to_move() == BLACK) ? m : flip_move(m);
-
-								// 局面を進める
-								si1.push_back(StateInfo());
-								pos.do_move(pos.to_move(move16), si1.back());
-
-								sfen_path += ' ' + to_usi_string(move16);
-
-								string sfen = pos.sfen(ply + 1);
-
-								// write_sfensのinsertはここでしか行わないので、ここでcheck()すれば十分。
-								if (from_startpos)
-									write_sfens.insert(sfen_path);
-								else
-									write_sfens.insert(sfen);
-								progress.check(write_sfens.size());
-								write_counter2++;
-
-								// この手はないものとして、この book_node_index を起点として上流に更新していけばOK。
-								book_node.moves[best_index].move = MOVE_NONE;
-
-								break;
-							}
-
-							// 千日手がPVになっているか？
-
-							// たまに循環がひたすら回避されながらMAX_PLYを超えて手数が増えることがあるのでgame_ply()の判定必須。
-							if (ply >= MAX_PLY || visited_nodes.count(next_book_node_index))
-							{
-								// このnodeから、next_book_node_indexに至る経路を切っておく。
-								// MAX_PLY超えたほうは切るのは微妙かも知れないが、仕方がない。
-
-								// next_book_nodeの親のリストからbook_node_indexを消去。(この経路がなくなるので)
-								// この親リストに必ず1つだけ存在することは保証されているので、存在チェックと重複チェックを省くことができる。
-
-								auto& next_book_node = book_nodes[next_book_node_index];
-								auto& p = next_book_node.parents;
-								p.erase(std::find_if(p.begin(), p.end(), [&](auto& pm){ return pm.parent == book_node_index; }));
-
-								// この手はないものとして、この book_node_index を起点として上流に更新していけばOK。
-								book_node.moves[best_index].move = MOVE_NONE;
-
-								break;
-							}
-
-							// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
-							Move16 m      = book_node.moves[best_index].move;
-							Move16 move16 = (pos.side_to_move() == BLACK) ? m : flip_move(m);
-
-							// 局面を進める
-							si1.push_back(StateInfo());
-							pos.do_move(pos.to_move(move16), si1.back());
-
-							// 棋譜も進める
-							sfen_path += ' ' + to_usi_string(move16);
-
-							// 次のnodeを辿る。
-							book_node_index = next_book_node_index;
-							ply++;
-						}
-
-						/*
-							PV leaf nodeまで到達したので、ここからrootまで遡ってbest move,best valueの更新を行う。
-							いま見ているnodeをnとする。nの親を辿るのだが、nの指し手がすべて無効になった時は、nの親のnに行く指し手を無効化する必要がある。
-
-							また、rootまで遡る時にparentsが複数あったりloopがあったりするので単純に遡ると組み合わせ爆発を起こす。
-							そこで、次のアルゴリズムを用いる。
-
-							queue = [処理すべき局面]
-							while queue:
-								n = queue.pop_left()
-								vd = nのbest
-								deleted = nの指し手がすべて消滅したのか？
-								for parent in n.parents:
-									parentからnに至る指し手 = MOVE_NONE if deleted else vd
-									// ⇨　これによるparentでのbestに変化が生じた時だけqueueに詰めばいいのだが、
-									//    循環してるとどうせ永久ループになるので気にせず積む。
-									if (not parentが処理済み)
-										queue.push_right(parent)
-								if deleted:
-									n.parents.clear()
-
-						*/
-
-						//deque<BookNodeIndex> queue;
-						// ⇨　これ、queueにした方がleaf nodeからの距離の順に伝播して良いと思うのだが、
-						//    循環してて300万局面のleaf nodeから親が5万ノードほどあるので増えてくるとここの
-						//    オーバーヘッドが許容できない。
-						//    仕方なくvectorにする。
-
-						vector<BookNodeIndex> queue;
-						queue.emplace_back(book_node_index);
-
-						// update済みノード
-						unordered_set<BookNodeIndex> already_updated_node;
-
-						while (queue.size())
-						{
-							//auto book_node_index = queue[0];
-							//queue.pop_front();
-
-							auto book_node_index = queue.back();
-							queue.pop_back();
-
-							auto& book_node = book_nodes[book_node_index];
-
-							ValueDepth parent_vd;
-							size_t best_index;
-							auto best_vd = get_bestvalue(book_node, parent_vd, best_index);
-							// すべてがMOVE_NONEなら、best_index == size_maxになることが保証されている。
-							bool delete_flag = best_index == size_max;
-
-							for(auto& pm : book_node.parents)
-							{
-								auto& parent_book_node = book_nodes[pm.parent];
-								ValueDepth parent_parent_vd;
-								size_t     parent_best_index;
-								auto parent_best_vd    = get_bestvalue(book_node, parent_parent_vd, parent_best_index);
-
-								if (delete_flag)
-									// 1a. この局面に至る親からの指し手をすべて削除。
-									book_nodes[pm.parent].moves[pm.move_index].move = MOVE_NONE;
-								else
-									// 1b. この局面に至る親からの指し手の評価値を更新
-									book_nodes[pm.parent].moves[pm.move_index].vd = best_vd;
-
-								// これ⇑によって親のbestに変化が生じたのか？
-								auto parent_best_vd2   = get_bestvalue(book_node, parent_parent_vd, parent_best_index);
-								if (parent_best_vd != parent_best_vd2)
-								{
-									// 2. 親を更新対象に追加
-									// すでに一度でも追加しているならこれ以上は追加しない。(ループ防止)
-									if (already_updated_node.count(pm.parent) == 0)
-									{
-										already_updated_node.insert(pm.parent);
-										queue.push_back(pm.parent);
-									}
-								}
-							}
-							// 3. 親を丸ごと削除
-							if (delete_flag)
-								book_node.parents.clear();
-						}
-					}
-
-				//NEXT_ROOT:;
-
-				}
-
-				progress.check(next_nodes * root_sfens.size());
-
-				// write_sfensのなかにある局面とそれをflipした局面の組が含まれないかを
-				// チェックする。
-				// flipした局面に対しても辿っているので、これはわりとありうる。
-
-				SystemIO::TextWriter writer;
-				writer.Open(writebook_path);
-				for(auto& write_sfen : write_sfens)
-					writer.WriteLine(write_sfen);
-				write_counter = write_sfens.size();
-
-			} else {
-				// 通常のpeta_shockコマンド時の処理。(peta_shock_nextコマンドではなく)
-
-				// メモリ上の定跡DBを再構成。
-				// この時点でもうhash_key_to_index不要なので解放する。
-				// (clear()では解放されないので、swap trickを用いる。)
-				HashKey2Index().swap(this->hashkey_to_index);
-
-				// MemoryBookを用いるとオーバーヘッドが大きいので自前で直接ファイルに書き出す。
-
-				size_t n = book_nodes.size();
-
-				cout << "Write to a book DB  : " << endl;
-
-				SystemIO::TextWriter writer;
-				if (writer.Open(writebook_path).is_not_ok())
-				{
-					cout << "Error! : open file error , path = " << writebook_path << endl;
-					return;
-				}
-
-				progress.reset(n - 1);
-
-				// バージョン識別用文字列
-				writer.WriteLine(::Book::BookDBHeader2016_100);
-
-				sfen_reader.Open(SFEN_TEMP_FILENAME);
-
-				for(size_t i = 0 ; i < n ; ++i)
-				{
-					auto& book_node = book_nodes[i];
-					string sfen;
-					sfen_reader.ReadLine(sfen); // 元のsfen(手番を含め)通りにしておく。
-
-					writer.WriteLine("sfen " + sfen);
-					writer.Flush(); // ⇦ これ呼び出さないとメモリ食ったままになる。
-
-					// 評価値順で降順sortする。
-					std::sort(book_node.moves.begin(), book_node.moves.end(),
-						[](const BookMove& x, const BookMove& y) {
-							return x.vd.value > y.vd.value;
-						});
-
-					// 指し手を出力
-					for(auto& move : book_node.moves)
-					{
-						// shrinkモードなら、最善手と異なる指し手は削除。
-						if (shrink && book_node.moves[0].vd.value != move.vd.value)
-							continue;
-
-						// 元のDB上で後手の局面なら後手の局面として書き出したいので、
-						// 後手の局面であるなら指し手を反転させる。
-						Move16 m16 = (book_node.color() == WHITE) ? flip_move(move.move) : move.move;
-						writer.WriteLine(to_usi_string(m16) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
-					}
-
-					progress.check(i);
-					write_counter++;
-
-				}
-				sfen_reader.Close();
-
-				cout << "write " + writebook_path << endl;
+				if (next2)
+					// peta_shock_next2コマンド
+					write_peta_shock_next2_sfen(writebook_path, write_counter, root_sfens, next_nodes, from_startpos, eval_limit);
+				else
+					// peta_shock_nextコマンド
+					write_peta_shock_next_sfen(writebook_path, write_counter, root_sfens, next_nodes, from_startpos);
 			}
+			else
+			{
+				// peta_shockコマンド
+				write_peta_shock_book(writebook_path, write_counter, book_nodes, shrink);
+			}
+
+			// --- 結果出力 ---
 
 			cout << "[ PetaShock Result ]" << endl;
 
@@ -1416,6 +1062,630 @@ namespace MakeBook2023
 
 		}
 
+	protected:
+
+		// === helper function ===
+
+		// あるnodeのbestと親に伝播すべきparent_vdとを得るヘルパー関数。
+		// best_index : 何番目の指し手がbestであったのかを返す。
+		// すべてのnode.movesがMOVE_NONEなら、best_index == size_maxを返す。
+		ValueDepth get_bestvalue(BookNode& node , ValueDepth& parent_vd , size_t& best_index)
+		{
+			// まずこのnodeのbestを得る。
+			ValueDepth best(-BOOK_VALUE_INF, BOOK_DEPTH_INF);
+			// 親に伝播するbest
+			parent_vd = ValueDepth(-BOOK_VALUE_INF,BOOK_DEPTH_INF);
+
+			best_index = size_max;
+			for(size_t i = 0 ; i< node.moves.size() ; ++i)
+			{
+				const auto& book_move = node.moves[i];
+
+				// MOVE_NONEならこの枝はないものとして扱う。
+				if (book_move.move == MOVE_NONE)
+					continue;
+
+				if (book_move.vd.is_superior(best, node.color()))
+				{
+					best = book_move.vd;
+					best_index = i;
+				}
+			}
+
+			// 親に伝播するほうはvalueを反転させておく。depthは+1しておく。
+			parent_vd.value =            - best.value;
+			parent_vd.depth = std::min(u16(best.depth + 1) , BOOK_DEPTH_INF);
+
+			return best;
+		};
+
+		// 評価値が同じでdepth違いの枝があると、実戦で、そっちが選ばれ続けて千日手になりかねないので
+		// (評価値が同じで)depthが高いほうの指し手は残りの枝の価値をわずかにマイナスする処理を行うヘルパー関数。
+		void adjust_second_bestvalue(BookNode& node)
+		{
+			ValueDepth vd;
+			size_t _;
+			auto best = get_bestvalue(node, vd , _);
+
+			for(auto& book_move : node.moves)
+			{
+
+				if (   best.value == book_move.vd.value
+					&& best.depth != book_move.vd.depth
+					)
+				{
+					// depthが最小でない指し手の評価値を1だけ減らしておく。
+
+					// bestの値しか親には伝播しないので、ここで引いたところで
+					// このnodeにしか影響はない。
+					book_move.vd.value--;
+				}
+			}
+		};
+
+
+		// ペタショック化した定跡ファイルを書き出す。
+		void write_peta_shock_book(std::string writebook_path, u64& write_counter, std::vector<BookNode>& book_nodes, bool shrink)
+		{
+			// 通常のpeta_shockコマンド時の処理。(peta_shock_nextコマンドではなく)
+
+			// メモリ上の定跡DBを再構成。
+			// この時点でもうhash_key_to_index不要なので解放する。
+			// (clear()では解放されないので、swap trickを用いる。)
+			HashKey2Index().swap(this->hashkey_to_index);
+
+			// progress表示用
+			Tools::ProgressBar progress;
+
+			// MemoryBookを用いるとオーバーヘッドが大きいので自前で直接ファイルに書き出す。
+
+			size_t n = book_nodes.size();
+
+			cout << "Write to a book DB  : " << endl;
+
+			SystemIO::TextWriter writer;
+			if (writer.Open(writebook_path).is_not_ok())
+			{
+				cout << "Error! : open file error , path = " << writebook_path << endl;
+				return;
+			}
+
+			progress.reset(n - 1);
+
+			// バージョン識別用文字列
+			writer.WriteLine(::Book::BookDBHeader2016_100);
+
+			SystemIO::TextReader sfen_reader;
+			sfen_reader.Open(SFEN_TEMP_FILENAME);
+
+			for(size_t i = 0 ; i < n ; ++i)
+			{
+				auto& book_node = book_nodes[i];
+				string sfen;
+				sfen_reader.ReadLine(sfen); // 元のsfen(手番を含め)通りにしておく。
+
+				writer.WriteLine("sfen " + sfen);
+				writer.Flush(); // ⇦ これ呼び出さないとメモリ食ったままになる。
+
+				// 評価値順で降順sortする。
+				std::sort(book_node.moves.begin(), book_node.moves.end(),
+					[](const BookMove& x, const BookMove& y) {
+						return x.vd.value > y.vd.value;
+					});
+
+				// 指し手を出力
+				for(auto& move : book_node.moves)
+				{
+					// shrinkモードなら、最善手と異なる指し手は削除。
+					if (shrink && book_node.moves[0].vd.value != move.vd.value)
+						continue;
+
+					// 元のDB上で後手の局面なら後手の局面として書き出したいので、
+					// 後手の局面であるなら指し手を反転させる。
+					Move16 m16 = (book_node.color() == WHITE) ? flip_move(move.move) : move.move;
+					writer.WriteLine(to_usi_string(m16) + " None " + to_string(move.vd.value) + " " + to_string(move.vd.depth));
+				}
+
+				progress.check(i);
+				write_counter++;
+
+			}
+			sfen_reader.Close();
+
+			cout << "write " + writebook_path << endl;
+		}
+
+		// peta_shock_nextコマンドによるSFEN棋譜の書き出し。
+		void write_peta_shock_next_sfen(std::string writebook_path, u64& write_counter, const std::vector<std::string>& root_sfens, u64 next_nodes, bool from_startpos)
+		{
+			// 書き出すsfen
+			unordered_set<string> write_sfens;
+
+			// 次に探索すべき定跡局面についてsfenを書き出していく。
+			// これはmin-max探索した時のPVのleaf node。
+			cout << "Retrograde Analysis : step IV  -> pick up next sfens to search." << endl;
+
+			// rootから辿っていきPV leafに到達したらそのsfenを書き出す。
+			// そのPV leaf nodeを削除して後退解析により、各局面の評価値を更新する。
+			// これを繰り返す。
+
+			// progress表示用
+			Tools::ProgressBar progress;
+			progress.reset(next_nodes * root_sfens.size());
+
+			Position pos;
+
+			// それぞれのroot_sfenに対して。
+			// ⇨ この、root_sfen文字列は、"startpos moves ..."みたいな文字列でありうるので
+			//   書き出すなら、これを普通のsfen文字列にしたものにしないといけないことに注意。
+			for(auto root_sfen : root_sfens)
+			{
+				deque<StateInfo> si0;
+				BookTools::feed_position_string(pos, root_sfen, si0);
+
+				// 普通のsfen文字列にしたroot_sfen。
+				string root_sfen0 = pos.sfen();
+
+				// root局面のgame ply
+				int root_ply = pos.game_ply();
+				if (pos.side_to_move() == BLACK)
+				{
+					// 後手番の局面になるようにflipする。(hash key調べたいので)
+					auto white_sfen = Position::sfen_to_flipped_sfen(pos.sfen());
+					StateInfo si;
+					pos.set(white_sfen, &si, Threads.main());
+				}
+
+				// このroot_sfenの局面が定跡DB上に存在しない
+				if (hashkey_to_index.count(pos.hash_key()) == 0)
+				{
+					if (from_startpos)
+						write_sfens.emplace(root_sfen);
+					else
+						write_sfens.emplace(root_sfen0);
+
+					continue;
+				}
+
+				// 以下、Positionを用いずにBookNodeIndexで行き来する。
+				// ⇨　最後に局面を書き出す時にpacked_sfenが必要になるから良くなかった。
+				// ⇨　どうせここでPositionを用いて辿るのがボトルネックになっているわけではないので気にしないことにする。
+				BookNodeIndex root_book_node_index = hashkey_to_index[pos.hash_key()];
+
+				u64 timeup_counter = 0;
+
+				// 今回のroot_sfenに対して書き出した局面数
+				u64 write_counter2 = 0;
+
+				// 所定の行数のsfenを書き出すまで回る。
+				// ただし、局面が尽きることがあるのでrootが存在しなければループは抜ける。
+				while (true)
+				{
+					// このroot_sfenに対して規定の行数を書き出した
+					if (write_counter2 >= next_nodes)
+						break;
+
+					// 書き出す指し手がすべてのrootでなくなっていることを証明するロジックを書くのわりと面倒なので
+					// timeup_counterをカウントすることにする。
+					// next_nodesの10倍も回ったらもうあかんやろ…。
+					if (++timeup_counter > next_nodes * 10)
+						break;
+
+					deque<StateInfo> si1;
+					BookTools::feed_position_string(pos, root_sfen, si1);
+
+					// leafの局面までの手順
+					string sfen_path = root_sfen;
+					if (!StringExtension::Contains(sfen_path,"moves"))
+						sfen_path += " moves";
+
+					// 開始局面
+					BookNodeIndex book_node_index = root_book_node_index;
+					int ply = root_ply;
+
+					// いままで訪問したnode。千日手チェック用。
+					unordered_set<BookNodeIndex> visited_nodes;
+
+					// まずPV leafまで辿る。
+					while (true)
+					{
+						auto& book_node = book_nodes[book_node_index];
+						visited_nodes.insert(book_node_index);
+
+						auto& moves     = book_node.moves;
+
+						ValueDepth parent_vd;
+						size_t best_index;
+						auto best = get_bestvalue(book_node, parent_vd , best_index);
+
+						// このnodeにはすでに指し手がないはずなのにどこからやってきたのだ…。
+						// このnode、DB上で元から指し手がなかったのか？あるいはroot_sfenの局面の指し手が尽きたのか？
+						if (best_index == size_max)
+							break;
+
+						// このbestのやつのindexが必要なので何番目にあるか保存しておく。(あとで切断する用)
+						auto move_index = best_index;
+
+						// 次のnode
+						BookNodeIndex next_book_node_index = book_node.moves[best_index].next;
+
+						// leafに到達したか？
+						if (next_book_node_index == BookNodeIndexNull)
+						{
+							// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
+							Move16 m      = book_node.moves[best_index].move;
+							Move16 move16 = (pos.side_to_move() == BLACK) ? m : flip_move(m);
+
+							// 局面を進める
+							si1.push_back(StateInfo());
+							pos.do_move(pos.to_move(move16), si1.back());
+
+							sfen_path += ' ' + to_usi_string(move16);
+
+							string sfen = pos.sfen(ply + 1);
+
+							// write_sfensのinsertはここでしか行わないので、ここでcheck()すれば十分。
+							if (from_startpos)
+								write_sfens.insert(sfen_path);
+							else
+								write_sfens.insert(sfen);
+							progress.check(write_sfens.size());
+							write_counter2++;
+
+							// この手はないものとして、この book_node_index を起点として上流に更新していけばOK。
+							book_node.moves[best_index].move = MOVE_NONE;
+
+							break;
+						}
+
+						// 千日手がPVになっているか？
+
+						// たまに循環がひたすら回避されながらMAX_PLYを超えて手数が増えることがあるのでgame_ply()の判定必須。
+						if (ply >= MAX_PLY || visited_nodes.count(next_book_node_index))
+						{
+							// このnodeから、next_book_node_indexに至る経路を切っておく。
+							// MAX_PLY超えたほうは切るのは微妙かも知れないが、仕方がない。
+
+							// next_book_nodeの親のリストからbook_node_indexを消去。(この経路がなくなるので)
+							// この親リストに必ず1つだけ存在することは保証されているので、存在チェックと重複チェックを省くことができる。
+
+							auto& next_book_node = book_nodes[next_book_node_index];
+							auto& p = next_book_node.parents;
+							p.erase(std::find_if(p.begin(), p.end(), [&](auto& pm){ return pm.parent == book_node_index; }));
+
+							// この手はないものとして、この book_node_index を起点として上流に更新していけばOK。
+							book_node.moves[best_index].move = MOVE_NONE;
+
+							break;
+						}
+
+						// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
+						Move16 m      = book_node.moves[best_index].move;
+						Move16 move16 = (pos.side_to_move() == BLACK) ? m : flip_move(m);
+
+						// 局面を進める
+						si1.push_back(StateInfo());
+						pos.do_move(pos.to_move(move16), si1.back());
+
+						// 棋譜も進める
+						sfen_path += ' ' + to_usi_string(move16);
+
+						// 次のnodeを辿る。
+						book_node_index = next_book_node_index;
+						ply++;
+					}
+
+					/*
+						PV leaf nodeまで到達したので、ここからrootまで遡ってbest move,best valueの更新を行う。
+						いま見ているnodeをnとする。nの親を辿るのだが、nの指し手がすべて無効になった時は、nの親のnに行く指し手を無効化する必要がある。
+
+						また、rootまで遡る時にparentsが複数あったりloopがあったりするので単純に遡ると組み合わせ爆発を起こす。
+						そこで、次のアルゴリズムを用いる。
+
+						queue = [処理すべき局面]
+						while queue:
+							n = queue.pop_left()
+							vd = nのbest
+							deleted = nの指し手がすべて消滅したのか？
+							for parent in n.parents:
+								parentからnに至る指し手 = MOVE_NONE if deleted else vd
+								// ⇨　これによるparentでのbestに変化が生じた時だけqueueに詰めばいいのだが、
+								//    循環してるとどうせ永久ループになるので気にせず積む。
+								if (not parentが処理済み)
+									queue.push_right(parent)
+							if deleted:
+								n.parents.clear()
+
+					*/
+
+					//deque<BookNodeIndex> queue;
+					// ⇨　これ、queueにした方がleaf nodeからの距離の順に伝播して良いと思うのだが、
+					//    循環してて300万局面のleaf nodeから親が5万ノードほどあるので増えてくるとここの
+					//    オーバーヘッドが許容できない。
+					//    仕方なくvectorにする。
+
+					vector<BookNodeIndex> queue;
+					queue.emplace_back(book_node_index);
+
+					// update済みノード
+					unordered_set<BookNodeIndex> already_updated_node;
+
+					while (queue.size())
+					{
+						//auto book_node_index = queue[0];
+						//queue.pop_front();
+
+						auto book_node_index = queue.back();
+						queue.pop_back();
+
+						auto& book_node = book_nodes[book_node_index];
+
+						ValueDepth parent_vd;
+						size_t best_index;
+						auto best_vd = get_bestvalue(book_node, parent_vd, best_index);
+						// すべてがMOVE_NONEなら、best_index == size_maxになることが保証されている。
+						bool delete_flag = best_index == size_max;
+
+						for(auto& pm : book_node.parents)
+						{
+							auto& parent_book_node = book_nodes[pm.parent];
+							ValueDepth parent_parent_vd;
+							size_t     parent_best_index;
+							auto parent_best_vd    = get_bestvalue(book_node, parent_parent_vd, parent_best_index);
+
+							if (delete_flag)
+								// 1a. この局面に至る親からの指し手をすべて削除。
+								book_nodes[pm.parent].moves[pm.move_index].move = MOVE_NONE;
+							else
+								// 1b. この局面に至る親からの指し手の評価値を更新
+								book_nodes[pm.parent].moves[pm.move_index].vd = best_vd;
+
+							// これ⇑によって親のbestに変化が生じたのか？
+							auto parent_best_vd2   = get_bestvalue(book_node, parent_parent_vd, parent_best_index);
+							if (parent_best_vd != parent_best_vd2)
+							{
+								// 2. 親を更新対象に追加
+								// すでに一度でも追加しているならこれ以上は追加しない。(ループ防止)
+								if (already_updated_node.count(pm.parent) == 0)
+								{
+									already_updated_node.insert(pm.parent);
+									queue.push_back(pm.parent);
+								}
+							}
+						}
+						// 3. 親を丸ごと削除
+						if (delete_flag)
+							book_node.parents.clear();
+					}
+				}
+
+			//NEXT_ROOT:;
+			}
+
+			progress.check(next_nodes * root_sfens.size());
+
+			// write_sfensのなかにある局面とそれをflipした局面の組が含まれないかを
+			// チェックする。
+			// flipした局面に対しても辿っているので、これはわりとありうる。
+
+			SystemIO::TextWriter writer;
+			writer.Open(writebook_path);
+			for(auto& write_sfen : write_sfens)
+				writer.WriteLine(write_sfen);
+			write_counter = write_sfens.size();
+		}
+
+		// peta_shock_next2コマンドによるSFEN棋譜の書き出し。
+		void write_peta_shock_next2_sfen(std::string writebook_path, u64& write_counter, const std::vector<std::string>& root_sfens, u64 next_nodes, bool from_startpos, s16 eval_limit)
+		{
+			// 書き出すsfen
+			unordered_set<string> write_sfens;
+
+			// 次に探索すべき定跡局面についてsfenを書き出していく。
+			// これはmin-max探索した時のPVのleaf node。
+			cout << "Retrograde Analysis : step IV  -> pick up next sfens to search." << endl;
+
+			// rootから辿っていきPV leafに到達したらそのsfenを書き出す。
+			// そのPV leaf nodeを削除して後退解析により、各局面の評価値を更新する。
+			// これを繰り返す。
+
+			// progress表示用
+			Tools::ProgressBar progress;
+			progress.reset(next_nodes * root_sfens.size());
+
+			Position pos;
+
+			// 一回のroot_sfenの、ある手番側について書き出す局面数
+			// ⇨　next_nodesとして1を指定されることがあるので繰り上げ算で2で割る。
+			u64 next_nodes0 = (next_nodes + 1) / 2;
+
+			// それぞれのroot_sfenに対して。
+			// ⇨ この、root_sfen文字列は、"startpos moves ..."みたいな文字列でありうるので
+			//   書き出すなら、これを普通のsfen文字列にしたものにしないといけないことに注意。
+			for(auto root_sfen : root_sfens)
+			{
+				deque<StateInfo> si0;
+				BookTools::feed_position_string(pos, root_sfen, si0);
+
+				// 普通のsfen文字列にしたroot_sfen。
+				string root_sfen0 = pos.sfen();
+
+				// root局面のgame ply
+				int root_ply = pos.game_ply();
+				if (pos.side_to_move() == BLACK)
+				{
+					// 後手番の局面になるようにflipする。(hash key調べたいので)
+					auto white_sfen = Position::sfen_to_flipped_sfen(pos.sfen());
+					StateInfo si;
+					pos.set(white_sfen, &si, Threads.main());
+				}
+
+				// このroot_sfenの局面が定跡DB上に存在しない
+				if (hashkey_to_index.count(pos.hash_key()) == 0)
+				{
+					if (from_startpos)
+						write_sfens.emplace(root_sfen);
+					else
+						write_sfens.emplace(root_sfen0);
+
+					continue;
+				}
+
+				BookNodeIndex root_book_node_index = hashkey_to_index[pos.hash_key()];
+
+				// PVを辿る手番側
+				for(Color pv_color : COLOR)
+				{
+					deque<StateInfo> si1;
+					BookTools::feed_position_string(pos, root_sfen, si1);
+
+					// 現在の局面までの棋譜。あとで' '.join(kif)してSFEN文字列として書き出す。
+					vector<string> sfen_path;
+					sfen_path.emplace_back(root_sfen);
+					if (!StringExtension::Contains(root_sfen, "moves"))
+						sfen_path.emplace_back("moves");
+
+					// leaf nodeまでの棋譜とその時の評価値。
+					vector<KIF_EVAL> kifs;
+
+					// 今回の探索で辿ったことのあるnode
+					unordered_set<BookNodeIndex> visited_nodes;
+
+					// leafまで辿る。
+					peta_next_search(pos, pv_color, root_book_node_index, sfen_path, eval_limit, kifs, visited_nodes);
+
+					// これですべて辿ったことになる。kifsを評価値で昇順sortして、
+					// 評価値の良い順にsortして、上位からnext_nodes0 個、write_sfensとして書き出す。
+					// ⇨　相手がすべての指し手(≒ランダム)なので、PVのevalより良くなるはず。
+					//  だから、(自分から見た評価値として)昇順にして悪いほうから調べていくべき。
+					// ⇨　安定sortでないと、一度遭遇した局面だから、棋譜がそこまでしか得られなくなってしまう。
+					// ⇨　合流した時、棋譜を破棄した方がいいか…。
+
+					std::partial_sort(kifs.begin(), kifs.begin() + next_nodes0 , kifs.end(),
+						[pv_color](const KIF_EVAL& x, const KIF_EVAL& y) {
+							// 格納されている評価値は先手から見た評価値となっている。
+							// pv_colorが先手であるなら、評価値を昇順に並び替えて前からnext_nodes0 個取り出す。
+							// pv_colorが後手であるなら、評価値を降順に並び替えて前からnext_nodes0 個取り出す。
+							if (pv_color == BLACK)
+								return x.second < y.second;
+							else
+								return x.second > y.second;
+						});
+
+					// ここで得られた棋譜、あとでまとめて書き出す。
+					for(size_t i = 0 ; i < std::min(kifs.size(), next_nodes0) ; ++i)
+					{
+						write_sfens.insert(kifs[i].first);
+						//cout << kifs[i].first << " , " << kifs[i].second << endl;
+					}
+				}
+			}
+
+			progress.check(next_nodes * root_sfens.size());
+
+			// write_sfensのなかにある局面とそれをflipした局面の組が含まれないかを
+			// チェックする。
+			// flipした局面に対しても辿っているので、これはわりとありうる。
+
+			SystemIO::TextWriter writer;
+			writer.Open(writebook_path);
+			for(auto& write_sfen : write_sfens)
+				writer.WriteLine(write_sfen);
+			write_counter = write_sfens.size();
+		}
+
+		// 与えられた局面から再帰的に局面を辿る。
+		// 現在の局面の手番がpv_colorであった場合は、最善手を辿り、さもなくば、すべての指し手を辿る。
+		// (ただし評価値制限はある。絶対値が eval_limit 以内の指し手のみ)
+		//
+		// 今回の探索ですでに辿ったことのあるnodeに到達した場合、
+		// 棋譜はそこまでとする。
+		void peta_next_search(Position& pos, Color pv_color, BookNodeIndex book_node_index, vector<string>& sfen_path, s16 eval_limit, vector<KIF_EVAL>& kifs, unordered_set<BookNodeIndex>& visited_nodes )
+		{
+			// この局面に訪問した。
+			visited_nodes.insert(book_node_index);
+
+			BookNode& node = book_nodes[book_node_index];
+			// 辿るやつの候補
+			vector<u16> candidates;
+
+			if (pos.side_to_move() == pv_color)
+			{
+				// 最善手のみ辿る。ただしabs(eval) <= eval_limitのものだけ。
+				ValueDepth parent_vd;
+				size_t best_index;
+				s16 best_eval = get_bestvalue(node, parent_vd, best_index).value;
+
+				for(u16 i = 0 ; i < node.moves.size() ; ++i)
+				{
+					auto& move = node.moves[i];
+					if (move.vd.value == best_eval && abs(move.vd.value) <= eval_limit)
+						candidates.emplace_back(i);
+				}
+
+			} else {
+
+				// abs(eval) <= eval_limit 以上のものをすべて辿る。
+
+				for(u16 i = 0 ; i < node.moves.size() ; ++i)
+				{
+					auto& move = node.moves[i];
+					if (abs(move.vd.value) <= eval_limit)
+						candidates.emplace_back(i);
+				}
+
+			}
+
+			for(auto candidate : candidates)
+			{
+				auto& move = node.moves[candidate];
+
+				Move16 m = move.move;
+				// 格納されているのは先手化した指し手なので、後手の手番であるなら、先手化する必要がある。
+				Move16 move16 = (pos.side_to_move() == BLACK) ? m : flip_move(m);
+
+				// 棋譜も1手進める。
+				sfen_path.emplace_back(to_usi_string(move16));
+
+				BookNodeIndex next_book_node_index = move.next;
+
+				// 1. この指し手で進めた局面が書き出し済みの局面である。
+				// 2. この指し手で進めた局面が定跡DBから外れるか。
+				// 3. そうでない。
+				if (visited_nodes.count(next_book_node_index)){
+
+					// 書き出し済みの局面に遭遇したということは、合流したと言うことで、
+					// そのleafは書き出し済みであるから、今回の棋譜は破棄することにする。
+					// (ここまでの手順を書き出してもいいがこれを書き出すとキリがないので書き出さないことにする。)
+
+					;
+
+				} else if (next_book_node_index == BookNodeIndexNull) {
+
+					// 定跡DBから外れた。
+
+					// その指し手で進めた局面を書き出す。
+					// evalは、先手から見た評価値にしておく。
+
+					s16 eval = pos.side_to_move() == BLACK ? move.vd.value : -move.vd.value;
+					kifs.emplace_back(KIF_EVAL(StringExtension::Join(sfen_path, " "), eval));
+
+				} else {
+
+					// 局面を1手進めて再帰的に辿る。
+					Move move32 = pos.to_move(move16);
+					StateInfo si;
+					pos.do_move(move32, si);
+					peta_next_search(pos, pv_color, next_book_node_index, sfen_path, eval_limit , kifs, visited_nodes);
+					pos.undo_move(move32);
+				}
+
+				// 棋譜を1手戻す。
+				sfen_path.pop_back();
+			}
+
+		}
+
 	private:
 
 		// 定跡本体
@@ -1430,6 +1700,8 @@ namespace MakeBook2023
 	};
 }
 
+using namespace MakeBook2023;
+
 namespace Book
 {
 	// 2023年以降に作ったmakebook拡張コマンド
@@ -1437,22 +1709,24 @@ namespace Book
 	// この拡張コマンドを処理したら、この関数は非0を返す。
 	int makebook2023(Position& pos, istringstream& is, const string& token)
 	{
-		if (token == "peta_shock")
-		{
+		if (token == "peta_shock") {
+
 			// ペタショックコマンド
+			// 
 			// やねうら王の定跡ファイルに対して定跡ツリー上でmin-max探索を行い、その結果を別の定跡ファイルに書き出す。
 			//   makebook peta_shock book.db user_book1.db
 			// 　⇨　先手か後手か、片側の局面しか書き出さない。エンジンオプションの FlippedBook を必ずオンにして用いること。
 			//   makebook peta_shock book.db user_book1.db shrink
 			//   ⇨  "shrink"を指定すると、その局面の最善手と同じ評価値の指し手のみを書き出す。
-			MakeBook2023::PetaShock ps;
-			ps.make_book(pos, is, false);
+			PetaShock ps;
+			ps.make_book(pos, is, PETA_SHOCK_TYPE::PetaShock);
 			return 1;
 
-		} else if (token == "peta_shock_next"){
+		} else if (token == "peta_shock_next") {
 
-			// ペタショックnext
-			// ペタショック手法と組み合わせてmin-maxして、有望な局面をsfen形式でテキストファイルに書き出す。
+			// ペタショックNextPV
+			//
+			// ペタショック手法と組み合わせてmin-maxして、有望な局面をSFEN形式でテキストファイルに書き出す。
 			//   makebook peta_shock_next book.db sfens.txt 1000
 			//   makebook peta_shock_next book.db sfens.txt 1000 eval_noise 20
 			// ⇨　1000局面を書き出す。20はleaf nodeの指し手の評価値に加える乱数の大きさ。
@@ -1463,8 +1737,26 @@ namespace Book
 			// 
 			//   makebook peta_shock_next book.db sfens.txt 1000
 
-			MakeBook2023::PetaShock ps;
-			ps.make_book(pos, is , true);
+			PetaShock ps;
+			ps.make_book(pos, is , PETA_SHOCK_TYPE::PetaShockNextPV);
+			return 1;
+
+		} else if (token == "peta_shock_next2") {
+
+			// ペタショックNextHalfPV
+			//
+			// ペタショックNextPVの改良版。
+			// root局面から、先手なら最善手、後手ならすべての指し手、というように辿っていった時の末端の局面を
+			// SFEN形式でファイルに書き出す。(後手なら最善手、先手ならすべての指し手　に関しても同様)
+			// 
+			//  makebook peta_shock_next2 book.db sfens.txt 1000 eval_limit 400 from_startpos
+			//
+			// ⇨　先手が最善手を辿るパターンと後手が最善手を辿るパターンとで500局面ずつSFEN棋譜を書き出す。
+			// 　 すべての指し手とは言え、評価値制限はする。⇑のように指定してあれば評価値の絶対値が400まで。
+			//
+
+			PetaShock ps;
+			ps.make_book(pos, is , PETA_SHOCK_TYPE::PetaShockNextHalfPV);
 			return 1;
 		}
 
