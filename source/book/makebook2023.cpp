@@ -222,7 +222,7 @@ namespace std {
 namespace MakeBook2023
 {
 	// peta_shockコマンド実行時にsfen文字列を一時保存するファイル名
-	string SFEN_TEMP_FILENAME = "book/sfen_tmp.txt";
+	string SFEN_TEMP_FILENAME = "sfen_tmp.txt";
 
 	// BookMoveのポインターみたいなやつ。これで局面の行き来を行う。
 	// しばらくは42億を超えることはないと思うので32bitでいいや。
@@ -463,8 +463,9 @@ namespace MakeBook2023
 
 			is >> readbook_path >> writebook_path;
 
-			readbook_path  = Path::Combine("book",readbook_path );
-			writebook_path = Path::Combine("book",writebook_path);
+			string BOOK_DIR = Options["BookDir"];
+			readbook_path  = Path::Combine(BOOK_DIR, readbook_path );
+			writebook_path = Path::Combine(BOOK_DIR, writebook_path);
 			
 			if (next)
 			{
@@ -501,7 +502,7 @@ namespace MakeBook2023
 				cout << "from_startpos      : " << from_startpos << endl;
 
 				// これは現状ファイル名固定でいいや。
-				root_sfens_path = Path::Combine("book","root_sfens.txt");
+				root_sfens_path = Path::Combine(BOOK_DIR, "root_sfens.txt");
 				cout << "root_sfens_path    : " << root_sfens_path << endl;
 
 			} else {
@@ -573,7 +574,7 @@ namespace MakeBook2023
 
 			// sfen文字列はファイルに書き出す。
 			SystemIO::TextWriter sfen_writer;
-			sfen_writer.Open(SFEN_TEMP_FILENAME); // ファイルここでいいかな？
+			sfen_writer.Open(Path::Combine(BOOK_DIR, SFEN_TEMP_FILENAME)); // ファイルここでいいかな？
 
 			while(reader.ReadLine(line).is_ok())
 			{
