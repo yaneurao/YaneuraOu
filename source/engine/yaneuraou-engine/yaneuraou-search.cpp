@@ -1947,7 +1947,11 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		//Eval::NNUE::hint_common_parent_position(pos);
 		// TODO : → 今回のNNUEの計算は端折れるのか？
 
+#if !defined(EXCLUDED_MOVE_FORCE_EVALUATE)
 		eval = ss->staticEval;
+#else
+		eval = ss->staticEval = evaluate(pos);
+#endif
 	}
 	else if (ss->ttHit)
 	{
