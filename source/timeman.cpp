@@ -85,6 +85,11 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 	//   別の方法で調整すべき。ただ、対人でソフトに早指ししたいときには意味があるような…。
 	int slowMover = (int)Options["SlowMover"];
 
+#if defined(YANEURAOU_ENGINE_DEEP)
+	// ふかうら王、optimumTime 1.5倍にしたい。
+	slowMover += slowMover / 2;
+#endif
+
 	if (limits.rtime)
 	{
 		// これが指定されているときは最小思考時間をランダム化する。
@@ -116,7 +121,15 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 	// 1. 切れ負けルールの時は、MoveHorizonを + 40して考える。
 	// 2. ゲーム開始直後～40手目ぐらいまでは定跡で進むし、そこまで進まなかったとしても勝負どころはそこではないので
 	// 　ゲーム開始直後～40手目付近のMoveHorizonは少し大きめに考える必要がある。逆に40手目以降、MoveHorizonは40ぐらい減らして考えていいと思う。
-	const int move_horizon = MoveHorizon + (time_forfeit ? 40 : 0) - std::min(ply , 40);
+	// 3. 切れ負けでないなら、100手時点で残り60手ぐらいのつもりで指していいと思う。(これくらいしないと勝負どころすぎてからの持ち時間が余ってしまう..)
+	// (現在の大会のフィッシャールールは15分+inctime5秒とか5分+inctime10秒そんな感じなので、160手目ぐらいで持ち時間使い切って問題ない)
+	int move_horizon;
+	if (time_forfeit)
+		move_horizon = MoveHorizon + 40 - std::min(ply , 40);
+	else
+		// + 20は調整項
+		move_horizon = MoveHorizon + 20 - std::min(ply , 80);
+
 
 	// 残りの自分の手番の回数
 	// ⇨　plyは平手の初期局面が1。256手ルールとして、max_game_ply == 256だから、256手目の局面においてply == 256
