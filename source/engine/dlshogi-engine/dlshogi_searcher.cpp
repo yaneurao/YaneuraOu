@@ -713,16 +713,20 @@ namespace dlshogi
 			: 3.0;
 		maximum = (TimePoint)std::min((double)optimum * game_ply_factor  , (double)maximum);
 
-		// elapsed : "go" , "go ponder"からの経過時間
-
-		// nps = 今回探索したノード数 / "go ponder"からの経過時間
-		// 今回探索したノード数 = node_searched
-		// なので、nps = node_searched / (e + 1)
-		// ※　0のとき0除算になるので分母を +1 する。
-		// rest_max_po = nps × 最大残り時間
-		// 最大残り時間 = maximum - elapsed
-		// なので、
-		// rest_po = (node_searched - pre_simulated)*(maximum - elapsed) / (e + 1)
+		// elapsed         : "go" , もしくは"go ponder"～"ponderhit"(のponderhit)からの経過時間
+		// s.node_searched : 今回探索したノード数
+		// nps(nodes per second) = 今回探索したノード数 / elapsed
+		//                       = s.node_searched / (elapsed + 1)
+		// ⇨ 0除算になるといけないので 分母を(elapsed + 1)にしている。
+		//
+		// rest_max_po(最大残りplayout) = nps × 最大までの残り時間
+		// 最大までの残り時間 = maximum - elapsed_from_ponderhit
+		// よって、
+		// rest_max_po = s.node_searched * (maximum - elapsed_from_ponderhit) / (elapsed + 1)
+		// 同様に、
+		// rest_optimum_po(optimum timeまでの残りplayout) = nps × optimum timeまでの残り時間
+		// optimum timeまでの残り時間 = optimum - elapsed_from_ponderhit
+		// rest_optimum_po = s.node_searched * (optimum - elapsed_from_ponderhit) / (elapsed + 1)
 		
 		auto elapsed    = s.time_manager.elapsed();
 
@@ -734,8 +738,15 @@ namespace dlshogi
 		// 残りの探索を全て次善手に費やしても optimum_timeまでに
 		// 最善手を超えられない場合は探索を打ち切る。
 
+		// best_searched   : move_countが最大の指し手のmove_count
+		// second_searched : move_countが2番目の指し手のmove_count
+		// すなわち、best_searched >= second_searched が成り立つ。
+
 		NodeCountType best_searched = 0, second_searched = 0;
+
 		const ChildNode* uct_child = current_root->child.get();
+
+		// その時のindex
 		int best_i = 0, second_i = 0;
 
 		// 探索回数が最も多い手と次に多い手の評価値を求める。
@@ -752,20 +763,21 @@ namespace dlshogi
 			}
 		}
 
-		const WinType delta = (WinType)0.00001f; // 0割回避のための微小な値
-		WinType best_winrate       = uct_child[best_i  ].win / (uct_child[best_i  ].move_count+ delta);
-		WinType second_winrate     = uct_child[second_i].win / (uct_child[second_i].move_count+ delta);
+		// best_winrate   : move_countが最大の指し手の勝率
+		// second_winrate : move_countが2番目の指し手の勝率
+		// ※　best_winrate >= second_winrate とは限らないので注意。
 
-		// optimum,maximum時間の残りが全部 1.0が返ってきた時のeval
-		WinType second_winrate_maximum_upperbound = (uct_child[second_i].win + rest_maximum_po) /(uct_child[second_i].move_count + rest_maximum_po + delta);
+		const WinType delta = (WinType)0.00001f; // 0割回避のための微小な値
+		WinType best_winrate       = uct_child[best_i  ].win / (best_searched   + delta);
+		WinType second_winrate     = uct_child[second_i].win / (second_searched + delta);
 
 		// 条件に該当したらbreak(思考を終了)、さもなくばreturnするためのfor loop。
 		for(;;)
 		{
 			if (rest_optimum_po > 0 /* optimum時間が残っている */)
 			{
-				// best_evalのsecond_evalの時だけ枝刈りする。
-				if (best_winrate > second_winrate)
+				// best_eval >= second_evalの時だけ枝刈りする。
+				if (best_winrate >= second_winrate)
 				{
 					WinType eval_diff = best_winrate - second_winrate;
 					// 勝率0.2も差があるなら早期に思考を終了しても良いという考え
@@ -774,7 +786,7 @@ namespace dlshogi
 					// 経過時間がoptimum /8 を超えてるのに残りoptimum時間を用いても訪問数が逆転しない。
 					// また、eval_diffが0.1なら50%というように、eval_diffの値に応じてrest_optimum_poを減らして考える。
 					if (
-							elapsed_from_ponderhit >= optimum / 8
+						   elapsed_from_ponderhit >= optimum / 8
 						&& best_searched > second_searched + rest_optimum_po * ratio
 						)
 					{
@@ -792,43 +804,42 @@ namespace dlshogi
 			} else if (rest_maximum_po > 0){
 				// && rest_optimum_po == 0 /* optimum時間が残っていない */
 
-				// 最大残りpoを費やしても1番目と2番目の評価値が逆転しそうにない。
-				// これはもうだめぽ。
-				if (best_winrate >= second_winrate_maximum_upperbound)
-				{
-					if (o.debug_message)
-						sync_cout << "info string optimum time is over , best_winrate >= second_winrate_maximum_upperbound"
-						<< " , best_winrate = "   << best_winrate
-						<< " , second_winrate = " << second_winrate
-						<< " , second_winrate_maximum_upperbound = " << second_winrate_maximum_upperbound
-						<< " , rest_maximum_po = " << rest_maximum_po << sync_endl;
-
-					break;
-				}
-
 				// optimum時間超えてて、訪問回数,evalの関係がおかしくないならmaximumまで時間を使わずして終了。
+				// これ、微差だと信用ならないから1000ぐらいの差があることを確認したほうがいいような気はする。
+				// ⇨　npsの1/10以上の差があることぐらいは確認するか..
+				s64 nps10 = std::max(s64(s.nodes_searched / (elapsed * 10 + 1)) , s64(1));
+
 				if (   best_winrate  >= second_winrate
-					&& best_searched >= second_searched
+					&& best_searched >= second_searched + nps10
 					)
 				{
 					if (o.debug_message)
-						sync_cout << "info string optimum time is over , best_winrate  >= second_winrate && best_searched >= second_searched"
+						sync_cout << "info string optimum time is over , best_winrate  >= second_winrate && best_searched >= second_searched + nps10"
 						<< " , best_winrate = "    << best_winrate
 						<< " , second_winrate = "  << second_winrate
 						<< " , best_searched = "   << best_searched
-						<< " , second_searched = " << second_searched << sync_endl;
+						<< " , second_searched = " << second_searched
+						<< " , nps10 = "           << nps10
+						<< sync_endl;
 
 					break;
 				}
 
-				// optimum時間を超えていて、残り時間を使っても訪問回数が逆転しない。
-				if (best_searched > second_searched + rest_maximum_po)
+				// いま、おそらく best_winrate < second_winrate なので
+				// これの行く末を見守る必要がある。(best_winrate >= second_winrateであって欲しい)
+				// しかし、どう頑張っても訪問回数で叶わないなら、諦める。
+
+				// optimum時間を超えていて、残り時間をすべて使っても訪問回数が逆転しない。
+				// ⇨　残念だけど、あきらめる。
+				if (best_searched > second_searched + rest_maximum_po + nps10)
 				{
 					if (o.debug_message)
-						sync_cout << "info string optimum time is over , best_searched > second_searched + rest_maximum_po"
+						sync_cout << "info string optimum time is over , best_searched > second_searched + rest_maximum_po + nps10"
 						<< " , best_searched = "   << best_searched
 						<< " , second_searched = " << second_searched
-						<< " , rest_maximum_po = " << rest_maximum_po << sync_endl;
+						<< " , rest_maximum_po = " << rest_maximum_po
+						<< " , nps10 = "           << nps10
+						<< sync_endl;
 
 					break;
 				}
