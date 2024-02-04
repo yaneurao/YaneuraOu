@@ -693,10 +693,6 @@ namespace dlshogi
 			return;
 		}
 
-		// 最適時間の1/3は必ず使うべき。
-		if (elapsed_from_ponderhit < s.time_manager.optimum() * 1/3)
-			return ;
-
 		// 詰み探索中で、探索し続ければ解けるのかも。
 		if (root_dfpn_searcher->searching)
 			return;
@@ -738,18 +734,18 @@ namespace dlshogi
 		// 残りの探索を全て次善手に費やしても optimum_timeまでに
 		// 最善手を超えられない場合は探索を打ち切る。
 
-		NodeCountType max_searched = 0, second_searched = 0;
+		NodeCountType best_searched = 0, second_searched = 0;
 		const ChildNode* uct_child = current_root->child.get();
-		int max_i = 0, second_i = 0;
+		int best_i = 0, second_i = 0;
 
 		// 探索回数が最も多い手と次に多い手の評価値を求める。
 		const WinType delta = (WinType)0.00001f; // 0割回避のための微小な値
 		for (int i = 0; i < child_num; i++) {
-			if (uct_child[i].move_count > max_searched) {
-				second_searched = max_searched;
-				max_searched    = uct_child[i].move_count;
-				second_i        = max_i;
-				max_i           = i;
+			if (uct_child[i].move_count > best_searched) {
+				second_searched = best_searched;
+				best_searched   = uct_child[i].move_count;
+				second_i        = best_i;
+				best_i          = i;
 			}
 			else if (uct_child[i].move_count > second_searched) {
 				second_searched = uct_child[i].move_count;
@@ -757,7 +753,7 @@ namespace dlshogi
 			}
 		}
 
-		WinType max_eval        = uct_child[max_i   ].win / (uct_child[max_i   ].move_count+ delta);
+		WinType best_eval       = uct_child[best_i  ].win / (uct_child[best_i  ].move_count+ delta);
 		WinType second_eval     = uct_child[second_i].win / (uct_child[second_i].move_count+ delta);
 
 		// optimum,maximum時間の残りが全部 1.0が返ってきた時のeval
@@ -766,169 +762,110 @@ namespace dlshogi
 		WinType second_eval_optimum_upperbound = (wc + rest_optimum_po) /(mc + rest_optimum_po + delta);
 		WinType second_eval_maximum_upperbound = (wc + rest_maximum_po) /(mc + rest_maximum_po + delta);
 
-		// 経過時間がoptimum/5を超えてるのに残りoptimum時間を用いてもevalが逆転しない。
-		if (rest_optimum_po > 0 /* optimum時間が残っている */
-			&& elapsed_from_ponderhit >= optimum/5
-			&& max_eval > second_eval_optimum_upperbound
-			)
+		if (rest_optimum_po > 0 /* optimum時間が残っている */)
 		{
+			// 経過時間がoptimum/5を超えてるのに残りoptimum時間を用いてもevalが逆転しない。
+			if (   elapsed_from_ponderhit >= optimum/5
+				&& best_eval > second_eval_optimum_upperbound
+				)
+			{
+				if (o.debug_message)
+					sync_cout << "info string interrupted by early exit , best_eval > second_eval_optimum_upperbound , best_eval = " << best_eval
+					<< " , second_eval = " << second_eval
+					<< " , second_eval_optimum_upperbound = " << second_eval_optimum_upperbound
+					<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
+
+				// 残り時間くりあげて使って、終了すべき。
+				s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
+				return;
+			}
+
+			// best_evalのsecond_evalの時だけ枝刈りする。
+			if (best_eval > second_eval)
+			{
+				WinType eval_diff = best_eval - second_eval;
+				// 勝率0.2も差があるなら早期に思考を終了しても良いという考え
+				WinType ratio = std::max( 1.0 - eval_diff * 5 , 0.0 );
+
+				// 経過時間がoptimum /8 を超えてるのに残りoptimum時間を用いても訪問数が逆転しない。
+				// また、eval_diffが0.1なら50%というように、eval_diffの値に応じてrest_optimum_poを減らして考える。
+				if (
+						elapsed_from_ponderhit >= optimum / 8
+					&& best_searched > second_searched + rest_optimum_po * ratio
+					)
+				{
+					if (o.debug_message)
+						sync_cout << "info string interrupted by early exit"
+						<< " , best_searched > second_searched + rest_optimum_po * " << ratio << " "
+						<< " , best_searched = "   << best_searched
+						<< " , second_searched = " << second_searched
+						<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
+
+					// 残り時間くりあげて使って、終了すべき。
+					s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
+					return;
+				}
+			}
+
+		} else if (rest_maximum_po > 0){
+			// && rest_optimum_po == 0 /* optimum時間が残っていない */
+
+			// 最大残りpoを費やしても1番目と2番目の評価値が逆転しそうにない。
+			// これはもうだめぽ。
+			if (best_eval >= second_eval_maximum_upperbound)
+			{
+				if (o.debug_message)
+					sync_cout << "info string interrupted by no movechange , best_eval >= second_eval_maximum_upperbound , best_eval = " << best_eval
+					<< " , second_eval = " << second_eval
+					<< " , second_eval_maximum_upperbound = " << second_eval_maximum_upperbound
+					<< " , rest_maximum_po = " << rest_maximum_po << sync_endl;
+
+				// 残り時間くりあげて使って、終了すべき。
+				s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
+				return;
+			}
+
+			// optimum時間超えてて、訪問回数,evalの関係がおかしくないならmaximumまで時間を使わずして終了。
+			if (   best_eval     >= second_eval
+				&& best_searched >= second_searched
+				)
+			{
+				if (o.debug_message)
+					sync_cout << "info string optimum time is over , best_eval >= second_eval && best_searched >= second_searched"
+					<< " , best_eval = "       << best_eval
+					<< " , second_eval = "     << second_eval
+					<< " , best_searched = "   << best_searched
+					<< " , second_searched = " << second_searched << sync_endl;
+
+				// 残り時間くりあげて使って、終了すべき。
+				s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
+				return;
+			}
+
+			// optimum時間を超えていて、残り時間を使っても訪問回数が逆転しない。
+			if (best_searched > second_searched + rest_maximum_po)
+			{
+				if (o.debug_message)
+					sync_cout << "info string optimum time is over , best_searched > second_searched + rest_maximum_po"
+					<< " , best_searched = "   << best_searched
+					<< " , second_searched = " << second_searched
+					<< " , rest_maximum_po = " << rest_maximum_po << sync_endl;
+
+				// 残り時間くりあげて使って、終了すべき。
+				s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
+				return;
+			}
+
+		} else { // rest_optimum_po == 0
+
 			if (o.debug_message)
-				sync_cout << "info string interrupted by early exit , max_eval > second_eval_optimum_upperbound , max_eval = " << max_eval << " , second_eval = " << second_eval
-				<< " , second_eval_optimum_upperbound = " << second_eval_optimum_upperbound
+				sync_cout << "info string maximum time is over , rest_maximum_po == 0 , best_eval = " << best_eval << " , second_eval = " << second_eval
 				<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
 
 			// 残り時間くりあげて使って、終了すべき。
 			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
 			return;
-		}
 
-		// 経過時間がoptimum/5を超えてるのに残りoptimum時間を用いても訪問数が逆転しない。
-		// ただし訪問数に倍以上の差がある場合に限る。
-		if (rest_optimum_po > 0 /* optimum時間が残っている */
-			&& elapsed_from_ponderhit >= optimum/5
-			&& max_searched > second_searched + rest_optimum_po
-			&& max_searched > second_searched * 2
-			)
-		{
-			if (o.debug_message)
-				sync_cout << "info string interrupted by early exit , max_searched > second_searched + rest_optimum_po , max_searched > second_searched * 2 , max_searched = " << max_searched
-				<< " , second_searched = " << second_searched
-				<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
-
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
-		}
-
-		// 経過時間がoptimum/10を超えてるのに残りoptimum時間の0.7倍を用いても訪問数が逆転しない。
-		// ただし訪問数に10倍以上の差がある場合に限る。
-		if (rest_optimum_po > 0 /* optimum時間が残っている */
-			&& elapsed_from_ponderhit >= optimum/10
-			&& max_searched > second_searched + rest_optimum_po * 0.7
-			&& max_searched > second_searched * 10
-			)
-		{
-			if (o.debug_message)
-				sync_cout << "info string interrupted by early exit , max_searched > second_searched + rest_optimum_po * 0.7 , max_searched > second_searched * 10 , max_searched = " << max_searched
-				<< " , second_searched = " << second_searched
-				<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
-
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
-		}
-
-		// optimum/4以上時間を使っている状態で勝率にeval_delta 以上の差がある。
-		WinType eval_delta =
-			s.game_ply < 20 ? 0.10:
-			s.game_ply < 40 ? 0.13:
- 			                  0.15;
-
-		if (rest_optimum_po > 0 /* optimum時間が残っている */
-			&& elapsed_from_ponderhit >= optimum/4
-			&& max_eval >= second_eval + eval_delta
-			)
-		{
-			if (o.debug_message)
-				sync_cout << "info string interrupted by early exit , max_eval >= second_eval + " << eval_delta << " ,  max_eval = " << max_eval << " , second_eval = " << second_eval
-				<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
-
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
-		}
-
-		// 経過時間がoptimum/4を超えていて、残りoptimum時間に max_evalより+0.02良いevalが返り続けても逆転しない。
-
-		WinType second_eval_optimum_upperbound2 = (wc + rest_optimum_po * std::min(1.0, max_eval + 0.02)) /(mc + rest_optimum_po + delta);
-
-		if (rest_optimum_po > 0 /* optimum時間が残っている */
-			&& elapsed_from_ponderhit >= optimum/4
-			&& max_eval >= second_eval_optimum_upperbound2
-			)
-		{
-			if (o.debug_message)
-				sync_cout << "info string interrupted by early exit , max_eval >= second_eval_optimum_upperbound2 , max_eval = " << max_eval << " , second_eval = " << second_eval
-				<< " , second_eval_optimum_upperbound2 = " << second_eval_optimum_upperbound2
-				<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
-
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
-		}
-
-		// 最大残りpoを費やしても1番目と2番目の評価値が逆転しそうにない。
-		// これはもうだめぽ。
-		if (max_eval >= second_eval_maximum_upperbound)
-		{
-			if (o.debug_message)
-				sync_cout << "info string interrupted by no movechange , max_eval >= second_eval_maximum_upperbound , max_eval = " << max_eval  << " , second_eval = " << second_eval
-				<< " , second_eval_maximum_upperbound = " << second_eval_maximum_upperbound
-				<< " , rest_maximum_po = " << rest_maximum_po << sync_endl;
-
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
-		}
-
-		// optimum時間超えてて、訪問回数,evalの関係がおかしくないならmaximumまで時間を使わずして終了。
-		if (elapsed_from_ponderhit >= optimum
-			&& max_eval     >= second_eval
-			&& max_searched >= second_searched
-			)
-		{
-			if (o.debug_message)
-				sync_cout << "info string optimum time is over , max_eval >= second_eval && max_searched >= second_searched , max_eval = " << second_eval << " , second_eval = " << second_eval
-				<< " , max_searched = " << max_searched << " , second_searched = " << second_searched << sync_endl;
-
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
-		}
-
-		// optimum時間を超えていて、残り時間に max_evalより+0.02良いevalが返り続けても逆転しないなら終了。
-
-		WinType second_eval_optimum_upperbound3 = (wc + rest_maximum_po * std::min(1.0, max_eval + 0.02)) /(mc + rest_maximum_po + delta);
-
-		if (rest_optimum_po == 0
-			&& max_eval >= second_eval_optimum_upperbound3
-			)
-		{
-			if (o.debug_message)
-				sync_cout << "info string optimum time is over , max_eval >= second_eval_optimum_upperbound3 , max_eval = " << max_eval << " , second_eval = " << second_eval
-				<< " , second_eval_optimum_upperbound3 = " << second_eval_optimum_upperbound3
-				<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
-
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
-		}
-
-		// optimum時間を超えていて、残り時間を使っても訪問回数が逆転しない。
-		if (rest_optimum_po == 0
-			&& max_searched > second_searched + rest_maximum_po
-			)
-		{
-			if (o.debug_message)
-				sync_cout << "info string optimum time is over , max_searched > second_searched + rest_maximum_po , max_searched = " << max_searched
-				<< " , second_searched = " << second_searched
-				<< " , rest_maximum_po = " << rest_maximum_po << sync_endl;
-
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
-		}
-
-
-		if (rest_maximum_po == 0)
-		{
-			if (o.debug_message)
-				sync_cout << "info string maximum time is over , rest_maximum_po == 0 , max_eval = " << max_eval << " , second_eval = " << second_eval
-				<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
-
-			// 残り時間くりあげて使って、終了すべき。
-			s.time_manager.search_end = s.time_manager.round_up(elapsed_from_ponderhit);
-			return;
 		}
 
 	}
