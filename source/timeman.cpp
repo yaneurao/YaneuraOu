@@ -85,11 +85,6 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 	//   別の方法で調整すべき。ただ、対人でソフトに早指ししたいときには意味があるような…。
 	int slowMover = (int)Options["SlowMover"];
 
-#if defined(YANEURAOU_ENGINE_DEEP)
-	// ふかうら王、optimumTime 1.5倍にしたい。
-	slowMover += slowMover / 2;
-#endif
-
 	if (limits.rtime)
 	{
 		// これが指定されているときは最小思考時間をランダム化する。

@@ -706,11 +706,13 @@ namespace dlshogi
 		// Time management (LC0 blog)     : https://lczero.org/blog/2018/09/time-management/
 		// PR1195: Time management update : https://lczero.org/dev/docs/timemgr/
 		double game_ply_factor =
-			  s.game_ply <  16 ? 2.0
-			: s.game_ply <  32 ? 3.0
-			: s.game_ply <  80 ? 5.0 // 中盤の難所では時間使ったほうがいいと思う。
-			: s.game_ply < 120 ? 4.0
-			: 3.0;
+			  s.game_ply <  20 ? 1.2 // 序盤では時間あまり使わないように。(時間を使ったところでそんなに良い指し手になるわけではないから)
+			: s.game_ply <  30 ? 1.5
+			: 2.0;
+
+		// やねうら王のtimemanのoptimum、ふかうら王にとっては少ないので
+		// optimumを2倍にして考える。
+		optimum = (TimePoint)std::min((double)optimum * 2, (double)maximum);
 		maximum = (TimePoint)std::min((double)optimum * game_ply_factor  , (double)maximum);
 
 		// elapsed         : "go" , もしくは"go ponder"～"ponderhit"(のponderhit)からの経過時間
@@ -776,17 +778,20 @@ namespace dlshogi
 		{
 			if (rest_optimum_po > 0 /* optimum時間が残っている */)
 			{
-				// best_eval >= second_evalの時だけ枝刈りする。
-				if (best_winrate >= second_winrate)
+				// 安定した探索であると言える条件は、bestの訪問回数がsecondの1.5倍以上(この条件、重要)かつ、
+				// bestの期待勝率がsecondの期待勝率を上回ること。
+				if (   best_winrate >= second_winrate
+					&& best_searched >= second_searched * 1.5
+					)
 				{
 					WinType eval_diff = best_winrate - second_winrate;
-					// 勝率0.2も差があるなら早期に思考を終了しても良いという考え
+					// bestとsecondの勝率に応じて早期に思考を終了しても良いという考え。
+					// 勝率差0.2なら、探索が早期に終了して良いと思う。
 					WinType ratio = std::max( 1.0 - eval_diff * 5 , 0.0 );
 
-					// 経過時間がoptimum /8 を超えてるのに残りoptimum時間を用いても訪問数が逆転しない。
-					// また、eval_diffが0.1なら50%というように、eval_diffの値に応じてrest_optimum_poを減らして考える。
-					if (
-						   elapsed_from_ponderhit >= optimum / 8
+					// 経過時間がoptimum /8 を超えてるのに残りoptimum時間をすべて用いても訪問数が逆転しない。
+					// ただしこの時、eval_diffが0.1なら50%というように、eval_diffの値に応じてrest_optimum_poを減らして考える。
+					if (   elapsed_from_ponderhit >= optimum / 8
 						&& best_searched > second_searched + rest_optimum_po * ratio
 						)
 					{
@@ -795,7 +800,9 @@ namespace dlshogi
 							<< " , best_searched > second_searched + rest_optimum_po * " << ratio << " "
 							<< " , best_searched = "   << best_searched
 							<< " , second_searched = " << second_searched
-							<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
+							<< " , rest_optimum_po = " << rest_optimum_po
+							<< " , ratio = "           << ratio
+							<< sync_endl;
 
 						break;
 					}
@@ -805,21 +812,18 @@ namespace dlshogi
 				// && rest_optimum_po == 0 /* optimum時間が残っていない */
 
 				// optimum時間超えてて、訪問回数,evalの関係がおかしくないならmaximumまで時間を使わずして終了。
-				// これ、微差だと信用ならないから1000ぐらいの差があることを確認したほうがいいような気はする。
-				// ⇨　npsの1/10以上の差があることぐらいは確認するか..
-				s64 nps10 = std::max(s64(s.nodes_searched / (elapsed * 10 + 1)) , s64(1));
 
 				if (   best_winrate  >= second_winrate
-					&& best_searched >= second_searched + nps10
+					&& best_searched >= second_searched * 1.5
 					)
 				{
 					if (o.debug_message)
-						sync_cout << "info string optimum time is over , best_winrate  >= second_winrate && best_searched >= second_searched + nps10"
+						sync_cout << "info string optimum time is over"
+						<< " , best_winrate  >= second_winrate && best_searched >= second_searched * 1.5"
 						<< " , best_winrate = "    << best_winrate
 						<< " , second_winrate = "  << second_winrate
 						<< " , best_searched = "   << best_searched
 						<< " , second_searched = " << second_searched
-						<< " , nps10 = "           << nps10
 						<< sync_endl;
 
 					break;
@@ -831,14 +835,19 @@ namespace dlshogi
 
 				// optimum時間を超えていて、残り時間をすべて使っても訪問回数が逆転しない。
 				// ⇨　残念だけど、あきらめる。
-				if (best_searched > second_searched + rest_maximum_po + nps10)
+
+				// 勝率差を考慮して多少思考時間を縮める。
+				WinType eval_diff = best_winrate - second_winrate;
+				WinType ratio = std::max( 1.0 - eval_diff * 3 , 0.0 );
+				if (best_searched > second_searched + rest_maximum_po * ratio)
 				{
 					if (o.debug_message)
-						sync_cout << "info string optimum time is over , best_searched > second_searched + rest_maximum_po + nps10"
+						sync_cout << "info string optimum time is over"
+						<< " , best_searched > second_searched + rest_maximum_po * ratio"
 						<< " , best_searched = "   << best_searched
 						<< " , second_searched = " << second_searched
 						<< " , rest_maximum_po = " << rest_maximum_po
-						<< " , nps10 = "           << nps10
+						<< " , ratio = "           << ratio
 						<< sync_endl;
 
 					break;
@@ -847,7 +856,8 @@ namespace dlshogi
 			} else { // rest_optimum_po == 0
 
 				if (o.debug_message)
-					sync_cout << "info string maximum time is over , rest_maximum_po == 0"
+					sync_cout << "info string maximum time is over"
+					<< " , rest_maximum_po == 0"
 					<< " , best_winrate = "    << best_winrate
 					<< " , second_winrate = "  << second_winrate
 					<< " , rest_optimum_po = " << rest_optimum_po << sync_endl;
