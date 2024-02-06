@@ -573,6 +573,8 @@ namespace dlshogi
 	}
 
 	// posからply先のpvのhash keyを返す。
+	// ply = 残り手数(3を設定すると現局面と合わせて4手分をkeysに出力)
+	// keys には keys[0]がply手後、keys[1]がply-1手後 .. keys[ply-1]に0手後のhash keyが返る。
 	void pv_key(Position& pos, Node* node, int ply, Key64 keys[])
 	{
 		if (ply == 0)
@@ -834,15 +836,17 @@ namespace dlshogi
 						//sync_cout << to_usi_string(m2) << sync_endl;
 
 						pos.do_move(m1,si);
-						Key64 k1[3],k2[3];
-						pv_key(pos, node1, 3, k1); // 3手先までのhash key 
+						Key64 k1[4]={},k2[4]={};
+						pv_key(pos, node1, 3, k1); // 4手先までのhash key 
 						pos.undo_move(m1);
 						pos.do_move(m2,si);
-						pv_key(pos, node2, 3, k2); // 3手先までのhash key 
+						pv_key(pos, node2, 3, k2); // 4手先までのhash key 
 						pos.undo_move(m2);
 
 						// 現局面から数えてPVの2手先が一致するか4手先が一致するか。
-						if ((k1[0] == k2[0] && Key(k1[0]) != 0) || (k1[2] == k2[2] && Key(k1[2]) != 0) )
+						// k1[0] = 4手先のhash key。k1[1] = 3手先のhash key。
+						// k1[2] = 2手先のhash key。k1[3] = 1手先のhash key。
+						if ((k1[0] == k2[0] && k1[0] != 0) || (k1[2] == k2[2] && k1[2] != 0) )
 						{
 							// 合流しているので3番目の指し手と比較する。
 
