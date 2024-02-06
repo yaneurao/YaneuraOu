@@ -584,6 +584,10 @@ namespace dlshogi
 			keys[ply] = 0;
 		else
 		{
+			if (node->child_nodes.get() == nullptr)
+				return ;
+			// child nodesが展開されていない。
+
 			ChildNumType max_i = 0;
 			for(ChildNumType i = 1 ; i < node->child_num; ++i)
 				if (node->child[i].move_count > node->child[max_i].move_count)
