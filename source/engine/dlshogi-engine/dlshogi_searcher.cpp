@@ -3,6 +3,7 @@
 #if defined(YANEURAOU_ENGINE_DEEP)
 
 #include <sstream> // stringstream
+#include <cstring> // memcpy
 
 #include "dlshogi_types.h"
 #include "UctSearch.h"
@@ -826,7 +827,7 @@ namespace dlshogi
 					{
 						// rootPosはスレッドごとに用意されているのでmemcpyして問題ない。
 						Position pos;
-						memcpy(&pos, &rootPos, sizeof(Position));
+						std::memcpy(&pos, &rootPos, sizeof(Position));
 						StateInfo si;
 
 						Move m1 = uct_child[best_i  ].move;

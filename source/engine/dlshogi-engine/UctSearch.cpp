@@ -439,7 +439,7 @@ namespace dlshogi
 				// rootPosはスレッドごとに用意されたもので、呼び出し元にインスタンスが存在しているので、
 				// 単純なコピーで問題ない。
 				Position pos;
-				memcpy(&pos, &rootPos, sizeof(Position));
+				std::memcpy(&pos, &rootPos, sizeof(Position));
 
 				// 1回プレイアウトする
 				visitor_batch.emplace_back();
