@@ -55,8 +55,11 @@ namespace dlshogi::UctPrint
 		// moveを指した時に遷移するNode
 		Node* node;
 
-		BestMove() : move(MOVE_NONE), wp(0), node(nullptr){}
-		BestMove(Move move_,WinType wp_,Node* node_) :move(move_), wp(wp_) , node(node_) {}
+		// その訪問回数
+		NodeCountType move_count;
+
+		BestMove() : move(MOVE_NONE), wp(0), node(nullptr), move_count(0){}
+		BestMove(Move move_,WinType wp_,Node* node_, NodeCountType move_count) :move(move_), wp(wp_) , node(node_) , move_count(move_count) {}
 	};
 
 	BestMovePonder::BestMovePonder() : move(MOVE_NONE), wp(0), ponder(MOVE_NONE) {}
@@ -115,7 +118,7 @@ namespace dlshogi::UctPrint
 
 			// 期待勝率
 			float wp = child->move_count ? (float)(child->win / child->move_count) : /* 未訪問なのでわからん… */0.5f;
-			bests.push_back(BestMove(child->move, wp , next_node ));
+			bests.push_back(BestMove(child->move, wp , next_node , child->move_count));
 		}
 		return bests;
 	}
@@ -158,7 +161,10 @@ namespace dlshogi::UctPrint
 
 		// MultiPVが2以上でないなら、"multipv .."は出力しないようにする。(MultiPV非対応なGUIかも知れないので)
 		if (multipv > 1)
-			ss << " multipv " << (multipv_num + 1);
+		{
+			ss << " multipv " << (multipv_num + 1)
+			   << " nodes "   << best.move_count; 
+		}
 
 		ss << " depth " << moves.size() << " score cp " << cp;
 		
@@ -184,8 +190,11 @@ namespace dlshogi::UctPrint
 		std::stringstream nps;
 		nps << " nps "      << (po_info.nodes_searched * 1000LL / (u64)finish_time)
 			<< " time "     <<  finish_time
-			<< " nodes "    <<  po_info.nodes_searched
 			<< " hashfull " << (po_info.current_root->move_count * 1000LL / options.uct_node_limit);
+
+		// multiPv >= 2のときは、個別の訪問回数を出力したいので全体の訪問回数は出力しない。
+		if (multiPv == 1)
+			nps << " nodes "    <<  po_info.nodes_searched;
 		
 		// MultiPVであれば、現在のnodeで複数の候補手を表示する。
 
