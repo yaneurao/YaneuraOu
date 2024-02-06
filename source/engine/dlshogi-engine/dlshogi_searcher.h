@@ -395,7 +395,7 @@ namespace dlshogi
 
 		//  探索停止の確認
 		// SearchInterruptionCheckerから呼び出される。
-		void InterruptionCheck();
+		void InterruptionCheck(const Position& rootPos);
 
 		// PV表示の確認
 		// SearchInterruptionCheckerから呼び出される。
@@ -473,7 +473,7 @@ namespace dlshogi
 
 		// ガーベジ用のスレッドが実行するworker
 		// 探索開始時にこの関数を呼び出す。
-		void Worker();
+		void Worker(const Position& rootPos);
 
 	private:
 		DlshogiSearcher* ds;
