@@ -698,21 +698,27 @@ namespace dlshogi
 			}
 		}
 
+		// 残り最適時間。残り最大時間。
+		// このInterruptionCheck関数を呼び出す間隔(kCheckIntervalMs)を差し引いて考える必要がある。
+		auto mimimum = std::max(s.time_manager.minimum() - SearchInterruptionChecker::kCheckIntervalMs , s64(0));
+		auto optimum = std::max(s.time_manager.optimum() - SearchInterruptionChecker::kCheckIntervalMs , s64(0));
+		auto maximum = std::max(s.time_manager.maximum() - SearchInterruptionChecker::kCheckIntervalMs , s64(0));
+
 		const Node* current_root = tree->GetCurrentHead();
 		const int child_num = current_root->child_num;
 		if (child_num == 1)
 		{
 			// one replyなので最小時間だけ使い切れば良い。
-			s.time_manager.search_end = s.time_manager.minimum();
+			s.time_manager.search_end = mimimum;
 			return;
 		}
 
 		// 最小思考時間を使っていない。
-		if (elapsed_from_ponderhit < s.time_manager.minimum())
+		if (elapsed_from_ponderhit < mimimum)
 			return ;
 
 		// 最大思考時間を超過している。
-		if (elapsed_from_ponderhit > s.time_manager.maximum())
+		if (elapsed_from_ponderhit > maximum)
 		{
 			// この場合も余計な時間制御は不要。ただちに中断すべき。
 			interrupt();
@@ -722,10 +728,6 @@ namespace dlshogi
 		// 詰み探索中で、探索し続ければ解けるのかも。
 		if (root_dfpn_searcher->searching)
 			return;
-
-		// 残り最適時間。残り最大時間。
-		auto optimum = s.time_manager.optimum();
-		auto maximum = s.time_manager.maximum();
 
 		// 序盤32手目まで少なめのおむすび型にする。
 		// TODO: パラメータの調整、optimizerでやるべき。
@@ -740,7 +742,7 @@ namespace dlshogi
 		// もともと目分量で決めてるものなので細かいことは気にしないことにする。
 
 		// maximum時間を基準に考えるので、これをoptimumをベースとして再計算する。
-		maximum = (TimePoint)std::min((double)optimum * game_ply_factor  , (double)maximum);
+		maximum = std::min((s64)(optimum * game_ply_factor) , maximum);
 
 		// elapsed         : "go" , もしくは"go ponder"～"ponderhit"(のponderhit)からの経過時間
 		// s.node_searched : 今回探索したノード数

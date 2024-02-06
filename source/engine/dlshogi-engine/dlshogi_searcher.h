@@ -469,7 +469,7 @@ namespace dlshogi
 		SearchInterruptionChecker(DlshogiSearcher* ds) : ds(ds) {}
 
 		// この間隔ごとに探索停止のチェック、PVの出力のチェックを行う。
-		const int kCheckIntervalMs = 10;
+		static const int kCheckIntervalMs = 10;
 
 		// ガーベジ用のスレッドが実行するworker
 		// 探索開始時にこの関数を呼び出す。
