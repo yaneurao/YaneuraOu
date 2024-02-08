@@ -882,9 +882,9 @@ namespace dlshogi
 					// 勝率差0.2なら、探索が早期に終了して良いと思う。
 					WinType ratio = std::max( 1.0 - eval_diff * 5 , 0.0 );
 
-					// 経過時間がoptimum /4 を超えてるのに残りmaximum時間をすべて用いても訪問数が逆転しない。
+					// 経過時間がoptimum /8 を超えてるのに残りmaximum時間をすべて用いても訪問数が逆転しない。
 					// ただしこの時、eval_diffが0.1なら50%というように、eval_diffの値に応じてrest_optimum_poを減らして考える。
-					if (   elapsed >= optimum / 4
+					if (   elapsed >= optimum / 8
 						&& best_searched > second_searched + rest_maximum_po * ratio
 						)
 					{

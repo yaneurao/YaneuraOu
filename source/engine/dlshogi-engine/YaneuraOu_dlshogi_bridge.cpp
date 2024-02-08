@@ -91,7 +91,7 @@ void USI::extra_option(USI::OptionsMap& o)
     o["C_base_root"]                 << USI::Option(25617, 10000, 100000);
 
 	// 探索のSoftmaxの温度
-	o["Softmax_Temperature"]		 << USI::Option( 174 /* 方策分布を学習させた場合、1400から1500ぐらいが最適値らしいが… */ , 1, 500);
+	o["Softmax_Temperature"]		 << USI::Option( 174 /* 方策分布を学習させた場合、1400から1500ぐらいが最適値らしいが… */ , 1, 10000);
 
 	// 各GPU用のDNNモデル名と、そのGPU用のUCT探索のスレッド数と、そのGPUに一度に何個の局面をまとめて評価(推論)を行わせるのか。
 	// GPUは最大で8個まで扱える。
