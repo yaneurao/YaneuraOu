@@ -3858,8 +3858,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 								  // rootから詰みまでの手数。
 	}
 
-    if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY)
-        bestValue = bestValue >= beta ? (3 * bestValue + beta) / 4 : bestValue;
+	if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY && bestValue >= beta)
+			bestValue = (3 * bestValue + beta) / 4;
 
 	// Save gathered info in transposition table
 	// 詰みではなかったのでこれを書き出す。
