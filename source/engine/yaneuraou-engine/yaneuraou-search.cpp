@@ -2246,7 +2246,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			&& ttValue != VALUE_NONE
 			&& ttValue < probCutBeta))
 	{
-		ASSERT_LV3(probCutBeta < VALUE_INFINITE);
+		ASSERT_LV3(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
 
 		MovePicker mp(pos, ttMove, probCutBeta - ss->staticEval, &captureHistory);
 
@@ -2297,7 +2297,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 					// ProbCutのdataを置換表に保存する。
 
 					tte->save(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval);
-					return value - (probCutBeta - beta);
+					return std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY ? value - (probCutBeta - beta)
+                                                                     : value;
 				}
 			}
 
