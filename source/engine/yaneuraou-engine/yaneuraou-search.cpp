@@ -1771,12 +1771,13 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 		// Partial workaround for the graph history interaction problem
 		// For high rule50 counts don't produce transposition table cutoffs.
-		// →　将棋では関係のないルールなので無視して良い。
-		// 
-		//if (pos.rule50_count() < 90)
-		//	return ttValue;
+		// ⇨　将棋では関係のないルールなので無視して良いが、rule50_count < 90 が通常の状態なので、
+		//    if成立時のreturnはしなければならない。
 
-		return ttValue;
+		//if (pos.rule50_count() < 90)
+            return ttValue >= beta && std::abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY
+                   ? (ttValue * 3 + beta) / 4
+                   : ttValue;
 	}
 
 	// -----------------------
