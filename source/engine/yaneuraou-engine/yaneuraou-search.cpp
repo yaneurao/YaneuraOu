@@ -2109,7 +2109,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// ※　統計値(mainHistoryとかstatScoreとか)のしきい値に関しては、やねうら王ではStockfishから調整しないことにしているので、
 		// 上のif式に出てくる定数については調整しないことにする。
 
-		return (eval + beta) / 2;
+		return beta > VALUE_TB_LOSS_IN_MAX_PLY ? (eval + beta) / 2 : eval;
 
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
