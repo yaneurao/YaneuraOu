@@ -105,7 +105,8 @@ namespace USI {
 		o["Stochastic_Ponder"] << USI::Option(false);
 
 		// その局面での上位N個の候補手を調べる機能
-		o["MultiPV"] << Option(1, 1, 800);
+		// ⇨　これMAX_MOVESで十分。
+		o["MultiPV"] << Option(1, 1, MAX_MOVES);
 
 		// 指し手がGUIに届くまでの時間。
 #if defined(YANEURAOU_ENGINE_DEEP)
