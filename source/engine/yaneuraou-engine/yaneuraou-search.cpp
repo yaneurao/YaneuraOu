@@ -2716,17 +2716,6 @@ moves_loop:
 				)
 				extension = 1;
 
-			// Quiet ttMove extensions (~1 Elo)
-			// 駒を取らない置換表の指し手に関する延長
-
-			// PV nodeでquietなttは良い指し手のはずだから延長するというもの。
-
-			else if (PvNode
-				&& move == ttMove
-				&& move == ss->killers[0]
-				&& (*contHist[0])(movedPiece, to_sq(move)) >= 4194)
-				extension = 1;
-
             // Recapture extensions (~1 Elo)
             else if (PvNode && move == ttMove && to_sq(move) == prevSq
                      && captureHistory(movedPiece, to_sq(move), type_of(pos.piece_on(to_sq(move))))
