@@ -2862,7 +2862,7 @@ moves_loop:
 		{
 			// In general we want to cap the LMR depth search at newDepth, but when
 			// reduction is negative, we allow this move a limited search extension
-			// beyond the first move depth. This may lead to hidden double extensions.
+			// beyond the first move depth. This may lead to hidden multiple extensions.
 
 			// 一般的には、LMRの深さの探索をnewDepthで制限したいと考えていますが、
 			// 削減がマイナスの場合、この手に最初の手の深さを超える限定的な探索の延長を許可します。
@@ -2893,6 +2893,7 @@ moves_loop:
 				if (newDepth > d)
 					value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
 
+				// Post LMR continuation history updates (~1 Elo)
 				int bonus = value <= alpha ? -stat_malus(newDepth)
 						  : value >= beta  ?  stat_bonus(newDepth)
 										   :  0;
@@ -2915,7 +2916,7 @@ moves_loop:
             if (!ttMove)
 				r += 2;
 
-			// Note that if expected reduction is high, we reduce search depth by 1 here
+			// Note that if expected reduction is high, we reduce search depth by 1 here (~9 Elo)
 
 			value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth - (r > 3), !cutNode);
 		}
@@ -3134,6 +3135,10 @@ moves_loop:
 	// このStockfishのassert、合法手を生成しているので重すぎる。良くない。
 	ASSERT_LV5(moveCount || !ss->inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
 
+    // Adjust best value for fail high cases at non-pv nodes
+    if (!PvNode && bestValue >= beta && std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY
+		&& std::abs(beta) < VALUE_TB_WIN_IN_MAX_PLY && std::abs(alpha) < VALUE_TB_WIN_IN_MAX_PLY)
+        bestValue = (bestValue * (depth + 2) + beta) / (depth + 3);
 
 	// Stockfishでは、ここのコードは以下のようになっているが、これは、
 	// 自玉に王手がかかっておらず指し手がない場合は、stalemateで引き分けだから。
@@ -3282,8 +3287,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// Stockfishのコードの原理としては、次の一手で千日手局面に持ち込めるなら、少なくともこの局面は引き分けであるから、
 	// betaが引き分けのスコアより低いならbeta cutできるというもの。
 
-	// Check if we have an upcoming move that draws by repetition, or
-	// if the opponent had an alternative move earlier to this position.
+    // Check if we have an upcoming move that draws by repetition, or if
+    // the opponent had an alternative move earlier to this position. (~1 Elo)
 	//if (   alpha < VALUE_DRAW
 	//    && pos.has_game_cycle(ss->ply))
 	//{
@@ -3663,8 +3668,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 				// →　これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行ってして、そのあと、この値を用いないからセーフ。
 
-				// If static eval + value of piece we are going to capture is much lower
-				// than alpha we can prune this move
+                // If static eval + value of piece we are going to capture is much lower
+                // than alpha we can prune this move. (~2 Elo)
 
 				// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
 				// それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
@@ -3674,8 +3679,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 					continue;
 				}
 
-				// If static eval is much lower than alpha and move is not winning material
-				// we can prune this move
+                // If static eval is much lower than alpha and move is not winning material
+                // we can prune this move. (~2 Elo)
 
 				// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
 				// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
