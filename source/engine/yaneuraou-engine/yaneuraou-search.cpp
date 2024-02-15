@@ -201,7 +201,8 @@ enum NodeType { NonPV, PV , Root};
 // depth(残り探索深さ)に応じたfutility margin。
 // ※ RazoringはStockfish12で効果がないとされてしまい除去された。
 Value futility_margin(Depth d, bool noTtCutNode, bool improving) {
-	return Value((PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode) * (d - improving));
+	int futilityMult = PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode;
+	return Value(futilityMult * d - 3 * futilityMult / 2 * improving);
 }
 
 // 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
