@@ -2705,7 +2705,7 @@ moves_loop:
 			// 
 			// ※ Stockfish 14では depth > 6 だったのが、Stockfish 15でdepth > 9に変更されたが				
 			//  それでもまだやりすぎの感はある。やねうら王では、延長の条件をさらに絞る。
-
+			/*
 			else if (givesCheck
 				&& depth > 9
 				// !!重要!!
@@ -2715,6 +2715,9 @@ moves_loop:
 				&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move))
 				)
 				extension = 1;
+			*/
+			// ⇨ Stockfishで削除されたが、王手延長自体は何らかあった方が良い可能性はあるので条件を調整してはどうか。
+			// Remove check extension : https://github.com/official-stockfish/Stockfish/commit/96837bc4396d205536cdaabfc17e4885a48b0588
 
             // Recapture extensions (~1 Elo)
             else if (PvNode && move == ttMove && to_sq(move) == prevSq
@@ -2722,6 +2725,7 @@ moves_loop:
                           > 4000)
                 extension = 1;
 		}
+
 
 		// -----------------------
 		//   1手進める前の枝刈り
