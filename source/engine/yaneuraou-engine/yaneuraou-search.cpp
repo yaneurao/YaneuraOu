@@ -2636,14 +2636,12 @@ moves_loop:
 					// 2重延長を制限することで探索の組合せ爆発を回避する。
 
 					// TODO : ここのパラメーター、調整すべきかも？
-
-					if (  !PvNode
-						&& value < singularBeta - 18
-						&& ss->doubleExtensions <= 11)
-					{
-						extension = 2;
-						depth += depth < 15;
-					}
+					if (!PvNode && value < singularBeta - 2 && ss->doubleExtensions <= 15)
+                    {
+						// この200調整したほうがよさげ。
+                        extension = 2 + (value < singularBeta - 200 && !ttCapture);
+                        depth += depth < 15;
+                    }
 				}
 
 				// Multi-cut pruning
