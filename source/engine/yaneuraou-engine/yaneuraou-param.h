@@ -286,29 +286,17 @@ PARAM_DEFINE PARAM_QSEARCH_FORCE_EVAL = 0;
 
 // MovePicker
 
-// move pickerでsortする閾値 (super sort使用時)
-// 重要度　★★★★★
-// 元の値 = 1960 , step = 1
-// [PARAM] min:0,max:3000,step:480,interval:1,time_rate:1
-PARAM_DEFINE PARAM_MOVEPICKER_SORT_TH1 = 2500;
-
 // move pickerでsortする係数 (super sort使用時)
 // 重要度　★★★★★
 // 元の値 = 3130 , step = 1
 // [PARAM] min:0,max:6000,step:500,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_MOVEPICKER_SORT_ALPHA1 = 3130;
-
-// move pickerでsortする閾値 (super sort使用しない時)
-// 重要度　★★★★★
-// 元の値 = 1960 , step = 1
-// [PARAM] min:-1000,max:3000,step:480,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_MOVEPICKER_SORT_TH2 = 1960;
+PARAM_DEFINE PARAM_MOVEPICKER_SORT_ALPHA1 = 3500;
 
 // move pickerでsortする係数 (super sort使用しない時)
 // 重要度　★★★★★
 // 元の値 = 3130 , step = 1
 // [PARAM] min:0,max:6000,step:500,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_MOVEPICKER_SORT_ALPHA2 = 3130;
+PARAM_DEFINE PARAM_MOVEPICKER_SORT_ALPHA2 = 3330;
 
 //
 // mate..

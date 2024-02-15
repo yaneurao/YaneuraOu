@@ -609,9 +609,9 @@ top:
 
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 			// SuperSortを有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
-			partial_super_sort    (cur, endMoves, - PARAM_MOVEPICKER_SORT_TH1 /*1960*/ - PARAM_MOVEPICKER_SORT_ALPHA1 /*3130*/ * depth);
+			partial_super_sort    (cur, endMoves, - PARAM_MOVEPICKER_SORT_ALPHA1 /*3500*/ * depth);
 #else
-			partial_insertion_sort(cur, endMoves, - PARAM_MOVEPICKER_SORT_TH2 /*1960*/ - PARAM_MOVEPICKER_SORT_ALPHA2 /*3130*/ * depth);
+			partial_insertion_sort(cur, endMoves, - PARAM_MOVEPICKER_SORT_ALPHA2 /*3330*/ * depth);
 #endif
 
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
