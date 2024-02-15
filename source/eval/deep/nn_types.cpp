@@ -563,22 +563,52 @@ namespace Eval::dlshogi
 
 	// Softmaxの時の温度パラメーター。
 	// エンジンオプションの"Softmax_Temperature"で設定できる。
+
+	/*
+		softmax関数は⇓こう。
+			softmax(x_i)   = exp(x_i) / Σ exp(x_j) for j
+		ここに温度パラメーターTを導入。(これがSoftmax_Temparature)
+			softmax_T(x_i) = exp(x_i / T) / Σ exp(x_j / T) for j
+		そうすると分布の分散が変わる。
+		Tが大きいとx_iの範囲が縮まるため、分散は下がる。
+		Tが小さいと分散は広がる。
+
+		探索で読み抜けする時は、Tを下げるように調整する。
+	*/
+
 	constexpr float default_softmax_temperature = 1.0f;
 	float beta = 1.0f / default_softmax_temperature;
+
 	void set_softmax_temperature(const float temperature) {
 		beta = 1.0f / temperature;
 	}
 
 	void softmax_temperature_with_normalize(std::vector<float> &log_probabilities) {
+
 		// apply beta exponent to probabilities(in log space)
-		float max = 0.0f;
+
+		float max = numeric_limits<float>::min();
 		for (float& x : log_probabilities) {
 			x *= beta;
 			if (x > max) {
 				max = x;
 			}
 		}
+
 		// オーバーフローを防止するため最大値で引く
+
+		/*
+		note :
+			softmax関数の定義は⇓こうなので
+				softmax(x_i) = exp(x_i) / Σ exp(x_j) for j
+			x_i + cのように定数加算したところで
+				softmax(x_i + c) = exp(x_i + c) / Σ exp(x_j + c) for j
+								 = exp(x_i)exp(c) / Σ exp(x_j)exp(c) for j
+			でexp(c)で約分できて
+								 = softmax(x_i)
+			となるので分布は変わらない。
+		*/
+
 		float sum = 0.0f;
 		for (float& x : log_probabilities) {
 			x = expf(x - max);
