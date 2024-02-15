@@ -2529,8 +2529,7 @@ moves_loop:
 
 				history += 2 * thisThread->mainHistory(us, from_to(move));
 
-				lmrDepth += history / 7836;
-				lmrDepth = std::max(lmrDepth, -1);
+				lmrDepth += history / 6992;
 
 				// Futility pruning: parent node (~13 Elo)
 				// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
