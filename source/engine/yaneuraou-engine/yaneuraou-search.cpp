@@ -901,7 +901,7 @@ void Thread::search()
 
 	// 探索部、学習部のスレッドの共通初期化コード
 	// ※　Stockfishのここにあったコードはこの関数に移動。
-	search_thread_init(this,ss,pv);
+	search_thread_init(this, ss, pv);
 
 	// Stockfish 14の頃は、反復深化のiterationが浅いうちはaspiration searchを使わず
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)としていたが、Stockfish 16では、
@@ -1970,6 +1970,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		//else if (PvNode)
 		//	Eval::NNUE::hint_common_parent_position(pos);
 
+
 		// → TODO : hint_common_parent_position()実装するか検討する。
 
 	    // ttValue can be used as a better position evaluation (~7 Elo)
@@ -2010,7 +2011,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	//   evalベースの枝刈り
 	// -----------------------
 
-	// Use static evaluation difference to improve quiet move ordering (~4 Elo)
+	// Use static evaluation difference to improve quiet move ordering (~9 Elo)
 
 	// 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
 	// 王手のときはここにはこない。(上のinCheckのなかでMOVES_LOOPに突入。)
@@ -2022,7 +2023,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	{
 	    int bonus = std::clamp(-14 * int((ss - 1)->staticEval + ss->staticEval), -1449, 1449);
 		// この右辺の↑係数、調整すべきだろうけども、4 Eloのところ調整しても…みたいな意味はある。
-
+		bonus = bonus > 0 ? 2 * bonus : bonus / 2;
 		thisThread->mainHistory(~us, from_to((ss - 1)->currentMove)) << bonus;
 
 #if defined(ENABLE_PAWN_HISTORY)
@@ -2046,9 +2047,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// check at our previous move we look at static evaluation at move prior to it
 	// and if we were in check at move prior to it flag is set to true) and is
 	// false otherwise. The improving flag is used in various pruning heuristics.
-	improving =   (ss - 2)->staticEval != VALUE_NONE ? ss->staticEval > (ss - 2)->staticEval
-				: (ss - 4)->staticEval != VALUE_NONE ? ss->staticEval > (ss - 4)->staticEval
-				                                     : true;
+	improving =   (ss - 2)->staticEval != VALUE_NONE  ? ss->staticEval > (ss - 2)->staticEval
+				: (ss - 4)->staticEval != VALUE_NONE && ss->staticEval > (ss - 4)->staticEval;
 
 	// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
 
@@ -3912,7 +3912,7 @@ Value value_to_tt(Value v, int ply) {
 // from the transposition table (which refers to the plies to mate/be mated from
 // current position) to "plies to mate/be mated (TB win/loss) from the root".
 // However, to avoid potentially false mate or TB scores related to the 50 moves rule
-// and the graph history interaction, we return highest non-TB score instead.
+// and the graph history interaction, we return the highest non-TB score instead.
 
 // value_to_tt()の逆関数
 // ply : root node からの手数。(ply_from_root)
