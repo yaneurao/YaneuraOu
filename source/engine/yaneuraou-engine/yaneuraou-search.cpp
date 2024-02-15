@@ -2782,16 +2782,11 @@ moves_loop:
 		// 指し手で1手進める
 		pos.do_move(move, st, givesCheck);
 
-		// Decrease reduction if position is or has been on the PV and not likely to fail low. (~3 Elo)
-		// Decrease further on cutNodes. (~1 Elo)
+		// Decrease reduction if position is or has been on the PV (~5 Elo)
 		// この局面がPV上にあり、fail lowしそうであるならreductionを減らす
 		// (fail lowしてしまうとまた探索をやりなおさないといけないので)
-		if (   ss->ttPv
-			&& !likelyFailLow)
-			r -= cutNode && tte->depth() >= depth ? 3 : 2;
-
-		// 【計測資料 4.】相手のmoveCountが高いときにreductionを減らす
-		// →　古い計測なので当時はこのコードないほうが良かったが、Stockfish10では入れたほうが良さげ。
+        if (ss->ttPv)
+            r -= 1 + (ttValue > alpha) + (ttValue > beta && tte->depth() >= depth);
 
 		// Decrease reduction if opponent's move count is high (~1 Elo)
 		// 相手の(1手前の)move countが大きければ、reductionを減らす。
@@ -2800,7 +2795,7 @@ moves_loop:
 		if ((ss - 1)->moveCount > 7)
 			r--;
 
-		// Increase reduction for cut nodes (~3 Elo)
+		// Increase reduction for cut nodes (~4 Elo)
 		// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
 		// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
 		// if (cutNode)という条件式は暗黙に && !PvNode を含む。
