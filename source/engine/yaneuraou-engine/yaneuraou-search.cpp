@@ -1439,8 +1439,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	//   cf. Tweak probcut margin with 'improving' flag : https://github.com/official-stockfish/Stockfish/commit/c5f6bd517c68e16c3ead7892e1d83a6b1bb89b69
 	//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
 	// priorCapture         : 1つ前の局面は駒を取る指し手か？
-	// singularQuietLMR     : quiet(駒を取らない) singular extensionを行ったかのフラグ。LMRで用いる。
-	bool givesCheck, improving, priorCapture, singularQuietLMR;
+	bool givesCheck, improving, priorCapture;
 
 	// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 	// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
@@ -1583,7 +1582,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	(ss + 2)->killers[0]	= (ss + 2)->killers[1] = MOVE_NONE;
 	(ss + 2)->cutoffCnt     = 0;
 
-	ss->doubleExtensions	= (ss - 1)->doubleExtensions;
+	ss->multipleExtensions	= (ss - 1)->multipleExtensions;
 
 	// 前の指し手で移動させた先の升目
 	// → null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
@@ -2364,7 +2363,7 @@ moves_loop:
 
 	value = bestValue;
 
-	moveCountPruning = singularQuietLMR = false;
+	moveCountPruning = false;
 
 	// Indicate PvNodes that will probably fail low if the node was searched
 	// at a depth equal to or greater than the current depth, and the result
@@ -2629,14 +2628,11 @@ moves_loop:
 				{
 					extension = 1;
 
-					// 駒を取らないsingular extensionを行ったのか？
-					singularQuietLMR = !ttCapture;
-
-					// Avoid search explosion by limiting the number of double extensions
+					// We make sure to limit the extensions in some way to avoid a search explosion
 					// 2重延長を制限することで探索の組合せ爆発を回避する。
 
 					// TODO : ここのパラメーター、調整すべきかも？
-					if (!PvNode && value < singularBeta - 2 && ss->doubleExtensions <= 15)
+					if (!PvNode && value < singularBeta - 2 && ss->multipleExtensions <= 15)
                     {
 						// この200調整したほうがよさげ。
                         extension = 2 + (value < singularBeta - 200 && !ttCapture);
@@ -2749,8 +2745,8 @@ moves_loop:
 		// これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
 		newDepth += extension;
 
-		// doubleExtensionsは、前のノードで延長したかと本ノードで延長したかを加算した値
-		ss->doubleExtensions = (ss - 1)->doubleExtensions + (extension == 2);
+		// multipleExtensionsは、前のノードで延長したかと本ノードで延長したかを加算した値
+		ss->multipleExtensions = (ss - 1)->multipleExtensions + (extension >= 2);
 
 		// -----------------------
 		//      1手進める
@@ -2813,12 +2809,6 @@ moves_loop:
 		// PvNodeではreductionを減らす。
         if (PvNode && tte->bound() != BOUND_UPPER)
             r--;
-
-
-		// Decrease reduction if ttMove has been singularly extended (~1 Elo)
-		// ttMoveがsingular extensionで延長されたならreductionを減らす。
-		if (singularQuietLMR)
-			r--;
 
 #if 0
 		// Increase reduction on repetition (~1 Elo)
