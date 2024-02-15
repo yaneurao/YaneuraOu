@@ -320,9 +320,8 @@ void MovePicker::score()
 			// → しかしこのあとsee_ge()の引数に使うのだが、see_ge()ではpromotionの価値を考慮してないので、
 			//    ここでpromotionの価値まで足し込んでしまうとそこと整合性がとれなくなるのか…。
 
-			m.value = (7 * int(Eval::CapturePieceValuePlusPromote(pos, m))
-					   + (*captureHistory)(pos.moved_piece_after(m), to_sq(m), type_of(pos.piece_on(to_sq(m)))))
-					  / 16;
+			m.value = 7 * int(Eval::CapturePieceValuePlusPromote(pos, m))
+					   + (*captureHistory)(pos.moved_piece_after(m), to_sq(m), type_of(pos.piece_on(to_sq(m))));
 			// →　係数を掛けたり全体を16で割ったりしているのは、
 			// このあと、GOOD_CAPTURE で、
 			//	return pos.see_ge(*cur, Value(-cur->value))
@@ -508,9 +507,9 @@ top:
 				// 損をする(SEE値が悪い)captureの指し手はあとで試すためにendBadCapturesに移動させる
 
 				// moveは駒打ちではないからsee()の内部での駒打ちは判定不要だが…。
-                return pos.see_ge(*cur, Value(-cur->value)) ?
-						// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
-						true : (*endBadCaptures++ = *cur, false);
+                return pos.see_ge(*cur, Value(-cur->value / 18)) ? true
+																 : (*endBadCaptures++ = *cur, false);
+				// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
 			}))
 			return *(cur -1);
 
