@@ -2803,8 +2803,8 @@ moves_loop:
 
 		// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
 
-		if (cutNode)
-			r += 2;
+        if (cutNode)
+            r += 2 - (tte->depth() >= depth && ss->ttPv);
 
 		// Increase reduction if ttMove is a capture (~3 Elo)
 		// 【計測資料 3.】置換表の指し手がcaptureのときにreduction量を増やす。
@@ -2812,11 +2812,11 @@ moves_loop:
 		if (ttCapture)
 			r++;
 
-		// Decrease reduction for PvNodes (~2 Elo)
+		// Decrease reduction for PvNodes (~3 Elo)
 		// PvNodeではreductionを減らす。
+        if (PvNode && tte->bound() != BOUND_UPPER)
+            r--;
 
-		if (PvNode)
-			r--;
 
 		// Decrease reduction if ttMove has been singularly extended (~1 Elo)
 		// ttMoveがsingular extensionで延長されたならreductionを減らす。
