@@ -119,6 +119,9 @@ void bench_cmd(Position& current, istringstream& is)
 	else if (limitType == "mate")
 		limits.mate = stoi(limit);
 
+	else if (limitType == "perft")
+		limits.perft = stoi(limit);
+
 	else
 		// depth limit
 		limits.depth = stoi(limit);
