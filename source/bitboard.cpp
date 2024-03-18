@@ -173,7 +173,7 @@ void Bitboards::init()
 		for (Rank r = RANK_1; r <= RANK_9; ++r) {
 
 			Bitboard left(ZERO), right(ZERO);
-			
+
 			// SQの升から左方向
 			for (File f2 = (File)(f + 1); f2 <= FILE_9; ++f2)
 				left |= Bitboard(f2 | r);
@@ -584,19 +584,20 @@ Bitboard Bitboard::decrement() const
 {
 #if defined(USE_SSE2)
 
+#if defined(USE_SSE41)
+	// _mm_setzero_si128()は同一レジスタのXORとなる。
+	// 同一レジスタのXORは依存性が切れる
+	// SandyBridge以降Skylake系までなら実行ユニットも使用しない
+	__m128i t2 = _mm_cmpeq_epi64(m, _mm_setzero_si128());
+	// alignrを使ってcmpeqの結果(p[0] == 0 ? -1 : 0)を上位64bit側にシフトしつつ、下位を-1で埋める
+	t2 = _mm_alignr_epi8(t2, _mm_set1_epi64x(-1LL), 8);
+	__m128i t1 = _mm_add_epi64(m, t2);
+#else // SSE2用のコード
 	// p[0]--;
 	__m128i c  = _mm_set_epi64x(0, 1);
 	__m128i t1 = _mm_sub_epi64(m, c);
 
-	// if (p[0] MSB == 1) p[1]++;
-#if defined(USE_SSE41)
-	__m128i t2 = _mm_cmpeq_epi64(m, _mm_setzero_si128());
-	//_mm_setzero_si128()は同一レジスタのXORとなる。
-	//同一レジスタのXORは依存性が切れる
-	//SandyBridge以降Skylake系までなら実行ユニットも使用しない
-	t2 = _mm_slli_si128(t2, 8);
-	t1 = _mm_add_epi64(t1, t2);
-#else // SSE2用のコード
+	// if (p[0] MSB == 1) p[1]--;
 	__m128i t2 = _mm_srli_epi64(t1, 63); // MSBをbit0に持ってきて、byte shiftで上位64bit側に移動させて減算
 	t2 = _mm_slli_si128(t2, 8);
 	t1 = _mm_sub_epi64(t1, t2);
