@@ -1267,7 +1267,15 @@ namespace Book
 
 			// 定跡として採用するdepthの下限。0 = 無視。
 			auto depth_limit = (int)Options["BookDepthLimit"];
-			if ((depth_limit != 0 && move_list[0].depth < depth_limit))
+
+			// 同じ評価値のDepth違いの指し手があると片側が無いこと扱いされてしまうとまずい。(そんな定跡DBがおかしいと言う話はあるが…)
+			// そこで、bestmoveのdepthがdepth_limit未満の時にだけ、この定跡局面を無視する。
+			// つまり、このあとの指し手を絞る処理では、depth_limitでの定跡の指し手のfilterは行わない。
+
+			if (  (depth_limit != 0 && move_list[0].depth < depth_limit )
+				// 千日手時のdepth == 999である定跡で千日手になる指し手を避けたい場合の条件式
+				//|| move_list[0].depth == 999 /* 千日手になるなら無視 */
+				)
 			{
 				if (!silent)
 					sync_cout << "info string BookDepthLimit is lower than the depth of this node." << sync_endl;
