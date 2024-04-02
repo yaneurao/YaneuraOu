@@ -579,7 +579,7 @@ namespace dlshogi
 	void pv_key(Position& pos, Node* node, int ply, Key64 keys[])
 	{
 		if (ply == 0)
-			keys[ply] = pos.hash_key();
+			keys[ply] = pos.key();
 		else if (node == nullptr || node->child_num == 0)
 			keys[ply] = 0;
 		else
