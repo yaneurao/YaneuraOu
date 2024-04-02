@@ -2530,17 +2530,21 @@ moves_loop:
 
 				lmrDepth += history / 6992;
 
-				// Futility pruning: parent node (~13 Elo)
 				// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
-
 				// →　パラメーター調整の係数を調整したほうが良いのかも知れないが、
 				// 　ここ、そんなに大きなEloを持っていないので、調整しても…。
 
-				if (   !ss->inCheck
-					&& lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH
-					&& ss->staticEval + (bestValue < ss->staticEval - 62 ? 123 : 77)
-						+ PARAM_FUTILITY_AT_PARENT_NODE_ALPHA * lmrDepth <= alpha)
+				Value futilityValue =
+					ss->staticEval + (bestValue < ss->staticEval - 59 ? 141 : 58) + 125 * lmrDepth;
+
+				// Futility pruning: parent node (~13 Elo)
+				if (!ss->inCheck && lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH && futilityValue <= alpha)
+				{
+					if (bestValue <= futilityValue && std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY
+						&& futilityValue < VALUE_TB_WIN_IN_MAX_PLY)
+						bestValue = (bestValue + futilityValue * 3) / 4;
 					continue;
+				}
 
 				// ※　以下のLMRまわり、棋力に極めて重大な影響があるので枝刈りを入れるかどうかを含めて慎重に調整すべき。
 
