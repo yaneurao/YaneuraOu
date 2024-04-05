@@ -204,7 +204,7 @@ FORCE_INLINE s32 MSB32(u32 v) {
   v = v | (v >>  4);
   v = v | (v >>  8);
   v = v | (v >> 16);
-  return POPCNT32(v);
+  return POPCNT32(v) - 1;
 }
 FORCE_INLINE s32 MSB64(u64 v) {
   ASSERT_LV3(v != 0);
@@ -214,7 +214,7 @@ FORCE_INLINE s32 MSB64(u64 v) {
   v = v | (v >>  8);
   v = v | (v >> 16);
   v = v | (v >> 32);
-  return POPCNT64(v);
+  return POPCNT64(v) - 1;
 }
 
 #endif
