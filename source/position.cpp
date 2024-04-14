@@ -740,7 +740,7 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 	const Bitboard& occ = pieces();
 
 	// 馬と龍
-	const Bitboard bb_hd = kingEffect(pawn_sq) & pieces(HORSE,DRAGON);
+	const Bitboard bb_hd = /* kingEffect(pawn_sq) & */ pieces(HORSE,DRAGON);
 	// 馬、龍の利きは考慮しないといけない。しかしここに玉が含まれるので玉は取り除く必要がある。
 	// bb_hdは銀と金のところに加えてしまうことでテーブル参照を一回減らす。
 
