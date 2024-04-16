@@ -683,15 +683,17 @@ private:
 static std::ostream& operator<<(std::ostream& os, Move m)   { os << to_usi_string(m); return os; }
 static std::ostream& operator<<(std::ostream& os, Move16 m) { os << to_usi_string(m); return os; }
 
-// 指し手がおかしくないかをテストする
-// ただし、盤面のことは考慮していない。MOVE_NULLとMOVE_NONEであるとfalseが返る。
-// これら２つの定数は、移動元と移動先が等しい値になっている。このテストだけをする。
-// MOVE_WIN(宣言勝ちの指し手は)は、falseが返る。
+// 指し手が普通の指し手(駒打ち/駒成り含む)であるかテストする。
+// 特殊な指し手(MOVE_NONE/MOVE_NULL/MOVE_WIN)である場合、falseが返る。
+// それ普通の指し手ならばtrueが返る。
 constexpr bool is_ok(Move m) {
-  // return move_from(m)!=move_to(m);
-  // とやりたいところだが、駒打ちでfromのbitを使ってしまっているのでそれだとまずい。
-  // 駒打ちのbitも考慮に入れるために次のように書く。
-  return (m >> 7) != (m & 0x7f);
+	// 通常の指し手ならば、
+	// 1. 32bit moveの場合は、上位16bitに移動させる駒があるからm >> 7が下位7bitと一致することはない。
+	// 2. 16bit moveの場合は、
+	//   2a. 移動させる指し手ならば from == toは満たさない。
+	//   2b. 駒打ちの場合は、m >> 7のbit7が1になっているので右辺とは一致しない。
+	// ということで、以下の条件式で良い。
+	return (m >> 7) != (m & 0x7f);
 }
 static bool is_ok(Move16 m) { return m.is_ok(); }
 
