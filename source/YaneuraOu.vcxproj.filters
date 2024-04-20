@@ -349,6 +349,9 @@
     <ClInclude Include="engine\dlshogi-engine\PvMateSearch.h">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
+    <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-8-64.h">
+      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
