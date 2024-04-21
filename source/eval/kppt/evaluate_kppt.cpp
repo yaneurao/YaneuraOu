@@ -220,10 +220,14 @@ namespace Eval
 
 		auto w_dir = Tools::MultiByteToWideChar(dir_name);
 
+// wstring化マクロ
+#define WIDEN(x) L##x
+#define TO_WSTRING(x) WIDEN(#x)
+
 		// Mutex名、MAX_PATH(==260)文字までなので、w_dir自体があまり深い階層だとこの制限を上回ってしまうが…。
 		// これは仕様だとする。PATH名が230文字超えるようなところに評価関数ファイル配置しないで。(´ω｀)
-		auto mapped_file_name = TEXT("YANEURAOU_KPPT_MMF" ENGINE_VERSION) + w_dir;
-		auto mutex_name = TEXT("YANEURAOU_KPPT_MUTEX" ENGINE_VERSION) + w_dir;
+		auto mapped_file_name = TEXT("YANEURAOU_KPPT_MMF"  ) + std::wstring(TO_WSTRING(ENGINE_VERSION)) + w_dir;
+		auto mutex_name       = TEXT("YANEURAOU_KPPT_MUTEX") + std::wstring(TO_WSTRING(ENGINE_VERSION)) + w_dir;
 
 		// プロセス間の排他用mutex
 		auto hMutex = CreateMutex(NULL, FALSE, mutex_name.c_str());
