@@ -550,7 +550,7 @@ namespace dlshogi
 
 		// 選んだ手を着手
 		StateInfo st;
-		pos->do_move(uct_child[next_index].move, st);
+		pos->do_move(uct_child[next_index].getMove(), st);
 
 		// Virtual Lossを加算
 		// ※　ノードの訪問回数をmove_countに加算。
@@ -990,6 +990,50 @@ namespace dlshogi
 			node->SetEvaled();
 		}
 	}
+
+
+	// 訪問回数が最大の子ノードを選択
+	unsigned int select_max_child_node(const Node* uct_node)
+	{
+		const ChildNode* uct_child = uct_node->child.get();
+
+		unsigned int select_index = 0;
+		NodeCountType max_count = 0;
+		const int child_num = uct_node->child_num;
+		NodeCountType child_win_count = 0;
+		NodeCountType child_lose_count = 0;
+
+		for (int i = 0; i < child_num; i++) {
+			if (uct_child[i].IsWin()) {
+				// 負けが確定しているノードは選択しない
+				if (child_win_count == i && uct_child[i].move_count > max_count) {
+					// すべて負けの場合は、探索回数が最大の手を選択する
+					select_index = i;
+					max_count = uct_child[i].move_count;
+				}
+				child_win_count++;
+				continue;
+			}
+			else if (uct_child[i].IsLose()) {
+				// 子ノードに一つでも負けがあれば、勝ちなので選択する
+				if (child_lose_count == 0 || uct_child[i].move_count > max_count) {
+					// すべて勝ちの場合は、探索回数が最大の手を選択する
+					select_index = i;
+					max_count = uct_child[i].move_count;
+				}
+				child_lose_count++;
+				continue;
+			}
+
+			if (child_lose_count == 0 && uct_child[i].move_count > max_count) {
+				select_index = i;
+				max_count = uct_child[i].move_count;
+			}
+		}
+
+		return select_index;
+	}
+
 }
 
 

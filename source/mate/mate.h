@@ -269,6 +269,10 @@ namespace Mate::Dfpn
 		// 解けた時に今回の詰み手数を取得する。
 		virtual int get_mate_ply() const= 0;
 
+		// 探索を終了させる。
+		// これで停止させる場合は、次回、明示的に dfpn_stop(false);としてから詰み探索を呼び出す必要がある。
+		virtual void dfpn_stop(const bool stop) { this->stop = stop; };
+
 		// mate_dfpn()でMOVE_NONE以外が返ってきた時にメモリが不足しているかを返す。
 		virtual bool is_out_of_memory() const= 0;
 
@@ -276,6 +280,10 @@ namespace Mate::Dfpn
 		virtual int hashfull() const = 0;
 
 		virtual ~MateDfpnSolverInterface() {}
+
+	protected:
+		// 停止フラグ。これがtrueになると停止する。
+		bool stop = false;
 	};
 
 	// DfpnのSolverの種類
@@ -301,7 +309,7 @@ namespace Mate::Dfpn
 	};
 
 	// MateDfpnSolverInterfaceの入れ物。
-	class MateDfpnSolver : MateDfpnSolverInterface
+	class MateDfpnSolver : public MateDfpnSolverInterface
 	{
 	public:
 		MateDfpnSolver(DfpnSolverType t);

@@ -595,6 +595,7 @@
     <ClInclude Include="engine\dlshogi-engine\dlshogi_searcher.h" />
     <ClInclude Include="engine\dlshogi-engine\Node.h" />
     <ClInclude Include="engine\dlshogi-engine\PrintInfo.h" />
+    <ClInclude Include="engine\dlshogi-engine\PvMateSearch.h" />
     <ClInclude Include="engine\dlshogi-engine\UctSearch.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h" />
     <ClInclude Include="engine\yo-cluster\ClusterCommon.h" />
@@ -682,6 +683,7 @@
     <ClCompile Include="book\makebook2023.cpp" />
     <ClCompile Include="engine\dlshogi-engine\dlshogi_searcher.cpp" />
     <ClCompile Include="engine\dlshogi-engine\PrintInfo.cpp" />
+    <ClCompile Include="engine\dlshogi-engine\PvMateSearch.cpp" />
     <ClCompile Include="engine\dlshogi-engine\UctSearch.cpp" />
     <ClCompile Include="engine\dlshogi-engine\Node.cpp" />
     <ClCompile Include="engine\dlshogi-engine\YaneuraOu_dlshogi_bridge.cpp" />

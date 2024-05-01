@@ -7,6 +7,7 @@
 #include "../../mate/mate.h"
 
 #include "Node.h"
+#include "PvMateSearch.h"
 
 // この探索部は、NN専用なので直接読み込む。
 
@@ -328,6 +329,10 @@ namespace dlshogi
 		// leaf node用のdf-pn solver
 		Mate::Dfpn::MateDfpnSolver mate_solver;
 	};
+
+	// 訪問回数が最大の子ノードを選択
+	extern unsigned int select_max_child_node(const Node* uct_node);
+
 }
 
 #endif

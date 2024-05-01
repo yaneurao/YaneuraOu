@@ -123,7 +123,6 @@ namespace dlshogi::UctPrint
 		return bests;
 	}
 
-
 	// あるノード以降のPV(最善応手列)を取得する。
 	void  get_pv(Node* node , std::vector<Move>& moves)
 	{
@@ -137,7 +136,7 @@ namespace dlshogi::UctPrint
 			if (best_child == -1)
 				break;
 
-			moves.push_back(node->child[best_child].move);
+			moves.push_back(node->child[best_child].getMove());
 			if (!node->child)
 				break;
 
@@ -195,7 +194,52 @@ namespace dlshogi::UctPrint
 		// multiPv >= 2のときは、個別の訪問回数を出力したいので全体の訪問回数は出力しない。
 		if (multiPv == 1)
 			nps << " nodes "    <<  po_info.nodes_searched;
-		
+
+#if 0
+		if (rootNode->mate_ply > 0)
+		{
+			// 詰みを見つけているのでそれを出力する。
+			const ChildNode* uct_child = rootNode->child.get();
+			Move move = MOVE_NONE;
+			int ply = rootNode->mate_ply;
+			// 何手で詰むかわからないので最大手数で初期化。
+			if (ply == 0)
+				ply = INT_MAX;
+
+			for (size_t i = 0; i < rootNode->child_num; ++i)
+				if (uct_child[i].IsLose())
+				{
+					// 手数がいまのplyより小さいか？を調べる。
+					// 次のNodeが存在するかのチェックがまず必要。
+					if (rootNode->child_nodes.get() && rootNode->child_nodes[i])
+					{
+						int mated_ply = rootNode->child_nodes[i]->mate_ply;
+						if (mated_ply)
+						{
+							int mate_ply = 1 - mated_ply; // -2(2手で詰まされる) なら3手詰めなので。
+							if (mate_ply < ply)
+							{
+								ply = mate_ply;
+								move = uct_child[i].getMove();
+							}
+						}
+					}
+
+					// 子に情報がなかったので何手で詰むかはわからん。
+					// とりあえず、いま詰みの指し手がわかってなかったらこれを採用する。
+					if (!move)
+						move = uct_child[i].getMove();
+				}
+
+			// 即詰みなのでponderの指し手わからん。いらんやろ。
+			nps << " pv " << to_usi_string(move);
+			if (!silent)
+				sync_cout << "info score mate " << ply << nps.str() << sync_endl;
+			
+			return BestMovePonder(move, 1.0, MOVE_NONE);
+		}
+#endif
+
 		// MultiPVであれば、現在のnodeで複数の候補手を表示する。
 
 		auto bests = select_best_moves(rootNode , multiPv);

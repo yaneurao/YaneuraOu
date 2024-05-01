@@ -8,6 +8,7 @@
 #include "../../book/book.h"
 #include "../../mate/mate.h"
 #include "dlshogi_types.h"
+#include "PvMateSearch.h"
 
 // dlshogiの探索部で構造体化・クラス化されていないものを集めたもの。
 
@@ -212,41 +213,6 @@ namespace dlshogi
 		std::mutex mutexes[MUTEX_NUM];
 	};
 
-	// あとで
-	class RootDfpnSearcher
-	{
-	public:
-		RootDfpnSearcher(DlshogiSearcher* dlshogi_searcher);
-
-		// 詰み探索用のメモリを確保する。
-		// 確保するメモリ量ではなくノード数を指定するので注意。
-		void alloc(u32 nodes_limit);
-
-		// df-pn探索する。
-		// この関数を呼び出すとsearching = trueになり、探索が終了するとsearching = falseになる。
-		// nodes_limit   = 探索ノード数上限
-		void search(const Position& rootPos, u32 nodes_limit);
-
-		// 引き分けになる手数の設定
-		// max_game_ply = 引き分けになるgame ply。この値になった時点で不詰扱い。
-		void set_max_game_ply(int max_game_ply);
-
-		// 探索中であるかのフラグ
-		std::atomic<bool> searching;
-
-		// 解けた時の詰みになる指し手とponder move(相手の指し手の予想手)
-		std::atomic<Move> mate_move , mate_ponder_move;
-
-		// 解けた時のPV
-		std::string pv;
-
-	private:
-		// df-pn探索を行うsolver
-		std::unique_ptr<Mate::Dfpn::MateDfpnSolver> solver;
-
-		DlshogiSearcher* dlshogi_searcher;
-	};
-
 	// UCT探索部
 	// ※　dlshogiでは、この部分、class化されていない。
 	class DlshogiSearcher
@@ -266,9 +232,6 @@ namespace dlshogi
 		//     leaf_dfpn_nodes_limit        : leaf nodeでdf-pnのノード数上限         (Options["LeafDfpnNodesLimit"]の値)
 		// それぞれの引数の値は、同名のsearch_optionsのメンバ変数に代入される。
 		void SetMateLimits(int max_moves_to_draw, u32 root_mate_search_nodes_limit, u32 leaf_dfpn_nodes_limit);
-			
-		// root nodeでの詰め将棋ルーチンの呼び出しに関する条件を設定し、メモリを確保する。
-		void InitMateSearcher();
 
 		// GPUの初期化、各UctSearchThreadGroupに属するそれぞれのスレッド数と、各スレッドごとのNNのbatch sizeの設定
 		// "isready"に対して呼び出される。
@@ -318,6 +281,11 @@ namespace dlshogi
 		// デフォルトは 756。
 		void SetEvalCoef(const int eval_coef);
 
+		// PV lineの詰み探索の設定
+		// threads : スレッド数
+		// nodes   : 1局面で詰探索する最大ノード数。
+		void SetPvMateSearch(const int threads, /*const int depth,*/ const int nodes);
+
 		// PV表示間隔設定[ms]
 		void SetPvInterval(const TimePoint interval);
 
@@ -350,7 +318,7 @@ namespace dlshogi
 
 		// UCT探索を停止させる。
 		// search_limits.uct_search_stop == trueになる。
-		void StopUctSearch();
+		//void StopUctSearch();
 
 		// UCTアルゴリズムによる着手生成
 		// 並列探索を開始して、PVを表示したりしつつ、指し手ひとつ返す。
@@ -364,7 +332,7 @@ namespace dlshogi
 		Move UctSearchGenmove(Position* pos, const std::string& game_root_sfen , const std::vector<Move>& moves, Move& ponderMove);
 
 		// NNに渡すモデルPathの設定。
-		void SetModelPaths(const std::vector<std::string>& paths);
+		//void SetModelPaths(const std::vector<std::string>& paths);
 
 		// 最後にPVを出力した時刻をリセットする。
 		void ResetLastPvPrint() { search_limits.last_pv_print = 0; }
@@ -407,6 +375,9 @@ namespace dlshogi
 		std::mutex& get_node_mutex(const Position* pos) { return node_mutexes.get_mutex(pos); }
 		//std::mutex& get_child_node_mutex(const HASH_KEY posKey) { return child_node_mutexes.get_mutex(posKey); }
 
+		// 探索開始局面。これはこの局面の探索中には消失しないのでglobalに参照して良い。
+		Position pos_root;
+
 	private:
 
 		// Root Node(探索開始局面)を展開する。
@@ -434,9 +405,6 @@ namespace dlshogi
 		// 探索停止チェック用
 		std::unique_ptr<SearchInterruptionChecker> interruption_checker;
 
-		// root局面での詰み探索用。
-		std::unique_ptr<RootDfpnSearcher> root_dfpn_searcher;
-
 		// PVの出力と、ベストの指し手の取得
 		std::tuple<Move /*bestMove*/, float /* best_wp */, Move /* ponderMove */> get_and_print_pv();
 
@@ -452,10 +420,8 @@ namespace dlshogi
 		// ノードのlockに使うmutex
 		MutexPool node_mutexes;
 
-		// 探索とは別スレッドでの詰み探索用
-
-		// 奇数手詰め
-		Mate::MateSolver mate_solver;
+		// PV lineの詰探索用
+		std::vector<PvMateSearcher> pv_mate_searchers;
 	};
 
 	// 探索の終了条件を満たしたかを調べるスレッド

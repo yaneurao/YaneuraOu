@@ -164,12 +164,13 @@ void USI::extra_option(USI::OptionsMap& o)
     //(*this)["Const_Playout"]               = USIOption(0, 0, int_max);
 	// →　Playout数固定。これはNodesLimitでできるので不要。
 
+	// PV lineの即詰みを調べるスレッドの数と1局面当たりの最大探索ノード数。
+	o["PV_Mate_Search_Threads"]     << USI::Option(0, 0, 256);
+	o["PV_Mate_Search_Nodes"]       << USI::Option(500000, 0, UINT32_MAX);
+
 	// → leaf nodeではdf-pnに変更。
 	// 探索ノード数の上限値を設定する。0 : 呼び出さない。
 	o["LeafDfpnNodesLimit"]			<< USI::Option(40, 0, 10000);
-
-	// root nodeでのdf-pn詰将棋探索の最大ノード数
-	o["RootMateSearchNodesLimit"]	<< USI::Option(1000000, 0, UINT32_MAX);
 }
 
 // "isready"コマンドに対する初回応答
@@ -272,6 +273,10 @@ void Search::clear()
 	// ※　探索ノード数を固定したい場合は、NodesLimitオプションを使うべし。
 	searcher.InitializeUctSearch((NodeCountType)Options["UCT_NodeLimit"]);
 
+	// PV lineの詰み探索の設定
+	searcher.SetPvMateSearch(int(Options["PV_Mate_Search_Threads"]), int(Options["PV_Mate_Search_Nodes"]));
+
+
 #if 0
 	// dlshogiでは、
 	// "isready"に対してnode limit = 1 , batch_size = 128 で探索しておく。
@@ -361,6 +366,7 @@ void Thread::search()
 //{
 //	searcher.FinalizeUctSearch();
 //}
+// ⇨　まあ、プロセス終了するんだから開放されるやろ…。
 
 namespace dlshogi
 {

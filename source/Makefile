@@ -429,6 +429,7 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 		engine/dlshogi-engine/PrintInfo.cpp                             \
 		engine/dlshogi-engine/UctSearch.cpp                             \
 		engine/dlshogi-engine/Node.cpp                                  \
+		engine/dlshogi-engine/PvMateSearch.cpp                          \
 		engine/dlshogi-engine/YaneuraOu_dlshogi_bridge.cpp
 endif
 
