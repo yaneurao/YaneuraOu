@@ -13,8 +13,6 @@ namespace dlshogi
 	//extern std::unique_ptr<NodeTree> tree;
 	//extern const Position* pos_root;
 
-	std::mutex PvMateSearcher::mtx_searched;
-
 	PvMateSearcher::PvMateSearcher(const int nodes, DlshogiSearcher* dl_searcher) :
 		ready_th(true),
 		term_th(false),
@@ -24,7 +22,7 @@ namespace dlshogi
 	{
 		// 子ノードを展開するから、探索ノード数の8倍ぐらいのメモリを要する
 		dfpn.alloc_by_nodes_limit((size_t)(nodes * 8));
-		node_limit = nodes;
+		nodes_limit = nodes;
 		// 最大探索深さ。これを超えると引き分けだから不詰扱い。
 		dfpn.set_max_game_ply(dl_searcher->search_options.max_moves_to_draw);
 	}
@@ -50,19 +48,19 @@ namespace dlshogi
 		if (stop) return;
 
 		// いまから詰み探索済みフラグをチェックするのでlockが必要
-		mtx_searched.lock();
+		Node::mtx_dfpn.lock();
 
 		// このnodeは詰み探索済みであるか？
-		if (!uct_node->dfpn_checked)
+		if (!(uct_node->dfpn_proven_unsolvable || uct_node->dfpn_checked))
 		{
 			// 詰み探索まだ。
 
 			// いったん詰み探索をしたことにする。(他のスレッドがこの局面を重複して探索しないように。)
 			uct_node->dfpn_checked = true;
-			mtx_searched.unlock();
+			Node::mtx_dfpn.unlock();
 
 			// 詰みの場合、ノードを更新
-			Move mate_move = dfpn.mate_dfpn(pos, node_limit);
+			Move mate_move = dfpn.mate_dfpn(pos, nodes_limit);
 			if (is_ok(mate_move)) {
 				// 詰みを発見した。
 
@@ -74,7 +72,7 @@ namespace dlshogi
 					sync_cout << "info string found the root mate by df-pn , move = " << to_usi_string(mate_move) << " ,ply = " << mate_ply << sync_endl;
 
 					// 手数保存しておく。
-					uct_node->mate_ply = mate_ply;
+					//uct_node->dfpn_mate_ply = mate_ply;
 
 					// 読み筋を出力する。
 					std::stringstream pv;
@@ -122,13 +120,13 @@ namespace dlshogi
 			}
 			else if (stop) {
 				// 途中で停止された場合、未探索に戻す。
-				std::lock_guard<std::mutex> lock(mtx_searched);
+				std::lock_guard<std::mutex> lock(Node::mtx_dfpn);
 				uct_node->dfpn_checked = false;
 			}
 			// 探索中にPVが変わっている可能性があるため、ルートに戻る。
 		}
 		else {
-			mtx_searched.unlock();
+			Node::mtx_dfpn.unlock();
 
 			// 詰み探索済みであることがわかったので、
 			// 子が展開済みの場合、PV上の次の手へ
@@ -140,6 +138,7 @@ namespace dlshogi
 			}
 
 			// 訪問回数が最大の子ノードを選択
+			// ⇨　rootの時だけ時々second以降に行ってもいいかも..？
 			const auto next_index = select_max_child_node(uct_node);
 
 			auto uct_child = uct_node->child.get();

@@ -6,6 +6,8 @@ namespace dlshogi
 {
 	// --- struct Node
 
+	std::mutex Node::mtx_dfpn;
+
 	// 引数のmoveで指定した子ノード以外の子ノードをすべて開放する。
 	// 前回探索した局面からmoveの指し手を選んだ局面の以外の情報を開放するのに用いる。
 	Node* Node::ReleaseChildrenExceptOne(NodeGarbageCollector* gc, const Move move)

@@ -81,7 +81,8 @@ namespace dlshogi
 	struct Node
 	{
 		Node()
-			: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f) , child_num(0), dfpn_checked(0), mate_ply(0) {}
+			: move_count(NOT_EXPANDED), win(0), visited_nnrate(0.0f) , child_num(0),
+			dfpn_checked(0) , dfpn_proven_unsolvable(0) /*, dfpn_mate_ply(0)*/ {}
 
 		// 子ノード作成
 		Node* CreateChildNode(int i) {
@@ -171,8 +172,12 @@ namespace dlshogi
 
 
 		// 詰み関連のフラグ
-		s16 dfpn_checked :  1; // df-pn調べ済み
-		s16 mate_ply     : 15; // 詰み手数。0なら詰みなし。プラスならこの局面からの詰みまでの手数。マイナスなら、詰まされるまでの手数。
+		bool dfpn_checked; // df-pn調べ済み
+		bool dfpn_proven_unsolvable; // df-pnで詰まないことが証明されている。
+		//s16 dfpn_mate_ply : 15; // 詰み手数。0なら詰みなし。プラスならこの局面からの詰みまでの手数。マイナスなら、詰まされるまでの手数。
+
+		// dfpn_checkedのフラグの状態を変更する時のmutex
+		static std::mutex mtx_dfpn;
 
 	private:
 

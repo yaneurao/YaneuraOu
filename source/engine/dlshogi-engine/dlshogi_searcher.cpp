@@ -220,6 +220,13 @@ namespace dlshogi
 	// nodes   : 1局面で詰探索する最大ノード数。
 	void DlshogiSearcher::SetPvMateSearch(const int threads, /*const int depth,*/ const int nodes)
 	{
+		// 現在生成されているthread数とnodesがぴったり一致するなら、生成しなおす必要はない。
+		if (threads == int(pv_mate_searchers.size()) &&
+			(threads == 0 || pv_mate_searchers[0].get_nodes_limit() == nodes))
+			return; 
+
+		// 個数が異なるので生成しなおす。
+
 		pv_mate_searchers.clear(); // いったんすべて開放
 		pv_mate_searchers.reserve(threads);
 
