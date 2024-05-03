@@ -4,6 +4,8 @@
 #include "PvMateSearch.h"
 #if defined(YANEURAOU_ENGINE_DEEP)
 
+#include <cstring> // memcpy
+
 #include "dlshogi_searcher.h"
 #include "UctSearch.h"
 
