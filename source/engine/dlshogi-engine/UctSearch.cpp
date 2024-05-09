@@ -1023,7 +1023,7 @@ namespace dlshogi
 		for (int i = 0; i < child_num; i++) {
 			if (uct_child[i].IsWin()) {
 				// 負けが確定しているノードは選択しない
-				if (child_win_count == i && uct_child[i].move_count > max_count) {
+				if (child_win_count == NodeCountType(i) && uct_child[i].move_count > max_count) {
 					// すべて負けの場合は、探索回数が最大の手を選択する
 					select_index = i;
 					max_count = uct_child[i].move_count;

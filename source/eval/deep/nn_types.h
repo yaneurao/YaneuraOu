@@ -20,7 +20,10 @@ namespace Eval::dlshogi
 	// === GPU関連の設定 ===
 
 	// GPUの最大数(これ以上のGPUは扱えない)
-	constexpr int max_gpu = 16;
+#if !defined(MAX_GPU)
+	constexpr int MAX_GPU = 16;
+#endif
+	constexpr int max_gpu = MAX_GPU;
 
 	// === 入出力の特徴量の定義 ===
 

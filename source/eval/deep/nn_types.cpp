@@ -622,12 +622,9 @@ namespace Eval::dlshogi
 
 	Result init_model_paths()
 	{
-		const std::string model_paths[max_gpu] = {
-			Options["DNN_Model1"], Options["DNN_Model2"], Options["DNN_Model3"], Options["DNN_Model4"],
-			Options["DNN_Model5"], Options["DNN_Model6"], Options["DNN_Model7"], Options["DNN_Model8"],
-			Options["DNN_Model9"], Options["DNN_Model10"], Options["DNN_Model11"], Options["DNN_Model12"],
-			Options["DNN_Model13"], Options["DNN_Model14"], Options["DNN_Model15"], Options["DNN_Model16"]
-		};
+		std::vector<string> model_paths;
+		for (int i = 1; i <= max_gpu ; ++i)
+			model_paths.emplace_back(Options["DNN_Model" + std::to_string(i)]);
 
 		string eval_dir = Options["EvalDir"];
 
@@ -640,7 +637,7 @@ namespace Eval::dlshogi
 
 		// モデルファイル存在チェック
 		bool is_err = false;
-		for (int i = 0; i < max_gpu; ++i) {
+		for (int i = 0; i < max_gpu ; ++i) {
 			if (model_paths[i] != "")
 			{
 				string path = Path::Combine(eval_dir, model_paths[i].c_str());
