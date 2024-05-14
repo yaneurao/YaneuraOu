@@ -80,8 +80,10 @@ namespace Book
 				Move nextMove = (rootMoves.pv.size() >= 1) ? rootMoves.pv[1] : MOVE_NONE;
 
 				// 出現頻度は、バージョンナンバーを100倍したものにしておく)
+				// ⇨ ENGINE_VERSIONに数字以外の文字列入れたいことがあるので、これは良くない仕様。
+				//  800固定とする。(いま最新がV8.00系だから)
 				BookMove bp(rootMoves.pv[0], nextMove , rootMoves.score
-					, search_depth, int(atof(ENGINE_VERSION) * 100));
+					, search_depth, /*int(atof(ENGINE_VERSION) * 100)*/ 800);
 
 				// MultiPVで思考しているので、手番側から見て評価値の良い順に並んでいることは保証される。
 				// (書き出しのときに並び替えなければ)
