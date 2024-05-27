@@ -214,7 +214,10 @@ struct PRNG
 
 		// time値とか、thisとか色々加算しておく。
 		s = (u64)(time(NULL)) + ((u64)(this) << 32)
-			+ (u64)(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+		//	+ (u64)(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+		// ⇨ MSYS2 + clang18でhigh_resolution_clock::now()を使うとセグフォで落ちるようになった。
+		//   代わりにsteady_clockを用いる。
+			+ (u64)std::chrono::steady_clock::now().time_since_epoch().count();
 	}
 
 	// 乱数を一つ取り出す。
