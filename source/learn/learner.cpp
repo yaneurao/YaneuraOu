@@ -3392,7 +3392,7 @@ namespace Learner {
 	}
 
 	// gensfen2019コマンド本体
-	void gen_sfen2019(Position& pos, istringstream& is)
+	void gen_sfen2019([[maybe_unused]] Position& pos, [[maybe_unused]] istringstream& is)
 	{
 		// スレッド数(これは、USIのsetoptionで与えられる)
 		u32 thread_num = (u32)Options["Threads"];

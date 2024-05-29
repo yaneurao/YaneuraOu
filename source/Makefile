@@ -77,6 +77,11 @@ TARGET_CPU = AVX2
 #TARGET_CPU = OTHER
 #TARGET_CPU = GRAVITON2
 #TARGET_CPU = WASM
+# -- macOSとか
+#TARGET_CPU = APPLEM1
+#TARGET_CPU = APPLEM2
+#TARGET_CPU = APPLEM3
+
 
 
 # デバッガーを使用するか (debugger)
@@ -103,15 +108,19 @@ COMPILER = clang++
 
 
 # 標準的なコンパイルオプション (standard compile options)
-CPPFLAGS   = -std=c++17 -fno-exceptions -fno-rtti -Wextra -MMD -MP -fpermissive
+CPPFLAGS      = -std=c++17 -fno-exceptions -fno-rtti -Wextra -MMD -MP -fpermissive
 NVCC_CPPFLAGS = -std=c++17 -x cu -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast"
-WCPPFLAGS  =
-LDFLAGS  = $(EXTRA_LDFLAGS)
-LIBS     =
-INCLUDE  = # -I../include
+WCPPFLAGS     =
+LDFLAGS       = 
+LIBS          =
+INCLUDE       = # -I../include
 
-# makeするときにCPPFLAGSを追加で指定したいときはこれを用いる。
+# makeするときにCPPFLAGS,LDFLAGSを追加で指定したいときはこれを用いる。
 EXTRA_CPPFLAGS =
+EXTRA_LDFLAGS  =
+
+CPPFLAGS += $(EXTRA_CPPFLAGS)
+LDFLAGS  += $(EXTRA_LDFLAGS)
 
 # YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIALのときに指定できる、評価関数の通し番号
 #  1 : 普通の駒得のみの評価関数
@@ -612,7 +621,7 @@ else ifeq ($(TARGET_CPU),OTHER)
 endif
 
 # YANEURAOU_EDITION , CPUターゲット名 などのシンボルをコンパイル時に定義してやる。
-CPPFLAGS += -D$(YANEURAOU_EDITION) -DTARGET_CPU=\"$(TARGET_CPU)\" $(EXTRA_CPPFLAGS)
+CPPFLAGS += -D$(YANEURAOU_EDITION) -DTARGET_CPU=\"$(TARGET_CPU)\"
 NVCC_CPPFLAGS += -D$(YANEURAOU_EDITION) -DTARGET_CPU=\"$(TARGET_CPU)\"
 
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))

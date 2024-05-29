@@ -534,7 +534,7 @@ namespace {
 #endif
 
 	// MATE ENGINEのテスト。(ENGINEに対して局面図を送信する)
-	void mate_bench2([[maybe_unused]] Position& pos, std::istringstream& is)
+	void mate_bench2([[maybe_unused]] Position& pos, [[maybe_unused]] std::istringstream& is)
 	{
 #if !defined (TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
 		cout << "Error! : define TANUKI_MATE_ENGINE or YANEURAOU_MATE_ENGINE" << endl;
