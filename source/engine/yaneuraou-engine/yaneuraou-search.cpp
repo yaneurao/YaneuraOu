@@ -146,7 +146,7 @@ void USI::extra_option(USI::OptionsMap & o)
 
 // パラメーターのランダム化のときには、
 // USIの"gameover"コマンドに対して、それをログに書き出す。
-void gameover_handler(const std::string& cmd)
+void gameover_handler([[maybe_unused]] const std::string& cmd)
 {
 #if defined(ENABLE_OUTPUT_GAME_RESULT)
 	result_log << cmd << std::endl << std::flush;

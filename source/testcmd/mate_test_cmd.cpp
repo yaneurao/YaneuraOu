@@ -30,7 +30,7 @@ namespace {
 	// ----------------------------------
 
 	// N手詰みの局面を生成する。
-	void gen_mate(Position& pos, std::istringstream& is)
+	void gen_mate([[maybe_unused]] Position& pos, std::istringstream& is)
 	{
 #if !defined (EVAL_LEARN)
 		cout << "Error! genmate command is only for EVAL_LEARN" << endl;
@@ -534,7 +534,7 @@ namespace {
 #endif
 
 	// MATE ENGINEのテスト。(ENGINEに対して局面図を送信する)
-	void mate_bench2(Position& pos, std::istringstream& is)
+	void mate_bench2([[maybe_unused]] Position& pos, std::istringstream& is)
 	{
 #if !defined (TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
 		cout << "Error! : define TANUKI_MATE_ENGINE or YANEURAOU_MATE_ENGINE" << endl;

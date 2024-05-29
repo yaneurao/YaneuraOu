@@ -429,7 +429,7 @@ void prefetch(void*) {}
 
 #else
 
-void prefetch(void* addr) {
+void prefetch([[maybe_unused]] void* addr) {
 
 	// SSEの命令なのでSSE2が使える状況でのみ使用する。
 #if defined (USE_SSE2)
@@ -937,7 +937,7 @@ namespace Tools
 
 	// 進捗を表示しながら並列化してゼロクリア
 	// ※ Stockfishのtt.cppのTranspositionTable::clear()にあるコードと同等のコード。
-	void memclear(const char* name_, void* table, size_t size)
+	void memclear([[maybe_unused]] const char* name_, void* table, size_t size)
 	{
 #if !defined(EVAL_LEARN) && !defined(__EMSCRIPTEN__)
 

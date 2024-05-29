@@ -118,7 +118,7 @@ namespace Test
 	//  unittest auto_player_loop 1000 auto_player_depth 6
 	//  →　探索深さ6での自己対局を1000回行うUnitTest。(やねうら王探索部 + EVAL_LEARN版が必要)
 
-	void UnitTest(Position& pos, istringstream& is)
+	void UnitTest([[maybe_unused]] Position& pos, istringstream& is)
 	{
 		// UnitTest開始時に"isready"コマンドを実行したのに相当する初期化はなされているものとする。
 		is_ready();

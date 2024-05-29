@@ -60,7 +60,7 @@ namespace Eval {
 	void print_softname(u64 check_sum);
 #else
 	static u64 calc_check_sum() { return 0; }
-	static void print_softname(u64 check_sum) {}
+	static void print_softname([[maybe_unused]] u64 check_sum) {}
 #endif
 
 #if defined (USE_PIECE_VALUE)

@@ -71,18 +71,18 @@ namespace USI {
 		// Stockfishもこうすべきだと思う。
 
 #if !defined(__EMSCRIPTEN__)
-		o["Threads"] << Option(4, 1, 1024, [](const Option& o) { /* on_threads(o); */ });
+		o["Threads"] << Option(4, 1, 1024, []([[maybe_unused]] const Option& o) { /* on_threads(o); */ });
 #else
 		// yaneuraou.wasm
 		// スレッド数などの調整
 		// stockfish.wasmの数値を基本的に使用している
-		o["Threads"] << Option(1, 1, 32, [](const Option& o) { /* on_threads(o); */ });
+		o["Threads"] << Option(1, 1, 32, []([[maybe_unused]] const Option& o) { /* on_threads(o); */ });
 #endif
 #endif
 
 #if !defined(TANUKI_MATE_ENGINE) && !defined(YANEURAOU_MATE_ENGINE)
 		// 置換表のサイズ。[MB]で指定。
-		o["USI_Hash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { /* on_hash_size(o); */ });
+		o["USI_Hash"] << Option(1024, 1, MaxHashMB, []([[maybe_unused]] const Option& o) { /* on_hash_size(o); */ });
 
 #if defined(USE_EVAL_HASH)
 		// 評価値用のcacheサイズ。[MB]で指定。
