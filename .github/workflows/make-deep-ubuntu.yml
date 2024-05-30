@@ -46,10 +46,8 @@ jobs:
 
       - name: install clang-15
         run: |
-          # install clang-15
-          wget https://apt.llvm.org/llvm.sh
-          sudo bash ./llvm.sh 15 all
-          sudo apt-get install -y clang-15
+          sudo apt update
+          sudo apt install -y clang-15
         if: ${{ matrix.compiler == 'clang++-15' }}
 
       - name: install ONNXRUNTIME
