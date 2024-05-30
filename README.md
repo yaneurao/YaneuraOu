@@ -47,6 +47,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 - 定跡DBの様々なメンテナンス用コマンドをサポートしています。
 - 置換表の上限サイズは33TB(実質的に無限)まで対応しています。
 - Windows、Ubuntu、macOS、ARMなど様々なプラットフォームをサポートしています。
+- 評価関数として、KPPT、KPP_KKPT、NNUE(各種)に対応しています。
 
 # ふかうら王の特徴
 
@@ -88,10 +89,10 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 |プロジェクト名|進捗|
 |-|-|
-|やねうら王通常探索エンジン|2022年も引き続き、このエンジン部を改良していきます。|
-| YaneuraOu The Cluster | やねうら王のクラスター化エンジン。2022年夏にはお披露目できそう。|
+| やねうら王 | 現在進行形で改良しています。|
+| ふかうら王 | 現在進行形で改良しています。|
 | やねうら王詰将棋エンジンV2 | 省メモリで長手数の詰将棋が解ける詰将棋用のエンジン。|
-| floodgateV2 | floodgateに取って代わる対局場です |
+| Bloodgate | floodgateに取って代わる対局場です |
 
 # 過去のサブプロジェクト
 
@@ -105,7 +106,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 各エンジンオプションの解説、定跡ファイルのダウンロード、定跡の生成手法などについての詳しい資料があります。初心者から開発者まで、知りたいことが全部詰まっています。
 
-  - [やねうら王ニュース記事一覧](https://github.com/yaneurao/YaneuraOu/wiki/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9)
+- [やねうら王ニュース記事一覧](https://github.com/yaneurao/YaneuraOu/wiki/%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E3%83%8B%E3%83%A5%E3%83%BC%E3%82%B9)
 
 # ライセンス
 
