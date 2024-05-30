@@ -1509,7 +1509,7 @@ struct LearnerThink: public MultiThink
 		newbob_scale = 1.0;
 		newbob_decay = 1.0;
 		newbob_num_trials = 2;
-		best_loss = std::numeric_limits<double>::infinity();
+		best_loss = std::numeric_limits<double>::max();
 		latest_loss_sum = 0.0;
 		latest_loss_count = 0;
 #endif
