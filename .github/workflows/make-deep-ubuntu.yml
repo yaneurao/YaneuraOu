@@ -38,20 +38,18 @@ jobs:
 
       - name: install g++-11
         run: |
-          sudo cat /etc/apt/sources.list
-          sudo ls -R /etc/apt/sources.list.d
+          # sudo cat /etc/apt/sources.list
+          # sudo ls -R /etc/apt/sources.list.d
           sudo apt update
           sudo apt install g++-11
         if: ${{ matrix.compiler == 'g++-11' }}
 
       - name: install clang-15
-        # LLVM APT
         run: |
           # install clang-15
           wget https://apt.llvm.org/llvm.sh
           sudo bash ./llvm.sh 15 all
-          sudo cat /etc/apt/sources.list
-          sudo ls -R /etc/apt/sources.list.d
+          sudo apt-get install -y clang-15
         if: ${{ matrix.compiler == 'clang++-15' }}
 
       - name: install ONNXRUNTIME
