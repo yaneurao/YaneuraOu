@@ -34,7 +34,7 @@ const std::string config_info();
 // prefetch()は、与えられたアドレスの内容をL1/L2 cacheに事前に読み込む。
 // これはnon-blocking関数で、CPUがメモリに読み込むのを待たない。
 
-void prefetch(void* addr);
+void prefetch(const void* addr);
 
 // --------------------
 //  logger

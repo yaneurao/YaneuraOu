@@ -221,27 +221,37 @@ const std::string compiler_info() {
 
 	/// Predefined macros hell:
 	///
-	/// __GNUC__           Compiler is gcc, Clang or Intel on Linux
-	/// __INTEL_COMPILER   Compiler is Intel
-	/// _MSC_VER           Compiler is MSVC or Intel on Windows
-	/// _WIN32             Building on Windows (any)
-	/// _WIN64             Building on Windows 64 bit
+	/// __GNUC__				Compiler is gcc, Clang or ICX
+	/// __clang__               Compiler is Clang or ICX
+	/// __INTEL_LLVM_COMPILER   Compiler is ICX
+	/// _MSC_VER				Compiler is MSVC
+	/// _WIN32					Building on Windows (any)
+	/// _WIN64					Building on Windows 64 bit
 
 	std::string compiler = "\nCompiled by ";
 
-#ifdef __clang__
+#if defined(__INTEL_LLVM_COMPILER)
+	compiler += "ICX ";
+	compiler += stringify(__INTEL_COMPILER) " update " stringify(__INTEL_COMPILER_UPDATE);
+#elif defined(__clang__)
 	compiler += "clang++ ";
 	compiler += make_version_string(__clang_major__, __clang_minor__, __clang_patchlevel__);
-#elif __INTEL_COMPILER
-	compiler += "Intel compiler ";
-	compiler += "(version ";
-	compiler += stringify(__INTEL_COMPILER) " update " stringify(__INTEL_COMPILER_UPDATE);
-	compiler += ")";
 #elif _MSC_VER
 	compiler += "MSVC ";
 	compiler += "(version ";
 	compiler += stringify(_MSC_FULL_VER) "." stringify(_MSC_BUILD);
 	compiler += ")";
+#elif defined(__e2k__) && defined(__LCC__)
+	#define dot_ver2(n) \
+        compiler += char('.'); \
+        compiler += char('0' + (n) / 10); \
+        compiler += char('0' + (n) % 10);
+
+	compiler += "MCST LCC ";
+	compiler += "(version ";
+	compiler += std::to_string(__LCC__ / 100);
+	dot_ver2(__LCC__ % 100) dot_ver2(__LCC_MINOR__) compiler += ")";
+
 #elif __GNUC__
 	compiler += "g++ (GNUC) ";
 	compiler += make_version_string(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
@@ -270,9 +280,54 @@ const std::string compiler_info() {
 	compiler += " on unknown system";
 #endif
 
+	compiler += "\nCompilation architecture   : ";
+#if defined(ARCH)
+	compiler += stringify(ARCH);
+#else
+	compiler += "(undefined architecture)";
+#endif
+
+	compiler += "\nCompilation settings       : ";
+	compiler += (Is64Bit ? "64bit" : "32bit");
+#if defined(USE_VNNI)
+	compiler += " VNNI";
+#endif
+#if defined(USE_AVX512)
+	compiler += " AVX512";
+#endif
+
+//	compiler += (HasPext ? " BMI2" : "");
+// ⇨ このフラグ、やねうら王では持っていない。
+
+#if defined(USE_AVX2)
+	compiler += " AVX2";
+#endif
+#if defined(USE_SSE41)
+	compiler += " SSE41";
+#endif
+#if defined(USE_SSSE3)
+	compiler += " SSSE3";
+#endif
+#if defined(USE_SSE2)
+	compiler += " SSE2";
+#endif
+
+//	compiler += (HasPopCnt ? " POPCNT" : "");
+// ⇨ このフラグ、やねうら王では持っていない。
+
+#if defined(USE_NEON_DOTPROD)
+	compiler += " NEON_DOTPROD";
+#elif defined(USE_NEON)
+	compiler += " NEON";
+#endif
+
+#if !defined(NDEBUG)
+	compiler += " DEBUG";
+#endif
+
+	compiler += "\nCompiler __VERSION__ macro : ";
 #ifdef __VERSION__
 	// __VERSION__が定義されているときだけ、その文字列を出力する。(MSVCだと定義されていないようだ..)
-	compiler += "\n __VERSION__ macro expands to: ";
 	compiler += __VERSION__;
 #else
 	compiler += "(undefined macro)";
@@ -425,11 +480,11 @@ std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 // prefetch命令を使わない。
 #if defined (NO_PREFETCH)
 
-void prefetch(void*) {}
+void prefetch(const void*) {}
 
 #else
 
-void prefetch([[maybe_unused]] void* addr) {
+void prefetch([[maybe_unused]] const void* addr) {
 
 	// SSEの命令なのでSSE2が使える状況でのみ使用する。
 #if defined (USE_SSE2)
@@ -438,21 +493,16 @@ void prefetch([[maybe_unused]] void* addr) {
 	// そもそも構造体がalignされていない可能性があり、バグに違いない。
 	ASSERT_LV3(((u64)addr & 0x1f) == 0);
 
-#  if defined(__INTEL_COMPILER)
-	// 最適化でprefetch命令を削除するのを回避するhack。MSVCとgccは問題ない。
-	__asm__("");
-#  endif
-
 	// 1 cache lineのprefetch
 	// 64bytesの系もあるかも知れないが、Stockfishではcache line = 32bytesだと仮定してある。
 	// ちなみにRyzenでは32bytesらしい。
 
-#  if defined(__INTEL_COMPILER) || defined(_MSC_VER)
-	_mm_prefetch((char*)addr, _MM_HINT_T0);
+	#if defined(_MSC_VER)
+	_mm_prefetch((char const*)addr, _MM_HINT_T0);
 	//	cout << hex << (u64)addr << endl;
-#  else
+	#else
 	__builtin_prefetch(addr);
-#  endif
+	#endif
 
 #endif
 }
