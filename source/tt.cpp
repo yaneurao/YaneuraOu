@@ -183,7 +183,7 @@ TTEntry* TranspositionTable::probe(const Key key_for_index, const TTEntry::KEY_T
 		// Stockfish12からはdepth8 == 0が空のTTEntryを意味するように変わった。
 		// key16は1/65536の確率で0になりうるので…。
 
-		if (tte[i].key == key_for_ttentry || !tte[i].depth8)
+		if (tte[i].key == key_for_ttentry)
 		{
 			tte[i].genBound8 = uint8_t(generation8 | (tte[i].genBound8 & (GENERATION_DELTA - 1))); // Refresh
 

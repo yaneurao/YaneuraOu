@@ -3065,7 +3065,7 @@ moves_loop:
 
 				if (value >= beta)
 				{
-					ss->cutoffCnt += 1 + !ttMove;
+					ss->cutoffCnt += 1 + !ttMove - (extension >= 2);
 					ASSERT_LV3(value >= beta); // Fail high
 
 					// value >= beta なら fail high(beta cut)
