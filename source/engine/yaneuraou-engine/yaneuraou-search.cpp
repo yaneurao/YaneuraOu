@@ -1707,9 +1707,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	if (  !PvNode                  // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
 	    && !excludedMove
-	    && tte->depth() > depth    // 置換表に登録されている探索深さのほうが深くて
+	    && tte->depth() > depth - (ttValue <= beta)
+								   // 置換表に登録されている探索深さのほうが深くて
 		&& ttValue != VALUE_NONE   // Possible in case of TT access race or if !ttHit
-									// (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
+								   // (VALUE_NONEだとすると他スレッドからTTEntryが読みだす直前に破壊された可能性がある)
 		&& (tte->bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
 		// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 		// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
