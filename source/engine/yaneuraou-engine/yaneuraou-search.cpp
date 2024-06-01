@@ -1775,9 +1775,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		//    if成立時のreturnはしなければならない。
 
 		//if (pos.rule50_count() < 90)
-            return ttValue >= beta && std::abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY
-                   ? (ttValue * 3 + beta) / 4
-                   : ttValue;
+			return ttValue;
 	}
 
 	// -----------------------
