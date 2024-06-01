@@ -1078,7 +1078,9 @@ void Thread::search()
 				// four searchAgain steps (see issue #2717).
 
 				// fail highするごとにdepthを下げていく処理
-				Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt - 3 * (searchAgainCounter + 1) / 4);
+				Depth adjustedDepth =
+					std::max(1, rootDepth - failedHighCnt - 3 * (searchAgainCounter + 1) / 4);
+				rootDelta = beta - alpha;
 				bestValue = ::search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
 
 				// Bring the best move to the front. It is critical that sorting
@@ -1565,9 +1567,6 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		if (alpha >= beta)
 			return alpha;
 	}
-	else
-		// root nodeなら
-		thisThread->rootDelta = beta - alpha;
 
 	// -----------------------
 	//  探索Stackの初期化
@@ -2107,7 +2106,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// ※　統計値(mainHistoryとかstatScoreとか)のしきい値に関しては、やねうら王ではStockfishから調整しないことにしているので、
 		// 上のif式に出てくる定数については調整しないことにする。
 
-		return beta > VALUE_TB_LOSS_IN_MAX_PLY ? (eval + beta) / 2 : eval;
+		return beta > VALUE_TB_LOSS_IN_MAX_PLY ? beta + (eval - beta) / 3 : eval;
 
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
@@ -4627,7 +4626,9 @@ ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodes
 			int failedHighCnt = 0;
 			while (true)
 			{
-				Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt);
+				Depth adjustedDepth =
+					std::max(1, rootDepth - failedHighCnt);
+				th->rootDelta = beta - alpha;
 				bestValue = ::search<Root>(pos, ss, alpha, beta, adjustedDepth, false);
 
 				stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
