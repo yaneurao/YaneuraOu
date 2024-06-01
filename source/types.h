@@ -380,20 +380,29 @@ using Depth = int;
 
 enum : int {
 
+	// The following DEPTH_ constants are used for TT entries and QS movegen stages. In regular search,
+	// TT depth is literal: the search depth (effort) used to make the corresponding TT value.
+	// In qsearch, however, TT entries only store the current QS movegen stage (which should thus compare
+	// lower than any regular search depth).
 	// 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
-	DEPTH_QS_CHECKS = 0,
+	DEPTH_QS_CHECKS     = 0,
 
 	// 静止探索で王手がかかっていないとき。
-	DEPTH_QS_NO_CHECKS = -1,
+	DEPTH_QS_NORMAL     = -1,
 
 	// 静止探索でこれより深い(残り探索深さが少ない)ところではRECAPTURESしか生成しない。
 	DEPTH_QS_RECAPTURES = -5,
 
+
+	// For TT entries where no searching at all was done (whether regular or qsearch) we use
+	// _UNSEARCHED, which should thus compare lower than any QS or regular depth. _ENTRY_OFFSET is used
+	// only for the TT entry occupancy check (see tt.cpp), and should thus be lower than _UNSEARCHED.
+
 	// DEPTH_NONEは探索せずに値を求めたという意味に使う。
-	DEPTH_NONE = -6,
+	DEPTH_UNSEARCHED   = -6,
 
 	// TTの下駄履き用(TTEntryが使われているかどうかのチェックにのみ用いる)
-	DEPTH_OFFSET = -7
+	DEPTH_ENTRY_OFFSET = -7
 };
 
 // --------------------

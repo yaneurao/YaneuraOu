@@ -1987,8 +1987,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	{
 		ss->staticEval = eval = evaluate(pos);
 
-		// Save static evaluation into the transposition table
-
+		// Static evaluation is saved as it was before adjustment by correction history
+		// 
 		// static evalの値を置換表に保存する。
 
 		// 評価関数を呼び出したので置換表のエントリーはなかったことだし、何はともあれそれを保存しておく。
@@ -1998,7 +1998,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// cf . Add / remove leaves from search tree ttPv : https://github.com/official-stockfish/Stockfish/commit/c02b3a4c7a339d212d5c6f75b3b89c926d33a800
 		// 上の方にある else if (excludedMove) でこの条件は除外されている。
 
-		tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_NONE, MOVE_NONE, eval);
+		tte->save(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_UNSEARCHED, MOVE_NONE, eval);
 
 		// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
 		// 実行したという証にはなるので意味がある。
@@ -3399,9 +3399,10 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	//qsearchのTTエントリの置き換えとカットオフの優先順位を決定する
 
 	// 置換表に登録するdepthはあまりマイナスの値だとおかしいので、
-	// 王手がかかっているときは、DEPTH_QS_CHECKS(=0)、王手がかかっていないときはDEPTH_QS_NO_CHECKS(-1)とみなす。
+	// 王手がかかっているときは、DEPTH_QS_CHECKS(=0)、
+	// 王手がかかっていないときはDEPTH_QS_NORMAL(-1)とみなす。
 	ttDepth = ss->inCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
-												      : DEPTH_QS_NO_CHECKS;
+												      : DEPTH_QS_NORMAL;
 
 	// -----------------------
 	//     置換表のprobe
@@ -3563,8 +3564,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		if (bestValue >= beta)
 		{
             if (!ss->ttHit)
-                tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER, DEPTH_NONE,
-                          MOVE_NONE, ss->staticEval);
+                tte->save(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
+					DEPTH_UNSEARCHED, MOVE_NONE, ss->staticEval);
 
             return bestValue;
 		}

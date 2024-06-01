@@ -64,15 +64,15 @@ void TTEntry::save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound 
 	// 1. or 2. or 3.
 	if (   b == BOUND_EXACT
 		|| key_for_ttentry != key
-		|| d - DEPTH_OFFSET + 2 * pv > depth8 - 4)
+		|| d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4)
 		// ここ、 2 * pv を入れたほうが強いらしい。
 		// https://github.com/official-stockfish/Stockfish/commit/94514199123874c0029afb6e00634f26741d90db
 	{
-		ASSERT_LV3(d > DEPTH_OFFSET);
-		ASSERT_LV3(d < 256 + DEPTH_OFFSET);
+		ASSERT_LV3(d > DEPTH_ENTRY_OFFSET);
+		ASSERT_LV3(d < 256 + DEPTH_ENTRY_OFFSET);
 
 		key       = key_for_ttentry;
-		depth8    = uint8_t(d - DEPTH_OFFSET); // DEPTH_OFFSETだけ下駄履きさせてある。
+		depth8    = uint8_t(d - DEPTH_ENTRY_OFFSET); // DEPTH_ENTRY_OFFSETだけ下駄履きさせてある。
 		genBound8 = uint8_t(TT.generation8 | uint8_t(pv) << 2 | b);
 		value16   = int16_t(v);
 		eval16    = int16_t(ev);

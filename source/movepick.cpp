@@ -230,6 +230,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, Depth d, const ButterflyHist
 MovePicker::MovePicker(const Position& p, Move ttm, Value th, const CapturePieceToHistory* cph)
 	: pos(p), captureHistory(cph) , ttMove(ttm), threshold(th)
 {
+
 	ASSERT_LV3(!pos.in_check());
 
 	// ProbCutにおいて、SEEが与えられたthresholdの値以上の指し手のみ生成する。
@@ -557,7 +558,7 @@ top:
 
 		if (!skipQuiets)
 		{
-			cur = endBadCaptures;
+			cur      = endBadCaptures;
 
 			/*
 			moves          : バッファの先頭
@@ -677,10 +678,12 @@ top:
 										|| to_sq(*cur) == recaptureSquare; }))
 			return *(cur - 1);
 
-		// 指し手がなくて、depthが0(DEPTH_QS_CHECKS)より深いなら、これで終了
-		// depthが0のときは特別に、王手になる指し手も生成する。
-		if (depth != DEPTH_QS_CHECKS)
-			return MOVE_NONE;
+		// If we found no move and the depth is too low to try checks, then we have finished
+		// 指し手がなくて、depthがDEPTH_QS_NORMALより深いなら、これで終了
+		// depth == DEPTH_QS_NORMAL + 1 == DEPTH_QS_CHECKS のときは特別に
+		// 王手になる指し手も生成する。
+		if (depth <= DEPTH_QS_NORMAL)
+				return MOVE_NONE;
 
 		++stage;
 		[[fallthrough]];
