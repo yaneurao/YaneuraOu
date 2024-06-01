@@ -2577,8 +2577,11 @@ moves_loop:
 			// then that move is singular and should be extended. To verify this we do
             // a reduced search on the position excluding the ttMove and if the result
             // is lower than ttValue minus a margin, then we will extend the ttMove.
-            // Note: the depth margin and singularBeta margin are known for having non-linear
+			// Recursive singular search is avoided.
+			// Note: the depth margin and singularBeta margin are known for having non-linear
 			// so changing them requires tests at these types of time controls.
+			// Generally, higher singularBeta (i.e closer to ttValue) and lower extension
+			// margins scale well.
 
 			// (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
 			// 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
@@ -2770,6 +2773,11 @@ moves_loop:
 		// 指し手で1手進める
 		pos.do_move(move, st, givesCheck);
 
+		// These reduction adjustments have proven non-linear scaling.
+		// They are optimized to time controls of 180 + 1.8 and longer so
+		// changing them or adding conditions that are similar
+		// requires tests at these types of time controls.
+
 		// Decrease reduction if position is or has been on the PV (~5 Elo)
 		// この局面がPV上にあり、fail lowしそうであるならreductionを減らす
 		// (fail lowしてしまうとまた探索をやりなおさないといけないので)
@@ -2790,27 +2798,15 @@ moves_loop:
 
 		// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
 
-        if (cutNode)
-            r += 2 - (tte->depth() >= depth && ss->ttPv);
+		if (cutNode)
+			r += 2 - (tte->depth() >= depth && ss->ttPv)
+			  + (!ss->ttPv && move != ttMove && move != ss->killers[0]);
 
 		// Increase reduction if ttMove is a capture (~3 Elo)
 		// 【計測資料 3.】置換表の指し手がcaptureのときにreduction量を増やす。
 
 		if (ttCapture)
 			r++;
-
-		// Decrease reduction for PvNodes (~3 Elo)
-		// PvNodeではreductionを減らす。
-        if (PvNode && tte->bound() != BOUND_UPPER)
-            r--;
-
-#if 0
-		// Increase reduction on repetition (~1 Elo)
-		// 千日手模様ならreductionを増やす。
-		// →　4手前とmoveが同じであるケースのみ調べる。
-		if (move == (ss-4)->currentMove && pos.has_repeated())
-			r += 2;
-#endif
 
 		// Increase reduction if next ply has a lot of fail high (~5 Elo)
 		if ((ss + 1)->cutoffCnt > 3)
