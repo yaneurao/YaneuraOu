@@ -399,10 +399,10 @@ enum : int {
 	// only for the TT entry occupancy check (see tt.cpp), and should thus be lower than _UNSEARCHED.
 
 	// DEPTH_NONEは探索せずに値を求めたという意味に使う。
-	DEPTH_UNSEARCHED   = -6,
+	DEPTH_UNSEARCHED   = -2,
 
 	// TTの下駄履き用(TTEntryが使われているかどうかのチェックにのみ用いる)
-	DEPTH_ENTRY_OFFSET = -7
+	DEPTH_ENTRY_OFFSET = -3
 };
 
 // --------------------
