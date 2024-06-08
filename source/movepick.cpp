@@ -343,13 +343,13 @@ void MovePicker::score()
 			//Square    from = from_sq(m);
 			Square    to = to_sq(m);
 
-			m.value  =  2 * (*mainHistory)(pos.side_to_move(), from_to(m));
+			m.value  =      (*mainHistory)(pos.side_to_move(), from_to(m));
 #if defined(ENABLE_PAWN_HISTORY)
 			m.value +=  2 * (*pawnHistory)(pawn_structure(pos), pc, to);
 #endif
 			m.value +=  2 * (*continuationHistory[0])(pc,to);
 			m.value +=      (*continuationHistory[1])(pc,to);
-			m.value +=      (*continuationHistory[2])(pc,to) / 4;
+			m.value +=      (*continuationHistory[2])(pc,to) / 3;
 			m.value +=      (*continuationHistory[3])(pc,to);
 			m.value +=      (*continuationHistory[5])(pc,to);
 
@@ -458,6 +458,12 @@ Move MovePicker::select(Pred filter) {
 // 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
 // skipQuiets : これがtrueだとQUIETな指し手は返さない。
 Move MovePicker::next_move(bool skipQuiets) {
+
+#if defined(USE_SUPER_SORT) && defined(USE_AVX2)
+	auto quiet_threshold = [](Depth d) { return -PARAM_MOVEPICKER_SORT_ALPHA1 * d; };
+#else
+	auto quiet_threshold = [](Depth d) { return -PARAM_MOVEPICKER_SORT_ALPHA2 * d; };
+#endif
 
 top:
 	switch (stage) {
@@ -609,9 +615,9 @@ top:
 
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 			// SuperSortを有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
-			partial_super_sort    (cur, endMoves, - PARAM_MOVEPICKER_SORT_ALPHA1 /*3500*/ * depth);
+			partial_super_sort    (cur, endMoves, quiet_threshold(depth));
 #else
-			partial_insertion_sort(cur, endMoves, - PARAM_MOVEPICKER_SORT_ALPHA2 /*3330*/ * depth);
+			partial_insertion_sort(cur, endMoves, quiet_threshold(depth));
 #endif
 
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで

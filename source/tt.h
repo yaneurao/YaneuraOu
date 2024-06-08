@@ -50,6 +50,8 @@ struct TTEntry {
 	void save(Key128& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 	void save(Key256& k, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
 
+	uint8_t relative_age(const uint8_t generation8) const;
+
 	// -- やねうら王独自拡張
 
 	// やねうら王では、TTClusterSizeを変更できて、これが2の時は、TTEntryに格納するhash keyは64bit。(Stockfishのように)3の時は16bit。

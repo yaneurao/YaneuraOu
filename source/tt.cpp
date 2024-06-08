@@ -53,6 +53,7 @@ void TTEntry::save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound 
 	// これは、このnodeで、TT::probeでhitして、その指し手は試したが、それよりいい手が見つかって、枝刈り等が発生しているような
 	// ケースが考えられる。ゆえに、今回の指し手のほうが、いまの置換表の指し手より価値があると考えられる。
 
+	// Preserve the old ttmove if we don't have a new one
 	if (m || key_for_ttentry != key)
 		move16 = uint16_t(m);
 
@@ -77,6 +78,25 @@ void TTEntry::save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound 
 		value16   = int16_t(v);
 		eval16    = int16_t(ev);
 	}
+}
+
+uint8_t TTEntry::relative_age(const uint8_t generation8) const {
+	// Due to our packed storage format for generation and its cyclic
+	// nature we add GENERATION_CYCLE (256 is the modulus, plus what
+	// is needed to keep the unrelated lowest n bits from affecting
+	// the result) to calculate the entry age correctly even after
+	// generation8 overflows into the next cycle.
+
+	// generationは256になるとオーバーフローして0になるのでそれをうまく処理できなければならない。
+	// a,bが8bitであるとき ( 256 + a - b ) & 0xff　のようにすれば、オーバーフローを考慮した引き算が出来る。
+	// このテクニックを用いる。
+	// いま、
+	//   a := generationは下位3bitは用いていないので0。
+	//   b := genBound8は下位3bitにはBoundが入っているのでこれはゴミと考える。
+	// ( 256 + a - b + c) & 0xfc として c = 7としても結果に影響は及ぼさない、かつ、このゴミを無視した計算が出来る。
+
+	return (TranspositionTable::GENERATION_CYCLE + generation8 - genBound8)
+		 & TranspositionTable::GENERATION_MASK;
 }
 
 // 置換表のサイズを確保しなおす。
@@ -211,22 +231,9 @@ TTEntry* TranspositionTable::probe(const Key key_for_index, const TTEntry::KEY_T
 		//		https://yaneuraou.yaneu.com/2023/06/09/replacement-strategy-in-transposition-table/
 		// 
 
-      // Due to our packed storage format for generation and its cyclic
-      // nature we add GENERATION_CYCLE (256 is the modulus, plus what
-      // is needed to keep the unrelated lowest n bits from affecting
-      // the result) to calculate the entry age correctly even after
-      // generation8 overflows into the next cycle.
-      if (  replace->depth8 - ((GENERATION_CYCLE + generation8 - replace->genBound8) & GENERATION_MASK)
-          >   tte[i].depth8 - ((GENERATION_CYCLE + generation8 -   tte[i].genBound8) & GENERATION_MASK))
-			replace = &tte[i];
-
-	// generationは256になるとオーバーフローして0になるのでそれをうまく処理できなければならない。
-	// a,bが8bitであるとき ( 256 + a - b ) & 0xff　のようにすれば、オーバーフローを考慮した引き算が出来る。
-	// このテクニックを用いる。
-	// いま、
-	//   a := generationは下位3bitは用いていないので0。
-	//   b := genBound8は下位3bitにはBoundが入っているのでこれはゴミと考える。
-	// ( 256 + a - b + c) & 0xfc として c = 7としても結果に影響は及ぼさない、かつ、このゴミを無視した計算が出来る。
+	  if (replace->depth8 - replace->relative_age(generation8) * 2
+			> tte[i].depth8 - tte[i].relative_age(generation8) * 2)
+			  replace = &tte[i];
 
 	return found = false, replace;
 }
