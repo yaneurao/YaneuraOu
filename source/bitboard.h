@@ -283,8 +283,10 @@ template <int n>
 inline Bitboard& Bitboard::insert64(u64 u)
 {
 	static_assert(n == 0 || n == 1, "");
-#if defined(USE_SSE41)
+#if defined(USE_SSE41) && defined(IS_64BIT)
 	m = _mm_insert_epi64(m, u, n);
+	// ⇨ gcc/clangだと32bit環境で、この命令が定義されていなくてコンパイルエラーになる。
+	//		コンパイラ側のバグっぽい。仕方ないので、この命令を使うのは64bit環境の時のみにする。
 #else
 	p[n] = u;
 #endif
