@@ -59,6 +59,9 @@ YO_CLUSTER = OFF
 # AVX-512対応(サーバー向けSkylake以降)ならAVX512を指定する。
 # AVX-512対応でさらにVNNI命令対応(Cascade Lake以降)なら、AVX512VNNIを指定する。
 
+# macOSの場合、
+# 1. IntelMacでSSE4.2までしか対応していないなら、APPLESSE42 を指定。AVX2に対応しているなら APPLEAVX2を指定する。
+# 2. M1以降のCPUであれば、APPLEM1を指定する。(M2でもM3でもAPPLEM1を指定する。)
 
 # --- Intel/AMD系 (x86/x64 Platform)
 #TARGET_CPU = AVX512VNNI
@@ -77,11 +80,11 @@ TARGET_CPU = AVX2
 #TARGET_CPU = OTHER
 #TARGET_CPU = GRAVITON2
 #TARGET_CPU = WASM
-# -- macOSとか
+# -- macOS for Intel
+#TARGET_CPU = APPLEAVX2
+#TARGET_CPU = APPLESSE42
+# -- macOS for M1/M2/M3
 #TARGET_CPU = APPLEM1
-#TARGET_CPU = APPLEM2
-#TARGET_CPU = APPLEM3
-
 
 
 # デバッガーを使用するか (debugger)
