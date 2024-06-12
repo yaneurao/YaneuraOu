@@ -114,11 +114,11 @@ class FeatureTransformer {
 
 	// Read network parameters
 	// パラメータを読み込む
-	bool ReadParameters(std::istream& stream) {
+	Tools::Result ReadParameters(std::istream& stream) {
 		for (std::size_t i = 0; i < kHalfDimensions; ++i) biases_[i] = read_little_endian<BiasType>(stream);
 		for (std::size_t i = 0; i < kHalfDimensions * kInputDimensions; ++i)
 			weights_[i] = read_little_endian<WeightType>(stream);
-		return !stream.fail();
+		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
 
 	// Write network parameters

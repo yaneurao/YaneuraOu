@@ -55,7 +55,7 @@ class ClippedReLU {
 
   // Read network parameters
   // パラメータを読み込む
-  bool ReadParameters(std::istream& stream) {
+  Tools::Result ReadParameters(std::istream& stream) {
     return previous_layer_.ReadParameters(stream);
   }
 

@@ -10,6 +10,8 @@
 
 #if defined(EVAL_NNUE)
 
+#include "../../misc.h"  // Tools::Result
+
 #if defined(USE_WASM_SIMD)
 #include "./wasm_simd.h"
 #endif

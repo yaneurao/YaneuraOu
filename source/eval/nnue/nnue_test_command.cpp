@@ -149,15 +149,14 @@ void PrintInfo(std::istream& stream) {
 
     std::uint32_t hash_value;
     std::string architecture;
-    const bool success = [&]() {
+    const Tools::Result result = [&]() {
       std::ifstream file_stream(file_name, std::ios::binary);
-      if (!file_stream) return false;
-      if (!ReadHeader(file_stream, &hash_value, &architecture)) return false;
-      return true;
+      if (!file_stream) return Tools::Result(Tools::ResultCode::FileReadError);
+	  return ReadHeader(file_stream, &hash_value, &architecture);
     }();
 
     std::cout << file_name << ": ";
-    if (success) {
+    if (result.is_ok()) {
       if (hash_value == kHashValue) {
         std::cout << "matches with this binary";
         if (architecture != GetArchitectureString()) {

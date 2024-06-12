@@ -119,8 +119,8 @@ void SetOptions(const std::string& options) {
 void RestoreParameters(const std::string& dir_name) {
   const std::string file_name = Path::Combine(dir_name, NNUE::kFileName);
   std::ifstream stream(file_name, std::ios::binary);
-  bool result = ReadParameters(stream);
-  ASSERT(result);
+  Tools::Result result = ReadParameters(stream);
+  ASSERT(result.is_ok());
 
   SendMessages({{"reset"}});
 }

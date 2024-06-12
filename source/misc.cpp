@@ -1198,9 +1198,12 @@ namespace Tools
 		case ResultCode::Ok                   : return "Ok";
 		case ResultCode::MemoryAllocationError: return "MemoryAllocationError";
 		case ResultCode::SomeError            : return "SomeError";
+		case ResultCode::FileNotFound         : return "FileNotFound";
 		case ResultCode::FileOpenError        : return "FileOpenError";
 		case ResultCode::FileReadError        : return "FileReadError";
 		case ResultCode::FileWriteError       : return "FileWriteError";
+		case ResultCode::FileCloseError       : return "FileCloseError";
+		case ResultCode::FileMismatch         : return "FileMissMatch";
 		case ResultCode::CreateFolderError    : return "CreateFolderError";
 		case ResultCode::NotImplementedError  : return "NotImplementedError";
 		default                               : return "OtherError";

@@ -489,7 +489,10 @@ namespace Tools
 		// メモリ割り当てのエラー
 		MemoryAllocationError,
 
-		// ファイルのオープンに失敗。ファイルが存在しないなど。
+		// ファイルが存在しないエラー。
+		FileNotFound,
+
+		// ファイルのオープンに失敗。
 		FileOpenError,
 
 		// ファイル読み込み時のエラー。
@@ -500,6 +503,9 @@ namespace Tools
 
 		// ファイルClose時のエラー。
 		FileCloseError,
+
+		// ファイルを間違えているエラー。
+		FileMismatch,
 
 		// フォルダ作成時のエラー。
 		CreateFolderError,

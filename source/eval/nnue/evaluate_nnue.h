@@ -63,7 +63,7 @@ namespace Eval::NNUE {
 	std::string GetArchitectureString();
 
 	// ヘッダを読み込む
-	bool ReadHeader(std::istream& stream,
+	Tools::Result ReadHeader(std::istream& stream,
 	    std::uint32_t* hash_value, std::string* architecture);
 
 	// ヘッダを書き込む
@@ -71,7 +71,7 @@ namespace Eval::NNUE {
 	    std::uint32_t hash_value, const std::string& architecture);
 
 	// 評価関数パラメータを読み込む
-	bool ReadParameters(std::istream& stream);
+	Tools::Result ReadParameters(std::istream& stream);
 
 	// 評価関数パラメータを書き込む
 	bool WriteParameters(std::ostream& stream);

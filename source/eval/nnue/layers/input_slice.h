@@ -50,8 +50,8 @@ class InputSlice {
   }
 
   // パラメータを読み込む
-  bool ReadParameters(std::istream& /*stream*/) {
-    return true;
+  Tools::Result ReadParameters(std::istream& /*stream*/) {
+    return Tools::ResultCode::Ok;
   }
 
   // パラメータを書き込む

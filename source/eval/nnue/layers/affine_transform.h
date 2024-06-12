@@ -56,14 +56,14 @@ class AffineTransform {
 
 	// Read network parameters
 	// パラメータを読み込む
-	bool ReadParameters(std::istream& stream) {
-		if (!previous_layer_.ReadParameters(stream))
-			return false;
+	Tools::Result ReadParameters(std::istream& stream) {
+		Tools::Result result = previous_layer_.ReadParameters(stream);
+		if (result.is_not_ok()) return result;
 		for (std::size_t i = 0; i < kOutputDimensions; ++i)
 			biases_[i] = read_little_endian<BiasType>(stream);
 		for (std::size_t i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
 			weights_[i] = read_little_endian<WeightType>(stream);
-		return !stream.fail();
+		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
 
 	// パラメータを書き込む
