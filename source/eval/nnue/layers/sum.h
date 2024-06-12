@@ -59,7 +59,8 @@ class Sum : public Sum<RemainingPreviousLayers...> {
 
   // パラメータを読み込む
   Tools::Result ReadParameters(std::istream& stream) {
-    if (!Tail::ReadParameters(stream)) return false;
+    auto result = Tail::ReadParameters(stream);
+	if (result.is_not_ok()) return result;
     return previous_layer_.ReadParameters(stream);
   }
 
