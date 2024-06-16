@@ -272,7 +272,7 @@ namespace Book
 				if (fs.fail())
 				{
 					sync_cout << "info string Error! : can't read file : " + filename << sync_endl;
-					return Tools::Result(Tools::ResultCode::FileOpenError);
+					return Tools::Result(Tools::ResultCode::FileNotFound);
 				}
 
 				// 定跡ファイルのopenにも成功したし、on the flyできそう。

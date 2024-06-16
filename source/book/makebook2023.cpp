@@ -464,9 +464,10 @@ namespace MakeBook2023
 			is >> readbook_path >> writebook_path;
 
 			string BOOK_DIR = Options["BookDir"];
+			this->sfen_temp_path = Path::Combine(BOOK_DIR, SFEN_TEMP_FILENAME);
 			readbook_path  = Path::Combine(BOOK_DIR, readbook_path );
 			writebook_path = Path::Combine(BOOK_DIR, writebook_path);
-			
+
 			if (next)
 			{
 				is >> next_nodes;
@@ -574,7 +575,7 @@ namespace MakeBook2023
 
 			// sfen文字列はファイルに書き出す。
 			SystemIO::TextWriter sfen_writer;
-			sfen_writer.Open(Path::Combine(BOOK_DIR, SFEN_TEMP_FILENAME)); // ファイルここでいいかな？
+			sfen_writer.Open(sfen_temp_path);
 
 			while(reader.ReadLine(line).is_ok())
 			{
@@ -730,7 +731,7 @@ namespace MakeBook2023
 			u64 converged_moves = 0;
 
 			SystemIO::TextReader sfen_reader;
-			sfen_reader.Open(SFEN_TEMP_FILENAME);
+			sfen_reader.Open(sfen_temp_path);
 
 			progress.reset(book_nodes.size() - 1);
 			for(BookNodeIndex book_node_index = 0 ; book_node_index < BookNodeIndex(book_nodes.size()) ; ++book_node_index)
@@ -1157,7 +1158,7 @@ namespace MakeBook2023
 			writer.WriteLine(::Book::BookDBHeader2016_100);
 
 			SystemIO::TextReader sfen_reader;
-			sfen_reader.Open(SFEN_TEMP_FILENAME);
+			sfen_reader.Open(sfen_temp_path);
 
 			for(size_t i = 0 ; i < n ; ++i)
 			{
@@ -1699,6 +1700,9 @@ namespace MakeBook2023
 		// 　そこから1手進めると後手の局面となる。この時に、hash keyから既存の局面かどうかを調べたいので…。
 		using HashKey2Index = unordered_map<HASH_KEY,BookNodeIndex>;
 		HashKey2Index hashkey_to_index;
+
+		// sfenファイルの一時ファイルを書き出すpath
+		string sfen_temp_path;
 	};
 }
 
