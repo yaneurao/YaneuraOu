@@ -441,10 +441,11 @@ enum Value: int32_t
 	// 例えば、3手詰めならこの値より3少ない。
 	VALUE_MATE = 32000,
 
-	VALUE_MATE_IN_MAX_PLY  =   VALUE_MATE - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
-	VALUE_MATED_IN_MAX_PLY = -VALUE_MATE_IN_MAX_PLY , // MAX_PLYで詰まされるときのスコア。
+	VALUE_MATE_IN_MAX_PLY    =  VALUE_MATE  - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
+	VALUE_MATED_IN_MAX_PLY   = -VALUE_MATE_IN_MAX_PLY , // MAX_PLYで詰まされるときのスコア。
 
-	// チェスの終盤DBによって得られた詰みのスコアらしいが、互換性のためにこのシンボルは同様に定義しておく。
+	// チェスの終盤DB(tablebase)によって得られた詰みを表現するスコアらしいが、
+	// Stockfishとの互換性のためにこのシンボルはStockfishと同様に定義しておく。
 	VALUE_TB                 = VALUE_MATE_IN_MAX_PLY - 1,
 	VALUE_TB_WIN_IN_MAX_PLY  = VALUE_MATE - MAX_PLY,
 	VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY, 
