@@ -114,9 +114,10 @@ COMPILER = clang++
 CPPFLAGS      = -std=c++17 -fno-exceptions -fno-rtti -Wextra -MMD -MP -fpermissive
 NVCC_CPPFLAGS = -std=c++17 -x cu -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast"
 WCPPFLAGS     =
-LDFLAGS       = 
+LDFLAGS       = -fuse-ld=lld
 LIBS          =
 INCLUDE       = # -I../include
+# note : LDFLAGSで -fuse-ld=lld を指定しないとUbuntu 24.04のclang-18でのlinkに失敗する。
 
 # makeするときにCPPFLAGS,LDFLAGSを追加で指定したいときはこれを用いる。
 EXTRA_CPPFLAGS =
