@@ -11,10 +11,10 @@ on:
 
 jobs:
   build-macos:
-    # macos-11
+    # macos-13
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
-    # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
-    runs-on: macos-11
+    # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
+    runs-on: macos-13
 
     strategy:
       matrix:
@@ -160,7 +160,7 @@ jobs:
   build-macos-suisho:
     # macos-13
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
-    # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
+    # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
     runs-on: macos-13
 
     strategy:
