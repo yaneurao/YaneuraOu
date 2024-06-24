@@ -1,4 +1,6 @@
 ﻿// NNUE評価関数で用いる入力特徴量とネットワーク構造の定義
+#ifndef NNUE_KP_256X2-32-32_H_INCLUDED
+#define NNUE_KP_256X2-32-32_H_INCLUDED
 
 #include "../features/feature_set.h"
 #include "../features/k.h"
@@ -33,3 +35,5 @@ using Network = Layers::OutputLayer;
 }  // namespace NNUE
 
 }  // namespace Eval
+
+#endif // #ifndef NNUE_KP_256X2-32-32_H_INCLUDED

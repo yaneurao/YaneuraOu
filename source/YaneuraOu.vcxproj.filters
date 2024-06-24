@@ -220,7 +220,7 @@
     <ClInclude Include="eval\nnue\architectures\halfkp_256x2-32-32.h">
       <Filter>リソース ファイル\eval\nnue\architectures</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\k-p_256x2-32-32.h">
+    <ClInclude Include="eval\nnue\architectures\kp_256x2-32-32.h">
       <Filter>リソース ファイル\eval\nnue\architectures</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\trainer\features\factorizer.h">
@@ -319,7 +319,7 @@
     <ClInclude Include="eval\nnue\features\half_kp_vm.h">
       <Filter>リソース ファイル\eval\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_vm_256x2-32-32.h">
+    <ClInclude Include="eval\nnue\architectures\halfkpvm_256x2-32-32.h">
       <Filter>リソース ファイル\eval\nnue\architectures</Filter>
     </ClInclude>
     <ClInclude Include="engine\dlshogi-engine\dlshogi_min.h">
@@ -599,8 +599,6 @@
     <None Include="..\script\bench.py">
       <Filter>script</Filter>
     </None>
-    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="eval\deep\unpack.cu">

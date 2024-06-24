@@ -620,8 +620,8 @@
     <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-8-64.h" />
     <ClInclude Include="eval\nnue\architectures\halfkp_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\architectures\halfkp_512x2-16-32.h" />
-    <ClInclude Include="eval\nnue\architectures\halfkp_vm_256x2-32-32.h" />
-    <ClInclude Include="eval\nnue\architectures\k-p_256x2-32-32.h" />
+    <ClInclude Include="eval\nnue\architectures\halfkpvm_256x2-32-32.h" />
+    <ClInclude Include="eval\nnue\architectures\kp_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\evaluate_nnue.h" />
     <ClInclude Include="eval\nnue\evaluate_nnue_learner.h" />
     <ClInclude Include="eval\nnue\features\features_common.h" />
