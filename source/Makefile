@@ -114,10 +114,9 @@ COMPILER = clang++
 CPPFLAGS      = -std=c++17 -fno-exceptions -fno-rtti -Wextra -MMD -MP -fpermissive
 NVCC_CPPFLAGS = -std=c++17 -x cu -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -Xcompiler "-Ofast"
 WCPPFLAGS     =
-LDFLAGS       = -fuse-ld=lld
+LDFLAGS       = 
 LIBS          =
 INCLUDE       = # -I../include
-# note : LDFLAGSで -fuse-ld=lld を指定しないとUbuntu 24.04のclang-18でのlinkに失敗する。
 
 # makeするときにCPPFLAGS,LDFLAGSを追加で指定したいときはこれを用いる。
 EXTRA_CPPFLAGS =
@@ -167,6 +166,7 @@ endif
 
 # clang用にCPPFLAGSなどを変更
 ifneq (,$(findstring clang++,$(COMPILER)))
+
 	# stdlib
 	# CPPFLAGS += -stdlib=libstdc++
 
@@ -183,6 +183,16 @@ ifneq (,$(findstring clang++,$(COMPILER)))
 	# 最初の実行なら初期化するスレッドセーフなコードを生成するためのもの。
 	# → 本当に消してしまっても大丈夫か？
 	WCPPFLAGS += -fno-threadsafe-statics
+
+	# note : LDFLAGSに -fuse-ld=lld を指定しないとUbuntu 24.04のclang-18でのlinkに失敗する。
+	#   ⇨ このオプションはそれ以前のclangでもつけて問題ないのでclangならば必ずつけるようにする。
+	#   ⇨ gccでコンパイルする時にこのオプションをつけるとエラーになるので、gccの時はつけてはいけない。
+	# note : macOSでは、デフォルトではclangのlinkerではなくld64を用いるので、この指定をするとエラーになる。
+	#   ⇨ よってTARGET_CPUにAPPLEの文字が入っている場合は、これを付与しない。
+	ifeq (,$(findstring APPLE,$(TARGET_CPU)))
+		LDFLAGS       = -fuse-ld=lld
+	endif
+
 
 else
 	ifneq (,$(findstring g++,$(COMPILER)))
