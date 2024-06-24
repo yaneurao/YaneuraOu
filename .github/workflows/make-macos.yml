@@ -158,10 +158,10 @@ jobs:
           path: ./main/build/**/**/*
 
   build-macos-suisho:
-    # macos-11
+    # macos-13
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/virtual-environments/blob/main/images/macos/macos-11-Readme.md
-    runs-on: macos-11
+    runs-on: macos-13
 
     strategy:
       matrix:
@@ -206,7 +206,7 @@ jobs:
           COMPILER: '${{ matrix.compiler }}'
           TARGET: '${{ matrix.target }}'
           CPU: '${{ matrix.archcpu }}'
-          OS: 'macos11'
+          OS: 'macos13'
         with:
           script: |
             const fs = require('fs');
@@ -253,8 +253,8 @@ jobs:
 
       - name: add resource
         run: |
-          echo 'Suisho5(20211123)-YaneuraOu' > ./main/build/macos11/NNUE/engine_name.txt;
-          echo 'yaneurao, tayayan' >> ./main/build/macos11/NNUE/engine_name.txt;
+          echo 'Suisho5(20211123)-YaneuraOu' > ./main/build/macos13/NNUE/engine_name.txt;
+          echo 'yaneurao, tayayan' >> ./main/build/macos13/NNUE/engine_name.txt;
 
       - uses: actions/upload-artifact@v2
         with:
