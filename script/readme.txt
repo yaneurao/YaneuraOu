@@ -26,4 +26,11 @@ analyze_learning_log.py
 msys2_build
 	msys2環境で各CPU用の思考エンジンの実行ファイルを一括生成するためのバッチファイル。(サンプル)
 
+build.sh
+	GitHub actionsで使っているbuild用の補助スクリプト
 
+eval_bin_to_cpp_literal.py
+	評価関数パラメーターを.cppのソースコードに変換する
+
+nnue_arch_gen.py
+	NNUE評価関数のアーキテクチャを定義するC++ headerファイルを動的に生成するPython製のスクリプト。

@@ -11,7 +11,12 @@
 // Defines the network structure
 // 入力特徴量とネットワーク構造が定義されたヘッダをincludeする
 
-#if defined(EVAL_NNUE_HALFKP256)
+#if defined(NNUE_ARCHITECTURE_HEADER)
+
+// 動的に生成されたファイルがある。
+#include NNUE_ARCHITECTURE_HEADER
+
+#elif defined(EVAL_NNUE_HALFKP256)
 
 // 標準NNUE型。NNUE評価関数のデフォルトは、halfKP256
 
