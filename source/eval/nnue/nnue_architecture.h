@@ -24,12 +24,12 @@
 
 #elif defined(EVAL_NNUE_KP256)
 
-// KP256型
+// kp型
 #include "architectures/kp_256x2-32-32.h"
 
 #elif defined(EVAL_NNUE_HALFKPE9)
 
-// halfKPE9型
+// halfkpe9型
 #include "architectures/halfkpe9_256x2-32-32.h"
 
 #elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_512X2_16_32)
@@ -50,7 +50,7 @@
 
 #elif defined(EVAL_NNUE_HALFKP_VM_256X2_32_32)
 
-// halfkp_vm_256x2-32-32型
+// halfkpvm_256x2-32-32型
 #include "architectures/halfkpvm_256x2-32-32.h"
 
 #else
