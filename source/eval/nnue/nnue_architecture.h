@@ -25,7 +25,7 @@
 #elif defined(EVAL_NNUE_KP256)
 
 // KP256型
-#include "architectures/k-p_256x2-32-32.h"
+#include "architectures/kp_256x2-32-32.h"
 
 #elif defined(EVAL_NNUE_HALFKPE9)
 
@@ -51,7 +51,7 @@
 #elif defined(EVAL_NNUE_HALFKP_VM_256X2_32_32)
 
 // halfkp_vm_256x2-32-32型
-#include "architectures/halfkp_vm_256x2-32-32.h"
+#include "architectures/halfkpvm_256x2-32-32.h"
 
 #else
 
