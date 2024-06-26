@@ -347,6 +347,45 @@ const std::string config_info()
 	auto o1 = [&o](const char* p , u64  u ) { return o(std::string(p) , std::to_string(u) ); };
 	auto o2 = [&o](const char* p , bool b ) { return o(std::string(p) , b ? "true":"false"); };
 
+	// 評価関数タイプ
+	string eval_type =
+#if defined(YANEURAOU_ENGINE_DEEP)
+	"DEEP";
+#elif defined(YANEURAOU_ENGINE_NNUE)
+
+	// NNUE
+	#if defined(NNUE_ARCHITECTURE_HEADER)
+		NNUE_ARCHITECTURE_HEADER;
+	#elif defined(EVAL_NNUE_HALFKP256)
+		"halfkp_256x2_32_32";
+	#elif defined(EVAL_NNUE_KP256)
+		"kp_256x2_32_32";
+	#elif defined(EVAL_NNUE_HALFKPE9)
+		"halfkpe9_256x2_32_32";
+	#elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_512X2_16_32)
+		"halfkp_512x2_16_32";
+	#elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_32)
+		"halfkp_1024x2_8_32";
+	#elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_64)
+		"halfkp_1024x2-8-64";
+	#elif defined(EVAL_NNUE_HALFKP_VM_256X2_32_32)
+		"halfkpvm_256x2_32_32";
+	#else
+		"halfkp_256x2_32_32";
+	#endif
+
+#elif defined(YANEURAOU_ENGINE_KPPT)
+	"KPPT";
+#elif defined(YANEURAOU_ENGINE_KPP_KKPT)
+	"KPP_KKPT";
+#elif defined(YANEURAOU_ENGINE_MATERIAL)
+	"MATERIAL_LV" + std::to_string(MATERIAL_LEVEL);
+#else
+	"Unknown";
+#endif
+
+	config += o ("EVAL"                , eval_type);
+
 	config += o1("ASSERT_LV"           , ASSERT_LV      );
 	config += o1("HASH_KEY_BITS"       , HASH_KEY_BITS  );
 	config += o1("TT_CLUSTER_SIZE"     , TT_CLUSTER_SIZE);
@@ -424,7 +463,7 @@ const std::string config_info()
 	config += o2("EVAL_LEARN"               , eval_learn         );
 	config += o2("USE_MATE_DFPN"            , use_mate_dfpn      );
 	config += o2("USE_YO_CLUSTER"           , use_yo_cluster     );
-	
+
 	// コンパイラ情報もついでに出力する。
 	//config += "\n\n" + compiler_info();
 
