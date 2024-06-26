@@ -10,13 +10,21 @@ import textwrap
 print("NNUE architecture header generator by yaneurao V1.00 , 2024/06/25")
 
 parser = argparse.ArgumentParser(description="NNUEのarchitecture headerを生成する。")
-parser.add_argument('arch', type=str, nargs='?', default="halfkp_256x2-32-32", help="architectureを指定する。例) halfkp_1024x2-8-64")
+parser.add_argument('arch', type=str, nargs='?', default="halfkp_256x2-32-32", help="architectureを指定する。例) halfkp_1024x2-8-64, YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_16_32とか")
 parser.add_argument('out_dir', type=str, nargs='?', default="", help="出力先のフォルダを指定する。例) /source/eval/nnue/architectures/")
 
 args = parser.parse_args()
 
 arch    : str = args.arch
 out_dir : str = args.out_dir
+
+# makefileで指定したエディション名そのままかも知れないので削除
+arch   = arch.replace("YANEURAOU_ENGINE_NNUE_","")
+
+# archの2個目以降の _ を -に置換する。
+# arches = arch.split('_')
+# if len(arches) > 1:
+#     arch = arches[0] + '_' + '-'.join(arches[1:])
 
 print(f"architecture name : {arch}")
 
@@ -33,12 +41,13 @@ if os.path.exists(out_path):
     exit()
 
 # 大文字化して、'-'を'_'に置換したアーキテクチャ名
-c_arch = arch.upper().replace('-','_')
+arch   = arch.replace('-','_')
+c_arch = arch.upper()
 
-arches = arch.split('_')
-if len(arches) !=2 :
-    # アーキテクチャ名は、アンダースコアは1つだけ存在しないと駄目。
-    print("Error! : architecture name must have exactly one underscore, like halfkp_256x2-32-32 or kp_256x2-32-32 halfkpvm_256x2-32-32")
+arches = c_arch.split('_')
+if len(arches) <= 3 :
+    # アーキテクチャ名は、アンダースコアは3つ以上ないと駄目。
+    print("Error! : architecture name must be like halfkp_256x2-32-32 or kp_256x2-32-32 halfkpvm_256x2_32_32")
     exit()
 
 # ============================================================
@@ -58,7 +67,7 @@ header = f"""
 
 # アーキテクチャ名のアンダースコアでsplitした1つ目は入力特徴量。
 # 現在サポートしている入力特徴量は、"halfkp" , "kp" , "halfkpvm" , "halfkpe9"。
-input_feature = arches[0]
+input_feature = arches[0].lower()
 
 print(f"input feature     : {input_feature}")
 
@@ -133,8 +142,9 @@ header += raw_features
 # ============================================================
 
 # レイヤ情報
-# 例えば、"256x2-32-32" ならば ["256x2","32","32"]のように分解される。
-layers = arches[1].split('-')
+# 例えば、"256x2_32_32" ならば ["256x2","32","32"]のように分解される。
+layers = arches[1:]
+layers[0] = layers[0].lower()
 
 if len(layers) != 3 or len(layers[0].split('x')) != 2:
     print(f"Error : layers must be like 256x2-32-32 , layers = {arches[1]}.")

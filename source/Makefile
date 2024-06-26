@@ -99,6 +99,9 @@ DEBUG = OFF
 COMPILER = clang++
 #COMPILER = em++
 
+# Python
+# ※ NNUEの未知なarchitectureの時にarchitecture headerを動的に生成するのに用いる。
+PYTHON = python
 
 # エンジンの表示名 (engine displayname)
 # ("usi"コマンドに対して出力される)
@@ -474,6 +477,11 @@ ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))
 		else ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32)
 			CPPFLAGS += -DEVAL_NNUE_HALFKP_VM_256X2_32_32
 
+		else
+			# 知らないNNUEのarchitectureなので、architecture headerを動的に生成する。
+			ARCH_HEADER_FILE = \"architectures\\$(subst YANEURAOU_ENGINE_NNUE_,,$(YANEURAOU_EDITION)).h\"
+			CPPFLAGS += -DNNUE_ARCHITECTURE_HEADER=$(ARCH_HEADER_FILE)
+			ARCH_GEN_SCRIPT = $(PYTHON) eval/nnue/architectures/nnue_arch_gen.py $(YANEURAOU_EDITION) eval/nnue/architectures
 		endif
 	endif
 
@@ -659,16 +667,22 @@ $(OBJDIR)/%.o: %.mm
 
 # ビルドターゲット
 
+# Pythonスクリプトを実行する共通のターゲット
+run_python_script:
+ifneq ($(ARCH_GEN_SCRIPT),)
+	$(ARCH_GEN_SCRIPT)
+endif
+
 # 通常使用。
-normal:
+normal: run_python_script
 	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS)' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 # 学習用。openmp , openblasなどを有効にする。
-evallearn:
+evallearn: run_python_script
 	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS) $(OPENMP) $(BLAS_CPPFLAGS) -DEVAL_LEARN' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 # トーナメント用
-tournament:
+tournament: run_python_script
 	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS) -DFOR_TOURNAMENT' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 #　とりあえずPGOはAVX2とSSE4.2専用

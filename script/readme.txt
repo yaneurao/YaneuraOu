@@ -32,5 +32,5 @@ build.sh
 eval_bin_to_cpp_literal.py
 	評価関数パラメーターを.cppのソースコードに変換する
 
-nnue_arch_gen.py
+source/eval/nnue/architectures/nnue_arch_gen.py
 	NNUE評価関数のアーキテクチャを定義するC++ headerファイルを動的に生成するPython製のスクリプト。
