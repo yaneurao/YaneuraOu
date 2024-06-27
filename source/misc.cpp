@@ -367,7 +367,7 @@ const std::string config_info()
 	#elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_32)
 		"halfkp_1024x2_8_32";
 	#elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_64)
-		"halfkp_1024x2-8-64";
+		"halfkp_1024x2_8_64";
 	#elif defined(EVAL_NNUE_HALFKP_VM_256X2_32_32)
 		"halfkpvm_256x2_32_32";
 	#else
