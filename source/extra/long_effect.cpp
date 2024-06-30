@@ -171,7 +171,7 @@ namespace Effect24
       ((b.p[0] >> int(sq - SQ_33)) | (b.p[1] << int(SQ_93 + SQ_L - sq))); // p[1]のSQ_93の左は、p[0]のSQ_33
 
     // PEXTで24近傍の状態を回収。
-    return (Directions)PEXT64(t, 0b11111000011111000011011000011111000011111);
+    return (Directions)PEXT64(t, 0b11111000011111000011011000011111000011111ULL);
   }
 
   std::ostream& operator<<(std::ostream& os, Directions d) { return output_around_n(os, d, 5); }

@@ -68,48 +68,6 @@ typedef  int64_t s64;
 #endif
 
 // ----------------------------
-//      PEXT(AVX2の命令)
-// ----------------------------
-
-#if defined(USE_AVX2) && defined(USE_BMI2)
-
-// for BMI2 : hardwareによるpext実装
-
-// ZEN/ZEN2では、PEXT命令はμOPでのemulationで実装されているらしく、すこぶる遅いらしい。
-// PEXT命令を使わず、この下にあるsoftware emulationによるPEXT実装を用いたほうがまだマシらしい。(どうなってんの…)
-
-#define PEXT32(a,b) _pext_u32((u32)(a),(u32)(b))
-#if defined (IS_64BIT)
-#define PEXT64(a,b) _pext_u64(a,b)
-#else
-// PEXT32を2回使った64bitのPEXTのemulation
-#define PEXT64(a,b) ( u64(PEXT32( (a)>>32 , (b)>>32) << (u32)POPCNT32(b)) | u64(PEXT32(u32(a),u32(b))) )
-#endif
-
-#else
-
-// for non-BMI2 : software emulationによるpext実装(やや遅い。とりあえず動くというだけ。)
-// ただし64-bitでもまとめて処理できる点や、magic bitboardのような巨大テーブルを用いない点において優れている(かも)
-inline uint64_t pext(uint64_t val, uint64_t mask)
-{
-  uint64_t res = 0;
-  for (uint64_t bb = 1; mask; bb += bb) {
-    if ((int64_t)val & (int64_t)mask & -(int64_t)mask)
-      res |= bb;
-    // マスクを1bitずつ剥がしていく実装なので処理時間がbit長に依存しない。
-    // ゆえに、32bit用のpextを別途用意する必要がない。
-    mask &= mask - 1;
-  }
-  return res;
-}
-
-inline uint32_t PEXT32(uint32_t a, uint32_t b) { return (uint32_t)pext(a, b); }
-inline uint64_t PEXT64(uint64_t a, uint64_t b) { return pext(a, b); }
-
-#endif
-
-
-// ----------------------------
 //     POPCNT(SSE4.2の命令)
 // ----------------------------
 
@@ -157,6 +115,48 @@ inline int32_t POPCNT64(uint64_t a) {
   return (int32_t)a + (int32_t)(a >> 32);
 }
 #endif
+
+// ----------------------------
+//      PEXT(AVX2の命令)
+// ----------------------------
+
+#if defined(USE_AVX2) && defined(USE_BMI2)
+
+// for BMI2 : hardwareによるpext実装
+
+// ZEN/ZEN2では、PEXT命令はμOPでのemulationで実装されているらしく、すこぶる遅いらしい。
+// PEXT命令を使わず、この下にあるsoftware emulationによるPEXT実装を用いたほうがまだマシらしい。(どうなってんの…)
+
+static u32 PEXT32(u32 a, u32 b) { return _pext_u32((u32)(a), (u32)(b)); }
+#if defined (IS_64BIT)
+static u64 PEXT64(u64 a, u64 b) { return _pext_u64(a, b); }
+#else
+// PEXT32を2回使った64bitのPEXTのemulation
+static u64 PEXT64(u64 a, u64 b) { return u64(PEXT32((a) >> 32, (b) >> 32) << (u32)POPCNT32(b)) | u64(PEXT32(u32(a), u32(b))); }
+#endif
+
+#else
+
+// for non-BMI2 : software emulationによるpext実装(やや遅い。とりあえず動くというだけ。)
+// ただし64-bitでもまとめて処理できる点や、magic bitboardのような巨大テーブルを用いない点において優れている(かも)
+static u64 pext(u64 val, u64 mask)
+{
+	u64 res = 0;
+	for (u64 bb = 1; mask; bb += bb) {
+		if ((int64_t)val & (int64_t)mask & -(int64_t)mask)
+			res |= bb;
+		// マスクを1bitずつ剥がしていく実装なので処理時間がbit長に依存しない。
+		// ゆえに、32bit用のpextを別途用意する必要がない。
+		mask &= mask - 1;
+	}
+	return res;
+}
+
+static u32 PEXT32(u32 a, uint32_t b) { return (u32)pext(a, b); }
+static u64 PEXT64(u64 a, uint64_t b) { return pext(a, b); }
+
+#endif
+
 
 // ----------------------------
 //     BSF(bitscan forward)
