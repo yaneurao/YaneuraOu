@@ -300,6 +300,14 @@ namespace USI
 						break;
 					}
 #endif
+					// leaf node末尾にMOVE_RESIGNがあることはないが、
+					// 詰み局面で呼び出されると1手先がmove resignなので、これでdo_move()するのは
+					// 非合法だから、do_move()せずにループを抜ける。
+					if (!is_ok(m))
+					{
+						ss << " " << m;
+						break;
+					}
 
 					moves[ply] = m;
 					ss << " " << m;
