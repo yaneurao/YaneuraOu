@@ -365,7 +365,7 @@ namespace Effect8
 static bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 {
 	auto d1 = Effect8::directions_of(sq1, sq3);
-	return d1 ? d1 == Effect8::directions_of(sq2, sq3) : false;
+	return d1 && d1 == Effect8::directions_of(sq2, sq3);
 }
 
 // --------------------
@@ -535,7 +535,7 @@ enum Piece : uint32_t
 
 // USIプロトコルで駒を表す文字列を返す。
 // 駒打ちの駒なら先頭に"D"。
-static std::string usi_piece(Piece pc) { return std::string((pc & 32) ? "D":"")
+static std::string usi_piece(Piece pc) { return (pc & 32) ? "D":""
 		  + std::string(USI_PIECE).substr((pc & 31) * 2, 2); }
 
 // 駒に対して、それが先後、どちらの手番の駒であるかを返す。
