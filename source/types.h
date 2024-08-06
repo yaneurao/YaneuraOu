@@ -129,7 +129,7 @@ static std::ostream& operator<<(std::ostream& os, Rank r) { os << (char)('a' + r
 // 盤上の升目に対応する定数。
 // 盤上右上(１一が0)、左下(９九)が80
 // 方角を表現するときにマイナスの値を使うので符号型である必要がある。
-enum Square: int32_t
+enum Square : int32_t
 {
 	// 以下、盤面の右上から左下までの定数。
 	// これを定義していなくとも問題ないのだが、デバッガでSquare型を見たときに
@@ -267,7 +267,7 @@ static std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq)
 // bit 14..18 : いまの升から盤外まで何升上に(略
 // bit 19..23 : いまの升から盤外まで何升下に(略
 // bit 24..28 : いまの升から盤外まで何升左に(略
-enum SquareWithWall: int32_t {
+enum SquareWithWall : int32_t {
 	// 相対移動するときの差分値
 	SQWW_R = SQ_R - (1 << 9) + (1 << 24), SQWW_U = SQ_U - (1 << 14) + (1 << 19), SQWW_D = -int(SQWW_U), SQWW_L = -int(SQWW_R),
 	SQWW_RU = int(SQWW_R) + int(SQWW_U), SQWW_RD = int(SQWW_R) + int(SQWW_D), SQWW_LU = int(SQWW_L) + int(SQWW_U), SQWW_LD = int(SQWW_L) + int(SQWW_D),
@@ -306,7 +306,7 @@ namespace Effect8
 	// 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
 	// bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
 	// 同時に複数のbitが1であることがありうる。
-	enum Directions: uint8_t {
+	enum Directions : uint8_t {
 		DIRECTIONS_ZERO  = 0, DIRECTIONS_RU = 1, DIRECTIONS_R = 2, DIRECTIONS_RD = 4,
 		DIRECTIONS_U     = 8, DIRECTIONS_D = 16, DIRECTIONS_LU = 32, DIRECTIONS_L = 64, DIRECTIONS_LD = 128,
 		DIRECTIONS_CROSS = DIRECTIONS_U  | DIRECTIONS_D  | DIRECTIONS_R  | DIRECTIONS_L,
@@ -424,7 +424,7 @@ enum Bound {
 // --------------------
 
 // 置換表に格納するときにあまりbit数が多いともったいないので値自体は16bitで収まる範囲で。
-enum Value: int32_t
+enum Value : int32_t
 {
 	VALUE_ZERO = 0,
 
@@ -467,10 +467,10 @@ enum Value: int32_t
 };
 
 // ply手で詰ませるときのスコア
-constexpr Value mate_in(int ply) {  return (Value)(VALUE_MATE - ply);}
+constexpr Value mate_in(int ply) { return (Value)(VALUE_MATE - ply); }
 
 // ply手で詰まされるときのスコア
-constexpr Value mated_in(int ply) {  return (Value)(-VALUE_MATE + ply);}
+constexpr Value mated_in(int ply) { return (Value)(-VALUE_MATE + ply); }
 
 
 // --------------------
@@ -638,7 +638,7 @@ struct Move16;
 //   move = move16 + (piece << 16)
 // なので、Moveが使うのは、16bit(Move16) + 5bit(Piece) = 下位21bit
 //
-enum Move: uint32_t {
+enum Move : uint32_t {
 
 	MOVE_NONE    = 0,             // 無効な移動
 
@@ -660,11 +660,11 @@ std::string to_usi_string(Move16 m);
 // それらを明確に区別したい時に用いる。
 struct Move16
 {
-	Move16():move(0){}
-	Move16(u16 m): move(m) {}
+	Move16() : move(0) {}
+	Move16(u16 m) : move(m) {}
 
 	// Moveからの暗黙変換はできないとMOVE_NONEの代入などで困る。
-	Move16(Move m) :move((u16)m){}
+	Move16(Move m) : move((u16)m) {}
 
 	// uint16_tのまま取り出す。
 	// Moveに変換が必要なときは、そのあとMove()にcastすることはできる。(上位16bitは0のまま)
@@ -1132,7 +1132,7 @@ namespace Eval
 	// 　1) 16bitだと32bitだと思いこんでいてオーバーフローさせてしまうコードを書いてしまうことが多々あり、保守が困難。
 	// 　2) ここが32bitであってもそんなに速度低下しないし、それはSSE4.2以前に限るから許容範囲。
 	// という2つの理由から、32bitに固定する。
-	enum BonaPiece: int32_t;
+	enum BonaPiece : int32_t;
 
 	// 評価関数本体。
 	// 戻り値は、
