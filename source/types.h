@@ -176,10 +176,10 @@ constexpr bool is_ok(Square sq) { return SQ_ZERO <= sq && sq <= SQ_NB; }
 constexpr bool is_ok_plus1(Square sq) { return SQ_ZERO <= sq && sq < SQ_NB_PLUS1; }
 
 // 与えられたSquareに対応する筋を返す。
-constexpr File file_of(Square sq) { return (File)(sq / 9); }
+constexpr File file_of(Square sq) { return (File)(sq * 115 >> 10); }
 
 // 与えられたSquareに対応する段を返す。
-constexpr Rank rank_of(Square sq) { return (Rank)(sq % 9); }
+constexpr Rank rank_of(Square sq) { return (Rank)(sq - (sq * 115 >> 10) * 9); }
 
 // 筋(File)と段(Rank)から、それに対応する升(Square)を返す。
 constexpr Square operator | (File f, Rank r) { Square sq = (Square)(f * 9 + r); /* ASSERT_LV2(is_ok(sq));*/ return sq; }
