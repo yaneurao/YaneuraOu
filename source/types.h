@@ -175,43 +175,11 @@ constexpr bool is_ok(Square sq) { return SQ_ZERO <= sq && sq <= SQ_NB; }
 // sqが盤面の内側を指しているかを判定する。assert()などで使う用。玉は盤上にないときにSQ_NBを取るのでこの関数が必要。
 constexpr bool is_ok_plus1(Square sq) { return SQ_ZERO <= sq && sq < SQ_NB_PLUS1; }
 
-// 与えられたSquareに対応する筋を返すテーブル。file_of()で用いる。
-constexpr File SquareToFile[SQ_NB_PLUS1] =
-{
-	FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1, FILE_1,
-	FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2, FILE_2,
-	FILE_3, FILE_3, FILE_3, FILE_3, FILE_3, FILE_3, FILE_3, FILE_3, FILE_3,
-	FILE_4, FILE_4, FILE_4, FILE_4, FILE_4, FILE_4, FILE_4, FILE_4, FILE_4,
-	FILE_5, FILE_5, FILE_5, FILE_5, FILE_5, FILE_5, FILE_5, FILE_5, FILE_5,
-	FILE_6, FILE_6, FILE_6, FILE_6, FILE_6, FILE_6, FILE_6, FILE_6, FILE_6,
-	FILE_7, FILE_7, FILE_7, FILE_7, FILE_7, FILE_7, FILE_7, FILE_7, FILE_7,
-	FILE_8, FILE_8, FILE_8, FILE_8, FILE_8, FILE_8, FILE_8, FILE_8, FILE_8,
-	FILE_9, FILE_9, FILE_9, FILE_9, FILE_9, FILE_9, FILE_9, FILE_9, FILE_9,
-	FILE_NB, // 玉が盤上にないときにこの位置に移動させることがあるので
-};
-
 // 与えられたSquareに対応する筋を返す。
-// →　行数は長くなるが速度面においてテーブルを用いる。
-constexpr File file_of(Square sq) { /* return (File)(sq / 9); */ /*ASSERT_LV2(is_ok(sq));*/ return SquareToFile[sq]; }
-
-// 与えられたSquareに対応する段を返すテーブル。rank_of()で用いる。
-constexpr Rank SquareToRank[SQ_NB_PLUS1] =
-{
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9,
-	RANK_NB, // 玉が盤上にないときにこの位置に移動させることがあるので
-};
+constexpr File file_of(Square sq) { return (File)(sq / 9); }
 
 // 与えられたSquareに対応する段を返す。
-// →　行数は長くなるが速度面においてテーブルを用いる。
-constexpr Rank rank_of(Square sq) { /* return (Rank)(sq % 9); */ /*ASSERT_LV2(is_ok(sq));*/ return SquareToRank[sq]; }
+constexpr Rank rank_of(Square sq) { return (Rank)(sq % 9); }
 
 // 筋(File)と段(Rank)から、それに対応する升(Square)を返す。
 constexpr Square operator | (File f, Rank r) { Square sq = (Square)(f * 9 + r); /* ASSERT_LV2(is_ok(sq));*/ return sq; }
