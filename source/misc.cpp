@@ -804,7 +804,7 @@ void* LargeMemory::static_alloc(size_t size, size_t align, bool zero_clear)
 
 	// ptrがalignmentされていることを保証する
 	if ((reinterpret_cast<size_t>(mem) % align) != 0)
-		error_exit("can't alloc algined memory.");
+		error_exit("can't alloc aligned memory.");
 
 	// ゼロクリアが必要なのか？
 	if (zero_clear)
