@@ -139,7 +139,7 @@ namespace Search {
 
 		pos.undo_move(pv[0]);
 		return false;
-	FOUND:
+	FOUND:;
 		pos.undo_move(pv[0]);
 		pv.push_back(m);
 		//    std::cout << m << std::endl;
