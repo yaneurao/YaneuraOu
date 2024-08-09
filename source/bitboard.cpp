@@ -151,7 +151,7 @@ void Bitboards::init()
 			// dirの方角に壁にぶつかる(盤外)まで延長していく。このとき、sq1から見てsq2のDirectionsは (1 << dir)である。
 			auto delta = Effect8::DirectToDeltaWW(dir);
 			for (auto sq2 = to_sqww(sq1) + delta; is_ok(sq2); sq2 += delta)
-			Effect8::direc_table[sq1][sqww_to_sq(sq2)] = Effect8::to_directions(dir);
+				Effect8::direc_table[sq1][sqww_to_sq(sq2)] = Effect8::to_directions(dir);
 		}
 
 
