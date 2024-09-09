@@ -472,6 +472,111 @@ const std::string config_info()
 	return config;
 }
 
+// -----------------
+//    CPU Threads
+// -----------------
+
+#if defined(_WIN32)
+
+// NUMAノード数、NUMAノードを考慮したコア数、スレッド数を取得する。
+bool get_cpu_info(int* nodes, int* cores, int* threads)
+{
+	*nodes = *cores = *threads = 0;
+
+	DWORD returnLength = 0;
+	DWORD byteOffset = 0;
+
+	// Early exit if the needed API is not available at runtime
+	HMODULE k32 = GetModuleHandle(TEXT("Kernel32.dll"));
+	auto fun1 = (fun1_t)(void(*)())GetProcAddress(k32, "GetLogicalProcessorInformationEx");
+	if (!fun1)
+		return false;
+
+	// First call to GetLogicalProcessorInformationEx() to get returnLength.
+	// We expect the call to fail due to null buffer.
+	if (fun1(RelationAll, nullptr, &returnLength))
+		return false;
+
+	// Once we know returnLength, allocate the buffer
+	SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *buffer, *ptr;
+	ptr = buffer = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)malloc(returnLength);
+
+	// Second call, now we expect to succeed
+	if (!fun1(RelationAll, buffer, &returnLength))
+	{
+		free(buffer);
+		return false;
+	}
+
+	while (byteOffset < returnLength)
+	{
+		// NUMA NODEの数
+		if (ptr->Relationship == RelationNumaNode)
+			(*nodes)++;
+
+		else if (ptr->Relationship == RelationProcessorCore)
+		{
+			// 物理コアの数
+			(*cores)++;
+
+			// 論理コア数の加算。HT対応なら2を足す。HT非対応なら1を足す。
+			*threads += (ptr->Processor.Flags == LTP_PC_SMT) ? 2 : 1;
+		}
+
+		ASSERT_LV3(ptr->Size);
+		byteOffset += ptr->Size;
+		ptr = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(((char*)ptr) + ptr->Size);
+	}
+
+	free(buffer);
+
+	return true;
+}
+
+int total_thread_count()
+{
+	int n, c, t;
+
+	if (get_cpu_info(&n, &c, &t))
+		return t;
+
+	return std::thread::hardware_concurrency();
+}
+
+#elif defined(__linux__)
+
+int total_thread_count()
+{
+    int threads = 0;
+
+    // /proc/cpuinfo を開く
+    std::ifstream cpuinfo("/proc/cpuinfo");
+
+    if (!cpuinfo)
+	{
+        std::cerr << "Failed to open /proc/cpuinfo" << std::endl;
+        return std::thread::hardware_concurrency();
+    }
+
+    std::string line;
+
+    // 各行を読み込みながらスレッド数をカウント
+    while (std::getline(cpuinfo, line))
+        if (line.find("processor") == 0)
+            threads++;
+
+	return threads;
+}
+
+#else
+
+int total_thread_count()
+{
+	return std::thread::hardware_concurrency();
+}
+
+#endif
+
 // --------------------
 //  統計情報
 // --------------------
@@ -861,52 +966,8 @@ namespace WinProcGroup {
 		// 物理コア数
 		int cores = 0;
 
-		DWORD returnLength = 0;
-		DWORD byteOffset = 0;
-
-		// Early exit if the needed API is not available at runtime
-		HMODULE k32 = GetModuleHandle(TEXT("Kernel32.dll"));
-		auto fun1 = (fun1_t)(void(*)())GetProcAddress(k32, "GetLogicalProcessorInformationEx");
-		if (!fun1)
+		if (!get_cpu_info(&nodes, &cores, &threads))
 			return -1;
-
-		// First call to GetLogicalProcessorInformationEx() to get returnLength.
-		// We expect the call to fail due to null buffer.
-		if (fun1(RelationAll, nullptr, &returnLength))
-			return -1;
-
-		// Once we know returnLength, allocate the buffer
-		SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *buffer, *ptr;
-		ptr = buffer = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)malloc(returnLength);
-
-		// Second call, now we expect to succeed
-		if (!fun1(RelationAll, buffer, &returnLength))
-		{
-			free(buffer);
-			return -1;
-		}
-
-		while (byteOffset < returnLength)
-		{
-			// NUMA NODEの数
-			if (ptr->Relationship == RelationNumaNode)
-				nodes++;
-
-			else if (ptr->Relationship == RelationProcessorCore)
-			{
-				// 物理コアの数
-				cores++;
-
-				// 論理コア数の加算。HT対応なら2を足す。HT非対応なら1を足す。
-				threads += (ptr->Processor.Flags == LTP_PC_SMT) ? 2 : 1;
-			}
-
-			ASSERT_LV3(ptr->Size);
-			byteOffset += ptr->Size;
-			ptr = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(((char*)ptr) + ptr->Size);
-		}
-
-		free(buffer);
 
 		std::vector<int> groups;
 

@@ -43,6 +43,13 @@ void prefetch(const void* addr);
 // cin/coutへの入出力をファイルにリダイレクトを開始/終了する。
 void start_logger(const std::string& fname);
 
+// -----------------
+//    CPU Threads
+// -----------------
+
+// NUMAノード環境にも対応したCPUスレッド数の取得。
+int total_thread_count();
+
 // --------------------
 //  Large Page確保
 // --------------------
