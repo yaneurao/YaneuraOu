@@ -289,7 +289,11 @@ class FeatureTransformer {
 					const IndexType offset = kHalfDimensions * index;
 					auto accumulation      = reinterpret_cast<vec_t*>(&accumulator.accumulation[perspective][i][0]);
 					auto column            = reinterpret_cast<const vec_t*>(&weights_[offset]);
+#if defined(USE_AVX512)
+					constexpr IndexType kNumChunks = kHalfDimensions / kSimdWidth;
+#else
 					constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
+#endif
 					for (IndexType j = 0; j < kNumChunks; ++j) {
 						accumulation[j] = vec_add_16(accumulation[j], column[j]);
 					}
@@ -327,7 +331,11 @@ class FeatureTransformer {
 			RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset);
 			for (Color perspective : {BLACK, WHITE}) {
 #if defined(VECTOR)
+#if defined(USE_AVX512)
+				constexpr IndexType kNumChunks = kHalfDimensions / kSimdWidth;
+#else
 				constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
+#endif
 				auto accumulation              = reinterpret_cast<vec_t*>(&accumulator.accumulation[perspective][i][0]);
 #endif
 				if (reset[perspective]) {
