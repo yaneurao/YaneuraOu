@@ -190,6 +190,12 @@ class FeatureTransformer {
 				    _mm512_load_si512(&reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][0])[j * 2 + 0]);
 				__m512i sum1 =
 				    _mm512_load_si512(&reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][0])[j * 2 + 1]);
+				for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
+					sum0 = _mm512_add_epi16(
+					    sum0, reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][i])[j * 2 + 0]);
+					sum1 = _mm512_add_epi16(
+					    sum1, reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][i])[j * 2 + 1]);
+				}
 				_mm512_store_si512(&out[j], _mm512_permutexvar_epi64(
 				                                kControl, _mm512_max_epi8(_mm512_packs_epi16(sum0, sum1), kZero)));
 			}
