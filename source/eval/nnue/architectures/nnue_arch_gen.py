@@ -127,6 +127,7 @@ else:
 header += f"""
     #include "../layers/input_slice.h"
     #include "../layers/affine_transform.h"
+    #include "../layers/affine_transform_sparse_input.h"
     #include "../layers/clipped_relu.h"
 
     namespace Eval::NNUE {{
@@ -164,7 +165,7 @@ header += f"""
             // Define network structure
             // ネットワーク構造の定義
             using InputLayer = InputSlice<kTransformedFeatureDimensions * {first_layer[1]}>;
-            using HiddenLayer1 = ClippedReLU<AffineTransform<InputLayer, {layers[1]}>>;
+            using HiddenLayer1 = ClippedReLU<AffineTransformSparseInput<InputLayer, {layers[1]}>>;
             using HiddenLayer2 = ClippedReLU<AffineTransform<HiddenLayer1, {layers[2]}>>;
             using OutputLayer = AffineTransform<HiddenLayer2, 1>;
 
