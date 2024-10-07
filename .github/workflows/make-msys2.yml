@@ -82,7 +82,7 @@ jobs:
           .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
         shell: pwsh
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-windows_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/*

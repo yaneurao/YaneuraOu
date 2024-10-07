@@ -152,7 +152,7 @@ jobs:
               fs.writeFileSync(`./main/source/${builddir}/${filename}.log`, log);
             }}}}
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-macos_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/**/*
@@ -256,7 +256,7 @@ jobs:
           echo 'Suisho5(20211123)-YaneuraOu' > ./main/build/macos13/NNUE/engine_name.txt;
           echo 'yaneurao, tayayan' >> ./main/build/macos13/NNUE/engine_name.txt;
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-macos-embed_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/**/*

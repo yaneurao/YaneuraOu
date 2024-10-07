@@ -83,7 +83,7 @@ jobs:
         run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I/usr/local/cuda-11.7/include EXTRA_LDFLAGS=-L/usr/local/cuda-11.7/lib64 EXTRA_LDFLAGS+=-L/usr/local/cuda-11.7/lib64/stubs"
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_TENSOR_RT' }}
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-linux_deep_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/**/*

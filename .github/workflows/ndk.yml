@@ -42,7 +42,7 @@ jobs:
       - name: ndk-build
         run: ./main/script/android_build.sh -e ${{ matrix.edition }}
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-android_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/*

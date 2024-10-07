@@ -94,7 +94,7 @@ jobs:
       - name: make
         run: ./main/script/mingw_gcc.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-mingw_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/*

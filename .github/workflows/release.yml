@@ -87,7 +87,7 @@ jobs:
           main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
         shell: pwsh
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-windows_${{ github.run_number }}_${{ github.sha }}
           path: main/build/**/*
@@ -168,7 +168,7 @@ jobs:
           main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
         shell: pwsh
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-windows-material_${{ github.run_number }}_${{ github.sha }}
           path: main/build/**/*
@@ -204,7 +204,7 @@ jobs:
           MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-TRT /p:Platform=x64
         working-directory: main
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-deep-windows_${{ github.run_number }}_${{ github.sha }}
           path: main/build/**/*
@@ -247,7 +247,7 @@ jobs:
       - name: ndk-build
         run: main/script/android_build.sh -e ${{ matrix.edition }}
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-android_${{ github.run_number }}_${{ github.sha }}
           path: main/build/**/*
@@ -393,7 +393,7 @@ jobs:
               fs.writeFileSync(`./main/source/${builddir}/${filename}.log`, log);
             }}}}
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-macos_${{ github.run_number }}_${{ github.sha }}
           path: main/build/**/**/*
@@ -455,7 +455,7 @@ jobs:
           echo 'Suisho5(20211123)-${{ steps.version.outputs.filename }}' > main/build/windows/NNUE/engine_name.txt;
           echo 'yaneurao, tayayan' >> main/build/windows/NNUE/engine_name.txt;
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-windows-suisho_${{ github.run_number }}_${{ github.sha }}
           path: main/build/**/*
@@ -503,7 +503,7 @@ jobs:
           echo 'Suisho5(20211123)-${{ steps.version.outputs.filename }}' > main/build/android/NNUE/engine_name.txt;
           echo 'yaneurao, tayayan' >> main/build/android/NNUE/engine_name.txt;
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-android-suisho_${{ github.run_number }}_${{ github.sha }}
           path: main/build/**/*
@@ -605,7 +605,7 @@ jobs:
           echo 'Suisho5(20211123)-YaneuraOu' > main/build/macos11/NNUE/engine_name.txt;
           echo 'yaneurao, tayayan' >> main/build/macos11/NNUE/engine_name.txt;
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-macos-suisho_${{ github.run_number }}_${{ github.sha }}
           path: main/build/**/**/*
@@ -642,7 +642,7 @@ jobs:
         run: |
           docker run --rm -v ${PWD}/main:/src emscripten/emsdk:3.1.43 node script/wasm_build.js ${{ matrix.edition }}
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-wasm_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/**/*
@@ -672,7 +672,7 @@ jobs:
         run: |
           docker run --rm -v ${PWD}/main:/src emscripten/emsdk:3.1.43 node script/wasm_build.js ${{ matrix.edition }}
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-wasm-suisho_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/**/*
@@ -702,7 +702,7 @@ jobs:
         run: |
           docker run --rm -v ${PWD}/main:/src emscripten/emsdk:3.1.43 node script/wasm_build.js ${{ matrix.edition }}
 
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: build-wasm-suishopetite_${{ github.run_number }}_${{ github.sha }}
           path: ./main/build/**/**/*
@@ -739,7 +739,7 @@ jobs:
           7z a -tzip build-windows.zip windows
           7z a -t7z build-windows.7z windows
         working-directory: release
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-windows_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -777,7 +777,7 @@ jobs:
           7z a -tzip build-windows-material.zip windows
           7z a -t7z build-windows-material.7z windows
         working-directory: release
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-windows-material_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -817,7 +817,7 @@ jobs:
           7z a -tzip ../../build-windows-suisho.zip *
           7z a -t7z ../../build-windows-suisho.7z *
         working-directory: release/windows/NNUE
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-windows-suisho_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -855,7 +855,7 @@ jobs:
           7z a -tzip build-deep-windows.zip *
           7z a -t7z build-deep-windows.7z *
         working-directory: release
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-deep-windows_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -893,7 +893,7 @@ jobs:
           7z a -tzip build-android.zip android
           7z a -t7z build-android.7z android
         working-directory: release
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-android_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -933,7 +933,7 @@ jobs:
           7z a -tzip ../../build-android-suisho.zip *
           7z a -t7z ../../build-android-suisho.7z *
         working-directory: release/android/NNUE
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-android-suisho_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -973,7 +973,7 @@ jobs:
         run: |
           tar -Jcf build-macos.tar.xz macos11
         working-directory: release
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-macos_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -1014,7 +1014,7 @@ jobs:
         run: |
           tar -Jcf ../../build-macos-suisho.tar.xz *
         working-directory: release/macos11/NNUE
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-macos-suisho_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -1051,7 +1051,7 @@ jobs:
           7z a -tzip build-wasm.zip wasm
           7z a -t7z build-wasm.7z wasm
         working-directory: release
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-wasm_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -1091,7 +1091,7 @@ jobs:
           7z a -tzip build-wasm-suisho.zip wasm
           7z a -t7z build-wasm-suisho.7z wasm
         working-directory: release
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-wasm-suisho_${{ github.run_number }}_${{ github.sha }}
           path: |
@@ -1131,7 +1131,7 @@ jobs:
           7z a -tzip build-wasm-suishopetite.zip wasm
           7z a -t7z build-wasm-suishopetite.7z wasm
         working-directory: release
-      - uses: actions/upload-artifact@v4.1.7
+      - uses: actions/upload-artifact@v4
         with:
           name: archive-wasm-suishopetite_${{ github.run_number }}_${{ github.sha }}
           path: |
