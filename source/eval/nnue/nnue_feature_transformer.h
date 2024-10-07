@@ -190,6 +190,12 @@ class FeatureTransformer {
 				    _mm512_load_si512(&reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][0])[j * 2 + 0]);
 				__m512i sum1 =
 				    _mm512_load_si512(&reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][0])[j * 2 + 1]);
+				for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
+					sum0 = _mm512_add_epi16(
+					    sum0, reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][i])[j * 2 + 0]);
+					sum1 = _mm512_add_epi16(
+					    sum1, reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][i])[j * 2 + 1]);
+				}
 				_mm512_store_si512(&out[j], _mm512_permutexvar_epi64(
 				                                kControl, _mm512_max_epi8(_mm512_packs_epi16(sum0, sum1), kZero)));
 			}
@@ -289,7 +295,11 @@ class FeatureTransformer {
 					const IndexType offset = kHalfDimensions * index;
 					auto accumulation      = reinterpret_cast<vec_t*>(&accumulator.accumulation[perspective][i][0]);
 					auto column            = reinterpret_cast<const vec_t*>(&weights_[offset]);
+#if defined(USE_AVX512)
+					constexpr IndexType kNumChunks = kHalfDimensions / kSimdWidth;
+#else
 					constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
+#endif
 					for (IndexType j = 0; j < kNumChunks; ++j) {
 						accumulation[j] = vec_add_16(accumulation[j], column[j]);
 					}
@@ -327,7 +337,11 @@ class FeatureTransformer {
 			RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset);
 			for (Color perspective : {BLACK, WHITE}) {
 #if defined(VECTOR)
+#if defined(USE_AVX512)
+				constexpr IndexType kNumChunks = kHalfDimensions / kSimdWidth;
+#else
 				constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth / 2);
+#endif
 				auto accumulation              = reinterpret_cast<vec_t*>(&accumulator.accumulation[perspective][i][0]);
 #endif
 				if (reset[perspective]) {
