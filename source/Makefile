@@ -595,7 +595,7 @@ else ifeq ($(TARGET_CPU),AVX512VNNI)
 	# cascadelakeとicelakeとの違いがあるのかは知らないので、cascadelakeのみでいいや。
 
 else ifeq ($(TARGET_CPU),AVXVNNI)
-	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -DUSE_VNNI -march=alderlake
+	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -DUSE_VNNI -DUSE_AVXVNNI -march=alderlake
 	# NNUEのコード、USE_VNNIが指定されているとVNNI対応のコードになる。
 	# Intel Alder Lake、Sapphire Rapids 以降追加の命令群。LLVM12, GCC11 以降。
 	# AVXVNNI (AVX2VNNI という表記も有り?) は AVX512VNNIの256bit幅以下限定版。
