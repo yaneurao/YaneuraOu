@@ -1,0 +1,103 @@
+#ifndef SIMD_H_INCLUDED
+#define SIMD_H_INCLUDED
+
+#if defined(USE_AVX2)
+    #include <immintrin.h>
+
+#elif defined(USE_SSE41)
+    #include <smmintrin.h>
+
+#elif defined(USE_SSSE3)
+    #include <tmmintrin.h>
+
+#elif defined(USE_SSE2)
+    #include <emmintrin.h>
+
+#elif defined(USE_NEON)
+    #include <arm_neon.h>
+#endif
+
+
+namespace Simd
+{
+
+
+#if defined(USE_AVX512)
+
+[[maybe_unused]] static int m512_hadd(__m512i sum, int bias) {
+    return _mm512_reduce_add_epi32(sum) + bias;
+}
+
+[[maybe_unused]] static void m512_add_dpbusd_epi32(__m512i& acc, __m512i a, __m512i b) {
+#if defined(USE_VNNI)
+    acc = _mm512_dpbusd_epi32(acc, a, b);
+#else
+    __m512i product0 = _mm512_maddubs_epi16(a, b);
+    product0         = _mm512_madd_epi16(product0, _mm512_set1_epi16(1));
+    acc              = _mm512_add_epi32(acc, product0);
+#endif
+}
+
+#endif
+
+#if defined(USE_AVX2)
+
+[[maybe_unused]] static int m256_hadd(__m256i sum, int bias) {
+    __m128i sum128 = _mm_add_epi32(_mm256_castsi256_si128(sum), _mm256_extracti128_si256(sum, 1));
+    sum128         = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_PERM_BADC));
+    sum128         = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, _MM_PERM_CDAB));
+    return _mm_cvtsi128_si32(sum128) + bias;
+}
+
+[[maybe_unused]] static void m256_add_dpbusd_epi32(__m256i& acc, __m256i a, __m256i b) {
+#if defined(USE_VNNI)
+    acc = _mm256_dpbusd_epi32(acc, a, b);
+#else
+    __m256i product0 = _mm256_maddubs_epi16(a, b);
+    product0         = _mm256_madd_epi16(product0, _mm256_set1_epi16(1));
+    acc              = _mm256_add_epi32(acc, product0);
+#endif
+}
+
+#endif
+
+#if defined(USE_SSSE3)
+
+[[maybe_unused]] static int m128_hadd(__m128i sum, int bias) {
+    sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, 0x4E));  //_MM_PERM_BADC
+    sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, 0xB1));  //_MM_PERM_CDAB
+    return _mm_cvtsi128_si32(sum) + bias;
+}
+
+[[maybe_unused]] static void m128_add_dpbusd_epi32(__m128i& acc, __m128i a, __m128i b) {
+    __m128i product0 = _mm_maddubs_epi16(a, b);
+    product0         = _mm_madd_epi16(product0, _mm_set1_epi16(1));
+    acc              = _mm_add_epi32(acc, product0);
+}
+
+#endif
+
+#if defined(USE_NEON_DOTPROD)
+
+[[maybe_unused]] static void dotprod_m128_add_dpbusd_epi32(int32x4_t& acc, int8x16_t a, int8x16_t b) {
+    acc = vdotq_s32(acc, a, b);
+}
+#endif
+
+#if defined(USE_NEON)
+
+[[maybe_unused]] static int neon_m128_reduce_add_epi32(int32x4_t s) {
+    return vaddvq_s32(s);
+}
+
+[[maybe_unused]] static int neon_m128_hadd(int32x4_t sum, int bias) {
+    return neon_m128_reduce_add_epi32(sum) + bias;
+}
+
+#endif
+
+
+} // namespace Simd 
+
+
+#endif // ifndef SIMD_H_INCLUDED
