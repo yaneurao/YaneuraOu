@@ -36,7 +36,7 @@ void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_ou
 #define vec_nnz(a) _mm512_cmpgt_epi32_mask(a, _mm512_setzero_si512())
 #elif defined(USE_AVX2)
     using vec_t = __m256i;
-#if defined(USE_VNNI) && !defined(USE_AVXVNNI)
+#if defined(USE_VNNI) && defined(USE_AVX512)
 #define vec_nnz(a) _mm256_cmpgt_epi32_mask(a, _mm256_setzero_si256())
 #else
 #define vec_nnz(a) \
