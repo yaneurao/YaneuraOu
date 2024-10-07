@@ -1023,11 +1023,11 @@ void Bitboard::UnitTest(Test::UnitTester& tester)
 		bool all_ok = true;
 		Bitboard occ(SQ_77);
 		Bitboard zero(ZERO);
-		all_ok = rayEffect<Effect8::DIRECT_LD>(SQ_55, occ) == between_bb(SQ_55, SQ_88);
-		all_ok = rayEffect<Effect8::DIRECT_LD>(SQ_55, zero) == QUGIY_STEP_EFFECT[Effect8::DIRECT_LD - 2][SQ_55];
+		all_ok &= rayEffect<Effect8::DIRECT_LD>(SQ_55, occ) == between_bb(SQ_55, SQ_88);
+		all_ok &= rayEffect<Effect8::DIRECT_LD>(SQ_55, zero) == QUGIY_STEP_EFFECT[Effect8::DIRECT_LD - 2][SQ_55];
 
 		Bitboard occ2(SQ_33);
-		all_ok = rayEffect<Effect8::DIRECT_RU>(SQ_55, occ2) == between_bb(SQ_55, SQ_22);
+		all_ok &= rayEffect<Effect8::DIRECT_RU>(SQ_55, occ2) == between_bb(SQ_55, SQ_22);
 
 		tester.test("rayEffect", all_ok);
 	}

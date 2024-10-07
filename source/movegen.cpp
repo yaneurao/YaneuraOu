@@ -14,7 +14,7 @@ bool pseudo_legal_check(const Position& pos, ExtMove* mlist_start, ExtMove* mlis
 	bool all_ok = true;
 
 	for (auto it = mlist_start; it != mlist_end; ++it)
-		all_ok = pos.pseudo_legal_s<true>(it->move);
+		all_ok &= pos.pseudo_legal_s<true>(it->move);
 
 	// Debug用に、非合法手があった時に局面とその指し手を出力する。
 #if 0
