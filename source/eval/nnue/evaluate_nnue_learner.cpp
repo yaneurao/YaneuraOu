@@ -29,6 +29,7 @@
 #include "trainer/trainer_feature_transformer.h"
 #include "trainer/trainer_input_slice.h"
 #include "trainer/trainer_affine_transform.h"
+#include "trainer/trainer_affine_transform_sparse_input.h"
 #include "trainer/trainer_clipped_relu.h"
 #include "trainer/trainer_sum.h"
 
