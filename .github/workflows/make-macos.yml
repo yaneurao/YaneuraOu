@@ -154,7 +154,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: build-macos_${{ github.run_number }}_${{ github.job }}_${{ github.run_id }}_${{ github.sha }}
+          name: build-macos_${{ github.run_number }}_${{ matrix.edition }}_${{ matrix.compiler }}_${{ matrix.target }}_${{ matrix.archcpu }}_${{ github.sha }}
           path: ./main/build/**/**/*
 
   build-macos-suisho:
@@ -258,5 +258,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: build-macos-embed_${{ github.run_number }}__${{ matrix.edition }}_${{ matrix.compiler }}_${{ matrix.target }}_${{ matrix.archcpu }}_${{ github.sha }}
+          name: build-macos-embed_${{ github.run_number }}_${{ matrix.edition }}_${{ matrix.compiler }}_${{ matrix.target }}_${{ matrix.archcpu }}_${{ github.sha }}
           path: ./main/build/**/**/*
