@@ -635,8 +635,10 @@
     <ClInclude Include="eval\nnue\features\p.h" />
     <ClInclude Include="eval\nnue\features\pe9.h" />
     <ClInclude Include="eval\nnue\layers\affine_transform.h" />
+    <ClInclude Include="eval\nnue\layers\affine_transform_sparse_input.h" />
     <ClInclude Include="eval\nnue\layers\clipped_relu.h" />
     <ClInclude Include="eval\nnue\layers\input_slice.h" />
+    <ClInclude Include="eval\nnue\layers\simd.h" />
     <ClInclude Include="eval\nnue\layers\sum.h" />
     <ClInclude Include="eval\nnue\nnue_accumulator.h" />
     <ClInclude Include="eval\nnue\nnue_architecture.h" />
@@ -649,6 +651,7 @@
     <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kpe9.h" />
     <ClInclude Include="eval\nnue\trainer\trainer.h" />
     <ClInclude Include="eval\nnue\trainer\trainer_affine_transform.h" />
+    <ClInclude Include="eval\nnue\trainer\trainer_affine_transform_sparse_input.h" />
     <ClInclude Include="eval\nnue\trainer\trainer_clipped_relu.h" />
     <ClInclude Include="eval\nnue\trainer\trainer_feature_transformer.h" />
     <ClInclude Include="eval\nnue\trainer\trainer_input_slice.h" />
