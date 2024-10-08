@@ -84,5 +84,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: build-windows_${{ github.run_number }}_${{ github.sha }}
+          name: build-windows_${{ github.run_number }}_${{ github.job }}_${{ github.sha }}
           path: ./main/build/**/*
