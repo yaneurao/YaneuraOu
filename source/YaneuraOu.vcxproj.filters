@@ -190,10 +190,16 @@
     <ClInclude Include="eval\nnue\layers\affine_transform.h">
       <Filter>リソース ファイル\eval\nnue\layers</Filter>
     </ClInclude>
+    <ClInclude Include="eval\nnue\layers\affine_transform_sparse_input.h">
+      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    </ClInclude>
     <ClInclude Include="eval\nnue\layers\clipped_relu.h">
       <Filter>リソース ファイル\eval\nnue\layers</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\layers\input_slice.h">
+      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\layers\simd.h">
       <Filter>リソース ファイル\eval\nnue\layers</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\layers\sum.h">
@@ -203,6 +209,9 @@
       <Filter>リソース ファイル\eval\nnue\trainer</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\trainer\trainer_affine_transform.h">
+      <Filter>リソース ファイル\eval\nnue\trainer</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\trainer\trainer_affine_transform_sparse_input.h">
       <Filter>リソース ファイル\eval\nnue\trainer</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\trainer\trainer_clipped_relu.h">
