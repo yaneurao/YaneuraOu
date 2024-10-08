@@ -8,7 +8,7 @@
 
 #include "../../evaluate.h"
 #include "../../position.h"
-#include "../../misc.h"
+#include "../../memory.h"
 #include "../../usi.h"
 
 #if defined(USE_EVAL_HASH)
@@ -17,6 +17,8 @@
 
 #include "evaluate_nnue.h"
 
+using namespace Stockfish;
+
 namespace Eval {
 
     namespace NNUE {
@@ -24,7 +26,7 @@ namespace Eval {
 		int FV_SCALE = 16; // 水匠5では24がベストらしいのでエンジンオプション"FV_SCALE"で変更可能にした。
 
         // 入力特徴量変換器
-        AlignedPtr<FeatureTransformer> feature_transformer;
+		LargePagePtr<FeatureTransformer> feature_transformer;
 
         // 評価関数
         AlignedPtr<Network> network;
@@ -35,7 +37,7 @@ namespace Eval {
         // 評価関数の構造を表す文字列を取得する
         std::string GetArchitectureString() {
             return "Features=" + FeatureTransformer::GetStructureString() +
-                ",Network=" + Network::GetStructureString();
+				",Network=" + Network::GetStructureString();
         }
 
         namespace {
@@ -45,13 +47,14 @@ namespace Eval {
                 // 評価関数パラメータを初期化する
                 template <typename T>
                 void Initialize(AlignedPtr<T>& pointer) {
-
-                    // →　メモリはLarge Pageから確保することで高速化する。
-                    void* ptr = LargeMemory::static_alloc(sizeof(T) , alignof(T), true);
-                    pointer.reset(reinterpret_cast<T*>(ptr));
-
-                    //sync_cout << "nnue.alloc(" << sizeof(T) << "," << alignof(T) << ")" << sync_endl;
+					pointer = make_unique_aligned<T>();
                 }
+
+				template <typename T>
+				void Initialize(LargePagePtr<T>& pointer) {
+					// →　メモリはLarge Pageから確保することで高速化する。
+					pointer = make_unique_large_page<T>();
+				}
 
                 // 評価関数パラメータを読み込む
                 template <typename T>
@@ -63,7 +66,17 @@ namespace Eval {
                     return pointer->ReadParameters(stream);
                 }
 
-                // 評価関数パラメータを書き込む
+				// 評価関数パラメータを読み込む
+				template <typename T>
+				Tools::Result ReadParameters(std::istream& stream, const LargePagePtr<T>& pointer) {
+					std::uint32_t header;
+					stream.read(reinterpret_cast<char*>(&header), sizeof(header));
+					if (!stream)                     return Tools::ResultCode::FileReadError;
+					if (header != T::GetHashValue()) return Tools::ResultCode::FileMismatch;
+					return pointer->ReadParameters(stream);
+				}
+
+				// 評価関数パラメータを書き込む
                 template <typename T>
                 bool WriteParameters(std::ostream& stream, const AlignedPtr<T>& pointer) {
                     constexpr std::uint32_t header = T::GetHashValue();
@@ -71,12 +84,21 @@ namespace Eval {
                     return pointer->WriteParameters(stream);
                 }
 
+				// 評価関数パラメータを書き込む
+				template <typename T>
+				bool WriteParameters(std::ostream& stream, const LargePagePtr<T>& pointer) {
+					constexpr std::uint32_t header = T::GetHashValue();
+					stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
+					return pointer->WriteParameters(stream);
+				}
+
+
             }  // namespace Detail
 
             // 評価関数パラメータを初期化する
             void Initialize() {
-                Detail::Initialize(feature_transformer);
-                Detail::Initialize(network);
+                Detail::Initialize<FeatureTransformer>(feature_transformer);
+                Detail::Initialize<Network>(network);
             }
 
         }  // namespace
@@ -112,16 +134,16 @@ namespace Eval {
 			Tools::Result result = ReadHeader(stream, &hash_value, &architecture);
             if (result.is_not_ok()) return result;
             if (hash_value != kHashValue) return Tools::ResultCode::FileMismatch;
-			result = Detail::ReadParameters(stream, feature_transformer); if (result.is_not_ok()) return result;
-			result = Detail::ReadParameters(stream, network);             if (result.is_not_ok()) return result;
+			result = Detail::ReadParameters<FeatureTransformer>(stream, feature_transformer); if (result.is_not_ok()) return result;
+			result = Detail::ReadParameters<Network>(stream, network);             if (result.is_not_ok()) return result;
             return (stream && stream.peek() == std::ios::traits_type::eof()) ? Tools::ResultCode::Ok : Tools::ResultCode::FileCloseError;
         }
 
         // 評価関数パラメータを書き込む
         bool WriteParameters(std::ostream& stream) {
             if (!WriteHeader(stream, kHashValue, GetArchitectureString())) return false;
-            if (!Detail::WriteParameters(stream, feature_transformer)) return false;
-            if (!Detail::WriteParameters(stream, network)) return false;
+            if (!Detail::WriteParameters<FeatureTransformer>(stream, feature_transformer)) return false;
+            if (!Detail::WriteParameters<Network>(stream, network)) return false;
             return !stream.fail();
         }
 

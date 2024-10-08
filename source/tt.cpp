@@ -7,11 +7,14 @@
 //#include <thread>
 //#include <vector>
 
+#include "memory.h"
 #include "misc.h"
 #include "thread.h"
 
 // やねうら王独自拡張
 #include "extra/key128.h"
+
+using namespace Stockfish;
 
 TranspositionTable TT; // 置換表をglobalに確保。
 
@@ -132,6 +135,8 @@ void TranspositionTable::resize(size_t mbSize) {
 	if (newClusterCount == clusterCount)
 		return;
 
+	aligned_large_pages_free(table);
+
 	clusterCount = newClusterCount;
 
 	// tableはCacheLineSizeでalignされたメモリに配置したいので、CacheLineSize-1だけ余分に確保する。
@@ -140,7 +145,7 @@ void TranspositionTable::resize(size_t mbSize) {
 	// cf. Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
 
 	// Large Pageを確保する。ランダムメモリアクセスが5%程度速くなる。
-	table = static_cast<Cluster*>(tt_memory.alloc(clusterCount * sizeof(Cluster), sizeof(Cluster) ));
+	table = static_cast<Cluster*>(aligned_large_pages_alloc(clusterCount * sizeof(Cluster)));
 
 	// clear();
 
@@ -160,6 +165,7 @@ void TranspositionTable::clear()
 	// MateEngineではこの置換表は用いないのでクリアもしない。
 	return;
 #endif
+	generation8 = 0;
 
 	auto size = clusterCount * sizeof(Cluster);
 

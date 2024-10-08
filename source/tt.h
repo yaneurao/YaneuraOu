@@ -242,9 +242,6 @@ private:
 
 	// --- やねうら王独自拡張
 
-	// 置換表テーブルのメモリ確保用のhelpper
-	LargeMemory tt_memory;
-
 	// probe()の内部実装用。
 	// key_for_index   : first_entry()で使うためのkey
 	// key_for_ttentry : TTEntryに格納するためのkey

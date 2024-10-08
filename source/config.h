@@ -659,6 +659,9 @@ extern GlobalOptions_ GlobalOptions;
 #define ASSERT_LV4(X) ASSERT_LV_EX(4, X)
 #define ASSERT_LV5(X) ASSERT_LV_EX(5, X)
 
+// memoryがalignされているかのassert
+#define ASSERT_ALIGNED(ptr, alignment) assert(reinterpret_cast<uintptr_t>(ptr) % alignment == 0)
+
 // --- declaration of unreachablity
 
 // switchにおいてdefaultに到達しないことを明示して高速化させる

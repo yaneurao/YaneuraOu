@@ -178,7 +178,7 @@ class AffineTransformSparseInput {
 		for (std::size_t i = 0; i < kOutputDimensions; ++i)
 			biases_[i] = read_little_endian<BiasType>(stream);
 		for (std::size_t i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
-			weights_[get_weight_index(i)] = read_little_endian<WeightType>(stream);
+			weights_[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
 		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
 

@@ -664,6 +664,7 @@
     <ClInclude Include="learn\multi_think.h" />
     <ClInclude Include="mate\mate.h" />
     <ClInclude Include="mate\mate_move_picker.h" />
+    <ClInclude Include="memory.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="movepick.h" />
     <ClInclude Include="search.h" />
@@ -733,6 +734,7 @@
     <ClCompile Include="mate\mate1ply_with_effect.cpp" />
     <ClCompile Include="mate\mate_dfpn.hpp" />
     <ClCompile Include="mate\mate_solver.cpp" />
+    <ClCompile Include="memory.cpp" />
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
     <ClCompile Include="movepick.cpp" />

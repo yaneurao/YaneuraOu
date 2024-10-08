@@ -352,6 +352,9 @@
     <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-8-64.h">
       <Filter>リソース ファイル\eval\nnue\architectures</Filter>
     </ClInclude>
+    <ClInclude Include="memory.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -566,6 +569,9 @@
     </ClCompile>
     <ClCompile Include="engine\dlshogi-engine\PvMateSearch.cpp">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
+    </ClCompile>
+    <ClCompile Include="memory.cpp">
+      <Filter>リソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

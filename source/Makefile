@@ -341,6 +341,7 @@ SOURCES  = \
 	tt.cpp                                                                     \
 	movepick.cpp                                                               \
 	timeman.cpp                                                                \
+	memory.cpp                                                                 \
 	book/book.cpp                                                              \
 	book/apery_book.cpp                                                        \
 	extra/bitop.cpp                                                            \

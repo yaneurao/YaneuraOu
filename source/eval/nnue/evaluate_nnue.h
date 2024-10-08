@@ -10,9 +10,8 @@
 
 #include "nnue_feature_transformer.h"
 #include "nnue_architecture.h"
-#include "../../misc.h"
-
-#include <memory>
+//#include "../../misc.h"
+#include "../../memory.h"
 
 // 評価関数のソースコードへの埋め込みをする時は、EVAL_EMBEDDINGをdefineして、
 // ⇓この2つのシンボルを正しく定義するembedded_nnue.cppを書けば良い。
@@ -31,30 +30,11 @@ namespace Eval::NNUE {
 	constexpr std::uint32_t kHashValue =
 	    FeatureTransformer::GetHashValue() ^ Network::GetHashValue();
 
-	// Deleter for automating release of memory area
-	// メモリ領域の解放を自動化するためのデリータ
-	template <typename T>
-	struct LargeMemoryDeleter {
-
-	    void operator()(T* ptr) const {
-
-	        // Tクラスのデストラクタ
-	        ptr->~T();
-
-			// このメモリはLargeMemoryクラスを利用して確保したものなので、
-			// このクラスのfree()を呼び出して開放する。
-	        LargeMemory::static_free(ptr);
-	    }
-	};
-
-	template <typename T>
-	using AlignedPtr = std::unique_ptr<T, LargeMemoryDeleter<T>>;
-
 	// 入力特徴量変換器
-	extern AlignedPtr<FeatureTransformer> feature_transformer;
+	extern Stockfish::LargePagePtr<FeatureTransformer> feature_transformer;
 
 	// 評価関数
-	extern AlignedPtr<Network> network;
+	extern Stockfish::AlignedPtr<Network> network;
 
 	// 評価関数ファイル名
 	extern const char* const kFileName;

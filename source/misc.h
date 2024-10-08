@@ -44,51 +44,6 @@ void prefetch(const void* addr);
 void start_logger(const std::string& fname);
 
 // --------------------
-//  Large Page確保
-// --------------------
-
-// Large Pageを確保するwrapper class。
-// WindowsのLarge Pageを確保する。
-// Large Pageを用いるとメモリアクセスが速くなるらしい。
-// 置換表用のメモリなどはこれで確保する。
-// cf. やねうら王、Large Page対応で10数%速くなった件 : http://yaneuraou.yaneu.com/2020/05/31/%e3%82%84%e3%81%ad%e3%81%86%e3%82%89%e7%8e%8b%e3%80%81large-page%e5%af%be%e5%bf%9c%e3%81%a710%e6%95%b0%e9%80%9f%e3%81%8f%e3%81%aa%e3%81%a3%e3%81%9f%e4%bb%b6/
-//
-// Stockfishでは、Large Pageの確保～開放のためにaligned_ttmem_alloc(),aligned_ttmem_free()という関数が実装されている。
-// コードの簡単化のために、やねうら王では独自に本classからそれらを用いる。
-struct LargeMemory
-{
-	// LargePage上のメモリを確保する。Large Pageに確保できるなら、そこにする。
-	// aligned_ttmem_alloc()を内部的に呼び出すので、アドレスは少なくとも2MBでalignされていることは保証されるが、
-	// 気になる人のためにalignmentを明示的に指定できるようになっている。
-	// メモリ確保に失敗するか、引数のalignで指定したalignmentになっていなければ、
-	// エラーメッセージを出力してプログラムを終了させる。
-	// size       : 確保するサイズ [byte]
-	// align      : 返されるメモリが守るべきalignment
-	// zero_clear : trueならゼロクリアされたメモリ領域を返す。
-	void* alloc(size_t size, size_t align = 256 , bool zero_clear = false);
-
-	// alloc()で確保したメモリを開放する。
-	// このクラスのデストラクタからも自動でこの関数が呼び出されるので明示的に呼び出す必要はない(かも)
-	void free();
-
-	// alloc()が呼び出されてメモリが確保されている状態か？
-	bool alloced() const { return ptr != nullptr; }
-
-	// alloc()のstatic関数版。この関数で確保したメモリはstatic_free()で開放する。
-	static void* static_alloc(size_t size, size_t align = 256, bool zero_clear = false);
-
-	// static_alloc()で確保したメモリを開放する。
-	static void static_free(void* mem);
-
-	~LargeMemory() { free(); }
-
-private:
-	// allocで確保されたメモリの先頭アドレス
-	// (free()で開放するときにこのアドレスを用いる)
-	void* ptr = nullptr;
-};
-
-// --------------------
 //  統計情報
 // --------------------
 

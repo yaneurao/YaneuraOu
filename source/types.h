@@ -20,6 +20,7 @@
 #include <string>       // std::string使うので仕方ない
 #include <algorithm>    // std::max()を使うので仕方ない
 #include <limits>		// std::numeric_limitsを使うので仕方ない
+#include <cassert>
 
 #if defined(_MSC_VER)
 // Disable some silly and noisy warnings from MSVC compiler
