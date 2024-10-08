@@ -31,10 +31,10 @@ namespace Eval::NNUE {
 	    FeatureTransformer::GetHashValue() ^ Network::GetHashValue();
 
 	// 入力特徴量変換器
-	extern Stockfish::LargePagePtr<FeatureTransformer> feature_transformer;
+	extern LargePagePtr<FeatureTransformer> feature_transformer;
 
 	// 評価関数
-	extern Stockfish::AlignedPtr<Network> network;
+	extern AlignedPtr<Network> network;
 
 	// 評価関数ファイル名
 	extern const char* const kFileName;

@@ -17,8 +17,6 @@
 
 #include "evaluate_nnue.h"
 
-using namespace Stockfish;
-
 namespace Eval {
 
     namespace NNUE {

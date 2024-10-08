@@ -22,7 +22,8 @@ struct HashTable
 
 			// ゼロクリアしておかないと、benchの結果が不安定になる。
 			// 気持ち悪いのでゼロクリアしておく。
-			entries_ = (T*)largeMemory.alloc(size * sizeof(T),alignof(T),true);
+			entries_ = (T*)aligned_large_pages_alloc(size * sizeof(T));
+			clear();
 		}
 	}
 
@@ -30,7 +31,7 @@ struct HashTable
 	{
 		if (entries_)
 		{
-			largeMemory.free();
+			aligned_large_pages_free(entries_);
 			entries_ = nullptr;
 		}
 	}
@@ -44,7 +45,6 @@ private:
 
 	size_t size = 0;
 	T* entries_ = nullptr;
-	LargeMemory largeMemory;
 };
 
 #endif // EVALHASH_H_INCLUDED

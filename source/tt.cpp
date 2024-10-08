@@ -14,8 +14,6 @@
 // やねうら王独自拡張
 #include "extra/key128.h"
 
-using namespace Stockfish;
-
 TranspositionTable TT; // 置換表をglobalに確保。
 
 // 置換表のエントリーに対して与えられたデータを保存する。上書き動作

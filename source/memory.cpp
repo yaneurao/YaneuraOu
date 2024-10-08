@@ -47,7 +47,7 @@ using AdjustTokenPrivileges_t =
 #endif
 
 
-namespace Stockfish {
+//namespace Stockfish {
 
 // Wrappers for systems where the c++17 implementation does not guarantee the
 // availability of aligned_alloc(). Memory allocated with std_aligned_alloc()
@@ -177,6 +177,8 @@ static void* aligned_large_pages_alloc_windows([[maybe_unused]] size_t allocSize
     #endif
 }
 
+bool first_large_pages_allocation = true;
+
 void* aligned_large_pages_alloc(size_t allocSize) {
 
 	// ※　ここでは4KB単位でalignされたメモリが返ることは保証されているので
@@ -190,11 +192,17 @@ void* aligned_large_pages_alloc(size_t allocSize) {
 
 	// ⇨ LargePage非対応の環境であれば、std::aligned_alloc()を用いて確保しておく。
 	//   最低でも4KBでalignされたメモリが返るので、引数でalign sizeを指定できるようにする必要はない。
-     if (!mem)
+    if (!mem)
         mem = VirtualAlloc(nullptr, allocSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
 	else
-		// Large Pagesを確保した旨を出力。
-		sync_cout << "info string Hash table allocation: Windows Large Pages used." << sync_endl;
+	{
+		if (first_large_pages_allocation)
+		{
+			// Large Pagesを確保した旨を出力。
+			sync_cout << "info string Large Pages are used." << sync_endl;
+			first_large_pages_allocation = false;
+		}
+	}
 
     return mem;
 }
@@ -273,4 +281,4 @@ void aligned_large_pages_free(void* mem) {
 void aligned_large_pages_free(void* mem) { std_aligned_free(mem); }
 
 #endif
-}  // namespace Stockfish
+//}  // namespace Stockfish

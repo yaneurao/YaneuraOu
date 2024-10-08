@@ -5,6 +5,7 @@
 //#include <cstdint>
 #include "types.h"
 #include "misc.h"
+#include "memory.h"
 
 struct Key128;
 struct Key256;
@@ -136,9 +137,7 @@ struct TranspositionTable {
 	static constexpr int      GENERATION_MASK = (0xFF << GENERATION_BITS) & 0xFF;
 
 public:
-	//~TranspositionTable() { aligned_ttmem_free(mem); }
-	// メモリの開放は、LargeMemoryクラスが勝手にやってくれるので、やねうら王では、
-	// このclassのデストラクタでメモリを明示的に開放しなくて良い。
+    ~TranspositionTable() { aligned_large_pages_free(table); }
 
 	// 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
 	// USE_GLOBAL_OPTIONSが有効のときは、このタイミングで、Options["Threads"]の値を
