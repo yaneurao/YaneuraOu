@@ -15,6 +15,8 @@
 
 namespace Eval::NNUE::Layers {
 
+#if defined(USE_SSSE3) || USE_NEON >= 8
+
 alignas(kCacheLineSize) static inline const
   std::array<std::array<std::uint16_t, 8>, 256> lookup_indices = []() {
       std::array<std::array<std::uint16_t, 8>, 256> v{};
@@ -36,7 +38,7 @@ void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_ou
 #define vec_nnz(a) _mm512_cmpgt_epi32_mask(a, _mm512_setzero_si512())
 #elif defined(USE_AVX2)
     using vec_t = __m256i;
-#if defined(USE_VNNI) && defined(USE_AVX512)
+#if defined(USE_VNNI) && !defined(USE_AVXVNNI)
 #define vec_nnz(a) _mm256_cmpgt_epi32_mask(a, _mm256_setzero_si256())
 #else
 #define vec_nnz(a) \
@@ -105,6 +107,8 @@ void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_ou
 #undef vec128_storeu
 #undef vec128_add
 
+#endif
+
 // AffineTransform layer that takes block-sparse input
 // ブロック疎な入力を受け取るアフィン変換層
 template <typename PreviousLayer, IndexType OutputDimensions>
@@ -131,7 +135,7 @@ class AffineTransformSparseInput {
 	// 入力層からこの層までで使用する順伝播用バッファのサイズ
 	static constexpr std::size_t kBufferSize = PreviousLayer::kBufferSize + kSelfBufferSize;
 
-#if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
+#if defined(USE_SSSE3) || USE_NEON >= 8
     static constexpr IndexType kChunkSize = 4;
 #else
     static constexpr IndexType kChunkSize = 1;
@@ -159,7 +163,7 @@ class AffineTransformSparseInput {
     }
 
     static constexpr IndexType get_weight_index(IndexType i) {
-#if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
+#if defined(USE_SSSE3) || USE_NEON >= 8
         return get_weight_index_scrambled(i);
 #else
         return i;
@@ -210,7 +214,7 @@ class AffineTransformSparseInput {
 		}
 #endif
 
-#if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
+#if defined(USE_SSSE3) || USE_NEON >= 8
 
 #if defined(USE_AVX512)
         if constexpr (kOutputDimensions % 16 == 0)

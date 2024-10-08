@@ -595,7 +595,7 @@ else ifeq ($(TARGET_CPU),AVX512VNNI)
 	# cascadelakeとicelakeとの違いがあるのかは知らないので、cascadelakeのみでいいや。
 
 else ifeq ($(TARGET_CPU),AVXVNNI)
-	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -DUSE_VNNI -march=alderlake
+	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -DUSE_VNNI -DUSE_AVXVNNI -march=alderlake
 	# NNUEのコード、USE_VNNIが指定されているとVNNI対応のコードになる。
 	# Intel Alder Lake、Sapphire Rapids 以降追加の命令群。LLVM12, GCC11 以降。
 	# AVXVNNI (AVX2VNNI という表記も有り?) は AVX512VNNIの256bit幅以下限定版。
@@ -626,7 +626,7 @@ else ifeq ($(TARGET_CPU),NO_SSE)
 else ifeq ($(TARGET_CPU),GRAVITON2)
 	# for Amazon Web Servece EC2, the Graviton2 CPU [M6g/M6gd, C6g/C6gd/C6gn, R6g/R6gd, T4g, X2gd] instances
 	# https://github.com/aws/aws-graviton-getting-started/blob/main/c-c++.md
-	CPPFLAGS += -DIS_64BIT -DUSE_NEON -march=armv8.2-a+fp16+rcpc+dotprod+crypto
+	CPPFLAGS += -DIS_64BIT -DUSE_NEON=8 -march=armv8.2-a+fp16+rcpc+dotprod+crypto
 else ifeq ($(TARGET_CPU),APPLEAVX2)
 	CPPFLAGS += -DIS_64BIT -DUSE_AVX2 -DUSE_BMI2 -target x86_64-apple-macos11 -mbmi -mbmi2 -mavx2 -mpopcnt
 else ifeq ($(TARGET_CPU),APPLESSE42)
