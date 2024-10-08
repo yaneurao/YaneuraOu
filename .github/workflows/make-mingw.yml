@@ -96,5 +96,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: build-mingw_${{ github.run_number }}_${{ github.job }}_${{ github.run_id }}_${{ github.sha }}
+          name: build-mingw_${{ github.run_number }}__${{ matrix.edition }}_${{ matrix.compiler }}_${{ matrix.target }}_${{ matrix.archcpu }}_${{ github.sha }}
           path: ./main/build/**/*

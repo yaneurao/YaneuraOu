@@ -44,5 +44,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: build-android_${{ github.run_number }}_${{ github.job }}_${{ github.run_id }}_${{ github.sha }}
+          name: build-android_${{ github.run_number }}_${{ matrix.edition }}_${{ github.sha }}
           path: ./main/build/**/*
