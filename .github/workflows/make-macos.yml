@@ -256,7 +256,7 @@ jobs:
           echo 'Suisho5(20211123)-YaneuraOu' > ./main/build/macos13/NNUE/engine_name.txt;
           echo 'yaneurao, tayayan' >> ./main/build/macos13/NNUE/engine_name.txt;
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-macos-embed_${{ github.run_number }}_${{ matrix.edition }}_${{ matrix.compiler }}_${{ matrix.target }}_${{ matrix.archcpu }}_${{ github.sha }}
-          path: ./main/build/**/**/*
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: build-macos-embed_${{ github.run_number }}_${{ matrix.edition }}_${{ matrix.compiler }}_${{ matrix.target }}_${{ matrix.archcpu }}_${{ github.sha }}
+      #     path: ./main/build/**/**/*

@@ -44,7 +44,7 @@ jobs:
         run: |
           docker run --rm -v ${PWD}/main:/src emscripten/emsdk:3.1.43 node script/wasm_build.js ${{ matrix.edition }}
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-wasm_${{ github.run_number }}_${{ matrix.edition }}_${{ github.sha }}
-          path: ./main/build/**/**/*
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: build-wasm_${{ github.run_number }}_${{ matrix.edition }}_${{ github.sha }}
+      #     path: ./main/build/**/**/*

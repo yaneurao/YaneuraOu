@@ -29,10 +29,12 @@ jobs:
 
     steps:
       # https://developer.android.com/ndk/downloads?hl=ja#stable-downloads
-      - name: Setup Android NDK r27
+      - name: Setup Android NDK r23b
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r27
+          ndk-version: r23b
+        # ⇨ Android r27では32bitサポートが終了したんじゃないかな、もしかして。
+        #   32bit向けにビルドのテスト自体はやりたいのでAndroid r23bに戻そっと…😢
 
       - name: Checkout own repository
         uses: actions/checkout@v2
@@ -42,7 +44,7 @@ jobs:
       - name: ndk-build
         run: ./main/script/android_build.sh -e ${{ matrix.edition }}
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build-android_${{ github.run_number }}_${{ matrix.edition }}_${{ github.sha }}
-          path: ./main/build/**/*
+      # - uses: actions/upload-artifact@v4
+      #   with:
+      #     name: build-android_${{ github.run_number }}_${{ matrix.edition }}_${{ github.sha }}
+      #     path: ./main/build/**/*

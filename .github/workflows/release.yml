@@ -8,6 +8,11 @@ on:
       - "v*"
       - "V*"
 
+      # ⇨ 先頭が"v"または"V"で始まるtagをつけてpushしたら、以下のjobが走って成果物が
+      # Releasesのところに生える。
+      # この方法で実行ファイルを公開する予定がないので、この.ymlは不要なのだが、
+      # 参考のため残してある。[2024/10/09]
+
 jobs:
   build-msys2-general:
     # windows-latest = windows-2019 => windows-2022
@@ -234,10 +239,10 @@ jobs:
           - edition: USER_ENGINE
 
     steps:
-      - name: Setup Android NDK r23b
+      - name: Setup Android NDK r27
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r23b
+          ndk-version: r27
 
       - name: Checkout own repository
         uses: actions/checkout@v2
