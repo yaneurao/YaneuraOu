@@ -3277,9 +3277,6 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// bestMove			: この局面でのベストな指し手
 	Move ttMove, move, bestMove;
 
-	// このnodeに関して置換表に登録するときのdepth(残り探索深さ)
-	Depth ttDepth;
-
 	// bestValue		: best moveに対する探索スコア(alphaとは異なる)
 	// value			: 現在のmoveに対する探索スコア
 	// ttValue			: 置換表に登録されていたスコア
@@ -3398,7 +3395,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// nonPVでは置換表の指し手で枝刈りする
 	// PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)
 	if (  !PvNode
-		&& tte->depth() >= ttDepth
+		&& tte->depth() >= DEPTH_QS
 		&& ttValue != VALUE_NONE  // Only in case of TT access race or if !ttHit
 								  // ↑置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
         && (tte->bound() & (ttValue >= beta ? BOUND_LOWER : BOUND_UPPER)))
@@ -3817,7 +3814,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	ASSERT_LV3(pos.legal_promote(bestMove));
 	tte->save(posKey, value_to_tt(bestValue, ss->ply), pvHit,
 				bestValue >= beta ? BOUND_LOWER : BOUND_UPPER,
-				ttDepth, bestMove, ss->staticEval);
+		DEPTH_QS, bestMove, ss->staticEval);
 
 	// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
 	// しかし置換表が衝突した場合はそうではない。3手詰めの局面で、置換表衝突により1手詰めのスコアが
@@ -4563,7 +4560,7 @@ ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodes
 	Value delta			 = -VALUE_INFINITE;
 	Value bestValue		 = -VALUE_INFINITE;
 
-	lowPlyHistory.fill(0);
+	th->lowPlyHistory.fill(0);
 
 	while (++rootDepth <= depth
 		// node制限を超えた場合もこのループを抜ける
