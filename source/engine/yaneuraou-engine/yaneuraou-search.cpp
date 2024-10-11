@@ -1576,8 +1576,6 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	(ss + 2)->killers[0]	= (ss + 2)->killers[1] = MOVE_NONE;
 	(ss + 2)->cutoffCnt     = 0;
 
-	ss->multipleExtensions	= (ss - 1)->multipleExtensions;
-
 	// 前の指し手で移動させた先の升目
 	// → null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
 	// → Stockfish 16でMOVE_NULLの時は、prevSq == SQ_NONEとして扱うように変更になった。[2023/10/15]
@@ -2620,20 +2618,16 @@ moves_loop:
 				ss->excludedMove = MOVE_NONE;
 
 				// 置換表の指し手以外がすべてfail lowしているならsingular延長確定。
+				// (延長され続けるとまずいので何らかの考慮は必要)
 				if (value < singularBeta)
 				{
-					extension = 1;
+					int doubleMargin = 262 * PvNode - 204 * !ttCapture;
+					int tripleMargin = 97 + 266 * PvNode - 255 * !ttCapture + 94 * ss->ttPv;
 
-					// We make sure to limit the extensions in some way to avoid a search explosion
-					// 2重延長を制限することで探索の組合せ爆発を回避する。
+					extension = 1 + (value < singularBeta - doubleMargin)
+						+ (value < singularBeta - tripleMargin);
 
-					// TODO : ここのパラメーター、調整すべきかも？
-					if (!PvNode && value < singularBeta - 2 && ss->multipleExtensions <= 15)
-                    {
-						// この200調整したほうがよさげ。
-                        extension = 2 + (value < singularBeta - 200 && !ttCapture);
-                        depth += depth < 15;
-                    }
+					depth += ((!PvNode) && (depth < 14));
 				}
 
 				// Multi-cut pruning
@@ -2734,9 +2728,6 @@ moves_loop:
 		// 再帰的にsearchを呼び出すとき、search関数に渡す残り探索深さ。
 		// これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
 		newDepth += extension;
-
-		// multipleExtensionsは、前のノードで延長したかと本ノードで延長したかを加算した値
-		ss->multipleExtensions = (ss - 1)->multipleExtensions + (extension >= 2);
 
 		// -----------------------
 		//      1手進める

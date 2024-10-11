@@ -660,7 +660,7 @@ namespace Eval::dlshogi
 			}
 		}
 		if (is_err)
-			return ResultCode::FileOpenError;
+			return ResultCode::FileNotFound;
 
 		return ResultCode::Ok;
 	}
