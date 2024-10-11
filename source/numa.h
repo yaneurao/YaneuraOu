@@ -315,6 +315,7 @@ inline WindowsAffinity get_process_affinity() {
 	// またがっているはずです。しかし、呼ばれていた場合は、1つのグループにのみ限定されているはずです。
 
     std::vector<USHORT> groupAffinity;
+
 	// We need to capture this later and capturing
     // from structured bindings requires c++20.
 

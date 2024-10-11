@@ -2,7 +2,10 @@
 #define MISC_H_INCLUDED
 
 #include <chrono>
+#include <optional>
+#include <string_view>
 #include <vector>
+
 #include <functional>
 #include <fstream>
 #include <mutex>
@@ -11,7 +14,6 @@
 #include <queue>
 #include <unordered_set>
 #include <condition_variable>
-#include <string_view>
 
 #include "types.h"
 
@@ -721,6 +723,13 @@ namespace SystemIO
 	};
 };
 
+// Reads the file as bytes.
+// Returns std::nullopt if the file does not exist.
+
+// ファイルをバイトとして読み込みます。
+// ファイルが存在しない場合は std::nullopt を返します。
+
+std::optional<std::string> read_file_to_string(const std::string& path);
 
 // --------------------
 //       Path

@@ -1515,6 +1515,19 @@ namespace SystemIO
 	}
 }
 
+// Reads the file as bytes.
+// Returns std::nullopt if the file does not exist.
+
+// ファイルをバイトとして読み込みます。
+// ファイルが存在しない場合は std::nullopt を返します。
+
+std::optional<std::string> read_file_to_string(const std::string& path) {
+	std::ifstream f(path, std::ios_base::binary);
+	if (!f)
+		return std::nullopt;
+	return std::string(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+}
+
 // --------------------
 //       Path
 // --------------------
