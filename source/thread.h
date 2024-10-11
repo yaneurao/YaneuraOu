@@ -188,6 +188,7 @@ public:
 	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
 	CounterMoveHistory counterMoves;
 	ButterflyHistory mainHistory;
+	LowPlyHistory lowPlyHistory;
 	CapturePieceToHistory captureHistory;
 
 	// コア数が多いか、長い持ち時間においては、ContinuationHistoryもスレッドごとに確保したほうが良いらしい。

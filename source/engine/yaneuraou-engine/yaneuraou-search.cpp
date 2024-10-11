@@ -332,7 +332,7 @@ Value value_to_tt(Value v, int ply);
 Value value_from_tt(Value v, int ply /*,int r50c */);
 void update_pv(Move* pv, Move move, const Move* childPv);
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
-void update_quiet_stats(const Position& pos, Stack* ss, Move move, int bonus);
+void update_quiet_histories(const Position& pos, Stack* ss, Move move, int bonus);
 void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
 	Move* quietsSearched, int quietCount, Move* capturesSearched, int captureCount, Depth depth);
 
@@ -950,7 +950,10 @@ void Thread::search()
 	// ※　あまり同じ深さでつっかえている時は、aspiration windowの幅を大きくしてやるなどして回避する必要がある。
 	int searchAgainCounter = 0;
 
+	lowPlyHistory.fill(0);
+
 	// Iterative deepening loop until requested to stop or the target depth is reached
+	// 要求があるか、または目標深度に達するまで反復深化ループを実行します
 
 	// 1つ目のrootDepthはこのthreadの反復深化での探索中の深さ。
 	// 2つ目のrootDepth (Threads.main()->rootDepth)は深さで探索量を制限するためのもの。
@@ -1571,9 +1574,6 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
 	(ss + 1)->excludedMove	= bestMove = MOVE_NONE;
-
-	// 2手先のkillerの初期化。
-	(ss + 2)->killers[0]	= (ss + 2)->killers[1] = MOVE_NONE;
 	(ss + 2)->cutoffCnt     = 0;
 
 	// 前の指し手で移動させた先の升目
@@ -1740,7 +1740,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 				// fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
 
 				if (!ttCapture)
-					update_quiet_stats(pos, ss, ttMove, stat_bonus(depth));
+					update_quiet_histories(pos, ss, ttMove, stat_bonus(depth));
 
 	            // Extra penalty for early quiet moves of the previous ply (~0 Elo on STC, ~2 Elo on LTC)
 				// 1手前の早い時点のquietの指し手に対する追加のペナルティ
@@ -2337,19 +2337,13 @@ moves_loop:
 										 (ss - 3)->continuationHistory	, (ss - 4)->continuationHistory ,
 											nullptr						, (ss - 6)->continuationHistory };
 
-	// 1手前の指し手(1手前のtoとPiece)に対応するよさげな応手を統計情報から取得。
-	// 1手前がnull moveの時prevSq == SQ_NONEになるのでこのケースは除外する。
-	Move countermove = prevSq != SQ_NONE ? thisThread->counterMoves(pos.piece_on(prevSq), prevSq) : MOVE_NONE;
-
-	MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
-										&captureHistory,
-										contHist,
+	MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory, &thisThread->lowPlyHistory,
+				  &thisThread->captureHistory, contHist,
 #if defined(ENABLE_PAWN_HISTORY)
 										&thisThread->pawnHistory,
 #endif
-										countermove,
-										ss->killers);
-
+										ss->ply
+	);
 
 	value = bestValue;
 
@@ -2782,8 +2776,7 @@ moves_loop:
 		// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
 
 		if (cutNode)
-			r += 2 - (tte->depth() >= depth && ss->ttPv)
-			  + (!ss->ttPv && move != ttMove && move != ss->killers[0]);
+			r += 2 - (tte->depth() >= depth && ss->ttPv);
 
 		// Increase reduction if ttMove is a capture (~3 Elo)
 		// 【計測資料 3.】置換表の指し手がcaptureのときにreduction量を増やす。
@@ -3374,8 +3367,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// 置換表に登録するdepthはあまりマイナスの値だとおかしいので、
 	// 王手がかかっているときは、DEPTH_QS_CHECKS(=0)、
 	// 王手がかかっていないときはDEPTH_QS_NORMAL(-1)とみなす。
-	ttDepth = ss->inCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
-												      : DEPTH_QS_NORMAL;
+	//ttDepth = ss->inCheck || depth >= DEPTH_QS_CHECKS ? DEPTH_QS_CHECKS
+	//											      : DEPTH_QS_NORMAL;
 
 	// -----------------------
 	//     置換表のprobe
@@ -3563,21 +3556,23 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	const PieceToHistory* contHist[] = { (ss - 1)->continuationHistory, (ss - 2)->continuationHistory };
 
-	// Initialize a MovePicker object for the current position, and prepare
-	// to search the moves. Because the depth is <= 0 here, only captures,
-	// queen promotions, and other checks (only if depth >= DEPTH_QS_CHECKS)
-	// will be generated.
-
 	// 取り合いの指し手だけ生成する
 	// searchから呼び出された場合、直前の指し手がMOVE_NULLであることがありうる。この場合、SQ_NONEを設定する。
 	Square prevSq = is_ok((ss - 1)->currentMove) ? to_sq((ss - 1)->currentMove) : SQ_NONE;
-	MovePicker mp(pos, ttMove, depth, &thisThread->mainHistory,
-										&thisThread->captureHistory,
-										contHist
+
+	// Initialize a MovePicker object for the current position, and prepare to search
+	// the moves. We presently use two stages of move generator in quiescence search:
+	// captures, or evasions only when in check.
+
+	// 現在の局面に対してMovePickerオブジェクトを初期化し、手を探索する準備を行います。
+	// 現在、静止探索では2段階の手生成器を使用しています：キャプチャ、またはチェックされた場合の回避のみです。
+
+	MovePicker mp(pos, ttMove, DEPTH_QS, &thisThread->mainHistory, &thisThread->lowPlyHistory,
+										&thisThread->captureHistory, contHist
 #if defined(ENABLE_PAWN_HISTORY)
 										,&thisThread->pawnHistory
 #endif
-										,prevSq);
+										,ss->ply);
 
 	// 王手回避の指し手のうちquiet(駒を捕獲しない)な指し手の数
 	int quietCheckEvasions = 0;
@@ -3955,7 +3950,7 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 															                  : stat_bonus(depth);	// smaller bonus
 
 		// Increase stats for the best move in case it was a quiet move
-		update_quiet_stats(pos, ss, bestMove, bestMoveBonus);
+		update_quiet_histories(pos, ss, bestMove, bestMoveBonus);
 
 #if defined(ENABLE_PAWN_HISTORY)
 		thisThread->pawnHistory(pawn_structure(pos), moved_piece, to_sq(bestMove))
@@ -3982,16 +3977,19 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 		captureHistory(moved_piece, to_sq(bestMove), captured) << quietMoveBonus;
 	}
 
-	// Extra penalty for a quiet early move that was not a TT move or
-	// main killer move in previous ply when it gets refuted.
+	// Extra penalty for a quiet early move that was not a TT move in
+	// previous ply when it gets refuted.
 
-	// (ss-1)->ttHit : 一つ前のnodeで置換表にhitしたか
+	// quietな初期の手が、前の手でトランスポジションテーブル（TT）の手ではなく、
+	// かつ反証された場合に追加のペナルティを与えます。
+
+	// ※ (ss-1)->ttHit : 一つ前のnodeで置換表にhitしたか
 
 	// MOVE_NULLの場合、Stockfishでは65(移動後の升がSQ_NONEであることを保証している。やねうら王もそう変更した。)
-	if (   prevSq != SQ_NONE
-		&& (    (ss - 1)->moveCount   == 1 + (ss - 1)->ttHit
-			|| ((ss - 1)->currentMove ==     (ss - 1)->killers[0]))
-		&& !pos.captured_piece())
+	if (     prevSq != SQ_NONE
+		&& ( (ss - 1)->moveCount == 1 + (ss - 1)->ttHit )
+		&&   !pos.captured_piece()
+		)
 		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -quietMoveMalus);
 
 	// Decrease stats for all non-best capture moves
@@ -4033,37 +4031,29 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 	}
 }
 
-// update_quiet_stats() updates move sorting heuristics
+// Updates move sorting heuristics
+// 手のソートのヒューリスティックを更新します
 
-// update_quiet_stats()は、新しいbest moveが見つかったときに指し手の並べ替えheuristicsを更新する。
-// 具体的には駒を取らない指し手のstat tables、killer等を更新する。
+// ⇨ 新しいbest moveが見つかったときに指し手の並べ替えheuristicsを更新する。
+// 具体的には駒を取らない指し手のstat tables等を更新する。
 
 // move      = これが良かった指し手
-void update_quiet_stats(const Position& pos, Stack* ss, Move move, int bonus)
-{
-	// Update killers
-	// killerの指し手のupdate
 
-	// killer 2本しかないので[0]と違うならいまの[0]を[1]に降格させて[0]と差し替え
-	if (ss->killers[0] != move)
-	{
-		ss->killers[1] = ss->killers[0];
-		ss->killers[0] = move;
-	}
+void update_quiet_histories(
+	const Position& pos, Stack* ss, /*Search::Worker& workerThread, */ Move move, int bonus) {
 
-	//   historyのupdate
-	Color us           = pos.side_to_move();
-	Thread* thisThread = pos.this_thread();
-	thisThread->mainHistory(us, from_to(move)) << bonus;
+	Color us = pos.side_to_move();
+	Thread* workerThread = pos.this_thread();
+	workerThread->mainHistory(us, from_to(move)) << bonus;
+	if (ss->ply < 4)
+		workerThread->lowPlyHistory(ss->ply, from_to(move)) << bonus;
+
 	update_continuation_histories(ss, pos.moved_piece_after(move), to_sq(move), bonus);
 
-	// Update countermove history
-	if (is_ok((ss - 1)->currentMove))
-	{
-		// 直前に移動させた升(その升に移動させた駒がある。今回の指し手はcaptureではないはずなので)
-		Square prevSq = to_sq((ss - 1)->currentMove);
-		thisThread->counterMoves(pos.piece_on(prevSq), prevSq) = move;
-	}
+#if defined(ENABLE_PAWN_HISTORY)
+	int pIndex = pawn_structure_index(pos);
+	workerThread.pawnHistory[pIndex][pos.moved_piece(move)][move.to_sq()] << bonus / 2;
+#endif
 }
 
 #if 0
@@ -4572,6 +4562,8 @@ ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodes
 	Value beta			 =  VALUE_INFINITE;
 	Value delta			 = -VALUE_INFINITE;
 	Value bestValue		 = -VALUE_INFINITE;
+
+	lowPlyHistory.fill(0);
 
 	while (++rootDepth <= depth
 		// node制限を超えた場合もこのループを抜ける

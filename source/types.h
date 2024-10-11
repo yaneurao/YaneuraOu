@@ -386,14 +386,7 @@ enum : int {
 	// In qsearch, however, TT entries only store the current QS movegen stage (which should thus compare
 	// lower than any regular search depth).
 	// 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
-	DEPTH_QS_CHECKS     = 0,
-
-	// 静止探索で王手がかかっていないとき。
-	DEPTH_QS_NORMAL     = -1,
-
-	// 静止探索でこれより深い(残り探索深さが少ない)ところではRECAPTURESしか生成しない。
-	DEPTH_QS_RECAPTURES = -5,
-
+	DEPTH_QS		    = 0,
 
 	// For TT entries where no searching at all was done (whether regular or qsearch) we use
 	// _UNSEARCHED, which should thus compare lower than any QS or regular depth. _ENTRY_OFFSET is used

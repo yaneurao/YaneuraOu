@@ -162,6 +162,35 @@ private:
 };
 
 
+// LowPlyHistory is adressed by play and move's from and to squares, used
+// to improve move ordering near the root
+
+// LowPlyHistoryはプレイおよび手の「from」と「to」のマスで管理され、
+// ルート付近での手順の順序を改善するために使用されます。
+
+struct LowPlyHistory
+{
+	using T = int16_t;             // StatsEntryの型
+	static constexpr int D = 7183; // StatsEntryの範囲
+
+	// 必ず以下のアクセッサを通してアクセスすること。
+	// ※ 引数の順番は、Stockfishの配列の添字の順番と合わせてある。
+
+	const StatsEntry<T, D>& operator() (int ply, int from_to) const {
+		return stats[from_to][ply];
+	}
+
+	StatsEntry<T, D>& operator() (int ply, int from_to) {
+		return stats[from_to][ply];
+	}
+	void fill(T t) { stats.fill(t); }
+
+	//using LowPlyHistory = Stats<int16_t, 7183, 4, int(SQUARE_NB)* int(SQUARE_NB)>;
+	// ⇨ Stockfishのコードだと、末尾が2の冪にならないので並び順を変更する。
+	Stats<int16_t, D, int(SQUARE_NB)* int(SQUARE_NB), 4> stats;
+};
+
+
 // CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
 // move, see www.chessprogramming.org/Countermove_Heuristic
 // CounterMoveHistoryは、直前の指し手の[piece][to]によってindexされるcounter moves(応手)を格納する。
@@ -356,40 +385,36 @@ class MovePicker
 {
 	// 生成順に次の1手を取得するのか、オーダリング上、ベストな指し手を取得するのかの定数
 	// (このクラスの内部で用いる。)
-	enum PickType { Next, Best };
+	enum PickType {
+		Next,
+		Best
+	};
 
 public:
+
 	// このクラスは指し手生成バッファが大きいので、コピーして使うような使い方は禁止。
 	MovePicker(const MovePicker&)            = delete;
 	MovePicker& operator=(const MovePicker&) = delete;
 
-	// 通常探索(main search)から呼び出されるとき用のコンストラクタ。
-	// cm = counter move , killers_p = killerの指し手へのポインタ
-	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* mh,
+	// 通常探索(main search)と静止探索から呼び出されるとき用のコンストラクタ。
+	MovePicker(const Position& pos_,
+		Move ttMove_,
+		Depth depth_,
+		const ButterflyHistory* mh,
+		const LowPlyHistory*,
 		const CapturePieceToHistory* cph,
 		const PieceToHistory** ch,
 #if defined(ENABLE_PAWN_HISTORY)
-		const PawnHistory*,
+		const PawnHistory* ph,
 #endif
-		Move cm,
-		const Move* killers_p);
-
-	// 静止探索(qsearch)から呼び出される時用。
-	// recapSq = 直前に動かした駒の行き先の升(取り返される升)
-	MovePicker(const Position& pos_, Move ttMove_, Depth depth_, const ButterflyHistory* mh ,
-		const CapturePieceToHistory* cph , 
-		const PieceToHistory** ch,
-#if defined(ENABLE_PAWN_HISTORY)
-		const PawnHistory*,
-#endif
-		Square recapSq);
+		int ply_
+	);
 
 	// 通常探索時にProbCutの処理から呼び出されるのコンストラクタ。
 	// SEEの値がth以上となるcaptureの指してだけを生成する。
 	// threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
 	// capture_or_pawn_promotion()に該当する指し手しか返さない。
-	MovePicker(const Position& pos_, Move ttMove_, Value threshold_,
-		const CapturePieceToHistory* cph);
+	MovePicker(const Position&, Move ttMove_, int threshold_, const CapturePieceToHistory*);
 
 	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
 	// 指し手が尽きればMOVE_NONEが返る。
@@ -414,6 +439,7 @@ private:
 
 	// コンストラクタで渡されたhistroyのポインタを保存しておく変数。
 	const ButterflyHistory*      mainHistory;
+	const LowPlyHistory*         lowPlyHistory;
 	const CapturePieceToHistory* captureHistory;
 	const PieceToHistory**       continuationHistory;
 #if defined(ENABLE_PAWN_HISTORY)
@@ -423,26 +449,24 @@ private:
 	// 置換表の指し手(コンストラクタで渡される)
 	Move ttMove;
 
-	// refutations[0] : killer[0]
-	// refutations[1] : killer[1]
-	// refutations[2] : counter move(コンストラクタで渡された、前の局面の指し手に対する応手)
-	// cur           : 次に返す指し手
-	// endMoves      : 生成された指し手の末尾
-	// endBadCapture : BadCaptureの終端(captureの指し手を試すフェイズでのendMovesから後方に向かって悪い捕獲の指し手を移動させていく時に用いる)
-	ExtMove refutations[3] , *cur, *endMoves, *endBadCaptures;
+	// cur            : 次に返す指し手
+	// endMoves       : 生成された指し手の末尾
+	// endBadCapture  : BadCaptureの終端(captureの指し手を試すフェイズでのendMovesから後方に向かって悪い捕獲の指し手を移動させていく時に用いる)
+	// beginBadQuiets : あとで
+	// endBadQuiets   : あとで
+	ExtMove *cur, *endMoves, *endBadCaptures, *beginBadQuiets, *endBadQuiets;
 
 	// 指し手生成の段階
 	int stage;
-
-
-	// RECAPUTREの指し手で移動させる先の升
-	Square recaptureSquare;
 
 	// ProbCut用の指し手生成に用いる、直前の指し手で捕獲された駒の価値
 	Value threshold;
 
 	// コンストラクタで渡された探索深さ
 	Depth depth;
+
+	// コンストラクタで渡されたrootからの手数
+	int   ply;
 
 	// 指し手生成バッファ
 	// 最大合法手の数 = 593 , これを要素数が32の倍数になるようにpaddingすると608。
