@@ -7,7 +7,24 @@
 #include "config.h"
 #include "misc.h"
 #include "movepick.h"
+#include "numa.h"
 #include "position.h"
+
+// -----------------------
+//      探索用の定数
+// -----------------------
+
+// Different node types, used as a template parameter
+// テンプレートパラメータとして使用される異なるノードタイプ
+enum NodeType {
+	NonPV,
+	PV,
+	Root
+};
+
+class TranspositionTable;
+class ThreadPool;
+class OptionsMap;
 
 // 探索関係
 namespace Search {
@@ -17,6 +34,13 @@ namespace Search {
 // -----------------------
 //  探索のときに使うStack
 // -----------------------
+
+// Stack struct keeps track of the information we need to remember from nodes
+// shallower and deeper in the tree during the search. Each search thread has
+// its own array of Stack objects, indexed by the current ply.
+
+// Stack構造体は、検索中にツリーの浅いノードや深いノードから記憶する必要がある情報を管理します。
+// 各検索スレッドは、現在の深さ（ply）に基づいてインデックスされた、独自のStackオブジェクトの配列を持っています。
 
 struct Stack {
 	Move* pv;							// PVへのポインター。RootMovesのvector<Move> pvを指している。

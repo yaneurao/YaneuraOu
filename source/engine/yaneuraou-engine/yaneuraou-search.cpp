@@ -193,10 +193,6 @@ namespace {
 //      探索用の定数
 // -----------------------
 
-// Different node types, used as a template parameter
-// 探索しているnodeの種類
-enum NodeType { NonPV, PV , Root};
-
 // Futility margin
 // depth(残り探索深さ)に応じたfutility margin。
 // ※ RazoringはStockfish12で効果がないとされてしまい除去された。

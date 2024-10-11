@@ -657,10 +657,6 @@ namespace WinProcGroup {
 
 	void bindThisThread(size_t idx) {
 
-#if defined(_WIN32)
-		idx += Options["ThreadIdOffset"];
-#endif
-
 		// Use only local variables to be thread-safe
 
 		// 使うべきプロセッサグループ番号が返ってくる。
@@ -2052,25 +2048,27 @@ namespace StringExtension
 		return s;
 	}
 
-	// sを文字列sepで分割した文字列集合を返す。
-	std::vector<std::string> Split(const std::string& s, const std::string& sep)
-	{
-		std::vector<std::string> v;
-		string ss = s;
-		size_t p = 0; // 前回の分割場所
-		while (true)
+	// sを文字列spで分割した文字列集合を返す。
+	std::vector<std::string_view> Split(std::string_view s, std::string_view delimiter) {
+		std::vector<std::string_view> res;
+
+		if (s.empty())
+			return res;
+
+		size_t begin = 0;
+		for (;;)
 		{
-			size_t pos = ss.find(sep , p);
-			if (pos == string::npos)
-			{
-				// sepが見つからなかったのでこれでおしまい。
-				v.emplace_back(ss.substr(p));
+			const size_t end = s.find(delimiter, begin);
+			if (end == std::string::npos)
 				break;
-			}
-			v.emplace_back(ss.substr(p, pos - p));
-			p = pos + sep.length();
+
+			res.emplace_back(s.substr(begin, end - begin));
+			begin = end + delimiter.size();
 		}
-		return v;
+
+		res.emplace_back(s.substr(begin));
+
+		return res;
 	}
 
 	// Pythonの delemiter.join(v) みたいなの。
@@ -2088,6 +2086,21 @@ namespace StringExtension
 	}
 
 };
+
+// sを文字列spで分割した文字列集合を返す。
+// ※ Stockfishとの互換性のために用意。
+std::vector<std::string_view> split(std::string_view s, std::string_view delimiter)
+{
+	return StringExtension::Split(s, delimiter);
+}
+
+// "123"みたいな文字列を123のように数値型(size_t)に変換する。
+size_t str_to_size_t(const std::string& s) {
+	unsigned long long value = std::stoull(s);
+	if (value > std::numeric_limits<size_t>::max())
+		std::exit(EXIT_FAILURE);
+	return static_cast<size_t>(value);
+}
 
 // ----------------------------
 //     working directory

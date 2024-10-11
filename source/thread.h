@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "movepick.h"
+#include "numa.h"
 #include "position.h"
 #include "search.h"
 #include "thread_win32_osx.h"
@@ -20,12 +21,58 @@
 #endif
 
 // --------------------
+// スレッドの属するNumaを管理する
+// --------------------
+
+// Sometimes we don't want to actually bind the threads, but the recipient still
+// needs to think it runs on *some* NUMA node, such that it can access structures
+// that rely on NUMA node knowledge. This class encapsulates this optional process
+// such that the recipient does not need to know whether the binding happened or not.
+
+// 時にはスレッドを実際にバインドしたくない場合もありますが、
+// 受け手側は、それが 何らかの NUMAノード上で実行されていると認識する必要があります。
+// これは、NUMAノードに関する情報を必要とする構造体にアクセスするためです。
+// このクラスは、このバインドが行われたかどうかを受け手が知る必要がないように、
+// このオプションのプロセスをカプセル化します。
+
+class OptionalThreadToNumaNodeBinder {
+public:
+	OptionalThreadToNumaNodeBinder(NumaIndex n) :
+		numaConfig(nullptr),
+		numaId(n) {}
+
+	OptionalThreadToNumaNodeBinder(const NumaConfig& cfg, NumaIndex n) :
+		numaConfig(&cfg),
+		numaId(n) {}
+
+	NumaReplicatedAccessToken operator()() const {
+		if (numaConfig != nullptr)
+			return numaConfig->bind_current_thread_to_numa_node(numaId);
+		else
+			return NumaReplicatedAccessToken(numaId);
+	}
+
+private:
+	const NumaConfig* numaConfig;
+	NumaIndex         numaId;
+};
+
+
+// --------------------
 // 探索時に用いるスレッド
 // --------------------
 
-// 探索時に用いる、それぞれのスレッド
-// これを思考スレッド数だけ確保する。
-// ただしメインスレッドはこのclassを継承してMainThreadにして使う。
+// Abstraction of a thread. It contains a pointer to the worker and a native thread.
+// After construction, the native thread is started with idle_loop()
+// waiting for a signal to start searching.
+// When the signal is received, the thread starts searching and when
+// the search is finished, it goes back to idle_loop() waiting for a new signal.
+
+// (探索用の)スレッドの抽象化です。これはワーカーへのポインタとネイティブスレッドを含みます。
+// 構築後、ネイティブスレッドは idle_loop() で開始され、開始信号を待ちます。
+// 信号を受け取るとスレッドは検索を開始し、検索が終了すると再び idle_loop() に戻り、新しい信号を待ちます。
+// ⇨  探索時に用いる、それぞれのスレッド。これを探索用スレッド数だけ確保する。
+//    ただしメインスレッドはこのclassを継承してMainThreadにして使う。
 class Thread
 {
 	// exitフラグやsearchingフラグの状態を変更するときのmutex
@@ -252,8 +299,10 @@ struct MainThread: public Thread
 // Threads(スレッドオブジェクト)はglobalに配置するし、スレッドの初期化の際には
 // スレッドが保持する思考エンジンが使う変数等がすべてが初期化されていて欲しいからである。
 // スレッドの生成はset(options["Threads"])で行い、スレッドの終了はset(0)で行なう。
-struct ThreadPool
+class ThreadPool
 {
+public:
+
 	// mainスレッドに思考を開始させる。
 	void start_thinking(const Position& pos, StateListPtr& states , const Search::LimitsType& limits , bool ponderMode = false);
 

@@ -603,7 +603,7 @@ namespace MakeBook2023
 								auto& token = splited2[0];
 								if (token == "NOE" && splited2.size() == 2) // numbers of entires
 								{
-									size_t noe = StringExtension::to_int(splited2[1],0);
+									size_t noe = StringExtension::to_int(string(splited2[1]),0);
 									cout << "Number of Sfen Entries = " << noe << endl;
 
 									// エントリー数が事前にわかったので、その分だけそれぞれの構造体配列を確保する。

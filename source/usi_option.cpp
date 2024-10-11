@@ -65,7 +65,7 @@ namespace USI {
 
 		// ※　やねうら王独自改良
 		// スレッド数の変更やUSI_Hashのメモリ確保をそのハンドラでやってしまうと、
-		// そのあとThreadIdOffsetや、LargePageEnableを送られても困ることになる。
+		// そのあとLargePageEnableを送られても困ることになる。
 		// ゆえにこれらは、"isready"に対する応答で行うことにする。
 		// そもそもで言うとsetoptionに対してそんなに時間のかかることをするとGUI側がtimeoutになる懸念もある。
 		// Stockfishもこうすべきだと思う。
@@ -215,18 +215,6 @@ namespace USI {
 		// そこでこの隠しオプションでisready時の評価関数の読み込みを抑制して、
 		// test evalconvertコマンドを叩く。
 		o["SkipLoadingEval"] << Option(false);
-#endif
-
-#if defined(_WIN32)
-		// 3990XのようなWindows上で複数のプロセッサグループを持つCPUで、思考エンジンを同時起動したときに
-		// 同じプロセッサグループに割り当てられてしまうのを避けるために、スレッドオフセットを
-		// 指定できるようにしておく。
-		// 例) 128スレッドあって、4つ思考エンジンを起動してそれぞれにThreads = 32を指定する場合、
-		// それぞれの思考エンジンにはThreadIdOffset = 0,32,64,96をそれぞれ指定する。
-		// (プロセッサグループは64論理コアごとに1つ作られる。上のケースでは、ThreadIdOffset = 0,0,64,64でも同じ意味。)
-		//	※　1つのPCで複数の思考エンジンを同時に起動して対局させる場合はこれを適切に設定すべき。
-
-		o["ThreadIdOffset"] << Option(0, 0, std::thread::hardware_concurrency() - 1);
 #endif
 
 #if defined(_WIN64)
@@ -468,7 +456,7 @@ namespace USI {
 		// ";"で区切って複数指定できるものとする。
 		auto v = StringExtension::Split(options, ";");
 		for (auto line : v)
-			build_option(line);
+			build_option(string(line));
 	}
 
 	// カレントフォルダに"engine_options.txt"(これは引数で指定されている)が

@@ -364,6 +364,9 @@
     <ClInclude Include="memory.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="numa.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">

@@ -670,6 +670,7 @@
     <ClInclude Include="memory.h" />
     <ClInclude Include="misc.h" />
     <ClInclude Include="movepick.h" />
+    <ClInclude Include="numa.h" />
     <ClInclude Include="search.h" />
     <ClInclude Include="testcmd\unit_test.h" />
     <ClInclude Include="thread_win32_osx.h" />

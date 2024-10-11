@@ -11,6 +11,7 @@
 #include <queue>
 #include <unordered_set>
 #include <condition_variable>
+#include <string_view>
 
 #include "types.h"
 
@@ -951,6 +952,7 @@ namespace Math {
 //    文字列 拡張
 // --------------------
 
+// 文字列拡張(やねうら王独自)
 namespace StringExtension
 {
 	// 大文字・小文字を無視して文字列の比較を行う。
@@ -1004,12 +1006,20 @@ namespace StringExtension
 	extern std::string ToUpper(std::string const& value);
 
 	// sを文字列spで分割した文字列集合を返す。
-	extern std::vector<std::string> Split(const std::string& s , const std::string& sep);
+	extern std::vector<std::string_view> Split(std::string_view s, std::string_view delimiter);
 
 	// Pythonの delemiter.join(v) みたいなの。
 	// 例: v = [1,2,3] に対して ' '.join(v) == "1 2 3"
 	extern std::string Join(const std::vector<std::string>& v , const std::string& delimiter);
 };
+
+// sを文字列spで分割した文字列集合を返す。
+// ※ Stockfishとの互換性のために用意。
+extern std::vector<std::string_view> split(std::string_view s, std::string_view delimiter);
+
+// "123"みたいな文字列を123のように数値型(size_t)に変換する。
+extern size_t str_to_size_t(const std::string& s);
+
 
 // --------------------
 //    Concurrent

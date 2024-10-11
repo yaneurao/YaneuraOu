@@ -63,7 +63,7 @@ struct TTEntry {
 #endif
 
 private:
-	friend struct TranspositionTable;
+	friend class TranspositionTable;
 
 	// save()の内部実装用
 	void save_(TTEntry::KEY_TYPE key_for_ttentry, Value v, bool pv , Bound b, Depth d, Move m, Value ev);
@@ -98,7 +98,7 @@ private:
 // TT_ENTRYをClusterSize個並べて、クラスターをつくる。
 // このクラスターのTT_ENTRYは同じhash keyに対する保存場所である。(保存場所が被ったときに後続のTT_ENTRYを使う)
 // このクラスターが、clusterCount個だけ確保されている。
-struct TranspositionTable {
+class TranspositionTable {
 
 	// 1クラスターにおけるTTEntryの数
 	// TT_CLUSTER_SIZE == 2のとき、TTEntry 10bytes×3つ + 2(padding) =  32bytes
