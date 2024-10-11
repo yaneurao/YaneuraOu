@@ -2107,6 +2107,16 @@ std::vector<std::string_view> split(std::string_view s, std::string_view delimit
 	return StringExtension::Split(s, delimiter);
 }
 
+// スペース相当文字列を削除する。⇨ NUMAの処理に必要
+void remove_whitespace(std::string& s) {
+	s.erase(std::remove_if(s.begin(), s.end(), [](char c) { return std::isspace(c); }), s.end());
+}
+
+// スペース相当文字列かどうかを判定する。⇨ NUMAの処理に必要
+bool is_whitespace(std::string_view s) {
+	return std::all_of(s.begin(), s.end(), [](char c) { return std::isspace(c); });
+}
+
 // "123"みたいな文字列を123のように数値型(size_t)に変換する。
 size_t str_to_size_t(const std::string& s) {
 	unsigned long long value = std::stoull(s);

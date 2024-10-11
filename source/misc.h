@@ -1026,9 +1026,14 @@ namespace StringExtension
 // ※ Stockfishとの互換性のために用意。
 extern std::vector<std::string_view> split(std::string_view s, std::string_view delimiter);
 
+// スペース相当文字列を削除する。⇨ NUMAの処理に必要
+extern void remove_whitespace(std::string& s);
+
+// スペース相当文字列かどうかを判定する。⇨ NUMAの処理に必要
+extern bool is_whitespace(std::string_view s);
+
 // "123"みたいな文字列を123のように数値型(size_t)に変換する。
 extern size_t str_to_size_t(const std::string& s);
-
 
 // --------------------
 //    Concurrent
