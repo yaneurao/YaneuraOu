@@ -6,7 +6,7 @@ namespace Mate
 {
 	// 1手詰めテーブルの初期化関数
 	// ※　これは、mate1ply_without_effect.cppか、mate1ply_with_effect.cppのいずれかで定義されている。
-	extern void init_mate_1ply();
+	void init_mate_1ply();
 
 	// ---------------------
 	//     Mate::init()

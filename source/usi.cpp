@@ -86,7 +86,7 @@ void mate_cmd(Position& pos, istream& is);
 
 // 定跡を作るコマンド
 #if defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
-namespace Book { extern void makebook_cmd(Position& pos, istringstream& is); }
+namespace Book { void makebook_cmd(Position& pos, istringstream& is); }
 #endif
 
 // ----------------------------------
@@ -122,7 +122,7 @@ namespace Learner
 // ----------------------------------
 
 // "bench"コマンドは、"test"コマンド群とは別。常に呼び出せるようにしてある。
-extern void bench_cmd(Position& pos, istringstream& is);
+void bench_cmd(Position& pos, istringstream& is);
 
 
 // "gameover"コマンドに対するハンドラ

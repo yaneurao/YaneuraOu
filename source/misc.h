@@ -342,7 +342,7 @@ namespace Tools
 	// nameは"Hash" , "eHash"などクリアしたいものの名前を書く。
 	// メモリクリアの途中経過が出力されるときにその名前(引数nameで渡している)が出力される。
 	// name == nullptrのとき、途中経過は表示しない。
-	extern void memclear(const char* name, void* table, size_t size);
+	void memclear(const char* name, void* table, size_t size);
 
 	// insertion sort
 	// 昇順に並び替える。学習時のコードで使いたい時があるので用意してある。
@@ -366,23 +366,23 @@ namespace Tools
 
 	// 途中での終了処理のためのwrapper
 	// コンソールの出力が完了するのを待ちたいので3秒待ってから::exit(EXIT_FAILURE)する。
-	extern void exit();
+	void exit();
 
 	// 指定されたミリ秒だけsleepする。
-	extern void sleep(u64 ms);
+	void sleep(u64 ms);
 
 	// 現在時刻を文字列化したもを返す。(評価関数の学習時などにログ出力のために用いる)
-	extern std::string now_string();
+	std::string now_string();
 
 	// Linux環境ではgetline()したときにテキストファイルが'\r\n'だと
 	// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
 	// そのため、ifstreamに対してgetline()を呼び出すときは、
 	// std::getline()ではなくこのこの関数を使うべき。
-	extern bool getline(std::ifstream& fs, std::string& s);
+	bool getline(std::ifstream& fs, std::string& s);
 
 	// マルチバイト文字列をワイド文字列に変換する。
 	// WindowsAPIを呼び出しているのでWindows環境専用。
-	extern std::wstring MultiByteToWideChar(const std::string& s);
+	std::wstring MultiByteToWideChar(const std::string& s);
 
 	// 他言語にあるtry～finally構文みたいなの。
 	// SCOPE_EXIT()マクロの実装で使う。このクラスを直接使わないで。
@@ -473,7 +473,7 @@ namespace Tools
 	};
 
 	// ResultCodeを文字列化する。
-	extern std::string to_string(ResultCode);
+	std::string to_string(ResultCode);
 
 	// エラーを含む関数の返し値を表現する型
 	// RustにあるOption型のような何か
@@ -516,10 +516,10 @@ namespace SystemIO
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
 	// 引数で渡されるtrimはtrueを渡すと末尾のスペース、タブがトリムされる。
 	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
-	extern Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
+	Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
 
 	// ファイルにすべての行を書き出す。
-	extern Tools::Result WriteAllLines(const std::string& filename, std::vector<std::string>& lines);
+	Tools::Result WriteAllLines(const std::string& filename, std::vector<std::string>& lines);
 
 
 	// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
@@ -532,13 +532,13 @@ namespace SystemIO
 	// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
 	// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
 
-	extern Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func);
-	extern Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, size_t size);
+	Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func);
+	Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, size_t size);
 
 	// 通常のftell/fseekは2GBまでしか対応していないので特別なバージョンが必要である。
 
-	extern size_t ftell64(FILE* f);
-	extern int fseek64(FILE* f, size_t offset, int origin);
+	size_t ftell64(FILE* f);
+	int fseek64(FILE* f, size_t offset, int origin);
 
 	// C#のTextReaderみたいなもの。
 	// C++のifstreamが遅すぎるので、高速化されたテキストファイル読み込み器
@@ -745,13 +745,13 @@ namespace Path
 	// 与えられたfilenameが絶対Pathであるかの判定は、内部的にはPath::IsAbsolute()を用いて行う。
 	//
 	// 実際の連結のされ方については、UnitTestに例があるので、それも参考にすること。
-	extern std::string Combine(const std::string& folder, const std::string& filename);
+	std::string Combine(const std::string& folder, const std::string& filename);
 
 	// full path表現から、(フォルダ名をすべて除いた)ファイル名の部分を取得する。
-	extern std::string GetFileName(const std::string& path);
+	std::string GetFileName(const std::string& path);
 
 	// full path表現から、(ファイル名だけを除いた)ディレクトリ名の部分を取得する。
-	extern std::string GetDirectoryName(const std::string& path);
+	std::string GetDirectoryName(const std::string& path);
 
 	// 絶対Pathであるかの判定。
 	// ※　std::filesystem::absolute() は MSYS2 で Windows の絶対パスの判定に失敗するらしいので自作。
@@ -764,7 +764,7 @@ namespace Path
 	//   \\MyNet\MyPC\Eval  ← WindowsのUNC
 	//   ~myeval            ← Linuxのhome
 	//   /YaneuraOu/Eval    ← Windows、Linuxのroot
-	extern bool IsAbsolute(const std::string& path);
+	bool IsAbsolute(const std::string& path);
 };
 
 // --------------------
@@ -778,23 +778,23 @@ namespace Directory
 	// 指定されたフォルダに存在するファイルをすべて列挙する。
 	// 列挙するときに引数extensionで列挙したいファイル名の拡張子を指定できる。(例 : ".bin")
 	// 拡張子として""を指定すればすべて列挙される。
-	extern std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const std::string& extension);
+	std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const std::string& extension);
 
 	// フォルダを作成する。
 	// working directory相対で指定する。dir_nameに日本語は使っていないものとする。
 	// ※　Windows環境だと、この関数名、WinAPIのCreateDirectoryというマクロがあって…。
 	// 　ゆえに、CreateDirectory()をやめて、CreateFolder()に変更する。
-	extern Tools::Result CreateFolder(const std::string& dir_name);
+	Tools::Result CreateFolder(const std::string& dir_name);
 
 	// working directoryを返す。
 	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
-	extern std::string GetCurrentFolder();
+	std::string GetCurrentFolder();
 }
 
 namespace CommandLine {
 	// 起動時にmain.cppから呼び出される。
 	// CommandLine::binaryDirectory , CommandLine::workingDirectoryを設定する。
-	extern void init(int argc, char* argv[]);
+	void init(int argc, char* argv[]);
 
 	extern std::string binaryDirectory;  // path of the executable directory
 	extern std::string workingDirectory; // path of the working directory
@@ -969,71 +969,71 @@ namespace StringExtension
 	// 後者がどうも動作が怪しい。自前実装しておいたほうが無難。
 	// stricmpは、string case insensitive compareの略？
 	// s1==s2のとき0(false)を返す。
-	extern bool stricmp(const std::string& s1, const std::string& s2);
+	bool stricmp(const std::string& s1, const std::string& s2);
 
 	// 行の末尾の"\r","\n",スペース、"\t"を除去した文字列を返す。
 	// ios::binaryでopenした場合などには'\r'なども入っていることがあるので…。
-	extern std::string trim(const std::string& input);
+	std::string trim(const std::string& input);
 
 	// trim()の高速版。引数で受け取った文字列を直接trimする。(この関数は返し値を返さない)
-	extern void trim_inplace(std::string& input);
+	void trim_inplace(std::string& input);
 
 	// 行の末尾の数字を除去した文字列を返す。
 	// sfenの末尾の手数を削除する用
 	// 末尾のスペースを詰めたあと数字を詰めてそのあと再度スペースを詰める処理になっている。
 	// 例 : "abc 123 "→"abc"となって欲しいので。
-	extern std::string trim_number(const std::string& input);
+	std::string trim_number(const std::string& input);
 
 	// trim_number()の高速版。引数で受け取った文字列を直接trimする。(この関数は返し値を返さない)
-	extern void trim_number_inplace(std::string& s);
+	void trim_number_inplace(std::string& s);
 
 	// 文字列をint化する。int化に失敗した場合はdefault_の値を返す。
-	extern int to_int(const std::string input, int default_);
+	int to_int(const std::string input, int default_);
 
 	// スペース、タブなど空白に相当する文字で分割して返す。
-	extern std::vector<std::string> split(const std::string& input);
+	std::vector<std::string> split(const std::string& input);
 
 	// 先頭にゼロサプライした文字列を返す。
 	// 例) n = 123 , digit = 6 なら "000123"という文字列が返る。
-	extern std::string to_string_with_zero(u64 n, int digit);
+	std::string to_string_with_zero(u64 n, int digit);
 
 	// --- 以下、C#のstringクラスにあるやつ。
 
 	// 文字列valueが、文字列endingで終了していればtrueを返す。
-	extern bool StartsWith(std::string const& value, std::string const& starting);
+	bool StartsWith(std::string const& value, std::string const& starting);
 
 	// 文字列valueが、文字列endingで終了していればtrueを返す。
-	extern bool EndsWith(std::string const& value, std::string const& ending);
+	bool EndsWith(std::string const& value, std::string const& ending);
 
 	// 文字列sのなかに文字列tが含まれるかを判定する。含まれていればtrueを返す。
-	extern bool Contains(const std::string& s, const std::string& t);
+	bool Contains(const std::string& s, const std::string& t);
 
 	// 文字列valueに対して文字xを文字yに置換した新しい文字列を返す。
-	extern std::string Replace(std::string const& value, char x, char y);
+	std::string Replace(std::string const& value, char x, char y);
 
 	// 文字列を大文字にして返す。
-	extern std::string ToUpper(std::string const& value);
+	std::string ToUpper(std::string const& value);
 
 	// sを文字列spで分割した文字列集合を返す。
-	extern std::vector<std::string_view> Split(std::string_view s, std::string_view delimiter);
+	std::vector<std::string_view> Split(std::string_view s, std::string_view delimiter);
 
 	// Pythonの delemiter.join(v) みたいなの。
 	// 例: v = [1,2,3] に対して ' '.join(v) == "1 2 3"
-	extern std::string Join(const std::vector<std::string>& v , const std::string& delimiter);
+	std::string Join(const std::vector<std::string>& v , const std::string& delimiter);
 };
 
 // sを文字列spで分割した文字列集合を返す。
 // ※ Stockfishとの互換性のために用意。
-extern std::vector<std::string_view> split(std::string_view s, std::string_view delimiter);
+std::vector<std::string_view> split(std::string_view s, std::string_view delimiter);
 
 // スペース相当文字列を削除する。⇨ NUMAの処理に必要
-extern void remove_whitespace(std::string& s);
+void remove_whitespace(std::string& s);
 
 // スペース相当文字列かどうかを判定する。⇨ NUMAの処理に必要
-extern bool is_whitespace(std::string_view s);
+bool is_whitespace(std::string_view s);
 
 // "123"みたいな文字列を123のように数値型(size_t)に変換する。
-extern size_t str_to_size_t(const std::string& s);
+size_t str_to_size_t(const std::string& s);
 
 // --------------------
 //    Concurrent
@@ -1195,7 +1195,7 @@ extern StandardInput std_input;
 
 namespace Misc {
 	// このheaderに書いてある関数のUnitTest。
-	extern void UnitTest(Test::UnitTester& tester);
+	void UnitTest(Test::UnitTester& tester);
 }
 
 #endif // #ifndef MISC_H_INCLUDED

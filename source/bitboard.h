@@ -6,7 +6,7 @@
 namespace Bitboards
 {
 	// Bitboard関連のテーブル初期化のための関数
-	extern void init();
+	void init();
 }
 
 // --------------------
@@ -294,20 +294,20 @@ inline Bitboard& Bitboard::insert64(u64 u)
 }
 
 // Square型との演算子
-extern Bitboard operator|(const Bitboard& b, Square s);
-extern Bitboard operator&(const Bitboard& b, Square s);
-extern Bitboard operator^(const Bitboard& b, Square s);
+Bitboard operator|(const Bitboard& b, Square s);
+Bitboard operator&(const Bitboard& b, Square s);
+Bitboard operator^(const Bitboard& b, Square s);
 
 // 単項演算子
 // →　NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでALL_BBでxorしないといけない。
-extern Bitboard operator ~ (const Bitboard& a);
+Bitboard operator ~ (const Bitboard& a);
 
 // range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
-extern const Bitboard begin(const Bitboard& b);
-extern const Bitboard end(const Bitboard&);
+const Bitboard begin(const Bitboard& b);
+const Bitboard end(const Bitboard&);
 
 // Bitboardの1の升を'*'、0の升を'.'として表示する。デバッグ用。
-extern std::ostream& operator<<(std::ostream& os, const Bitboard& board);
+std::ostream& operator<<(std::ostream& os, const Bitboard& board);
 
 // --------------------
 //     Bitboard256
@@ -977,7 +977,7 @@ inline Bitboard rookFileEffect(Square sq, const Bitboard& occupied)
 // ==== 飛車と角の利き ===
 
 // 飛車の横の利き
-extern Bitboard rookRankEffect(Square sq, const Bitboard& occupied);
+Bitboard rookRankEffect(Square sq, const Bitboard& occupied);
 
 // 飛車の利き
 inline Bitboard rookEffect(const Square sq, const Bitboard& occupied) {
@@ -986,7 +986,7 @@ inline Bitboard rookEffect(const Square sq, const Bitboard& occupied) {
 }
 
 // 角の利き
-extern Bitboard bishopEffect(const Square sq, const Bitboard& occupied);
+Bitboard bishopEffect(const Square sq, const Bitboard& occupied);
 
 // 馬の利き
 inline Bitboard horseEffect(Square sq, const Bitboard& occupied)
@@ -1051,7 +1051,7 @@ Bitboard rayEffect(Square sq, const Bitboard& occupied)
 }
 
 // sqの升から指定した方向dへの利き。盤上の駒も考慮する。
-extern Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied);
+Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied);
 
 // --------------------
 //   汎用性のある利き
@@ -1059,11 +1059,11 @@ extern Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occup
 
 // 盤上sqに駒pc(先後の区別あり)を置いたときの利き。(step effect)
 // pc == QUEENだと馬+龍の利きが返る。盤上には駒は何もないものとして考える。
-extern Bitboard effects_from(Piece pc, Square sq);
+Bitboard effects_from(Piece pc, Square sq);
 
 // 盤上sqに駒pc(先後の区別あり)を置いたときの利き。
 // pc == QUEENだと馬+龍の利きが返る。
-extern Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
+Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
 
 // --------------------
 //   Stockfishとの互換性のために用意

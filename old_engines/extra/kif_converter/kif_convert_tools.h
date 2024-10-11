@@ -99,23 +99,23 @@ namespace KifConvertTools
 	// --- SFEN形式
 
 	// SFEN形式の棋譜文字列を取得する。
-	extern std::string to_sfen_string(Position& pos);
+	std::string to_sfen_string(Position& pos);
 
 	// --- CSA形式
 
 	// CSA形式の指し手表現文字列を取得する。
-	extern std::string to_csa_string(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
-	extern std::string to_csa_u8string(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
-	extern std::u16string to_csa_u16string(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
-	extern std::u32string to_csa_u32string(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
-	extern std::wstring to_csa_wstring(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
+	std::string to_csa_string(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
+	std::string to_csa_u8string(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
+	std::u16string to_csa_u16string(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
+	std::u32string to_csa_u32string(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
+	std::wstring to_csa_wstring(Position& pos, Move m, const KifFormat& fmt = CsaFmt);
 
 	// CSA形式の棋譜文字列を取得する。
-	extern std::string to_csa_string(Position& pos, const KifFormat& fmt = CsaFmt);
-	extern std::string to_csa_u8string(Position& pos, const KifFormat& fmt = CsaFmt);
-	extern std::u16string to_csa_u16string(Position& pos, const KifFormat& fmt = CsaFmt);
-	extern std::u32string to_csa_u32string(Position& pos, const KifFormat& fmt = CsaFmt);
-	extern std::wstring to_csa_wstring(Position& pos, const KifFormat& fmt = CsaFmt);
+	std::string to_csa_string(Position& pos, const KifFormat& fmt = CsaFmt);
+	std::string to_csa_u8string(Position& pos, const KifFormat& fmt = CsaFmt);
+	std::u16string to_csa_u16string(Position& pos, const KifFormat& fmt = CsaFmt);
+	std::u32string to_csa_u32string(Position& pos, const KifFormat& fmt = CsaFmt);
+	std::wstring to_csa_wstring(Position& pos, const KifFormat& fmt = CsaFmt);
 
 	// --- KIF/KIF2(KI2)形式
 
@@ -123,46 +123,46 @@ namespace KifConvertTools
 	// 出力文字列のエンコードは、関数名にu8とついているのはutf-8。u16はutf-16、u32はutf-32。
 	// 何もついていないものはSJIS。
 
-	extern std::string to_kif_string(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
-	extern std::string to_kif_u8string(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
-	extern std::u16string to_kif_u16string(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
-	extern std::u32string to_kif_u32string(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
-	extern std::wstring to_kif_wstring(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
+	std::string to_kif_string(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
+	std::string to_kif_u8string(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
+	std::u16string to_kif_u16string(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
+	std::u32string to_kif_u32string(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
+	std::wstring to_kif_wstring(Position& pos, Move m, const KifFormat& fmt = KifFmtA);
 
 	// KIF形式の棋譜文字列を取得する。
 	// 出力文字列のエンコードは、関数名にu8とついているのはutf-8。u16はutf-16、u32はutf-32。
 	// 何もついていないものはSJIS。
 
-	extern std::string to_kif_string(Position& pos, const KifFormat& fmt = KifFmtA);
-	extern std::string to_kif_u8string(Position& pos, const KifFormat& fmt = KifFmtA);
-	extern std::u16string to_kif_u16string(Position& pos, const KifFormat& fmt = KifFmtA);
-	extern std::u32string to_kif_u32string(Position& pos, const KifFormat& fmt = KifFmtA);
-	extern std::wstring to_kif_wstring(Position& pos, const KifFormat& fmt = KifFmtA);
+	std::string to_kif_string(Position& pos, const KifFormat& fmt = KifFmtA);
+	std::string to_kif_u8string(Position& pos, const KifFormat& fmt = KifFmtA);
+	std::u16string to_kif_u16string(Position& pos, const KifFormat& fmt = KifFmtA);
+	std::u32string to_kif_u32string(Position& pos, const KifFormat& fmt = KifFmtA);
+	std::wstring to_kif_wstring(Position& pos, const KifFormat& fmt = KifFmtA);
 
 	// KIF2形式の指し手表現文字列を取得する。
 	// 出力文字列のエンコードは、関数名にu8とついているのはutf-8。u16はutf-16、u32はutf-32。
 	// 何もついていないものはSJIS。
 
-	extern std::string to_kif2_string(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
-	extern std::string to_kif2_u8string(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
-	extern std::u16string to_kif2_u16string(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
-	extern std::u32string to_kif2_u32string(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
-	extern std::wstring to_kif2_wstring(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
+	std::string to_kif2_string(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
+	std::string to_kif2_u8string(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
+	std::u16string to_kif2_u16string(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
+	std::u32string to_kif2_u32string(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
+	std::wstring to_kif2_wstring(Position& pos, Move m, const KifFormat& fmt = KifFmtA2);
 
 	// KIF2形式の棋譜文字列を取得する。
 	// 出力文字列のエンコードは、関数名にu8とついているのはutf-8。u16はutf-16、u32はutf-32。
 	// 何もついていないものはSJIS。
 
-	extern std::string to_kif2_string(Position& pos, const KifFormat& fmt = KifFmtA2);
-	extern std::string to_kif2_u8string(Position& pos, const KifFormat& fmt = KifFmtA2);
-	extern std::u16string to_kif2_u16string(Position& pos, const KifFormat& fmt = KifFmtA2);
-	extern std::u32string to_kif2_u32string(Position& pos, const KifFormat& fmt = KifFmtA2);
-	extern std::wstring to_kif2_wstring(Position& pos, const KifFormat& fmt = KifFmtA2);
+	std::string to_kif2_string(Position& pos, const KifFormat& fmt = KifFmtA2);
+	std::string to_kif2_u8string(Position& pos, const KifFormat& fmt = KifFmtA2);
+	std::u16string to_kif2_u16string(Position& pos, const KifFormat& fmt = KifFmtA2);
+	std::u32string to_kif2_u32string(Position& pos, const KifFormat& fmt = KifFmtA2);
+	std::wstring to_kif2_wstring(Position& pos, const KifFormat& fmt = KifFmtA2);
 
 	// --- UnitTest
 
 	// 現状、テスト用のコードが書き散らしてあるだけ。
-	extern void UnitTest();
+	void UnitTest();
 
 }
 #endif // defined (USE_KIF_CONVERT_TOOLS)

@@ -94,7 +94,7 @@ namespace Test
 	// UnitTest本体。"unittest"コマンドで呼び出される。
 	// --------------------
 
-	extern void UnitTest(Position& pos, std::istringstream& is);
+	void UnitTest(Position& pos, std::istringstream& is);
 
 }
 

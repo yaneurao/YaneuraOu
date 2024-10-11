@@ -227,8 +227,8 @@ namespace Learner
 
 	// いまのところ、YANEURAOU_ENGINEしか、このスタブを持っていないが
 	// EVAL_LEARNをdefineするなら、このスタブが必須。
-	extern Learner::ValueAndPV  search(Position& pos, int depth , size_t multiPV = 1 , u64 NodesLimit = 0);
-	extern Learner::ValueAndPV qsearch(Position& pos);
+	Learner::ValueAndPV  search(Position& pos, int depth , size_t multiPV = 1 , u64 NodesLimit = 0);
+	Learner::ValueAndPV qsearch(Position& pos);
 
 	double calc_grad(Value shallow, const PackedSfenValue& psv);
 

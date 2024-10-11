@@ -12,7 +12,7 @@ using namespace std;
 
 #if defined(YANEURAOU_ENGINE) && defined (EVAL_LEARN)
 namespace Learner {
-	extern void UnitTest(Test::UnitTester& unittest);
+	void UnitTest(Test::UnitTester& unittest);
 }
 #endif
 

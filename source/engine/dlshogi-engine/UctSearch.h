@@ -331,7 +331,7 @@ namespace dlshogi
 	};
 
 	// 訪問回数が最大の子ノードを選択
-	extern unsigned int select_max_child_node(const Node* uct_node);
+	unsigned int select_max_child_node(const Node* uct_node);
 
 }
 

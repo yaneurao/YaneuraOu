@@ -245,7 +245,7 @@ namespace Book
 #if defined (ENABLE_MAKEBOOK_CMD)
 	// USI拡張コマンド。"makebook"。定跡ファイルを作成する。
 	// フォーマット等についてはdoc/解説.txt を見ること。
-	extern void makebook_cmd(Position& pos, std::istringstream& is);
+	void makebook_cmd(Position& pos, std::istringstream& is);
 #endif
 
 	// 思考エンジンにおいて定跡の指し手の選択をする部分を切り出したもの。
@@ -319,7 +319,7 @@ namespace Book
 	};
 
 	// 定跡部のUnitTest
-	extern void UnitTest(Test::UnitTester& tester);
+	void UnitTest(Test::UnitTester& tester);
 }
 
 // 定跡関係の処理のための補助ツール群

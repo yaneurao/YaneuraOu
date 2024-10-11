@@ -17,7 +17,7 @@ namespace dlshogi {
 	// のようにUSIのgoコマンド相当で探索したあと、rootの各候補手とそれに対応する評価値を返す。
 	//
 	// ※　実際の使用例は、make_book2021.cppのthink_sub()にあるのでそれも参考にすること。
-	extern void GetSearchResult(std::vector<std::pair<Move, float>>& result);
+	void GetSearchResult(std::vector<std::pair<Move, float>>& result);
 
 	// sfenとnode数を保持する構造体
 	struct SfenNode
@@ -50,13 +50,13 @@ namespace dlshogi {
 	//    "startpos moves 7g7f 8c8d"
 	//    "startpos moves 2g2f 3c3d"
 	//   なので、そうなるように文字列を結合すること。
-	extern void GetTopVisitedNodes(size_t n, SfenNodeList& sfens, bool same_color);
+	void GetTopVisitedNodes(size_t n, SfenNodeList& sfens, bool same_color);
 
 	// 探索したノード数を返す。
 	// これは、ThreadPool classがnodes_searched()で返す値とは異なる。
 	//  →　そちらは、Position::do_move()した回数。
 	// こちらは、GPUでevaluate()を呼び出した回数。俗に言うnodes visited。
-	extern u64 nodes_visited();
+	u64 nodes_visited();
 }
 
 namespace Eval::dlshogi {

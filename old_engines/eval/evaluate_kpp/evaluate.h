@@ -27,7 +27,7 @@
 namespace Eval {
 
 	// evaluateの起動時に行なう軽量な初期化はここで行なう。
-	extern void init();
+	void init();
 
 	// 評価関数ファイルを読み込む。
 	// これは、is_readyの応答時に1回呼び出されるだけ。2度呼び出すことは想定していない。
@@ -355,7 +355,7 @@ namespace Eval {
 
 	// compute_eval()やLearner::add_grad()からBonaPiece番号の組み換えのために呼び出される関数
 	// make_listと言う名前は、Bonanza6のソースコードに由来する。
-	extern std::function<void(const Position&, BonaPiece[40], BonaPiece[40])> make_list_function;
+	std::function<void(const Position&, BonaPiece[40], BonaPiece[40])> make_list_function;
 
 	// 旧評価関数から新評価関数に変換するときにKPPのP(BonaPiece)がどう写像されるのかを定義したmapper。
 	// EvalIO::eval_convert()の引数として渡される。

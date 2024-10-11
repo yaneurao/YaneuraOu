@@ -21,8 +21,8 @@
 
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 // partial_insertion_sort()のSuperSortを用いた実装
-extern void partial_super_sort(ExtMove* start, ExtMove* end, int limit);
-extern void super_sort(ExtMove* start, ExtMove* end);
+void partial_super_sort(ExtMove* start, ExtMove* end, int limit);
+void super_sort(ExtMove* start, ExtMove* end);
 
 /*
   - 少し高速化されるらしい。
