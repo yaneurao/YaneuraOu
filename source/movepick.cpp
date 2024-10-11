@@ -59,11 +59,11 @@ enum Stages: int {
 
 	MAIN_TT,					// 置換表の指し手を返すフェーズ
 	CAPTURE_INIT,				// (CAPTURESの指し手生成)
-	GOOD_CAPTURE,				// 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す
+	GOOD_CAPTURE,				// 捕獲する指し手(CAPTURES_PRO_PLUS)を生成して指し手を一つずつ返す。ただし、SEE値の悪い手(=BAD_CAPTURE)は後回し。
 	QUIET_INIT,					// (QUIETの指し手生成)
-	GOOD_QUIET,					// CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。SEE値の悪い手は後回し。
-	BAD_CAPTURE,				// 捕獲する悪い指し手(SEE < 0 の指し手だが、将棋においてそこまで悪い手とは限らないが…)
-	BAD_QUIET,                  // 捕獲しない悪い指し手(SSE < 0)
+	GOOD_QUIET,					// CAPTURES_PRO_PLUSで生成しなかった指し手を生成して、一つずつ返す。
+	BAD_CAPTURE,				// 捕獲する  悪い指し手(将棋においてそこまで悪い手とは限らない)
+	BAD_QUIET,                  // 捕獲しない悪い指し手(これはBAD_CAPTUREのあとに処理する)
 
 	// 将棋ではBAD_CAPTUREをQUIET_の前にやったほうが良いという従来説は以下の実験データにより覆った。
 	//  r300, 2585 - 62 - 2993(46.34% R - 25.46)[2016/08/19]
@@ -97,13 +97,11 @@ enum Stages: int {
 /*
 状態遷移の順番は、
 	王手がかかっていない時。
-		通常探索時 : MAIN_TT → CAPTURE_INIT → GOOD_CAPTURE → QUIET_INIT → GOOD_QUIET → BAD_CAPTURE → BAD_QUIET
-		ProbCut時  : PROBCUT_TT → PROBCUT_INIT → PROBCUT
+		通常探索時 : MAIN_TT    → CAPTURE_INIT  → GOOD_CAPTURE → GOOD_QUIET → BAD_CAPTURE → BAD_QUIET
 		静止探索時 : QSEARCH_TT → QCAPTURE_INIT → QCAPTURE
+		ProbCut時  : PROBCUT_TT → PROBCUT_INIT  → PROBCUT
 
-		※ 通常探索時にしか、REFUTATIONを呼び出していないので、すなわちProbCut時と静止探索時には
-			killerとかcountermoveの生成はしない。
-		※ 通常探索時に GOOD_CAPTUREとBAD_CAPTUREがあるのは、前者でスコアが悪かった指し手をBAD_CAPTUREに回すためである。
+		静止探索では、captureする指し手しか生成しないので単にスコア順に並び替えて順番に返せば良い。
 
 	王手がかかっている時。
 		通常探索、静止探索共通 : EVASION_TT → EVASION_INIT → EVASION
@@ -522,15 +520,38 @@ top:
 			/*
 			moves          : バッファの先頭
 			endBadCaptures : movesから(endBadCaptures - 1) までに bad capturesの指し手が格納されている。
-				そこ以降はバッファの末尾まで自由に使って良い。
 
-				|--- 指し手生成用のバッファ -----------------------------------|
-				| ttMove | killer | captures |  未使用のバッファ               |  captures生成時 (CAPTURES_PRO_PLUS)
-				|--------------------------------------------------------------|
-				|   badCaptures      |     quiet         |  未使用のバッファ   |  quiet生成時    (NON_CAPTURES_PRO_MINUS)
-				|--------------------------------------------------------------|
-				↑                  ↑
-				moves          endBadCaptures
+				■ quiet(captures)の指し手を生成した直後。
+
+				|--- 指し手生成用のバッファ ---------------------------------------|
+				|    quiet(captures)                        |  未使用のバッファ    |
+				|------------------------------------------------------------------|
+				↑                                          ↑
+				moves = endBadCaptures                    endMoves
+
+
+				■ quiet(captures)の指し手を生成して、curポインタをインクリメントしながら読み進めているとき。
+
+				|--- 指し手生成用のバッファ ---------------------------------------|
+				|   badCaptures |  quiet(captures)           |  未使用のバッファ   |
+				|------------------------------------------------------------------|
+				↑             ↑              ↑            ↑
+				moves      endBadCaptures      cur         endMoves
+
+
+				■ quiet(captures)の指し手をpartial_sortで並び替え後にある程度スコアがいい指し手を返したとき
+
+				残りの悪いquietの指し手の先頭をbeginBadQuietsにして、curはmovesに移動。これで、badCaptureを処理する。
+				そのあと、beginBadQuietsを処理する。
+
+
+				|--- 指し手生成用のバッファ ---------------------------------------|
+				|   badCaptures |  quiet(captures)           |  未使用のバッファ   |
+				|------------------------------------------------------------------|
+				↑             ↑              ↑            ↑
+				moves      endBadCaptures    beginBadQuiets endMoves
+				 ↑cur
+
 			*/
 
 
