@@ -135,23 +135,26 @@ std::ostream& operator<<(std::ostream&, SyncCout);
 //// IsLittleEndian : true if and only if the binary is compiled on a little endian machine
 //static inline const union { uint32_t i; char c[4]; } Le = { 0x01020304 };
 //static inline const bool IsLittleEndian = (Le.c[0] == 4);
-//
-//
-//template <typename T, std::size_t MaxSize>
-//class ValueList {
-//
-//public:
-//  std::size_t size() const { return size_; }
-//  void push_back(const T& value) { values_[size_++] = value; }
-//  const T* begin() const { return values_; }
-//  const T* end() const { return values_ + size_; }
-//  const T& operator[](int index) const { return values_[index]; }
-//
-//private:
-//  T values_[MaxSize];
-//  std::size_t size_ = 0;
-//};
 
+// --------------------
+//      ValueList
+// --------------------
+
+//  最大サイズが固定長のvectorみたいなやつ。
+template<typename T, std::size_t MaxSize>
+class ValueList {
+
+public:
+	std::size_t size() const { return size_; }
+	void        push_back(const T& value) { values_[size_++] = value; }
+	const T* begin() const { return values_; }
+	const T* end() const { return values_ + size_; }
+	const T& operator[](int index) const { return values_[index]; }
+
+private:
+	T           values_[MaxSize];
+	std::size_t size_ = 0;
+};
 
 // --------------------
 //       乱数

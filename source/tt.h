@@ -48,6 +48,11 @@ struct Cluster;
 // すでにエントリに存在するデータのコピー（衝突している可能性があります）。
 // `probe` は競合が発生することがあり、不整合なデータを返す可能性があります。
 
+// ■ 補足
+// 
+// moveはMove(32bit)ではあるが、TTEntryにはMove16(16bit)でしか格納されていない。
+// そのため、TT.probe()で取り出すときにこの16bitを32bitに拡張して返す。
+
 struct TTData {
 	Move   move;
 	Value  value, eval;

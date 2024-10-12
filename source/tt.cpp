@@ -87,9 +87,9 @@ struct TTEntry {
 
 	// 探索した情報をこの構造体に保存する。
 
-	void TTEntry::save(Key     k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)(k >> 1)        , v, pv, b, d, m, ev, generation8); }
-	void TTEntry::save(Key128& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
-	void TTEntry::save(Key256& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
+	void save(Key     k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)(k >> 1)        , v, pv, b, d, m, ev, generation8); }
+	void save(Key128& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
+	void save(Key256& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
 
 	// The returned age is a multiple of TranspositionTable::GENERATION_DELTA
 	// 返されるエイジは、TranspositionTable::GENERATION_DELTA の倍数です

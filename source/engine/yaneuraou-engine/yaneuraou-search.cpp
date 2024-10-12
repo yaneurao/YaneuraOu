@@ -334,7 +334,9 @@ void update_pv(Move* pv, Move move, const Move* childPv);
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
 void update_quiet_histories(const Position& pos, Stack* ss, Move move, int bonus);
 void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
-	Move* quietsSearched, int quietCount, Move* capturesSearched, int captureCount, Depth depth);
+	ValueList<Move,32>& quietsSearched,
+	ValueList<Move,32>& capturesSearched,
+	Depth depth);
 
 
 // Utility to verify move generation. All the leaf nodes up
@@ -800,20 +802,6 @@ SKIP_SEARCH:;
 	}
 }
 
-// ----------------------------------------------------------------------------------------------------------
-//                        探索スレッドごとに個別の置換表へのアクセス
-// ----------------------------------------------------------------------------------------------------------
-
-// 以下のTT.probe()は、学習用の実行ファイルではスレッドごとに持っているTTのほうにアクセスして欲しいので、
-// TTのマクロを定義して無理やりそっちにアクセスするように挙動を変更する。
-#if defined(EVAL_LEARN)
-#define TT (thisThread->tt)
-	// Threadのメンバにttという変数名で、スレッドごとのTranspositionTableを持っている。
-	// そちらを参照するように変更する。
-#endif
-
-// ----------------------------------------------------------------------------------------------------------
-
 // 探索スレッド用の初期化(探索部と学習部と共通)
 // やねうら王、独自拡張。
 // ssにはstack+7が渡されるものとする。
@@ -1093,7 +1081,7 @@ void Thread::search()
 				// 一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
 				// 用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
 
-				stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
+				std::stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
 
 				if (Threads.stop)
 					break;
@@ -1361,22 +1349,34 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// root nodeであるか
 	constexpr bool rootNode = nodeType == Root;
 
+	// allNodeであるか。
+	// ⇨ allNodeとは、PvNodeでもなくcutNodeでもないnodeのこと。
+	//   allNodeとは、ゲーム木探索で、全ての子ノードを評価する必要があるノードのこと。
+	const bool     allNode = !(PvNode || cutNode);
+
 	// Dive into quiescence search when the depth reaches zero
 	// 残り探索深さが1手未満であるなら静止探索を呼び出す
 	if (depth <= 0)
 		return qsearch<PvNode ? PV : NonPV>(pos, ss, alpha, beta);
 
+	// Limit the depth if extensions made it too large
+	// 拡張によって深さが大きくなりすぎた場合、深さを制限します
+
+	//depth = std::min(depth, MAX_PLY - 1);
+	// ⇨ こんなに大きなdepthまで反復深化することはないと思うのでコメントアウト。
+
 	// 次の指し手で引き分けに持ち込めてかつ、betaが引き分けのスコアより低いなら
 	// 早期枝刈りが実施できる。
 	// →　将棋だとあまり千日手が起こらないので効果がなさげ。
 #if 0
-	// Check if we have an upcoming move that draws by repetition, or
-	// if the opponent had an alternative move earlier to this position.
+	// Check if we have an upcoming move that draws by repetition
+	// 直近の手が繰り返しによる引き分けになるかを確認します
+
 	if (   !rootNode
 		&& alpha < VALUE_DRAW
-		&& pos.has_game_cycle(ss->ply))
+		&& pos.upcoming_repetition(ss->ply))
 	{
-		alpha = value_draw(pos.this_thread());
+		alpha = value_draw(this->nodes);
 		if (alpha >= beta)
 			return alpha;
 	}
@@ -1393,17 +1393,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// -----------------------
 
 	// pv               : このnodeからのPV line(読み筋)
-	// capturesSearched : 駒を捕獲する指し手(+歩の成り)
-	// quietsSearched   : 駒を捕獲しない指し手(-歩の成り)
 
-	// Stockfish 16ではquietsSearchedが[64]から[32]になったが、
-	// 将棋ではハズレのquietの指し手が大量にあるので
-	// それがベストとは限らない。
-
-	// →　比較したところ、64より32の方がわずかに良かったので、とりあえず32にしておく。(V7.73mとV7.73m2との比較)
-
-	constexpr int MAX_SEARCHED = 32 /*32*/;
-	Move pv[MAX_PLY + 1], capturesSearched[MAX_SEARCHED], quietsSearched[MAX_SEARCHED];
+	Move pv[MAX_PLY + 1];
 
 	// do_move()するときに必要
 	StateInfo st;
@@ -1450,9 +1441,20 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	// 調べた指し手を残しておいて、statsのupdateを行なうときに使う。
 	// moveCount			: 調べた指し手の数(合法手に限る)
-	// captureCount			: 調べた駒を捕獲する指し手の数(capturesSearched[]用のカウンター)
-	// quietCount			: 調べた駒を捕獲しない指し手の数(quietsSearched[]用のカウンター)
-	int moveCount, captureCount, quietCount;
+	int moveCount;
+
+	// capturesSearched : 駒を捕獲する指し手(+歩の成り)
+	// quietsSearched   : 駒を捕獲しない指し手(-歩の成り)
+	//
+	// ■ 補足情報
+	// 
+	// Stockfish 16ではquietsSearchedが[64]から[32]になったが、
+	// 将棋ではハズレのquietの指し手が大量にあるので
+	// それがベストとは限らない。
+	// →　比較したところ、64より32の方がわずかに良かったので、とりあえず32にしておく。(V7.73mとV7.73m2との比較)
+
+	ValueList<Move, 32> capturesSearched;
+	ValueList<Move, 32> quietsSearched;
 
 	// -----------------------
 	// Step 1. Initialize node
@@ -1465,7 +1467,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	ss->inCheck		   = pos.checkers();
 	priorCapture	   = pos.captured_piece();
 	Color us		   = pos.side_to_move();
-	moveCount		   = captureCount = quietCount = ss->moveCount = 0;
+	moveCount		   = ss->moveCount = 0;
 	bestValue		   = -VALUE_INFINITE;
 	//maxValue	       = VALUE_INFINITE;
 	// →　将棋ではtable probe使っていないのでmaxValue関係ない。
@@ -3047,20 +3049,21 @@ moves_loop:
 			}
 		}
 
-		// If the move is worse than some previously searched move, remember it, to update its stats later
-		// もしその指し手が、以前に探索されたいくつかの指し手より悪い場合は、あとで統計を取る時のために記憶しておく。
+		// If the move is worse than some previously searched move,
+		// remember it, to update its stats later.
 
-		if (move != bestMove && moveCount <= MAX_SEARCHED)
+		// その手が以前に探索された他の手よりも悪い場合、
+		// 後でその統計を更新するために記憶しておきます。
+
+		if (move != bestMove && moveCount <= 32)
 		{
 			// 探索した駒を捕獲する指し手
 			if (capture)
-				capturesSearched[captureCount++] = move;
+				capturesSearched.push_back(move);
 
 			// 探索した駒を捕獲しない指し手
 			else
-				quietsSearched[quietCount++] = move;
-
-			// これら↑は、あとでhistoryなどのテーブルに加点/減点するときに使う。
+				quietsSearched.push_back(move);
 		}
 
 	}
@@ -3116,8 +3119,8 @@ moves_loop:
 
 		// quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
 
-		update_all_stats(pos, ss, bestMove, bestValue, beta, prevSq,
-			quietsSearched, quietCount, capturesSearched, captureCount, depth);
+		update_all_stats(pos, ss, bestMove, bestValue, beta, prevSq, quietsSearched,
+			capturesSearched, depth);
 
 
 	// Bonus for prior countermove that caused the fail low
@@ -3933,8 +3936,16 @@ void update_pv(Move* pv, Move move, const Move* childPv) {
 // 統計情報一式を更新する。
 // prevSq : 直前の指し手の駒の移動先。直前の指し手がMOVE_NONEの時はSQ_NONE
 
-void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
-	Move* quietsSearched, int quietCount, Move* capturesSearched, int captureCount, Depth depth) {
+void update_all_stats(
+		const Position& pos,
+		Stack* ss,
+		Move bestMove,
+		Value bestValue,
+		Value beta,
+		Square prevSq,
+		ValueList<Move, 32>& quietsSearched,
+		ValueList<Move, 32>& capturesSearched,
+		Depth depth) {
 
 	Color   us         = pos.side_to_move();
 	Thread* thisThread = pos.this_thread();
@@ -3964,17 +3975,17 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 #endif
 
 		// Decrease stats for all non-best quiet moves
-		for (int i = 0; i < quietCount; ++i)
+		for (Move move : quietsSearched)
 		{
 #if defined(ENABLE_PAWN_HISTORY)
-			thisThread->pawnHistory(pawn_structure(pos), pos.moved_piece_after(quietsSearched[i]), to_sq(quietsSearched[i]))
+			thisThread->pawnHistory(pawn_structure(pos), pos.moved_piece_after(move), to_sq(move))
 				<< -quietMoveMalus;
 #endif
 
-			thisThread->mainHistory(us, from_to(quietsSearched[i])) << -quietMoveMalus;
+			thisThread->mainHistory(us, from_to(move)) << -quietMoveMalus;
 
-			update_continuation_histories(ss, pos.moved_piece_after(quietsSearched[i]),
-				to_sq(quietsSearched[i]), -quietMoveMalus);
+			update_continuation_histories(ss, pos.moved_piece_after(move),
+				to_sq(move), -quietMoveMalus);
 		}
 	}
 	else {
@@ -3999,16 +4010,16 @@ void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestV
 		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -quietMoveMalus);
 
 	// Decrease stats for all non-best capture moves
-	// 捕獲する指し手でベストではなかったものをすべて減点する。
+	// 最善の捕獲する指し手以外のすべての手の統計を減少させます
 
-	for (int i = 0; i < captureCount; ++i)
+	for (Move move : capturesSearched)
 	{
 		// ここ、moved_piece_before()で、捕獲前の駒の価値で考えたほうがいいか？
 		// → MovePickerでcaptureHistoryを用いる時に、moved_piece_afterの方で表引きしてるので、
 		//  それに倣う必要がある。
-		moved_piece = pos.moved_piece_after(capturesSearched[i]);
-		captured    = type_of(pos.piece_on(to_sq(capturesSearched[i])));
-		captureHistory(moved_piece, to_sq(capturesSearched[i]), captured) << -quietMoveMalus;
+		moved_piece = pos.moved_piece_after(move);
+		captured    = type_of(pos.piece_on(to_sq(move)));
+		captureHistory(moved_piece, to_sq(move), captured) << -quietMoveMalus;
 	}
 }
 
@@ -4653,7 +4664,7 @@ void init_for_game(Position& pos)
 {
 	auto thisThread = pos.this_thread();
 
-	TT.clear();          // 置換表のクリア
+	pos.this_thread()->tt.clear();          // 置換表のクリア
 	thisThread->clear(); // history table等のクリア
 }
 
