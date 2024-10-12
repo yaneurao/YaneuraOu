@@ -109,41 +109,32 @@ namespace Search {
 	// We try hard to have a ponder move to return to the GUI,
 	// otherwise in case of 'ponder on' we have nothing to think about.
 
-	// 探索を抜ける前にponderの指し手がないとき(rootでfail highしているだとか)にこの関数を呼び出す。
-	// ponderの指し手として何かを指定したほうが、その分、相手の手番において考えられて得なので。
+	// 探索を終了する前にponder moveがない場合に呼び出されます。
+	// 例えば、rootでfail highが発生して探索を中断した場合などです。
+	// GUIに返すponder moveをできる限り準備しようとしますが、
+	// そうでない場合、「ponder on」の際に考えるべきものが何もなくなります。
 
-	bool RootMove::extract_ponder_from_tt(Position& pos, Move ponder_candidate)
+	bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt, Position& pos)
 	{
 		StateInfo st;
-		bool ttHit;
 
-		//    ASSERT_LV3(pv.size() == 1);
+		ASSERT_LV3(pv.size() == 1);
 
 		// 詰みの局面が"ponderhit"で返ってくることがあるので、ここでのpv[0] == MOVE_RESIGNであることがありうる。
 		if (!is_ok(pv[0]))
 			return false;
 
-		pos.do_move(pv[0], st, pos.gives_check(pv[0]));
-		TTEntry* tte = TT.read_probe(pos.state()->hash_key(), ttHit);
-		Move m;
+		pos.do_move(pv[0], st);
+
+		auto [ttHit, ttData, ttWriter] = tt.probe(pos.key(), pos);
 		if (ttHit)
 		{
-			m = pos.to_move(tte->move()); // SMP safeにするためlocal copy
-			if (MoveList<LEGAL_ALL>(pos).contains(m))
-				goto FOUND;
+			if (MoveList<LEGAL>(pos).contains(ttData.move))
+				pv.push_back(ttData.move);
 		}
-		// 置換表にもなかったので以前のiteration時のpv[1]をほじくり返す。
-		m = ponder_candidate;
-		if (MoveList<LEGAL_ALL>(pos).contains(m))
-			goto FOUND;
 
 		pos.undo_move(pv[0]);
-		return false;
-	FOUND:;
-		pos.undo_move(pv[0]);
-		pv.push_back(m);
-		//    std::cout << m << std::endl;
-		return true;
+		return pv.size() > 1;
 	}
 }
 

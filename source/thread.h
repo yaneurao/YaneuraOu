@@ -94,7 +94,7 @@ class Thread
 public:
 
 	// ThreadPoolで何番目のthreadであるかをコンストラクタで渡すこと。この値は、idx(スレッドID)となる。
-	explicit Thread(size_t n);
+	explicit Thread(TranspositionTable& tt , size_t n);
 	virtual ~Thread();
 
 	// slaveは、main threadから
@@ -215,10 +215,9 @@ public:
 	// MainThreadなら0、slaveなら1,2,3,...
 	size_t thread_id() const { return idx; }
 
-#if defined(EVAL_LEARN)
-	// 学習用の実行ファイルでは、スレッドごとに置換表を持ちたい。
-	TranspositionTable tt;
-#endif
+	// 置換表への参照。
+	// ※ 学習用の実行ファイルでは、スレッドごとに置換表を持ちたい。
+	TranspositionTable& tt;
 };
 
 

@@ -71,11 +71,17 @@ struct RootMove
 	// pv[0]には、このコンストラクタの引数で渡されたmを設定する。
 	explicit RootMove(Move m) : pv(1, m) {}
 
-	// ponderの指し手がないときにponderの指し手を置換表からひねり出す。pv[1]に格納する。
-	// ponder_candidateが2手目の局面で合法手なら、それをpv[1]に格納する。
-	// それすらなかった場合はfalseを返す。
-	// ※　Stockfishにはこの関数に第二引数はない。やねうら王が独自に追加した。
-	bool extract_ponder_from_tt(Position& pos, Move ponder_candidate);
+	// Called in case we have no ponder move before exiting the search,
+	// for instance, in case we stop the search during a fail high at root.
+	// We try hard to have a ponder move to return to the GUI,
+	// otherwise in case of 'ponder on' we have nothing to think about.
+
+	// 探索を終了する前にponder moveがない場合に呼び出されます。
+	// 例えば、rootでfail highが発生して探索を中断した場合などです。
+	// GUIに返すponder moveをできる限り準備しようとしますが、
+	// そうでない場合、「ponder on」の際に考えるべきものが何もなくなります。
+
+	bool extract_ponder_from_tt(const TranspositionTable& tt, Position& pos);
 
 	// std::count(),std::find()などで指し手と比較するときに必要。
 	bool operator==(const Move& m) const { return pv[0] == m; }
@@ -257,6 +263,13 @@ void init();
 // 探索部のclear。
 // 置換表のクリアなど時間のかかる探索の初期化処理をここでやる。isreadyに対して呼び出される。
 void clear();
+
+// pv(読み筋)をUSIプロトコルに基いて出力する。
+// pos   : 局面
+// tt    : このスレッドに属する置換表
+// depth : 反復深化のiteration深さ。
+std::string pv(const Position& pos, const TranspositionTable& tt, Depth depth);
+
 
 } // end of namespace Search
 

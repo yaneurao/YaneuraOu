@@ -157,10 +157,6 @@ namespace USI
 	// " 7g7f 8c8d" のように返る。
 	std::string move(const std::vector<Move>& moves);
 
-	// pv(読み筋)をUSIプロトコルに基いて出力する。
-	// depth : 反復深化のiteration深さ。
-	std::string pv(const Position& pos, Depth depth);
-
 	// 局面posとUSIプロトコルによる指し手を与えて
 	// もし可能なら等価で合法な指し手を返す。
 	// 合法でないときはMOVE_NONEを返す。(この時、エラーである旨を出力する。)
