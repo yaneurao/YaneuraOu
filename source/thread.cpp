@@ -170,7 +170,7 @@ void ThreadPool::set(size_t requested)
 #else
 		// yaneuraou.wasm
 		while (size() < requested)
-			threads.push_back(size() ? new Thread(size()) : new MainThread(0));
+			threads.push_back(size() ? new Thread(TT, size()) : new MainThread(TT, 0));
 #endif
 		clear();
 

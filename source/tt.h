@@ -60,11 +60,12 @@ struct TTData {
 
 // これはグローバルTTへの競合的な書き込みを行うために使用されます。
 
-
 struct TTWriter {
 public:
 	// TTのTTEntryに書き込む。
-	void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+	void write(Key    k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+	void write(Key128 k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+	void write(Key256 k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
 
 private:
 	friend class TranspositionTable;
@@ -72,7 +73,21 @@ private:
 	TTWriter(TTEntry* tte);
 };
 
-// --- 置換表本体
+// ============================================================
+//               やねうら王独自拡張
+// ============================================================
+
+// やねうら王では、TTClusterSizeを変更できて、これが2の時は、TTEntryに格納するhash keyは64bit。(Stockfishのように)3の時は16bit。
+#if TT_CLUSTER_SIZE == 3
+typedef uint16_t TTE_KEY_TYPE;
+#else // TT_CLUSTER_SIZEが2,4,6,8の時は64bit。5,7は選択する意味がないと思うので考えない。
+typedef uint64_t TTE_KEY_TYPE;
+#endif
+
+// ============================================================
+//               置換表本体
+// ============================================================
+
 // TT_ENTRYをClusterSize個並べて、クラスターをつくる。
 // このクラスターのTT_ENTRYは同じhash keyに対する保存場所である。(保存場所が被ったときに後続のTT_ENTRYを使う)
 // このクラスターが、clusterCount個だけ確保されている。
@@ -127,20 +142,41 @@ public:
 	// 見つかったならfound == trueにしてそのTT_ENTRY*を返す。
 	// 見つからなかったらfound == falseで、このとき置換表に書き戻すときに使うと良いTT_ENTRY*を返す。
 	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
-
+	//
 	// ⇨ このprobe()でTTの内部状態が変更されないことは保証されている。(されるようになった)
+	//
+	// ■ 備考
+	//
+	// Stockfishのprobe()を_probe()とrename。
+	// そして、以下の3つのprobe()を用意して、この_probe()を下請けとして呼び出すように変更。
 
-	std::tuple<bool, TTData, TTWriter> probe(const Key key , const Position& pos) const;
+	std::tuple<bool, TTData, TTWriter> probe(const Key     key, const Position& pos) const;
+	std::tuple<bool, TTData, TTWriter> probe(const Key128& key, const Position& pos) const;
+	std::tuple<bool, TTData, TTWriter> probe(const Key256& key, const Position& pos) const;
 
 	// This is the hash function; its only external use is memory prefetching.
 	// これはハッシュ関数です。外部での唯一の使用目的はメモリのプリフェッチです。
+
 	// ⇨ keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。
 	// 　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
+	// 
+	// ■ 備考
+	//
+	// Stockfishのfirst_entry()を_first_entry()とrename。
+	// そして、以下の3つのfirst_entry()を用意して、この_first_entry()を下請けとして呼び出すように変更。
 
-	TTEntry* first_entry(const Key key) const;
+	TTEntry* first_entry(const Key     key) const;
+	TTEntry* first_entry(const Key128& key) const;
+	TTEntry* first_entry(const Key256& key) const;
 
 private:
 	friend struct TTEntry;
+
+	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
+	// ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
+
+	TTEntry* _first_entry(const Key    key) const;
+	std::tuple<bool, TTData, TTWriter> _probe(const Key key, const TTE_KEY_TYPE key_for_ttentry, const Position& pos) const;
 
 	// この置換表が保持しているクラスター数。
 	// Stockfishはresize()ごとに毎回新しく置換表を確保するが、やねうら王では

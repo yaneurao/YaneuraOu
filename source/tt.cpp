@@ -62,6 +62,13 @@
 // bound type  2 bit : 格納されているvalue値の性質(fail low/highした時の値であるだとか)
 // value      16 bit : このnodeでのsearch()の返し値
 // eval value 16 bit : このnodeでのevaluate()の返し値
+//
+// generation , pv node , bound type をあわせると 5 + 1 + 2 bit = 8 bitとなる。
+// TTEntryは、この3つを合わせた変数として generation8 が格納されている。
+//
+// ■ 補足
+//
+// Stockfishではkey16は16bit固定であるが、これをやねうら王では、HASH_KEYが64bit,128bit,256bitのときに、それぞれ16bit,64bit,64bitに拡張している。
 
 struct TTEntry {
 
@@ -80,7 +87,9 @@ struct TTEntry {
 
 	// 探索した情報をこの構造体に保存する。
 
-	void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+	void TTEntry::save(Key     k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)(k >> 1)        , v, pv, b, d, m, ev, generation8); }
+	void TTEntry::save(Key128& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
+	void TTEntry::save(Key256& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
 
 	// The returned age is a multiple of TranspositionTable::GENERATION_DELTA
 	// 返されるエイジは、TranspositionTable::GENERATION_DELTA の倍数です
@@ -90,8 +99,9 @@ struct TTEntry {
 
 private:
 	friend class TranspositionTable;
+	void _save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
 
-	uint16_t key16;
+	TTE_KEY_TYPE key;
 	uint8_t  depth8;
 	uint8_t  genBound8;
 	Move16   move16;
@@ -102,28 +112,30 @@ private:
 
 // `genBound8` is where most of the details are. We use the following constants to manipulate 5 leading generation bits
 // and 3 trailing miscellaneous bits.
-
 // These bits are reserved for other things.
 
 // genBound8には大部分の詳細が含まれています。
 // 次の定数を使用して、5ビットの先頭世代ビットと3ビットの末尾のその他のビットを操作します。
-
 // これらのビットは他の用途のために予約されています。
+// ⇨ generation8の下位↓bitは、generation用ではなく、別の情報を格納するのに用いる。
+//   (PV nodeかどうかのフラグとBoundに用いている。)
 
 static constexpr unsigned GENERATION_BITS = 3;
 
 // increment for generation field
 // 世代フィールドをインクリメント
+// ⇨ 次のgenerationにするために加算する定数。2の↑乗。
 
 static constexpr int GENERATION_DELTA = (1 << GENERATION_BITS);
 
 // cycle length
 // サイクル長
+// ⇨ generationを加算していき、1周して戻ってくるまでの長さ。
 
 static constexpr int GENERATION_CYCLE = 255 + GENERATION_DELTA;
 
 // mask to pull out generation number
-// 世代番号を抽出するためのマスク
+// TTEntryから世代番号を抽出するためのマスク
 
 static constexpr int GENERATION_MASK = (0xFF << GENERATION_BITS) & 0xFF;
 
@@ -155,25 +167,24 @@ bool TTEntry::is_occupied() const { return bool(depth8); }
 // 引数のgenは、Stockfishにはないが、やねうら王では学習時にスレッドごとに別の局面を探索させたいので
 // スレッドごとに異なるgenerationの値を指定したくてこのような作りになっている。
 
-void TTEntry::save(
-	Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+void TTEntry::_save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
 
 	// Preserve the old ttmove if we don't have a new one
 	// 新しいttmoveがない場合、古いttmoveを保持します
 
-	if (m || uint16_t(k) != key16)
+	if (m || k != key)
 		move16 = m;
 
 	// Overwrite less valuable entries (cheapest checks first)
 	// より価値の低いエントリを上書きします（最も安価なチェックを優先）
 
-	if (b == BOUND_EXACT || uint16_t(k) != key16 || d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4
+	if (b == BOUND_EXACT || k != key || d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4
 		|| relative_age(generation8))
 	{
 		assert(d > DEPTH_ENTRY_OFFSET);
 		assert(d < 256 + DEPTH_ENTRY_OFFSET);
 
-		key16     = uint16_t(k);
+		key       = TTE_KEY_TYPE(k);
 		depth8    = uint8_t(d - DEPTH_ENTRY_OFFSET);
 		genBound8 = uint8_t(generation8 | uint8_t(pv) << 2 | b);
 		value16   = int16_t(v);
@@ -216,10 +227,9 @@ uint8_t TTEntry::relative_age(const uint8_t generation8) const {
 TTWriter::TTWriter(TTEntry* tte) :
 	entry(tte) {}
 
-void TTWriter::write(
-	Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
-	entry->save(k, v, pv, b, d, m, ev, generation8);
-}
+void TTWriter::write(Key    k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { entry->save(k, v, pv, b, d, m, ev, generation8);}
+void TTWriter::write(Key128 k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { entry->save(k, v, pv, b, d, m, ev, generation8); }
+void TTWriter::write(Key256 k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { entry->save(k, v, pv, b, d, m, ev, generation8); }
 
 // A TranspositionTable is an array of Cluster, of size clusterCount. Each cluster consists of ClusterSize number
 // of TTEntry. Each non-empty TTEntry contains information on exactly one position. The size of a Cluster should
@@ -254,6 +264,7 @@ struct Cluster {
 };
 
 // static_assert(sizeof(Cluster) == 32, "Suboptimal Cluster size");
+static_assert((sizeof(Cluster) % 32) == 0, "Unexpected Cluster size");
 
 // Sets the size of the transposition table,
 // measured in megabytes. Transposition table consists
@@ -373,17 +384,15 @@ uint8_t TranspositionTable::generation() const { return generation8; }
 //    probe()してhitしたときに ttData.moveは Move16のままなので ttData.move32(pos)を用いて取得する必要がある。
 //    そこで、probe()の第2引数にPositionを渡すようにして、Move16ではなくMoveに変換されたTTDataを返すことにする。
 
-std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, const Position& pos) const {
+std::tuple<bool, TTData, TTWriter> TranspositionTable::_probe(const Key key_for_index, const TTE_KEY_TYPE key_for_ttentry, const Position& pos) const {
 
-	TTEntry* const tte = first_entry(key);
+	TTEntry* const tte = first_entry(key_for_index);
 
 	// Use the low 16 bits as key inside the cluster
 	// クラスター内で下位16ビットをキーとして使用します
 
-	const uint16_t key16 = uint16_t(key);
-
 	for (int i = 0; i < ClusterSize; ++i)
-		if (tte[i].key16 == key16)
+		if (tte[i].key == key_for_ttentry)
 
 			// This gap is the main place for read races.
 			// After `read()` completes that copy is final, but may be self-inconsistent.
@@ -414,10 +423,44 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, cons
 	return { false, TTData(), TTWriter(replace) };
 }
 
+std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key     key, const Position& pos) const { return _probe(key               , (TTE_KEY_TYPE)(key >> 1          ), pos); }
+std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key128& key, const Position& pos) const { return _probe(key.extract64<0>(), (TTE_KEY_TYPE)(key.extract64<1>()), pos); }
+std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key256& key, const Position& pos) const { return _probe(key.extract64<0>(), (TTE_KEY_TYPE)(key.extract64<1>()), pos); }
 
-TTEntry* TranspositionTable::first_entry(const Key key) const {
-	return &table[mul_hi64(key, clusterCount)].entry[0];
+// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
+// ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
+
+TTEntry* TranspositionTable::_first_entry(const Key key) const {
+	// Stockfishのコード
+	// mul_hi64は、64bit * 64bitの掛け算をして下位64bitを取得する関数。
+	//return &table[mul_hi64(key, clusterCount)].entry[0];
+
+	// key(64bit) × clusterCount / 2^64 の値は 0 ～ clusterCount - 1 である。
+	// 掛け算が必要にはなるが、こうすることで custerCountを2^Nで確保しないといけないという制約が外れる。
+	// cf. Allow for general transposition table sizes. : https://github.com/official-stockfish/Stockfish/commit/2198cd0524574f0d9df8c0ec9aaf14ad8c94402b
+
+	// ※　以下、やねうら王独自拡張
+
+	// やねうら王では、keyのbit0(先後フラグ)がindexのbit0に反映される必要がある。
+	// このときclusterCountが奇数だと、(index & ~(u64)1) | (key & 1) のようにしたときに、
+	// (clusterCount - 1)が上限であるべきなのにclusterCountになりかねない。
+	// そこでclusterCountは偶数であるという制約を課す。
+	ASSERT_LV3((clusterCount & 1) == 0);
+
+	// indexのbit0は、keyのbit0(先後フラグ)が反映されなければならない。
+	// →　次のindexの計算ではbit0を潰して計算するためにkeyを2で割ってからmul_hi64()している。
+
+	// (key/2) * clusterCount / 2^64 をするので、indexは 0 ～ (clusterCount/2)-1 の範囲となる。
+	uint64_t index = mul_hi64((u64)key >> 1, clusterCount);
+
+	// indexは0～(clusterCount/2)-1の範囲にあるのでこれを2倍すると、0～clusterCount-2の範囲。
+	// clusterCountは偶数で、ここにkeyのbit0がbit-orされるので0～clusterCount-1の範囲の値が得られる。
+	return &table[(index << 1) | ((u64)key & 1)].entry[0];
 }
+
+TTEntry* TranspositionTable::first_entry(const Key     key) const { return _first_entry(key); }
+TTEntry* TranspositionTable::first_entry(const Key128& key) const { return _first_entry(key.extract64<0>()); }
+TTEntry* TranspositionTable::first_entry(const Key256& key) const { return _first_entry(key.extract64<0>()); }
 
 //}  // namespace Stockfish
 
