@@ -2022,7 +2022,7 @@ namespace StringExtension
 		return s;
 	}
 
-	// 文字列valueが、文字列endingで終了していればtrueを返す。
+	// 文字列valueが、文字列startingで始まっていればtrueを返す。
 	bool StartsWith(std::string const& value, std::string const& starting)
 	{
 		if (starting.size() > value.size()) return false;
