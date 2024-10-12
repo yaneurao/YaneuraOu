@@ -60,9 +60,9 @@ namespace Mate
 				// 敵玉の利きは必ずtoにあるのでそれを除いた利きがあるかどうか。
 				&& (pos.attackers_to(them, to, pos.pieces()) ^ pos.king_square(them))
 #else
-				&& (is_drop(m) ? pos.effected_to(us, to) :
+				&& (m.is_drop() ? pos.effected_to(us, to) :
 					pos.board_effect[us].effect(to) >= 2 ||
-					(pos.long_effect.directions_of(us, from_sq(m)) & Effect8::directions_of(from_sq(m), to)) != 0)
+					(pos.long_effect.directions_of(us, m.from_sq()) & Effect8::directions_of(m.from_sq(), to)) != 0)
 
 				// 敵玉の利きがあるので2つ以上なければそれで良い。
 				&& (pos.board_effect[them].effect(to) <= 1)

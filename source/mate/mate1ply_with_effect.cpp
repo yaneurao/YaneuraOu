@@ -135,7 +135,7 @@ namespace Mate
 		// 詰ませられる前提条件を満たしていないなら、これにて不詰めが証明できる。
 		// ただし、桂で詰む場合は、mi.hand_kind == HAND_KIND_KNIGHTになっているので…。
 		if (!(mi.directions | mi.hand_kind))
-			return MOVE_NONE;
+			return Move::none();
 
 		// -----------------------
 		//     駒打ちによる詰み
@@ -389,7 +389,7 @@ namespace Mate
 	}
 NextCandidate:;
 
-	return MOVE_NONE;
+	return Move::none();
 		};
 
 
@@ -420,7 +420,7 @@ NextCandidate:;
 			{
 				from = froms.pop();
 				Move m = is_mated_by_from_to(from, to, to_direct);
-				if (m != MOVE_NONE)
+				if (m != Move::none())
 					return m;
 			}
 		}
@@ -470,12 +470,12 @@ NextCandidate:;
 
 				auto to_direct = (Direct)LSB32(directions_of(themKing, to));
 				Move m = is_mated_by_from_to(from, to, to_direct);
-				if (m != MOVE_NONE)
+				if (m != Move::none())
 					return m;
 			}
 		}
 
-		return MOVE_NONE;
+		return Move::none();
 	}
 
 	// Mate1Ply関係のテーブル初期化

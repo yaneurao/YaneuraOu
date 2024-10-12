@@ -749,7 +749,7 @@ public:
 	constexpr Move16(u16 m) : data(m) {}
 
 	// Moveからの暗黙変換はできないとMOVE_NONEの代入などで困る。
-	constexpr Move16(Move m) : data(m.to_move16().to_u16()) {}
+	Move16(Move m) : data(m.to_move16().to_u16()) {}
 
 	// -- property
 
