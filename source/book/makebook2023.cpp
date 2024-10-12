@@ -779,7 +779,7 @@ namespace MakeBook2023
 						//	value = draw_value
 						//	depth = ∞
 						//  draw_state = 先後ともに回避できない
-						BookMove book_move(Move16(move.move),
+						BookMove book_move(move.to_move16(),
 							ValueDepth(
 								draw_value(REPETITION_DRAW, book_node.color()),
 								BOOK_DEPTH_INF
@@ -1084,7 +1084,7 @@ namespace MakeBook2023
 				const auto& book_move = node.moves[i];
 
 				// MOVE_NONEならこの枝はないものとして扱う。
-				if (book_move.move == MOVE_NONE)
+				if (book_move.move.to_u16() == MOVE_NONE)
 					continue;
 
 				if (book_move.vd.is_superior(best, node.color()))

@@ -77,7 +77,7 @@ namespace Book
 			for (size_t i = 0; i < m ; ++i)
 			{
 				const auto& rootMoves = th->rootMoves[i];
-				Move nextMove = (rootMoves.pv.size() >= 1) ? rootMoves.pv[1] : MOVE_NONE;
+				Move nextMove = (rootMoves.pv.size() >= 1) ? rootMoves.pv[1] : Move::none();
 
 				// 出現頻度は、バージョンナンバーを100倍したものにしておく)
 				// ⇨ ENGINE_VERSIONに数字以外の文字列入れたいことがあるので、これは良くない仕様。
@@ -410,7 +410,7 @@ namespace Book
 					}
 
 					// MOVE_WIN,MOVE_RESIGNでは局面を進められないのでここで終了。
-					if (!is_ok(move))
+					if (!move.is_ok())
 						break;
 
 					append_to_sf();

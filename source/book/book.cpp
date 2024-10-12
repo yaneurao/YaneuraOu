@@ -48,12 +48,12 @@ namespace Book
 
 	// Aperyの指し手の変換。
 	uint16_t convert_move_to_apery(Move16 m) {
-		const uint16_t ispromote = is_promote(m) ? (1 << 14) : 0;
-		const uint16_t from = ((is_drop(m)?
-			(static_cast<uint16_t>(move_dropped_piece(m)) + SQ_NB - 1):
-			static_cast<uint16_t>(from_sq(m))
+		const uint16_t ispromote = m.is_promote() ? (1 << 14) : 0;
+		const uint16_t from      = ((m.is_drop()?
+			(static_cast<uint16_t>(m.move_dropped_piece()) + SQ_NB - 1):
+			 static_cast<uint16_t>(m.from_sq())
 		) & 0x7f) << 7;
-		const uint16_t to = static_cast<uint16_t>(to_sq(m)) & 0x7f;
+		const uint16_t to = static_cast<uint16_t>(m.to_sq()) & 0x7f;
 		return (ispromote | from | to);
 	}
 
@@ -1105,7 +1105,7 @@ namespace Book
 							// だから、
 							// 1. rest_plyの残りがあるならもう1手は出力しないといけないのでponderを出力して良い。
 							// 2. 但し、この時、ponderが登録されていない(MOVE_NONE)なら出力しない。
-							if (rest_ply >= 1 && ponderMove16 != MOVE_NONE)
+							if (rest_ply >= 1 && ponderMove16.to_u16() != MOVE_NONE)
 								result += " " + ponderMove16.to_usi_string();
 
 						} else {
@@ -1348,7 +1348,7 @@ namespace Book
 			value      = Value(bestBookMove.value);
 
 			// ponderが登録されていなければ、bestMoveで一手進めてそこの局面のbestを拾ってくる。
-			if (!is_ok((Move)ponderMove.to_u16()))
+			if (!ponderMove.is_ok())
 			{
 				Move best = rootPos.to_move(bestMove);
 				if (rootPos.pseudo_legal_s<true>(best) && rootPos.legal(best))
@@ -1379,7 +1379,7 @@ namespace Book
 		Move16 bestMove16, ponderMove16;
 		Value value;
 		if (!probe_impl(pos, silent, bestMove16, ponderMove16, value))
-			return MOVE_NONE;
+			return Move::none();
 
 		Move bestMove = pos.to_move(bestMove16);
 
@@ -1440,11 +1440,11 @@ namespace Book
 				// 定跡ファイルに2手目が書いてあったなら、それをponder用に出力する。
 				// これが合法手でなかったら将棋所が弾くと思う。
 				// (ただし、"ponder resign"などと出力してしまうと投了と判定されてしまうらしいので
-				//  普通の指し手でなければならない。これは、is_ok(Move)で判定できる。)
-				if (is_ok((Move)ponderMove16.to_u16()))
+				//  普通の指し手でなければならない。これは、Move16.is_ok()で判定できる。)
+				if (ponderMove16.is_ok())
 				{
 					if (r.pv.size() <= 1)
-						r.pv.push_back(MOVE_NONE);
+						r.pv.push_back(Move::none());
 
 					// これ32bit Moveに変換してあげるほうが親切なのか…。
 					StateInfo si;
@@ -1497,7 +1497,7 @@ namespace Book
 		string moves1 = "1g1f 2g2f 3g3f 4g4f 5g5f 6f6e 7f7e 8e8d 9g9f 1i1h 9i9h 2h3i 6h6g 6h7i 7g8f 7g9e 8h7h 8h8f 8h8g 8h9h 3h3i 3h4h 5h4h 5h6g 5i4h 5i4i 5i6i";
 		string moves2 = string();
 		for(auto m : MoveList<LEGAL_ALL>(pos))
-			moves2 += (moves2.empty() ? "" : " ") + to_usi_string(m.move);
+			moves2 += (moves2.empty() ? "" : " ") + to_usi_string(Move(m));
 
 		tester.test("feed_position_string" , moves1 == moves2);
 	}
@@ -1588,7 +1588,7 @@ namespace BookTools
 				break;
 
 			// MOVE_NULL,MOVE_WINでは局面を進められないのでここで終了。
-			if (!is_ok(move))
+			if (!move.is_ok())
 				break;
 
 			si.emplace_back(StateInfo());
@@ -1635,9 +1635,8 @@ namespace BookTools
 		StateInfo si2;
 		vector<string> sfens;
 
-		for (auto ml : MoveList<LEGAL_ALL>(pos))
+		for (auto m : MoveList<LEGAL_ALL>(pos))
 		{
-			auto m = ml.move;
 			pos.do_move(m, si2);
 			sfens.emplace_back("sfen " + pos.sfen());
 			pos.undo_move(m);

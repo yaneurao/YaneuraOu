@@ -2154,7 +2154,7 @@ namespace Mate {
 		//  return pos.SengenGachi();
 		// ↑この関数は、勝ちならばMOVE_NONE以外が返る。勝ちならMOVE_WINもしくは、勝ちになる指し手が返る。
 
-		return MOVE_NONE;
+		return Move::none();
 	}
 
 	// 現局面で1手詰めであるかを判定する。1手詰めであればその指し手を返す。

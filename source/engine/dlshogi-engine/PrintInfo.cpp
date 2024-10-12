@@ -58,11 +58,11 @@ namespace dlshogi::UctPrint
 		// その訪問回数
 		NodeCountType move_count;
 
-		BestMove() : move(MOVE_NONE), wp(0), node(nullptr), move_count(0){}
+		BestMove() : move(Move::none()), wp(0), node(nullptr), move_count(0){}
 		BestMove(Move move_,WinType wp_,Node* node_, NodeCountType move_count) :move(move_), wp(wp_) , node(node_) , move_count(move_count) {}
 	};
 
-	BestMovePonder::BestMovePonder() : move(MOVE_NONE), wp(0), ponder(MOVE_NONE) {}
+	BestMovePonder::BestMovePonder() : move(Move::none()), wp(0), ponder(Move::none()) {}
 
 
 	// あるnodeの子ノードのbestなやつを選択する。
@@ -86,7 +86,7 @@ namespace dlshogi::UctPrint
 	}
 
 	// あるnodeの子ノードのbestのやつの指し手を返す。
-	// 詰みの局面ならMOVE_NONEが返る。
+	// 詰みの局面ならMove::none()が返る。
 	std::vector<BestMove> select_best_moves(const Node* node , ChildNumType multiPv)
 	{
 		std::vector<BestMove> bests;
@@ -200,7 +200,7 @@ namespace dlshogi::UctPrint
 		{
 			// 詰みを見つけているのでそれを出力する。
 			const ChildNode* uct_child = rootNode->child.get();
-			Move move = MOVE_NONE;
+			Move move = Move::none();
 			int ply = rootNode->mate_ply;
 			// 何手で詰むかわからないので最大手数で初期化。
 			if (ply == 0)
@@ -236,7 +236,7 @@ namespace dlshogi::UctPrint
 			if (!silent)
 				sync_cout << "info score mate " << ply << nps.str() << sync_endl;
 			
-			return BestMovePonder(move, 1.0, MOVE_NONE);
+			return BestMovePonder(move, 1.0, Move::none());
 		}
 #endif
 
@@ -246,7 +246,7 @@ namespace dlshogi::UctPrint
 		if (bests.size() == 0)
 			return BestMovePonder();
 
-		Move ponder = MOVE_NONE;
+		Move ponder = Move::none();
 		for(ChildNumType i = 0; i < (ChildNumType)bests.size() ; ++i)
 		{
 			auto best = bests[i];

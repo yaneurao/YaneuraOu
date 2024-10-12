@@ -63,7 +63,7 @@ namespace dlshogi
 
 			// 詰みの場合、ノードを更新
 			Move mate_move = dfpn.mate_dfpn(pos, nodes_limit);
-			if (is_ok(mate_move)) {
+			if (mate_move.is_ok()) {
 				// 詰みを発見した。
 
 				// rootで詰みを発見したのでメッセージを出力しておく。

@@ -1,4 +1,6 @@
-﻿/*
+﻿// 作業中
+#if 0
+/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2024 The Stockfish developers (see AUTHORS file)
 
@@ -350,3 +352,4 @@ namespace Stockfish {
 	}
 
 }
+#endif

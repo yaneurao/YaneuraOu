@@ -569,7 +569,7 @@ namespace MateEngine
 			//   thpn child = thpn - pn(n) + pn(n1);
 			//   thdn child = min(thdn, dn(n2) + 1);
 			// }
-			Move best_move = MOVE_NONE; // gccで初期化していないという警告がでるのでその回避
+			Move best_move = Move::none(); // gccで初期化していないという警告がでるのでその回避
 			int thpn_child;
 			int thdn_child;
 			if (or_node) {
@@ -622,7 +622,7 @@ namespace MateEngine
 				thdn_child = std::min(thdn, second_best_dn + 1);
 			}
 
-			if (best_move == MOVE_NONE && or_node){
+			if (best_move == Move::none() && or_node){
 			  entry.pn = kInfinitePnDn;
 			  entry.dn = 0;
 			  return;
@@ -737,7 +737,7 @@ namespace MateEngine
 
 	struct MateState {
 		int num_moves_to_mate = kSearching;
-		Move move_to_mate = Move::MOVE_NONE;
+		Move move_to_mate = Move::none();
 	};
 
 	// 詰み手順を1つ返す
@@ -799,7 +799,7 @@ namespace MateEngine
 		}
 
 		auto best_num_moves_to_mate = or_node ? int_max : int_min;
-		auto best_move_to_mate = Move::MOVE_NONE;
+		auto best_move_to_mate = Move::none();
 		const auto& entry = transposition_table.LookUp(pos, root_color);
 
 		for (const auto& move : move_picker) {

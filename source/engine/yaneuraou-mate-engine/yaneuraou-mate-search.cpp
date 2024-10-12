@@ -60,8 +60,8 @@ void  Search::clear()
 void MainThread::search()
 {
 	// 思考エンジンからの返し値
-	// 詰将棋ルーチンからMOVE_RESIGNが返ってくることはないので、この値が変化していたら返し値があったことを意味する。
-	atomic<Move> move = MOVE_RESIGN;
+	// 詰将棋ルーチンからMove::resign()が返ってくることはないので、この値が変化していたら返し値があったことを意味する。
+	atomic<Move> move = Move::resign();
 
 	// 探索ノード数制限
 	u64 nodes_limit = Options["NodesLimit"];
@@ -93,7 +93,7 @@ void MainThread::search()
 	auto time_up = [&]() { return Search::Limits.mate && time.elapsed() >= Search::Limits.mate; };
 
 	// 探索の終了を待つ
-	while (!Threads.stop && !time_up() && move == MOVE_RESIGN)
+	while (!Threads.stop && !time_up() && move.load() == Move::resign())
 	{
 		Tools::sleep(100);
 
@@ -114,7 +114,7 @@ void MainThread::search()
 	{
 		sync_cout << "checkmate timeout" << sync_endl;
 	}
-	else if (move == MOVE_NONE)
+	else if (move.load() == Move::none())
 	{
 		if (solver.is_out_of_memory())
 			sync_cout << "info string Out Of Memory." << sync_endl;
@@ -123,7 +123,7 @@ void MainThread::search()
 
 		sync_cout << "checkmate none" << sync_endl; // 不明
 	}
-	else if (move == MOVE_NULL)
+	else if (move.load() == Move::null())
 	{
 		// 不詰が証明された
 		sync_cout << "checkmate nomate" << sync_endl;

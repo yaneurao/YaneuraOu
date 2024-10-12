@@ -434,9 +434,9 @@ namespace Eval::dlshogi
 		// dlshogiのmake_move_label()
 		auto dl_make_move_label = [](Move16 move16, Color color)
 		{
-			Square   to =   to_sq(move16);
-			Square from = from_sq(move16);
-			bool   drop = is_drop(move16);
+			Square   to = move16.to_sq();
+			Square from = move16.from_sq();
+			bool   drop = move16.is_drop();
 
 			// move direction
 			int move_direction_label;
@@ -489,7 +489,7 @@ namespace Eval::dlshogi
 				}
 
 				// promote
-				if (is_promote(move16)) {
+				if (move16.is_promote()) {
 					move_direction = MOVE_DIRECTION_PROMOTED[move_direction];
 				}
 				move_direction_label = move_direction;
@@ -499,7 +499,7 @@ namespace Eval::dlshogi
 				// 後手の駒打ちなのでtoの場所だけを反転。
 				if (color == WHITE)
 					to = Flip(to);
-				PieceType pt = move_dropped_piece(move16);
+				PieceType pt = move16.move_dropped_piece();
 				const int hand_piece = int(pt - PAWN); // Aperyの駒打ち、駒の順番はPieceType順なのでPieceType2HandPiece[pt];は不要。
 				move_direction_label = MOVE_DIRECTION_NUM + hand_piece;
 			}

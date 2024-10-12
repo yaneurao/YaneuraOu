@@ -618,7 +618,13 @@ constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 //       指し手
 // --------------------
 
-struct Move16;
+class Move;
+class Move16;
+
+// USI形式の文字列にする。
+// USI::move(Move m)と同等。互換性のために残されている。
+std::string to_usi_string(Move m);
+std::string to_usi_string(Move16 m);
 
 // Move16 : 16bit形式の指し手
 //   bit0..6  : 移動先のSquare
@@ -632,8 +638,8 @@ struct Move16;
 //   move = move16 + (piece << 16)
 // なので、Moveが使うのは、16bit(Move16) + 5bit(Piece) = 下位21bit
 //
-enum Move : uint32_t {
 
+enum MoveEnum : uint32_t {
 	MOVE_NONE    = 0,             // 無効な移動
 
 	MOVE_NULL    = (1 << 7) + 1,  // NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
@@ -644,101 +650,149 @@ enum Move : uint32_t {
 	MOVE_PROMOTE = 1 << 15,       // 駒成りフラグ
 };
 
-// USI形式の文字列にする。
-// USI::move(Move m)と同等。互換性のために残されている。
-std::string to_usi_string(Move m);
-std::string to_usi_string(Move16 m);
+// 指し手を表現するclass(実体は32bit整数)
+class Move
+{
+public:
+	Move() = default;
+	constexpr explicit Move(std::uint32_t d): data(d) {}
+
+	// -- 定数
+
+	// MOVE_NONEに相当する定数。
+	static constexpr Move none() { return Move(MOVE_NONE); }
+
+	// MOVE_NULLに相当する定数。
+	static constexpr Move null() { return Move(MOVE_NULL); }
+
+	// MOVE_RESIGNに相当する定数。
+	static constexpr Move resign() { return Move(MOVE_RESIGN); }
+
+	// MOVE_WINに相当する定数。
+	static constexpr Move win() { return Move(MOVE_WIN); }
+
+	// -- property
+
+	// 指し手の移動元の升を返す。
+	// → ここ、ASSERT使っててconstexpr式として評価できないかも？
+	Square from_sq() const {
+		ASSERT_LV3(is_ok());
+		return Square((data >> 7) & 0x7f);
+	}
+
+	// 指し手の移動先の升を返す。
+	Square to_sq() const { return Square(data & 0x7f); }
+
+	// 指し手が駒打ちか？
+	bool is_drop() const { return (data & MOVE_DROP) != 0; }
+
+	// 指し手が成りか？
+	bool is_promote() const { return (data & MOVE_PROMOTE) != 0; }
+
+	// 駒打ち(is_drop()==true)のときの打った駒
+	// 先後の区別なし。PAWN～ROOKまでの値が返る。
+	// ※ 打つ駒のPieceTypeはMoveの bit7..13に格納されている。
+	// ※ assert(is_drop(m))はあってもいいかも。
+	PieceType move_dropped_piece() const { return (PieceType)((data >> 7) & 0x7f); }
+
+	// fromとtoをシリアライズする。駒打ちのときのfromは普通の移動の指し手とは異なる。
+	// この関数は、0 ～ ((SQ_NB+7) * SQ_NB - 1)までの値が返る。
+	// ※ is_drop() == trueの時、from_sq(m)は、打つ駒のPieceTypeが返る。NO_PIECE = 0で、ここが空番であることに注意。
+	//    ゆえに、is_drop()==trueの時は、from_sq(m)にSQ_NB-1を足して、打つ駒がPAWN(= 1)の時にSQ_NBになるようにしてやる必要がある。
+	// 注) 駒打ちに関して、先手の駒と後手の駒の区別はしない。
+	// 　　これは、この関数は、MovePickerのButterflyHistoryで使うから必要なのだが、そこでは指し手の手番(Color)を別途持っているから。
+	int from_to() const { return (int)(from_sq() + (is_drop() ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(); }
+
+	// 指し手が普通の指し手(駒打ち/駒成り含む)であるかテストする。
+	// 特殊な指し手(MOVE_NONE/MOVE_NULL/MOVE_WIN)である場合、falseが返る。
+	// それ普通の指し手ならばtrueが返る。
+	constexpr bool is_ok() const {
+		// 通常の指し手ならば、
+		// 1. 32bit moveの場合は、上位16bitに移動させる駒があるからm >> 7が下位7bitと一致することはない。
+		// 2. 16bit moveの場合は、
+		//   2a. 移動させる指し手ならば from == toは満たさない。
+		//   2b. 駒打ちの場合は、m >> 7のbit7が1になっているので右辺とは一致しない。
+		// ということで、以下の条件式で良い。
+		return (data >> 7) != (data & 0x7f);
+	}
+
+	// -- 変換子
+
+	// Move16への変換子
+	Move16 to_move16() const;
+	constexpr uint16_t to_u16() const { return (uint16_t)data; }
+	constexpr uint32_t to_u32() const { return (uint32_t)data; }
+	constexpr operator bool() const { return data; }
+
+	// -- 比較
+
+	bool operator == (const Move rhs) const { return this->to_u32() == rhs.to_u32(); }
+	bool operator != (const Move rhs) const { return !(*this == rhs); }
+
+	// -- 文字列化
+
+	// USI形式の文字列にする。
+	std::string to_usi_string() const { return ::to_usi_string(*this); }
+
+protected:
+	std::uint32_t data;
+};
 
 // 16bit型の指し手。Move型の下位16bit。
 // 32bit型のMoveか16bit型のMoveかが不明瞭で、それがバグの原因となりやすいので
 // それらを明確に区別したい時に用いる。
-struct Move16
+class Move16
 {
-	Move16() : move(0) {}
-	Move16(u16 m) : move(m) {}
+public:
+
+	constexpr Move16() : data(0) {}
+	constexpr Move16(u16 m) : data(m) {}
 
 	// Moveからの暗黙変換はできないとMOVE_NONEの代入などで困る。
-	Move16(Move m) : move((u16)m) {}
+	constexpr Move16(Move m) : data(m.to_move16().to_u16()) {}
+
+	// -- property
+
+	Square from_sq() const { ASSERT_LV3(is_ok()); return Square((data >> 7) & 0x7f); }
+	Square to_sq() const { return Square(data & 0x7f); }
+	bool is_drop() const { return (data & MOVE_DROP) != 0; }
+	bool is_promote() const { return (data & MOVE_PROMOTE) != 0; }
+	PieceType move_dropped_piece() const { return (PieceType)((data >> 7) & 0x7f); }
+
+	int from_to() const { return (int)(from_sq() + (is_drop() ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(); }
+	constexpr bool is_ok() const { return (data >> 7) != (data & 0x7f); }
+
+	// -- 変換子
 
 	// uint16_tのまま取り出す。
 	// Moveに変換が必要なときは、そのあとMove()にcastすることはできる。(上位16bitは0のまま)
 	// 内部的に用いる。基本的にはこの関数を呼び出さないこと。
-	// このMove16のinstanceをMoveに戻したい時は、Position::to_move(Move16)を使うこと。
-	constexpr uint16_t to_u16() const { return (u16)move; }
+	// ⇨ このMove16のinstanceをMoveに戻したい時は、Position::to_move(Move16)を使うこと。
+	constexpr uint16_t to_u16() const { return (u16)data; }
+	constexpr operator bool() const { return data; }
 
-	// 比較
+	// -- 比較
+
 	// Move16同士とMoveの定数とも比較はできる。
-	bool operator == (const Move16 rhs) const { return move == rhs.move; }
+	bool operator == (const Move16 rhs) const { return data == rhs.data; }
 	bool operator != (const Move16 rhs) const { return !(*this == rhs); }
-	bool operator == (const Move rhs) const { return move == (u16)rhs; }
+	bool operator == (const Move rhs) const { return this->to_u16() == rhs.to_u16(); }
 	bool operator != (const Move rhs) const { return !(*this == rhs); }
 
+	// -- 文字列化
+
 	// USI形式の文字列にする。
-	std::string to_usi_string() const { return ::to_usi_string(move); }
+	std::string to_usi_string() const { return ::to_usi_string(data); }
 
-	// 通常の指し手であるかのチェック。is_ok(Move)と同等。
-	constexpr bool is_ok() const { return (move >> 7) != (move & 0x7f); }
 
-private:
-	uint16_t move;
+protected:
+	uint16_t data;
 };
 
 // USI形式で指し手を表示する
 static std::ostream& operator<<(std::ostream& os, Move m)   { os << to_usi_string(m); return os; }
 static std::ostream& operator<<(std::ostream& os, Move16 m) { os << to_usi_string(m); return os; }
 
-// 指し手が普通の指し手(駒打ち/駒成り含む)であるかテストする。
-// 特殊な指し手(MOVE_NONE/MOVE_NULL/MOVE_WIN)である場合、falseが返る。
-// それ普通の指し手ならばtrueが返る。
-constexpr bool is_ok(Move m) {
-	// 通常の指し手ならば、
-	// 1. 32bit moveの場合は、上位16bitに移動させる駒があるからm >> 7が下位7bitと一致することはない。
-	// 2. 16bit moveの場合は、
-	//   2a. 移動させる指し手ならば from == toは満たさない。
-	//   2b. 駒打ちの場合は、m >> 7のbit7が1になっているので右辺とは一致しない。
-	// ということで、以下の条件式で良い。
-	return (m >> 7) != (m & 0x7f);
-}
-static bool is_ok(Move16 m) { return m.is_ok(); }
-
-// 指し手の移動元の升を返す。
-// → ここ、ASSERT使っててconstexpr式として評価できないかも？
-constexpr Square from_sq(Move   m) {
-	ASSERT_LV3(is_ok(m));
-	return Square((m          >> 7) & 0x7f);
-}
-static    Square from_sq(Move16 m) {
-	ASSERT_LV3(is_ok(m));
-	return Square((m.to_u16() >> 7) & 0x7f);
-}
-
-// 指し手の移動先の升を返す。
-constexpr Square to_sq(Move   m) { return Square(m          & 0x7f); }
-static    Square to_sq(Move16 m) { return Square(m.to_u16() & 0x7f); }
-
-// 指し手が駒打ちか？
-constexpr bool is_drop(Move   m){ return (m          & MOVE_DROP)!=0; }
-static    bool is_drop(Move16 m){ return (m.to_u16() & MOVE_DROP)!=0; }
-
-// fromとtoをシリアライズする。駒打ちのときのfromは普通の移動の指し手とは異なる。
-// この関数は、0 ～ ((SQ_NB+7) * SQ_NB - 1)までの値が返る。
-// ※ is_drop() == trueの時、from_sq(m)は、打つ駒のPieceTypeが返る。NO_PIECE = 0で、ここが空番であることに注意。
-//    ゆえに、is_drop()==trueの時は、from_sq(m)にSQ_NB-1を足して、打つ駒がPAWN(= 1)の時にSQ_NBになるようにしてやる必要がある。
-// 注) 駒打ちに関して、先手の駒と後手の駒の区別はしない。
-// 　　これは、この関数は、MovePickerのButterflyHistoryで使うから必要なのだが、そこでは指し手の手番(Color)を別途持っているから。
-constexpr int from_to(Move   m) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(m); }
-static    int from_to(Move16 m) { return (int)(from_sq(m) + (is_drop(m) ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(m); }
-
-// 指し手が成りか？
-constexpr bool is_promote(Move   m) { return (m          & MOVE_PROMOTE)!=0; }
-static    bool is_promote(Move16 m) { return (m.to_u16() & MOVE_PROMOTE)!=0; }
-
-// 駒打ち(is_drop()==true)のときの打った駒
-// 先後の区別なし。PAWN～ROOKまでの値が返る。
-// ※ 打つ駒のPieceTypeはMoveの bit7..13に格納されている。
-// ※ assert(is_drop(m))はあってもいいかも。
-constexpr PieceType move_dropped_piece(Move   m) { return (PieceType)((m          >> 7) & 0x7f); }
-static    PieceType move_dropped_piece(Move16 m) { return (PieceType)((m.to_u16() >> 7) & 0x7f); }
 
 // us側のptをfromからtoに移動させる指し手を生成して返す。
 // Move16を返すほうは、移動させる駒が何かの情報は持っていない。
@@ -762,7 +816,7 @@ constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return (Mov
 // 将棋はチェスと違って元の場所に戻れない駒が多いのでreverse_move()を用いるhistory updateは
 // 大抵、悪影響しかない。
 // また、reverse_move()を用いるならば、ifの条件式に " && !is_drop(move)"が要ると思う。
-static Move16 reverse_move(Move m) { return make_move16(to_sq(m), from_sq(m)); }
+static Move16 reverse_move(Move m) { return make_move16(m.to_sq(), m.from_sq()); }
 
 // 指し手を反転させる(盤面を180°回転させた指し手にする)
 // 駒打ちもちゃんと考慮する。mがMOVE_NONEでも良い。(MOVE_NONEが返る)
@@ -771,9 +825,9 @@ static Move16 reverse_move(Move m) { return make_move16(to_sq(m), from_sq(m)); }
 static Move16 flip_move(Move16 m) {
 
 	return 
-		is_drop   (m)  ? make_move_drop16   (move_dropped_piece(m), Flip(to_sq(m))):
-        is_promote(m)  ? make_move_promote16(Flip(from_sq(m))     , Flip(to_sq(m))):
-					     make_move16        (Flip(from_sq(m))     , Flip(to_sq(m)));
+		m.is_drop   ()  ? make_move_drop16   (m.move_dropped_piece(), Flip(m.to_sq())):
+        m.is_promote()  ? make_move_promote16(Flip(m.from_sq())     , Flip(m.to_sq())):
+					      make_move16        (Flip(m.from_sq())     , Flip(m.to_sq()));
 }
 
 // 見た目に、わかりやすい形式で表示する
@@ -788,13 +842,13 @@ static std::string pretty(Move m, PieceType movedPieceType) { return pretty(m, (
 enum MoveType {
 	NORMAL,
 	PROMOTION = MOVE_PROMOTE,
-	DROP = MOVE_DROP,
+	DROP      = MOVE_DROP,
 	//ENPASSANT = 2 << 14,
 	//CASTLING = 3 << 14
 };
 
 // 指し手(Move)のMoveTypeを返す。
-constexpr MoveType type_of(Move m) { return MoveType(m & (MOVE_PROMOTE | MOVE_DROP)); }
+constexpr MoveType type_of(Move m) { return MoveType(m.to_u16() & (MOVE_PROMOTE | MOVE_DROP)); }
 
 // --------------------
 //   拡張された指し手
@@ -802,19 +856,23 @@ constexpr MoveType type_of(Move m) { return MoveType(m & (MOVE_PROMOTE | MOVE_DR
 
 // 指し手とオーダリングのためのスコアがペアになっている構造体。
 // オーダリングのときにスコアで並べ替えしたいが、一つになっているほうが並び替えがしやすいのでこうしてある。
-struct ExtMove {
+// ⇨ Moveがclassになったので、このclass memberを呼び出したいから、Moveから派生させるように変更になった。
+struct ExtMove : public Move {
 
-	Move move;  // 指し手(32bit)
 	int value;	// 指し手オーダリング(並び替え)のときのスコア(符号つき32bit)
 
-	// Move型とは暗黙で変換できていい。
+	// Move型から暗黙で代入できる。
+	// ⇨ こうしておけば、MoveList* curに対して *cur++ = move; のように書ける。
+	void operator=(Move m) { data = m; }
 
-	operator Move() const { return move; }
-	void operator=(Move m) { move = m; }
+	// 補足 : このクラスの変数をMove型にしたいときは、このクラスの変数を Move(m) のようにすれば良い。
 
-	// 望まない暗黙のMoveへの変換を禁止するために
-	// 曖昧な変換でコンパイルエラーになるようにしておく。
+	// Inhibit unwanted implicit conversions to Move
+	// with an ambiguity that yields to a compile error.
+	// 意図しない暗黙のMoveへの変換を防ぎ、あいまいさによってコンパイルエラーを引き起こします。
+
 	// cf. Fix involuntary conversions of ExtMove to Move : https://github.com/official-stockfish/Stockfish/commit/d482e3a8905ee194bda3f67a21dda5132c21f30b
+
 	operator float() const = delete;
 };
 
@@ -823,7 +881,7 @@ constexpr bool operator<(const ExtMove& first, const ExtMove& second) {
 	return first.value < second.value;
 }
 
-static std::ostream& operator<<(std::ostream& os, ExtMove m) { os << m.move << '(' << m.value << ')'; return os; }
+static std::ostream& operator<<(std::ostream& os, ExtMove m) { os << Move(m) << '(' << m.value << ')'; return os; }
 
 // --------------------
 //       手駒

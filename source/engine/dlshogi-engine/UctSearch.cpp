@@ -635,25 +635,25 @@ namespace dlshogi
 						// Mate::mate_odd_ply()は自分に王手がかかっていても詰みを読めるが遅い。
 						// leaf nodeでもdf-pn mate solverを用いることにする。
 
-						// MOVE_NONE(詰み不明) , MOVE_NULL(不詰)ではない 。これらはis_ok(m) == false
+						// Move::none()(詰み不明) , Move::null()(不詰)ではない 。これらはis_ok(m) == false
 						Move mate_move = mate_solver.mate_dfpn(*pos, options.leaf_dfpn_nodes_limit);
-						if (mate_move == MOVE_NULL)
+						if (mate_move == Move::null())
 						{
 							// 不詰を証明したので、このnodeでは詰み探索をしたことを記録しておく。
 							// (そうするとPvMateでmate探索が端折れる)
 							child_node->dfpn_proven_unsolvable = true;
 						}
 						else {
-							isMate = is_ok(mate_move);
+							isMate = mate_move.is_ok();
 						}
 					}
 					if (!isMate)
 						// 宣言勝ち
-						isMate = pos->DeclarationWin() != MOVE_NONE;
+						isMate = pos->DeclarationWin() != Move::none();
 
 #else
 					// mateが絡むとdlshogiと異なるノードを探索してしまうのでログ調査する時はオフにする。
-					bool isMate = (pos->DeclarationWin() != MOVE_NONE);            // 宣言勝ち
+					bool isMate = (pos->DeclarationWin() != Move::none());            // 宣言勝ち
 #endif
 
 					// 詰みの場合、ValueNetの値を上書き

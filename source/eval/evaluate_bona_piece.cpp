@@ -45,9 +45,9 @@ namespace Eval
 	// moveが成りの指し手である場合、その価値も上乗せして計算する。
 	Value CapturePieceValuePlusPromote(const Position& pos, Move move)
 	{
-		return (Value)CapturePieceValue[pos.piece_on(to_sq(move))]
+		return (Value)CapturePieceValue[pos.piece_on(move.to_sq())]
 			// 駒が成る時は、駒の移動元であるfrom_sq(move)はまだ成っていない駒であることが保証される。
-			+ (is_promote(move) ? (Value)ProDiffPieceValue[pos.piece_on(from_sq(move))] : VALUE_ZERO);
+			+ (move.is_promote() ? (Value)ProDiffPieceValue[pos.piece_on(move.from_sq())] : VALUE_ZERO);
 	}
 
 #endif

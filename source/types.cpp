@@ -29,18 +29,18 @@ std::string pretty(Rank r) { return pretty_jp ? std::string("一二三四五六�
 
 std::string pretty(Move m)
 {
-	if (is_drop(m))
-		return pretty(to_sq(m)  ) + pretty2(Piece(from_sq(m))) + (pretty_jp ? "打" : "*");
+	if (m.is_drop())
+		return pretty(m.to_sq()  ) + pretty2(Piece(m.from_sq())) + (pretty_jp ? "打" : "*");
 	else
-		return pretty(from_sq(m)) + pretty(to_sq(m))           + (is_promote(m) ? (pretty_jp ? "成" : "+") : "");
+		return pretty(m.from_sq()) + pretty(m.to_sq())           + (m.is_promote() ? (pretty_jp ? "成" : "+") : "");
 }
 
 std::string pretty(Move m, Piece movedPieceType)
 {
-	if (is_drop(m))
-		return pretty(to_sq(m)) + pretty2(movedPieceType) + (pretty_jp ? "打" : "*");
+	if (m.is_drop())
+		return pretty(m.to_sq()) + pretty2(movedPieceType) + (pretty_jp ? "打" : "*");
 	else
-		return pretty(to_sq(m)) + pretty2(movedPieceType) + (is_promote(m) ? (pretty_jp ? "成" : "+") : "") + "[" + pretty(from_sq(m)) + "]";
+		return pretty(m.to_sq()) + pretty2(movedPieceType) + (m.is_promote() ? (pretty_jp ? "成" : "+") : "") + "[" + pretty(m.from_sq()) + "]";
 }
 
 std::string to_usi_string(Move   m){ return USI::move(m); }
@@ -120,8 +120,10 @@ namespace Search {
 
 		ASSERT_LV3(pv.size() == 1);
 
-		// 詰みの局面が"ponderhit"で返ってくることがあるので、ここでのpv[0] == MOVE_RESIGNであることがありうる。
-		if (!is_ok(pv[0]))
+		// 詰みの局面が"ponderhit"で返ってくることがあるので、
+		// ここでのpv[0] == Move::resign()であることがありうる。
+
+		if (!pv[0].is_ok())
 			return false;
 
 		pos.do_move(pv[0], st);
@@ -148,6 +150,8 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
 	{  VALUE_SUPERIOR    ,  VALUE_SUPERIOR    }, // REPETITION_SUPERIOR
 	{ -VALUE_SUPERIOR    , -VALUE_SUPERIOR    }, // REPETITION_INFERIOR
 };
+
+Move16 Move::to_move16() const { return Move16(data); }
 
 #if defined(USE_GLOBAL_OPTIONS)
 GlobalOptions_ GlobalOptions;

@@ -470,7 +470,7 @@ namespace {
 		Move m = dfpn.mate_dfpn(pos, (u32)nodes);
 		cout << "time = " << time.elapsed() << endl;
 		auto nodes_searched = dfpn.get_nodes_searched();
-		if (m != MOVE_NONE && m != MOVE_NULL)
+		if (m != Move::none() && m != Move::null())
 		{
 			cout << "solved! , nodes_searched = " << nodes_searched << endl;
 
@@ -481,7 +481,7 @@ namespace {
 			cout << endl;
 		}
 		else {
-			if (m == MOVE_NULL)
+			if (m == Move::null())
 				cout << "solved! this is no mate. nodes_searched = " << nodes_searched << endl;
 			else if (dfpn.is_out_of_memory())
 				cout << "out of memory" << endl;

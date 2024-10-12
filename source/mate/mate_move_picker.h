@@ -64,7 +64,7 @@ namespace Mate
 			// 1. doGivesCheck==trueなのに、王手になる指し手ではない。
 			// 2. legalではない。
 			last = std::remove_if(moveList, last, [&](const auto& ml) {
-				return (doGivesCheck && !pos.gives_check(ml.move)) || !pos.legal(ml.move);
+				return (doGivesCheck && !pos.gives_check(ml)) || !pos.legal(ml);
 			});
 
 			// それぞれの指し手に対して点数をつける。
@@ -135,10 +135,10 @@ namespace Mate
 
 				for (auto& m : *this)
 				{
-					Move move = m.move;
+					const Move move = m;
 
 					// この指し手によって捕獲する駒
-					auto to = to_sq(move);
+					auto to  = move.to_sq();
 					auto cap = pos.piece_on(to);
 					// v : この指し手を指したあとの先手から見た駒割
 					int v = value + (cap == NO_PIECE ? 0 : - Eval::PieceValue[cap]*2);
@@ -146,7 +146,7 @@ namespace Mate
 					auto pc = pos.moved_piece_after(move);
 
 					// 成れるなら、成る価値を加算
-					if (is_promote(move))
+					if (move.is_promote())
 						v += Eval::PieceValue[pc] - Eval::PieceValue[raw_of(pc)];
 
 #if 1
@@ -161,7 +161,7 @@ namespace Mate
 					// 直後に取り返されそう..
 
 					// 駒打ちか？
-					bool drop = is_drop(move);
+					bool drop = move.is_drop();
 
 					if (lastTo != to)
 					{
@@ -169,7 +169,7 @@ namespace Mate
 						lastTo = to;
 
 						// 味方の利きの数、敵の利きの数
-						our_effect = pos.attackers_to(us, to).pop_count();
+						our_effect   = pos.attackers_to( us, to).pop_count();
 						their_effect = pos.attackers_to(~us, to).pop_count();
 					}
 

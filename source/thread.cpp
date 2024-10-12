@@ -46,7 +46,7 @@ Thread::~Thread()
 void Thread::clear()
 {
 #if defined(USE_MOVE_PICKER)
-	counterMoves.fill(MOVE_NONE);
+	counterMoves.fill(Move::none());
 	mainHistory.fill(0);
 	captureHistory.fill(0);
 #if defined(ENABLE_PAWN_HISTORY)
@@ -229,8 +229,8 @@ void ThreadPool::start_thinking(const Position& pos, StateListPtr& states ,
 	// (ただし、トライルールのときはMOVE_WINではないので、トライする指し手はsearchmovesに含まれていなければ
 	// 指しては駄目な手なのでrootMovesに追加しない。)
 #if defined (USE_ENTERING_KING_WIN)
-	if (pos.DeclarationWin() == MOVE_WIN)
-		rootMoves.emplace_back(MOVE_WIN);
+	if (pos.DeclarationWin() == Move::win())
+		rootMoves.emplace_back(Move::win());
 #endif
 
 	// 全合法手を生成するオプションが有効ならば。

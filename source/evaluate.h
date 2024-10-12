@@ -103,7 +103,7 @@ namespace Eval {
 
 	// 指し手moveによってtoの地点の駒が捕獲できることがわかっている時の、駒を捕獲する価値
 	// moveが成りの指し手である場合、その価値も上乗せして計算する。
-	// ※　to_sq(move)に駒がない場合もこの関数の呼び出しは合法。(VALUE_NONEが返る)
+	// ※　move.to_sq()に駒がない場合もこの関数の呼び出しは合法。(VALUE_NONEが返る)
 	// ※  後手の駒に対してもプラスの値が返るので注意。
 	Value CapturePieceValuePlusPromote(const Position& pos, Move move);
 

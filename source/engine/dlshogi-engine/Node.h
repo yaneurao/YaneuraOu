@@ -44,25 +44,25 @@ namespace dlshogi
 		// ChildNodes::IsMoveWin(move)のように用いる。
 		// これはその子ノードへの指し手moveによって、相手が勝ちになるかという判定なので、
 		// これがtrueであれば現局面は負けの局面ということである。
-		static bool IsMoveWin(Move m)  { return m & VALUE_WIN; }
-		static bool IsMoveLose(Move m) { return m & VALUE_LOSE; }
-		static bool IsMoveDraw(Move m) { return m & VALUE_DRAW; }
+		static bool IsMoveWin(Move m)  { return m.to_u32() & VALUE_WIN; }
+		static bool IsMoveLose(Move m) { return m.to_u32() & VALUE_LOSE; }
+		static bool IsMoveDraw(Move m) { return m.to_u32() & VALUE_DRAW; }
 
 		// メモリ節約のため、moveの最上位バイトでWin/Lose/Drawの状態を表す
 		// (32bit型のMoveでは、ここは使っていないはずなので)
 		bool IsWin () const { return IsMoveWin (move); }
 		bool IsLose() const { return IsMoveLose(move); }
 		bool IsDraw() const { return IsMoveDraw(move); }
-		void SetWin () { move = (Move)(move | VALUE_WIN); }
-		void SetLose() { move = (Move)(move | VALUE_LOSE); }
-		void SetDraw() { move = (Move)(move | VALUE_DRAW); }
+		void SetWin () { move = Move(move.to_u32() | VALUE_WIN); }
+		void SetLose() { move = Move(move.to_u32() | VALUE_LOSE); }
+		void SetDraw() { move = Move(move.to_u32() | VALUE_DRAW); }
 		// →　SetDraw()したときに、win = DRAW_VALUEにしたほうが良くないかな…。
 
 		// 親局面(Node)で、このedgeに至るための指し手
 		// 上位8bitをWin/Loseのフラグに使っているので、直接値比較をしないこと。getMove()を用いること。
 		// またこの指し手でdo_move()する時は、getMove()した方行うこと。
 		Move move;
-		Move getMove() const { return Move(move & 0xffffff); }
+		Move getMove() const { return Move(move.to_u32() & 0xffffff); }
 
 		// Policy Networkが返してきた、moveが選ばれる確率を正規化したもの。
 		float nnrate;
@@ -190,7 +190,7 @@ namespace dlshogi
 			child = std::make_unique<ChildNode[]>(ml.size());
 			auto* child_node = child.get();
 			for (auto m : ml)
-				(child_node++)->move = m.move;
+				(child_node++)->move = m;
 
 			// 子ノードの数 = 生成された指し手の数
 			child_num = (ChildNumType)ml.size();

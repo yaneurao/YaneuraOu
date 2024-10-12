@@ -55,10 +55,10 @@ namespace {
 
 		if (pos.checkers())
 			for (auto m : MoveList<EVASIONS>(pos))
-				std::cout << m.move << ' ';
+				std::cout << Move(m) << ' ';
 		else
 			for (auto m : MoveList<NON_EVASIONS>(pos))
-				std::cout << m.move << ' ';
+				std::cout << Move(m) << ' ';
 
 		std::cout << std::endl << (1000 * loop / (end - start)) << " times per second." << std::endl;
 	}

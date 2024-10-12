@@ -321,7 +321,7 @@ public:
 	// また、後手の駒打ちは後手の(その打つ)駒が返る。
 	Piece moved_piece_before(Move m) const
 	{
-		ASSERT_LV3(is_ok(m));
+		ASSERT_LV3(m.is_ok());
 #if defined( KEEP_PIECE_IN_GENERATE_MOVES)
 		// 上位16bitに格納されている値を利用する。
 		// return is_promote(m) ? (piece & ~PIECE_PROMOTE) : piece;
@@ -331,7 +331,7 @@ public:
 		return (Piece)((m ^ ((m & MOVE_PROMOTE) << 4)) >> 16);
 
 #else
-		return is_drop(m) ? make_piece(sideToMove , move_dropped_piece(m)) : piece_on(from_sq(m));
+		return m.is_drop() ? make_piece(sideToMove , m.move_dropped_piece()) : piece_on(m.from_sq());
 #endif
 	}
 
@@ -340,8 +340,8 @@ public:
 	// Moveの上位16bitにそれが格納されているので、単にそれを返しているだけ。
 	Piece moved_piece_after(Move m) const
 	{
-		// move pickerから MOVE_NONEに対してこの関数が呼び出されることがあるのでこのASSERTは書けない。
-		// MOVE_NONEに対しては、NO_PIECEからPIECE_NB未満のいずれかの値が返れば良い。
+		// move pickerから Move::none()に対してこの関数が呼び出されることがあるのでこのASSERTは書けない。
+		// Move::none()に対しては、NO_PIECEからPIECE_NB未満のいずれかの値が返れば良い。
 		// ASSERT_LV3(is_ok(m));
 
 		// 上位16bitにそのまま格納されているはず。
@@ -444,7 +444,7 @@ public:
 	Bitboard pinners(Color c) const { return st->pinners[c]; }
 
 	// c側の玉に対して、指し手mが空き王手となるのか。
-	bool is_discovery_check_on_king(Color c, Move m) const { return st->blockersForKing[c] & from_sq(m); }
+	bool is_discovery_check_on_king(Color c, Move m) const { return st->blockersForKing[c] & m.from_sq(); }
 
 	// --- 利き
 
@@ -670,13 +670,13 @@ public:
 	Piece captured_piece() const { return st->capturedPiece; }
 
 	// 捕獲する指し手か、成りの指し手であるかを判定する。
-	bool capture_or_promotion(Move m) const { return is_promote(m) || capture(m); }
+	bool capture_or_promotion(Move m) const { return m.is_promote() || capture(m); }
 
 	// 歩の成る指し手であるか？
 	bool pawn_promotion(Move m) const
 	{
 		// 移動させる駒が歩かどうかは、Moveの上位16bitを見れば良い
-		return (is_promote(m) && raw_type_of(moved_piece_after(m)) == PAWN);
+		return (m.is_promote() && raw_type_of(moved_piece_after(m)) == PAWN);
 	}
 
 	// 捕獲する指し手か、歩の成りの指し手であるかを返す。
@@ -690,11 +690,11 @@ public:
 	{
 		// 歩の成りを角・飛車の成りにまで拡大する。
 		auto pr = raw_type_of(moved_piece_after(m));
-		return (is_promote(m) && (pr == PAWN || pr == BISHOP || pr == ROOK)) || capture(m);
+		return (m.is_promote() && (pr == PAWN || pr == BISHOP || pr == ROOK)) || capture(m);
 	}
 
 	// 捕獲する指し手であるか。
-	bool capture(Move m) const { return !is_drop(m) && piece_on(to_sq(m)) != NO_PIECE; }
+	bool capture(Move m) const { return !m.is_drop() && piece_on(m.to_sq()) != NO_PIECE; }
 
 
 	// Stockfishにはcapture_stage()というメソッドが追加された。下記のコード。

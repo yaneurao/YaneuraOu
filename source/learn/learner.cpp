@@ -366,7 +366,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 	StateInfo si;
 
 	// 今回の指し手。この指し手で局面を進める。
-	Move m = MOVE_NONE;
+	Move m = Move::none();
 
 	// 終了フラグ
 	bool quit = false;
@@ -547,7 +547,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 
 				// おかしな指し手の検証
 				if (pv1.size() > 0
-					&& (pv1[0] == MOVE_RESIGN || pv1[0] == MOVE_WIN || pv1[0] == MOVE_NONE)
+					&& (pv1[0] == Move::resign() || pv1[0] == Move::win() || pv1[0] == Move::none())
 					)
 				{
 					// MOVE_WINは、この手前で宣言勝ちの局面であるかチェックしているので
@@ -696,7 +696,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					// PVの初手を取り出す。これはdepth 0でない限りは存在するはず。
 					ASSERT_LV3(pv_value1.second.size() >= 1);
 					Move pv_move1 = pv_value1.second[0];
-					psv.move = pv_move1;
+					psv.move = pv_move1.to_u16();
 				}
 
 			SKIP_SAVE:;
@@ -786,7 +786,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 					m = rm[prng.rand(s)].pv[0];
 
 					// まだ1局面も書き出していないのに終局してたので書き出し処理は端折って次の対局に。
-					if (!is_ok(m))
+					if (!m.is_ok())
 						break;
 				}
 
@@ -3005,7 +3005,7 @@ namespace Learner {
 		// 1手進める関数
 		void do_move(Position& pos , Move move, StateInfo* states)
 		{
-			ASSERT_LV3(is_ok(move) && pos.pseudo_legal(move) && pos.legal(move));
+			ASSERT_LV3(move.is_ok() && pos.pseudo_legal(move) && pos.legal(move));
 
 			pos.do_move(move, states[pos.game_ply()]);
 
@@ -3083,7 +3083,7 @@ namespace Learner {
 
 		auto my_do_move = [&move, &pos, &states ,&count , &line_number , &book_sfens ]()
 		{
-			ASSERT_LV3(is_ok(move) && pos.pseudo_legal(move) && pos.legal(move));
+			ASSERT_LV3(move.is_ok() && pos.pseudo_legal(move) && pos.legal(move));
 
 			ASSERT_LV3(pos.game_ply() != 0);
 			pos.do_move(move, states[pos.game_ply()]);
@@ -3139,7 +3139,7 @@ namespace Learner {
 				auto book_move = book_moves[book_move_index];
 				move = USI::to_move(pos, book_move);
 				// 信用できない定跡の場合、このチェックが必要。
-				if (!is_ok(move) || !pos.pseudo_legal(move) || !pos.legal(move))
+				if (!move.is_ok() || !pos.pseudo_legal(move) || !pos.legal(move))
 					break;
 
 				my_do_move();
@@ -3180,7 +3180,7 @@ namespace Learner {
 
 		for(int i=0;i< random_move_ply;++i)
 		{
-			Move move = MOVE_NONE;
+			Move move = Move::none();
 			MoveList<LEGAL> legal_moves(pos);
 			if (legal_moves.size() == 0)
 				goto Retry;
@@ -3207,15 +3207,15 @@ namespace Learner {
 #endif
 
 			// 玉を移動する指し手ではなかったので全合法手のなかから指し手を選択する。
-			if (move == MOVE_NONE)
-				move = legal_moves.at(prng.rand(legal_moves.size())).move;
+			if (move == Move::none())
+				move = Move(legal_moves.at(prng.rand(legal_moves.size())));
 
 			do_move(pos, move, states);
 
 			// 詰みの局面、1手詰めの局面を除外
 			if (pos.is_mated()
-				|| (!pos.checkers() && Mate::mate_1ply(pos) != MOVE_NONE)
-				|| pos.DeclarationWin() != MOVE_NONE
+				|| (!pos.checkers() && Mate::mate_1ply(pos) != Move::none())
+				|| pos.DeclarationWin() != Move::none()
 				)
 				goto Retry;
 		}

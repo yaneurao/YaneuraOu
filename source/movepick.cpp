@@ -301,7 +301,7 @@ void MovePicker::score()
 			//    ここでpromotionの価値まで足し込んでしまうとそこと整合性がとれなくなるのか…。
 
 			m.value = 7 * int(Eval::CapturePieceValuePlusPromote(pos, m))
-					   + (*captureHistory)(pos.moved_piece_after(m), to_sq(m), type_of(pos.piece_on(to_sq(m))));
+					   + (*captureHistory)(pos.moved_piece_after(m), m.to_sq(), type_of(pos.piece_on(m.to_sq())));
 			// →　係数を掛けたり全体を16で割ったりしているのは、
 			// このあと、GOOD_CAPTURE で、
 			//	return pos.see_ge(*cur, Value(-cur->value))
@@ -320,9 +320,9 @@ void MovePicker::score()
 			Piece     pc = pos.moved_piece_after(m);
 			//PieceType pt = type_of(pos.moved_piece_before(m));
 			//Square    from = from_sq(m);
-			Square    to = to_sq(m);
+			Square    to = m.to_sq();
 
-			m.value  =      (*mainHistory)(pos.side_to_move(), from_to(m));
+			m.value  =      (*mainHistory)(pos.side_to_move(), m.from_to());
 #if defined(ENABLE_PAWN_HISTORY)
 			m.value +=  2 * (*pawnHistory)(pawn_structure(pos), pc, to);
 #endif
@@ -360,7 +360,7 @@ void MovePicker::score()
 
 			// lowPlyHistoryも加算
 			if (ply < 4)
-				m.value += 8 * (*lowPlyHistory)(ply , from_to(m)) / (1 + 2 * ply);
+				m.value += 8 * (*lowPlyHistory)(ply , m.from_to()) / (1 + 2 * ply);
 
 		}
 		else // Type == EVASIONS
@@ -396,10 +396,10 @@ void MovePicker::score()
 						
 			else
 				// それ以外の指し手に関してはhistoryの値の順番
-				m.value =     (*mainHistory)(pos.side_to_move(), from_to(m))
-						  +   (*continuationHistory[0])(pos.moved_piece_after(m), to_sq(m))
+				m.value =     (*mainHistory)(pos.side_to_move(), m.from_to())
+						  +   (*continuationHistory[0])(pos.moved_piece_after(m), m.to_sq())
 #if defined(ENABLE_PAWN_HISTORY)
-						  +   (*pawnHistory)(pawn_structure(pos), pos.moved_piece_after(m), to_sq(m))
+						  +   (*pawnHistory)(pawn_structure(pos), pos.moved_piece_after(m), m.to_sq())
 #endif
 				;
 
@@ -432,7 +432,7 @@ Move MovePicker::select(Pred filter) {
 
 		cur++;
 	}
-	return MOVE_NONE;
+	return Move::none();
 }
 
 // This is the most important method of the MovePicker class. We emit one
@@ -648,7 +648,7 @@ top:
 		if (!skipQuiets)
 			return select<Next>([]() { return true; });
 
-		return MOVE_NONE;
+		return Move::none();
 
 		// 王手回避手の生成
 	case EVASION_INIT:
@@ -678,11 +678,11 @@ top:
 
 	default:
 		UNREACHABLE;
-		return MOVE_NONE;
+		return Move::none();
 	}
 
 	ASSERT(false);
-	return MOVE_NONE; // Silence warning
+	return Move::none(); // Silence warning
 }
 
 #endif // defined(USE_MOVE_PICKER)

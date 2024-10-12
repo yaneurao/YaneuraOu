@@ -99,7 +99,7 @@ namespace Mate::Dfpn64
 		template <bool or_node>
 		void init(ExtMove m)
 		{
-			lastMove = m.move;
+			lastMove = m;
 
 			if (MoveOrdering)
 			{
@@ -229,7 +229,7 @@ namespace Mate::Dfpn32
 		template <bool or_node>
 		void init(ExtMove m)
 		{
-			lastMove = m.move;
+			lastMove = Move(m);
 
 			if (MoveOrdering)
 			{
@@ -480,7 +480,7 @@ namespace Mate::Dfpn32
 
 			nodes_searched = 0;
 			this->nodes_limit = (NodeCountType)nodes_limit;
-			bestmove = MOVE_NONE;
+			bestmove = Move::none();
 
 			// カウンターのリセットをしておかないと新しいメモリが使えない。
 			node_manager.reset_counter();
@@ -507,11 +507,11 @@ namespace Mate::Dfpn32
 
 			// 不詰が証明された
 			if (current_root->pn >= NodeType::DNPN_MATE && current_root->dn == 0)
-				return MOVE_NULL;
+				return Move::null();
 
 			// 制限ノード数では解けなかった。
 			// もしくはout of memory
-			return MOVE_NONE;
+			return Move::none();
 		}
 
 		// mate_dfpn()がMOVE_NULL,MOVE_NONE以外を返した場合にその手順を取得する。
@@ -570,7 +570,7 @@ namespace Mate::Dfpn32
 			return pv;
 		}
 
-		// 解図できたとき(mate_dfpn()を呼び出してMOVE_NONE以外が返ってきた時に)
+		// 解図できたとき(mate_dfpn()を呼び出してMove::none()以外が返ってきた時に)
 		// あるノードでベストな指し手を得る。
 		//  or_node : nodeは、開始局面とその2手先、4手先、…の局面であるか。
 		//  proof   : 詰みの時のPVがほしい時。これをfalseにすると、不詰が証明されている時に、そのなかの長そうなpvが得られる。
@@ -583,7 +583,7 @@ namespace Mate::Dfpn32
 			if ( children == nullptr || node->child_num == 0)
 			{
 				node = nullptr;
-				return MOVE_NONE; // これ以上辿れない
+				return Move::none(); // これ以上辿れない
 			}
 
 			// 子ノードの数

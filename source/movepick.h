@@ -371,13 +371,13 @@ private:
 // MovePicker class is used to pick one pseudo-legal move at a time from the
 // current position. The most important method is next_move(), which returns a
 // new pseudo-legal move each time it is called, until there are no moves left,
-// when MOVE_NONE is returned. In order to improve the efficiency of the
+// when Move::none() is returned. In order to improve the efficiency of the
 // alpha-beta algorithm, MovePicker attempts to return the moves which are most
 // likely to get a cut-off first.
 //
 // MovePickerクラスは、現在の局面から、(呼び出し)一回につきpseudo legalな指し手を一つ取り出すのに用いる。
 // 最も重要なメソッドはnext_move()であり、これは、新しいpseudo legalな指し手を呼ばれるごとに返し、
-// (返すべき)指し手が無くなった場合には、MOVE_NONEを返す。
+// (返すべき)指し手が無くなった場合には、Move::none()を返す。
 // alpha beta探索の効率を改善するために、MovePickerは最初に(早い段階のnext_move()で)カットオフ(beta cut)が
 // 最も出来そうな指し手を返そうとする。
 //
@@ -417,7 +417,7 @@ public:
 	MovePicker(const Position&, Move ttMove_, int threshold_, const CapturePieceToHistory*);
 
 	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
-	// 指し手が尽きればMOVE_NONEが返る。
+	// 指し手が尽きればMove::none()が返る。
 	// 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
 	Move next_move(bool skipQuiets = false);
 

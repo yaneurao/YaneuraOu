@@ -32,7 +32,7 @@ namespace Mate
 
 		// 詰まない
 		if (ply <= 1)
-			return MOVE_NONE;
+			return Move::none();
 
 		Color us = pos.side_to_move();
 		Color them = ~us;
@@ -45,15 +45,17 @@ namespace Mate
 		StateInfo si2;
 
 		// 近接王手で味方の利きがあり、敵の利きのない場所を探す。
-		for (auto m : MoveList<CHECKS>(pos))
+		for (auto em : MoveList<CHECKS>(pos))
 		{
+			Move m = Move(em);
+
 			// 近接王手で、この指し手による駒の移動先に敵の駒がない。
-			Square to = to_sq(m);
+			Square to = m.to_sq();
 			if ((around8 & to)
 
 #if ! defined(LONG_EFFECT_LIBRARY)
 				// toに利きがあるかどうか。mが移動の指し手の場合、mの元の利きを取り除く必要がある。
-				&& (is_drop(m) ? pos.effected_to(us, to) : (bool)(pos.attackers_to(us, to, pos.pieces() ^ from_sq(m)) ^ from_sq(m)))
+				&& (m.is_drop() ? pos.effected_to(us, to) : (bool)(pos.attackers_to(us, to, pos.pieces() ^ m.from_sq()) ^ m.from_sq()))
 
 				// 敵玉の利きは必ずtoにあるのでそれを除いた利きがあるかどうか。
 				&& (pos.attackers_to(them, to, pos.pieces()) ^ pos.king_square(them))
@@ -110,7 +112,7 @@ namespace Mate
 				This->undo_move(m);
 			}
 		}
-		return MOVE_NONE;
+		return Move::none();
 	}
 
 	// 連続王手などの千日手判定を行う。

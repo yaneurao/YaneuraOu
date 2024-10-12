@@ -364,7 +364,7 @@ namespace dlshogi
 	//   pos            : 探索開始局面
 	//   game_root_sfen : ゲーム開始局面のsfen文字列
 	//   moves          : ゲーム開始局面からの手順
-	//   ponderMove     : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
+	//   ponderMove     : [Out] ponderの指し手(ないときはMove::none()が代入される)
 	//   返し値 : この局面でのbestな指し手
 	// ponderの場合は、呼び出し元で待機すること。
 	Move DlshogiSearcher::UctSearchGenmove(Position* pos, const std::string& game_root_sfen , const std::vector<Move>& moves, Move& ponderMove)
@@ -374,7 +374,7 @@ namespace dlshogi
 			searcher.Stop(false);
 
 		// これ[Out]なのでとりあえず初期化しておかないと忘れてしまう。
-		ponderMove = MOVE_NONE;
+		ponderMove = Move::none();
 
 		// 探索停止フラグをreset。
 		// →　やねうら王では使わない。Threads.stopかsearch_limits.interruptionを使う。
@@ -422,7 +422,7 @@ namespace dlshogi
 		const ChildNumType child_num = current_root->child_num;
 		if (child_num == 0) {
 			// 投了しておく。
-			return MOVE_RESIGN;
+			return Move::resign();
 		}
 
 		// ---------------------
@@ -459,7 +459,7 @@ namespace dlshogi
 			// 定跡にhitしている以上、合法手がここに格納されているはず。
 			// ただし定跡DBによっては、2手目が格納されていないことはある。
 			Move bestMove   = th->rootMoves[0].pv[0];
-			     ponderMove = th->rootMoves[0].pv.size() >= 2 ? th->rootMoves[0].pv[1] : MOVE_NONE;
+			     ponderMove = th->rootMoves[0].pv.size() >= 2 ? th->rootMoves[0].pv[1] : Move::none();
 
 			return bestMove;
 		}
@@ -519,7 +519,7 @@ namespace dlshogi
 		// →　やねうら王では、stopが来るまで待機して返す。
 		//  dlshogiの実装はいったんUCT探索を終了させるようになっているのでコメントアウト。
 		//if (pondering)
-		//	return MOVE_NONE;
+		//	return Move::none();
 
 		// あとで
 		// 探索の延長判定
@@ -531,8 +531,8 @@ namespace dlshogi
 
 		// 評価値が投了値を下回っていたら投了
 		if (best.wp < search_options.RESIGN_THRESHOLD) {
-			ponderMove = MOVE_NONE;
-			return MOVE_RESIGN;
+			ponderMove = Move::none();
+			return Move::resign();
 		}
 
 		// それに対するponderの指し手もあるはずなのでそれをセットしておく。

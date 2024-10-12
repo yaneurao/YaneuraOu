@@ -339,11 +339,11 @@ void position_cmd(Position& pos, istringstream& is , StateListPtr& states)
 	std::vector<Move> moves_from_game_root;
 
 	// 指し手のリストをパースする(あるなら)
-	while (is >> token && (m = USI::to_move(pos, token)) != MOVE_NONE)
+	while (is >> token && (m = USI::to_move(pos, token)) != Move::none())
 	{
 		// 1手進めるごとにStateInfoが積まれていく。これは千日手の検出のために必要。
 		states->emplace_back();
-		if (m == MOVE_NULL) // do_move に MOVE_NULL を与えると死ぬので
+		if (m == Move::null()) // do_move に MOVE_NULL を与えると死ぬので
 			pos.do_null_move(states->back());
 		else
 			pos.do_move(m, states->back());
@@ -562,7 +562,7 @@ void go_cmd(const Position& pos, istringstream& is , StateListPtr& states , bool
 			string token="";
 			Move16 m;
 			limits.pv_check.clear();
-			while (is >> token && (m = USI::to_move16(token)) != MOVE_NONE){
+			while (is >> token && (m = USI::to_move16(token)).to_u16() != MOVE_NONE){
 				limits.pv_check.push_back(m);
 			}
 		}
@@ -822,7 +822,7 @@ void usi_cmdexec(Position& pos, StateListPtr& states, string& cmd)
 		// この局面での指し手をすべて出力
 		else if (token == "moves") {
 			for (auto m : MoveList<LEGAL_ALL>(pos))
-				cout << m.move << ' ';
+				cout << Move(m) << ' ';
 			cout << endl;
 		}
 
@@ -1025,24 +1025,24 @@ std::string USI::move(Move   m) { return move(Move16(m)); }
 std::string USI::move(Move16 m)
 {
 	std::stringstream ss;
-	if (!is_ok(m))
+	if (!m.is_ok())
 	{
-		ss << ((m == MOVE_RESIGN) ? "resign" :
-			   (m == MOVE_WIN)    ? "win" :
-			   (m == MOVE_NULL)   ? "null" :
-			   (m == MOVE_NONE)   ? "none" :
+		ss << ((m.to_u16() == MOVE_RESIGN) ? "resign" :
+			   (m.to_u16() == MOVE_WIN)    ? "win" :
+			   (m.to_u16() == MOVE_NULL)   ? "null" :
+			   (m.to_u16() == MOVE_NONE)   ? "none" :
 			    "");
 	}
-	else if (is_drop(m))
+	else if (m.is_drop())
 	{
-		ss << move_dropped_piece(m);
+		ss << m.move_dropped_piece();
 		ss << '*';
-		ss << to_sq(m);
+		ss << m.to_sq();
 	}
 	else {
-		ss << from_sq(m);
-		ss << to_sq(m);
-		if (is_promote(m))
+		ss << m.from_sq();
+		ss << m.to_sq();
+		if (m.is_promote())
 			ss << '+';
 	}
 	return ss.str();
@@ -1072,14 +1072,14 @@ Move USI::to_move(const Position& pos, const std::string& str)
 	// ↑のコードは大変美しいコードではあるが、棋譜を大量に読み込むときに時間がかかるうるのでもっと高速な実装をする。
 
 	if (str == "resign")
-		return MOVE_RESIGN;
+		return Move::resign();
 
 	if (str == "win")
-		return MOVE_WIN;
+		return Move::win();
 
 	// パス(null move)入力への対応 {UCI: "0000", GPSfish: "pass"}
 	if (str == "0000" || str == "null" || str == "pass")
-		return MOVE_NULL;
+		return Move::null();
 
 	// usi文字列を高速にmoveに変換するやつがいるがな..
 	Move move = pos.to_move(USI::to_move16(str));
@@ -1092,7 +1092,7 @@ Move USI::to_move(const Position& pos, const std::string& str)
 	// 入力に非合法手が含まれていた。エラーとして出力すべき。
 	sync_cout << "info string Error! : Illegal Input Move : " << str << sync_endl;
 
-	return MOVE_NONE;
+	return Move::none();
 }
 
 

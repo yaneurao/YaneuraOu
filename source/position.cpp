@@ -760,10 +760,10 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 bool Position::gives_check(Move m) const
 {
 	// 指し手がおかしくないか
-	ASSERT_LV3(is_ok(m));
+	ASSERT_LV3(m.is_ok());
 
 	// 移動先
-	const Square to = to_sq(m);
+	const Square to = m.to_sq();
 
 	// 駒打ち・移動する指し手どちらであってもmove_piece_after(m)で移動後の駒が取得できるので
 	// 直接王手の処理は共通化できる。
@@ -773,11 +773,11 @@ bool Position::gives_check(Move m) const
 	// -- 移動する指し手ならば、これで開き王手になるかどうかの判定が必要。
 
 	// 移動元
-	const Square from = from_sq(m);
+	const Square from = m.from_sq();
 
 	// 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
 	// 前提条件より、fromにあるのが自駒であることは確定しているので、pieces(sideToMove)は不要。
-	return  !is_drop(m)
+	return  !m.is_drop()
 		&& (((blockers_for_king(~sideToMove) /*& pieces(sideToMove)*/) & from)
 		&&  !aligned(from, to, king_square(~sideToMove)));
 }
@@ -900,7 +900,7 @@ bool Position::legal_pawn_drop(const Color us, const Square to) const
 // 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
 //
 //
-// is_ok(m)==falseの時、すなわち、m == MOVE_WINやMOVE_NONEのような時に
+// is_ok(m)==falseの時、すなわち、m == Move::win()やMove::none()のような時に
 // Position::to_move(m) == mは保証されており、この時、本関数pseudo_legal(m)がfalseを返すことは保証する。
 // 
 // Options["GenerateAllLegalMoves"]を反映させる。
@@ -914,12 +914,12 @@ bool Position::pseudo_legal(const Move m) const
 template <bool All>
 bool Position::pseudo_legal_s(const Move m) const {
 
-	const Color us = sideToMove;
-	const Square to = to_sq(m); // 移動先
+	const Color  us = sideToMove;
+	const Square to = m.to_sq(); // 移動先
 
-	if (is_drop(m))
+	if (m.is_drop())
 	{
-		const PieceType pr = move_dropped_piece(m);
+		const PieceType pr = m.move_dropped_piece();
 		// 置換表から取り出してきている以上、一度は指し手生成ルーチンで生成した指し手のはずであり、
 		// KING打ちのような値であることはないものとする。
 
@@ -967,8 +967,8 @@ bool Position::pseudo_legal_s(const Move m) const {
 	}
 	else {
 
-		const Square from = from_sq(m);
-		const Piece pc = piece_on(from);
+		const Square from = m.from_sq();
+		const Piece pc    = piece_on(from);
 
 		// 動かす駒が自駒でなければならない
 		if (pc == NO_PIECE || color_of(pc) != us)
@@ -983,7 +983,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 			return false;
 
 		PieceType pt = type_of(pc);
-		if (is_promote(m))
+		if (m.is_promote())
 		{
 			// --- 成る指し手
 
@@ -1090,25 +1090,25 @@ bool Position::pseudo_legal_s(const Move m) const {
 // 生成した指し手(CAPTUREとかNON_CAPTUREとか)が、合法であるかどうかをテストする。
 bool Position::legal(Move m) const
 {
-	if (is_drop(m))
+	if (m.is_drop())
 		// 打ち歩詰めは指し手生成で除外されている。
 		return true;
 	else
 	{
-		Color us = sideToMove;
-		Square from = from_sq(m);
+		Color us    = sideToMove;
+		Square from = m.from_sq();
 
-		ASSERT_LV5(color_of(piece_on(from_sq(m))) == us);
+		ASSERT_LV5(color_of(piece_on(m.from_sq())) == us);
 		ASSERT_LV5(piece_on(king_square(us)) == make_piece(us, KING));
 
 		// もし移動させる駒が玉であるなら、行き先の升に相手側の利きがないかをチェックする。
 		if (type_of(piece_on(from)) == KING)
-			return !effected_to(~us, to_sq(m), from);
+			return !effected_to(~us, m.to_sq(), from);
 
 		// blockers_for_king()は、pinされている駒(自駒・敵駒)を表現するが、fromにある駒は自駒であることは
 		// わかっているのでこれで良い。
 		return !(blockers_for_king(us) & from)
-			 || aligned(from, to_sq(m), king_square(us));
+			 || aligned(from, m.to_sq(), king_square(us));
 	}
 }
 
@@ -1120,12 +1120,12 @@ bool Position::legal(Move m) const
 bool Position::legal_promote(Move m) const
 {
 	// 成りの指し手にしか関与しない
-	if (!is_promote(m))
+	if (!m.is_promote())
 		return true;
 
 	Color us = sideToMove;
-	Square from = from_sq(m);
-	Square to   =   to_sq(m);
+	Square from = m.from_sq();
+	Square to   = m.to_sq();
 
 	// 移動元か移動先が敵陣でなければ成れる条件を満たしていない。
 	return enemy_field(us) & (Bitboard(from) | Bitboard(to));
@@ -1135,7 +1135,7 @@ bool Position::legal_promote(Move m) const
 Move Position::to_move(Move16 m16) const
 {
 	//		ASSERT_LV3(is_ok(m));
-	// 置換表から取り出した値なので m==MOVE_NONE(0)である可能性があり、ASSERTは書けない。
+	// 置換表から取り出した値なので m==Move::none()である可能性があり、ASSERTは書けない。
 
 	// 上位16bitは0でなければならない
 	//      ASSERT_LV3((m >> 16) == 0);
@@ -1146,32 +1146,32 @@ Move Position::to_move(Move16 m16) const
 	// それはそのまま返す。(MOVE_WINの機会はごくわずかなのでこれのために
 	// このチェックが探索時に起きるのは少し馬鹿らしい気もする。
 	// どうせ探索時はlegalityのチェックに引っかかり無視されるわけで…)
-	if (!is_ok(m))
+	if (!m.is_ok())
 		return m;
 
-	if (is_drop(m))
-		return Move(u16(m) + ((u32)make_piece(side_to_move(), move_dropped_piece(m)) << 16));
+	if (m.is_drop())
+		return Move(m.to_u16() + (u32(make_piece(side_to_move(), m.move_dropped_piece())) << 16));
 		// また、move_dropped_piece()はおかしい値になっていないことは保証されている(置換表に自分で書き出した値のため)
 		// これにより、配列境界の外側に書き出してしまう心配はない。
 
 	// 移動元にある駒が、現在の手番の駒であることを保証する。
 	// 現在の手番の駒でないか、駒がなければMOVE_NONEを返す。
-	Piece moved_piece = piece_on(from_sq(m));
+	Piece moved_piece = piece_on(m.from_sq());
 	if (color_of(moved_piece) != side_to_move() || moved_piece == NO_PIECE)
-		return MOVE_NONE;
+		return Move::none();
 
 	// promoteで成ろうとしている駒は成れる駒であることを保証する。
-	if (is_promote(m))
+	if (m.is_promote())
 	{
 		// 成駒や金・玉であるなら、これ以上成れない。これは非合法手である。
 		if (is_non_promotable_piece(moved_piece))
-			return MOVE_NONE;
+			return Move::none();
 
-		return Move(u16(m) + ((u32)(make_promoted_piece(moved_piece) << 16)));
+		return Move(m.to_u16() + (u32(make_promoted_piece(moved_piece)) << 16));
 	}
 
 	// 通常の移動
-	return Move(u16(m) + ((u32)moved_piece << 16));
+	return Move(m.to_u16() + (u32(moved_piece) << 16));
 }
 
 
@@ -1183,8 +1183,8 @@ Move Position::to_move(Move16 m16) const
 template <Color Us>
 void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 {
-	// MOVE_NONEはもちろん、MOVE_NULL , MOVE_RESIGNなどお断り。
-	ASSERT_LV3(is_ok(m));
+	// Move::none()はもちろん、Move::null() , Move::resign()などお断り。
+	ASSERT_LV3(m.is_ok());
 
 	ASSERT_LV3(&new_st != st);
 
@@ -1244,7 +1244,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #if defined(KEEP_LAST_MOVE)
 	st->lastMove = m;
-	st->lastMovedPieceType = is_drop(m) ? (PieceType)from_sq(m) : type_of(piece_on(from_sq(m)));
+	st->lastMovedPieceType = m.is_drop() ? (PieceType)m.from_sq() : type_of(piece_on(m.from_sq()));
 #endif
 
 	// ----------------------
@@ -1252,7 +1252,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	// ----------------------
 
 	// 移動先の升
-	Square to = to_sq(m);
+	Square to = m.to_sq();
 	ASSERT_LV2(is_ok(to));
 
 #if defined (USE_PIECE_VALUE)
@@ -1264,14 +1264,14 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	auto& dp = st->dirtyPiece;
 #endif
 
-	if (is_drop(m))
+	if (m.is_drop())
 	{
 		// --- 駒打ち
 
 		// 移動先の升は空のはず
 		ASSERT_LV2(piece_on(to) == NO_PIECE);
 
-		Piece pc = moved_piece_after(m);
+		Piece pc     = moved_piece_after(m);
 		PieceType pr = raw_type_of(pc);
 		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
 
@@ -1346,7 +1346,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	} else {
 
 		// -- 駒の移動
-		Square from = from_sq(m);
+		Square from = m.from_sq();
 		ASSERT_LV2(is_ok(from));
 
 		// 移動させる駒
@@ -1358,7 +1358,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		Piece moved_after_pc = moved_piece_after(m);
 
 #if defined (USE_PIECE_VALUE)
-		materialDiff = is_promote(m) ? Eval::ProDiffPieceValue[moved_pc] : 0;
+		materialDiff = m.is_promote() ? Eval::ProDiffPieceValue[moved_pc] : 0;
 #endif
 
 		// 移動先の升にある駒
@@ -1672,13 +1672,13 @@ HASH_KEY Position::hash_key_after(Move m) const {
 	auto h = st->hand_key_;
 
 	// 移動先の升
-	Square to = to_sq(m);
+	Square to = m.to_sq();
 	ASSERT_LV2(is_ok(to));
 
-	if (is_drop(m))
+	if (m.is_drop())
 	{
 		// --- 駒打ち
-		PieceType pr = move_dropped_piece(m);
+		PieceType pr = m.move_dropped_piece();
 		ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
 
 		Piece pc = make_piece(Us, pr);
@@ -1690,7 +1690,7 @@ HASH_KEY Position::hash_key_after(Move m) const {
 	else
 	{
 		// -- 駒の移動
-		Square from = from_sq(m);
+		Square from = m.from_sq();
 		ASSERT_LV2(is_ok(from));
 
 		// 移動させる駒
@@ -1699,7 +1699,7 @@ HASH_KEY Position::hash_key_after(Move m) const {
 
 		// 移動先に駒の配置
 		// もし成る指し手であるなら、成った後の駒を配置する。
-		Piece moved_after_pc = is_promote(m) ? make_promoted_piece(moved_pc) : moved_pc;
+		Piece moved_after_pc = m.is_promote() ? make_promoted_piece(moved_pc) : moved_pc;
 
 		// 移動先の升にある駒
 		Piece to_pc = piece_on(to);
@@ -1726,7 +1726,7 @@ void Position::undo_move_impl(Move m)
 {
 	// Usは1手前の局面での手番(に呼び出し元でしてある)
 
-	auto to = to_sq(m);
+	auto to = m.to_sq();
 	ASSERT_LV2(is_ok(to));
 
 	// --- 移動後の駒
@@ -1744,9 +1744,9 @@ void Position::undo_move_impl(Move m)
 	// ↑の処理、mの成りを表現するbitを直接、Pieceの成りを表現するbitに持ってきたほうが速い。
 	static_assert((u32)MOVE_PROMOTE / (u32)PIECE_PROMOTE == 4096,"");
 	// log(2)4096 == 12
-	Piece moved_pc = Piece(moved_after_pc ^ ((m & MOVE_PROMOTE) >> 12));
+	Piece moved_pc = Piece(moved_after_pc ^ ((m.to_u16() & MOVE_PROMOTE) >> 12));
 
-	if (is_drop(m))
+	if (m.is_drop())
 	{
 		// --- 駒打ち
 
@@ -1771,7 +1771,7 @@ void Position::undo_move_impl(Move m)
 
 		// --- 通常の指し手
 
-		auto from = from_sq(m);
+		auto from = m.from_sq();
 		ASSERT_LV2(is_ok(from));
 
 		// toの場所から駒を消す
@@ -1970,21 +1970,21 @@ void Position::undo_null_move()
 
 bool Position::see_ge(Move m, Value threshold) const
 {
-	ASSERT_LV3(is_ok(m));
+	ASSERT_LV3(m.is_ok());
 
     //// Only deal with normal moves, assume others pass a simple SEE
     //if (type_of(m) != NORMAL)
     //    return VALUE_ZERO >= threshold;
 
-	bool drop = is_drop(m);
+	bool drop = m.is_drop();
 
 	// 以下、Stockfishの挙動をなるべく忠実に再現する。
 
 	// 駒の移動元(駒打ちの場合は)と移動先。
 	// dropのときにはSQ_NBにしておくことで、pieces() ^ fromを無効化するhack
 	// ※　piece_on(SQ_NB)で NO_PIECE が返ることは保証されている。
-	Square from = drop ? SQ_NB : from_sq(m);
-	Square to   = to_sq(m);
+	Square from = drop ? SQ_NB : m.from_sq();
+	Square to   = m.to_sq();
 
 	// → 将棋だと、駒打ちで、SEE > 0になることはないので(打った駒を取られてマイナスになることはあっても)
 	//  threshold > 0なら、即座に falseが返せる。
@@ -2009,7 +2009,7 @@ bool Position::see_ge(Move m, Value threshold) const
 	//swap = PieceValue[piece_on(from)] - swap;
 
 	// →　駒打ちの時は、移動元にその駒がないので、これを復元してやる必要がある。
-	PieceType from_pt = drop ? move_dropped_piece(m) : type_of(piece_on(from));
+	PieceType from_pt = drop ? m.move_dropped_piece() : type_of(piece_on(from));
     swap = Eval::PieceValue[from_pt] - swap;
 
 	if (swap <= 0)
@@ -2449,7 +2449,7 @@ Move Position::DeclarationWin() const
 	switch (rule)
 	{
 		// 入玉ルールなし
-	case EKR_NONE: return MOVE_NONE;
+	case EKR_NONE: return Move::none();
 
 		// CSAルールに基づく宣言勝ちの条件を満たしているか
 		// 満たしているならば非0が返る。返し値は駒点の合計。
@@ -2490,18 +2490,18 @@ Move Position::DeclarationWin() const
 
 		// (b)宣言側の玉が敵陣三段目以内に入っている。
 		if (!(ef & king_square(us)))
-			return MOVE_NONE;
+			return Move::none();
 
 		// (e)宣言側の玉に王手がかかっていない。
 		if (checkers())
-			return MOVE_NONE;
+			return Move::none();
 
 
 		// (d)宣言側の敵陣三段目以内の駒は、玉を除いて10枚以上存在する。
 		int p1 = (pieces(us) & ef).pop_count();
 		// p1には玉も含まれているから11枚以上ないといけない
 		if (p1 < 11)
-			return MOVE_NONE;
+			return Move::none();
 
 		// 敵陣にいる大駒の数
 		int p2 = ((pieces(us, BISHOP_HORSE, ROOK_DRAGON)) & ef).pop_count();
@@ -2519,15 +2519,15 @@ Move Position::DeclarationWin() const
 
 		// rule==EKR_27_POINTならCSAルール。rule==EKR_24_POINTなら24点法(30点以下引き分けなので31点以上あるときのみ勝ち扱いとする)
 		//if (score < (rule == EKR_27_POINT ? (us == BLACK ? 28 : 27) : 31))
-			//return MOVE_NONE;
+			//return Move::none();
 
 		// ↓ 駒落ち対応などを考慮して、enteringKingPoint[]を参照することにした。
 
 		if (score < Search::Limits.enteringKingPoint[us])
-			return MOVE_NONE;
+			return Move::none();
 
 		// 評価関数でそのまま使いたいので駒点を返しておくのもアリか…。
-		return MOVE_WIN;
+		return Move::win();
 	}
 
 	// トライルールの条件を満たしているか。
@@ -2539,15 +2539,15 @@ Move Position::DeclarationWin() const
 
 		// 1) 初期陣形で敵玉がいた場所に自玉が移動できるか。
 		if (!(kingEffect(king_sq) & king_try_sq))
-			return MOVE_NONE;
+			return Move::none();
 
 		// 2) トライする升に自駒がないか。
 		if (pieces(us) & king_try_sq)
-			return MOVE_NONE;
+			return Move::none();
 
 		// 3) トライする升に移動させたときに相手に取られないか。
 		if (effected_to(~us, king_try_sq, king_sq))
-			return MOVE_NONE;
+			return Move::none();
 
 		// 王の移動の指し手により勝ちが確定する
 		return make_move(king_sq, king_try_sq, us,KING);
@@ -2555,7 +2555,7 @@ Move Position::DeclarationWin() const
 
 	default:
 		UNREACHABLE;
-		return MOVE_NONE;
+		return Move::none();
 	}
 }
 
@@ -2706,9 +2706,9 @@ void Position::UnitTest(Test::UnitTester& tester)
 		hirate_init();
 
 		// is_ok(m) == falseな指し手に対して、to_move()がその指し手をそのまま返すことを保証する。
-		tester.test("MOVE_NONE", pos.to_move(MOVE_NONE) == MOVE_NONE);
-		tester.test("MOVE_WIN" , pos.to_move(MOVE_WIN ) == MOVE_WIN );
-		tester.test("MOVE_NULL", pos.to_move(MOVE_NULL) == MOVE_NULL);
+		tester.test("MOVE_NONE", pos.to_move(MOVE_NONE) == Move::none());
+		tester.test("MOVE_WIN" , pos.to_move(MOVE_WIN ) == Move::win() );
+		tester.test("MOVE_NULL", pos.to_move(MOVE_NULL) == Move::null());
 
 		// 88の角を22に不成で移動。(非合法手) 移動後の駒は先手の角。
 		m16 = make_move16(SQ_88, SQ_22);
@@ -2720,11 +2720,11 @@ void Position::UnitTest(Test::UnitTester& tester)
 
 		// 22の角を88に不成で移動。(非合法手) 移動後の駒は後手の角。
 		m16 = make_move16(SQ_22, SQ_88);
-		tester.test("make_move16(SQ_22, SQ_88)", pos.to_move(m16) == MOVE_NONE);
+		tester.test("make_move16(SQ_22, SQ_88)", pos.to_move(m16) == Move::none());
 
 		// 22の角を88に成る移動。(非合法手) 移動後の駒は後手の馬。
 		m16 = make_move_promote16(SQ_22, SQ_88);
-		tester.test("make_move_promote16(SQ_22, SQ_88)", pos.to_move(m16) == MOVE_NONE);
+		tester.test("make_move_promote16(SQ_22, SQ_88)", pos.to_move(m16) == Move::none());
 
 		matsuri_init();
 		m16 = make_move_drop16(GOLD,SQ_55);
@@ -2748,7 +2748,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 		// 後手の駒の場合、現在の手番の駒ではないので、pseudo_legalではない。(pseudo_legalは手番側の駒であることを保証する)
 		m16 = make_move16(SQ_83, SQ_84);
 		m = pos.to_move(m16);
-		// →　pos.to_move()で現在の手番側の駒ではないからMOVE_NONEが返るか…。このテスト、意味ないな。
+		// →　pos.to_move()で現在の手番側の駒ではないからMove::none()が返るか…。このテスト、意味ないな。
 		tester.test("make_move(SQ_83, SQ_84) is pseudo_legal == false", pos.pseudo_legal(m) == false);
 #endif
 
@@ -2909,7 +2909,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			// move_bufからmove_lastのなかにmoveがあるかを探す。あればtrueを返す。
 			auto find_move = [&](Move m) {
 				for (ExtMove* em = &move_buf[0]; em != move_last; ++em)
-					if (em->move == m)
+					if (Move(*em) == m)
 						return true;
 				return false;
 			};
@@ -3249,7 +3249,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 					if (ml.size() == 0)
 						break;
 
-					Move m = ml.at(size_t(my_rand.rand(ml.size()))).move;
+					Move m = Move(ml.at(size_t(my_rand.rand(ml.size()))));
 
 					pos.do_move(m,s[ply]);
 
