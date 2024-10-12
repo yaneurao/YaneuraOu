@@ -30,10 +30,12 @@ int main(int argc, char* argv[])
 
 	// --- 全体的な初期化
 
-	CommandLine::init(argc,argv);
-	USI::init(Options);
 	Bitboards::init();
 	Position::init();
+
+	USIEngine engine(argc,argv);
+
+	USI::init(Options);
 	Search::init();
 
 	// エンジンオプションの"Threads"があるとは限らないので…。

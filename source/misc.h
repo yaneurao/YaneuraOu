@@ -225,6 +225,23 @@ inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
 }
 
 // --------------------
+//  コマンドライン
+// --------------------
+
+struct CommandLine {
+public:
+	CommandLine(int _argc, char** _argv) :
+		argc(_argc),
+		argv(_argv) {}
+
+	static std::string get_binary_directory(std::string argv0);
+	static std::string get_working_directory();
+
+	int    argc;
+	char** argv;
+};
+
+// --------------------
 //  全プロセッサを使う
 // --------------------
 
@@ -792,15 +809,6 @@ namespace Directory
 	// working directoryを返す。
 	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
 	std::string GetCurrentFolder();
-}
-
-namespace CommandLine {
-	// 起動時にmain.cppから呼び出される。
-	// CommandLine::binaryDirectory , CommandLine::workingDirectoryを設定する。
-	void init(int argc, char* argv[]);
-
-	extern std::string binaryDirectory;  // path of the executable directory
-	extern std::string workingDirectory; // path of the working directory
 }
 
 // --------------------

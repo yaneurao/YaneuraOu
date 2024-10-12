@@ -679,6 +679,7 @@
     <ClInclude Include="thread.h" />
     <ClInclude Include="tt.h" />
     <ClInclude Include="usi.h" />
+    <ClInclude Include="usi_option.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bitboard.cpp" />

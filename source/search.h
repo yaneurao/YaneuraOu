@@ -270,6 +270,35 @@ void clear();
 // depth : 反復深化のiteration深さ。
 std::string pv(const Position& pos, const TranspositionTable& tt, Depth depth);
 
+// TODO : 以下、作業中
+
+// Engineが持つべき短い情報
+struct InfoShort {
+	int   depth;
+	Value score;
+};
+
+// Engineが持つべき長い情報
+struct InfoFull : InfoShort {
+	int              selDepth;
+	size_t           multiPV;
+	std::string_view wdl;
+	std::string_view bound;
+	size_t           timeMs;
+	size_t           nodes;
+	size_t           nps;
+	size_t           tbHits;
+	std::string_view pv;
+	int              hashfull;
+};
+
+// Engineが持つべき反復深化の情報
+struct InfoIteration {
+	int              depth;
+	std::string_view currmove;
+	size_t           currmovenumber;
+};
+
 
 } // end of namespace Search
 

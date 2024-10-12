@@ -1696,7 +1696,7 @@ namespace Directory
 	// カレントフォルダを返す(起動時のフォルダ)
 	// main関数に渡された引数から設定してある。
 	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
-	std::string GetCurrentFolder() { return CommandLine::workingDirectory; }
+	std::string GetCurrentFolder() { return CommandLine::get_working_directory(); }
 }
 
 // ----------------------------
@@ -2137,52 +2137,48 @@ size_t str_to_size_t(const std::string& s) {
 #define GETCWD getcwd
 #endif
 
-namespace CommandLine {
-
-	std::string argv0;            // path+name of the executable binary, as given by argv[0]
-	std::string binaryDirectory;  // path of the executable directory
-	std::string workingDirectory; // path of the working directory
-
-	void init([[maybe_unused]] int argc, char* argv[]) {
-
-		std::string pathSeparator;
-
-		// Extract the path+name of the executable binary
-		argv0 = argv[0];
+std::string CommandLine::get_binary_directory(std::string argv0) {
+	std::string pathSeparator;
 
 #ifdef _WIN32
-		pathSeparator = "\\";
+	pathSeparator = "\\";
 #ifdef _MSC_VER
-		// Under windows argv[0] may not have the extension. Also _get_pgmptr() had
-		// issues in some windows 10 versions, so check returned values carefully.
-		char* pgmptr = nullptr;
-		if (!_get_pgmptr(&pgmptr) && pgmptr != nullptr && *pgmptr)
-			argv0 = pgmptr;
+	// Under windows argv[0] may not have the extension. Also _get_pgmptr() had
+	// issues in some Windows 10 versions, so check returned values carefully.
+	char* pgmptr = nullptr;
+	if (!_get_pgmptr(&pgmptr) && pgmptr != nullptr && *pgmptr)
+		argv0 = pgmptr;
 #endif
 #else
-		pathSeparator = "/";
+	pathSeparator = "/";
 #endif
 
-		// Extract the working directory
-		workingDirectory = "";
-		char buff[40000];
-		char* cwd = GETCWD(buff, 40000);
-		if (cwd)
-			workingDirectory = cwd;
+	// Extract the working directory
+	auto workingDirectory = CommandLine::get_working_directory();
 
-		// extract the binary directory path from argv0
-		binaryDirectory = argv0;
-		size_t pos = binaryDirectory.find_last_of("\\/");
-		if (pos == std::string::npos)
-			binaryDirectory = "." + pathSeparator;
-		else
-			binaryDirectory.resize(pos + 1);
+	// Extract the binary directory path from argv0
+	auto   binaryDirectory = argv0;
+	size_t pos = binaryDirectory.find_last_of("\\/");
+	if (pos == std::string::npos)
+		binaryDirectory = "." + pathSeparator;
+	else
+		binaryDirectory.resize(pos + 1);
 
-		// Pattern replacement: "./" at the start of path is replaced by the working directory
-		if (binaryDirectory.find("." + pathSeparator) == 0)
-			binaryDirectory.replace(0, 1, workingDirectory);
-	}
+	// Pattern replacement: "./" at the start of path is replaced by the working directory
+	if (binaryDirectory.find("." + pathSeparator) == 0)
+		binaryDirectory.replace(0, 1, workingDirectory);
 
+	return binaryDirectory;
+}
+
+std::string CommandLine::get_working_directory() {
+	std::string workingDirectory = "";
+	char        buff[40000];
+	char* cwd = GETCWD(buff, 40000);
+	if (cwd)
+		workingDirectory = cwd;
+
+	return workingDirectory;
 }
 
 // --------------------
