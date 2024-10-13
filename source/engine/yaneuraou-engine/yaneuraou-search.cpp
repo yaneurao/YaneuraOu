@@ -3304,6 +3304,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// -----------------------
 
 	// Step 1. Initialize node
+	// Step 1. ノードの初期化
 
 	if (PvNode)
 	{
@@ -3313,12 +3314,15 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	Thread* thisThread = pos.this_thread();
 	auto& tt           = thisThread->tt;
+
 	bestMove           = Move::none();
 	ss->inCheck        = pos.checkers();
 	moveCount          = 0;
 
     // Used to send selDepth info to GUI (selDepth counts from 1, ply from 0)
-    if (PvNode && thisThread->selDepth < ss->ply + 1)
+	// selDepth情報をGUIに送信するために使用します（selDepthは1からカウントし、plyは0からカウントします）。
+
+	if (PvNode && thisThread->selDepth < ss->ply + 1)
         thisThread->selDepth = ss->ply + 1;
 
 	// -----------------------
@@ -3326,6 +3330,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// -----------------------
 
 	// Step 2. Check for an immediate draw or maximum ply reached
+	// Step 2. 即座に引き分けになるか、最大のply(手数)に達していないかを確認します。
 
 	//if (pos.is_draw(ss->ply) || ss->ply >= MAX_PLY)
 	// →　将棋、千日手の頻度がチェスほどではないのでqsearch()で千日手判定を行う効果に乏しいかと思ったのだが、
@@ -3377,9 +3382,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// -----------------------
 
 	// Step 3. Transposition table lookup
-
-	// Transposition table lookup
-	// 置換表のlookup
+	// Step 3. 置換表のlookup
 
 	posKey  = pos.hash_key();
 	auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
@@ -3396,20 +3399,26 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	ASSERT_LV3(pos.legal_promote(ttData.move));
 
 	// At non-PV nodes we check for an early TT cutoff
-
+	// non-PV nodeにおいて、置換表による早期枝刈りをチェックします
+	//
+	// ■ 備考
+	//
 	// nonPVでは置換表の指し手で枝刈りする
 	// PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)
+
 	if (  !PvNode
 		&& ttData.depth >= DEPTH_QS
-		&& ttData.value != VALUE_NONE  // Only in case of TT access race or if !ttHit
-								  // ↑置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
+		&& ttData.value != VALUE_NONE  // Can happen when !ttHit or when access race in probe()
+								       // ↑置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
         && (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER)))
 
+		//
 		// ↑ここは、↓この意味。
-
 		//&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
 		//                    : (tte->bound() & BOUND_UPPER)))
 
+		// ■ 備考
+		// 
 		// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
 		// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 		// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
@@ -3422,23 +3431,24 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// -----------------------
 
 	// Step 4. Static evaluation of the position
+	// Step 4. この局面の静止評価
 
+	Value unadjustedStaticEval = VALUE_NONE;
 	if (ss->inCheck)
-	{
-
 		// bestValueはalphaとは違う。
 		// 王手がかかっているときは-VALUE_INFINITEを初期値として、すべての指し手を生成してこれを上回るものを探すので
 		// alphaとは区別しなければならない。
 		bestValue = futilityBase = -VALUE_INFINITE;
-
-	} else {
-
+	else
+	{
 		// -----------------------
 		//      一手詰め判定
 		// -----------------------
 
 		// 置換表にhitした場合は、すでに詰みを調べたはずなので
 		// 置換表にhitしなかったときにのみ調べる。
+
+		// この処理は、やねうら王独自。
 
 		if (PARAM_QSEARCH_MATE1 && !ss->ttHit)
 		{
@@ -3475,12 +3485,20 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		if (ss->ttHit)
 		{
 			// Never assume anything about values stored in TT
+			// TTに格納されている値に関して何も仮定しない
 
 			// 置換表に評価値が格納されているとは限らないのでその場合は評価関数の呼び出しが必要
 			// bestValueの初期値としてこの局面のevaluate()の値を使う。これを上回る指し手があるはずなのだが..
 
-			if ((ss->staticEval = bestValue = ttData.eval) == VALUE_NONE)
-				ss->staticEval = bestValue = evaluate(pos);
+			unadjustedStaticEval = ttData.eval;
+			if (unadjustedStaticEval == VALUE_NONE)
+				unadjustedStaticEval =
+				// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
+				evaluate(pos);
+
+			ss->staticEval = bestValue =
+				// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos);
+				unadjustedStaticEval;
 
 			// 毎回evaluate()を呼ぶならtte->eval()自体不要なのだが、
 			// 置換表の指し手でこのまま枝刈りできるケースがあるから難しい。
@@ -3497,14 +3515,14 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// ただし、mate valueは変更しない方が良いので、abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY は、
 			// そのための条件。
 
-			if (ttData.value != VALUE_NONE
+			// ttValue can be used as a better position evaluation (~13 Elo)
+			if (std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY
 				&& (ttData.bound & (ttData.value > bestValue ? BOUND_LOWER : BOUND_UPPER)))
 				bestValue = ttData.value;
 
-		} else {
-
-			// In case of null move search, use previous static eval with a different sign
-
+		}
+		else
+		{
 			// 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
 			// NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
 			// NULL_MOVEしているということは王手がかかっていないということであり、前の局面でevaluate()は呼び出しているから
@@ -3514,9 +3532,16 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			if (!PARAM_QSEARCH_FORCE_EVAL)
 			{
 				// Stockfish相当のコード
-				ss->staticEval = bestValue = (ss-1)->currentMove != Move::null() ? evaluate(pos)
-																			     : -(ss - 1)->staticEval;
 
+				// In case of null move search, use previous static eval with opposite sign
+				// null move探索の場合、前回の静的評価を反対の符号で使用します。
+
+				unadjustedStaticEval =
+					(ss - 1)->currentMove != Move::null()
+					? /* evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us])*/ evaluate(pos)
+					: -(ss - 1)->staticEval;
+				ss->staticEval = bestValue =
+					/* to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos)*/ unadjustedStaticEval;
 
 				// 1手前の局面(相手の手番)において 評価値が 500だとしたら、
 				// 自分の手番側から見ると -500 なので、 -(ss - 1)->staticEval はそういう意味。
@@ -3542,11 +3567,13 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		if (bestValue >= beta)
 		{
-            if (!ss->ttHit)
-                ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
-					DEPTH_UNSEARCHED, Move::none(), ss->staticEval, tt.generation());
-
-            return bestValue;
+			if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY)
+				bestValue = (3 * bestValue + beta) / 4;
+			if (!ss->ttHit)
+				ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
+					DEPTH_UNSEARCHED, Move::none(), unadjustedStaticEval,
+					tt.generation());
+			return bestValue;
 		}
 
 		// 王手がかかっていなくてPvNodeでかつ、bestValueがalphaより大きいならそれをalphaの初期値に使う。
@@ -3564,7 +3591,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	//     1手ずつ調べる
 	// -----------------------
 
-	const PieceToHistory* contHist[] = { (ss - 1)->continuationHistory, (ss - 2)->continuationHistory };
+	const PieceToHistory* contHist[] = { (ss - 1)->continuationHistory,
+		                                 (ss - 2)->continuationHistory };
 
 	// 取り合いの指し手だけ生成する
 	// searchから呼び出された場合、直前の指し手がMove::null()であることがありうる。この場合、SQ_NONEを設定する。
