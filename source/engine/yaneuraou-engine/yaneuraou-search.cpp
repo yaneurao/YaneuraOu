@@ -3197,12 +3197,20 @@ moves_loop:
 //      静止探索
 // -----------------------
 
-// qsearch() is the quiescence search function, which is called by the main search
-// function with zero depth, or recursively with further decreasing depth per call.
-// (~155 Elo)
+// Quiescence search function, which is called by the main search function with
+// depth zero, or recursively with further decreasing depth. With depth <= 0, we
+// "should" be using static eval only, but tactical moves may confuse the static eval.
+// To fight this horizon effect, we implement this qsearch of tactical moves (~155 Elo).
 
-// qsearch()は静止探索を行う関数で、search()でdepth(残り探索深さ)が0になったときに呼び出されるか、
-// このqseach()自身から再帰的にもっと低いdepthで呼び出される。
+// 静止探索関数です。この関数は、メインの探索関数から深さ0で呼び出されるか、
+// 再帰的にさらに深さを減らして呼び出されます。
+// 深さが0以下の場合、本来は静的評価のみを使用すべきですが、
+// 戦術的な手が静的評価を混乱させることがあります。
+// この地平線効果に対抗するため、戦術的な手の静止探索を実装しています。(~155 Elo)
+
+// See https://www.chessprogramming.org/Horizon_Effect
+// and https://www.chessprogramming.org/Quiescence_Search
+
 
 template <NodeType nodeType>
 Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
@@ -3242,20 +3250,22 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	ASSERT_LV3(PvNode || (alpha == beta - 1));
 	ASSERT_LV3(depth <= 0);
 
-	// Stockfishではここで千日手に突入できるかのチェックがあるようだが将棋でこれをやっても強くならないので導入しない。
-
-	// Stockfishのコードの原理としては、次の一手で千日手局面に持ち込めるなら、少なくともこの局面は引き分けであるから、
-	// betaが引き分けのスコアより低いならbeta cutできるというもの。
-
-    // Check if we have an upcoming move that draws by repetition, or if
-    // the opponent had an alternative move earlier to this position. (~1 Elo)
-	//if (   alpha < VALUE_DRAW
-	//    && pos.has_game_cycle(ss->ply))
+	//// Check if we have an upcoming move that draws by repetition (~1 Elo)
+	//if (alpha < VALUE_DRAW && pos.upcoming_repetition(ss->ply))
 	//{
-	//    alpha = value_draw(pos.this_thread());
-	//    if (alpha >= beta)
-	//        return alpha;
+	//	alpha = value_draw(this->nodes);
+	//	if (alpha >= beta)
+	//		return alpha;
 	//}
+
+	// ⇨ Stockfishではここで上記のように千日手に突入できるかのチェックがあるようだが
+	// 将棋でこれをやっても強くならないので導入しない。
+	//
+	// ■ 補足
+	//
+	// Stockfishのコードの原理としては、次の一手で千日手局面に持ち込めるなら、
+	// 少なくともこの局面は引き分けであるから、
+	// betaが引き分けのスコアより低いならbeta cutできるというもの。
 
 	// PV求める用のbuffer
 	// (これnonPVでは不要なので、nonPVでは参照していないの削除される。)
@@ -3275,9 +3285,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	// bestValue		: best moveに対する探索スコア(alphaとは異なる)
 	// value			: 現在のmoveに対する探索スコア
-	// futilityValue	: futility pruningに用いるスコア
 	// futilityBase		: futility pruningの基準となる値
-	Value bestValue, value, futilityValue, futilityBase;
+	Value bestValue, value, futilityBase;
 
 	// pvHit			: 置換表から取り出した指し手が、PV nodeでsaveされたものであった。
 	// givesCheck		: MovePickerから取り出した指し手で王手になるか
@@ -3610,7 +3619,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		moveCount++;
 
 		//
-	    // Step 6. Pruning.
+		// Step 6. Pruning
 		//
 
 		// moveが王手にならない指し手であり、1手前で相手が移動した駒を取り返す指し手でもなく、
@@ -3619,7 +3628,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY /*&& pos.non_pawn_material(us)*/)
 		{
-	        // Futility pruning and moveCount pruning (~10 Elo)
+			// Futility pruning and moveCount pruning (~10 Elo)
+			// futility枝刈りとmove countに基づく枝刈り（約10 Eloの向上）
+
 			if (   !givesCheck
 				&&  move.to_sq() != prevSq
 				&&  futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
@@ -3634,9 +3645,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 				// moveが成りの指し手なら、その成ることによる価値上昇分もここに乗せたほうが正しい見積りになるはず。
 				// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
-				futilityValue = futilityBase + CapturePieceValuePlusPromote(pos, move);
+				Value futilityValue = futilityBase + CapturePieceValuePlusPromote(pos, move);
 
-				// →　これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行ってして、そのあと、この値を用いないからセーフ。
+				// →　これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行って、そのあと、この値を用いないからセーフ。
 
                 // If static eval + value of piece we are going to capture is much lower
                 // than alpha we can prune this move. (~2 Elo)
@@ -3649,32 +3660,14 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 					continue;
 				}
 
-                // If static eval is much lower than alpha and move is not winning material
-                // we can prune this move. (~2 Elo)
+				// if static exchange evaluation is low enough
+				// we can prune this move. (~2 Elo)
 
-				// futilityBaseはこの局面のevalにmargin値を加算しているのだが、それがalphaを超えないし、
-				// かつseeがプラスではない指し手なので悪い手だろうから枝刈りしてしまう。
+				// 静的交換評価が十分に低い場合、この手を枝刈りできます。（~2 Elo）
 
-				if (futilityBase <= alpha && !pos.see_ge(move, VALUE_ZERO + 1))
+				if (!pos.see_ge(move, alpha - futilityBase))
 				{
-					bestValue = std::max(bestValue, futilityBase);
-					continue;
-				}
-
-				//
-				//  Detect non-capture evasions
-				//
-
-				// 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
-				// 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
-
-				// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
-
-				// If static exchange evaluation is much worse than what is needed to not
-				// fall below alpha we can prune this move
-				if (futilityBase > alpha && !pos.see_ge(move, (alpha - futilityBase) * 4))
-				{
-					bestValue = alpha;
+					bestValue = (futilityBase > alpha) ? alpha : std::max(bestValue, futilityBase);
 					continue;
 				}
 			}
