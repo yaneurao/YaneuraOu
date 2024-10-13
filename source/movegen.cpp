@@ -367,7 +367,7 @@ template <Color Us> struct GenerateDropMoves {
 		// 歩以外の手駒を持っているか
 		if (hand_except_pawn_exists(hand))
 		{
-			Move drops[6];
+			u32 drops[6];
 
 			// 打つ先の升を埋めればいいだけの指し手を事前に生成しておく。
 			// 基本的な戦略としては、(先手から見て)
@@ -378,17 +378,17 @@ template <Color Us> struct GenerateDropMoves {
 			// そのため、手駒から香・桂を除いた駒と、桂を除いた駒が必要となる。
 
 			int num = 0;
-			if (hand_exists(hand, KNIGHT)) drops[num++] = make_move_drop(KNIGHT, SQ_ZERO, Us);
+			if (hand_exists(hand, KNIGHT)) drops[num++] = make_move_drop(KNIGHT, SQ_ZERO, Us).to_u32();
 
 			int nextToKnight = num; // 桂を除いたdropsのindex
-			if (hand_exists(hand, LANCE )) drops[num++] = make_move_drop(LANCE , SQ_ZERO, Us);
+			if (hand_exists(hand, LANCE )) drops[num++] = make_move_drop(LANCE , SQ_ZERO, Us).to_u32();
 
 			int nextToLance  = num; // 香・桂を除いたdropsのindex
 
-			if (hand_exists(hand, SILVER)) drops[num++] = make_move_drop(SILVER, SQ_ZERO, Us);
-			if (hand_exists(hand, GOLD  )) drops[num++] = make_move_drop(GOLD  , SQ_ZERO, Us);
-			if (hand_exists(hand, BISHOP)) drops[num++] = make_move_drop(BISHOP, SQ_ZERO, Us);
-			if (hand_exists(hand, ROOK  )) drops[num++] = make_move_drop(ROOK  , SQ_ZERO, Us);
+			if (hand_exists(hand, SILVER)) drops[num++] = make_move_drop(SILVER, SQ_ZERO, Us).to_u32();
+			if (hand_exists(hand, GOLD  )) drops[num++] = make_move_drop(GOLD  , SQ_ZERO, Us).to_u32();
+			if (hand_exists(hand, BISHOP)) drops[num++] = make_move_drop(BISHOP, SQ_ZERO, Us).to_u32();
+			if (hand_exists(hand, ROOK  )) drops[num++] = make_move_drop(ROOK  , SQ_ZERO, Us).to_u32();
 
 
 			// 以下、コードが膨れ上がるが、dropは比較的、数が多く時間がわりとかかるので展開しておく価値があるかと思う。
@@ -402,10 +402,10 @@ template <Color Us> struct GenerateDropMoves {
 
 				switch (num)
 				{
-				case 1: target2.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
-				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
-				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
-				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
+				case 1: target2.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 			}
@@ -420,32 +420,32 @@ template <Color Us> struct GenerateDropMoves {
 				switch (num - nextToLance) // 1段目に対する香・桂以外の駒打ちの指し手生成(最大で4種の駒)
 				{
 				case 0: break; // 香・桂以外の持ち駒がないケース
-				case 1: target1.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = (Move)(drops[i + nextToLance] + sq); }); }); break;
-				case 2: target1.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = (Move)(drops[i + nextToLance] + sq); }); }); break;
-				case 3: target1.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = (Move)(drops[i + nextToLance] + sq); }); }); break;
-				case 4: target1.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = (Move)(drops[i + nextToLance] + sq); }); }); break;
+				case 1: target1.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
+				case 2: target1.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
+				case 3: target1.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
+				case 4: target1.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 
 				switch (num - nextToKnight) // 2段目に対する桂以外の駒打ちの指し手の生成(最大で5種の駒)
 				{
 				case 0: break; // 桂以外の持ち駒がないケース
-				case 1: target2.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = (Move)(drops[i + nextToKnight] + sq); }); }); break;
-				case 5: target2.foreach([&](Square sq) { Unroller<5>()([&](int i){ *mlist++ = (Move)(drops[i + nextToKnight] + sq); }); }); break;
+				case 1: target2.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
+				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
+				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
+				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
+				case 5: target2.foreach([&](Square sq) { Unroller<5>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 
 				switch (num) // 3～9段目に対する香を含めた指し手生成(最大で6種の駒)
 				{
-				case 1: target3.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
-				case 2: target3.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
-				case 3: target3.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
-				case 4: target3.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
-				case 5: target3.foreach([&](Square sq) { Unroller<5>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
-				case 6: target3.foreach([&](Square sq) { Unroller<6>()([&](int i){ *mlist++ = (Move)(drops[i] + sq); }); }); break;
+				case 1: target3.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 2: target3.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 3: target3.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 4: target3.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 5: target3.foreach([&](Square sq) { Unroller<5>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 6: target3.foreach([&](Square sq) { Unroller<6>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
 				default: UNREACHABLE;
 				}
 			}

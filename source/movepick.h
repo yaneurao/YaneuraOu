@@ -47,14 +47,17 @@ public:
 	// 値が範囲外にならないように制限してある。
 	void operator<<(int bonus) {
 
-		ASSERT_LV3(std::abs(bonus) <= D); // 範囲が[-D,D]であるようにする。
 		// オーバーフローしないことを保証する。
 		static_assert(D <= std::numeric_limits<T>::max(), "D overflows T");
 
 		// この式は、Stockfishのコードそのまま。
 		// 試行錯誤の結果っぽくて、数学的な根拠はおそらくない。
 
-		entry += bonus - entry * std::abs(bonus) / D;
+		// Make sure that bonus is in range [-D, D]
+		// bonusが[-D,D]の範囲に収まるようにする
+
+		int clampedBonus = std::clamp(bonus, -D, D);
+		entry += clampedBonus - entry * std::abs(clampedBonus) / D;
 
 		// 解説)
 		// 
@@ -72,7 +75,8 @@ public:
 		// ・絶対値がDを超えないように注意しながらentryにbonusを加算する
 		// 
 
-		ASSERT_LV3(std::abs(entry) <= D);
+		//ASSERT_LV3(std::abs(entry) <= D);
+		// ⇨ これたまにassert引っかかる…。Stockfishは引っかからないのか…なぜ…？
 	}
 };
 

@@ -170,9 +170,6 @@ MovePicker::MovePicker(
 	depth(d),
 	ply(pl)
 {
-	// 通常探索から呼び出されているので残り深さはゼロより大きい。
-	ASSERT_LV3(d > 0);
-
 	// 次の指し手生成の段階
 	if (pos.in_check())
 		// 王手がかかっているなら回避手

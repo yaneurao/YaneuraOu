@@ -634,7 +634,8 @@ std::string to_usi_string(Move16 m);
 //   bit15    : 成りかのフラグ
 //   
 // Move   : 32bit形式の指し手
-//   上位16bitには、この指し手によってto(移動後の升)に来る駒(先後の区別あり)が格納されている。つまりは Piece(5bit)が上位16bitに来る。
+//   上位16bitには、この指し手によってto(移動後の升)に来る駒(先後の区別あり)が格納されている。
+//   つまりは Piece(5bit)が上位16bitに来る。
 //   move = move16 + (piece << 16)
 // なので、Moveが使うのは、16bit(Move16) + 5bit(Piece) = 下位21bit
 //
@@ -693,7 +694,10 @@ public:
 	// 先後の区別なし。PAWN～ROOKまでの値が返る。
 	// ※ 打つ駒のPieceTypeはMoveの bit7..13に格納されている。
 	// ※ assert(is_drop(m))はあってもいいかも。
-	PieceType move_dropped_piece() const { return (PieceType)((data >> 7) & 0x7f); }
+	PieceType move_dropped_piece() const { return PieceType((data >> 7) & 0x7f); }
+
+	// この指し手のあとにtoに来る駒。(移動させる駒だが、成りのときは、成ったあとの駒。)
+	Piece moved_after_piece() const { return Piece(data >> 16); }
 
 	// fromとtoをシリアライズする。駒打ちのときのfromは普通の移動の指し手とは異なる。
 	// この関数は、0 ～ ((SQ_NB+7) * SQ_NB - 1)までの値が返る。
@@ -769,7 +773,12 @@ public:
 	// 内部的に用いる。基本的にはこの関数を呼び出さないこと。
 	// ⇨ このMove16のinstanceをMoveに戻したい時は、Position::to_move(Move16)を使うこと。
 	constexpr uint16_t to_u16() const { return (u16)data; }
+
 	constexpr operator bool() const { return data; }
+
+	// 暗黙的にboolに変換されて意図しない足し算がなされてしまうことがある。
+	// 例) Move m; Square s;に対して m + s みたいな足し算。
+	// これを禁止するのは難しい…。
 
 	// -- 比較
 
@@ -802,14 +811,14 @@ constexpr Move make_move(Square from, Square to, Color us , PieceType pt ) { ret
 
 // us側の駒ptをfromからtoに移動して、成る指し手を生成して返す。
 // Move16を返すほうは、移動させる駒が何かの情報は持っていない。
-static Move16 make_move_promote16(Square from, Square to) { return (Move16)(to + (from << 7) + MOVE_PROMOTE); }
-constexpr Move make_move_promote(Square from, Square to , Piece pc) { return (Move)(to + (from << 7) + MOVE_PROMOTE + ((pc | PIECE_PROMOTE) << 16)); }
-constexpr Move make_move_promote(Square from, Square to , Color us , PieceType pt) { return (Move)(to + (from << 7) + MOVE_PROMOTE + (((us ? u32(PIECE_WHITE) : 0) + (pt | PIECE_PROMOTE)) << 16)); }
+static Move16 make_move_promote16(Square from, Square to) { return Move16(to + (from << 7) + MOVE_PROMOTE); }
+constexpr Move make_move_promote(Square from, Square to , Piece pc) { return Move(to + (from << 7) + MOVE_PROMOTE + ((pc | PIECE_PROMOTE) << 16)); }
+constexpr Move make_move_promote(Square from, Square to , Color us , PieceType pt) { return Move(to + (from << 7) + MOVE_PROMOTE + (((us ? u32(PIECE_WHITE) : 0) + (pt | PIECE_PROMOTE)) << 16)); }
 
 // us側の駒ptをtoに打つ指し手を生成して返す
 // Move16を返すほうは、どちらの駒であるかの情報は持っていない。
-static Move16 make_move_drop16(PieceType pt, Square to) { return (Move16)(to + (pt << 7) + MOVE_DROP); }
-constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return (Move)(to + (pt << 7) + MOVE_DROP + (((us ? u32(PIECE_WHITE) : 0) + (pt)) << 16)); }
+static Move16 make_move_drop16(PieceType pt, Square to) { return Move16(to + (pt << 7) + MOVE_DROP); }
+constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return Move(to + (pt << 7) + MOVE_DROP + (((us ? u32(PIECE_WHITE) : 0) + (pt)) << 16)); }
 
 // 移動元の升と移動先の升を逆転させた指し手を生成する。探索部で用いる。
 // ※　最新のStockfishでは使っていないのでもはや不要なのだが一応残しておく。
@@ -863,7 +872,8 @@ struct ExtMove : public Move {
 
 	// Move型から暗黙で代入できる。
 	// ⇨ こうしておけば、MoveList* curに対して *cur++ = move; のように書ける。
-	void operator=(Move m) { data = m; }
+	void operator=(const Move m) { data = m.to_u32(); }
+	// ⇨ ここ、data = m.dataとしようとするとdataはprotectedなのにアクセスできない。なぜ…？
 
 	// 補足 : このクラスの変数をMove型にしたいときは、このクラスの変数を Move(m) のようにすれば良い。
 

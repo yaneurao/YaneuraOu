@@ -340,12 +340,10 @@ public:
 	// Moveの上位16bitにそれが格納されているので、単にそれを返しているだけ。
 	Piece moved_piece_after(Move m) const
 	{
-		// move pickerから Move::none()に対してこの関数が呼び出されることがあるのでこのASSERTは書けない。
-		// Move::none()に対しては、NO_PIECEからPIECE_NB未満のいずれかの値が返れば良い。
 		// ASSERT_LV3(is_ok(m));
+		// ⇨ MovePicker から Move::none()に対してこの関数が呼び出されることがあるのでこのASSERTは書けない。
 
-		// 上位16bitにそのまま格納されているはず。
-		return Piece(m >> 16);
+		return m.moved_after_piece();
 	}
 
 	// 定跡DBや置換表から取り出したMove16(16bit型の指し手)を32bit化する。

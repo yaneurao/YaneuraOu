@@ -238,6 +238,27 @@ constexpr int futility_move_count(bool improving, int depth) {
 					 : (3 + depth * depth) / 2;
 }
 
+// Add correctionHistory value to raw staticEval and guarantee evaluation
+// does not hit the tablebase range.
+
+// correctionHistoryの値を生のstaticEvalに加算し、
+// 評価がテーブルベースの範囲に達しないように保証します。
+
+/*
+Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
+	const Color us    = pos.side_to_move();
+	const auto  pcv   = w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)];
+	const auto  mcv   = w.materialCorrectionHistory[us][material_index(pos)];
+	const auto  macv  = w.majorPieceCorrectionHistory[us][major_piece_index(pos)];
+	const auto  micv  = w.minorPieceCorrectionHistory[us][minor_piece_index(pos)];
+	const auto  wnpcv = w.nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)];
+	const auto  bnpcv = w.nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)];
+	const auto  cv =
+	  (6245 * pcv + 3442 * mcv + 3471 * macv + 5958 * micv + 6566 * (wnpcv + bnpcv)) / 131072;
+	v += cv;
+	return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+}
+*/
 
 // History and stats update bonus, based on depth
 // depthに基づく、historyとstatsのupdate bonus
