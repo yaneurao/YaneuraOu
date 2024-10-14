@@ -1176,7 +1176,7 @@ void USI::UnitTest(Test::UnitTester& tester)
 			while (is >> token)
 			{
 				Move m = USI::to_move(pos,token);
-				if (m == MOVE_NONE)
+				if (m == Move::none())
 					fail = true;
 
 				pos.do_move(m, si[pos.game_ply()]);

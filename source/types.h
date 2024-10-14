@@ -618,6 +618,14 @@ constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 //       指し手
 // --------------------
 
+// Based on a congruential pseudo-random number generator
+// 合同式による疑似乱数生成器に基づいています。
+// ⇨ Move型のhashを生成するときに用いる。
+
+constexpr /*Key*/uint64_t make_key(uint64_t seed) {
+	return seed * 6364136223846793005ULL + 1442695040888963407ULL;
+}
+
 class Move;
 class Move16;
 
@@ -720,26 +728,32 @@ public:
 		return (data >> 7) != (data & 0x7f);
 	}
 
+	// -- 比較
+
+	bool operator == (const Move rhs) const { return this->to_u32() == rhs.to_u32(); }
+	bool operator != (const Move rhs) const { return !(*this == rhs); }
+
 	// -- 変換子
 
 	// Move16への変換子
 	Move16 to_move16() const;
 	constexpr uint16_t to_u16() const { return (uint16_t)data; }
 	constexpr uint32_t to_u32() const { return (uint32_t)data; }
-	constexpr operator bool() const { return data; }
+	constexpr explicit operator bool() const { return data != 0; }
 
 	// 暗黙的にboolに変換されて意図しない足し算がなされてしまうことがある。
 	// 例) Move m; Square s;に対して m + s みたいな足し算。
 	// これを禁止するのは難しい…。
-	// -- 比較
-
-	bool operator == (const Move rhs) const { return this->to_u32() == rhs.to_u32(); }
-	bool operator != (const Move rhs) const { return !(*this == rhs); }
 
 	// -- 文字列化
 
 	// USI形式の文字列にする。
 	std::string to_usi_string() const { return ::to_usi_string(*this); }
+
+	// -- unordered_mapなどで比較するときに用いる。operator<()は定義したくないので、こちらを用いる。
+	struct MoveHash {
+		std::size_t operator()(const Move& m) const { return make_key(m.data); }
+	};
 
 protected:
 	std::uint32_t data;
@@ -769,6 +783,14 @@ public:
 	int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq()); }
 	constexpr bool is_ok() const { return (data >> 7) != (data & 0x7f); }
 
+	// -- 比較
+
+	// Move16同士とMoveの定数とも比較はできる。
+	bool operator == (const Move16 rhs) const { return data == rhs.data; }
+	bool operator != (const Move16 rhs) const { return !(*this == rhs); }
+	bool operator == (const Move rhs) const { return this->to_u16() == rhs.to_u16(); }
+	bool operator != (const Move rhs) const { return !(*this == rhs); }
+
 	// -- 変換子
 
 	// uint16_tのまま取り出す。
@@ -779,14 +801,6 @@ public:
 
 	//constexpr operator bool() const { return data; }
 	// ⇨ これ定義していると余計なバグに悩まされることになる。
-
-	// -- 比較
-
-	// Move16同士とMoveの定数とも比較はできる。
-	bool operator == (const Move16 rhs) const { return data == rhs.data; }
-	bool operator != (const Move16 rhs) const { return !(*this == rhs); }
-	bool operator == (const Move rhs) const { return this->to_u16() == rhs.to_u16(); }
-	bool operator != (const Move rhs) const { return !(*this == rhs); }
 
 	// -- 文字列化
 
@@ -886,7 +900,7 @@ struct ExtMove : public Move {
 	operator float() const = delete;
 };
 
-// ExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。
+// partial_insertion_sort()でExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。
 constexpr bool operator<(const ExtMove& first, const ExtMove& second) {
 	return first.value < second.value;
 }
@@ -1125,23 +1139,6 @@ private:
 // 局面のハッシュキー
 // 盤面(盤上の駒 + 手駒)に対して、Zobrist Hashでそれに対応する値を計算する。
 using Key = uint64_t;
-
-#if 0
-// 合同法による擬似乱数生成器
-// 探索で、excludedMoveを考慮した局面のhash keyが欲しいので、それを生成するために
-// excludedMoveをseedとする擬似乱数を発生させる必要があり、そこで用いられる。
-// cf. https://github.com/official-stockfish/Stockfish/commit/de24fcebc873ce2d65b30e039745dbc2e851f443
-//
-// やねうら王独自拡張
-// pos.key()にxorをとるときにbit0(先後フラグ)を潰してはいけないので、
-// ここではbit0が0になっている数(偶数)を返すことにした。
-// あと、HashKeyとして128bitのkeyを使うとき(特殊用途)は、この関数は128bitの値を返さないといけない。(未対応)
-constexpr Key make_key(uint64_t seed) {
-	return (seed * 6364136223846793005ULL + 1442695040888963407ULL) & ~1ULL;
-}
-
-// →　この関数はStockfish 16で使わなくなった。
-#endif
 
 // --------------------
 //        探索

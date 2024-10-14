@@ -308,7 +308,10 @@ Thread* ThreadPool::get_best_thread() const {
 	// いい指し手を発見している可能性があって楽観合議のような効果があるようだ。
 
 	Thread* bestThread = threads.front();
-	std::map<Move, int64_t> votes;
+
+	std::unordered_map<Move, int64_t, Move::MoveHash> votes(
+		2 * std::min(size(), bestThread->rootMoves.size()));
+
 	Value minScore = VALUE_NONE;
 
 	// Find minimum score of all threads

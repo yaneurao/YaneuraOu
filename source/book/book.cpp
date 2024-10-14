@@ -1584,7 +1584,7 @@ namespace BookTools
 		{
 			// 非合法手ならUSI::to_moveはMOVE_NONEを返すはず…。
 			Move move = USI::to_move(pos, token);
-			if (move == MOVE_NONE)
+			if (move == Move::none())
 				break;
 
 			// MOVE_NULL,MOVE_WINでは局面を進められないのでここで終了。

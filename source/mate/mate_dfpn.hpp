@@ -229,7 +229,7 @@ namespace Mate::Dfpn32
 		template <bool or_node>
 		void init(ExtMove m)
 		{
-			lastMove = Move(m);
+			lastMove = m.to_u32();
 
 			if (MoveOrdering)
 			{
@@ -251,7 +251,7 @@ namespace Mate::Dfpn32
 		template <bool or_node>
 		void init_mate_move(Move move ,int ply = 0)
 		{
-			this->lastMove = move;
+			this->lastMove = move.to_u32();
 			this->template set_mate<true>(ply);
 
 			// これはnullptrを意味する。
@@ -561,7 +561,7 @@ namespace Mate::Dfpn32
 				// ただしorノードではdnは最小であってほしい。(これが詰みまでの距離を表現しているので)
 				// andノードではdnは最大であってほしい。
 				Move move = or_node ? pick_the_best<true,proof,current>(node) : pick_the_best<false,proof,current>(node);
-				if (move == MOVE_NONE)
+				if (move == Move::none())
 					break;
 
 				pv.push_back(move);
@@ -1139,7 +1139,7 @@ namespace Mate::Dfpn32
 			if (or_node && !pos.in_check())
 			{
 				Move mate_move = Mate::mate_1ply(pos);
-				if (mate_move != MOVE_NONE)
+				if (mate_move != Move::none())
 				{
 					// 詰んだ
 					NodeType* child = new_node(1);
