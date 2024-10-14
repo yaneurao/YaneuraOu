@@ -403,7 +403,7 @@ namespace Book
 
 					Move move = USI::to_move(pos, token);
 					// illigal moveであるとMOVE_NONEが返る。
-					if (move == MOVE_NONE)
+					if (move == Move::none())
 					{
 						cout << "illegal move : line = " << (k + 1) << " , " << sfen << " , move = " << token << endl;
 						break;

@@ -552,7 +552,7 @@ namespace Eval::dlshogi
 	// 指し手に対して、Policy Networkの返してくる配列のindexを返す。
 	int make_move_label(Move move, Color color)
 	{
-		return MoveLabel[move & 0xffff][color];
+		return MoveLabel[move.to_u16()][color];
 	}
 
 	// Boltzmann distribution
