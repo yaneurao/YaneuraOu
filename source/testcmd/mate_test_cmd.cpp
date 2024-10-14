@@ -119,7 +119,7 @@ namespace {
 					auto pv = Learner::search(pos, search_depth , 1);
 
 					Move m = pv.second[0];
-					if (m == MOVE_NONE)
+					if (m == Move::none())
 						break;
 
 					pos.do_move(m, states[ply + 1]);
@@ -133,8 +133,8 @@ namespace {
 
 					// mate_min_ply - 2で詰まなくて、
 					// mate_max_plyで詰むことを確認すれば良いはず。
-					if (solver.mate_odd_ply(newPos, min_ply - 2, true) == MOVE_NONE
-						&& solver.mate_odd_ply(newPos, max_ply, true) != MOVE_NONE)
+					if (solver.mate_odd_ply(newPos, min_ply - 2, true) == Move::none()
+						&& solver.mate_odd_ply(newPos, max_ply, true) != Move::none())
 					{
 						// 発見した。
 

@@ -494,7 +494,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 
 			// 宣言勝ち
-			if (pos.DeclarationWin() != MOVE_NONE)
+			if (pos.DeclarationWin() != Move::none())
 			{
 				// (この局面の一つ前の局面までは書き出す)
 				flush_psv(1);
@@ -502,7 +502,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 			}
 
 			// 定跡
-			if ((m = book.probe(pos)) != MOVE_NONE)
+			if ((m = book.probe(pos)) != Move::none())
 			{
 				// 定跡にhitした。
 				// その指し手はmに格納された。
@@ -1740,7 +1740,7 @@ void LearnerThink::calc_loss(size_t thread_id, u64 done)
 				// 教師の指し手と浅い探索のスコアが一致するかの判定
 				{
 					auto r = search(pos, 1);
-					if ((u16)r.second[0] == ps.move)
+					if (r.second[0].to_u16() == ps.move)
 						++local_move_accord_count;
 				}
 			}
@@ -2005,7 +2005,7 @@ void LearnerThink::thread_worker(size_t thread_id)
 		// 全駒されて詰んでいる可能性がある。
 		// また宣言勝ちの局面はPVの指し手でleafに行けないので学習から除外しておく。
 		// (そのような教師局面自体を書き出すべきではないのだが古い生成ルーチンで書き出しているかも知れないので)
-		if (pos.is_mated() || pos.DeclarationWin() != MOVE_NONE)
+		if (pos.is_mated() || pos.DeclarationWin() != Move::none())
 			goto RetryRead;
 
 		// 読み込めたので試しに表示してみる。
@@ -3130,8 +3130,8 @@ namespace Learner {
 			{
 				// /* 詰みの局面もゴミでしかない。1手詰め、宣言勝ちの局面も除外。*/
 				if (pos.is_mated()
-					|| (!pos.checkers() && Mate::mate_1ply(pos) != MOVE_NONE)
-					|| pos.DeclarationWin() != MOVE_NONE
+					|| (!pos.checkers() && Mate::mate_1ply(pos) != Move::none())
+					|| pos.DeclarationWin() != Move::none()
 					)
 					break;
 
@@ -3278,7 +3278,7 @@ namespace Learner {
 
 			// 対局シミュレーションのループ
 			while (pos.game_ply() < MAX_PLY2
-				&& !pos.is_mated() && pos.DeclarationWin() == MOVE_NONE
+				&& !pos.is_mated() && pos.DeclarationWin() == Move::none()
 				&& pos.is_repetition() != REPETITION_DRAW /* 千日手 */)
 			{
 				// -- 普通に探索してその指し手で局面を進める。
@@ -3316,7 +3316,7 @@ namespace Learner {
 					psv.game_result = (s8)pos.side_to_move();
 					
 					// PVの初手を取り出す。これはdepth 0でない限りは存在するはず。
-					psv.move = (u16)pv[0];
+					psv.move = pv[0].to_u16();
 				}
 
 				// search_depth手読みの指し手で局面を進める。
@@ -3340,7 +3340,7 @@ namespace Learner {
 				// 詰まされた
 				win = ~pos.side_to_move();
 			}
-			else if (pos.DeclarationWin() != MOVE_NONE) {
+			else if (pos.DeclarationWin() != Move::none()) {
 				// 勝ち
 				// 入玉勝利
 				win = pos.side_to_move();
