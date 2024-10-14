@@ -1288,7 +1288,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// なるべく早い段階でのTTに対するprefetch
 		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
 		const HASH_KEY key = k + h;
-		prefetch(thisThread->tt.first_entry(key));
+		prefetch(TT.first_entry(key));
 #if defined(USE_EVAL_HASH)
 		Eval::prefetch_evalhash(hash_key_to_key(key));
 #endif
@@ -1471,7 +1471,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// 駒打ちでないときはprefetchはこの時点まで延期される。
 		const HASH_KEY key = k + h;
-		prefetch(thisThread->tt.first_entry(key));
+		prefetch(TT.first_entry(key));
 #if defined(USE_EVAL_HASH)
 		Eval::prefetch_evalhash(hash_key_to_key(key));
 #endif
@@ -1897,7 +1897,7 @@ void Position::do_null_move(StateInfo& newSt) {
 	// CPUによっては有効なので一応やっておく。
 
 	const HASH_KEY key = st->hash_key();
-	prefetch(thisThread->tt.first_entry(key));
+	prefetch(TT.first_entry(key));
 
 	// これは、さっきアクセスしたところのはずなので意味がない。
 	//  Eval::prefetch_evalhash(key);

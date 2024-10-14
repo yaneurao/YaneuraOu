@@ -9,6 +9,7 @@
 #include "movepick.h"
 #include "numa.h"
 #include "position.h"
+#include "tt.h"
 
 // -----------------------
 //      探索用の定数

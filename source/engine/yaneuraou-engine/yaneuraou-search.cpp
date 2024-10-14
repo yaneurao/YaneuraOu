@@ -343,6 +343,13 @@ struct Skill {
 
 #endif
 
+// quietsSearchedの最大数。
+// Stockfish 16ではquietsSearchedの配列サイズが[64]から[32]になったが、
+// 将棋ではハズレのquietの指し手が大量にあるので
+// それがベストとは限らない。
+// →　比較したところ、64より32の方がわずかに良かったので、とりあえず32にしておく。(V7.73mとV7.73m2との比較)
+constexpr int MAX_QUIETS_SEARCHED = 32 /*32*/;
+
 template <NodeType nodeType>
 Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
 
@@ -355,8 +362,8 @@ void update_pv(Move* pv, Move move, const Move* childPv);
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
 void update_quiet_histories(const Position& pos, Stack* ss, Move move, int bonus);
 void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
-	ValueList<Move,32>& quietsSearched,
-	ValueList<Move,32>& capturesSearched,
+	ValueList<Move, MAX_QUIETS_SEARCHED>& quietsSearched,
+	ValueList<Move, MAX_QUIETS_SEARCHED>& capturesSearched,
 	Depth depth);
 
 
@@ -469,7 +476,7 @@ void Search::clear()
 	// -----------------------
 
 	//	Time.availableNodes = 0;
-	Threads.main()->tt.clear();
+	TT.clear();
 	Threads.clear();
 	//	Tablebases::init(Options["SyzygyPath"]); // Free up mapped files
 
@@ -634,7 +641,7 @@ void MainThread::search()
 	// よってslaveが動く前であるこのタイミングで置換表の世代を進めるべきである。
 	// cf. Call TT.new_search() earlier.  : https://github.com/official-stockfish/Stockfish/commit/ebc563059c5fc103ca6d79edb04bb6d5f182eaf5
 
-	tt.new_search();
+	TT.new_search();
 
 	// Stockfishでは評価関数の正常性のチェック、ここにあるが…。
 	// isreadyに対する応答でやっているのでここはコメントアウトしておく。
@@ -718,7 +725,7 @@ SKIP_SEARCH:;
 				!Limits.silent
 				)
 				
-				sync_cout << Search::pv(bestThread->rootPos, bestThread->tt, bestThread->completedDepth) << sync_endl;
+				sync_cout << Search::pv(bestThread->rootPos, TT, bestThread->completedDepth) << sync_endl;
 
 			/*
 				bestThreadがmainThreadではなくなる場合、探索した最大depthが減ることがありうる。
@@ -816,12 +823,26 @@ SKIP_SEARCH:;
 		// pvにはbestmoveのときの読み筋(PV)が格納されているので、ponderとしてpv[1]があればそれを出力してやる。
 		// また、pv[1]がない場合(rootでfail highを起こしたなど)、置換表からひねり出してみる。
 		if (bestThread->rootMoves[0].pv.size() > 1
-			|| bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos))
+			|| bestThread->rootMoves[0].extract_ponder_from_tt(TT, rootPos))
 			std::cout << " ponder " << bestThread->rootMoves[0].pv[1];
 
 		std::cout << sync_endl;
 	}
 }
+
+// ----------------------------------------------------------------------------------------------------------
+//                        探索スレッドごとに個別の置換表へのアクセス
+// ----------------------------------------------------------------------------------------------------------
+
+// 以下のTT.probe()は、学習用の実行ファイルではスレッドごとに持っているTTのほうにアクセスして欲しいので、
+// TTのマクロを定義して無理やりそっちにアクセスするように挙動を変更する。
+#if defined(EVAL_LEARN)
+#define TT (thisThread->tt)
+	// Threadのメンバにttという変数名で、スレッドごとのTranspositionTableを持っている。
+	// そちらを参照するように変更する。
+#endif
+
+// ----------------------------------------------------------------------------------------------------------
 
 // 探索スレッド用の初期化(探索部と学習部と共通)
 // やねうら王、独自拡張。
@@ -1130,7 +1151,7 @@ void Thread::search()
 				{
 					// 最後に出力した時刻を記録しておく。
 					mainThread->lastPvInfoTime = Time.elapsed();
-					sync_cout << Search::pv(rootPos, tt, rootDepth) << sync_endl;
+					sync_cout << Search::pv(rootPos, TT, rootDepth) << sync_endl;
 				}
 
 				// aspiration窓の範囲外
@@ -1195,7 +1216,7 @@ void Thread::search()
 				)
 			{
 				mainThread->lastPvInfoTime = Time.elapsed();
-				sync_cout << Search::pv(rootPos, tt, rootDepth) << sync_endl;
+				sync_cout << Search::pv(rootPos, TT, rootDepth) << sync_endl;
 			}
 
 		} // multi PV
@@ -1484,7 +1505,6 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	//     nodeの初期化
 
 	Thread* thisThread = pos.this_thread();
-	auto& tt           = thisThread->tt;
 	ss->inCheck		   = pos.checkers();
 	priorCapture	   = pos.captured_piece();
 	Color us		   = pos.side_to_move();
@@ -1662,7 +1682,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	**/
 
 	posKey  = pos.hash_key();
-	auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
+	auto [ttHit, ttData, ttWriter] = TT.probe(posKey, pos);
 
 	// Need further processing of the saved data
 	// 保存されたデータのさらなる処理が必要です
@@ -1825,7 +1845,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 				if (m.is_ok())
 					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						MAX_PLY, m, ss->staticEval, tt.generation());
+						MAX_PLY, m, ss->staticEval, TT.generation());
 
 				// [2023/10/17]
 				// →　Move::win()の値は、置換表に書き出さないほうがいいと思う。
@@ -1881,7 +1901,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 					// staticEvalの代わりに詰みのスコア書いてもいいのでは..
 					ASSERT_LV3(pos.legal_promote(move));
 					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						    std::min(MAX_PLY - 1, depth + 6), move, /* ss->staticEval */ bestValue, tt.generation());
+						    std::min(MAX_PLY - 1, depth + 6), move, /* ss->staticEval */ bestValue, TT.generation());
 
 					// ■　【計測資料 39.】 mate1plyの指し手を見つけた時に置換表の指し手でbeta cutする時と同じ処理をする。
 
@@ -1919,7 +1939,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 					ASSERT_LV3(pos.legal_promote(move));
 					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						std::min(MAX_PLY - 1, depth + 8), move, /* ss->staticEval */ bestValue, tt.generation());
+						std::min(MAX_PLY - 1, depth + 8), move, /* ss->staticEval */ bestValue, TT.generation());
 
 					return bestValue;
 				}
@@ -1970,7 +1990,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 
 		if (eval == VALUE_NONE)
+		{
 			ss->staticEval = eval = evaluate(pos);
+		}
 
 		//else if (PvNode)
 		//	Eval::NNUE::hint_common_parent_position(pos);
@@ -2006,7 +2028,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// cf . Add / remove leaves from search tree ttPv : https://github.com/official-stockfish/Stockfish/commit/c02b3a4c7a339d212d5c6f75b3b89c926d33a800
 		// 上の方にある else if (excludedMove) でこの条件は除外されている。
 
-		ttWriter.write(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_UNSEARCHED, Move::none(), eval, tt.generation());
+		ttWriter.write(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_UNSEARCHED, Move::none(), eval, TT.generation());
 
 		// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
 		// 実行したという証にはなるので意味がある。
@@ -2307,7 +2329,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 					// ProbCutのdataを置換表に保存する。
 
 					ttWriter.write(posKey, value_to_tt(value, ss->ply),
-						ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval,tt.generation());
+						ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval,TT.generation());
 
 					return std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY ? value - (probCutBeta - beta)
                                                                      : value;
@@ -3205,7 +3227,7 @@ moves_loop:
 			  bestValue >= beta  ? BOUND_LOWER
 			: PvNode && bestMove ? BOUND_EXACT
 			                     : BOUND_UPPER,
-			depth, bestMove, ss->staticEval, tt.generation());
+			depth, bestMove, ss->staticEval, TT.generation());
 	}
 
 	// qsearch()内の末尾にあるassertの文の説明を読むこと。
@@ -3334,7 +3356,6 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	}
 
 	Thread* thisThread = pos.this_thread();
-	auto& tt           = thisThread->tt;
 
 	bestMove           = Move::none();
 	ss->inCheck        = pos.checkers();
@@ -3406,7 +3427,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// Step 3. 置換表のlookup
 
 	posKey  = pos.hash_key();
-	auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
+	auto [ttHit, ttData, ttWriter] = TT.probe(posKey, pos);
 
 	// Need further processing of the saved data
 	// 保存されたデータのさらなる処理が必要です
@@ -3593,7 +3614,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			if (!ss->ttHit)
 				ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
 					DEPTH_UNSEARCHED, Move::none(), unadjustedStaticEval,
-					tt.generation());
+					TT.generation());
 			return bestValue;
 		}
 
@@ -3868,7 +3889,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	ASSERT_LV3(pos.legal_promote(bestMove));
 	ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), pvHit,
 				bestValue >= beta ? BOUND_LOWER : BOUND_UPPER, DEPTH_QS, bestMove,
-				ss->staticEval, tt.generation());
+				ss->staticEval, TT.generation());
 
 	// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
 	// しかし置換表が衝突した場合はそうではない。3手詰めの局面で、置換表衝突により1手詰めのスコアが

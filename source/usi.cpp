@@ -8,7 +8,6 @@
 
 #if !defined(YANEURAOU_ENGINE_DEEP)
 #include "tt.h"
-extern TranspositionTable TT;
 #endif
 
 #if defined(__EMSCRIPTEN__)

@@ -456,7 +456,7 @@ namespace USI {
 		// ";"で区切って複数指定できるものとする。
 		auto v = StringExtension::Split(options, ";");
 		for (auto line : v)
-			build_option(string(line));
+			build_option(std::string(line));
 	}
 
 	// カレントフォルダに"engine_options.txt"(これは引数で指定されている)が

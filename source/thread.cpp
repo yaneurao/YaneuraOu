@@ -1,5 +1,6 @@
 ﻿#include <algorithm> // std::count
 #include <cmath>     // std::abs
+#include <unordered_map>
 
 #include "thread.h"
 #include "usi.h"
@@ -7,10 +8,7 @@
 
 ThreadPool Threads;		// Global object
 
-// global TTここに置いておく。あとで修正する。
-TranspositionTable TT;
-
-Thread::Thread(TranspositionTable& tt, size_t n) : tt(tt), idx(n) , stdThread(&Thread::idle_loop, this)
+Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
 {
 #if !defined(__EMSCRIPTEN__)
 	// スレッドはsearching == trueで開始するので、このままworkerのほう待機状態にさせておく
@@ -163,14 +161,14 @@ void ThreadPool::set(size_t requested)
 
 	if (requested > 0) { // 要求された数だけのスレッドを生成
 #if !defined(__EMSCRIPTEN__)
-		threads.push_back(new MainThread(TT, 0));
+		threads.push_back(new MainThread(0));
 
 		while (size() < requested)
-			threads.push_back(new Thread(TT, size()));
+			threads.push_back(new Thread(size()));
 #else
 		// yaneuraou.wasm
 		while (size() < requested)
-			threads.push_back(size() ? new Thread(TT, size()) : new MainThread(TT, 0));
+			threads.push_back(size() ? new Thread(size()) : new MainThread(0));
 #endif
 		clear();
 
@@ -183,13 +181,11 @@ void ThreadPool::set(size_t requested)
 		//TT.resize(size_t(Options["USI_Hash"]));
 	}
 
-//#if defined(EVAL_LEARN)
-//	// 学習用の実行ファイルでは、スレッド数が変更になったときに各ThreadごとのTTに
-//	// メモリを再割り当てする必要がある。
-//	TT.init_tt_per_thread();
-//#endif
-
-	// TODO : LEARN版のTTの初期化と確保のコード、あとで書く。
+#if defined(EVAL_LEARN)
+	// 学習用の実行ファイルでは、スレッド数が変更になったときに各ThreadごとのTTに
+	// メモリを再割り当てする必要がある。
+	TT.init_tt_per_thread();
+#endif
 
 }
 

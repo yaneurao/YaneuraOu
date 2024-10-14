@@ -174,6 +174,12 @@ public:
 	TTEntry* first_entry(const Key128& key) const;
 	TTEntry* first_entry(const Key256& key) const;
 
+#if defined(EVAL_LEARN)
+	// 学習用の実行ファイルでは、スレッド数が変更になったときに各ThreadごとのTTに
+	// メモリを再割り当てする必要がある。
+	void init_tt_per_thread();
+#endif
+
 private:
 	friend struct TTEntry;
 
@@ -199,5 +205,7 @@ private:
 	// ⇨ 世代カウンター。new_search()のごとに8ずつ加算する。TTEntry::save()で用いる。
 	uint8_t generation8;
 };
+
+extern TranspositionTable TT;
 
 #endif // #ifndef TT_H_INCLUDED

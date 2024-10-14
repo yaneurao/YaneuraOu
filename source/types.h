@@ -622,7 +622,7 @@ constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 // 合同式による疑似乱数生成器に基づいています。
 // ⇨ Move型のhashを生成するときに用いる。
 
-constexpr size_t make_key(uint64_t seed) {
+constexpr /*Key*/size_t make_key(uint64_t seed) {
 	return seed * 6364136223846793005ULL + 1442695040888963407ULL;
 }
 

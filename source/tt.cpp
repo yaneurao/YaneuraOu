@@ -14,6 +14,8 @@
 // やねうら王独自拡張
 #include "extra/key128.h"
 
+TranspositionTable TT; // global TT
+
 // ============================================================
 //                   置換表エントリー
 // ============================================================
@@ -465,3 +467,32 @@ TTEntry* TranspositionTable::first_entry(const Key256& key) const { return _firs
 //}  // namespace Stockfish
 
 
+#if defined(EVAL_LEARN)
+// スレッド数が変更になった時にThread.set()から呼び出される。
+// これに応じて、スレッドごとに保持しているTTを初期化する。
+void TranspositionTable::init_tt_per_thread()
+{
+	// スレッド数
+	size_t thread_size = Threads.size();
+
+	// エンジン終了時にThreads.set(0)で全スレッド終了させるコードが書いてあるので、
+	// そのときに、Threads.size() == 0の状態で呼び出される。
+	// ここで抜けないと、このあとゼロ除算することになる。
+	if (thread_size == 0)
+		return;
+
+	// 1スレッドあたりのクラスター数(端数切捨て)
+	// clusterCountは2の倍数でないと駄目なので、端数を切り捨てるためにLSBを0にする。
+	size_t clusterCountPerThread = (clusterCount / thread_size) & ~(size_t)1;
+
+	ASSERT_LV3((clusterCountPerThread & 1) == 0);
+
+	// これを、自分が確保したglobalな置換表用メモリから切り分けて割当てる。
+	for (size_t i = 0; i < thread_size; ++i)
+	{
+		auto& tt = Threads[i]->tt;
+		tt.clusterCount = clusterCountPerThread;
+		tt.table = this->table + clusterCountPerThread * i;
+	}
+}
+#endif
