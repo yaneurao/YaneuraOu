@@ -603,7 +603,7 @@ namespace MakeBook2023
 								auto& token = splited2[0];
 								if (token == "NOE" && splited2.size() == 2) // numbers of entires
 								{
-									size_t noe = StringExtension::to_int(string(splited2[1]),0);
+									size_t noe = StringExtension::to_int(string(splited2[1]), 0);
 									cout << "Number of Sfen Entries = " << noe << endl;
 
 									// エントリー数が事前にわかったので、その分だけそれぞれの構造体配列を確保する。
@@ -694,8 +694,8 @@ namespace MakeBook2023
 				auto ponder_str = scanner.get_text();
 				auto value = (s16)std::clamp((int)scanner.get_number(0), BOOK_VALUE_MIN , BOOK_VALUE_MAX);
 				auto depth = (s16)scanner.get_number(0);
-				Move16 move16   = (move_str   == "none" || move_str   == "None" || move_str   == "resign") ? MOVE_NONE : USI::to_move16(move_str  );
-				//Move16 ponder = (ponder_str == "none" || ponder_str == "None" || ponder_str == "resign") ? MOVE_NONE : USI::to_move16(ponder_str);
+				Move16 move16   = (move_str   == "none" || move_str   == "None" || move_str   == "resign") ? Move16::none() : USI::to_move16(move_str  );
+				//Move16 ponder = (ponder_str == "none" || ponder_str == "None" || ponder_str == "resign") ? Move16::none() : USI::to_move16(ponder_str);
 
 				// 後手番であるなら、先手の局面として登録しないといけないので指し手もflipする。
 				// posは上でblack_sfenが設定されているので先手番になるようにflipされている。
@@ -1335,7 +1335,7 @@ namespace MakeBook2023
 							write_counter2++;
 
 							// この手はないものとして、この book_node_index を起点として上流に更新していけばOK。
-							book_node.moves[best_index].move = MOVE_NONE;
+							book_node.moves[best_index].move = Move16::none();
 
 							break;
 						}
@@ -1356,7 +1356,7 @@ namespace MakeBook2023
 							p.erase(std::find_if(p.begin(), p.end(), [&](auto& pm){ return pm.parent == book_node_index; }));
 
 							// この手はないものとして、この book_node_index を起点として上流に更新していけばOK。
-							book_node.moves[best_index].move = MOVE_NONE;
+							book_node.moves[best_index].move = Move16::none();
 
 							break;
 						}
@@ -1437,7 +1437,7 @@ namespace MakeBook2023
 
 							if (delete_flag)
 								// 1a. この局面に至る親からの指し手をすべて削除。
-								book_nodes[pm.parent].moves[pm.move_index].move = MOVE_NONE;
+								book_nodes[pm.parent].moves[pm.move_index].move = Move16::none();
 							else
 								// 1b. この局面に至る親からの指し手の評価値を更新
 								book_nodes[pm.parent].moves[pm.move_index].vd = best_vd;

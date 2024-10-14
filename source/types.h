@@ -740,10 +740,7 @@ public:
 	constexpr uint16_t to_u16() const { return (uint16_t)data; }
 	constexpr uint32_t to_u32() const { return (uint32_t)data; }
 	constexpr explicit operator bool() const { return data != 0; }
-
-	// 暗黙的にboolに変換されて意図しない足し算がなされてしまうことがある。
-	// 例) Move m; Square s;に対して m + s みたいな足し算。
-	// これを禁止するのは難しい…。
+	constexpr explicit operator uint32_t() const { return (uint32_t)data; }
 
 	// -- 文字列化
 
@@ -767,10 +764,21 @@ class Move16
 public:
 
 	constexpr Move16() : data(0) {}
-	constexpr Move16(u16 m) : data(m) {}
+	explicit constexpr Move16(u16 m) : data(m) {}
 
-	// Moveからの暗黙変換はできないとMOVE_NONEの代入などで困る。
-	Move16(Move m) : data(m.to_move16().to_u16()) {}
+	// -- 定数
+
+	// MOVE_NONEに相当する定数。
+	static constexpr Move16 none() { return Move16(MOVE_NONE); }
+
+	// MOVE_NULLに相当する定数。
+	static constexpr Move16 null() { return Move16(MOVE_NULL); }
+
+	// MOVE_RESIGNに相当する定数。
+	static constexpr Move16 resign() { return Move16(MOVE_RESIGN); }
+
+	// MOVE_WINに相当する定数。
+	static constexpr Move16 win() { return Move16(MOVE_WIN); }
 
 	// -- property
 
@@ -805,8 +813,7 @@ public:
 	// -- 文字列化
 
 	// USI形式の文字列にする。
-	std::string to_usi_string() const { return ::to_usi_string(data); }
-
+	std::string to_usi_string() const { return ::to_usi_string(*this); }
 
 protected:
 	uint16_t data;
@@ -819,20 +826,20 @@ static std::ostream& operator<<(std::ostream& os, Move16 m) { os << to_usi_strin
 
 // us側のptをfromからtoに移動させる指し手を生成して返す。
 // Move16を返すほうは、移動させる駒が何かの情報は持っていない。
-static Move16 make_move16(Square from, Square to) { return Move16(to + (from << 7)); }
-constexpr Move make_move(Square from, Square to, Piece pc ) { return Move(to + (from << 7) + (pc << 16)) ; }
-constexpr Move make_move(Square from, Square to, Color us , PieceType pt ) { return Move(to + (from << 7) + (((us ? u32(PIECE_WHITE) : 0) + (pt)) << 16)) ; }
+static Move16 make_move16(Square from, Square to) { return Move16(u32(to) + (u32(from) << 7)); }
+constexpr Move make_move(Square from, Square to, Piece pc ) { return Move(u32(to) + (u32(from) << 7) + (u32(pc) << 16)) ; }
+constexpr Move make_move(Square from, Square to, Color us , PieceType pt ) { return Move(u32(to) + u32(from << 7) + (((us ? u32(PIECE_WHITE) : 0) + u32(pt)) << 16)) ; }
 
 // us側の駒ptをfromからtoに移動して、成る指し手を生成して返す。
 // Move16を返すほうは、移動させる駒が何かの情報は持っていない。
-static Move16 make_move_promote16(Square from, Square to) { return Move16(to + (from << 7) + MOVE_PROMOTE); }
-constexpr Move make_move_promote(Square from, Square to , Piece pc) { return Move(to + (from << 7) + MOVE_PROMOTE + ((pc | PIECE_PROMOTE) << 16)); }
-constexpr Move make_move_promote(Square from, Square to , Color us , PieceType pt) { return Move(to + (from << 7) + MOVE_PROMOTE + (((us ? u32(PIECE_WHITE) : 0) + (pt | PIECE_PROMOTE)) << 16)); }
+static Move16 make_move_promote16(Square from, Square to) { return Move16(u32(to) + (u32(from) << 7) + MOVE_PROMOTE); }
+constexpr Move make_move_promote(Square from, Square to , Piece pc) { return Move(u32(to) + (u32(from) << 7) + MOVE_PROMOTE + ((pc | PIECE_PROMOTE) << 16)); }
+constexpr Move make_move_promote(Square from, Square to , Color us , PieceType pt) { return Move(u32(to) + (u32(from) << 7) + MOVE_PROMOTE + (((us ? u32(PIECE_WHITE) : 0) + u32(pt | PIECE_PROMOTE)) << 16)); }
 
 // us側の駒ptをtoに打つ指し手を生成して返す
 // Move16を返すほうは、どちらの駒であるかの情報は持っていない。
-static Move16 make_move_drop16(PieceType pt, Square to) { return Move16(to + (pt << 7) + MOVE_DROP); }
-constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return Move(to + (pt << 7) + MOVE_DROP + (((us ? u32(PIECE_WHITE) : 0) + (pt)) << 16)); }
+static Move16 make_move_drop16(PieceType pt, Square to) { return Move16(u32(to) + (u32(pt) << 7) + MOVE_DROP); }
+constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return Move(u32(to) + (u32(pt) << 7) + MOVE_DROP + (((us ? u32(PIECE_WHITE) : 0) + u32(pt)) << 16)); }
 
 // 移動元の升と移動先の升を逆転させた指し手を生成する。探索部で用いる。
 // ※　最新のStockfishでは使っていないのでもはや不要なのだが一応残しておく。

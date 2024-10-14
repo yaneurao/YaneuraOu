@@ -180,6 +180,8 @@ public:
 	void init_tt_per_thread();
 #endif
 
+	static void UnitTest(Test::UnitTester& unittest);
+
 private:
 	friend struct TTEntry;
 

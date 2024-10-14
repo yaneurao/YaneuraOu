@@ -731,7 +731,9 @@ namespace Mate::Dfpn32
 
 				// 一手進めて子ノードに行く
 				StateInfo si;
-				Move m = pos.to_move(best_child->lastMove);
+				Move m = pos.to_move(Move16(u16(u32(best_child->lastMove))));
+				// ⇨ ここ、lastMoveがu32かMove型なので、Move16にしたいのだが、この変換が一発で書けない。
+
 				pos.do_move(m, si);
 
 				// 再帰的に呼び出す。

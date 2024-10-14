@@ -1020,7 +1020,7 @@ std::string USI::square(Square s) {
 }
 
 // 指し手をUSI文字列に変換する。
-std::string USI::move(Move   m) { return move(Move16(m)); }
+std::string USI::move(Move   m) { return move(m.to_move16()); }
 std::string USI::move(Move16 m)
 {
 	std::stringstream ss;
@@ -1100,7 +1100,7 @@ Move USI::to_move(const Position& pos, const std::string& str)
 // やねうら王、独自追加。
 Move16 USI::to_move16(const string& str)
 {
-	Move16 move = MOVE_NONE;
+	Move16 move = Move16::none();
 
 	{
 		// さすがに3文字以下の指し手はおかしいだろ。

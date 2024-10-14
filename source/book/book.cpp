@@ -124,8 +124,8 @@ namespace Book
 
 		// 起動時なので変換に要するオーバーヘッドは最小化したいので合法かのチェックはしない。
 
-		move   = (move_str   == "none" || move_str   == "None" || move_str   == "resign") ? MOVE_NONE : USI::to_move16(move_str  );
-		ponder = (ponder_str == "none" || ponder_str == "None" || ponder_str == "resign") ? MOVE_NONE : USI::to_move16(ponder_str);
+		move   = (move_str   == "none" || move_str   == "None" || move_str   == "resign") ? Move16::none() : USI::to_move16(move_str  );
+		ponder = (ponder_str == "none" || ponder_str == "None" || ponder_str == "resign") ? Move16::none() : USI::to_move16(ponder_str);
 
 		return BookMove(move,ponder,value,depth,move_count);
 	}
@@ -712,7 +712,7 @@ namespace Book
 			for (const auto& entry : entries) {
 
 				Move16 theMove16 = convert_move_from_apery(entry.fromToPro);
-				Move16 thePonder = MOVE_NONE;
+				Move16 thePonder = Move16::none();
 #if 0
 				// Aperyの定跡、ponderの指し手が書かれていない。合法手であるなら、1手進めて、その局面の定跡をprobe()して取得する。
 				// →　呼び出し元で定跡PVの構築のためにこれに該当する処理は行われるから、ここでやらなくてよさそう。
@@ -868,7 +868,7 @@ namespace Book
 			if (entries.empty()) return;
 			for (const auto& entry : entries) {
 				const Move16 move = convert_move_from_apery(entry.fromToPro);
-				BookMove bp(move, MOVE_NONE , entry.score, 256, entry.count);
+				BookMove bp(move, Move16::none(), entry.score, 256, entry.count);
 				insert(sfen, bp);
 			}
 

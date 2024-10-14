@@ -177,6 +177,9 @@ namespace Test
 		// Position class
 		tester.run(Position::UnitTest);
 
+		// Transposition Table
+		tester.run(TranspositionTable::UnitTest);
+
 		// USI namespace
 		tester.run(USI::UnitTest);
 

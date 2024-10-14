@@ -914,6 +914,7 @@ void Thread::search()
 	// もし自分がメインスレッドであるならmainThreadにそのポインタを入れる。
 	// 自分がスレーブのときはnullptrになる。
 	MainThread* mainThread = (this == Threads.main() ? Threads.main() : nullptr);
+	Thread* thisThread = this;
 
 	// timeReduction      : 読み筋が安定しているときに時間を短縮するための係数。
 	// Stockfish9までEasyMoveで処理していたものが廃止され、Stockfish10からこれが導入された。

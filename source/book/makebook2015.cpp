@@ -82,7 +82,7 @@ namespace Book
 				// 出現頻度は、バージョンナンバーを100倍したものにしておく)
 				// ⇨ ENGINE_VERSIONに数字以外の文字列入れたいことがあるので、これは良くない仕様。
 				//  800固定とする。(いま最新がV8.00系だから)
-				BookMove bp(rootMoves.pv[0], nextMove , rootMoves.score
+				BookMove bp(rootMoves.pv[0].to_move16(), nextMove.to_move16(), rootMoves.score
 					, search_depth, /*int(atof(ENGINE_VERSION) * 100)*/ 800);
 
 				// MultiPVで思考しているので、手番側から見て評価値の良い順に並んでいることは保証される。
@@ -432,7 +432,7 @@ namespace Book
 					if (from_sfen)
 					{
 						// この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
-						BookMove bp(m[i] , m[i + 1] , VALUE_ZERO, 32, 1);
+						BookMove bp(m[i].to_move16(), m[i + 1].to_move16(), VALUE_ZERO, 32, 1);
 						book.insert(sfen, bp);
 					}
 					else if (from_thinking)

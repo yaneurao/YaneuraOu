@@ -13,6 +13,8 @@
 
 // やねうら王独自拡張
 #include "extra/key128.h"
+#include "testcmd/unit_test.h"
+
 
 TranspositionTable TT; // global TT
 
@@ -175,7 +177,7 @@ void TTEntry::_save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, 
 	// 新しいttmoveがない場合、古いttmoveを保持します
 
 	if (m || k != key)
-		move16 = m;
+		move16 = m.to_move16();
 
 	// Overwrite less valuable entries (cheapest checks first)
 	// より価値の低いエントリを上書きします（最も安価なチェックを優先）
@@ -405,7 +407,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::_probe(const Key key_for_
 		{
 			auto data = tte[i].read();
 			// TTEntryのMoveを32bit化しようとして失敗したら、置換表のhit失敗したという扱いにする。
-			Move move = pos.to_move(data.move);
+			Move move = pos.to_move(data.move.to_move16());
 			if (move)
 			{
 				data.move = move;
@@ -464,7 +466,6 @@ TTEntry* TranspositionTable::first_entry(const Key     key) const { return _firs
 TTEntry* TranspositionTable::first_entry(const Key128& key) const { return _first_entry(key.extract64<0>()); }
 TTEntry* TranspositionTable::first_entry(const Key256& key) const { return _first_entry(key.extract64<0>()); }
 
-//}  // namespace Stockfish
 
 
 #if defined(EVAL_LEARN)
@@ -496,3 +497,53 @@ void TranspositionTable::init_tt_per_thread()
 	}
 }
 #endif
+
+// ----------------------------------
+//			UnitTest
+// ----------------------------------
+
+void TranspositionTable::UnitTest(Test::UnitTester& unittest)
+{
+	auto section1 = unittest.section("TT");
+	{
+		// 1024[MB]確保
+		TranspositionTable tt;
+		tt.resize(1024);
+
+		auto section2 = unittest.section("probe()");
+		Position pos;
+		StateInfo si;
+		auto th = Threads.main();
+		pos.set_hirate(&si, th);
+
+		HASH_KEY posKey = pos.hash_key();
+		auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
+		for (int i = 0; i < 10; ++i)
+		{
+			Value v = Value(i*100-500);
+			bool pv = (i % 2) != 0;
+			Bound b = BOUND_LOWER;
+			Depth d = 16 + i;
+			Move m = make_move(SQ_77, SQ_76, BLACK, PAWN);
+			Value ev = Value(i*200-1000);
+			int g = 8 * 5; /* 8の倍数でないと駄目 */
+			ttWriter.write(posKey, v, pv, b, d, m, ev, g);
+
+			auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
+			bool ok = true;
+			ok &= ttHit;
+			if (ttHit)
+			{
+				ok &= ttData.value == v;
+				ok &= ttData.is_pv == pv;
+				ok &= ttData.bound == b;
+				ok &= ttData.depth == d;
+				ok &= ttData.move  == m;
+				ok &= ttData.eval  == ev;
+			}
+			unittest.test("write & probe", ok);
+		}
+	}
+}
+
+//}  // namespace Stockfish

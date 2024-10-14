@@ -2706,9 +2706,9 @@ void Position::UnitTest(Test::UnitTester& tester)
 		hirate_init();
 
 		// is_ok(m) == falseな指し手に対して、to_move()がその指し手をそのまま返すことを保証する。
-		tester.test("MOVE_NONE", pos.to_move(MOVE_NONE) == Move::none());
-		tester.test("MOVE_WIN" , pos.to_move(MOVE_WIN ) == Move::win() );
-		tester.test("MOVE_NULL", pos.to_move(MOVE_NULL) == Move::null());
+		tester.test("MOVE_NONE", pos.to_move(Move16::none()) == Move::none());
+		tester.test("MOVE_WIN" , pos.to_move(Move16::win() ) == Move::win() );
+		tester.test("MOVE_NULL", pos.to_move(Move16::null()) == Move::null());
 
 		// 88の角を22に不成で移動。(非合法手) 移動後の駒は先手の角。
 		m16 = make_move16(SQ_88, SQ_22);
