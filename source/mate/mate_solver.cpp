@@ -142,7 +142,7 @@ namespace Mate {
 			case MateRepetitionState::Unknown:
 				// いずれでもないので、きちんと調べる必要がある。
 				// さらにこの局面から偶数手で相手が詰まされるかのチェック
-				found_mate = mated_even_ply<GEN_ALL>(pos, ply - 1) == MOVE_NONE /* 回避手がない == 詰み */;
+				found_mate = mated_even_ply<GEN_ALL>(pos, ply - 1) == Move::none() /* 回避手がない == 詰み */;
 				break;
 
 			default: UNREACHABLE;

@@ -705,7 +705,7 @@ public:
 	//    ゆえに、is_drop()==trueの時は、from_sq(m)にSQ_NB-1を足して、打つ駒がPAWN(= 1)の時にSQ_NBになるようにしてやる必要がある。
 	// 注) 駒打ちに関して、先手の駒と後手の駒の区別はしない。
 	// 　　これは、この関数は、MovePickerのButterflyHistoryで使うから必要なのだが、そこでは指し手の手番(Color)を別途持っているから。
-	int from_to() const { return (int)(from_sq() + (is_drop() ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(); }
+	int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq());}
 
 	// 指し手が普通の指し手(駒打ち/駒成り含む)であるかテストする。
 	// 特殊な指し手(MOVE_NONE/MOVE_NULL/MOVE_WIN)である場合、falseが返る。
@@ -728,6 +728,9 @@ public:
 	constexpr uint32_t to_u32() const { return (uint32_t)data; }
 	constexpr operator bool() const { return data; }
 
+	// 暗黙的にboolに変換されて意図しない足し算がなされてしまうことがある。
+	// 例) Move m; Square s;に対して m + s みたいな足し算。
+	// これを禁止するのは難しい…。
 	// -- 比較
 
 	bool operator == (const Move rhs) const { return this->to_u32() == rhs.to_u32(); }
@@ -761,9 +764,9 @@ public:
 	Square to_sq() const { return Square(data & 0x7f); }
 	bool is_drop() const { return (data & MOVE_DROP) != 0; }
 	bool is_promote() const { return (data & MOVE_PROMOTE) != 0; }
-	PieceType move_dropped_piece() const { return (PieceType)((data >> 7) & 0x7f); }
+	PieceType move_dropped_piece() const { return PieceType((data >> 7) & 0x7f); }
 
-	int from_to() const { return (int)(from_sq() + (is_drop() ? (SQ_NB - 1) : 0)) * (int)SQ_NB + (int)to_sq(); }
+	int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq()); }
 	constexpr bool is_ok() const { return (data >> 7) != (data & 0x7f); }
 
 	// -- 変換子
@@ -774,11 +777,8 @@ public:
 	// ⇨ このMove16のinstanceをMoveに戻したい時は、Position::to_move(Move16)を使うこと。
 	constexpr uint16_t to_u16() const { return (u16)data; }
 
-	constexpr operator bool() const { return data; }
-
-	// 暗黙的にboolに変換されて意図しない足し算がなされてしまうことがある。
-	// 例) Move m; Square s;に対して m + s みたいな足し算。
-	// これを禁止するのは難しい…。
+	//constexpr operator bool() const { return data; }
+	// ⇨ これ定義していると余計なバグに悩まされることになる。
 
 	// -- 比較
 

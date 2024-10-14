@@ -1244,7 +1244,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #if defined(KEEP_LAST_MOVE)
 	st->lastMove = m;
-	st->lastMovedPieceType = m.is_drop() ? (PieceType)m.from_sq() : type_of(piece_on(m.from_sq()));
+	st->lastMovedPieceType = m.is_drop() ? PieceType(m.from_sq()) : type_of(piece_on(m.from_sq()));
 #endif
 
 	// ----------------------

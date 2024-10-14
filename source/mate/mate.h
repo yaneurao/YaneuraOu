@@ -92,7 +92,7 @@ namespace Mate
 
 		// その時の最善手のgetterとsetter
 		Move get_move() const { return (Move)(move16 + (move8 << 16)); }
-		void set_move(Move move) { move16 = (u16)move; move8 = move >> 16; }
+		void set_move(Move move) { move16 = move.to_u16(); move8 = move.to_u32() >> 16; }
 
 		// このEntryに格納されている手駒のgetter
 		// save()する時に指定した手駒が返る。
