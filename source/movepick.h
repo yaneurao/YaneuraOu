@@ -25,6 +25,7 @@
 constexpr int PAWN_HISTORY_SIZE = 512;
 inline int pawn_structure(const Position& pos) { return pos.pawn_key() & (PAWN_HISTORY_SIZE - 1); }
 #endif
+constexpr int LOW_PLY_HISTORY_SIZE     = 4;
 
 // StatsEntryはstat tableの値を格納する。これは、大抵数値であるが、指し手やnestされたhistoryでさえありうる。
 // 多次元配列であるかのように呼び出し側でstats tablesを用いるために、
@@ -189,9 +190,9 @@ struct LowPlyHistory
 	}
 	void fill(T t) { stats.fill(t); }
 
-	//using LowPlyHistory = Stats<int16_t, 7183, 4, int(SQUARE_NB)* int(SQUARE_NB)>;
+	//using LowPlyHistory = Stats<int16_t, 7183, LOW_PLY_HISTORY_SIZE, int(SQUARE_NB)* int(SQUARE_NB)>;
 	// ⇨ Stockfishのコードだと、末尾が2の冪にならないので並び順を変更する。
-	Stats<int16_t, D, int(SQUARE_NB)* int(SQUARE_NB), 4> stats;
+	Stats<int16_t, D, int(SQUARE_NB)* int(SQUARE_NB), LOW_PLY_HISTORY_SIZE> stats;
 };
 
 

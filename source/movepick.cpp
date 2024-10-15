@@ -128,6 +128,9 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 			ExtMove tmp = *p, *q;
 			*p = *++sortedEnd;
 			for (q = sortedEnd; q != begin && *(q - 1) < tmp; --q)
+				// ■ 備考
+				// ここ、ExtMove同士の operator<()を呼び出している。
+				// これはExtMove::valueを比較するように定義されている。
 				*q = *(q - 1);
 			*q = tmp;
 		}
@@ -171,6 +174,8 @@ MovePicker::MovePicker(
 	ply(pl)
 {
 	// 次の指し手生成の段階
+	// 王手がかかっているなら王手回避のフェーズへ。さもなくばQSEARCHのフェーズへ。
+#if 1
 	if (pos.in_check())
 		// 王手がかかっているなら回避手
 		stage = EVASION_TT + !(ttm && pos.pseudo_legal(ttm));
@@ -179,9 +184,36 @@ MovePicker::MovePicker(
 		// 王手がかかっていないなら通常探索用/静止探索の指し手生成
 		// ⇨ 通常探索から呼び出されたのか、静止探索から呼び出されたのかについてはdepth > 0 によって判定できる。
 		stage = (depth > 0 ? MAIN_TT : QSEARCH_TT) + !(ttm && pos.pseudo_legal(ttm));
+#endif
+	// ⇨ Stockfish 16のコード、ttm(置換表の指し手)は無条件でこのMovePickerが返す1番目の指し手としているが、これだと
+	//    TTの指し手だけで千日手になってしまうことがある。これは、将棋ではわりと起こりうる。
+	//    対策としては、qsearchで千日手チェックをしたり、SEEが悪いならskipするなど。
+	//  ※　ここでStockfish 14のころのように置換表の指し手に条件をつけるのは良くなさげ。(V7.74l3 と V7.74mとの比較)
+	//  →　ただし、その場合、qsearch()で千日手チェックが必要になる。
+	//    qsearchでの千日手チェックのコストが馬鹿にならないので、
+	//    ⇓このコードを有効にして、qsearch()での千日手チェックをやめた方が得。  
+
+	// recaptureの制約なくす。(ただし、やねうら王ではttmは何らかの制約を課す)
+	// →　この制約入れないと、TTの指し手だけで16手超えで循環されてしまうとqsearch()で
+	//    is_repetition()入れたところで永久ループになる。
+
+	// 置換表の指し手を優遇するコード。
+	// depth > -5なら、TT優先。depth <= -5でもcaptureである制約。
+	// 単にcapture()にするより、この制約にしたほうが良さげ。(V775a7 vs V775a8)
+
+	// ↓これ参考に変更したほうがよさげ？
+
+/*
+	stage = (pos.in_check() ? EVASION_TT : QSEARCH_TT) +
+		!(ttm
+			&& (pos.in_check() || depth > -5 || pos.capture(ttm))
+			&& pos.pseudo_legal(ttm));
+*/
 
 	// 置換表の指し手があるならそれを最初に試す。ただしpseudo_legalでなければならない。
 	// 置換表の指し手がないなら、次のstageから開始する。
+
+
 }
 
 // MovePicker constructor for ProbCut: we generate captures with Static Exchange

@@ -1458,11 +1458,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	// bestValue			: このnodeのbestな探索スコア
 	// value				: 探索スコアを受け取る一時変数
-	// ttValue				: 置換表上のスコア
 	// eval					: このnodeの静的評価値(の見積り)
 	// maxValue             : table base probeに用いる。将棋だと用いない。
 	// probCutBeta          : prob cutする時のbetaの値。
-	Value bestValue, value, ttValue, eval /*, maxValue */, probCutBeta;
+	Value bestValue, value, eval /*, maxValue */, probCutBeta;
 
 	// givesCheck			: moveによって王手になるのか
 	// improving			: 直前のnodeから評価値が上がってきているのか
@@ -1488,16 +1487,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	// capturesSearched : 駒を捕獲する指し手(+歩の成り)
 	// quietsSearched   : 駒を捕獲しない指し手(-歩の成り)
-	//
-	// ■ 補足情報
-	// 
-	// Stockfish 16ではquietsSearchedが[64]から[32]になったが、
-	// 将棋ではハズレのquietの指し手が大量にあるので
-	// それがベストとは限らない。
-	// →　比較したところ、64より32の方がわずかに良かったので、とりあえず32にしておく。(V7.73mとV7.73m2との比較)
 
-	ValueList<Move, 32> capturesSearched;
-	ValueList<Move, 32> quietsSearched;
+	ValueList<Move, MAX_QUIETS_SEARCHED> capturesSearched;
+	ValueList<Move, MAX_QUIETS_SEARCHED> quietsSearched;
 
 	// -----------------------
 	// Step 1. Initialize node
@@ -1708,7 +1700,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// singular searchとIIDとのスレッド競合を考慮して、ttValue , ttMoveの順で取り出さないといけないらしい。
 	// cf. More robust interaction of singular search and iid : https://github.com/official-stockfish/Stockfish/commit/16b31bb249ccb9f4f625001f9772799d286e2f04
 
-	ttValue = ss->ttHit ? value_from_tt(ttData.value, ss->ply /*, pos.rule50_count()*/) : VALUE_NONE;
+	ttData.value = ss->ttHit ? value_from_tt(ttData.value, ss->ply /*, pos.rule50_count()*/) : VALUE_NONE;
 
 	ASSERT_LV3(pos.legal_promote(ttData.move));
 
@@ -1803,7 +1795,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		//    if成立時のreturnはしなければならない。
 
 		//if (pos.rule50_count() < 90)
-			return ttValue;
+			return ttData.value;
 	}
 
 	// -----------------------
@@ -2630,7 +2622,7 @@ moves_loop:
 				// null window searchするときに大きなコストを伴いかねないから。)
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
-		        Value singularBeta  = ttValue
+		        Value singularBeta  = ttData.value
 					- (PARAM_SINGULAR_MARGIN1 + PARAM_SINGULAR_MARGIN2 * (ss->ttPv && !PvNode)) * depth / 64;
 				Depth singularDepth = newDepth / 2;
 
@@ -2695,7 +2687,7 @@ moves_loop:
 				// If the ttMove is assumed to fail high over current beta (~7 Elo)
 				// ttMoveが現在のベータを超えて高いスコアを出すと仮定される場合（約7 Elo)
 
-				else if (ttValue >= beta)
+				else if (ttData.value >= beta)
 					extension = -2 - !PvNode;
 
 				// If we are on a cutNode but the ttMove is not assumed to fail high over current beta (~1 Elo)
@@ -2707,7 +2699,7 @@ moves_loop:
 				// If the ttMove is assumed to fail low over the value of the reduced search (~1 Elo)
 				// もしttMoveがreduced searchの値を下回って失敗すると仮定される場合（約1 Elo）
 
-				else if (ttValue <= value)
+				else if (ttData.value <= value)
 					extension = -1;
 
 			}
@@ -3099,7 +3091,7 @@ moves_loop:
 		// その手が以前に探索された他の手よりも悪い場合、
 		// 後でその統計を更新するために記憶しておきます。
 
-		if (move != bestMove && moveCount <= 32)
+		if (move != bestMove && moveCount <= MAX_QUIETS_SEARCHED)
 		{
 			// 探索した駒を捕獲する指し手
 			if (capture)
@@ -3457,13 +3449,13 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		//
 		// ↑ここは、↓この意味。
-		//&& (ttValue >= beta ? (tte->bound() & BOUND_LOWER)
-		//                    : (tte->bound() & BOUND_UPPER)))
+		//&& (ttData.value >= beta ? (ttData.bound & BOUND_LOWER)
+		//                         : (ttData.bound & BOUND_UPPER)))
 
 		// ■ 備考
 		// 
-		// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
-		// ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
+		// ttData.valueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttData.value >= beta超えならbeta cutされる
+		// ttData.valueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
 		// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
 		// このままこの値でreturnして良い。
 
@@ -4007,8 +3999,8 @@ void update_all_stats(
 		Value bestValue,
 		Value beta,
 		Square prevSq,
-		ValueList<Move, 32>& quietsSearched,
-		ValueList<Move, 32>& capturesSearched,
+		ValueList<Move, MAX_QUIETS_SEARCHED>& quietsSearched,
+		ValueList<Move, MAX_QUIETS_SEARCHED>& capturesSearched,
 		Depth depth) {
 
 	Color   us         = pos.side_to_move();
@@ -4728,7 +4720,7 @@ void init_for_game(Position& pos)
 {
 	auto thisThread = pos.this_thread();
 
-	pos.this_thread()->tt.clear();          // 置換表のクリア
+	TT.clear();          // 置換表のクリア
 	thisThread->clear(); // history table等のクリア
 }
 
