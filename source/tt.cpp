@@ -80,7 +80,7 @@ struct TTEntry {
 	// 内部ビットフィールドを外部型に変換します
 
 	TTData read() const {
-		return TTData{ static_cast<Move>(move16.to_u16()), Value(value16),
+		return TTData{ Move(u32(move16.to_u16())), Value(value16),
 					   Value(eval16),          Depth(depth8 + DEPTH_ENTRY_OFFSET),
 					   Bound(genBound8 & 0x3), bool(genBound8 & 0x4) };
 	}
@@ -279,9 +279,46 @@ static_assert((sizeof(Cluster) % 32) == 0, "Unexpected Cluster size");
 // 各クラスターはClusterSize個のTTEntryで構成されます。
 
 void TranspositionTable::resize(size_t mbSize/*, ThreadPool& threads */) {
+#if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE) || defined(YANEURAOU_ENGINE_DEEP)
+	// これらのエンジンでは、この置換表は用いないので確保しない。
+	return;
+#endif
+
+	// Optionのoverrideによってスレッド初期化前にハンドラが呼び出された。これは無視する。
+	if (Threads.size() == 0)
+		return;
+
+	// 探索が終わる前に次のresizeが来ると落ちるので探索の終了を待つ。
+	Threads.main()->wait_for_search_finished();
+
+	// mbSizeの単位は[MB]なので、ここでは1MBの倍数単位のメモリが確保されるが、
+	// 仕様上は、1MBの倍数である必要はない。
+	size_t newClusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
+
+	// clusterCountは偶数でなければならない。
+	// この理由については、TTEntry::first_entry()のコメントを見よ。
+	// しかし、1024 * 1024 / sizeof(Cluster)の部分、sizeof(Cluster)==64なので、
+	// これを掛け算するから2の倍数である。
+	ASSERT_LV3((newClusterCount & 1) == 0);
+
+	// 同じサイズなら確保しなおす必要はない。
+
+	// Stockfishのコード、問答無用で確保しなおしてゼロクリアしているが、
+	// ゼロクリアの時間も馬鹿にならないのであまり良いとは言い難い。
+
+	if (newClusterCount == clusterCount)
+		return;
+
 	aligned_large_pages_free(table);
 
-	clusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
+	clusterCount = newClusterCount;
+
+	// tableはCacheLineSizeでalignされたメモリに配置したいので、CacheLineSize-1だけ余分に確保する。
+	// callocではなくmallocにしないと初回の探索でTTにアクセスするとき、特に巨大なTTだと
+	// 極めて遅くなるので、mallocで確保して自前でゼロクリアすることでこれを回避する。
+	// cf. Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
+
+	// Large Pageを確保する。ランダムメモリアクセスが5%程度速くなる。
 
 	table = static_cast<Cluster*>(aligned_large_pages_alloc(clusterCount * sizeof(Cluster)));
 
@@ -291,7 +328,17 @@ void TranspositionTable::resize(size_t mbSize/*, ThreadPool& threads */) {
 		exit(EXIT_FAILURE);
 	}
 
-	clear(/* threads */);
+	//clear(/* threads */);
+
+	// →　Stockfish、ここでclear()呼び出しているが、Search::clear()からTT.clear()を呼び出すので
+	// 二重に初期化していることになると思う。
+
+#if defined(EVAL_LEARN)
+	// スレッドごとにTTを持つ実装なら、確保しているメモリサイズが変更になったので、
+	// スレッドごとのTTを初期化してやる必要がある。
+	init_tt_per_thread();
+#endif
+
 }
 
 // Initializes the entire transposition table to zero,
@@ -405,14 +452,17 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::_probe(const Key key_for_
 			// `read()`が完了した後、そのコピーは最終的なものですが、自己矛盾している可能性があります。
 
 		{
-			auto data = tte[i].read();
-			// TTEntryのMoveを32bit化しようとして失敗したら、置換表のhit失敗したという扱いにする。
-			Move move = pos.to_move(data.move.to_move16());
-			if (move)
+			auto ttData = tte[i].read();
+			if (ttData.move)
 			{
-				data.move = move;
-				return { tte[i].is_occupied(), data, TTWriter(&tte[i]) };
+				// TTEntryにMoveが登録されていて、それを32bit化しようとして失敗したら、
+				// 置換表にhitしなかったという扱いにする。
+				Move move = pos.to_move(ttData.move.to_move16());
+				if (!move)
+					continue;
+				ttData.move = move;
 			}
+			return { tte[i].is_occupied(), ttData, TTWriter(&tte[i]) };
 		}
 
 	// Find an entry to be replaced according to the replacement strategy
