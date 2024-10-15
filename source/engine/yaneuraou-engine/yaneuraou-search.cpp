@@ -2641,6 +2641,10 @@ moves_loop:
 					int doubleMargin = 262 * PvNode - 204 * !ttCapture;
 					int tripleMargin = 97 + 266 * PvNode - 255 * !ttCapture + 94 * ss->ttPv;
 
+					// We make sure to limit the extensions in some way to avoid a search explosion
+					// 2重延長を制限することで探索の組合せ爆発を回避する。
+
+					// TODO : ここのパラメーター、調整すべきかも？
 					extension = 1 + (value < singularBeta - doubleMargin)
 						+ (value < singularBeta - tripleMargin);
 

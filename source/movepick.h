@@ -133,6 +133,12 @@ enum StatsType { NoCaptures, Captures };
 // 
 // そこで、以下⇓のようなwrapper classを書いて、このopeator()を通じてアクセスを行うことにする。
 // これにより、添字の順番はStockfishと同じ形になり、かつ、コンパイル時に引数の型チェックがなされる。
+//
+// ■ 備考
+//
+// move.from_to()を呼び出した時、Stockfishでは 0～SQUARE_NB*SQUARE_NB-1までの値だが、
+// やねうら王では、0 ～ ((SQUARE_NB+7) * SQUARE_NB - 1)であることに注意。
+// ⇨ 後者のサイズとして、Move::FROM_TO_SIZEを用いると良い。
 
 struct ButterflyHistory
 {
@@ -163,7 +169,7 @@ private:
 	// 注) 打ち駒に関して、先手と後手の歩打ちを区別する必要はない。
 	// 　　なぜなら、このButterflyHistoryではその指し手の手番(Color)の区別をしているから。
 	// 
-	Stats<T, D , int(SQUARE_NB + 7) * int(SQUARE_NB) , COLOR_NB> stats;
+	Stats<T, D , Move::FROM_TO_SIZE, COLOR_NB> stats;
 };
 
 
@@ -192,7 +198,7 @@ struct LowPlyHistory
 
 	//using LowPlyHistory = Stats<int16_t, 7183, LOW_PLY_HISTORY_SIZE, int(SQUARE_NB)* int(SQUARE_NB)>;
 	// ⇨ Stockfishのコードだと、末尾が2の冪にならないので並び順を変更する。
-	Stats<int16_t, D, int(SQUARE_NB)* int(SQUARE_NB), LOW_PLY_HISTORY_SIZE> stats;
+	Stats<int16_t, D, Move::FROM_TO_SIZE, LOW_PLY_HISTORY_SIZE> stats;
 };
 
 

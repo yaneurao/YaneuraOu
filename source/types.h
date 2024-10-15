@@ -715,6 +715,9 @@ public:
 	// 　　これは、この関数は、MovePickerのButterflyHistoryで使うから必要なのだが、そこでは指し手の手番(Color)を別途持っているから。
 	int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq());}
 
+	// 上記のfrom_toが返す最大値 + 1。
+	static constexpr int FROM_TO_SIZE = int(SQ_NB + 7) * int(SQ_NB);
+
 	// 指し手が普通の指し手(駒打ち/駒成り含む)であるかテストする。
 	// 特殊な指し手(MOVE_NONE/MOVE_NULL/MOVE_WIN)である場合、falseが返る。
 	// それ普通の指し手ならばtrueが返る。
