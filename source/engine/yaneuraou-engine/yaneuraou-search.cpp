@@ -1555,25 +1555,38 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
 
 		// 最大手数を超えている、もしくは停止命令が来ている。
-		if (Threads.stop.load(std::memory_order_relaxed) || (ss->ply >= MAX_PLY))
+		if (   Threads.stop.load(std::memory_order_relaxed)
+			|| ss->ply >= MAX_PLY
+			|| pos.game_ply() > Limits.max_game_ply
+			)
 			return draw_value(REPETITION_DRAW, pos.side_to_move());
 
-		// 最大手数による引き分けの判定
-		if (pos.game_ply() > Limits.max_game_ply)
-		{
-			// 256手ルール(エンジンオプションのMaxMovesToDraw == Limits.max_game_ply == 256)だとして
-			// 257手目(pos.game_ply() == 257)でかつ合法手があるなら、引き分け。
-			// 256手ルールでも257手目で合法手がない(詰んでいる)なら、mated。
-			// 
-			// また、連続王手の千日手で257手目に到達しているパターンがあるから、
-			// ⇑のis_repetitionの判定のあとにこの最大手数による引き分けの判定をする必要がある。
-			// 
-			// 関連)
-			//    多くの将棋ソフトで256手ルールの実装がバグっている件
-			//    https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
+		/*
+		■ 備考
 
-			return pos.is_mated() ? mated_in(ss->ply) : draw_value(REPETITION_DRAW, pos.side_to_move());
-		}
+			256手ルールで
+			1. 256手目の局面で判定を行う場合は、
+				「詰まされていない、かつ、連続王手の千日手が成立していない」ならば、
+				引き分けとしてreturnして良い。
+
+			2. 257手目の局面で判定を行う場合は、
+				この局面に到達したということは、256手目の局面で合法手があったということだから、
+				引き分けとしてreturnして良い。
+
+			ということになる。1.の方式でやったほうが、256手目の局面で指し手生成とか
+			1手ずつ試していくのとかが丸ごと端折れるので探索効率は良いのだが、コードが複雑になる。
+
+			2.の方式でやっていいならば、257手目の局面なら単にreturnするだけで済む。
+			探索効率は少し悪いが、コードは極めてシンプルになる。
+
+			また、256手ルールで256手目である指し手を指して、257手目の局面で連続王手の千日手が
+			成立するときはこれは非合法手扱いをすべきだと思う。
+
+			だから、2.の方式で判定するときは、この連続王手の千日手判定を先にやってから、
+			257手目の局面であるかの判定を行う必要がある。
+
+			上記のコードは、そうなっている。
+		*/
 
 		// -----------------------
 		// Step 3. Mate distance pruning.
@@ -3391,23 +3404,6 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	if (depth <= -16)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());
 #endif
-
-	// 最大手数の判定
-	/*
-		■ 備考
-	
-		pos.game_ply() == Limits.max_game_ply なら、最大手数に達しているが、
-		この局面で詰んでいたり、連続王手の千日手であったりすると、引き分けにはならない。
-		
-		なので、
-		pos.game_ply() == Limits.max_game_ply
-		という条件で即座に引き分けのスコアを返すのは誤り。
-		
-		pos.game_ply() > Limits.max_game_ply
-		という条件ならば、最大手数 + 1の局面だから、ここに到達したということは、
-		最大手数の局面では引き分けや連続王手の千日手などにならなかったということなので、
-		ここで引き分けのスコアを返すと良い。(現局面で詰んでいても問題ない)
-	*/
 
 	if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());
