@@ -3392,15 +3392,25 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());
 #endif
 
-	if (ss->ply >= MAX_PLY)
-		return draw_value(REPETITION_DRAW, pos.side_to_move());
-
 	// 最大手数の判定
-	// TODO : 連続王手の千日手でこの局面に到達している場合は、
-	// 　　　引き分けのスコアを返しているのは間違いなのだが…。
-	//       PvNodeではこれやめたほうがいいかもなー。
-	if (pos.game_ply() > Limits.max_game_ply)
-		return pos.is_mated() ? mated_in(ss->ply) : draw_value(REPETITION_DRAW, pos.side_to_move());
+	/*
+		■ 備考
+	
+		pos.game_ply() == Limits.max_game_ply なら、最大手数に達しているが、
+		この局面で詰んでいたり、連続王手の千日手であったりすると、引き分けにはならない。
+		
+		なので、
+		pos.game_ply() == Limits.max_game_ply
+		という条件で即座に引き分けのスコアを返すのは誤り。
+		
+		pos.game_ply() > Limits.max_game_ply
+		という条件ならば、最大手数 + 1の局面だから、ここに到達したということは、
+		最大手数の局面では引き分けや連続王手の千日手などにならなかったということなので、
+		ここで引き分けのスコアを返すと良い。(現局面で詰んでいても問題ない)
+	*/
+
+	if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
+		return draw_value(REPETITION_DRAW, pos.side_to_move());
 
 	ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
