@@ -452,6 +452,12 @@ enum Value : int32_t
 	VALUE_SUPERIOR = 28000,
 
 	// 評価関数の返す値の最大値(2**14ぐらいに収まっていて欲しいところだが..)
+	// 
+	// ■ 注意
+	//
+	//   やねうら王では、評価値evalは、abs(eval) <= VALUE_MAX_EVALの範囲。
+	//   Stockfishでは、VALUE_TB_LOSS_IN_MAX_PLY < eval < VALUE_TB_WIN_IN_MAX_PLY の範囲。
+
 	VALUE_MAX_EVAL = 27000,
 
 	// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
@@ -1205,7 +1211,7 @@ namespace Eval
 
 	// 評価関数本体。
 	// 戻り値は、
-	//  abs(value) < VALUE_MAX_EVAL
+	//  abs(value) < =VALUE_MAX_EVAL
 	// を満たす。
 	Value evaluate(const Position& pos);
 }

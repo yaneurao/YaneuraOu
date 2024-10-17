@@ -193,6 +193,10 @@ void TTEntry::_save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, 
 		genBound8 = uint8_t(generation8 | uint8_t(pv) << 2 | b);
 		value16   = int16_t(v);
 		eval16    = int16_t(ev);
+
+		// value,evalが適切な範囲であるか(やねうら王独自追加)
+		ASSERT_LV3(-VALUE_INFINITE <   v  && v < VALUE_INFINITE  ||  v == VALUE_NONE);
+		ASSERT_LV3(-VALUE_MAX_EVAL <= ev && ev <= VALUE_MAX_EVAL || ev == VALUE_NONE);
 	}
 }
 

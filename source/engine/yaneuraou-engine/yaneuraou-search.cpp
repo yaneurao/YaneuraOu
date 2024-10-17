@@ -256,7 +256,11 @@ Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
 	const auto  cv =
 	  (6245 * pcv + 3442 * mcv + 3471 * macv + 5958 * micv + 6566 * (wnpcv + bnpcv)) / 131072;
 	v += cv;
-	return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+
+//	return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+	// ⇨ やねうら王では、評価値は、VALUE_MAX_EVALの範囲である
+	return std::clamp(v, -VALUE_MAX_EVAL , VALUE_MAX_EVAL);
+
 }
 */
 
@@ -1405,8 +1409,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// Limit the depth if extensions made it too large
 	// 拡張によって深さが大きくなりすぎた場合、深さを制限します
 
-	//depth = std::min(depth, MAX_PLY - 1);
-	// ⇨ こんなに大きなdepthまで反復深化することはないと思うのでコメントアウト。
+	depth = std::min(depth, MAX_PLY - 1);
 
 	// 次の指し手で引き分けに持ち込めてかつ、betaが引き分けのスコアより低いなら
 	// 早期枝刈りが実施できる。
@@ -1459,7 +1462,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// bestValue			: このnodeのbestな探索スコア
 	// value				: 探索スコアを受け取る一時変数
 	// eval					: このnodeの静的評価値(の見積り)
-	// maxValue             : table base probeに用いる。将棋だと用いない。
+	// maxValue             : table base probeに用いる。※ 将棋だと用いない。
 	// probCutBeta          : prob cutする時のbetaの値。
 	Value bestValue, value, eval /*, maxValue */, probCutBeta;
 
@@ -1469,7 +1472,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	//   cf. Tweak probcut margin with 'improving' flag : https://github.com/official-stockfish/Stockfish/commit/c5f6bd517c68e16c3ead7892e1d83a6b1bb89b69
 	//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
 	// priorCapture         : 1つ前の局面は駒を取る指し手か？
-	bool givesCheck, improving, priorCapture;
+	// opponentWorsening    : あとで
+	bool givesCheck, improving, priorCapture /*, opponentWorsening */;
 
 	// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 	// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
@@ -1851,7 +1855,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 				if (m.is_ok())
 					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						MAX_PLY, m, ss->staticEval, TT.generation());
+						MAX_PLY, m, VALUE_NONE, TT.generation());
 
 				// [2023/10/17]
 				// →　Move::win()の値は、置換表に書き出さないほうがいいと思う。
@@ -1904,10 +1908,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 					// 1手詰めは次のnodeで詰むという解釈
 					bestValue = mate_in(ss->ply + 1);
 
-					// staticEvalの代わりに詰みのスコア書いてもいいのでは..
 					ASSERT_LV3(pos.legal_promote(move));
 					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						    std::min(MAX_PLY - 1, depth + 6), move, /* ss->staticEval */ bestValue, TT.generation());
+						    std::min(MAX_PLY - 1, depth + 6), move, VALUE_NONE, TT.generation());
 
 					// ■　【計測資料 39.】 mate1plyの指し手を見つけた時に置換表の指し手でbeta cutする時と同じ処理をする。
 
@@ -1945,7 +1948,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 					ASSERT_LV3(pos.legal_promote(move));
 					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						std::min(MAX_PLY - 1, depth + 8), move, /* ss->staticEval */ bestValue, TT.generation());
+						std::min(MAX_PLY - 1, depth + 8), move, VALUE_NONE, TT.generation());
 
 					return bestValue;
 				}
@@ -2034,7 +2037,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// cf . Add / remove leaves from search tree ttPv : https://github.com/official-stockfish/Stockfish/commit/c02b3a4c7a339d212d5c6f75b3b89c926d33a800
 		// 上の方にある else if (excludedMove) でこの条件は除外されている。
 
-		ttWriter.write(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_UNSEARCHED, Move::none(), eval, TT.generation());
+		ttWriter.write(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE,
+			DEPTH_UNSEARCHED, Move::none(), eval, TT.generation());
 
 		// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate1ply()を
 		// 実行したという証にはなるので意味がある。
@@ -3388,12 +3392,16 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// →　将棋、千日手の頻度がチェスほどではないのでqsearch()で千日手判定を行う効果に乏しいかと思ったのだが、
 	//    このチェックしないとqsearchでttMoveの指し手で進め続けてMAX_PLYまで行くので弱くなる。
 
+
+	// TODO : 以下のコードを復活させないと
+	// 257手目で連続王手の千日手になる指し手を引き分けの指し手とみなしてしまう。
+
 #if 0
 	// 千日手チェックは、MovePickerでcaptures(駒を取る指し手しか生成しない)なら、
 	// 千日手チェックしない方が強いようだ。
 	// ただし、MovePickerで、TTの指し手に対してもcapturesであるという制限をかけないと
 	// TTの指し手だけで無限ループになるので、注意が必要。
-	
+
 	auto draw_type = pos.is_repetition(ss->ply);
 	if (draw_type != REPETITION_NONE)
 		return value_from_tt(draw_value(draw_type, us), ss->ply);
@@ -3768,7 +3776,6 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				)
 				continue;
 
-
 			// Do not search moves with bad enough SEE values (~5 Elo)
 			// SEEが十分悪い指し手は探索しない。
 
@@ -3838,9 +3845,15 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// -----------------------
 
 	// Step 9. Check for mate
-	// All legal moves have been searched. A special case: if we're in check
-	// and no legal moves were found, it is checkmate.
+	// All legal moves have been searched. A special case: if we are
+	// in check and no legal moves were found, it is checkmate.
 
+	// Step 9. 詰みの確認
+	// すべての合法手を探索しました。特別なケース: もし現在王手を受けていて、
+	// かつ合法手が見つからなかった場合、それはチェックメイト（詰み）です。
+
+	// ■ 補足
+	//
 	// 王手がかかっている状況ではすべての指し手を調べたということだから、これは詰みである。
 	// どうせ指し手がないということだから、次にこのnodeに訪問しても、指し手生成後に詰みであることは
 	// わかるわけだし、そもそもこのnodeが詰みだとわかるとこのnodeに再訪問する確率は極めて低く、
@@ -3930,14 +3943,20 @@ Value value_to_tt(Value v, int ply) {
 	// →　これ足した結果がabs(x) < VALUE_INFINITEであることを確認すべきでは…。
 
 	return  v >= VALUE_TB_WIN_IN_MAX_PLY  ? v + ply
-			: v <= VALUE_TB_LOSS_IN_MAX_PLY ? v - ply : v;
+		  : v <= VALUE_TB_LOSS_IN_MAX_PLY ? v - ply : v;
 }
 
-// Inverse of value_to_tt(): it adjusts a mate or TB score
-// from the transposition table (which refers to the plies to mate/be mated from
-// current position) to "plies to mate/be mated (TB win/loss) from the root".
-// However, to avoid potentially false mate or TB scores related to the 50 moves rule
-// and the graph history interaction, we return the highest non-TB score instead.
+// Inverse of value_to_tt(): it adjusts a mate or TB score from the transposition
+// table (which refers to the plies to mate/be mated from current position) to
+// "plies to mate/be mated (TB win/loss) from the root". However, to avoid
+// potentially false mate or TB scores related to the 50 moves rule and the
+// graph history interaction, we return the highest non-TB score instead.
+
+// value_to_tt() の逆操作です。これはトランスポジションテーブルからの詰みや
+// TB（テーブルベース）のスコアを調整します（これらは現在の局面から詰みまたは
+// 詰まされるまでの手数を指します）。
+// しかし、50手ルールや履歴の相互作用による誤った詰みやTBスコアを回避するために、
+// 代わりにTB以外で最も高いスコアを返します。
 
 // value_to_tt()の逆関数
 // ply : root node からの手数。(ply_from_root)
