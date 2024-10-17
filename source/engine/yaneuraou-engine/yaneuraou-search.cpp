@@ -3388,19 +3388,10 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// Step 2. Check for an immediate draw or maximum ply reached
 	// Step 2. 即座に引き分けになるか、最大のply(手数)に達していないかを確認します。
 
-	//if (pos.is_draw(ss->ply) || ss->ply >= MAX_PLY)
-	// →　将棋、千日手の頻度がチェスほどではないのでqsearch()で千日手判定を行う効果に乏しいかと思ったのだが、
-	//    このチェックしないとqsearchでttMoveの指し手で進め続けてMAX_PLYまで行くので弱くなる。
-
-
-	// TODO : 以下のコードを復活させないと
-	// 257手目で連続王手の千日手になる指し手を引き分けの指し手とみなしてしまう。
-
-#if 0
 	// 千日手チェックは、MovePickerでcaptures(駒を取る指し手しか生成しない)なら、
 	// 千日手チェックしない方が強いようだ。
 	// ただし、MovePickerで、TTの指し手に対してもcapturesであるという制限をかけないと
-	// TTの指し手だけで無限ループになるので、注意が必要。
+	// TTの指し手だけで無限ループ(MAX_PLYまで再帰的に探索が進む)になり弱くなるので、注意が必要。
 
 	auto draw_type = pos.is_repetition(ss->ply);
 	if (draw_type != REPETITION_NONE)
@@ -3411,8 +3402,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// これは引き分け扱いにしてしまう。(やねうら王独自改良)
 	if (depth <= -16)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());
-#endif
 
+	// 最大手数の到達
 	if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
 		return draw_value(REPETITION_DRAW, pos.side_to_move());
 
@@ -3486,59 +3477,23 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// Step 4. Static evaluation of the position
 	// Step 4. この局面の静止評価
 
+	// 置換表に書いてあったevalの値をなるべく壊さずに保存するための変数
 	Value unadjustedStaticEval = VALUE_NONE;
+
 	if (ss->inCheck)
+	{
+
 		// bestValueはalphaとは違う。
 		// 王手がかかっているときは-VALUE_INFINITEを初期値として、すべての指し手を生成してこれを上回るものを探すので
 		// alphaとは区別しなければならない。
 		bestValue = futilityBase = -VALUE_INFINITE;
-	else
-	{
-		// -----------------------
-		//      一手詰め判定
-		// -----------------------
 
-		// 置換表にhitした場合は、すでに詰みを調べたはずなので
-		// 置換表にhitしなかったときにのみ調べる。
-
-		// この処理は、やねうら王独自。
-
-		if (PARAM_QSEARCH_MATE1 && !ss->ttHit)
-		{
-			// いまのところ、入れたほうが良いようだ。
-			// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
-			// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
-
-			// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-			if (PARAM_WEAK_MATE_PLY == 1)
-			{
-				if (Mate::mate_1ply(pos) != Move::none())
-				{
-					//bestValue = mate_in(ss->ply + 1);
-					//tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-					//	std::min(MAX_PLY - 1, depth + 6), move, /* ss->staticEval */ bestValue);
-
-					// ⇨　置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
-
-					return mate_in(ss->ply + 1);
-				}
-			}
-			else
-			{
-				if (Mate::weak_mate_3ply(pos, PARAM_WEAK_MATE_PLY) != Move::none())
-					// 1手詰めかも知れないがN手詰めの可能性があるのでNを返す。
-					return mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
-			}
-			// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
-
-		}
-
-		// 王手がかかっていないなら置換表の指し手を持ってくる
+	} else {
 
 		if (ss->ttHit)
 		{
 			// Never assume anything about values stored in TT
-			// TTに格納されている値に関して何も仮定しない
+			// TT（置換表）に保存されている値については、決して何も仮定しないこと。
 
 			// 置換表に評価値が格納されているとは限らないのでその場合は評価関数の呼び出しが必要
 			// bestValueの初期値としてこの局面のevaluate()の値を使う。これを上回る指し手があるはずなのだが..
@@ -3550,7 +3505,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				evaluate(pos);
 
 			ss->staticEval = bestValue =
-				// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos);
+				// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss );
 				unadjustedStaticEval;
 
 			// 毎回evaluate()を呼ぶならtte->eval()自体不要なのだが、
@@ -3569,45 +3524,81 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// そのための条件。
 
 			// ttValue can be used as a better position evaluation (~13 Elo)
+			// ttValue は、より良い局面評価として使用できる（約13 Eloの向上）。
+
 			if (std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY
 				&& (ttData.bound & (ttData.value > bestValue ? BOUND_LOWER : BOUND_UPPER)))
 				bestValue = ttData.value;
 
-		}
-		else
-		{
+		} else {
+
+			// -----------------------
+			//      一手詰め判定
+			// -----------------------
+
+			// 置換表にhitした場合は、すでに詰みを調べたはずなので
+			// 置換表にhitしなかったときにのみ調べる。
+			// ※ この処理は、やねうら王独自。
+
+			ASSERT_LV3(!ss->inCheck && !ss->ttHit);
+			if (PARAM_QSEARCH_MATE1)
+			{
+				// いまのところ、入れたほうが良いようだ。
+				// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
+				// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
+	
+				// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+				if (PARAM_WEAK_MATE_PLY == 1)
+				{
+					if (Mate::mate_1ply(pos) != Move::none())
+					{
+						//bestValue = mate_in(ss->ply + 1);
+						//tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
+						//	std::min(MAX_PLY - 1, depth + 6), move, unadjustedStaticEval);
+
+						// ⇨　置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
+
+						return mate_in(ss->ply + 1);
+					}
+				} else {
+
+					if (Mate::weak_mate_3ply(pos, PARAM_WEAK_MATE_PLY) != Move::none())
+						// 1手詰めかも知れないがN手詰めの可能性があるのでNを返す。
+						return mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
+				}
+				// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
+			}
+
+			// 王手がかかっていないなら置換表の指し手を持ってくる
+
+			// In case of null move search, use previous static eval with a different sign
+			// Null Move探索の場合、前回の静的評価を符号を反転させて使用する。
+
 			// 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
 			// NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
 			// NULL_MOVEしているということは王手がかかっていないということであり、前の局面でevaluate()は呼び出しているから
 			// StateInfo.sumは更新されていて、そのあとdo_null_move()ではStateInfoが丸ごとコピーされるから、現在のpos.state().sumは
 			// 正しい値のはず。
 
-			if (!PARAM_QSEARCH_FORCE_EVAL)
-			{
-				// Stockfish相当のコード
+			unadjustedStaticEval =
+				(ss - 1)->currentMove != Move::null()
+				? evaluate(pos)
+				: (PARAM_QSEARCH_FORCE_EVAL ? evaluate(pos) : - (ss - 1)->staticEval);
 
-				// In case of null move search, use previous static eval with opposite sign
-				// null move探索の場合、前回の静的評価を反対の符号で使用します。
+			// 1手前の局面(相手の手番)において 評価値が 500だとしたら、
+			// 自分の手番側から見ると -500 なので、 -(ss - 1)->staticEval はそういう意味。
+			// ただ、1手パスしているのに同じ評価値のままなのかという問題はあるが、そこが下限で、
+			// そこ以上の指し手があるはずという意味で、bestValueの初期値としてはそうなっている。
 
-				unadjustedStaticEval =
-					(ss - 1)->currentMove != Move::null()
-					? /* evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us])*/ evaluate(pos)
-					: -(ss - 1)->staticEval;
-				ss->staticEval = bestValue =
-					/* to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos)*/ unadjustedStaticEval;
+			// PARAM_QSEARCH_FORCE_EVALは、null moveでもevaluate()を強制的に呼び出す設定。
+			// 評価関数の実行時間・精度によっては、こう書いたほうがいいかもという書き方。
+			// 残り探索深さが大きい時は、こっちに切り替えるのはありかも…。
+			// どちらが優れているかわからないので、optimizerに任せる。
 
-				// 1手前の局面(相手の手番)において 評価値が 500だとしたら、
-				// 自分の手番側から見ると -500 なので、 -(ss - 1)->staticEval はそういう意味。
-				// ただ、1手パスしているのに同じ評価値のままなのかという問題はあるが、そこが下限で、
-				// そこ以上の指し手があるはずという意味で、bestValueの初期値としてはそうなっている。
+			ss->staticEval = bestValue =
+				// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss );
+				unadjustedStaticEval;
 
-			} else {
-
-				// 評価関数の実行時間・精度によっては、こう書いたほうがいいかもという書き方。
-				// 残り探索深さが大きい時は、こっちに切り替えるのはありかも…。
-				// どちらが優れているかわからないので、optimizerに任せる。
-				ss->staticEval = bestValue = evaluate(pos);
-			}
 		}
 
 		// Stand pat. Return immediately if static value is at least beta
@@ -3620,13 +3611,16 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		if (bestValue >= beta)
 		{
+			// bestValueを少しbetaのほうに寄せる。
 			if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY)
 				bestValue = (3 * bestValue + beta) / 4;
+
 			if (!ss->ttHit)
 				ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
 					DEPTH_UNSEARCHED, Move::none(), unadjustedStaticEval,
 					TT.generation());
-			return bestValue;
+
+            return bestValue;
 		}
 
 		// 王手がかかっていなくてPvNodeでかつ、bestValueがalphaより大きいならそれをalphaの初期値に使う。
@@ -3707,7 +3701,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		// 今回捕獲されるであろう駒による評価値の上昇分を
 		// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
-		if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY /*&& pos.non_pawn_material(us)*/)
+		if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY /* && pos.non_pawn_material(us) */)
 		{
 			// Futility pruning and moveCount pruning (~10 Elo)
 			// futility枝刈りとmove countに基づく枝刈り（約10 Eloの向上）
@@ -3905,7 +3899,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	ASSERT_LV3(pos.legal_promote(bestMove));
 	ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), pvHit,
 				bestValue >= beta ? BOUND_LOWER : BOUND_UPPER, DEPTH_QS, bestMove,
-				ss->staticEval, TT.generation());
+				unadjustedStaticEval, TT.generation());
 
 	// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
 	// しかし置換表が衝突した場合はそうではない。3手詰めの局面で、置換表衝突により1手詰めのスコアが
