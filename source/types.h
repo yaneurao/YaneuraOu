@@ -418,6 +418,27 @@ enum Bound {
 // --------------------
 
 // 置換表に格納するときにあまりbit数が多いともったいないので値自体は16bitで収まる範囲で。
+// 
+// ■ 注意
+//
+//	1. 評価値evalは、
+//       Stockfishでは、  VALUE_TB_LOSS_IN_MAX_PLY < eval < VALUE_TB_WIN_IN_MAX_PLY の範囲。
+//       やねうら王では、 VALUE_MIN_EVAL <= eval <= VALUE_MAX_EVALの範囲。(もしくは、abs(eval) <= VALUE_MAX_EVALの範囲。)
+//  2. 詰みのスコアの下限値は、
+//       Stockfishでは、  VALUE_TB_WIN_IN_MAX_PLY
+//       やねうら王では、 VALUE_MAX_EVAL + 1
+//  3. 詰まされスコアの上限値は、
+//		 Stockfishでは、  VALUE_TB_LOSS_IN_MAX_PLY
+//		 やねうら王では、 VALUE_MIN_EVAL - 1
+//
+//  よって、
+//     Stockfishで value < VALUE_TB_WIN_IN_MAX_PLY のように書いてある場合、
+//     やねうら王では、value <= VALUE_MAX_EVAL と書き換える。
+//
+//     Stockfishで、VALUE_TB_LOSS_IN_MAX_PLY > value のように書いてある場合、
+//     やねうら王では、value >= VALUE_MIN_EVAL と書き換える。
+//  
+//
 enum Value : int32_t
 {
 	VALUE_ZERO = 0,
@@ -440,25 +461,18 @@ enum Value : int32_t
 
 	// チェスの終盤DB(tablebase)によって得られた詰みを表現するスコアらしいが、
 	// Stockfishとの互換性のためにこのシンボルはStockfishと同様に定義しておく。
-	VALUE_TB                 = VALUE_MATE_IN_MAX_PLY - 1,
-	VALUE_TB_WIN_IN_MAX_PLY  = VALUE_MATE - MAX_PLY,
+	VALUE_TB                 =  VALUE_MATE_IN_MAX_PLY - 1,
+	VALUE_TB_WIN_IN_MAX_PLY  =  VALUE_MATE - MAX_PLY,
 	VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY, 
 
 
 	// 千日手による優等局面への突入したときのスコア
-	// これある程度離しておかないと、置換表に書き込んで、相手番から見て、これから
-	// singularの判定なんかをしようと思ったときに
-	// -VALUE_KNOWN_WIN - margin が、VALUE_MATED_IN_MAX_PLYを下回るとまずいので…。
-	VALUE_SUPERIOR = 28000,
+	// ※ これは詰みのスコアの仲間。
+	VALUE_SUPERIOR =  VALUE_TB_WIN_IN_MAX_PLY - 1,
 
-	// 評価関数の返す値の最大値(2**14ぐらいに収まっていて欲しいところだが..)
-	// 
-	// ■ 注意
-	//
-	//   やねうら王では、評価値evalは、abs(eval) <= VALUE_MAX_EVALの範囲。
-	//   Stockfishでは、VALUE_TB_LOSS_IN_MAX_PLY < eval < VALUE_TB_WIN_IN_MAX_PLY の範囲。
-
-	VALUE_MAX_EVAL = 27000,
+	// 評価関数の返す値の最大値、最小値
+	VALUE_MAX_EVAL =  VALUE_SUPERIOR - 1,
+	VALUE_MIN_EVAL = -VALUE_MAX_EVAL,
 
 	// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
 	// StateInfo::sum.p[0][0]にこの値を格納して、マーカーとするのだが、このsumのp[0][0]は、ΣBKPPの計算結果であり、

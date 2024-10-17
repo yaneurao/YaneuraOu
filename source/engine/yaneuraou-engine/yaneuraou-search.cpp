@@ -1908,32 +1908,32 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 					// 1手詰めは次のnodeで詰むという解釈
 					bestValue = mate_in(ss->ply + 1);
 
-					ASSERT_LV3(pos.legal_promote(move));
-					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						    std::min(MAX_PLY - 1, depth + 6), move, VALUE_NONE, TT.generation());
+				ASSERT_LV3(pos.legal_promote(move));
+				ttWriter.write(posKey, /*value_to_tt(bestValue, ss->ply)*/ bestValue , ss->ttPv, BOUND_EXACT,
+					    std::min(MAX_PLY - 1, depth + 6), move, VALUE_NONE , TT.generation());
 
-					// ■　【計測資料 39.】 mate1plyの指し手を見つけた時に置換表の指し手でbeta cutする時と同じ処理をする。
+				// ■　【計測資料 39.】 mate1plyの指し手を見つけた時に置換表の指し手でbeta cutする時と同じ処理をする。
 
-					// 兄弟局面でこのmateの指し手がよい指し手ある可能性があるので
-					// ここでttMoveでbeta cutする時と同様の処理を行うと短い時間ではわずかに強くなるっぽいのだが
-					// 長い時間で計測できる差ではなかったので削除。
+				// 兄弟局面でこのmateの指し手がよい指し手ある可能性があるので
+				// ここでttMoveでbeta cutする時と同様の処理を行うと短い時間ではわずかに強くなるっぽいのだが
+				// 長い時間で計測できる差ではなかったので削除。
 
-					/*
-						1手詰めを発見した時に、save()でdepthをどのように設定すべきか問題について。
+				/*
+					1手詰めを発見した時に、save()でdepthをどのように設定すべきか問題について。
 
-						即詰みは絶対であり、MAX_PLYの深さで探索した時の結果と同じであるから、
-						以前はMAX_PLYにしていたのだが、よく考えたら、即詰みがあるなら上位ノードで
-						枝刈りが発生してこのノードにはほぼ再訪問しないと考えられるのでこんなものが
-						置換表に残っている価値に乏しく、また、MAX_PLYにしてしまうと、
-						TTEntryのreplacement strategy上、depthが大きなTTEntryはかなりの優先度になり
-						いつまでもreplacementされない。
+					即詰みは絶対であり、MAX_PLYの深さで探索した時の結果と同じであるから、
+					以前はMAX_PLYにしていたのだが、よく考えたら、即詰みがあるなら上位ノードで
+					枝刈りが発生してこのノードにはほぼ再訪問しないと考えられるのでこんなものが
+					置換表に残っている価値に乏しく、また、MAX_PLYにしてしまうと、
+					TTEntryのreplacement strategy上、depthが大きなTTEntryはかなりの優先度になり
+					いつまでもreplacementされない。
 
-						こんな情報、lostしたところで1手詰めならmate1ply()で一手も進めずに得られる情報であり、
-						最優先にreplaceすべきTTEntryにも関わらずである。
+					こんな情報、lostしたところで1手詰めならmate1ply()で一手も進めずに得られる情報であり、
+					最優先にreplaceすべきTTEntryにも関わらずである。
 
-						かと言ってDEPTH_NONEにするとtt->depth()が 0 になってしまい、枝刈りがされなくなる。
-						そこで、depth + 6 ぐらいがベストであるようだ。
-					*/
+					かと言ってDEPTH_NONEにするとtt->depth()が 0 になってしまい、枝刈りがされなくなる。
+					そこで、depth + 6 ぐらいがベストであるようだ。
+				*/
 
 					return bestValue;
 				}
@@ -1947,8 +1947,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 					bestValue = mate_in(ss->ply + PARAM_WEAK_MATE_PLY);
 
 					ASSERT_LV3(pos.legal_promote(move));
-					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						std::min(MAX_PLY - 1, depth + 8), move, VALUE_NONE, TT.generation());
+					ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT,
+						std::min(MAX_PLY - 1, depth + 6), move, VALUE_NONE, TT.generation());
 
 					return bestValue;
 				}
@@ -1960,6 +1960,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	// -----------------------
 	// Step 6. Static evaluation of the position
+	// Step 6. 局面の静的な評価
 	// -----------------------
 
 	//  局面の静的な評価
@@ -1977,9 +1978,13 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	}
 	else if (excludedMove)
 	{
-		// Providing the hint that this node's accumulator will be used often brings significant Elo gain (~13 Elo)
+		// Providing the hint that this node's accumulator will be used often
+		// brings significant Elo gain (~13 Elo).
 
-		//Eval::NNUE::hint_common_parent_position(pos);
+		// このノードのアキュムレータが頻繁に使用されることを示唆するヒントを提供することで、
+		// かなりのElo向上（約13 Elo）が得られる。
+
+		// Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
 		// TODO : → 今回のNNUEの計算は端折れるのか？
 
 #if !defined(EXCLUDED_MOVE_FORCE_EVALUATE)
@@ -1987,6 +1992,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 #else
 		eval = ss->staticEval = evaluate(pos);
 #endif
+		// また、excludedMoveがあるときは、この局面の情報をTTに保存してはならない。
 	}
 	else if (ss->ttHit)
 	{
@@ -2146,7 +2152,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// ※　統計値(mainHistoryとかstatScoreとか)のしきい値に関しては、やねうら王ではStockfishから調整しないことにしているので、
 		// 上のif式に出てくる定数については調整しないことにする。
 
-		return beta > VALUE_TB_LOSS_IN_MAX_PLY ? (eval + beta) / 2 : eval;
+		return beta >= VALUE_MIN_EVAL // > VALUE_TB_LOSS_IN_MAX_PLY
+				? (eval + beta) / 2 : eval;
 
 		// 次のようにするより、単にevalを返したほうが良いらしい。
 		//	 return eval - futility_margin(depth);
@@ -2169,7 +2176,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		&& !excludedMove
 	//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 		&&  ss->ply >= thisThread->nmpMinPly
-        &&  beta > VALUE_TB_LOSS_IN_MAX_PLY
+        &&  beta >= VALUE_MIN_EVAL // > VALUE_TB_LOSS_IN_MAX_PLY
 		// 同じ手番側に連続してnull moveを適用しない
 		)
 	{
@@ -2197,7 +2204,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 		// Do not return unproven mate or TB scores
 		// 証明されていないmate scoreやTB scoreはreturnで返さない。
-	    if (nullValue >= beta && nullValue < VALUE_TB_WIN_IN_MAX_PLY)
+	    if (nullValue >= beta
+			&& nullValue <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
+			)
 		{
 			// 1手パスしてもbetaを上回りそうであることがわかったので
 			// これをもう少しちゃんと検証しなおす。
@@ -2272,7 +2281,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	if (   !PvNode
 		&&  depth > 3
-		&&  std::abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
+		&&  std::abs(beta) <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
 			
 	    // If value from transposition table is lower than probCutBeta, don't attempt probCut
 		// there and in further interactions with transposition table cutoff depth is set to depth - 3
@@ -2341,8 +2350,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 					ttWriter.write(posKey, value_to_tt(value, ss->ply),
 						ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval,TT.generation());
 
-					return std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY ? value - (probCutBeta - beta)
-                                                                     : value;
+					return std::abs(value) <= VALUE_MAX_EVAL /* VALUE_TB_WIN_IN_MAX_PLY */
+								? value - (probCutBeta - beta)
+								: value;
 				}
 			}
 
@@ -2374,8 +2384,8 @@ moves_loop:
 		&& (ttData.bound & BOUND_LOWER)
 		&& ttData.depth >= depth - 4
 		&& ttData.value >= probCutBeta
-		&& std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY
-		&& std::abs(beta)    < VALUE_TB_WIN_IN_MAX_PLY
+		&& std::abs(ttData.value) <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
+		&& std::abs(beta)		  <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
 		)
 		return probCutBeta;
 
@@ -2502,7 +2512,8 @@ moves_loop:
 		if (  !rootNode
 			// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
 		//	&& pos.non_pawn_material(us)  // これに相当する処理、将棋でも必要だと思う。
-			&& bestValue > VALUE_TB_LOSS_IN_MAX_PLY)
+			&& bestValue >= VALUE_MIN_EVAL // > VALUE_TB_LOSS_IN_MAX_PLY
+			)
 		{
 			// Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~8 Elo)
 			// もしmovecountがFutilityMoveCountのしきい値を超えていたなら、quietな指し手をskipする。
@@ -2563,8 +2574,10 @@ moves_loop:
 				// Futility pruning: parent node (~13 Elo)
 				if (!ss->inCheck && lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH && futilityValue <= alpha)
 				{
-					if (bestValue <= futilityValue && std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY
-						&& futilityValue < VALUE_TB_WIN_IN_MAX_PLY)
+					if (bestValue <= futilityValue
+						&& std::abs(bestValue) <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
+						&& futilityValue       <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
+						)
 						bestValue = (bestValue + futilityValue * 3) / 4;
 					continue;
 				}
@@ -2631,7 +2644,7 @@ moves_loop:
 				&& !excludedMove // 再帰的なsingular延長を除外する。
 		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH - (thisThread->completedDepth > 24) + ss->ttPv
 			/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
-				&&  std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
+				&&  std::abs(ttData.value) <= VALUE_MAX_EVAL // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 				&& (ttData.bound & BOUND_LOWER)
 				&&  ttData.depth >= depth - 3)
 				// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != Move::none())
@@ -3148,8 +3161,11 @@ moves_loop:
 	ASSERT_LV5(moveCount || !ss->inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
 
     // Adjust best value for fail high cases at non-pv nodes
-    if (!PvNode && bestValue >= beta && std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY
-		&& std::abs(beta) < VALUE_TB_WIN_IN_MAX_PLY && std::abs(alpha) < VALUE_TB_WIN_IN_MAX_PLY)
+    if (!PvNode && bestValue >= beta
+		&& std::abs(bestValue)<= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
+		&& std::abs(beta)     <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
+		&& std::abs(alpha)    <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
+		)
         bestValue = (bestValue * (depth + 2) + beta) / (depth + 3);
 
 	// Stockfishでは、ここのコードは以下のようになっているが、これは、
@@ -3526,7 +3542,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// ttValue can be used as a better position evaluation (~13 Elo)
 			// ttValue は、より良い局面評価として使用できる（約13 Eloの向上）。
 
-			if (std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY
+			if (std::abs(ttData.value) <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
 				&& (ttData.bound & (ttData.value > bestValue ? BOUND_LOWER : BOUND_UPPER)))
 				bestValue = ttData.value;
 
@@ -3553,7 +3569,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 					if (Mate::mate_1ply(pos) != Move::none())
 					{
 						//bestValue = mate_in(ss->ply + 1);
-						//tte->save(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
+						//tte->save(posKey, bestValue , ss->ttPv, BOUND_EXACT,
 						//	std::min(MAX_PLY - 1, depth + 6), move, unadjustedStaticEval);
 
 						// ⇨　置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
@@ -3612,7 +3628,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		if (bestValue >= beta)
 		{
 			// bestValueを少しbetaのほうに寄せる。
-			if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY)
+			if (std::abs(bestValue) <= VALUE_MAX_EVAL) // < VALUE_TB_WIN_IN_MAX_PLY)
 				bestValue = (3 * bestValue + beta) / 4;
 
 			if (!ss->ttHit)
@@ -3701,14 +3717,15 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		// 今回捕獲されるであろう駒による評価値の上昇分を
 		// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
-		if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY /* && pos.non_pawn_material(us) */)
+		if (bestValue >= VALUE_MIN_EVAL // > VALUE_TB_LOSS_IN_MAX_PLY /* && pos.non_pawn_material(us) */
+			)
 		{
 			// Futility pruning and moveCount pruning (~10 Elo)
 			// futility枝刈りとmove countに基づく枝刈り（約10 Eloの向上）
 
 			if (   !givesCheck
 				&&  move.to_sq() != prevSq
-				&&  futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
+				&&  futilityBase >= VALUE_MIN_EVAL // > VALUE_TB_LOSS_IN_MAX_PLY
 				// &&  type_of(move) != PROMOTION
 				// この最後の条件、入れたほうがいいのか？
 				// →　入れない方が良さげ。(V7.74taya-t50 VS V7.74taya-t51)
@@ -3882,7 +3899,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 								  // rootから詰みまでの手数。
 	}
 
-	if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY && bestValue >= beta)
+	if (std::abs(bestValue) <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
+		&& bestValue >= beta)
 			bestValue = (3 * bestValue + beta) / 4;
 
 	// Save gathered info in transposition table. The static evaluation
