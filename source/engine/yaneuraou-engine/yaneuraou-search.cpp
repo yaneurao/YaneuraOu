@@ -1472,8 +1472,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	//   cf. Tweak probcut margin with 'improving' flag : https://github.com/official-stockfish/Stockfish/commit/c5f6bd517c68e16c3ead7892e1d83a6b1bb89b69
 	//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
 	// priorCapture         : 1つ前の局面は駒を取る指し手か？
-	// opponentWorsening    : あとで
-	bool givesCheck, improving, priorCapture /*, opponentWorsening */;
+	// opponentWorsening    : 相手の状況が悪化しているかのフラグ
+	bool givesCheck, improving, priorCapture, opponentWorsening;
 
 	// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
 	// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
@@ -1624,7 +1624,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// rootからの手数
 	ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
-	(ss + 1)->excludedMove	= bestMove = Move::none();
+	bestMove = Move::none();
 	(ss + 2)->cutoffCnt     = 0;
 
 	// 前の指し手で移動させた先の升目
@@ -1703,9 +1703,14 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// 置換表にhitしなければMove::none()
 	// RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
 	// それが置換表にあったものとして指し手を進める。
-	// 注意)
-	// tte->move()にはMove::win()も含まれている可能性がある。
-	// この時、pos.to_move(MOVE_WIN) == Move::win()なので、ttMove == Move::win()となる。
+	// 
+	// ■ 備考
+	//
+	//   TTにMove::win()も指し手として書き出す場合は、
+	//   tte->move()にはMove::win()も含まれている可能性がある。
+	//   この時、pos.to_move(MOVE_WIN) == Move::win()なので、ttMove == Move::win()となる。
+	//   ⇨ 現状のやねうら王では、Move::win()はTTに書き出さない。
+	//
 
 	ttData.move = rootNode ? thisThread->rootMoves[thisThread->pvIdx].pv[0]
 				: ttHit    ? ttData.move
@@ -2075,25 +2080,35 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 #endif
 	}
 
-	// Set up the improvement variable, which is the difference between the current
-	// static evaluation and the previous static evaluation at our turn (if we were
-	// in check at our previous move we look at the move prior to it). The improvement
-	// margin and the improving flag are used in various pruning heuristics.
-	//
+	// Set up the improving flag, which is true if current static evaluation is
+	// bigger than the previous static evaluation at our turn (if we were in
+	// check at our previous move we go back until we weren't in check) and is
+	// false otherwise. The improving flag is used in various pruning heuristics.
+
+	// improvingフラグを設定します。これは、現在の静的評価が前回の自分の手番での
+	// 静的評価より大きい場合にtrueとなります（前回の手で王手を受けていた場合、
+	// 王手を受けていない局面まで遡って評価します）。
+	// それ以外の場合はfalseとなります。このimprovingフラグは、さまざまな枝刈り手法で使用されます。
+
+	// ■ 備考
+	// 
 	// 評価値が2手前の局面から上がって行っているのかのフラグ(improving)
 	// 上がって行っているなら枝刈りを甘くする。
 	// ※ VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
 	//   枝刈りを甘くして調べないといけないのでimproving扱いとする。
 
-	// Set up the improving flag, which is true if current static evaluation is
-	// bigger than the previous static evaluation at our turn (if we were in
-	// check at our previous move we look at static evaluation at move prior to it
-	// and if we were in check at move prior to it flag is set to true) and is
-	// false otherwise. The improving flag is used in various pruning heuristics.
-	improving =   (ss - 2)->staticEval != VALUE_NONE  ? ss->staticEval > (ss - 2)->staticEval
-				: (ss - 4)->staticEval != VALUE_NONE && ss->staticEval > (ss - 4)->staticEval;
-
+	improving = ss->staticEval > (ss - 2)->staticEval;
 	// ※　VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
+
+	// ■ 備考
+	//
+	//   opponentWorseningは、相手の状況が悪化しているかのフラグ。
+	// 
+	//   ss->staticEval == - (ss-1)->staticEval であるのが普通だが、
+	//   左辺のほうが大きい(相手の評価値が悪化している)ならば、
+	//   相手の評価値が悪くなっていっていることを意味している。
+
+	opponentWorsening = ss->staticEval + (ss - 1)->staticEval > 2;
 
 	// -----------------------
 	// Step 7. Razoring (~1 Elo)
@@ -2267,7 +2282,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		depth -= 2;
 
 	// probCutに使うbeta値。
-	probCutBeta = beta + PARAM_PROBCUT_MARGIN1 - PARAM_PROBCUT_MARGIN2 * improving;
+	probCutBeta = beta + PARAM_PROBCUT_MARGIN1
+		- PARAM_PROBCUT_MARGIN2A * improving
+		- PARAM_PROBCUT_MARGIN2B * opponentWorsening;
 
 	// -----------------------
 	// Step 11. ProbCut (~10 Elo)
@@ -3559,22 +3576,28 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			ASSERT_LV3(!ss->inCheck && !ss->ttHit);
 			if (PARAM_QSEARCH_MATE1)
 			{
-				// いまのところ、入れたほうが良いようだ。
-				// play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
-				// play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
+				// ■ 備考
+				// 
+				// ⇨ このqsearch()での1手詰めチェックは、いまのところ、入れたほうが良いようだ。
+				//    play_time = b1000 ,  1631 - 55 - 1314(55.38% R37.54) [2016/08/19]
+				//    play_time = b6000 ,  538 - 23 - 439(55.07% R35.33) [2016/08/19]
 	
 				// 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
 				if (PARAM_WEAK_MATE_PLY == 1)
 				{
-					if (Mate::mate_1ply(pos) != Move::none())
+					move = Mate::mate_1ply(pos);
+					if (move != Move::none())
 					{
-						//bestValue = mate_in(ss->ply + 1);
-						//tte->save(posKey, bestValue , ss->ttPv, BOUND_EXACT,
-						//	std::min(MAX_PLY - 1, depth + 6), move, unadjustedStaticEval);
+						bestValue = mate_in(ss->ply + 1);
 
-						// ⇨　置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
+#ifdef WRITE_QSEARCH_MATE1PLY_TO_TT
+						ttWriter.write(posKey, bestValue , ss->ttPv, BOUND_EXACT,
+							std::min(MAX_PLY - 1, depth + 6), move, unadjustedStaticEval, TT.generation());
+#endif
+						// ⇨ 置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
+						// ⇨ 再度テスト(V8.36dev-d vs V8.36dev-e)
 
-						return mate_in(ss->ply + 1);
+						return bestValue;
 					}
 				} else {
 

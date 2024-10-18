@@ -161,16 +161,21 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 14;
 
 // probcutのmargin
 // 重要度　★★★☆☆
-//    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2
+//    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2A - opponentWorsening * PARAM_PROBCUT_MARGIN2B
 //   improvingの効果怪しいので抑え気味にしておく。
-// 元の値 = 168 , step = 20
+// 元の値 = 189 , step = 20
 // [PARAM] min:100,max:300,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 168;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 189;
 
-// 元の値 = 70 , step = 10
 // 重要度　★★★☆☆
+// 元の値 = 53 , step = 10
 // [PARAM] min:20,max:100,step:5,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN2 = 65;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN2A = 53;
+
+// 重要度　★★★☆☆
+// 元の値 = 30 , step = 10
+// [PARAM] min:20,max:100,step:5,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_PROBCUT_MARGIN2B = 30;
 
 // 前のバージョンのStockfishではこの値は481。
 // 重要度　★★★☆☆

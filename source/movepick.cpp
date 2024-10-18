@@ -1,6 +1,10 @@
 ﻿#include "movepick.h"
 #if defined(USE_MOVE_PICKER)
 
+// 以下、やねうら王独自拡張
+// search(),qsearch()の時にcaptureの指し手として歩の成りも含める。(V7.74w1 vs V7.74w2)
+#define GENERATE_PRO_PLUS
+
 #include <algorithm>
 //#include <cassert>
 #include <iterator>
@@ -8,12 +12,6 @@
 
 #include "bitboard.h"
 #include "position.h"
-
-// 以下、やねうら王独自拡張
-
-// search(),qsearch()の時にcaptureの指し手として歩の成りも含める。(V7.74w1 vs V7.74w2)
-#define GENERATE_PRO_PLUS
-
 #include "search.h" // Search::Limits.generate_all_legal_movesによって生成される指し手を変えたいので…。
 
 // パラメーターの自動調整フレームワークからパラメーターの値を読み込む
