@@ -320,14 +320,6 @@ PARAM_DEFINE PARAM_QSEARCH_MATE1 = 1;
 // [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_SEARCH_MATE1 = 1;
 
-// 1手詰めではなくN手詰めを用いる
-// 重要度　★★☆☆☆
-// ※　3手,5手はコストに見合わないようだ。
-// 元の値 = 1
-// [PARAM] min:1,max:5,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_WEAK_MATE_PLY = 1;
-
-
 // ABテスト用
 // 重要度　★☆☆☆☆
 // [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed

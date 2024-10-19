@@ -423,21 +423,15 @@ enum Bound {
 //
 //	1. 評価値evalは、
 //       Stockfishでは、  VALUE_TB_LOSS_IN_MAX_PLY < eval < VALUE_TB_WIN_IN_MAX_PLY の範囲。
-//       やねうら王では、 VALUE_MIN_EVAL <= eval <= VALUE_MAX_EVALの範囲。(もしくは、abs(eval) <= VALUE_MAX_EVALの範囲。)
+//		 やねうら王でも同様。
+//       やねうら王では、 VALUE_MIN_EVAL <= eval <= VALUE_MAX_EVALの範囲とも言える。
+//			(もしくは、abs(eval) <= VALUE_MAX_EVALの範囲。)
 //  2. 詰みのスコアの下限値は、
 //       Stockfishでは、  VALUE_TB_WIN_IN_MAX_PLY
-//       やねうら王では、 VALUE_MAX_EVAL + 1
+//		 やねうら王でも同様。
 //  3. 詰まされスコアの上限値は、
 //		 Stockfishでは、  VALUE_TB_LOSS_IN_MAX_PLY
-//		 やねうら王では、 VALUE_MIN_EVAL - 1
-//
-//  よって、
-//     Stockfishで value < VALUE_TB_WIN_IN_MAX_PLY のように書いてある場合、
-//     やねうら王では、value <= VALUE_MAX_EVAL と書き換える。
-//
-//     Stockfishで、VALUE_TB_LOSS_IN_MAX_PLY > value のように書いてある場合、
-//     やねうら王では、value >= VALUE_MIN_EVAL と書き換える。
-//  
+//		 やねうら王でも同様。
 //
 enum Value : int32_t
 {
@@ -465,13 +459,14 @@ enum Value : int32_t
 	VALUE_TB_WIN_IN_MAX_PLY  =  VALUE_MATE - MAX_PLY,
 	VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY, 
 
-
 	// 千日手による優等局面への突入したときのスコア
-	// ※ これは詰みのスコアの仲間。
+	// ※ これを詰みのスコアの仲間としてしまうと、詰みのスコアをrootからの手数で
+	//    計算しなおすときにおかしくなる。これは評価値の仲間として扱うことにする。
+	//   よって、これは、VALUE_MAX_EVALと同じ値にしておく。
 	VALUE_SUPERIOR =  VALUE_TB_WIN_IN_MAX_PLY - 1,
 
 	// 評価関数の返す値の最大値、最小値
-	VALUE_MAX_EVAL =  VALUE_SUPERIOR - 1,
+	VALUE_MAX_EVAL =  VALUE_SUPERIOR,
 	VALUE_MIN_EVAL = -VALUE_MAX_EVAL,
 
 	// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
