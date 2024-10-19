@@ -196,9 +196,11 @@ namespace {
 // Futility margin
 // depth(残り探索深さ)に応じたfutility margin。
 // ※ RazoringはStockfish12で効果がないとされてしまい除去された。
-Value futility_margin(Depth d, bool noTtCutNode, bool improving) {
-	int futilityMult = PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode;
-	return Value(futilityMult * d - 3 * futilityMult / 2 * improving);
+Value futility_margin(Depth d, bool noTtCutNode, bool improving, bool oppWorsening) {
+	Value futilityMult = Value(PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode);
+	Value improvingDeduction = Value(int(improving) * futilityMult * 2);
+	Value worseningDeduction = Value(int(oppWorsening) * futilityMult / 3);
+	return Value(futilityMult * d - improvingDeduction - worseningDeduction);
 }
 
 // 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
@@ -244,8 +246,8 @@ constexpr int futility_move_count(bool improving, int depth) {
 // correctionHistoryの値を生のstaticEvalに加算し、
 // 評価がテーブルベースの範囲に達しないように保証します。
 
-/*
-Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
+Value to_corrected_static_eval(Value v /*, const Worker& w, const Position& pos */) {
+#if 0
 	const Color us    = pos.side_to_move();
 	const auto  pcv   = w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)];
 	const auto  mcv   = w.materialCorrectionHistory[us][material_index(pos)];
@@ -257,12 +259,15 @@ Value to_corrected_static_eval(Value v, const Worker& w, const Position& pos) {
 	  (6245 * pcv + 3442 * mcv + 3471 * macv + 5958 * micv + 6566 * (wnpcv + bnpcv)) / 131072;
 	v += cv;
 
-//	return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+	//	return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
 	// ⇨ やねうら王では、評価値は、VALUE_MAX_EVALの範囲である
 	return std::clamp(v, -VALUE_MAX_EVAL , VALUE_MAX_EVAL);
+#endif
 
+	// やねうら王では、evaluate()がVALUE_MAX_EVALの間の値しか返さないことは
+	// 保証されているのでここでは何の補整もしない。
+	return v;
 }
-*/
 
 // History and stats update bonus, based on depth
 // depthに基づく、historyとstatsのupdate bonus
@@ -853,15 +858,11 @@ SKIP_SEARCH:;
 // ssにはstack+7が渡されるものとする。
 void search_thread_init(Thread* th, Stack* ss , Move pv[])
 {
-	// 先頭10個を初期化しておけば十分。そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
-	// RootNodeはss->ply == 0がその条件。
-	// ゼロクリアするので、ss->ply == 0となるので大丈夫…。
-	std::memset(ss - 7, 0, 10 * sizeof(Stack));
-
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 7; i > 0; --i)
 	{
 		(ss - i)->continuationHistory = &th->continuationHistory[0][0](NO_PIECE, SQ_ZERO); // Use as a sentinel
+//      (ss - i)->continuationCorrectionHistory = &this->continuationCorrectionHistory[NO_PIECE][0];
 		(ss - i)->staticEval = VALUE_NONE;
 	}
 
@@ -895,6 +896,8 @@ void Thread::search()
 	//      variables
 	// ---------------------
 
+	Move  pv[MAX_PLY + 1];
+
 	// Allocate stack with extra size to allow access from (ss-7) to (ss+2)
 	// (ss-7) is needed for update_continuation_histories(ss-1, ...) which accesses (ss-6)
 	// (ss+2) is needed for initialization of statScore and killers
@@ -904,8 +907,19 @@ void Thread::search()
 	// (ss+2)はstatScoreとkillersの初期化のために必要です
 
 	// continuationHistoryのため、(ss-7)から(ss+2)までにアクセスしたいので余分に確保しておく。
-	Stack stack[MAX_PLY + 10], *ss = stack + 7;
-	Move  pv[MAX_PLY + 1];
+
+	// ■ 備考
+	//
+	// stackは、先頭10個を初期化しておけば十分。
+	// そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
+	// RootNodeはss->ply == 0がその条件。(ss->plyはsearch_thread_initで初期化されている)
+
+	Stack stack[MAX_PLY + 10] = {};
+	Stack*ss                  = stack + 7;
+
+	// 探索部、学習部のスレッドの共通初期化コード
+	// ※　Stockfishのここにあったコードはこの関数に移動。
+	search_thread_init(this, ss, pv);
 
 	// alpha,beta : aspiration searchの窓の範囲(alpha,beta)
 	// delta      : apritation searchで窓を動かす大きさdelta
@@ -931,10 +945,6 @@ void Thread::search()
 	// 反復深化の時に1回ごとのbest valueを保存するための配列へのindex
 	// 0から3までの値をとる。
 	int iterIdx = 0;
-
-	// 探索部、学習部のスレッドの共通初期化コード
-	// ※　Stockfishのここにあったコードはこの関数に移動。
-	search_thread_init(this, ss, pv);
 
 	// Stockfish 14の頃は、反復深化のiterationが浅いうちはaspiration searchを使わず
 	// 探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)としていたが、Stockfish 16では、
@@ -1970,8 +1980,6 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	//  局面の静的な評価
 
-	CapturePieceToHistory& captureHistory = thisThread->captureHistory;
-
 	if (ss->inCheck)
 	{
 		// Skip early pruning when in check
@@ -1997,7 +2005,17 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 #else
 		eval = ss->staticEval = evaluate(pos);
 #endif
+
+		// ■ 備考
+		// 
 		// また、excludedMoveがあるときは、この局面の情報をTTに保存してはならない。
+		// (同一局面で異なるexcludedMoveを持つ局面が同じhashkeyを持つので
+		// 情報の一貫性がなくなる。)
+		//  ⇨ 異なるexcludedMoveに対して異なるhashkeyを持てばいいのだが
+		//    例: auto posKey = pos.hash_key() ^ make_key(excludedMove);
+		//  (以前のStockfishのバージョンではそのようにしていた)
+		//   現在のコードのほうが強いようで、そのコードは取り除かれた。
+
 	}
 	else if (ss->ttHit)
 	{
@@ -2021,7 +2039,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// → TODO : hint_common_parent_position()実装するか検討する。
 
 	    // ttValue can be used as a better position evaluation (~7 Elo)
+		// ttValue は、より良い局面評価として使用できる（約7 Eloの向上）。
 
+		// ■ 備考
+		// 
 		// ttValueのほうがこの局面の評価値の見積もりとして適切であるならそれを採用する。
 		// 1. ttValue > evaluate()でかつ、ttValueがBOUND_LOWERなら、真の値はこれより大きいはずだから、
 		//   evalとしてttValueを採用して良い。
@@ -2153,12 +2174,12 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// Stockfish10でnonPVにのみの適用に変更になった。
 
 	if (   !ss->ttPv
-		&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*9*/
-		&&  eval - futility_margin(depth, cutNode && !ss->ttHit, improving)
-				- (ss - 1)->statScore / 321 >= beta
-		&&  eval >= beta
-		&&  eval < 29462 // smaller than TB wins
-		&& (!ttData.move || ttCapture))
+		&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*13*/
+		&&  eval - futility_margin(depth, cutNode && !ss->ttHit, improving, opponentWorsening)
+				- (ss - 1)->statScore / 272 >= beta
+		&&  eval >= beta && (!ttData.move || ttCapture) && beta >= VALUE_MIN_EVAL // VALUE_TB_LOSS_IN_MAX_PLY
+		&&  eval <= VALUE_MAX_EVAL // < VALUE_TB_WIN_IN_MAX_PLY
+		)
 
 		// 29462の根拠はよくわからないが、VALUE_TB_WIN_IN_MAX_PLY より少し小さい値にしたいようだ。
 		// そこまではfutility pruningで枝刈りして良いと言うことなのだろう。
@@ -2167,12 +2188,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// ※　統計値(mainHistoryとかstatScoreとか)のしきい値に関しては、やねうら王ではStockfishから調整しないことにしているので、
 		// 上のif式に出てくる定数については調整しないことにする。
 
-		return beta >= VALUE_MIN_EVAL // > VALUE_TB_LOSS_IN_MAX_PLY
-				? (eval + beta) / 2 : eval;
-
-		// 次のようにするより、単にevalを返したほうが良いらしい。
-		//	 return eval - futility_margin(depth);
-		// cf. Simplify futility pruning return value : https://github.com/official-stockfish/Stockfish/commit/f799610d4bb48bc280ea7f58cd5f78ab21028bf5
+		return beta + (eval - beta) / 3;
 
 
 	// -----------------------
@@ -2316,7 +2332,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	{
 		ASSERT_LV3(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
 
-		MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &captureHistory);
+		MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &thisThread->captureHistory);
 
 		// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 		// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
@@ -2551,7 +2567,7 @@ moves_loop:
 					// TODO : ここのパラメーター、調整すべきか？ 2 Eloだから無視していいか…。
 					int   futilityEval =
 						ss->staticEval + PARAM_FUTILITY_EVAL1 + PARAM_FUTILITY_EVAL2 * lmrDepth + CapturePieceValuePlusPromote(pos, move)
-						+ captureHistory(movedPiece, move.to_sq(), type_of(capturedPiece)) / 7;
+						+ thisThread->captureHistory(movedPiece, move.to_sq(), type_of(capturedPiece)) / 7;
 
 					if (futilityEval < alpha)
 						continue;
@@ -2780,7 +2796,7 @@ moves_loop:
 			// Extension for capturing the previous moved piece (~0 Elo on STC, ~1 Elo on LTC)
 
 			else if (PvNode && move.to_sq() == prevSq
-                     && captureHistory(movedPiece, move.to_sq(), type_of(pos.piece_on(move.to_sq())))
+                     && thisThread->captureHistory(movedPiece, move.to_sq(), type_of(pos.piece_on(move.to_sq())))
                           > 3988)
                 extension = 1;
 		}
@@ -2976,7 +2992,7 @@ moves_loop:
 			(ss + 1)->pv[0] = Move::none();
 
 			// full depthで探索するときはcutNodeにしてはいけない。
-		    value = -search<PV>(pos, ss+1, -beta, -alpha, newDepth, false);
+			value = -search<PV>(pos, ss+1, -beta, -alpha, newDepth, false);
 		}
 
 		// -----------------------
@@ -3698,9 +3714,6 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 #endif
 										,ss->ply);
 
-	// 王手回避の指し手のうちquiet(駒を捕獲しない)な指し手の数
-	int quietCheckEvasions = 0;
-
 	// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
 	// evaluate()を呼び出していないなら呼び出しておく。
 	Eval::evaluate_with_no_return(pos);
@@ -3787,19 +3800,6 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				}
 			}
 
-			// movecount pruning for quiet check evasions
-			// quietな指し手による王手回避のためのmovecountによる枝刈り。
-
-			// 王手回避でquietな指し手は良いとは思えないから、捕獲する指し手を好むようにする。
-			// だから、もし、qsearchで2つのquietな王手回避に失敗したら、
-			// そこ以降(captureから生成しているのでそこ以降もquietな指し手)も良くないと
-			// 考えるのは理に適っている。
-
-			// We prune after the second quiet check evasion move, where being 'in check' is
-			// implicitly checked through the counter, and being a 'quiet move' apart from
-			// being a tt move is assumed after an increment because captures are pushed ahead.
-			if (quietCheckEvasions > 1)
-				break;
 
 			// Continuation history based pruning (~3 Elo)
 			// Continuation historyベースの枝刈り
@@ -3835,7 +3835,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 										                            (pos.moved_piece_after(move),
 																	 move.to_sq()               );
 
-		quietCheckEvasions += !capture && ss->inCheck;
+		//ss->continuationCorrectionHistory =
+		//	&thisThread->continuationCorrectionHistory[pos.moved_piece(move)][move.to_sq()];
+		// ⇨ やねうら王では採用せず
 
 		// -----------------------
 		//     局面を1手進める
@@ -4767,7 +4769,7 @@ void init_for_search(Position& pos, Stack* ss , Move pv[], bool qsearch)
 }
 
 // 読み筋と評価値のペア。Learner::search(),Learner::qsearch()が返す。
-using ValueAndPV = std::pair<Value, std::vector<Move>>;
+using ValuePV = std::pair<Value, std::vector<Move>>;
 
 // 対局の初期化。
 // 置換表のクリアとhistory table等のクリアを行う。
@@ -4800,17 +4802,19 @@ void init_for_game(Position& pos)
 // 引数でalpha,betaを指定できるようにしていたが、これがその窓で探索したときの結果を
 // 置換表に書き込むので、その窓に対して枝刈りが出来るような値が書き込まれて学習のときに
 // 悪い影響があるので、窓の範囲を指定できるようにするのをやめることにした。
-ValueAndPV qsearch(Position& pos)
+ValuePV qsearch(Position& pos)
 {
-	Stack stack[MAX_PLY + 10], *ss = stack + 7;
+
 	Move pv[MAX_PLY + 1];
+	Stack stack[MAX_PLY + 10] = {};
+	Stack*ss                  = stack + 7;
 	std::vector<Move> pvs;
 
 	// 詰まされているのか
 	if (pos.is_mated())
 	{
 		pvs.push_back(Move::resign());
-		return ValueAndPV(mated_in(/*ss->ply*/ 0 + 1), pvs);
+		return ValuePV(mated_in(/*ss->ply*/ 0 + 1), pvs);
 	}
 
 	// 探索の初期化
@@ -4822,7 +4826,7 @@ ValueAndPV qsearch(Position& pos)
 	for (Move* p = &ss->pv[0]; p->is_ok(); ++p)
 		pvs.push_back(*p);
 
-	return ValueAndPV(bestValue, pvs);
+	return ValuePV(bestValue, pvs);
 }
 
 // 通常探索。深さdepth(整数で指定)。
@@ -4850,7 +4854,7 @@ ValueAndPV qsearch(Position& pos)
 // 　search()から戻ったあと、Threads.stop == trueなら、その探索結果を用いてはならない。
 // 　あと、呼び出し前は、Threads.stop == falseの状態で呼び出さないと、探索を中断して返ってしまうので注意。
 //
-ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodesLimit /* = 0 */)
+ValuePV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodesLimit /* = 0 */)
 {
 	std::vector<Move> pvs;
 
@@ -4976,7 +4980,7 @@ ValueAndPV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodes
 	// multiPV時を考慮して、rootMoves[0]のscoreをbestValueとして返す。
 	bestValue = rootMoves[0].score;
 
-	return ValueAndPV(bestValue, pvs);
+	return ValuePV(bestValue, pvs);
 }
 
 // UnitTest : プレイヤー同士の対局

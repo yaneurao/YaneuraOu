@@ -76,8 +76,7 @@ public:
 		// ・絶対値がDを超えないように注意しながらentryにbonusを加算する
 		// 
 
-		//ASSERT_LV3(std::abs(entry) <= D);
-		// ⇨ これたまにassert引っかかる…。Stockfishは引っかからないのか…なぜ…？
+		ASSERT_LV3(std::abs(entry) <= D);
 	}
 };
 

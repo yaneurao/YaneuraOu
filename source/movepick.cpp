@@ -1,10 +1,6 @@
 ﻿#include "movepick.h"
 #if defined(USE_MOVE_PICKER)
 
-// 以下、やねうら王独自拡張
-// search(),qsearch()の時にcaptureの指し手として歩の成りも含める。(V7.74w1 vs V7.74w2)
-#define GENERATE_PRO_PLUS
-
 #include <algorithm>
 //#include <cassert>
 #include <iterator>
@@ -239,7 +235,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
 	stage = PROBCUT_TT
 		+ !(ttm 
 			// && pos.capture_stage(ttm)
-#if defined(GENERATE_PRO_PLUS)
+#if !defined(MOVE_PICKER_GENERATE_CAPTURE)
 								&& pos.capture_or_pawn_promotion(ttm)
 #else
 								&& pos.capture(ttm)
@@ -496,7 +492,7 @@ top:
 	case QCAPTURE_INIT:
 		cur = endBadCaptures = moves;
 
-#if defined(GENERATE_PRO_PLUS)
+#if !defined(MOVE_PICKER_GENERATE_CAPTURE)
 		// CAPTURE_INITのあとはこのあと残りの指し手を生成する必要があるので、generate_all_legal_movesがtrueなら、CAPTURE_PRO_PLUSで歩の成らずの指し手も生成する。
 		// PROBCUT_INIT、QCAPTURE_INITの時は、このあと残りの指し手を生成しないので歩の成らずを生成しても仕方がない。
 		if (stage == CAPTURE_INIT)
@@ -589,7 +585,7 @@ top:
 			cur = (ExtMove*)Math::align((size_t)cur, 32);
 #endif
 
-#if defined(GENERATE_PRO_PLUS)
+#if !defined(MOVE_PICKER_GENERATE_CAPTURE)
 			endMoves = beginBadQuiets = endBadQuiets = Search::Limits.generate_all_legal_moves ? generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(pos, cur) : generateMoves<NON_CAPTURES_PRO_MINUS>(pos, cur);
 #else
 			endMoves = beginBadQuiets = endBadQuiets = Search::Limits.generate_all_legal_moves ? generateMoves<NON_CAPTURES_ALL          >(pos, cur) : generateMoves<NON_CAPTURES          >(pos, cur);

@@ -58,14 +58,14 @@ PARAM_DEFINE PARAM_REDUCTION_GAMMA = 976;
 // 深さに比例したfutility pruning
 
 // 重要度　★★★★☆
-// 元の値 = 125 , step = 20
+// 元の値 = 118 , step = 20
 // [PARAM] min:100,max:300,step:10,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 125;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 118;
 
 // 重要度　★★★★☆
-// 元の値 = 43 , step = 10
+// 元の値 = 33 , step = 10
 // [PARAM] min:10,max:200,step:5,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 43;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 33;
 
 // 重要度　★★★★☆
 // 元の値 = 138 , step = 30
@@ -93,9 +93,9 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 170;
 // futility pruningの適用depth。
 // 重要度　★★★☆☆
 // この制限自体が要らない可能性がある。→　そうでもなかった。→こんなdepthいじらんほうがマシ
-// 元の値 = 9 , step = 1
+// 元の値 = 13 , step = 1
 // [PARAM] min:5,max:15,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 9;
+PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 13;
 
 
 
