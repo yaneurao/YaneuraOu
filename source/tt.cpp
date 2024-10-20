@@ -180,7 +180,7 @@ void TTEntry::_save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, 
 		move16 = m.to_move16();
 
 	// Overwrite less valuable entries (cheapest checks first)
-	// より価値の低いエントリを上書きします（最も安価なチェックを優先）
+	// より価値の低いエントリを上書きします（最も簡単にできるチェックを先に行う）
 
 	if (b == BOUND_EXACT || k != key || d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4
 		|| relative_age(generation8))

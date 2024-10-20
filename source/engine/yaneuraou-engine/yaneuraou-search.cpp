@@ -2410,6 +2410,12 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 moves_loop: // When in check, search starts here
 	        // 王手がかかっている局面では、探索はここから始まる。
 
+	// このノードでまだ評価関数を呼び出していないなら、呼び出して差分計算しないといけない。
+	// (やねうら王独自仕様)
+	// do_move()で行っている評価関数はこの限りではないが、NNUEでも
+	// このタイミングで呼び出したほうが高速化するようなので呼び出す。
+	Eval::evaluate_with_no_return(pos);
+
 	// -----------------------
 	// Step 12. A small Probcut idea, when we are in check (~4 Elo)
 	// Step 12. 王手がかかっている局面のときに用いる小さなProbcutのアイデア（約4 Elo）
