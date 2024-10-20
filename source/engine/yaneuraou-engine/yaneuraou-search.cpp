@@ -1972,14 +1972,15 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// Step 6. 局面の静的な評価
 	// -----------------------
 
+	Value unadjustedStaticEval = VALUE_NONE;
 
 	if (ss->inCheck)
 	{
 		// Skip early pruning when in check
 		// 王手がかかっているときは、early pruning(早期枝刈り)をスキップする
-			
-		ss->staticEval = eval = VALUE_NONE;
-		improving = false;
+
+		ss->staticEval = eval = (ss - 2)->staticEval;
+		improving             = false;
 		goto moves_loop;
 	}
 	else if (excludedMove)
@@ -1994,9 +1995,16 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// TODO : → 今回のNNUEの計算は端折れるのか？
 
 #if !defined(EXCLUDED_MOVE_FORCE_EVALUATE)
-		eval = ss->staticEval;
+		unadjustedStaticEval = eval = ss->staticEval;
+		// null moveなのでssは一つ前の局面から動かしていない。(ss + 1ではなく ssをsearch()に渡している)
+		// ゆえにss->staticEvalで一つ前の局面でのevaluateの値が得られる。
 #else
-		eval = ss->staticEval = evaluate(pos);
+		unadjustedStaticEval = eval = ss->staticEval = evaluate(pos);
+		// ⇨ null moveなので、ss->staticEvalは親nodeでのstaticEvalをも指すので、
+		//   ここで破壊しないほうが良いのでは？
+		// ⇨ 本来はそうだと言えるのだけど、親nodeでss->staticEvalは、このnodeでreturnしたあと、
+		//   用いておらず、また、このnode以降で、ss->staticeEvalを参照するので
+		//   ここで更新しておいたほうが得であるようだ。
 #endif
 
 		// ■ 備考
@@ -2015,21 +2023,27 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// Never assume anything about values stored in TT
 		// TTに格納されている値に関して何も仮定はしない
 
-		ss->staticEval = eval = ttData.eval;
+		unadjustedStaticEval = ttData.eval;
+		if (unadjustedStaticEval == VALUE_NONE)
+			unadjustedStaticEval =
+			// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
+			evaluate(pos);
 
 		// 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
 		// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 
-		if (eval == VALUE_NONE)
-		{
-			ss->staticEval = eval = evaluate(pos);
-		}
+#if defined(EXCLUDED_MOVE_FORCE_EVALUATE)
 
-		//else if (PvNode)
-		//	Eval::NNUE::hint_common_parent_position(pos);
+		else if (PvNode)
+			//		Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
+			// → TODO : hint_common_parent_position()実装するか検討する。
+			unadjustedStaticEval = evaluate(pos);
 
+#endif
 
-		// → TODO : hint_common_parent_position()実装するか検討する。
+		ss->staticEval = eval =
+			// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss);
+			unadjustedStaticEval;
 
 	    // ttValue can be used as a better position evaluation (~7 Elo)
 		// ttValue は、より良い局面評価として使用できる（約7 Eloの向上）。
@@ -2049,7 +2063,12 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	}
 	else
 	{
-		ss->staticEval = eval = evaluate(pos);
+		unadjustedStaticEval =
+			// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
+			evaluate(pos);
+		ss->staticEval = eval =
+			// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss);
+			unadjustedStaticEval;
 
 		// Static evaluation is saved as it was before adjustment by correction history
 		// 静的評価は、補正履歴による調整が行われる前の状態で保存される。
@@ -2058,8 +2077,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// cf . Add / remove leaves from search tree ttPv : https://github.com/official-stockfish/Stockfish/commit/c02b3a4c7a339d212d5c6f75b3b89c926d33a800
 		// 上の方にある else if (excludedMove) でこの条件は除外されている。
 
-		ttWriter.write(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE,
-			DEPTH_UNSEARCHED, Move::none(), eval, TT.generation());
+		ttWriter.write(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_UNSEARCHED, Move::none(),
+			unadjustedStaticEval, TT.generation());
 
 		// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate_1ply()を
 		// 実行したという証にはなるので意味がある。
@@ -2082,10 +2101,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	if ((ss - 1)->currentMove.is_ok() && !(ss - 1)->inCheck && !priorCapture)
 	{
-	    int bonus = std::clamp(-13 * int((ss - 1)->staticEval + ss->staticEval), -1652, 1546);
-		// この右辺の↑係数、調整すべきだろうけども、4 Eloのところ調整しても…みたいな意味はある。
-		bonus = bonus > 0 ? 2 * bonus : bonus / 2;
-		thisThread->mainHistory(~us, (ss - 1)->currentMove.from_to()) << bonus;
+		int bonus = std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -1641, 1423) + 760;
+		// TODO : この右辺の↑係数、調整すべきか？
+		thisThread->mainHistory(~us,((ss - 1)->currentMove).from_to()) << bonus;
 
 #if defined(ENABLE_PAWN_HISTORY)
 		if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
@@ -2220,6 +2238,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 		// Do not return unproven mate or TB scores
 		// 証明されていないmate scoreやTB scoreはreturnで返さない。
+
 	    if (nullValue >= beta
 			&& nullValue < VALUE_TB_WIN_IN_MAX_PLY
 			)
@@ -2374,7 +2393,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 				// ProbCutのdataを置換表に保存する。
 
 				ttWriter.write(posKey, value_to_tt(value, ss->ply),
-					ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval, TT.generation());
+					ss->ttPv, BOUND_LOWER, depth - 3, move, unadjustedStaticEval, TT.generation());
 
 				return std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY
 							? value - (probCutBeta - beta)
@@ -3310,7 +3329,7 @@ moves_loop: // When in check, search starts here
 			  bestValue >= beta  ? BOUND_LOWER
 			: PvNode && bestMove ? BOUND_EXACT
 			                     : BOUND_UPPER,
-			depth, bestMove, ss->staticEval, TT.generation());
+			depth, bestMove, unadjustedStaticEval, TT.generation());
 	}
 
 	// qsearch()内の末尾にあるassertの文の説明を読むこと。

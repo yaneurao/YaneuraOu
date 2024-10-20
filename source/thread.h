@@ -181,6 +181,9 @@ public:
 	// aspiration searchのrootでの beta - alpha
 	Value rootDelta;
 
+	// reduction量を計算する
+	//Depth reduction(bool i, Depth d, int mn, int delta) const;
+
 	// ↓Stockfishでは思考開始時に評価関数から設定しているが、やねうら王では使っていないのでコメントアウト。
 	//Value rootSimpleEval;
 
