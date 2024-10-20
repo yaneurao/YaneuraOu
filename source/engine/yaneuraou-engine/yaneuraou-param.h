@@ -33,21 +33,21 @@ PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2037;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
-// 元の値 = 1487 ,step = 128
+// 元の値 = 1239 ,step = 128
 // [PARAM] min:0,max:2048,step:32,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1487;
+PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1239;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
-// 元の値 = 808 , step = 128
+// 元の値 = 1341 , step = 128
 // [PARAM] min:300,max:1500,step:64,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BETA = 808;
+PARAM_DEFINE PARAM_REDUCTION_BETA = 1341;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
-// 元の値 = 976 , step = 128
+// 元の値 = 795 , step = 128
 // [PARAM] min:300,max:1500,step:16,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_GAMMA = 976;
+PARAM_DEFINE PARAM_REDUCTION_GAMMA = 795;
 
 
 
@@ -73,14 +73,14 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 33;
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 108;
 
 // 重要度　★★★☆☆
-// 元の値 = Stockfish 14 : 197 , Stockfish 16 : 239 , step = 20
-// [PARAM] min:100,max:240,step:30,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_EVAL1 = 239;
+// 元の値 = Stockfish 14 : 197 , Stockfish 16 : 239 , Stockfish 17 : 300 , step = 20
+// [PARAM] min:100,max:400,step:30,interval:2,time_rate:1,fixed
+PARAM_DEFINE PARAM_FUTILITY_EVAL1 = 300;
 
 // 重要度　★★★☆☆
-// 元の値 = Stockfish 14 : 248 , Stockfish 16 : 291 , step = 20
+// 元の値 = Stockfish 14 : 248 , Stockfish 16 : 291 , Stockfish 17 : 238 , step = 20
 // [PARAM] min:100,max:240,step:30,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_EVAL2 = 291;
+PARAM_DEFINE PARAM_FUTILITY_EVAL2 = 238;
 
 
 
@@ -102,25 +102,25 @@ PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 13;
 // 親nodeでのfutilityの適用depth。
 // 重要度　★★★☆☆
 // この枝刈り、depthの制限自体が要らないような気がする。→　そうでもなかった。→こんなdepthいじらんほうがマシ
-// 元の値 = Stockfish 14 : 12 , Stockfish 16 : 13  , Stockfish 16.1 : 15
+// 元の値 = Stockfish 14 : 12 , Stockfish 16 : 13  , Stockfish 16.1 : 15 , Stockfish 17: 12
 // [PARAM] min:5,max:20,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 15;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 12;
 
 
 // 重要度　★★★★★
 // このパラメーター、lmrDepth * lmrDepthに比例するので、影響がすごく大きい。
 // 調整には気をつけること。
-// 元の値 = Stockfish 14 : 31 , Stockfish 16 : 26 , step = 2
+// 元の値 = Stockfish 14 : 31 , Stockfish 16 : 26 , Stockfish 17 : 24, step = 2
 // [PARAM] min:15,max:50,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 26;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 24;
 
 
 // lmrのときのseeの値。
 // 重要度　★★★★☆
 // Stockfishの7,8割ぐらいの値にするのがよさげ。
-// 元の値 = 185 ,step = 40
+// 元の値 = Stockfish 17 : 167 ,step = 40
 // [PARAM] min:0,max:300,step:10,interval:1,time_rate:1
-PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 175;
+PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 167;
 
 
 
@@ -129,30 +129,30 @@ PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 175;
 //
 
 // 重要度　★★★☆☆
-// 元の値 = Stockfish 14 : 173 , Stockfish 16 : 152 , step = 10
+// 元の値 = Stockfish 14 : 173 , Stockfish 16 : 152 , Stockfish 17 : 209, step = 10
 // [PARAM] min:50,max:400,step:10,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 132;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 209;
 
 // 重要度　★★★☆☆
-// 元の値 = 24 , step = 2
+// 元の値 = 23 , step = 2
 // [PARAM] min:10,max:60,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 24;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 23;
 
-// 元の値 = 281 , step = 50
+// 元の値 = 400 , step = 50
 // 重要度　★★★☆☆
-// [PARAM] min:0,max:400,step:50,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 281;
+// [PARAM] min:0,max:800,step:50,interval:1,time_rate:1,fixed
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 400;
 
 
 
 // null moveでbeta値を上回ったときに、これ以下ならreturnするdepth。適用depth。
 // 重要度　★★★☆☆
-// 元の値 = 14
+// 元の値 = 16
 // 他のNULL_MOVEの値が悪いと、この枝刈りを適用しないほうが強くなるわけで、
 // このdepthがどんどん高い値に発散してしまうので注意。
 // この値は、低くなるのが正しいチューニングだと思う。
 // [PARAM] min:4,max:20,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 14;
+PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 16;
 
 
 //
@@ -179,9 +179,9 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN2B = 30;
 
 // 前のバージョンのStockfishではこの値は481。
 // 重要度　★★★☆☆
-// 元の値 = 416 , step = 10
+// 元の値 = 379 , step = 10
 // [PARAM] min:20,max:500,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 416;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 379;
 
 //
 // singular extension
@@ -237,13 +237,6 @@ PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 90;
 //
 // pruning by history
 //
-
-// historyによる枝刈りをする深さ。適用depth。
-// 重要度　★★★☆☆
-// 元の値 = 6 , step = 1
-// [PARAM] min:2,max:16,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PRUNING_BY_HISTORY_DEPTH = 6;
-
 
 // update_all_stats()で、静止探索時のquietMoveとみなすbestvalueとbetaの差(PawnValueより少し小さな値)
 // StockfishではPawnValueが210ぐらいなので、それを考慮すること。

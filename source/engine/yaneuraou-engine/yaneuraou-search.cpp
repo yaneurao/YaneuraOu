@@ -216,8 +216,8 @@ int Reductions[MAX_MOVES]; // [depth or moveNumber]
 // そのためのフラグ。(これがtrueだとreduction量が1増える)
 Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
 	int reductionScale = Reductions[d] * Reductions[mn];
-	return (reductionScale + PARAM_REDUCTION_ALPHA - int(delta) * PARAM_REDUCTION_GAMMA / int(rootDelta)) / 1024
-		+ (!i && reductionScale > PARAM_REDUCTION_BETA);
+	return (reductionScale + PARAM_REDUCTION_ALPHA/*1239*/ - int(delta) * PARAM_REDUCTION_GAMMA/*795*/ / int(rootDelta)) / 1024
+		+ (!i && reductionScale > PARAM_REDUCTION_BETA/*1341*/);
 	// PARAM_REDUCTION_BETAの値、将棋ではもう少し小さくして、reductionの適用範囲を広げた方がいいかも？
 }
 
@@ -2314,60 +2314,71 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		ASSERT_LV3(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
 
 		MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &thisThread->captureHistory);
+		Piece      captured;
 
 		// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 		// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
 		while ((move = mp.next_move()) != Move::none())
 		{
 			// ↑Stockfishでは省略してあるけど、この"{"、省略するとbugの原因になりうるので追加しておく。
+			ASSERT_LV3(move.is_ok());
+			ASSERT_LV5(pos.pseudo_legal(move) && pos.legal_promote(move));
 
-			ASSERT_LV3(pos.pseudo_legal(move) && pos.legal_promote(move));
+			if (move == excludedMove)
+				continue;
 
-			if (move != excludedMove && pos.legal(move))
+			if (!pos.legal(move))
+				continue;
+
+			//ASSERT_LV3(pos.capture_stage(move));
+			// moveとして歩の成りも返ってくるが、これがcapture_stage()と一致するとは限らない。
+			// MovePickerはprob cutの時に、
+			// (GenerateAllLegalMovesオプションがオンであっても)歩の成らずは返してこないことを保証すべき。
+
+			movedPiece      = pos.moved_piece_after(move);
+			captured        = pos.piece_on(move.to_sq());
+
+			// Prefetch the TT entry for the resulting position
+			//prefetch(TT.first_entry(pos.key_after(move)));
+			// → 将棋だとこのprefetch、効果がなさげなのでコメントアウト。
+
+			ss->currentMove         = move;
+			ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck][true])
+										(movedPiece, move.to_sq());
+			//ss->continuationCorrectionHistory =
+			//	&this->continuationCorrectionHistory[movedPiece][move.to_sq()];
+
+			// TODO:あとで
+			//thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
+			pos.do_move(move, st);
+
+			// Perform a preliminary qsearch to verify that the move holds
+			// この指し手がよさげであることを確認するための予備的なqsearch
+
+			value = -qsearch<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1);
+
+			// If the qsearch held, perform the regular search
+			// よさげであったので、普通に探索する
+
+			if (value >= probCutBeta)
+				value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, depth - 4, !cutNode);
+
+			pos.undo_move(move);
+
+			if (value >= probCutBeta)
 			{
-				//ASSERT_LV3(pos.capture_stage(move));
-				// moveは歩の成りも返ってくるが、これがcapture_stage()と一致するとは限らない。
+				thisThread->captureHistory(movedPiece, move.to_sq(), type_of(captured))
+					<< stat_bonus(depth - 2);
 
-				// ※　MovePickerはprob cutの時に、
-				// (GenerateAllLegalMovesオプションがオンであっても)歩の成らずは返してこないことは保証している。
+				// Save ProbCut data into transposition table
+				// ProbCutのdataを置換表に保存する。
 
-				// Prefetch the TT entry for the resulting position
-                //prefetch(TT.first_entry(pos.key_after(move)));
-				// → 将棋だとこのprefetch、効果がなさげなのでコメントアウト。
+				ttWriter.write(posKey, value_to_tt(value, ss->ply),
+					ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval, TT.generation());
 
-				ss->currentMove = move;
-				ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck                      ]
-																		   [/*/true*/pos.capture_stage(move)])
-																			(pos.moved_piece_after(move)      ,
-																			move.to_sq()                      );
-
-				pos.do_move(move, st);
-
-				// Perform a preliminary qsearch to verify that the move holds
-				// この指し手がよさげであることを確認するための予備的なqsearch
-
-				value = -qsearch<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1);
-
-				// If the qsearch held, perform the regular search
-				// よさげであったので、普通に探索する
-
-				if (value >= probCutBeta)
-					value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, depth - 4, !cutNode);
-
-				pos.undo_move(move);
-
-				if (value >= probCutBeta)
-				{
-	                // Save ProbCut data into transposition table
-					// ProbCutのdataを置換表に保存する。
-
-					ttWriter.write(posKey, value_to_tt(value, ss->ply),
-						ss->ttPv, BOUND_LOWER, depth - 3, move, ss->staticEval,TT.generation());
-
-					return std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY
-								? value - (probCutBeta - beta)
-								: value;
-				}
+				return std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY
+							? value - (probCutBeta - beta)
+							: value;
 			}
 
 		} // end of while
@@ -2377,29 +2388,20 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	}
 
-	// When in check, search starts here
-	// 王手がかかっている局面では、探索はここから始まる。
-moves_loop:
-
-	// このノードでまだ評価関数を呼び出していないなら、呼び出して差分計算しないといけない。
-	// (やねうら王独自仕様)
-	// do_move()で行っている評価関数はこの限りではないが、NNUEでも
-	// このタイミングで呼び出したほうが高速化するようなので呼び出す。
-	Eval::evaluate_with_no_return(pos);
+moves_loop: // When in check, search starts here
+	        // 王手がかかっている局面では、探索はここから始まる。
 
 	// -----------------------
 	// Step 12. A small Probcut idea, when we are in check (~4 Elo)
+	// Step 12. 王手がかかっている局面のときに用いる小さなProbcutのアイデア（約4 Elo）
 	// -----------------------
 
-	probCutBeta = beta + PARAM_PROBCUT_MARGIN3;
-	if (   ss->inCheck
-		&& !PvNode
-		&& ttCapture
-		&& (ttData.bound & BOUND_LOWER)
+	probCutBeta = beta + PARAM_PROBCUT_MARGIN3/*379*/;
+	if (  (ttData.bound & BOUND_LOWER)
 		&& ttData.depth >= depth - 4
 		&& ttData.value >= probCutBeta
+		&& std::abs(beta)         < VALUE_TB_WIN_IN_MAX_PLY
 		&& std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY
-		&& std::abs(beta)		  < VALUE_TB_WIN_IN_MAX_PLY
 		)
 		return probCutBeta;
 
@@ -2432,13 +2434,14 @@ moves_loop:
 	// -----------------------
 	// Step 13. Loop through all pseudo-legal moves until no moves remain
 	//			or a beta cutoff occurs.
+	// Step 13. 擬似合法手をすべてループし、手がなくなるか
+	//          もしくはbetaカットオフが発生するまで繰り返します。
 	// -----------------------
 
-	//  一手ずつ調べていく
-
-	//  指し手がなくなるか、beta cutoffが発生するまで、すべての指し手を調べる。
-	//  MovePickerが返す指し手はpseudo-legalであることは保証されている。
-	// ※　do_move()までにはlegalかどうかの判定が必要。
+	// ■ 備考
+	// 
+	//    MovePickerが返す指し手はpseudo-legalであることは保証されている。
+	//    ※　do_move()までにはlegalかどうかの判定が必要。
 
 	// moveCountPruningがtrueの時はnext_move()はQUIETの指し手を返さないので注意。
 	while ((move = mp.next_move(moveCountPruning)) != Move::none())
@@ -2473,7 +2476,7 @@ moves_loop:
 		//  thisThread->rootMoves.end() + thisThread->pvLast となっているが
 		// 将棋ではこの処理不要なのでやねうら王ではpvLastは使わない。
 		if (rootNode && !std::count(thisThread->rootMoves.begin() + thisThread->pvIdx,
-									thisThread->rootMoves.end()   , move))
+									thisThread->rootMoves.end()                      , move))
 			continue;
 
 		// do_move()した指し手の数のインクリメント
@@ -2481,11 +2484,12 @@ moves_loop:
 
 		// Stockfish本家のこの読み筋の出力、細かすぎるので時間をロスする。しないほうがいいと思う。
 #if 0
-	// 3秒以上経過しているなら現在探索している指し手をGUIに出力する。
-		if (rootNode && !Limits.silent && thisThread == Threads.main() && Time.elapsed() > 3000)
-			sync_cout << "info depth " << depth
-			<< " currmove " << move
-			<< " currmovenumber " << moveCount + thisThread->pvIdx << sync_endl;
+		// 10000000node以上探索しているなら現在探索している指し手をGUIに出力する。
+		if (rootNode && is_mainthread() && nodes > 10000000)
+		{
+			main_manager()->updates.onIter(
+				{ depth, UCIEngine::move(move, pos.is_chess960()), moveCount + thisThread->pvIdx });
+		}
 #endif
 
 		// 次のnodeのpvをクリアしておく。
@@ -2494,14 +2498,13 @@ moves_loop:
 
 		// -----------------------
 		//      extension
+		//      探索の延長
 		// -----------------------
 
-		//
-		// Extend checks
-		//
-
+		// 今回延長する残り探索深さ
 		extension  = 0;
 
+		// 今回捕獲する駒
 		capture    = pos.capture_stage(move);
 
 		// 今回移動させる駒(移動後の駒)
@@ -2520,11 +2523,11 @@ moves_loop:
 
 		// -----------------------
 		// Step 14. Pruning at shallow depth (~120 Elo).
+		// Step 14. (残り探索深さが)浅い深さでの枝刈り（約120 Elo）
 		// -----------------------
-		// Depth conditions are important for mate finding.
-		// 深さの条件は詰みを見つける上で非常に重要
 
-		// 浅い深さでの枝刈り。深さの条件は詰みの発見のために重要である。
+		// Depth conditions are important for mate finding.
+		// (残り探索)深さの条件は詰みを見つける上で重要である
 
 		if (  !rootNode
 			// 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
@@ -2533,39 +2536,48 @@ moves_loop:
 			)
 		{
 			// Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~8 Elo)
-			// もしmovecountがFutilityMoveCountのしきい値を超えていたなら、quietな指し手をskipする。
-			// ※　moveCountPruningとはmoveCountベースの枝刈りを実行するかどうかのフラグ
-			if (!moveCountPruning)
-				moveCountPruning = moveCount >= futility_move_count(improving, depth);
+			// movecountがFutilityMoveCountの閾値を超えた場合、quietの手をスキップします。（約8 Elo）
+			// ※ moveCountPruningとはmoveCountベースの枝刈りを実行するかどうかのフラグ
+
+			moveCountPruning = moveCount >= futility_move_count(improving, depth);
 
 			// Reduced depth of the next LMR search
-			// 次のLMR探索における軽減された深さ
+			// 次のLMR探索における減らさたあとの深さ
+
 			int lmrDepth = newDepth - r;
 
-			if (   capture || givesCheck)
+			if (capture || givesCheck)
 			{
+				Piece capturedPiece = pos.piece_on(move.to_sq());
+				int   captHist      = thisThread->captureHistory(movedPiece, move.to_sq(), type_of(capturedPiece));
+
 				// Futility pruning for captures (~2 Elo)
+				// 駒を取る指し手に対するfutility枝刈り(約2 Elo)
+
 				if (!givesCheck && lmrDepth < 7 && !ss->inCheck)
 				{
-					Piece capturedPiece = pos.piece_on(move.to_sq());
 					// TODO : ここのパラメーター、調整すべきか？ 2 Eloだから無視していいか…。
-					int   futilityEval =
-						ss->staticEval + PARAM_FUTILITY_EVAL1 + PARAM_FUTILITY_EVAL2 * lmrDepth + CapturePieceValuePlusPromote(pos, move)
-						+ thisThread->captureHistory(movedPiece, move.to_sq(), type_of(capturedPiece)) / 7;
+					int   futilityValue = ss->staticEval
+						+ PARAM_FUTILITY_EVAL1/*300*/
+						+ PARAM_FUTILITY_EVAL2/*238*/ * lmrDepth
+						+ captHist / 7;
 
-					if (futilityEval < alpha)
+					if (futilityValue <= alpha)
 						continue;
 				}
 
 				// SEE based pruning for captures and checks (~11 Elo)
-				if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1) * depth))
+				// 駒取りや王手に対するSEE（静的交換評価）に基づく枝刈り（約11 Elo）
+
+				int seeHist = std::clamp(captHist / 32, -159 * depth, 160 * depth);
+
+				if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1/*167*/) * depth))
 					continue;
 			}
 			else
 			{
 				int history = (*contHist[0])(movedPiece, move.to_sq())
 							+ (*contHist[1])(movedPiece, move.to_sq())
-							+ (*contHist[3])(movedPiece, move.to_sq())
 #if defined(ENABLE_PAWN_HISTORY)
 							+ thisThread->pawnHistory(pawn_structure(pos), movedPiece, move.to_sq())
 #endif
@@ -2574,28 +2586,28 @@ moves_loop:
 				// Continuation history based pruning (~2 Elo)
 				// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip)
 
-				if (lmrDepth < PARAM_PRUNING_BY_HISTORY_DEPTH && history < -4195 * depth)
+				if (history < -4071 * depth)
 					continue;
 
 				history += 2 * thisThread->mainHistory(us, move.from_to());
 
-				lmrDepth += history / 6992;
+				lmrDepth += history / 3653;
 
 				// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
 				// →　パラメーター調整の係数を調整したほうが良いのかも知れないが、
 				// 　ここ、そんなに大きなEloを持っていないので、調整しても…。
 
 				Value futilityValue =
-					ss->staticEval + (bestValue < ss->staticEval - 59 ? 141 : 58) + 125 * lmrDepth;
+					ss->staticEval + (bestValue < ss->staticEval - 51 ? 145 : 49) + 144 * lmrDepth;
 
 				// Futility pruning: parent node (~13 Elo)
-				if (!ss->inCheck && lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH && futilityValue <= alpha)
+				if (!ss->inCheck && lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*12*/ && futilityValue <= alpha)
 				{
 					if (bestValue <= futilityValue
 						&& std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY
 						&& futilityValue       < VALUE_TB_WIN_IN_MAX_PLY
 						)
-						bestValue = (bestValue + futilityValue * 3) / 4;
+						bestValue = futilityValue;
 					continue;
 				}
 
@@ -2609,8 +2621,10 @@ moves_loop:
 				lmrDepth = std::max(lmrDepth, 0);
 
 				// Prune moves with negative SEE (~4 Elo)
-				// lmrDepthの2乗に比例するのでこのパラメーターの影響はすごく大きい。
-				if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
+				// 負のSEEを持つ指し手を枝刈りする(約4 Elo)
+				// ⇨ lmrDepthの2乗に比例するのでこのパラメーターの影響はすごく大きい。
+
+				if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*24*/ * lmrDepth * lmrDepth)))
 					continue;
 			}
 		}
