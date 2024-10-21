@@ -1358,7 +1358,18 @@ void Thread::search()
 
 				// 前回からdepthが増えたかのチェック。
 				// depthが増えて行っていないなら、同じ深さで再度探索する。
+#if defined(USE_INCREASE_DEPTH14)
+
+				// ここは固定秒での対局であっても、探索に影響する。
+
+				// Stockfish 14ではtotalTime * 0.58、Stockfish 16では totalTime * 0.50となっている。
+				// Stockfish 14の方の定数が勝る？(V7.74taya-t3 VS V7.74taya-t4)
+				// ※ ここはパラメーター調整すべき。
+
+				else if (!mainThread->ponder && Time.elapsed() > totalTime * 0.58)
+#else
 				else if (!mainThread->ponder && Time.elapsed() > totalTime * 0.50)
+#endif
 					Threads.increaseDepth = false;
 				else
 					Threads.increaseDepth = true;
@@ -1944,7 +1955,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 			ASSERT_LV3(pos.legal_promote(move));
 			/*
-			if (excludedMove)
+			if (!excludedMove)
 				ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT,
 					std::min(MAX_PLY - 1, depth + 6),
 					is_ok(move) ? move : MOVE_NONE, // MOVE_WINはMOVE_NONEとして書き出す。
@@ -1974,12 +1985,32 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	Value unadjustedStaticEval = VALUE_NONE;
 
+	// この局面で評価関数を呼び出したのか。(do_move()までには呼ばないと駄目)
+	// ※ やねうら王開発版にて独自追加
+	bool evaluated = false;
+	auto evaluate = [&](Position& pos) { evaluated = true; return ::evaluate(pos); };
+	auto lazy_evaluate = [&](Position& pos) {
+#if defined(USE_LAZY_EVALUATE)
+		if (!evaluated)
+		{
+			evaluated = true;
+			evaluate_with_no_return(pos);
+		}
+#endif
+	};
+
 	if (ss->inCheck)
 	{
 		// Skip early pruning when in check
 		// 王手がかかっているときは、early pruning(早期枝刈り)をスキップする
 
+#if defined(USE_LAZY_EVALUATE)
+		// Stockfish 17相当のコード
 		ss->staticEval = eval = (ss - 2)->staticEval;
+#else
+		ss->staticEval = eval = evaluate(pos);
+#endif
+
 		improving             = false;
 		goto moves_loop;
 	}
@@ -1994,17 +2025,15 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
 		// TODO : → 今回のNNUEの計算は端折れるのか？
 
-#if !defined(EXCLUDED_MOVE_FORCE_EVALUATE)
+#if defined(USE_LAZY_EVALUATE)
+		// Stockfish 17のコード
 		unadjustedStaticEval = eval = ss->staticEval;
+#else
+		// unadjustedStaticEval = eval = ss->staticEval;
 		// null moveなのでssは一つ前の局面から動かしていない。(ss + 1ではなく ssをsearch()に渡している)
 		// ゆえにss->staticEvalで一つ前の局面でのevaluateの値が得られる。
-#else
-		unadjustedStaticEval = eval = ss->staticEval = evaluate(pos);
-		// ⇨ null moveなので、ss->staticEvalは親nodeでのstaticEvalをも指すので、
-		//   ここで破壊しないほうが良いのでは？
-		// ⇨ 本来はそうだと言えるのだけど、親nodeでss->staticEvalは、このnodeでreturnしたあと、
-		//   用いておらず、また、このnode以降で、ss->staticeEvalを参照するので
-		//   ここで更新しておいたほうが得であるようだ。
+
+		unadjustedStaticEval = eval = evaluate(pos);
 #endif
 
 		// ■ 備考
@@ -2024,7 +2053,11 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// TTに格納されている値に関して何も仮定はしない
 
 		unadjustedStaticEval = ttData.eval;
+
+#if defined(USE_LAZY_EVALUATE)
+		// Stockfish 17のコード
 		if (unadjustedStaticEval == VALUE_NONE)
+			// TT raceで破壊されてるっぽい？
 			unadjustedStaticEval =
 			// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
 			evaluate(pos);
@@ -2032,13 +2065,14 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
 		// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 
-#if defined(EXCLUDED_MOVE_FORCE_EVALUATE)
-
 		else if (PvNode)
 			//		Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
 			// → TODO : hint_common_parent_position()実装するか検討する。
 			unadjustedStaticEval = evaluate(pos);
-
+		// ないほうがいいか？ ⇨ V836dev_oとV836dev_pの比較
+		// ⇨ スレッド数が多くてTT raceが起きやすいと違うかもな…。
+#else
+		unadjustedStaticEval = evaluate(pos);
 #endif
 
 		ss->staticEval = eval =
@@ -2195,7 +2229,6 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 		return beta + (eval - beta) / 3;
 
-
 	// -----------------------
 	// Step 9. Null move search with verification search (~35 Elo)
 	// Step 9. 検証探索を伴うnull move探索（約35 Elo）
@@ -2230,6 +2263,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// ここでは現局面で手番側に王手がかかっていない = 直前の指し手(非手番側)は王手ではない ことがわかっている。
 		// do_null_move()は、この条件を満たす必要がある。
 
+		lazy_evaluate(pos);
 		pos.do_null_move(st);
 
 		Value nullValue = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, false);
@@ -2369,6 +2403,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 			// TODO:あとで
 			//thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
+
+			lazy_evaluate(pos);
 			pos.do_move(move, st);
 
 			// Perform a preliminary qsearch to verify that the move holds
@@ -2409,12 +2445,6 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 moves_loop: // When in check, search starts here
 	        // 王手がかかっている局面では、探索はここから始まる。
-
-	// このノードでまだ評価関数を呼び出していないなら、呼び出して差分計算しないといけない。
-	// (やねうら王独自仕様)
-	// do_move()で行っている評価関数はこの限りではないが、NNUEでも
-	// このタイミングで呼び出したほうが高速化するようなので呼び出す。
-	Eval::evaluate_with_no_return(pos);
 
 	// -----------------------
 	// Step 12. A small Probcut idea, when we are in check (~4 Elo)
@@ -2863,6 +2893,7 @@ moves_loop: // When in check, search starts here
 		// -----------------------
 
 		// 指し手で1手進める
+		lazy_evaluate(pos);
 		pos.do_move(move, st, givesCheck);
 
 		// These reduction adjustments have proven non-linear scaling.
@@ -3053,7 +3084,6 @@ moves_loop: // When in check, search starts here
 		// -----------------------
 		// Step 20. Check for a new best move
 		// -----------------------
-
 
 		// Finished searching the move. If a stop occurred, the return value of
 		// the search cannot be trusted, and we return immediately without
@@ -3573,6 +3603,15 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	// 置換表に書いてあったevalの値をなるべく壊さずに保存するための変数
 	Value unadjustedStaticEval = VALUE_NONE;
+	bool evaluated = false;
+	auto evaluate = [&](Position& pos) { evaluated = true; return ::evaluate(pos); };
+	auto lazy_evaluate = [&](Position& pos) {
+		if (!evaluated)
+		{
+			evaluated = true;
+			evaluate_with_no_return(pos);
+		}
+	};
 
 	if (ss->inCheck)
 	{
@@ -3751,10 +3790,6 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 #endif
 										,ss->ply);
 
-	// このあとnodeを展開していくので、evaluate()の差分計算ができないと速度面で損をするから、
-	// evaluate()を呼び出していないなら呼び出しておく。
-	Eval::evaluate_with_no_return(pos);
-
 	// Step 5. Loop through all pseudo-legal moves until no moves remain
 	// or a beta cutoff occurs.
 
@@ -3908,6 +3943,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	    // Step 7. Make and search the move
 		// 1手動かして、再帰的にqsearch()を呼ぶ
+		lazy_evaluate(pos);
 		pos.do_move(move, st, givesCheck);
 		value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha, depth - 1);
 		pos.undo_move(move);
