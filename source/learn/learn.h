@@ -223,12 +223,12 @@ namespace Learner
 
 	// 読み筋とそのときの評価値を返す型
 	// Learner::search() , Learner::qsearch()で用いる。
-	typedef std::pair<Value, std::vector<Move> > ValueAndPV;
+	typedef std::pair<Value, std::vector<Move> > ValuePV;
 
 	// いまのところ、YANEURAOU_ENGINEしか、このスタブを持っていないが
 	// EVAL_LEARNをdefineするなら、このスタブが必須。
-	Learner::ValueAndPV  search(Position& pos, int depth , size_t multiPV = 1 , u64 NodesLimit = 0);
-	Learner::ValueAndPV qsearch(Position& pos);
+	Learner::ValuePV  search(Position& pos, int depth , size_t multiPV = 1 , u64 NodesLimit = 0);
+	Learner::ValuePV qsearch(Position& pos);
 
 	double calc_grad(Value shallow, const PackedSfenValue& psv);
 

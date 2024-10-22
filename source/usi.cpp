@@ -109,10 +109,10 @@ namespace Learner
 #endif
 
   // 読み筋と評価値のペア。Learner::search(),Learner::qsearch()が返す。
-  typedef std::pair<Value, std::vector<Move> > ValueAndPV;
+  typedef std::pair<Value, std::vector<Move> > ValuePV;
 
-  ValueAndPV qsearch(Position& pos);
-  ValueAndPV search(Position& pos, int depth_, size_t multiPV = 1 , u64 nodesLimit = 0 );
+  ValuePV qsearch(Position& pos);
+  ValuePV search(Position& pos, int depth_, size_t multiPV = 1 , u64 nodesLimit = 0 );
 
 }
 #endif

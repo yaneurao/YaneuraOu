@@ -44,7 +44,6 @@ Thread::~Thread()
 void Thread::clear()
 {
 #if defined(USE_MOVE_PICKER)
-	counterMoves.fill(Move::none());
 	mainHistory.fill(0);
 	captureHistory.fill(0);
 #if defined(ENABLE_PAWN_HISTORY)

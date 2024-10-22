@@ -837,7 +837,7 @@ namespace Eval
 
 		// 返す値の絶対値がVALUE_MAX_EVALを超えてないことを保証しないといけないのだが…。
 		// いまの評価関数、手番を過学習したりして、ときどき超えてそう…。
-		//ASSERT_LV3(abs(v) < VALUE_MAX_EVAL);
+		//ASSERT_LV3(abs(v) < =VALUE_MAX_EVAL);
 
 		return v;
 	}

@@ -200,44 +200,6 @@ struct LowPlyHistory
 	Stats<int16_t, D, Move::FROM_TO_SIZE, LOW_PLY_HISTORY_SIZE> stats;
 };
 
-
-// CounterMoveHistory stores counter moves indexed by [piece][to] of the previous
-// move, see www.chessprogramming.org/Countermove_Heuristic
-// CounterMoveHistoryは、直前の指し手の[piece][to]によってindexされるcounter moves(応手)を格納する。
-// cf. http://chessprogramming.wikispaces.com/Countermove+Heuristic
-
-//using CounterMoveHistory = Stats<Move, NOT_USED, PIECE_NB, SQUARE_NB>;
-
-struct CounterMoveHistory
-{
-	using T = Move;                    // StatsEntryの型
-	static constexpr int D = NOT_USED; // StatsEntryの範囲
-
-	//
-	// メモ)
-	// StockfishのMove、移動させる駒の情報は持っていないのだが、
-	// 将棋でもMove16で十分である可能性はある。
-	//
-
-	// 必ず以下のアクセッサを通してアクセスすること。
-	// ※ 引数の順番は、Stockfishの配列の添字の順番と合わせてある。
-
-	const StatsEntry<T, D>& operator() (Piece pc, Square sq) const {
-        return stats[sq][pc];
-    }
-
-	StatsEntry<T, D>& operator() (Piece pc, Square sq) {
-        return stats[sq][pc];
-    }
-
-	void fill(T t) { stats.fill(t); }
-
-private:
-	// ※　Stockfishとは、添字の順番を入れ替えてあるので注意。
-	//    やねうら王の実際の格納配列(stats)では、[to][piece]の順。
-	Stats<T, D , SQUARE_NB, PIECE_NB> stats;
-};
-
 // CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
 // CapturePieceToHistoryは、指し手の [piece][to][captured piece type]で示される。
 

@@ -189,7 +189,6 @@ public:
 
 #if defined(USE_MOVE_PICKER)
 	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
-	CounterMoveHistory counterMoves;
 	ButterflyHistory mainHistory;
 	LowPlyHistory lowPlyHistory;
 	CapturePieceToHistory captureHistory;
