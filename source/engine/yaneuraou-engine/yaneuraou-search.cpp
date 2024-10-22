@@ -207,7 +207,7 @@ Value futility_margin(Depth d, bool noTtCutNode, bool improving, bool oppWorseni
 
 // Reductions lookup table initialized at startup
 // 探索深さを減らすためのReductionテーブル。起動時に初期化する。
-int Reductions[MAX_MOVES]; // [depth or moveNumber]
+std::array<int,MAX_MOVES> reductions; // [depth or moveNumber]
 
 // 残り探索深さをこの深さだけ減らす。d(depth)とmn(move_count)
 // i(improving)とは、評価値が2手前から上がっているかのフラグ。上がっていないなら
@@ -215,7 +215,7 @@ int Reductions[MAX_MOVES]; // [depth or moveNumber]
 // delta, rootDelta は、staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やしたいので、
 // そのためのフラグ。(これがtrueだとreduction量が1増える)
 Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
-	int reductionScale = Reductions[d] * Reductions[mn];
+	int reductionScale = reductions[d] * reductions[mn];
 	return (reductionScale + PARAM_REDUCTION_ALPHA/*1239*/ - int(delta) * PARAM_REDUCTION_GAMMA/*795*/ / int(rootDelta)) / 1024
 		+ (!i && reductionScale > PARAM_REDUCTION_BETA/*1341*/);
 	// PARAM_REDUCTION_BETAの値、将棋ではもう少し小さくして、reductionの適用範囲を広げた方がいいかも？
@@ -470,8 +470,8 @@ void Search::clear()
 	#endif
 		;
 
-	for (int i = 1; i < MAX_MOVES; ++i)
-		Reductions[i] = int((PARAM_REDUCTIONS_PARAM1 / 100.0 /*(100で割ったあとの数値が)20.37*/  + std::log(THREAD_SIZE) / 2) * std::log(i));
+	for (size_t i = 1; i < reductions.size(); ++i)
+		reductions[i] = int((PARAM_REDUCTIONS_PARAM1 / 100.0 /*(100で割ったあとの数値が)18.43*/  + std::log(THREAD_SIZE) / 2) * std::log(i));
 		// TODO あとで
 
 	// ここ、log(THREAD_SIZE)/2 の /2 のところ、何か良さげな係数を掛けて調整すべきだと思う。
@@ -3505,13 +3505,17 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	ASSERT_LV3(PvNode || (alpha == beta - 1));
 	ASSERT_LV3(depth <= 0);
 
-	//// Check if we have an upcoming move that draws by repetition (~1 Elo)
-	//if (alpha < VALUE_DRAW && pos.upcoming_repetition(ss->ply))
-	//{
-	//	alpha = value_draw(this->nodes);
-	//	if (alpha >= beta)
-	//		return alpha;
-	//}
+	/*
+	// Check if we have an upcoming move that draws by repetition (~1 Elo)
+	// 反復による引き分けとなる可能性のある次の手があるかを確認する (約1 Elo)
+
+	if (alpha < VALUE_DRAW && pos.upcoming_repetition(ss->ply))
+	{
+		alpha = value_draw(this->nodes);
+		if (alpha >= beta)
+			return alpha;
+	}
+	*/
 
 	// ⇨ Stockfishではここで上記のように千日手に突入できるかのチェックがあるようだが
 	// 将棋でこれをやっても強くならないので導入しない。
@@ -3555,11 +3559,10 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	Color us = pos.side_to_move();
 
 	// -----------------------
-	//     nodeの初期化
-	// -----------------------
-
 	// Step 1. Initialize node
 	// Step 1. ノードの初期化
+	// -----------------------
+
 
 	if (PvNode)
 	{
@@ -3580,11 +3583,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
         thisThread->selDepth = ss->ply + 1;
 
 	// -----------------------
-	//    最大手数へ到達したか？
-	// -----------------------
-
 	// Step 2. Check for an immediate draw or maximum ply reached
 	// Step 2. 即座に引き分けになるか、最大のply(手数)に達していないかを確認します。
+	// -----------------------
 
 	// 千日手チェックは、MovePickerでcaptures(駒を取る指し手しか生成しない)なら、
 	// 千日手チェックしない方が強いようだ。
@@ -3620,11 +3621,10 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	//											      : DEPTH_QS_NORMAL;
 
 	// -----------------------
-	//     置換表のprobe
-	// -----------------------
-
 	// Step 3. Transposition table lookup
 	// Step 3. 置換表のlookup
+	// -----------------------
+
 
 	posKey  = pos.hash_key();
 	auto [ttHit, ttData, ttWriter] = TT.probe(posKey, pos);
@@ -3632,8 +3632,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// Need further processing of the saved data
 	// 保存されたデータのさらなる処理が必要です
 
-	ss->ttHit = ttHit;
-
+	ss->ttHit    = ttHit;
 	ttData.move  = ttHit ? ttData.move : Move::none();
 	ttData.value = ttHit ? value_from_tt(ttData.value, ss->ply /* pos.rule50_count() */) : VALUE_NONE;
 	pvHit        = ttHit && ttData.is_pv;
@@ -3669,11 +3668,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		return ttData.value;
 
 	// -----------------------
-	//     eval呼び出し
-	// -----------------------
-
 	// Step 4. Static evaluation of the position
 	// Step 4. この局面の静止評価
+	// -----------------------
 
 	// 置換表に書いてあったevalの値をなるべく壊さずに保存するための変数
 	Value unadjustedStaticEval = VALUE_NONE;
@@ -3714,8 +3711,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			unadjustedStaticEval = ttData.eval;
 			if (unadjustedStaticEval == VALUE_NONE)
 				unadjustedStaticEval =
-				// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
-				evaluate(pos);
+					// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
+					evaluate(pos);
 
 			ss->staticEval = bestValue =
 				// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss );
@@ -3728,8 +3725,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			ss->staticEval = bestValue = unadjustedStaticEval = evaluate(pos);
 #endif
 
-			// ttValue can be used as a better position evaluation (~7 Elo)
-			// ttValueは、より良い局面評価として使用できます（約7 Elo）
+			// ttValue can be used as a better position evaluation (~13 Elo)
+			// ttValueは、より良い局面評価として使用できます（約13 Elo）
 
 			// ■ 備考
 			//
@@ -3746,8 +3743,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				&& (ttData.bound & (ttData.value > bestValue ? BOUND_LOWER : BOUND_UPPER)))
 				bestValue = ttData.value;
 
-		} else {
-
+		}
+		else
+		{
 			// -----------------------
 			//      一手詰め判定
 			// -----------------------
@@ -3774,13 +3772,14 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 #if defined(WRITE_QSEARCH_MATE1PLY_TO_TT)
 					ttWriter.write(posKey, bestValue , ss->ttPv, BOUND_EXACT,
 						std::min(MAX_PLY - 1, depth + 6), move, unadjustedStaticEval, TT.generation());
-#endif
+
 					// ⇨ 置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
 					// ⇨ 再度テスト(V8.36dev-d vs V8.36dev-e)
+					// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない可能性がある。
+#endif
 
 					return bestValue;
 				}
-				// このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない。
 			}
 
 			// 王手がかかっていないなら置換表の指し手を持ってくる
@@ -3788,15 +3787,20 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// In case of null move search, use previous static eval with a different sign
 			// Null Move探索の場合、前回の静的評価を符号を反転させて使用する。
 
-			// 置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
-			// NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
-			// NULL_MOVEしているということは王手がかかっていないということであり、前の局面でevaluate()は呼び出しているから
-			// StateInfo.sumは更新されていて、そのあとdo_null_move()ではStateInfoが丸ごとコピーされるから、現在のpos.state().sumは
-			// 正しい値のはず。
+			// ■ 備考
+			// 
+			//   置換表がhitしなかった場合、bestValueの初期値としてevaluate()を呼び出すしかないが、
+			//   NULL_MOVEの場合は前の局面での値を反転させると良い。(手番を考慮しない評価関数であるなら)
+			//   NULL_MOVEしているということは王手がかかっていないということであり、前の局面でevaluate()は呼び出しているから
+			//   StateInfo.sumは更新されていて、そのあとdo_null_move()ではStateInfoが丸ごとコピーされるから、現在のpos.state().sumは
+			//   正しい値のはず。
 
 #if defined(USE_LAZY_EVALUATE)
 			unadjustedStaticEval =
-				(ss - 1)->currentMove != Move::null() ? evaluate(pos) : -(ss - 1)->staticEval;
+				(ss - 1)->currentMove != Move::null()
+				//? evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us])
+				  ? evaluate(pos)
+				  : -(ss - 1)->staticEval;
 #else
 			unadjustedStaticEval = evaluate(pos);
 #endif
@@ -3822,8 +3826,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		// ■ 補足
 		// 
-		// 現在のbestValueは、この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
-		// 王手がかかっていないケースにおいては、この時点での静的なevalの値がbetaを上回りそうならこの時点で帰る。
+		//   現在のbestValueは、この局面で何も指さないときのスコア。recaptureすると損をする変化もあるのでこのスコアを基準に考える。
+		//   王手がかかっていないケースにおいては、この時点での静的なevalの値がbetaを上回りそうならこの時点で帰る。
 
 		if (bestValue >= beta)
 		{
@@ -3846,7 +3850,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		// futilityの基準となる値をbestValueにmargin値を加算したものとして、
 		// これを下回るようであれば枝刈りする。
-		futilityBase = ss->staticEval + PARAM_FUTILITY_MARGIN_QUIET;
+		futilityBase = ss->staticEval + PARAM_FUTILITY_MARGIN_QUIET/*280*/;
 
 	}
 
@@ -3865,8 +3869,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// the moves. We presently use two stages of move generator in quiescence search:
 	// captures, or evasions only when in check.
 
-	// 現在の局面に対してMovePickerオブジェクトを初期化し、手を探索する準備を行います。
-	// 現在、静止探索では2段階の手生成器を使用しています：キャプチャ、またはチェックされた場合の回避のみです。
+	// 現在の局面に対して MovePicker オブジェクトを初期化し、指し手の探索を準備します。
+	// 現在、静止探索では2段階の指し手生成を使用しています：
+	// captures(駒を取る指し手)、またはevasions(王手の回避)のみです。
 
 	MovePicker mp(pos, ttData.move, DEPTH_QS, &thisThread->mainHistory, &thisThread->lowPlyHistory,
 										&thisThread->captureHistory, contHist
@@ -3875,11 +3880,12 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 #endif
 										,ss->ply);
 
-	// Step 5. Loop through all pseudo-legal moves until no moves remain
-	// or a beta cutoff occurs.
-
-	// 指し手が尽きるか、beta cutが起きるまで、
-	// すべてのpseudo-legalな指し手に対してloopする。
+	// -----------------------
+	// Step 5. Loop through all pseudo-legal moves until no moves remain or a beta
+	// cutoff occurs.
+	// Step 5. 疑似合法手をすべてループ処理し、手が残らなくなるか、
+	// ベータカットオフが発生するまで続けます。
+	// -----------------------
 
 	while ((move = mp.next_move()) != Move::none())
 	{
@@ -3887,24 +3893,28 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		ASSERT_LV3(pos.pseudo_legal(move) && pos.legal_promote(move));
 
 		// Check for legality
-		// 指し手の合法性の判定は直前まで遅延させたほうが得だと思われていたのだが
-		// (これが非合法手である可能性はかなり低いので他の判定によりskipされたほうが得)
-		// Stockfish14から、静止探索でも、早い段階でlegal()を呼び出すようになった。
+		// 合法手かどうかのチェック
+		// 
+		// ■ 備考
+		//
+		//   指し手の合法性の判定は直前まで遅延させたほうが得だと思われていたのだが
+		//   (これが非合法手である可能性はかなり低いので他の判定によりskipされたほうが得)
+		//   Stockfish14から、静止探索でも、早い段階でlegal()を呼び出すようになった。
+
 		if (!pos.legal(move))
 			continue;
 
-		// -----------------------
 		//  局面を進める前の枝刈り
-		// -----------------------
 
 		givesCheck = pos.gives_check(move);
 		capture    = pos.capture_stage(move);
 
 		moveCount++;
 
-		//
+		// -----------------------
 		// Step 6. Pruning
-		//
+		// Step 6. 枝刈り
+		// -----------------------
 
 		// moveが王手にならない指し手であり、1手前で相手が移動した駒を取り返す指し手でもなく、
 		// 今回捕獲されるであろう駒による評価値の上昇分を
@@ -3916,13 +3926,13 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// Futility pruning and moveCount pruning (~10 Elo)
 			// futility枝刈りとmove countに基づく枝刈り（約10 Eloの向上）
 
-			if (   !givesCheck
-				&&  move.to_sq() != prevSq
-				&&  futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
+			if (!givesCheck
+				&& move.to_sq() != prevSq
+				&& futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
 				// &&  type_of(move) != PROMOTION
 				// この最後の条件、入れたほうがいいのか？
 				// →　入れない方が良さげ。(V7.74taya-t50 VS V7.74taya-t51)
-			)
+				)
 			{
 				// MoveCountに基づく枝刈り
 				if (moveCount > 2)
@@ -3932,23 +3942,25 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				// 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
 				Value futilityValue = futilityBase + CapturePieceValuePlusPromote(pos, move);
 
-				// →　これ、加算した結果、s16に収まらない可能性があるが、計算はs32で行って、そのあと、この値を用いないからセーフ。
+				// ⇨　これ、加算した結果、s16に収まらない可能性があるが、
+				//     計算はs32で行って、そのあと、この値を用いないからセーフ。
 
-                // If static eval + value of piece we are going to capture is much lower
-                // than alpha we can prune this move. (~2 Elo)
+				// If static eval + value of piece we are going to capture is much lower
+				// than alpha we can prune this move. (~2 Elo)
 
-				// futilityValueは今回捕獲するであろう駒の価値の分を上乗せしているのに
-				// それでもalpha値を超えないというとってもひどい指し手なので枝刈りする。
+				// 静的評価値とキャプチャする駒の価値を合わせたものがalphaより大幅に低い場合、
+				// この手を枝刈りすることができます (約2 Elo)。
+
 				if (futilityValue <= alpha)
 				{
 					bestValue = std::max(bestValue, futilityValue);
 					continue;
 				}
 
-				// ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
+				// ⇨ ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
 
-                // If static exchange evaluation is low enough
-                // we can prune this move. (~2 Elo)
+				// If static exchange evaluation is low enough
+				// we can prune this move. (~2 Elo)
 				// 静的交換評価が十分に低い場合、
 				// この手を枝刈りできます。（約2 Elo）
 
@@ -3957,40 +3969,31 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				//   futilityBaseはこの局面のevalにmargin値を加算しているのだが、
 				//   それがalphaを超えないのは、悪い手だろうから枝刈りしてしまう。
 
-                if (!pos.see_ge(move, alpha - futilityBase))
-                {
-                    bestValue = std::min(alpha, futilityBase);
-                    continue;
-                }
-
-
-
-				//
-				//  Detect non-capture evasions
-				//
-
-				// 駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
-				// 成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
-
-				/*
-				// If static exchange evaluation is much worse than what is needed to not
-				// fall below alpha we can prune this move
-				if (futilityBase > alpha && !pos.see_ge(move, (alpha - futilityBase) * 4))
+				if (!pos.see_ge(move, alpha - futilityBase))
 				{
-					bestValue = alpha;
+					bestValue = std::min(alpha, futilityBase);
 					continue;
 				}
-				*/
 			}
 
 
 			// Continuation history based pruning (~3 Elo)
-			// Continuation historyベースの枝刈り
+			// 継続履歴に基づく枝刈り (約3 Elo)
 			// ※ Stockfish12でqsearch()にも導入された。
-			if (   !capture
-				&& (*contHist[0])(pos.moved_piece_after(move), move.to_sq()) < 0
-				&& (*contHist[1])(pos.moved_piece_after(move), move.to_sq()) < 0
-				)
+
+			// ■ 備考
+			// 
+			//   駒を取らない王手回避の指し手はよろしくない可能性が高いのでこれは枝刈りしてしまう。
+			//   成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
+
+			if (!capture
+				&& (*contHist[0])(pos.moved_piece_after(move), move.to_sq())
+					+ (*contHist[1])(pos.moved_piece_after(move), move.to_sq())
+				/*
+					+ thisThread->pawnHistory[pawn_structure_index(pos)][pos.moved_piece(move)]
+					[move.to_sq()]
+				*/
+				<= 5036 /* TODO : ここ、調整すべき */)
 				continue;
 
 			// Do not search moves with bad enough SEE values (~5 Elo)
@@ -4001,7 +4004,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			//   歩損を許さないように +1 して、歩損する指し手は延長しないようにするほうがいいか？
 			//  →　 captureの時の歩損は、歩で取る、同角、同角みたいな局面なのでそこにはあまり意味なさげ。
 
-			if (!pos.see_ge(move, Value(- PARAM_BAD_ENOUGH_SEE_VALUE)))
+			if (!pos.see_ge(move, Value(-PARAM_BAD_ENOUGH_SEE_VALUE/*82*/)))
 				continue;
 		}
 
@@ -4011,6 +4014,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	    // Update the current move
 		// 現在このスレッドで探索している指し手を保存しておく。
+
 		ss->currentMove = move;
 
 		ss->continuationHistory = &(thisThread->continuationHistory [ss->inCheck                ]
@@ -4020,13 +4024,12 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		//ss->continuationCorrectionHistory =
 		//	&thisThread->continuationCorrectionHistory[pos.moved_piece(move)][move.to_sq()];
-		// ⇨ やねうら王では採用せず
 
 		// -----------------------
-		//     局面を1手進める
+		// Step 7. Make and search the move
+		// Step 7. 指し手で進め探索する
 		// -----------------------
 
-	    // Step 7. Make and search the move
 		// 1手動かして、再帰的にqsearch()を呼ぶ
 		lazy_evaluate(pos);
 		pos.do_move(move, st, givesCheck);
@@ -4061,44 +4064,46 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	}
 
 	// -----------------------
-	// 指し手を調べ終わった
+	// Step 9. Check for mate
+	// Step 9. 詰みの確認
 	// -----------------------
 
-	// Step 9. Check for mate
 	// All legal moves have been searched. A special case: if we are
 	// in check and no legal moves were found, it is checkmate.
 
-	// Step 9. 詰みの確認
 	// すべての合法手を探索しました。特別なケース: もし現在王手を受けていて、
 	// かつ合法手が見つからなかった場合、それはチェックメイト（詰み）です。
 
 	// ■ 補足
 	//
-	// 王手がかかっている状況ではすべての指し手を調べたということだから、これは詰みである。
-	// どうせ指し手がないということだから、次にこのnodeに訪問しても、指し手生成後に詰みであることは
-	// わかるわけだし、そもそもこのnodeが詰みだとわかるとこのnodeに再訪問する確率は極めて低く、
-	// 置換表に保存しても置換表を汚すだけでほとんど得をしない。(レアケースなのでほとんど損もしないが)
+	//   王手がかかっている状況ではすべての指し手を調べたということだから、これは詰みである。
+	//   どうせ指し手がないということだから、次にこのnodeに訪問しても、指し手生成後に詰みであることは
+	//   わかるわけだし、そもそもこのnodeが詰みだとわかるとこのnodeに再訪問する確率は極めて低く、
+	//   置換表に保存しても置換表を汚すだけでほとんど得をしない。(レアケースなのでほとんど損もしないが)
 		 
-	// ※　計測したところ、置換表に保存したほうがわずかに強かったが、有意差ではなさげだし、
-	// Stockfish10のコードが保存しないコードになっているので保存しないことにする。
+	//   ※　計測したところ、置換表に保存したほうがわずかに強かったが、有意差ではなさげだし、
+	//   Stockfish10のコードが保存しないコードになっているので保存しないことにする。
 
-	// 【計測資料 26.】 qsearchで詰みのときに置換表に保存する/しない。
+	//   【計測資料 26.】 qsearchで詰みのときに置換表に保存する/しない。
 
-	// チェスでは王手されていて、合法手がない時に詰みだが、将棋では、合法手がなければ詰みなので ss->inCheckの条件は不要かと思ったら、
-	// qsearch()で王手されていない時は、captures(駒を捕獲する指し手)とchecks(王手の指し手)の指し手しか生成していないから、
-	// moveCount==0だから詰みとは限らない。
+	//   チェスでは王手されていて、合法手がない時に詰みだが、将棋では、合法手がなければ詰みなので ss->inCheckの条件は不要かと思ったら、
+	//   qsearch()で王手されていない時は、captures(駒を捕獲する指し手)とchecks(王手の指し手)の指し手しか生成していないから、
+	//   moveCount==0だから詰みとは限らない。
 	// 
-	// 王手されている局面なら、evasion(王手回避手)を生成するから、moveCount==0なら詰みと確定する。
-	// しかし置換表にhitした時にはbestValueの初期値は -VALUE_INFINITEではないので、そう考えると
-	// ここは(Stockfishのコードのように)bestValue == -VALUE_INFINITEとするのではなくmoveCount == 0としたほうが良いように思うのだが…。
-	// →　置換表にhitしたのに枝刈りがなされていない時点で有効手があるわけで詰みではないことは言えるのか…。
-	// cf. https://yaneuraou.yaneu.com/2022/04/22/yaneuraous-qsearch-is-buggy/
+	//   王手されている局面なら、evasion(王手回避手)を生成するから、moveCount==0なら詰みと確定する。
+	//   しかし置換表にhitした時にはbestValueの初期値は -VALUE_INFINITEではないので、そう考えると
+	//   ここは(Stockfishのコードのように)bestValue == -VALUE_INFINITEとするのではなくmoveCount == 0としたほうが良いように思うのだが…。
+	//   →　置換表にhitしたのに枝刈りがなされていない時点で有効手があるわけで詰みではないことは言えるのか…。
+	//   cf. https://yaneuraou.yaneu.com/2022/04/22/yaneuraous-qsearch-is-buggy/
 
-	// if (ss->inCheck && bestValue == -VALUE_INFINITE)
-	// ↑Stockfishのコード。↓こう変更したほうが良いように思うが計測してみると大差ない。
-	// Stockfishも12年前は↑ではなく↓この書き方だったようだ。moveCountが除去された時に変更されてしまったようだ。
-	//  cf. https://github.com/official-stockfish/Stockfish/commit/452f0d16966e0ec48385442362c94a810feaacd9
-	// moveCountが再度導入されたからには、Stockfishもここは、↓の書き方に戻したほうが良いと思う。
+	// ■ 補足
+	// 
+	//   if (ss->inCheck && bestValue == -VALUE_INFINITE)
+	//     ↑Stockfishのコード。↓こう変更したほうが良いように思うが計測してみると大差ない。
+	//   Stockfishも12年前は↑ではなく↓この書き方だったようだ。moveCountが除去された時に変更されてしまったようだ。
+	//    cf. https://github.com/official-stockfish/Stockfish/commit/452f0d16966e0ec48385442362c94a810feaacd9
+	//   moveCountが再度導入されたからには、Stockfishもここは、↓の書き方に戻したほうが良いと思う。
+
 	if (ss->inCheck && moveCount == 0)
 	{
 		// 合法手は存在しないはずだから指し手生成してもすぐに終わるはず。
@@ -4108,9 +4113,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 								  // rootから詰みまでの手数。
 	}
 
-	if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY
-		&& bestValue >= beta)
-			bestValue = (3 * bestValue + beta) / 4;
+	if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY && bestValue >= beta)
+		bestValue = (3 * bestValue + beta) / 4;
 
 	// Save gathered info in transposition table. The static evaluation
 	// is saved as it was before adjustment by correction history.
@@ -4120,26 +4124,27 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	// ■ 補足
 	// 
-	// 詰みではなかったのでこれを書き出す。
-	// ※　qsearch()の結果は信用ならないのでBOUND_EXACTで書き出すことはない。
+	//   詰みではなかったのでこれを書き出す。
+	//   ※　qsearch()の結果は信用ならないのでBOUND_EXACTで書き出すことはない。
 
 	ASSERT_LV3(pos.legal_promote(bestMove));
 	ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), pvHit,
 				bestValue >= beta ? BOUND_LOWER : BOUND_UPPER, DEPTH_QS, bestMove,
 				unadjustedStaticEval, TT.generation());
 
-	// 置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
-	// しかし置換表が衝突した場合はそうではない。3手詰めの局面で、置換表衝突により1手詰めのスコアが
-	// 返ってきた場合がそれである。
-
-	// ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));
-
-	// このnodeはrootからss->ply手進めた局面なのでここでss->plyより短い詰みがあるのはおかしいが、
-	// この関数はそんな値を返してしまう。しかしこれは通常探索ならば次のnodeでの
-	// mate distance pruningで補正されるので問題ない。
-	// また、VALUE_INFINITEはint16_tの最大値よりMAX_PLY以上小さいなのでオーバーフローの心配はない。
+	// ■ 備考
+	// 
+	//   置換表には abs(value) < VALUE_INFINITEの値しか書き込まないし、この関数もこの範囲の値しか返さない。
+	//   しかし置換表が衝突した場合はそうではない。3手詰めの局面で、置換表衝突により1手詰めのスコアが
+	//   返ってきた場合がそれである。
 	//
-	// よってsearch(),qsearch()のassertは次のように書くべきである。
+	//   ASSERT_LV3(abs(bestValue) <= mate_in(ss->ply));
+	//   ⇨ このnodeはrootからss->ply手進めた局面なのでここでss->plyより短い詰みがあるのはおかしいが、
+	//   この関数はそんな値を返してしまう。しかしこれは通常探索ならば次のnodeでの
+	//   mate distance pruningで補正されるので問題ない。
+	//   また、VALUE_INFINITEはint16_tの最大値よりMAX_PLY以上小さいなのでオーバーフローの心配はない。
+	//
+	//   よってsearch(),qsearch()のassertは次のように書くべきである。
 
 	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
 

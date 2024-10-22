@@ -88,7 +88,7 @@ PARAM_DEFINE PARAM_FUTILITY_EVAL2 = 238;
 // 重要度　★★★★☆
 // 元の値 = Stockfish 14 : 200 , Stockfish 16 : 200 , Stockfish 17 : 280 , step = 20
 // [PARAM] min:50,max:300,step:30,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 170;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 280;
 
 // futility pruningの適用depth。
 // 重要度　★★★☆☆
@@ -229,10 +229,10 @@ PARAM_DEFINE PARAM_LMR_MARGIN2 = 13;
 
 // 重要度　★★☆☆☆
 // →　重要なパラメーターではあるが、下手にいじらないほうがよさげ。
-// 元の値 = Stockfish 14 : 95 , Stockfish 16 : 90 , step = 10
+// 元の値 = Stockfish 14 : 95 , Stockfish 16 : 90 , Stockfish 17 : 82 , step = 10
 // min:0,max:128,step:1,interval:1,time_rate:1,
 // [PARAM] min:50,max:200,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 90;
+PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 82;
 
 //
 // pruning by history
