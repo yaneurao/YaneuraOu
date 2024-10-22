@@ -195,16 +195,16 @@ PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 4;
 
 // singular extensionのsingular betaを計算するときのマージン
 // 重要度　★★★★☆
-// 元の値 = 64 , step = 8
+// 元の値 = Stockfish 16 : 64 , Stockfish 17 : 54 , step = 8
 // [PARAM] min:16,max:1024,step:4,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_SINGULAR_MARGIN1 = 64;
+PARAM_DEFINE PARAM_SINGULAR_MARGIN1 = 54;
 
 // singular extensionのsingular betaを計算するときの係数
 // 重要度　★★★★☆
 // 自己対局だとすごく強くなって見えるかもしれないが、まやかしである。
-// 元の値 = 57 , step = 8
+// 元の値 = Stockfish 16 : 57 , Stockfish 17 : 77 , step = 8
 // [PARAM] min:0,max:1024,step:8,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 57;
+PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 77;
 
 //
 // LMR
@@ -266,16 +266,6 @@ PARAM_DEFINE PARAM_ASPIRATION_SEARCH1 = 10;
 // [PARAM] min:10000,max:20000,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_ASPIRATION_SEARCH2 = 15335;
 
-
-// qsearch()でnull moveのときもevaluate()を呼び出す。
-// 重要度　★☆☆☆☆
-// この値が0(false)ならば、null moveのときはeval = 前局面にEval::Tempoを加算した値 とする。
-// 計測できる差にならない。
-// PARAM_EVAL_TEMPOを変動させていると(適正値から離れていると)、
-// evaluate()を呼び出したほうが良いことになってしまうのでこれが1のときのほうが良いことになってしまうので注意。
-// 元の値 = 0 , step = 1
-// [PARAM] min:0,max:1,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_QSEARCH_FORCE_EVAL = 0;
 
 // MovePicker
 

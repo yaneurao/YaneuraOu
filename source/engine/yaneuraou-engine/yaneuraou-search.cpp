@@ -2028,10 +2028,15 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 #if defined(USE_LAZY_EVALUATE)
 		// Stockfish 17のコード
 		unadjustedStaticEval = eval = ss->staticEval;
+
+		// ■ 備考
+		//
+		//   (excludedMoveがあるということは)singular extensionなので、
+		//   ss(search stack)は一つ前の局面から動かしていない。(ss + 1ではなく ssをsearch()に渡している)
+		// 
+		//   excludedMoveは非合法手扱いのevaluate()があればいいのだが、
+		//   そんなものはないので、ss->staticEvalで代用している。
 #else
-		// unadjustedStaticEval = eval = ss->staticEval;
-		// null moveなのでssは一つ前の局面から動かしていない。(ss + 1ではなく ssをsearch()に渡している)
-		// ゆえにss->staticEvalで一つ前の局面でのevaluateの値が得られる。
 
 		unadjustedStaticEval = eval = evaluate(pos);
 #endif
@@ -2691,45 +2696,61 @@ moves_loop: // When in check, search starts here
 
 		// We take care to not overdo to avoid search getting stuck.
 		// 探索が停滞しないように、やりすぎないよう注意します。
-		// 
-		// ⇨ rootDepthの2倍より延長しない
 
 		if (ss->ply < thisThread->rootDepth * 2)
+			// rootDepthの2倍より延長しない
 		{
 
 			// singular延長と王手延長。
 
-			// Singular extension search (~94 Elo). If all moves but one fail low on a
-			// search of (alpha-s, beta-s), and just one fails high on (alpha, beta),
-			// then that move is singular and should be extended. To verify this we do
-            // a reduced search on the position excluding the ttMove and if the result
-            // is lower than ttValue minus a margin, then we will extend the ttMove.
-            // Note: the depth margin and singularBeta margin are known for having non-linear
-			// so changing them requires tests at these types of time controls.
+			// Singular extension search (~76 Elo, ~170 nElo). If all moves but one
+			// fail low on a search of (alpha-s, beta-s), and just one fails high on
+			// (alpha, beta), then that move is singular and should be extended. To
+			// verify this we do a reduced search on the position excluding the ttMove
+			// and if the result is lower than ttValue minus a margin, then we will
+			// extend the ttMove. Recursive singular search is avoided.
 
-			// (alpha-s,beta-s)の探索(sはマージン値)において1手以外がすべてfail lowして、
-			// 1手のみが(alpha,beta)においてfail highしたなら、指し手はsingularであり、延長されるべきである。
-			// これを調べるために、ttMove以外の探索深さを減らして探索して、
-			// その結果がttValue-s 以下ならttMoveの指し手を延長する。
+			// Note: the depth margin and singularBeta margin are known for having
+			// non-linear scaling. Their values are optimized to time controls of
+			// 180+1.8 and longer so changing them requires tests at these types of
+			// time controls. Generally, higher singularBeta (i.e closer to ttValue)
+			// and lower extension margins scale well.
 
-			// Stockfishの実装だとmargin = 2 * depthだが、
-			// 将棋だと1手以外はすべてそれぐらい悪いことは多々あり、
-			// ほとんどの指し手がsingularと判定されてしまう。
-			// これでは効果がないので、1割ぐらいの指し手がsingularとなるぐらいの係数に調整する。
+			// シンギュラー延長探索（約76 Elo、約170 nElo）。もしすべての手が
+			// (alpha-s, beta-s)の探索で失敗し、ただ1手だけが(alpha, beta)で成功する場合、
+			// その手はシンギュラーと見なされ、延長されるべきです。
+			// これを検証するために、ttMoveを除いた位置で減らされた深さでの探索を行い、
+			// 結果がttValueからマージンを引いた値よりも小さい場合、
+			// ttMoveを延長します。再帰的なシンギュラー探索は回避されます。
 
-			// note : 
-			// singular延長で強くなるのは、あるnodeで1手だけが特別に良い場合、相手のプレイヤーもそのnodeでは
-			// その指し手を選択する可能性が高く、それゆえ、相手のPVもそこである可能性が高いから、そこを相手よりわずかにでも
-			// 読んでいて詰みを回避などできるなら、その相手に対する勝率は上がるという理屈。
-			// いわば、0.5手延長が自己対戦で(のみ)強くなるのの拡張。
-			// そう考えるとベストな指し手のスコアと2番目にベストな指し手のスコアとの差に応じて1手延長するのが正しいのだが、
-			// 2番目にベストな指し手のスコアを小さなコストで求めることは出来ないので…。
+			// 注意: 深さのマージンやsingularBetaのマージンは非線形なスケーリングがあることが知られています。
+			// これらの値は180+1.8以上の時間設定に最適化されており、これらのタイプの時間設定でテストする必要があります。
+			// 一般的に、singularBetaが高いほど（つまり、ttValueに近いほど）、
+			// 拡張マージンが低いほどスケールが良くなります。
+
+
+			// ■ メモ
+			// 
+			//   Stockfishの実装だとmargin = 2 * depthだが、
+			//   将棋だと1手以外はすべてそれぐらい悪いことは多々あり、
+			//   ほとんどの指し手がsingularと判定されてしまう。
+			//   これでは効果がないので、1割ぐらいの指し手がsingularとなるぐらいの係数に調整する。
+			//
+			// ■ 備考
+			//  
+			//   singular延長で強くなるのは、あるnodeで1手だけが特別に良い場合、相手のプレイヤーもそのnodeでは
+			//   その指し手を選択する可能性が高く、それゆえ、相手のPVもそこである可能性が高いから、そこを相手よりわずかにでも
+			//   読んでいて詰みを回避などできるなら、その相手に対する勝率は上がるという理屈。
+			//   いわば、0.5手延長が自己対戦で(のみ)強くなるのの拡張。
+			//   そう考えるとベストな指し手のスコアと2番目にベストな指し手のスコアとの差に応じて1手延長するのが正しいのだが、
+			//   2番目にベストな指し手のスコアを小さなコストで求めることは出来ないので…。
+			//
 
 			// singular延長をするnodeであるか。
 			if (!rootNode
 				&&  move == ttData.move
 				&& !excludedMove // 再帰的なsingular延長を除外する。
-		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH - (thisThread->completedDepth > 24) + ss->ttPv
+		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*4*/ - (thisThread->completedDepth > 36) + ss->ttPv
 			/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
 				&&  std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 				&& (ttData.bound & BOUND_LOWER)
@@ -2740,7 +2761,8 @@ moves_loop: // When in check, search starts here
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
 		        Value singularBeta  = ttData.value
-					- (PARAM_SINGULAR_MARGIN1 + PARAM_SINGULAR_MARGIN2 * (ss->ttPv && !PvNode)) * depth / 64;
+					- (PARAM_SINGULAR_MARGIN1/*54*/
+					+ PARAM_SINGULAR_MARGIN2/*77*/ * (ss->ttPv && !PvNode)) * depth / 64;
 				Depth singularDepth = newDepth / 2;
 
 				// move(ttMove)の指し手を以下のsearch()での探索から除外
@@ -2763,16 +2785,17 @@ moves_loop: // When in check, search starts here
 
 					// TODO : ここのパラメーター、調整すべきかも？
 					extension = 1 + (value < singularBeta - doubleMargin)
-						+ (value < singularBeta - tripleMargin);
+						      + (value < singularBeta - tripleMargin);
 
 					depth += ((!PvNode) && (depth < 14));
 				}
 
 				// Multi-cut pruning
-                // Our ttMove is assumed to fail high based on the bound of the TT entry,
-                // and if after excluding the ttMove with a reduced search we fail high over the original beta,
-                // we assume this expected cut-node is not singular (multiple moves fail high),
-                // and we can prune the whole subtree by returning a softbound.
+				// Our ttMove is assumed to fail high based on the bound of the TT entry,
+				// and if after excluding the ttMove with a reduced search we fail high
+				// over the original beta, we assume this expected cut-node is not
+				// singular (multiple moves fail high), and we can prune the whole
+				// subtree by returning a softbound.
 
 				// マルチカット枝刈り
 				// 私たちのttMoveはfail highすると想定されており、
@@ -2790,14 +2813,15 @@ moves_loop: // When in check, search starts here
 				//  softbound : lowerbound(下界)やupperbound(上界)のように真の値がその値より大きい(小さい)
 				//              ことがわかっているような値のこと。
 
-				else if (singularBeta >= beta)
-					return singularBeta;
+				else if (value >= beta && std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY)
+					return value;
 
 				// Negative extensions
-                // If other moves failed high over (ttValue - margin) without the ttMove on a reduced search,
-                // but we cannot do multi-cut because (ttValue - margin) is lower than the original beta,
-                // we do not know if the ttMove is singular or can do a multi-cut,
-                // so we reduce the ttMove in favor of other moves based on some conditions:
+				// If other moves failed high over (ttValue - margin) without the
+				// ttMove on a reduced search, but we cannot do multi-cut because
+				// (ttValue - margin) is lower than the original beta, we do not know
+				// if the ttMove is singular or can do a multi-cut, so we reduce the
+				// ttMove in favor of other moves based on some conditions:
 
 				// 負の延長
 				// もしttMoveを使用せずに(ttValue - margin)以上で他の手がreduced search(簡略化した探索)で高いスコアを出したが、
@@ -2809,20 +2833,16 @@ moves_loop: // When in check, search starts here
 				// ttMoveが現在のベータを超えて高いスコアを出すと仮定される場合（約7 Elo)
 
 				else if (ttData.value >= beta)
-					extension = -2 - !PvNode;
+					extension = -3;
 
-				// If we are on a cutNode but the ttMove is not assumed to fail high over current beta (~1 Elo)
-				// もしカットノードにいるが、ttMoveが現在のベータを超えて高いスコアを出すとは想定されていない場合（約1 Elo）
+				// If we are on a cutNode but the ttMove is not assumed to fail high
+				// over current beta (~1 Elo)
+
+				// 現在のノードがカットノードであるが、ttMoveが現在のbetaを超えて
+				// fail highすると思われない場合（約1 Elo）
 
 				else if (cutNode)
 					extension = -2;
-
-				// If the ttMove is assumed to fail low over the value of the reduced search (~1 Elo)
-				// もしttMoveがreduced searchの値を下回って失敗すると仮定される場合（約1 Elo）
-
-				else if (ttData.value <= value)
-					extension = -1;
-
 			}
 
 			// Check extensions (~1 Elo)
@@ -2830,29 +2850,15 @@ moves_loop: // When in check, search starts here
 
 			//  注意 : 王手延長に関して、Stockfishのコード、ここに持ってくる時には気をつけること！
 			// →　将棋では王手はわりと続くのでそのまま持ってくるとやりすぎの可能性が高い。
-			// 
-			// ※ Stockfish 14では depth > 6 だったのが、Stockfish 15でdepth > 9に変更されたが				
-			//  それでもまだやりすぎの感はある。やねうら王では、延長の条件をさらに絞る。
-			/*
-			else if (givesCheck
-				&& depth > 9
-				// !!重要!!
-				// この条件、やねうら王では独自に追加している。
-				// →　王手延長は、開き王手と駒損しない王手に限定する。
-				//  将棋だと王手でどんどん延長させる局面があり、探索が終わらなくなる。
-				&& (pos.is_discovery_check_on_king(~us, move) || pos.see_ge(move))
-				)
-				extension = 1;
-			*/
-			// ⇨ Stockfishで削除されたが、王手延長自体は何らかあった方が良い可能性はあるので条件を調整してはどうか。
+			// 備考) Stockfishで削除されたが、王手延長自体は何らかあった方が良い可能性はあるので条件を調整してはどうか。
 			// Remove check extension : https://github.com/official-stockfish/Stockfish/commit/96837bc4396d205536cdaabfc17e4885a48b0588
 
-			// Extension for capturing the previous moved piece (~0 Elo on STC, ~1 Elo on LTC)
+			// Extension for capturing the previous moved piece (~1 Elo at LTC)
+			// 前に動かされた駒を取る場合の延長（LTCで約1 Elo）
 
 			else if (PvNode && move.to_sq() == prevSq
-                     && thisThread->captureHistory(movedPiece, move.to_sq(), type_of(pos.piece_on(move.to_sq())))
-                          > 3988)
-                extension = 1;
+				&& thisThread->captureHistory(movedPiece,move.to_sq(),type_of(pos.piece_on(move.to_sq()))) > 4299)
+				extension = 1;
 		}
 
 
@@ -2878,7 +2884,7 @@ moves_loop: // When in check, search starts here
 		// 投機的なprefetch
 		//prefetch(TT.first_entry(pos.key_after(move)));
 
-		// →　将棋では効果なさそうなので端折る。
+		// ⇨　将棋では効果なさそうなので端折る。
 
 		// Update the current move (this must be done after singular extension search)
 		// 現在このスレッドで探索している指し手を更新しておく。(これは、singular extension探索のあとになされるべき)
@@ -2887,9 +2893,13 @@ moves_loop: // When in check, search starts here
 																   [capture    ])
 																   (movedPiece ,
 																    move.to_sq());
+		//ss->continuationCorrectionHistory =
+		//	&thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
+		//uint64_t nodeCount = rootNode ? uint64_t(nodes) : 0;
 
 		// -----------------------
 		// Step 16. Make the move
+		// Step 16. 指し手で進める
 		// -----------------------
 
 		// 指し手で1手進める
@@ -2912,15 +2922,20 @@ moves_loop: // When in check, search starts here
 		// この局面がPV上にあり、fail lowしそうであるならreductionを減らす
 		// (fail lowしてしまうとまた探索をやりなおさないといけないので)
         if (ss->ttPv)
-            r -= 1 + (ttData.value > alpha) + (ttData.value > beta && ttData.depth >= depth);
+            r -= 1 + (ttData.value > alpha) + (ttData.depth >= depth);
 
 		// Decrease reduction for PvNodes (~0 Elo on STC, ~2 Elo on LTC)
+		// PvNode のreductionを減らす (STC では約0 Elo、LTC では約2 Elo)
+
 		if (PvNode)
 			r--;
 
-		// These reduction adjustments have no proven non-linear scaling.
+		// These reduction adjustments have no proven non-linear scaling
+		// これらのreductionの調整には、非線形スケーリングの証明はない
 
 		// Increase reduction for cut nodes (~4 Elo)
+		// カットノードのreductionを増やす (約4 Elo)
+
 		// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
 		// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
 		// if (cutNode)という条件式は暗黙に && !PvNode を含む。
@@ -2930,11 +2945,11 @@ moves_loop: // When in check, search starts here
 		if (cutNode)
 			r += 2 - (ttData.depth >= depth && ss->ttPv);
 
-		// Increase reduction if ttMove is a capture (~3 Elo)
-		// 【計測資料 3.】置換表の指し手がcaptureのときにreduction量を増やす。
+		// Increase reduction if ttMove is a capture but the current move is not a capture (~3 Elo)
+		// ttMove が捕獲する指し手で現在の手が捕獲する指し手でない場合、reductionを増やす (約3 Elo)
 
-		if (ttCapture)
-			r++;
+		if (ttCapture && !capture)
+			r += 1 + (depth < 8);
 
 		// Increase reduction if next ply has a lot of fail high (~5 Elo)
 		// 次の手でfail highが多い場合、reductionを増やします。（約5 Elo）
@@ -2953,11 +2968,12 @@ moves_loop: // When in check, search starts here
 		ss->statScore =   2 * thisThread->mainHistory(us, move.from_to())
 						+     (*contHist[0])(movedPiece, move.to_sq())
 						+     (*contHist[1])(movedPiece, move.to_sq())
-						+     (*contHist[3])(movedPiece, move.to_sq())
-						- 5169;
+						- 4410;
 			
-		r -= ss->statScore / 11049;
+		// Decrease/increase reduction for moves with a good/bad history (~8 Elo)
+		// 良い/悪い履歴を持つ手に対して、reductionを減らす/増やす (約8 Elo)
 
+		r -= ss->statScore / 11016;
 		// -----------------------
 		// Step 17. Late moves reduction / extension (LMR, ~117 Elo)
 		// Step 17. 遅い手の削減／延長（LMR、約117 Elo）
@@ -3606,11 +3622,13 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	bool evaluated = false;
 	auto evaluate = [&](Position& pos) { evaluated = true; return ::evaluate(pos); };
 	auto lazy_evaluate = [&](Position& pos) {
+#if defined(USE_LAZY_EVALUATE)
 		if (!evaluated)
 		{
 			evaluated = true;
 			evaluate_with_no_return(pos);
 		}
+#endif
 	};
 
 	if (ss->inCheck)
@@ -3621,10 +3639,14 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		// alphaとは区別しなければならない。
 		bestValue = futilityBase = -VALUE_INFINITE;
 
+#if !defined(USE_LAZY_EVALUATE)
+		unadjustedStaticEval = evaluate(pos);
+#endif
 	} else {
 
 		if (ss->ttHit)
 		{
+#if defined(USE_LAZY_EVALUATE)
 			// Never assume anything about values stored in TT
 			// TT（置換表）に保存されている値については、決して何も仮定しないこと。
 
@@ -3644,6 +3666,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// 毎回evaluate()を呼ぶならtte->eval()自体不要なのだが、
 			// 置換表の指し手でこのまま枝刈りできるケースがあるから難しい。
 			// 評価関数がKPPTより軽ければ、tte->eval()をなくしても良いぐらいなのだが…。
+#else
+			ss->staticEval = bestValue = unadjustedStaticEval = evaluate(pos);
+#endif
 
 			// ttValue can be used as a better position evaluation (~7 Elo)
 			// ttValueは、より良い局面評価として使用できます（約7 Elo）
@@ -3688,7 +3713,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				{
 					bestValue = mate_in(ss->ply + 1);
 
-#ifdef WRITE_QSEARCH_MATE1PLY_TO_TT
+#if defined(WRITE_QSEARCH_MATE1PLY_TO_TT)
 					ttWriter.write(posKey, bestValue , ss->ttPv, BOUND_EXACT,
 						std::min(MAX_PLY - 1, depth + 6), move, unadjustedStaticEval, TT.generation());
 #endif
@@ -3711,10 +3736,12 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// StateInfo.sumは更新されていて、そのあとdo_null_move()ではStateInfoが丸ごとコピーされるから、現在のpos.state().sumは
 			// 正しい値のはず。
 
+#if defined(USE_LAZY_EVALUATE)
 			unadjustedStaticEval =
-				(ss - 1)->currentMove != Move::null()
-				? evaluate(pos)
-				: (PARAM_QSEARCH_FORCE_EVAL ? evaluate(pos) : - (ss - 1)->staticEval);
+				(ss - 1)->currentMove != Move::null() ? evaluate(pos) : -(ss - 1)->staticEval;
+#else
+			unadjustedStaticEval = evaluate(pos);
+#endif
 
 			// 1手前の局面(相手の手番)において 評価値が 500だとしたら、
 			// 自分の手番側から見ると -500 なので、 -(ss - 1)->staticEval はそういう意味。
