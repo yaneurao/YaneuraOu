@@ -3102,12 +3102,11 @@ moves_loop: // When in check, search starts here
 		// -----------------------
 
 		// Finished searching the move. If a stop occurred, the return value of
-		// the search cannot be trusted, and we return immediately without
-		// updating best move, PV and TT.
+		// the search cannot be trusted, and we return immediately without updating
+		// best move, principal variation nor transposition table.
 
-		// 指し手を探索するのを終了する。
-		// 停止シグナルが来たときは、探索の結果の値は信頼できないので、
-		// best moveの更新をせず、PVや置換表を汚さずに終了する。
+		// 指し手の探索が終了しました。もし停止が発生した場合、探索の返り値は信頼できないため、
+		// 最善手、主要変化、トランスポジションテーブルを更新せずに直ちに戻ります。
 
 		if (Threads.stop.load(std::memory_order_relaxed))
 			return VALUE_ZERO;
@@ -3122,7 +3121,7 @@ moves_loop: // When in check, search starts here
 									  thisThread->rootMoves.end()  , move);
 
 			// rootの平均スコアを求める。aspiration searchで用いる。
-			rm.averageScore = rm.averageScore != -VALUE_INFINITE ? (2 * value + rm.averageScore) / 3 : value;
+			rm.averageScore = rm.averageScore != -VALUE_INFINITE ? (value + rm.averageScore) / 2 : value;
 
 			// PV move or new best move?
 			// PVの指し手か、新しいbest moveか？
@@ -3132,18 +3131,18 @@ moves_loop: // When in check, search starts here
 				// (iterationの終わりでsortするのでそのときに指し手が入れ替わる。)
 
 		        rm.score =  rm.usiScore = value;
-				rm.selDepth = thisThread->selDepth;
-				rm.scoreLowerbound = rm.scoreUpperbound = false;
+				rm.selDepth             = thisThread->selDepth;
+				rm.scoreLowerbound      = rm.scoreUpperbound = false;
 
 				if (value >= beta)
 				{
 					rm.scoreLowerbound = true;
-					rm.usiScore = beta;
+					rm.usiScore        = beta;
 				}
 				else if (value <= alpha)
 				{
 					rm.scoreUpperbound = true;
-					rm.usiScore = alpha;
+					rm.usiScore        = alpha;
 				}
 
 				rm.pv.resize(1);
@@ -3160,12 +3159,15 @@ moves_loop: // When in check, search starts here
 				// We record how often the best move has been changed in each iteration.
 				// This information is used for time management. In MultiPV mode,
 				// we must take care to only do this for the first PV line.
-				//
-				// bestMoveが何度変更されたかを記録しておく。
-				// これが頻繁に行われるのであれば、思考時間を少し多く割り当てる。
-				//
-				// !thisThread->pvIdx という条件を入れておかないとMultiPVで
-				// time managementがおかしくなる。
+
+				// 各イテレーションで最善手がどのくらいの頻度で変化したかを記録します。
+				// この情報は時間管理に使用されます。MultiPV モードでは、
+				// 最初の PV ラインに対してのみこれを行うよう注意する必要があります。
+
+				// ■ 備考
+				// 
+				//   !thisThread->pvIdx という条件を入れておかないとMultiPVで
+				//   time managementがおかしくなる。
 
 				if (    moveCount > 1
 					&& !thisThread->pvIdx)
@@ -3182,9 +3184,11 @@ moves_loop: // When in check, search starts here
 				// なぜなら、ソートは安定しており、リスト内の手の位置は保持されているからです
 				// - PVだけが上に押し上げられます。
 
-				// root nodeにおいてα値を更新しなかったのであれば、この指し手のスコアを-VALUE_INFINITEにしておく。
-				// こうしておかなければ、stable_sort()しているにもかかわらず、前回の反復深化のときの値との
-				// 大小比較してしまい指し手の順番が入れ替わってしまうことによるオーダリング性能の低下がありうる。
+				// ■ 備考
+				// 
+				//   root nodeにおいてα値を更新しなかったのであれば、この指し手のスコアを-VALUE_INFINITEにしておく。
+				//   こうしておかなければ、stable_sort()しているにもかかわらず、前回の反復深化のときの値との
+				//   大小比較してしまい指し手の順番が入れ替わってしまうことによるオーダリング性能の低下がありうる。
 
 				rm.score = -VALUE_INFINITE;
 			}
@@ -3194,11 +3198,22 @@ moves_loop: // When in check, search starts here
 		//  alpha値の更新処理
 		// -----------------------
 
-		if (value > bestValue)
+		// In case we have an alternative move equal in eval to the current bestmove,
+		// promote it to bestmove by pretending it just exceeds alpha (but not beta).
+
+		// 評価値が現在の最善手と等しい代替手がある場合、
+		// その手を最善手に昇格させます。この際、α（アルファ）を少しだけ超えるが、
+		// β（ベータ）は超えないように見せかけます。
+
+		int inc =
+			(value == bestValue && (int(thisThread->nodes) & 15) == 0 && ss->ply + 2 >= thisThread->rootDepth
+				&& std::abs(value) + 1 < VALUE_TB_WIN_IN_MAX_PLY);
+
+		if (value + inc > bestValue)
 		{
 			bestValue = value;
 
-			if (value > alpha)
+			if (value + inc > alpha)
 			{
 				bestMove = move;
 
@@ -3209,7 +3224,7 @@ moves_loop: // When in check, search starts here
 
 				if (value >= beta)
 				{
-					ss->cutoffCnt += 1 + !ttData.move;
+					ss->cutoffCnt += !ttData.move + (extension < 2);
 					ASSERT_LV3(value >= beta); // Fail high
 
 					// value >= beta なら fail high(beta cut)
@@ -3223,14 +3238,7 @@ moves_loop: // When in check, search starts here
 					// Reduce other moves if we have found at least one score improvement (~2 Elo)
 					// 少なくとも1つのスコアの改善が見られた場合、他の手(の探索深さ)を削減します。
 
-					if (   depth > 2
-						&& depth < 12
-						&& beta  <  13828 /* VALUE_TB_WIN_IN_MAX_PLY */
-						&& value > -11369 /* VALUE_TB_LOSS_IN_MAX_PLY*/)
-						// ⇨　ここのマジックナンバー、何かよくわからん。
-						// もともと、VALUE_TB_WIN_IN_MAX_PLYとVALUE_TB_LOSS_IN_MAX_PLYだったのが、
-						// 以下のcommitでパラメーターtuning対象となったようで…。
-						// Search tuning at very long time control : https://github.com/official-stockfish/Stockfish/commit/472e726bff0d0e496dc8359cc071726a76317a72
+					if (depth > 2 && depth < 14 && std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY)
 						depth -= 2;
 
 					ASSERT_LV3(depth > 0);
@@ -3285,12 +3293,14 @@ moves_loop: // When in check, search starts here
 	ASSERT_LV5(moveCount || !ss->inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
 
     // Adjust best value for fail high cases at non-pv nodes
+	// 非PVノードでのfail highの場合に最良値を調整する
+
     if (!PvNode && bestValue >= beta
 		&& std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY
 		&& std::abs(beta)      < VALUE_TB_WIN_IN_MAX_PLY
 		&& std::abs(alpha)     < VALUE_TB_WIN_IN_MAX_PLY
 		)
-        bestValue = (bestValue * (depth + 2) + beta) / (depth + 3);
+        bestValue = (bestValue * depth + beta) / (depth + 1);
 
 	// Stockfishでは、ここのコードは以下のようになっているが、これは、
 	// 自玉に王手がかかっておらず指し手がない場合は、stalemateで引き分けだから。
@@ -3329,17 +3339,39 @@ moves_loop: // When in check, search starts here
 
 	else if (!priorCapture && prevSq != SQ_NONE)
 	{
-		int bonus = (depth > 6) + (PvNode || cutNode) + ((ss - 1)->statScore < -18782)
-				    + ((ss - 1)->moveCount > 10);
+
+		int bonus = (118 * (depth > 5) + 38 * !allNode + 169 * ((ss - 1)->moveCount > 8)
+			+ 116 * (!ss->inCheck && bestValue <= ss->staticEval - 101)
+			+ 133 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 92));
+
+		// Proportional to "how much damage we have to undo"
+		// 「元に戻す必要がある損害の大きさ」に比例する
+
+		bonus += std::min(-(ss - 1)->statScore / 102, 305);
+
+		bonus = std::max(bonus, 0);
+
 		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
-										stat_bonus(depth) * bonus);
+										stat_bonus(depth) * bonus / 107);
 
 		thisThread->mainHistory(~us, (ss - 1)->currentMove.from_to())
-			<< stat_bonus(depth) * bonus / 2;
+			<< stat_bonus(depth) * bonus / 174;
+
+		//if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
+		//	thisThread->pawnHistory[pawn_structure_index(pos)][pos.piece_on(prevSq)][prevSq]
+		//	<< stat_bonus(depth) * bonus / 25;
 	}
 
-	// 将棋ではtable probe使っていないのでmaxValue関係ない。
-	// ゆえにStockfishのここのコードは不要。(maxValueでcapする必要がない)
+	// Bonus when search fails low and there is a TT move
+	// 探索がfail lowし、TT moveがある場合のボーナス
+
+	else if (ttData.move && !allNode)
+		thisThread->mainHistory(us, ttData.move.from_to()) << stat_bonus(depth) / 4;
+
+	// ■ 注意
+	//
+	//   将棋ではtable probe使っていないのでmaxValue関係ない。
+	//   ゆえにStockfishのここのコードは不要。(maxValueでcapする必要がない)
 	/*
 	if (PvNode)
 		bestValue = std::min(bestValue, maxValue);
@@ -3383,6 +3415,32 @@ moves_loop: // When in check, search starts here
 			                     : BOUND_UPPER,
 			depth, bestMove, unadjustedStaticEval, TT.generation());
 	}
+
+	// correction historyは実装しない。
+#if 0
+	// Adjust correction history
+	if (!ss->inCheck && (!bestMove || !pos.capture(bestMove))
+		&& !(bestValue >= beta && bestValue <= ss->staticEval)
+		&& !(!bestMove && bestValue >= ss->staticEval))
+	{
+		const auto m = (ss - 1)->currentMove;
+
+		auto bonus = std::clamp(int(bestValue - ss->staticEval) * depth / 8,
+			-CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+		thisThread->pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)]
+			<< bonus * 101 / 128;
+		thisThread->materialCorrectionHistory[us][material_index(pos)] << bonus * 99 / 128;
+		thisThread->majorPieceCorrectionHistory[us][major_piece_index(pos)] << bonus * 157 / 128;
+		thisThread->minorPieceCorrectionHistory[us][minor_piece_index(pos)] << bonus * 153 / 128;
+		thisThread->nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)]
+			<< bonus * 123 / 128;
+		thisThread->nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)]
+			<< bonus * 165 / 128;
+
+		if (m.is_ok())
+			(*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()] << bonus;
+	}
+#endif
 
 	// qsearch()内の末尾にあるassertの文の説明を読むこと。
 	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
