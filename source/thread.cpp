@@ -48,6 +48,16 @@ void Thread::clear()
 	captureHistory.fill(0);
 #if defined(ENABLE_PAWN_HISTORY)
 	pawnHistory.fill(0);
+	pawnCorrectionHistory.fill(0);
+	materialCorrectionHistory.fill(0);
+	majorPieceCorrectionHistory.fill(0);
+	minorPieceCorrectionHistory.fill(0);
+	nonPawnCorrectionHistory[WHITE].fill(0);
+	nonPawnCorrectionHistory[BLACK].fill(0);
+
+	for (auto& to : continuationCorrectionHistory)
+		for (auto& h : to)
+			h->fill(0);
 #endif
 
 	// ここは、未初期化のときに[NO_PIECE][SQ_ZERO]を指すので、ここを-1で初期化しておくことによって、
@@ -63,11 +73,11 @@ void Thread::clear()
 		for (StatsType c : { NoCaptures, Captures })
 			//for (auto& to : continuationHistory[inCheck][c])
 			//	for (auto& h : to)
-			//		h->fill(-71);
+			//		h->fill(-678);
 
 			// ↑この初期化コードは、ContinuationHistory::fill()に移動させた。
 
-			continuationHistory[inCheck][c].fill(-71);
+			continuationHistory[inCheck][c].fill(-678);
 
 #endif
 }

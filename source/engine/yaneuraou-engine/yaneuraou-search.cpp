@@ -270,9 +270,7 @@ Value to_corrected_static_eval(Value v /*, const Worker& w, const Position& pos 
 // History and stats update bonus, based on depth
 // depthに基づく、historyとstatsのupdate bonus
 
-int stat_bonus(Depth d) { return std::min(291 * d - 350, 1200); }
-// TODO : あとで
-// int stat_bonus(Depth d) { return std::min(179 * d - 108, 1598); }
+int stat_bonus(Depth d) { return std::min(179 * d - 108, 1598); }
 	// →　やねうら王では、Stockfishの統計値、統計ボーナスに関して手を加えないことにしているので
 	// この値はStockfishの値そのまま。
 
@@ -282,8 +280,7 @@ int stat_bonus(Depth d) { return std::min(291 * d - 350, 1200); }
 // 「統計的なペナルティ」または「マイナスの修正値」を計算するために使用される。
 // この関数は、ある行動が望ましくない結果をもたらした場合に、その行動の評価を減少させるために使われる
 // TODO : あとで
-int stat_malus(Depth d) { return std::min(361 * d - 361, 1182); }
-// int stat_malus(Depth d) { return std::min(820 * d - 261, 2246); }
+int stat_malus(Depth d) { return std::min(820 * d - 261, 2246); }
 
 
 #if 0
@@ -4271,37 +4268,19 @@ void update_all_stats(
 	// Stockfish 16では、capture()からcapture_stage()に変更された。[2023/10/15]
 	if (!pos.capture_stage(bestMove))
 	{
-		// PARAM_UPDATE_ALL_STATS_EVAL_TH は、PawnValueより少し小さな値がベストっぽい。
-		// ※ StockfishではPawnValueが210ぐらいなので、それを考慮すること。
-
-		int bestMoveBonus = bestValue > beta + PARAM_UPDATE_ALL_STATS_EVAL_TH ? quietMoveBonus		// larger bonus
-															                  : stat_bonus(depth);	// smaller bonus
-
-		// Increase stats for the best move in case it was a quiet move
-		update_quiet_histories(pos, ss, bestMove, bestMoveBonus);
-
-#if defined(ENABLE_PAWN_HISTORY)
-		thisThread->pawnHistory(pawn_structure(pos), moved_piece, to_sq(bestMove))
-	        << quietMoveBonus;
-#endif
+		update_quiet_histories(pos, ss, bestMove, quietMoveBonus);
 
 		// Decrease stats for all non-best quiet moves
+		// 最善でないquietの指し手すべての統計を減少させる
+
 		for (Move move : quietsSearched)
-		{
-#if defined(ENABLE_PAWN_HISTORY)
-			thisThread->pawnHistory(pawn_structure(pos), pos.moved_piece_after(move), move.to_sq())
-				<< -quietMoveMalus;
-#endif
-
-			thisThread->mainHistory(us, move.from_to()) << -quietMoveMalus;
-
-			update_continuation_histories(ss, pos.moved_piece_after(move),
-				move.to_sq(), -quietMoveMalus);
-		}
+			update_quiet_histories(pos, ss, /*workerThread,*/ move, -quietMoveMalus);
 	}
 	else {
 		// Increase stats for the best move in case it was a capture move
-	    captured = type_of(pos.piece_on(bestMove.to_sq()));
+		// 最善手が捕獲する指し手だった場合、その統計を増加させる
+
+		captured = type_of(pos.piece_on(bestMove.to_sq()));
 		captureHistory(moved_piece, bestMove.to_sq(), captured) << quietMoveBonus;
 	}
 
@@ -4351,6 +4330,8 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 	// ⇨　TODO : 3手前も更新するの、強くなってない気がする。(V7.74taya-t20 vs V7.74taya-t21)
 	{
 	    // Only update the first 2 continuation histories if we are in check
+		// 王手がかかっている場合のみ、最初の2つのcontinuation historiesを更新する
+
 		if (ss->inCheck && i > 2)
 			break;
 		if ((ss - i)->currentMove.is_ok())
@@ -4371,10 +4352,10 @@ void update_quiet_histories(
 	const Position& pos, Stack* ss, /*Search::Worker& workerThread, */ Move move, int bonus) {
 
 	Color us = pos.side_to_move();
-	Thread* workerThread = pos.this_thread();
-	workerThread->mainHistory(us, move.from_to()) << bonus;
-	if (ss->ply < 4)
-		workerThread->lowPlyHistory(ss->ply, move.from_to()) << bonus;
+	Thread& workerThread = *pos.this_thread();
+	workerThread.mainHistory(us, move.from_to()) << bonus;
+	if (ss->ply < LOW_PLY_HISTORY_SIZE)
+		workerThread.lowPlyHistory(ss->ply, move.from_to()) << bonus;
 
 	update_continuation_histories(ss, pos.moved_piece_after(move), move.to_sq(), bonus);
 

@@ -27,9 +27,9 @@
 
 // Reductionsテーブルの初期化用
 // 重要度　★★★★★
-// 元の値 = 2037 ,step = 8
+// 元の値 = Stockfish 16 : 2037 , Stockfish 17 : 1843 ,step = 8
 // [PARAM] min:1500,max:2500,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2037;
+PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 1843;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
@@ -233,18 +233,6 @@ PARAM_DEFINE PARAM_LMR_MARGIN2 = 13;
 // min:0,max:128,step:1,interval:1,time_rate:1,
 // [PARAM] min:50,max:200,step:10,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 82;
-
-//
-// pruning by history
-//
-
-// update_all_stats()で、静止探索時のquietMoveとみなすbestvalueとbetaの差(PawnValueより少し小さな値)
-// StockfishではPawnValueが210ぐらいなので、それを考慮すること。
-// Stockfish 14 だと 145 , Stockfish 16だと 168。
-// 重要度　★★★☆☆
-// 元の値 = 168 , step = 30
-// [PARAM] min:10,max:300,step:30,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_UPDATE_ALL_STATS_EVAL_TH = 168;
 
 
 //
