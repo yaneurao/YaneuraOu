@@ -1083,8 +1083,6 @@ void Thread::search()
 			// Reset aspiration window starting size
 			// aspiration windowの開始サイズをリセットする			
 
-			Value avg = rootMoves[pvIdx].averageScore;
-
 			// aspiration windowの幅
 			// 精度の良い評価関数ならばこの幅を小さくすると探索効率が上がるのだが、
 			// 精度の悪い評価関数だとこの幅を小さくしすぎると再探索が増えて探索効率が低下する。
@@ -1095,13 +1093,15 @@ void Thread::search()
 			// Stockfish 12(NNUEを導入した)では17に変更された。
 			// Stockfish 12.1では16に変更された。
 			// Stockfish 16では10に変更された。
+			// Stockfish 17では 5に変更された。
 
-			delta = Value(PARAM_ASPIRATION_SEARCH1) + int(avg) * avg / PARAM_ASPIRATION_SEARCH2;
-			alpha = std::max(avg - delta,-VALUE_INFINITE);
-			beta  = std::min(avg + delta, VALUE_INFINITE);
+			Value avg = rootMoves[pvIdx].averageScore;
+			delta     = Value(PARAM_ASPIRATION_SEARCH1) + int(avg) * avg / PARAM_ASPIRATION_SEARCH2;
+			alpha     = std::max(avg - delta,-VALUE_INFINITE);
+			beta      = std::min(avg + delta, VALUE_INFINITE);
 
 			// Adjust optimism based on root move's previousScore (~4 Elo)
-            //optimism[us]  = 110 * avg / (std::abs(avg) + 121);
+            //optimism[us]  = 132 * avg / (std::abs(avg) + 89);
             //optimism[~us] = -optimism[us];
 			// → このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
 
@@ -1310,21 +1310,23 @@ void Thread::search()
 			{
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
 
-				double fallingEval = (66 + 14 * (mainThread->bestPreviousAverageScore - bestValue)
-										+  6 * (mainThread->iterValue[iterIdx] - bestValue)) / 616.6;
-				fallingEval = std::clamp(fallingEval, 0.51, 1.51);
+				double fallingEval = (1067 + 223 * (mainThread->bestPreviousAverageScore - bestValue)
+										+  97 * (mainThread->iterValue[iterIdx] - bestValue)) / 10000.0;
+				fallingEval = std::clamp(fallingEval, 0.580, 1.667);
 
 				// If the bestMove is stable over several iterations, reduce time accordingly
 				// もしbestMoveが何度かのiterationにおいて安定しているならば、思考時間もそれに応じて減らす
 
-				timeReduction = lastBestMoveDepth + 8 < completedDepth ? 1.56 : 0.69;
-				double reduction = (1.4 + mainThread->previousTimeReduction) / (2.17 * timeReduction);
-
+				timeReduction = lastBestMoveDepth + 8 < completedDepth ? 1.495 : 0.687;
+				double reduction = (1.48 + mainThread->previousTimeReduction) / (2.17 * timeReduction);
 				// rootでのbestmoveの不安定性。
 				// bestmoveが不安定であるなら思考時間を増やしたほうが良い。
-				double bestMoveInstability = 1 + 1.79 * totBestMoveChanges / Threads.size();
+				double bestMoveInstability = 1 + 1.88 * totBestMoveChanges / Threads.size();
+				//double recapture = limits.capSq == rootMoves[0].pv[0].to_sq() ? 0.955 : 1.005;
+				// ⇨ やねうら王ではcapSqは実装してない。
 
-				double totalTime = Time.optimum() * fallingEval * reduction * bestMoveInstability;
+				double totalTime =
+				  /*mainThread->tm*/Time.optimum() * fallingEval * reduction * bestMoveInstability /* *recapture*/;
 
 				// 合法手が1手しかないときはtotalTime = 0として、即指しする。(これはやねうら王独自改良)
 				if (rootMoves.size() == 1)
@@ -1334,7 +1336,9 @@ void Thread::search()
 				// failLowが起きてなかったり、1つ前の反復深化から値がよくなってたりするとimprovingFactorが小さくなる。
 				// Stop the search if we have only one legal move, or if available time elapsed
 
-				if (Time.elapsed() > totalTime)
+				auto elapsedTime = Time.elapsed();
+
+				if (elapsedTime > totalTime)
 				{
 					// 停止条件を満たした
 
@@ -1355,21 +1359,20 @@ void Thread::search()
 
 				// 前回からdepthが増えたかのチェック。
 				// depthが増えて行っていないなら、同じ深さで再度探索する。
-#if defined(USE_INCREASE_DEPTH14)
 
-				// ここは固定秒での対局であっても、探索に影響する。
+				// ■ 備考
+				// 
+				//   ここは固定秒での対局であっても、探索に影響する。
 
-				// Stockfish 14ではtotalTime * 0.58、Stockfish 16では totalTime * 0.50となっている。
-				// Stockfish 14の方の定数が勝る？(V7.74taya-t3 VS V7.74taya-t4)
+				//threads.increaseDepth = mainThread->ponder || elapsedTime <= totalTime * 0.506;
+				Threads.increaseDepth = mainThread->ponder || elapsedTime <= totalTime * 0.506;
+
+				// Stockfish 14ではtotalTime * 0.58
+				// Stockfish 16では totalTime * 0.50
+				// Stockfish 17では、totalTime * 0.506
+				// Stockfish 14と16だと14の定数が勝る？(V7.74taya-t3 VS V7.74taya-t4)
 				// ※ ここはパラメーター調整すべき。
 
-				else if (!mainThread->ponder && Time.elapsed() > totalTime * 0.58)
-#else
-				else if (!mainThread->ponder && Time.elapsed() > totalTime * 0.50)
-#endif
-					Threads.increaseDepth = false;
-				else
-					Threads.increaseDepth = true;
 			}
 		}
 
@@ -4325,6 +4328,9 @@ void update_all_stats(
 // ⇨　Stockfish 16で3手前も見るようになった。
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 {
+	// これstat_bonusの計算のときに係数を掛けておくべきでは…。
+	bonus = bonus * 53 / 64;
+
 	for (int i : {1, 2, 3, 4, 6})
 	//for (int i : {1, 2, 4, 6})
 	// ⇨　TODO : 3手前も更新するの、強くなってない気がする。(V7.74taya-t20 vs V7.74taya-t21)
