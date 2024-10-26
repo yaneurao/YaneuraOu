@@ -246,7 +246,7 @@ PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 82;
 // 古い評価関数では20ぐらいがベストだったが、NNUEでは17がベストのようだ。評価関数の精度向上とともに徐々に小さくなってきている。
 // 元の値 = Stockfish 16 : 10 , Stockfish 17 : 5 , step = 1
 // [PARAM] min:4,max:30,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_ASPIRATION_SEARCH1 = 5;
+PARAM_DEFINE PARAM_ASPIRATION_SEARCH1 = 10;
 
 // aspiration searchの定数。
 // 重要度　★★☆☆☆
