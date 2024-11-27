@@ -2619,8 +2619,8 @@ moves_loop: // When in check, search starts here
 				{
 					// TODO : ここのパラメーター、調整すべきか？ 2 Eloだから無視していいか…。
 					int   futilityValue = ss->staticEval
-						+ PARAM_FUTILITY_EVAL1/*300*/
-						+ PARAM_FUTILITY_EVAL2/*238*/ * lmrDepth
+						+ PARAM_FUTILITY_EVAL1
+						+ PARAM_FUTILITY_EVAL2 * lmrDepth
 						+ captHist / 7;
 
 					if (futilityValue <= alpha)
@@ -2630,9 +2630,9 @@ moves_loop: // When in check, search starts here
 				// SEE based pruning for captures and checks (~11 Elo)
 				// 駒取りや王手に対するSEE（静的交換評価）に基づく枝刈り（約11 Elo）
 
-				int seeHist = std::clamp(captHist / 32, -159 * depth, 160 * depth);
+				int seeHist = std::clamp(captHist / 33, -161 * depth, 156 * depth);
 
-				if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1/*167*/) * depth))
+				if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1) * depth))
 					continue;
 			}
 			else
@@ -2647,19 +2647,19 @@ moves_loop: // When in check, search starts here
 				// Continuation history based pruning (~2 Elo)
 				// Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip)
 
-				if (history < -4071 * depth)
+				if (history < -3884 * depth)
 					continue;
 
 				history += 2 * thisThread->mainHistory(us, move.from_to());
 
-				lmrDepth += history / 3653;
+				lmrDepth += history / 3609;
 
 				// 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
 				// →　パラメーター調整の係数を調整したほうが良いのかも知れないが、
 				// 　ここ、そんなに大きなEloを持っていないので、調整しても…。
 
 				Value futilityValue =
-					ss->staticEval + (bestValue < ss->staticEval - 51 ? 145 : 49) + 144 * lmrDepth;
+					ss->staticEval + (bestValue < ss->staticEval - 45 ? 140 : 43) + 141 * lmrDepth;
 
 				// Futility pruning: parent node (~13 Elo)
 				if (!ss->inCheck && lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*12*/ && futilityValue <= alpha)
@@ -2685,7 +2685,7 @@ moves_loop: // When in check, search starts here
 				// 負のSEEを持つ指し手を枝刈りする(約4 Elo)
 				// ⇨ lmrDepthの2乗に比例するのでこのパラメーターの影響はすごく大きい。
 
-				if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1/*24*/ * lmrDepth * lmrDepth)))
+				if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
 					continue;
 			}
 		}
@@ -3834,7 +3834,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		{
 			// bestValueを少しbetaのほうに寄せる。
 			if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY)
-				bestValue = (3 * bestValue + beta) / 4;
+				bestValue = (bestValue + beta) / 2;
 
 			if (!ss->ttHit)
 				ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
@@ -3851,7 +3851,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 		// futilityの基準となる値をbestValueにmargin値を加算したものとして、
 		// これを下回るようであれば枝刈りする。
-		futilityBase = ss->staticEval + PARAM_FUTILITY_MARGIN_QUIET/*280*/;
+		futilityBase = ss->staticEval + PARAM_FUTILITY_MARGIN_QUIET;
 
 	}
 
@@ -3988,13 +3988,13 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			//   成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
 
 			if (!capture
-				&& (*contHist[0])(pos.moved_piece_after(move), move.to_sq())
+				&&    (*contHist[0])(pos.moved_piece_after(move), move.to_sq())
 					+ (*contHist[1])(pos.moved_piece_after(move), move.to_sq())
 				/*
 					+ thisThread->pawnHistory[pawn_structure_index(pos)][pos.moved_piece(move)]
 					[move.to_sq()]
 				*/
-				<= 5036 /* TODO : ここ、調整すべき */)
+				<= 5095 /* TODO : ここ、調整すべき */)
 				continue;
 
 			// Do not search moves with bad enough SEE values (~5 Elo)
@@ -4265,27 +4265,27 @@ void update_all_stats(
 	Piece moved_piece  = pos.moved_piece_after(bestMove);
 	PieceType captured;
 
-	int quietMoveBonus = stat_bonus(depth + 1);
-	int quietMoveMalus = stat_malus(depth    );
+	int bonus = stat_bonus(depth + 1);
+	int malus = stat_malus(depth    );
 
 	// Stockfish 14ではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
 	// Stockfish 16では、capture()からcapture_stage()に変更された。[2023/10/15]
 	if (!pos.capture_stage(bestMove))
 	{
-		update_quiet_histories(pos, ss, bestMove, quietMoveBonus);
+		update_quiet_histories(pos, ss, bestMove, bonus);
 
 		// Decrease stats for all non-best quiet moves
 		// 最善でないquietの指し手すべての統計を減少させる
 
 		for (Move move : quietsSearched)
-			update_quiet_histories(pos, ss, /*workerThread,*/ move, -quietMoveMalus);
+			update_quiet_histories(pos, ss, /*workerThread,*/ move, -malus);
 	}
 	else {
 		// Increase stats for the best move in case it was a capture move
 		// 最善手が捕獲する指し手だった場合、その統計を増加させる
 
 		captured = type_of(pos.piece_on(bestMove.to_sq()));
-		captureHistory(moved_piece, bestMove.to_sq(), captured) << quietMoveBonus;
+		captureHistory(moved_piece, bestMove.to_sq(), captured) << bonus;
 	}
 
 	// Extra penalty for a quiet early move that was not a TT move in
@@ -4301,7 +4301,7 @@ void update_all_stats(
 		&& ( (ss - 1)->moveCount == 1 + (ss - 1)->ttHit )
 		&&   !pos.captured_piece()
 		)
-		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -quietMoveMalus);
+		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -malus);
 
 	// Decrease stats for all non-best capture moves
 	// 最善の捕獲する指し手以外のすべての手の統計を減少させます
@@ -4313,7 +4313,7 @@ void update_all_stats(
 		//  それに倣う必要がある。
 		moved_piece = pos.moved_piece_after(move);
 		captured    = type_of(pos.piece_on(move.to_sq()));
-		captureHistory(moved_piece, move.to_sq(), captured) << -quietMoveMalus;
+		captureHistory(moved_piece, move.to_sq(), captured) << -malus;
 	}
 }
 
@@ -4330,7 +4330,7 @@ void update_all_stats(
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 {
 	// これstat_bonusの計算のときに係数を掛けておくべきでは…。
-	bonus = bonus * 53 / 64;
+	bonus = bonus * 50 / 64;
 
 	for (int i : {1, 2, 3, 4, 6})
 	//for (int i : {1, 2, 4, 6})

@@ -27,7 +27,7 @@
 
 // Reductionsテーブルの初期化用
 // 重要度　★★★★★
-// 元の値 = Stockfish 16 : 2037 , Stockfish 17(2024.8) : 1843 ,Stockfish 17(2024.11) : 1943 , step = 8
+// 元の値 = Stockfish 16 : 2037 , Stockfish 17 : 1843,1943 , step = 8
 // [PARAM] min:1500,max:2500,step:2,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 1943;
 
@@ -73,22 +73,22 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 27;
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_BETA = 108;
 
 // 重要度　★★★☆☆
-// 元の値 = Stockfish 14 : 197 , Stockfish 16 : 239 , Stockfish 17 : 300 , step = 20
+// 元の値 = Stockfish 14 : 197 , Stockfish 16 : 239 , Stockfish 17 : 300 , 287 , step = 20
 // [PARAM] min:100,max:400,step:30,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_EVAL1 = 300;
+PARAM_DEFINE PARAM_FUTILITY_EVAL1 = 287;
 
 // 重要度　★★★☆☆
-// 元の値 = Stockfish 14 : 248 , Stockfish 16 : 291 , Stockfish 17 : 238 , step = 20
+// 元の値 = Stockfish 14 : 248 , Stockfish 16 : 291 , Stockfish 17 : 238 , 253, step = 20
 // [PARAM] min:100,max:240,step:30,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_EVAL2 = 238;
+PARAM_DEFINE PARAM_FUTILITY_EVAL2 = 253;
 
 
 
 // 静止探索でのfutility pruning
 // 重要度　★★★★☆
-// 元の値 = Stockfish 14 : 200 , Stockfish 16 : 200 , Stockfish 17 : 280 , step = 20
+// 元の値 = Stockfish 14 : 200 , Stockfish 16 : 200 , Stockfish 17 : 280 , 306 , step = 20
 // [PARAM] min:50,max:300,step:30,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 280;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 306;
 
 // futility pruningの適用depth。
 // 重要度　★★★☆☆
@@ -110,17 +110,17 @@ PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_DEPTH = 12;
 // 重要度　★★★★★
 // このパラメーター、lmrDepth * lmrDepthに比例するので、影響がすごく大きい。
 // 調整には気をつけること。
-// 元の値 = Stockfish 14 : 31 , Stockfish 16 : 26 , Stockfish 17 : 24, step = 2
+// 元の値 = Stockfish 14 : 31 , Stockfish 16 : 26 , Stockfish 17 : 24,25, step = 2
 // [PARAM] min:15,max:50,step:2,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 24;
+PARAM_DEFINE PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 = 25;
 
 
 // lmrのときのseeの値。
 // 重要度　★★★★☆
 // Stockfishの7,8割ぐらいの値にするのがよさげ。
-// 元の値 = Stockfish 17 : 167 ,step = 40
+// 元の値 = Stockfish 17 : 167 , 162, step = 40
 // [PARAM] min:0,max:300,step:10,interval:1,time_rate:1
-PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 167;
+PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 162;
 
 
 
@@ -229,10 +229,10 @@ PARAM_DEFINE PARAM_LMR_MARGIN2 = 13;
 
 // 重要度　★★☆☆☆
 // →　重要なパラメーターではあるが、下手にいじらないほうがよさげ。
-// 元の値 = Stockfish 14 : 95 , Stockfish 16 : 90 , Stockfish 17 : 82 , step = 10
+// 元の値 = Stockfish 14 : 95 , Stockfish 16 : 90 , Stockfish 17 : 82 ,83 , step = 10
 // min:0,max:128,step:1,interval:1,time_rate:1,
 // [PARAM] min:50,max:200,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 82;
+PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 83;
 
 
 //
