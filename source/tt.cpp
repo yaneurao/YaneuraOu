@@ -383,7 +383,6 @@ void TranspositionTable::clear(/* ThreadPool& threads */) {
 	// 進捗を表示しながら並列化してゼロクリア
 	// Stockfishのここにあったコードは、独自の置換表を実装した時にも使いたいため、tt.cppに移動させた。
 	Tools::memclear("USI_Hash", table, size);
-
 }
 
 // Returns an approximation of the hashtable
@@ -395,19 +394,12 @@ void TranspositionTable::clear(/* ThreadPool& threads */) {
 // 現在の世代と一致するエントリのみをカウントします。
 
 int TranspositionTable::hashfull(int maxAge) const {
+	int maxAgeInternal = maxAge << GENERATION_BITS;
 	int cnt = 0;
 	for (int i = 0; i < 1000; ++i)
 		for (int j = 0; j < ClusterSize; ++j)
-		{
-			if (table[i].entry[j].is_occupied())
-			{
-				int age = (generation8 >> GENERATION_BITS)
-					- ((table[i].entry[j].genBound8 & GENERATION_MASK) >> GENERATION_BITS);
-				if (age < 0)
-					age += 1 << (8 - GENERATION_BITS);
-				cnt += age <= maxAge;
-			}
-		}
+			cnt += table[i].entry[j].is_occupied()
+			&& table[i].entry[j].relative_age(generation8) <= maxAgeInternal;
 
 	return cnt / ClusterSize;
 }
