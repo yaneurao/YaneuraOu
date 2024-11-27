@@ -2237,6 +2237,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 		return beta + (eval - beta) / 3;
 
+	// ここでimproving計算しなおす。
+	improving |= ss->staticEval >= beta + 100;
+
 	// -----------------------
 	// Step 9. Null move search with verification search (~35 Elo)
 	// Step 9. 検証探索を伴うnull move探索（約35 Elo）
@@ -2751,7 +2754,7 @@ moves_loop: // When in check, search starts here
 			if (!rootNode
 				&&  move == ttData.move
 				&& !excludedMove // 再帰的なsingular延長を除外する。
-		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*4*/ - (thisThread->completedDepth > 36) + ss->ttPv
+		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*4*/ - (thisThread->completedDepth > 33) + ss->ttPv
 			/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
 				&&  std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 				&& (ttData.bound & BOUND_LOWER)
@@ -2762,8 +2765,8 @@ moves_loop: // When in check, search starts here
 			{
 				// このmargin値は評価関数の性質に合わせて調整されるべき。
 		        Value singularBeta  = ttData.value
-					- (PARAM_SINGULAR_MARGIN1/*54*/
-					+ PARAM_SINGULAR_MARGIN2/*77*/ * (ss->ttPv && !PvNode)) * depth / 64;
+					- (PARAM_SINGULAR_MARGIN1
+			         + PARAM_SINGULAR_MARGIN2 * (ss->ttPv && !PvNode)) * depth / 64;
 				Depth singularDepth = newDepth / 2;
 
 				// move(ttMove)の指し手を以下のsearch()での探索から除外
@@ -2778,8 +2781,8 @@ moves_loop: // When in check, search starts here
 				// (延長され続けるとまずいので何らかの考慮は必要)
 				if (value < singularBeta)
 				{
-					int doubleMargin = 262 * PvNode - 204 * !ttCapture;
-					int tripleMargin = 97 + 266 * PvNode - 255 * !ttCapture + 94 * ss->ttPv;
+					int doubleMargin = 249 * PvNode - 194 * !ttCapture;
+					int tripleMargin = 94 + 287 * PvNode - 249 * !ttCapture + 99 * ss->ttPv;
 
 					// We make sure to limit the extensions in some way to avoid a search explosion
 					// 2重延長を制限することで探索の組合せ爆発を回避する。
