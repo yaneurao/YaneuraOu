@@ -93,9 +93,9 @@ PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 306;
 // futility pruningの適用depth。
 // 重要度　★★★☆☆
 // この制限自体が要らない可能性がある。→　そうでもなかった。→こんなdepthいじらんほうがマシ
-// 元の値 = 13 , step = 1
+// 元の値 = Stockfish 17 : 13,14 , step = 1
 // [PARAM] min:5,max:15,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 13;
+PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 14;
 
 
 
@@ -129,19 +129,19 @@ PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 162;
 //
 
 // 重要度　★★★☆☆
-// 元の値 = Stockfish 14 : 173 , Stockfish 16 : 152 , Stockfish 17 : 209, step = 10
+// 元の値 = Stockfish 14 : 173 , Stockfish 16 : 152 , Stockfish 17 : 209,235 , step = 10
 // [PARAM] min:50,max:400,step:10,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 209;
+PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 235;
 
 // 重要度　★★★☆☆
-// 元の値 = 23 , step = 2
+// 元の値 = Stockfish 17 : 23,21 , step = 2
 // [PARAM] min:10,max:60,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 23;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 21;
 
-// 元の値 = 400 , step = 50
+// 元の値 = Stockfish 17 : 400,421 , step = 50
 // 重要度　★★★☆☆
 // [PARAM] min:0,max:800,step:50,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 400;
+PARAM_DEFINE PARAM_NULL_MOVE_MARGIN2 = 421;
 
 
 
@@ -163,9 +163,9 @@ PARAM_DEFINE PARAM_NULL_MOVE_RETURN_DEPTH = 16;
 // 重要度　★★★☆☆
 //    式 = beta + PARAM_PROBCUT_MARGIN1 - improving * PARAM_PROBCUT_MARGIN2A - opponentWorsening * PARAM_PROBCUT_MARGIN2B
 //   improvingの効果怪しいので抑え気味にしておく。
-// 元の値 = 189 , step = 20
+// 元の値 = Stockfish 17 : 189,187 , step = 20
 // [PARAM] min:100,max:300,step:5,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 189;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 187;
 
 // 重要度　★★★☆☆
 // 元の値 = 53 , step = 10
@@ -173,15 +173,15 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN1 = 189;
 PARAM_DEFINE PARAM_PROBCUT_MARGIN2A = 53;
 
 // 重要度　★★★☆☆
-// 元の値 = 30 , step = 10
+// 元の値 = Stockfish 17 : 30,27 , step = 10
 // [PARAM] min:20,max:100,step:5,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN2B = 30;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN2B = 27;
 
 // 前のバージョンのStockfishではこの値は481。
 // 重要度　★★★☆☆
-// 元の値 = 379 , step = 10
+// 元の値 = Stockfish 17 : 379,417 , step = 10
 // [PARAM] min:20,max:500,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 379;
+PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 417;
 
 //
 // singular extension

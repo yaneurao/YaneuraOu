@@ -2142,14 +2142,14 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	if ((ss - 1)->currentMove.is_ok() && !(ss - 1)->inCheck && !priorCapture)
 	{
-		int bonus = std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -1641, 1423) + 760;
+		int bonus = std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -1831, 1428) + 623;
 		// TODO : この右辺の↑係数、調整すべきか？
 		thisThread->mainHistory(~us,((ss - 1)->currentMove).from_to()) << bonus;
 
 #if defined(ENABLE_PAWN_HISTORY)
 		if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
 			thisThread->pawnHistory(pawn_structure_index(pos),pos.piece_on(prevSq),prevSq)
-			<< bonus / 2;
+			<< bonus;
 #endif
 	}
 
@@ -2193,7 +2193,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// 評価値が(alphaより)非常に低い場合、qsearchを使ってalphaを超えられるかを確認します。
 	// もし探索結果がalphaを超えられないことを示唆する場合は、仮のfail lowを返します。
 
-	if (eval < alpha - 501 - 272 * depth * depth)
+	if (eval < alpha - 469 - 307 * depth * depth)
 	// ↑ここのパラメーター調整しても ~1 Eloなので調整しないことにする。
 	{
 		value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
@@ -2220,9 +2220,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// Stockfish10でnonPVにのみの適用に変更になった。
 
 	if (   !ss->ttPv
-		&&  depth < PARAM_FUTILITY_RETURN_DEPTH/*13*/
+		&&  depth < PARAM_FUTILITY_RETURN_DEPTH
 		&&  eval - futility_margin(depth, cutNode && !ss->ttHit, improving, opponentWorsening)
-				- (ss - 1)->statScore / 272 >= beta
+				- (ss - 1)->statScore / 290
+			>= beta
 		&&  eval >= beta
 		&& (!ttData.move || ttCapture)
 		&&  beta > VALUE_TB_LOSS_IN_MAX_PLY
@@ -2245,7 +2246,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		&& (ss - 1)->currentMove != Move::null()
 		&&  eval >= beta
 		//  ⇨ evalがbetaを超えているので1手パスしてもbetaは超えそう。だからnull moveを試す
-		&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1/*23*/ * depth + PARAM_NULL_MOVE_MARGIN2/*400*/
+		&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 * depth + PARAM_NULL_MOVE_MARGIN2
 		&& !excludedMove
 	//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
 		&&  ss->ply >= thisThread->nmpMinPly
@@ -2258,7 +2259,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// Null move dynamic reduction based on depth and eval
 		// (残り探索)深さと評価値に基づくnull moveの動的なreduction
 
-		Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA, 6) + depth / 3 + 5;
+		Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA, 7) + depth / 3 + 5;
 
 		ss->currentMove         = Move::null();
 		// null moveなので、王手はかかっていなくて駒取りでもない。
@@ -2349,9 +2350,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// 直前の手を（ほぼ）安全に枝刈りできます。
 
 	// probCutに使うbeta値。
-	probCutBeta = beta + PARAM_PROBCUT_MARGIN1/*189*/
-		- PARAM_PROBCUT_MARGIN2A/*53*/ * improving
-		- PARAM_PROBCUT_MARGIN2B/*30*/ * opponentWorsening;
+	probCutBeta = beta + PARAM_PROBCUT_MARGIN1
+		- PARAM_PROBCUT_MARGIN2A * improving
+		- PARAM_PROBCUT_MARGIN2B * opponentWorsening;
 
 	if (   !PvNode
 		&&  depth > 3
@@ -2429,8 +2430,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 			if (value >= probCutBeta)
 			{
-				thisThread->captureHistory(movedPiece, move.to_sq(), type_of(captured))
-					<< stat_bonus(depth - 2);
+				thisThread->captureHistory(movedPiece, move.to_sq(), type_of(captured)) << 1300;
 
 				// Save ProbCut data into transposition table
 				// ProbCutのdataを置換表に保存する。
@@ -2458,7 +2458,7 @@ moves_loop: // When in check, search starts here
 	// Step 12. 王手がかかっている局面のときに用いる小さなProbcutのアイデア（約4 Elo）
 	// -----------------------
 
-	probCutBeta = beta + PARAM_PROBCUT_MARGIN3/*379*/;
+	probCutBeta = beta + PARAM_PROBCUT_MARGIN3;
 	if (  (ttData.bound & BOUND_LOWER)
 		&& ttData.depth >= depth - 4
 		&& ttData.value >= probCutBeta
@@ -2858,7 +2858,7 @@ moves_loop: // When in check, search starts here
 			// 前に動かされた駒を取る場合の延長（LTCで約1 Elo）
 
 			else if (PvNode && move.to_sq() == prevSq
-				&& thisThread->captureHistory(movedPiece,move.to_sq(),type_of(pos.piece_on(move.to_sq()))) > 4299)
+				&& thisThread->captureHistory(movedPiece,move.to_sq(),type_of(pos.piece_on(move.to_sq()))) > 4321)
 				extension = 1;
 		}
 
@@ -3024,8 +3024,8 @@ moves_loop: // When in check, search starts here
 				// LMRの結果に基づいて完全な探索深さを調整します - 
 				// 結果が十分に良ければ深く探索し、十分に悪ければ浅く探索します。
 
-				const bool doDeeperSearch     = value > (bestValue + 38 + 2 * newDepth); // (~1 Elo)
-				const bool doShallowerSearch  = value <  bestValue + 8;				     // (~2 Elo)
+				const bool doDeeperSearch     = value > (bestValue + 42 + 2 * newDepth); // (~1 Elo)
+				const bool doShallowerSearch  = value <  bestValue + 10;				 // (~2 Elo)
 
 				newDepth += doDeeperSearch - doShallowerSearch;
 
@@ -3035,9 +3035,7 @@ moves_loop: // When in check, search starts here
 				// Post LMR continuation history updates (~1 Elo)
 				// LMR後のcontinuation historyの更新（約1 Elo）
 
-				int bonus = value >= beta ? 3 * stat_bonus(newDepth)
-					                      :    -stat_malus(newDepth);
-
+				int bonus = 2 * (value >= beta) * stat_bonus(newDepth);
 				update_continuation_histories(ss, movedPiece, move.to_sq(), bonus);
 			}
 		}
@@ -3341,33 +3339,33 @@ moves_loop: // When in check, search starts here
 	else if (!priorCapture && prevSq != SQ_NONE)
 	{
 
-		int bonus = (118 * (depth > 5) + 38 * !allNode + 169 * ((ss - 1)->moveCount > 8)
-			+ 116 * (!ss->inCheck && bestValue <= ss->staticEval - 101)
-			+ 133 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 92));
+		int bonus = (117 * (depth > 5) + 39 * !allNode + 168 * ((ss - 1)->moveCount > 8)
+			+ 115 * (!ss->inCheck && bestValue <= ss->staticEval - 108)
+			+ 119 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 83));
 
 		// Proportional to "how much damage we have to undo"
 		// 「元に戻す必要がある損害の大きさ」に比例する
 
-		bonus += std::min(-(ss - 1)->statScore / 102, 305);
+		bonus += std::min(-(ss - 1)->statScore / 113, 300);
 
-		bonus = std::max(bonus, 0);
+		bonus  = std::max(bonus, 0);
 
 		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
-										stat_bonus(depth) * bonus / 107);
+										stat_bonus(depth) * bonus / 93);
 
 		thisThread->mainHistory(~us, (ss - 1)->currentMove.from_to())
-			<< stat_bonus(depth) * bonus / 174;
+			<< stat_bonus(depth) * bonus / 179;
 
 		//if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
 		//	thisThread->pawnHistory[pawn_structure_index(pos)][pos.piece_on(prevSq)][prevSq]
-		//	<< stat_bonus(depth) * bonus / 25;
+		//	<< stat_bonus(depth) * bonus / 24;
 	}
 
 	// Bonus when search fails low and there is a TT move
 	// 探索がfail lowし、TT moveがある場合のボーナス
 
 	else if (ttData.move && !allNode)
-		thisThread->mainHistory(us, ttData.move.from_to()) << stat_bonus(depth) / 4;
+		thisThread->mainHistory(us, ttData.move.from_to()) << stat_bonus(depth) * 23 / 100;
 
 	// ■ 注意
 	//
