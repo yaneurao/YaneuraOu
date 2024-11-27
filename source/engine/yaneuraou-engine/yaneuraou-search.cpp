@@ -209,15 +209,20 @@ Value futility_margin(Depth d, bool noTtCutNode, bool improving, bool oppWorseni
 // 探索深さを減らすためのReductionテーブル。起動時に初期化する。
 std::array<int,MAX_MOVES> reductions; // [depth or moveNumber]
 
-// 残り探索深さをこの深さだけ減らす。d(depth)とmn(move_count)
-// i(improving)とは、評価値が2手前から上がっているかのフラグ。上がっていないなら
-// 悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
-// delta, rootDelta は、staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やしたいので、
-// そのためのフラグ。(これがtrueだとreduction量が1増える)
+// 残り探索深さをこの深さだけ減らす。
+// 注意 : Stockfish 17(2024.11)で、1024倍して返すことになった。
+//
+// 引数の意味
+//   d  : depth
+//   mn : move_count
+//   i  : improving , 評価値が2手前から上がっているかのフラグ。
+//                    上がっていないなら悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
+//   delta, rootDelta : staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やしたいので、
+//                   そのためのフラグ。(これがtrueだとreduction量が1増える)
 Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
 	int reductionScale = reductions[d] * reductions[mn];
-	return (reductionScale + PARAM_REDUCTION_ALPHA/*1239*/ - int(delta) * PARAM_REDUCTION_GAMMA/*795*/ / int(rootDelta)) / 1024
-		+ (!i && reductionScale > PARAM_REDUCTION_BETA/*1341*/);
+	return (reductionScale + PARAM_REDUCTION_ALPHA - delta * PARAM_REDUCTION_GAMMA / rootDelta)
+		+ (!i && reductionScale > PARAM_REDUCTION_BETA) * 1135;
 	// PARAM_REDUCTION_BETAの値、将棋ではもう少し小さくして、reductionの適用範囲を広げた方がいいかも？
 }
 
@@ -2584,6 +2589,7 @@ moves_loop: // When in check, search starts here
 
 		Value delta = beta - alpha;
 
+		// reduction()では、depthを1024倍した値が返ってきているので注意。
 		Depth r = reduction(improving, depth, moveCount, delta, thisThread->rootDelta);
 
 		// -----------------------
@@ -2609,7 +2615,8 @@ moves_loop: // When in check, search starts here
 			// Reduced depth of the next LMR search
 			// 次のLMR探索における減らさたあとの深さ
 
-			int lmrDepth = newDepth - r;
+			// rは1024倍されているので注意。
+			int lmrDepth = newDepth - r / 1024;
 
 			if (capture || givesCheck)
 			{
@@ -2927,13 +2934,13 @@ moves_loop: // When in check, search starts here
 		// この局面がPV上にあり、fail lowしそうであるならreductionを減らす
 		// (fail lowしてしまうとまた探索をやりなおさないといけないので)
         if (ss->ttPv)
-            r -= 1 + (ttData.value > alpha) + (ttData.depth >= depth);
+            r -= 1024 + (ttData.value > alpha) * 1024 + (ttData.depth >= depth) * 1024;
 
 		// Decrease reduction for PvNodes (~0 Elo on STC, ~2 Elo on LTC)
 		// PvNode のreductionを減らす (STC では約0 Elo、LTC では約2 Elo)
 
 		if (PvNode)
-			r--;
+			r -= 1024;
 
 		// These reduction adjustments have no proven non-linear scaling
 		// これらのreductionの調整には、非線形スケーリングの証明はない
@@ -2948,37 +2955,41 @@ moves_loop: // When in check, search starts here
 		// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
 
 		if (cutNode)
-			r += 2 - (ttData.depth >= depth && ss->ttPv);
+			r += 2518 - (ttData.depth >= depth && ss->ttPv) * 991;
 
 		// Increase reduction if ttMove is a capture but the current move is not a capture (~3 Elo)
 		// ttMove が捕獲する指し手で現在の手が捕獲する指し手でない場合、reductionを増やす (約3 Elo)
 
 		if (ttCapture && !capture)
-			r += 1 + (depth < 8);
+			r += 1043 + (depth < 8) * 999;
 
 		// Increase reduction if next ply has a lot of fail high (~5 Elo)
 		// 次の手でfail highが多い場合、reductionを増やします。（約5 Elo）
 
 		if ((ss + 1)->cutoffCnt > 3)
-			r += 1 + allNode;
+			r += 938 + allNode * 960;
 
 		// For first picked move (ttMove) reduce reduction (~3 Elo)
 		// 最初に選ばれた指し手（ttMove）ではreductionを減らします。（約3 Elo）
 
 		else if (move == ttData.move)
-			r -= 2;
+			r -= 1879;
 
 		// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 		// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
-		ss->statScore =   2 * thisThread->mainHistory(us, move.from_to())
+		if (capture)
+			ss->statScore = 0;
+		else
+			ss->statScore =   2 * thisThread->mainHistory(us, move.from_to())
 						+     (*contHist[0])(movedPiece, move.to_sq())
 						+     (*contHist[1])(movedPiece, move.to_sq())
-						- 4410;
+						- 3996;
 			
 		// Decrease/increase reduction for moves with a good/bad history (~8 Elo)
 		// 良い/悪い履歴を持つ手に対して、reductionを減らす/増やす (約8 Elo)
 
-		r -= ss->statScore / 11016;
+		r -= ss->statScore * 1287 / 16384;
+
 		// -----------------------
 		// Step 17. Late moves reduction / extension (LMR, ~117 Elo)
 		// Step 17. 遅い手の削減／延長（LMR、約117 Elo）
@@ -3014,7 +3025,7 @@ moves_loop: // When in check, search starts here
 			// ⇨ 備考) C++の仕様上、std::clamp(x, min, max)は、min > maxの時に未定義動作であるから、
 			//         clamp()を用いるのではなく、max()とmin()を組み合わせて書かないといけない。
 
-            Depth d = std::max(1, std::min(newDepth - r, newDepth + !allNode));
+            Depth d = std::max(1, std::min(newDepth - r/1024, newDepth + !allNode));
 
 			value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
 
@@ -3056,12 +3067,12 @@ moves_loop: // When in check, search starts here
 			// ttMoveが存在しない場合、削減を増やします。（約1 Elo）
 
             if (!ttData.move)
-				r += 2;
+				r += 2037;
 
 			// Note that if expected reduction is high, we reduce search depth by 1 here (~9 Elo)
 			// 期待される削減が大きい場合、ここで探索深さを1減らすことに注意してください。（約9 Elo）
 
-			value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth - (r > 3), !cutNode);
+			value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth - (r > 2983), !cutNode);
 		}
 
 		// For PV nodes only, do a full PV search on the first move or after a fail high,
