@@ -573,6 +573,51 @@ void MainThread::search()
 	// この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
 	Limits.pv_interval = (Limits.infinite || Limits.consideration_mode) ? 0 : (int)Options["PvInterval"];
 
+#if defined(SHOGI24)
+	// ---------------------
+	//    将棋倶楽部24対策
+	// ---------------------
+
+	// 相手玉が取れるなら取る。
+	//
+	// 相手玉が取れる局面は、(直前で王手放置があったということだから)非合法局面で、
+	// 将棋所ではそのような局面からの対局開始はできないが、ShogiGUIでは対局開始できる。
+	//
+	// また、将棋倶楽部24で王手放置の局面を作ることができるので、
+	// 相手玉が取れることがある。
+	// 
+	// ゆえに、取れるなら取る指し手を指せたほうが良い。
+	//
+	// 参考動画 : https://www.youtube.com/watch?v=8nwJcKH0x0c
+
+	auto their_king = rootPos.king_square(~us);
+	auto our_piece  = rootPos.attackers_to(their_king) & rootPos.pieces(us);
+	// 敵玉に利いている自駒があるなら、それを移動させて勝ち。
+	if (our_piece)
+	{
+		Square from = our_piece.pop();
+		Square to   = their_king;
+		Move16 m16  = make_move16(from, to);
+		Move   m    = rootPos.to_move(m16);
+
+		// 玉を取る指し手はcapturesで生成されていない可能性がある。
+		// 仕方がないので、rootMoves[0]を書き換えることにする。
+
+		// 玉で玉を取る手はrootMovesに含まれないので、場合によっては、それしか指し手がない場合に、
+		// rootMoves.size() == 0だけど、玉で玉を取る指し手だけがあることは起こり得る。
+		// (この理由から、玉を取る判定は、合法手がない判定より先にしなければならない)
+
+		if (rootMoves.size() == 0)
+			rootMoves.emplace_back(m);
+		else
+			rootMoves[0].pv[0] = m;
+
+		rootMoves[0].score = rootMoves[0].usiScore = mate_in(1);
+
+		goto SKIP_SEARCH;
+	}
+#endif
+
 	// ---------------------
 	// 合法手がないならここで投了
 	// ---------------------
@@ -634,15 +679,6 @@ void MainThread::search()
 			}
 		}
 	}
-
-	// ---------------------
-	//    将棋倶楽部24対策
-	// ---------------------
-
-	// 将棋倶楽部24に参戦させるのであれば、王手放置の局面が送られてくるので
-	// ここで王手放置の局面であるかを判定して、そうであれば相手の玉を取る指し手を生成しなくてはならない。
-
-	// 将棋のルールに反する局面だと言えるし、コードが汚くなるので書きたくない。
 
 	// ---------------------
 	//    通常の思考処理
