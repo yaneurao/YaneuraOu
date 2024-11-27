@@ -104,6 +104,9 @@ struct RootMove
 	// aspiration searchの時に用いる。previousScoreの移動平均。
 	Value averageScore	= -VALUE_INFINITE;
 
+	// aspiration searchの時に用いる。二乗平均スコア。
+	Value meanSquaredScore = - VALUE_INFINITE * VALUE_INFINITE;
+
 	// USIに出力する用のscore
 	Value usiScore		= -VALUE_INFINITE;
 

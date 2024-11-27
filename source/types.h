@@ -433,47 +433,53 @@ enum Bound {
 //		 Stockfishでは、  VALUE_TB_LOSS_IN_MAX_PLY
 //		 やねうら王でも同様。
 //
-enum Value : int32_t
-{
-	VALUE_ZERO = 0,
+// Value is used as an alias for int, this is done to differentiate between a search
+// value and any other integer value. The values used in search are always supposed
+// to be in the range (-VALUE_NONE, VALUE_NONE] and should not exceed this range.
 
-	// 引き分け時のスコア(千日手のスコアリングなどで用いる)
-	VALUE_DRAW = 0,
+// Valueはint型のエイリアスとして使用されています。これは、検索に使用される値と
+// その他の整数値を区別するために行われています。検索で使用される値は
+// 常に(-VALUE_NONE, VALUE_NONE]の範囲内である必要があり、この範囲を超えてはなりません。
 
-	// 無効な値
-	VALUE_NONE = 32002,
+using Value = int;
 
-	// Valueの取りうる最大値(最小値はこの符号を反転させた値)
-	VALUE_INFINITE = 32001,
+constexpr Value VALUE_ZERO     = 0;
+// 引き分け時のスコア(千日手のスコアリングなどで用いる)
+constexpr Value VALUE_DRAW     = 0;
 
-	// 0手詰めのスコア(rootで詰んでいるときのscore)
-	// 例えば、3手詰めならこの値より3少ない。
-	VALUE_MATE = 32000,
+// 無効な値
+constexpr Value VALUE_NONE     = 32002;
 
-	VALUE_MATE_IN_MAX_PLY    =  VALUE_MATE  - MAX_PLY , // MAX_PLYでの詰みのときのスコア。
-	VALUE_MATED_IN_MAX_PLY   = -VALUE_MATE_IN_MAX_PLY , // MAX_PLYで詰まされるときのスコア。
+// Valueの取りうる最大値(最小値はこの符号を反転させた値)
+constexpr Value VALUE_INFINITE = 32001;
 
-	// チェスの終盤DB(tablebase)によって得られた詰みを表現するスコアらしいが、
-	// Stockfishとの互換性のためにこのシンボルはStockfishと同様に定義しておく。
-	VALUE_TB                 =  VALUE_MATE_IN_MAX_PLY - 1,
-	VALUE_TB_WIN_IN_MAX_PLY  =  VALUE_MATE - MAX_PLY,
-	VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY, 
+// 0手詰めのスコア(rootで詰んでいるときのscore)
+// 例えば、3手詰めならこの値より3少ない。
+constexpr Value VALUE_MATE             = 32000;
 
-	// 千日手による優等局面への突入したときのスコア
-	// ※ これを詰みのスコアの仲間としてしまうと、詰みのスコアをrootからの手数で
-	//    計算しなおすときにおかしくなる。これは評価値の仲間として扱うことにする。
-	//   よって、これは、VALUE_MAX_EVALと同じ値にしておく。
-	VALUE_SUPERIOR =  VALUE_TB_WIN_IN_MAX_PLY - 1,
+constexpr Value VALUE_MATE_IN_MAX_PLY  =  VALUE_MATE - MAX_PLY;  // MAX_PLYでの詰みのときのスコア。
+constexpr Value VALUE_MATED_IN_MAX_PLY = -VALUE_MATE_IN_MAX_PLY; // MAX_PLYで詰まされるときのスコア。
 
-	// 評価関数の返す値の最大値、最小値
-	VALUE_MAX_EVAL =  VALUE_SUPERIOR,
-	VALUE_MIN_EVAL = -VALUE_MAX_EVAL,
+// チェスの終盤DB(tablebase)によって得られた詰みを表現するスコアらしいが、
+// Stockfishとの互換性のためにこのシンボルはStockfishと同様に定義しておく。
+constexpr Value VALUE_TB                 =  VALUE_MATE_IN_MAX_PLY - 1;
+constexpr Value VALUE_TB_WIN_IN_MAX_PLY  =  VALUE_MATE - MAX_PLY;
+constexpr Value VALUE_TB_LOSS_IN_MAX_PLY = -VALUE_TB_WIN_IN_MAX_PLY;
 
-	// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
-	// StateInfo::sum.p[0][0]にこの値を格納して、マーカーとするのだが、このsumのp[0][0]は、ΣBKPPの計算結果であり、
-	// 16bitの範囲で収まるとは限らないため、もっと大きな数にしておく必要がある。
-	VALUE_NOT_EVALUATED = INT32_MAX,
-};
+// 千日手による優等局面への突入したときのスコア
+// ※ これを詰みのスコアの仲間としてしまうと、詰みのスコアをrootからの手数で
+//    計算しなおすときにおかしくなる。これは評価値の仲間として扱うことにする。
+//   よって、これは、VALUE_MAX_EVALと同じ値にしておく。
+constexpr Value VALUE_SUPERIOR =  VALUE_TB_WIN_IN_MAX_PLY - 1;
+
+// 評価関数の返す値の最大値、最小値
+constexpr Value VALUE_MAX_EVAL =  VALUE_SUPERIOR;
+constexpr Value VALUE_MIN_EVAL = -VALUE_MAX_EVAL;
+
+// 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
+// StateInfo::sum.p[0][0]にこの値を格納して、マーカーとするのだが、このsumのp[0][0]は、ΣBKPPの計算結果であり、
+// 16bitの範囲で収まるとは限らないため、もっと大きな数にしておく必要がある。
+constexpr Value VALUE_NOT_EVALUATED = INT32_MAX;
 
 // ply手で詰ませるときのスコア
 constexpr Value mate_in(int ply) { return (Value)(VALUE_MATE - ply); }

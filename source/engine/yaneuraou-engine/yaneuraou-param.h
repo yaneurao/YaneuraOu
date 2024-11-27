@@ -250,9 +250,9 @@ PARAM_DEFINE PARAM_ASPIRATION_SEARCH1 = 10;
 
 // aspiration searchの定数。
 // 重要度　★★☆☆☆
-// 元の値 = Stockfish 16 : 15335, Stockfish 17 : 13797 , step = 1000
+// 元の値 = Stockfish 16 : 15335, Stockfish 17 : 13797,13461 , step = 1000
 // [PARAM] min:10000,max:20000,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_ASPIRATION_SEARCH2 = 13797;
+PARAM_DEFINE PARAM_ASPIRATION_SEARCH2 = 13461;
 
 
 // MovePicker

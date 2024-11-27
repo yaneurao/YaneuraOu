@@ -1096,8 +1096,8 @@ void Thread::search()
 			// Stockfish 16では10に変更された。
 			// Stockfish 17では 5に変更された。
 
+			delta     = Value(PARAM_ASPIRATION_SEARCH1) + std::abs(rootMoves[pvIdx].meanSquaredScore) / PARAM_ASPIRATION_SEARCH2;
 			Value avg = rootMoves[pvIdx].averageScore;
-			delta     = Value(PARAM_ASPIRATION_SEARCH1) + int(avg) * avg / PARAM_ASPIRATION_SEARCH2;
 			alpha     = std::max(avg - delta,-VALUE_INFINITE);
 			beta      = std::min(avg + delta, VALUE_INFINITE);
 
@@ -1782,7 +1782,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	    && ttData.depth > depth - (ttData.value <= beta) // 置換表に登録されている探索深さのほうが深くて
 		&& ttData.value != VALUE_NONE // Can happen when !ttHit or when access race in probe()
 								      // !ttHitの場合やprobe()でのアクセス競合時に発生する可能性があります。
-		&& (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER)))
+		&& (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER))
+		&& (cutNode == (ttData.value >= beta) || depth > 8))
 		// ■ 解説
 		// 
 		// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
@@ -3122,8 +3123,17 @@ moves_loop: // When in check, search starts here
 			RootMove& rm = *std::find(thisThread->rootMoves.begin(),
 									  thisThread->rootMoves.end()  , move);
 
+			// TODO : あとで
+			//rm.effort += nodes - nodeCount;
+
 			// rootの平均スコアを求める。aspiration searchで用いる。
-			rm.averageScore = rm.averageScore != -VALUE_INFINITE ? (value + rm.averageScore) / 2 : value;
+			rm.averageScore =
+				rm.averageScore != -VALUE_INFINITE ? (value + rm.averageScore) / 2 : value;
+
+			// 二乗平均スコア。aspiration searchで用いる。
+			rm.meanSquaredScore = rm.meanSquaredScore != -VALUE_INFINITE * VALUE_INFINITE
+				? (value * std::abs(value) + rm.meanSquaredScore) / 2
+				:  value * std::abs(value);
 
 			// PV move or new best move?
 			// PVの指し手か、新しいbest moveか？
@@ -3421,23 +3431,22 @@ moves_loop: // When in check, search starts here
 	// correction historyは実装しない。
 #if 0
 	// Adjust correction history
-	if (!ss->inCheck && (!bestMove || !pos.capture(bestMove))
-		&& !(bestValue >= beta && bestValue <= ss->staticEval)
-		&& !(!bestMove && bestValue >= ss->staticEval))
+	if (!ss->inCheck && !(bestMove && pos.capture(bestMove))
+		&& ((bestValue < ss->staticEval && bestValue < beta)  // negative correction & no fail high
+			|| (bestValue > ss->staticEval && bestMove)))     // positive correction & no fail low
 	{
 		const auto m = (ss - 1)->currentMove;
 
 		auto bonus = std::clamp(int(bestValue - ss->staticEval) * depth / 8,
 			-CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
 		thisThread->pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)]
-			<< bonus * 101 / 128;
-		thisThread->materialCorrectionHistory[us][material_index(pos)] << bonus * 99 / 128;
-		thisThread->majorPieceCorrectionHistory[us][major_piece_index(pos)] << bonus * 157 / 128;
-		thisThread->minorPieceCorrectionHistory[us][minor_piece_index(pos)] << bonus * 153 / 128;
+			<< bonus * 107 / 128;
+		thisThread->majorPieceCorrectionHistory[us][major_piece_index(pos)] << bonus * 162 / 128;
+		thisThread->minorPieceCorrectionHistory[us][minor_piece_index(pos)] << bonus * 148 / 128;
 		thisThread->nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)]
-			<< bonus * 123 / 128;
+			<< bonus * 122 / 128;
 		thisThread->nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)]
-			<< bonus * 165 / 128;
+			<< bonus * 185 / 128;
 
 		if (m.is_ok())
 			(*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()] << bonus;

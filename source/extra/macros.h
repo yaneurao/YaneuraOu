@@ -47,21 +47,9 @@ ENABLE_FULL_OPERATORS_ON(Piece)
 ENABLE_INCR_OPERATORS_ON(PieceType)
 ENABLE_BASE_OPERATORS_ON(PieceType)
 ENABLE_FULL_OPERATORS_ON(PieceNumber)
-ENABLE_FULL_OPERATORS_ON(Value)
 ENABLE_FULL_OPERATORS_ON(Hand)
 ENABLE_FULL_OPERATORS_ON(Eval::BonaPiece)
 ENABLE_FULL_OPERATORS_ON(Effect8::Direct)
-
-// enumに対してint型との加算と減算を提供するマクロ。Value型など一部の型はこれがないと不便。(やねうら王独自拡張)
-
-#define ENABLE_ADD_SUB_OPERATORS_ON(T)						\
-constexpr T operator+(T v, int i) { return T(int(v) + i); } \
-constexpr T operator-(T v, int i) { return T(int(v) - i); } \
-inline T& operator+=(T& v, int i) { return v = v + i; }		\
-inline T& operator-=(T& v, int i) { return v = v - i; }
-
-ENABLE_ADD_SUB_OPERATORS_ON(Value)
-
 
 // enumに対して標準的なビット演算を定義するマクロ(やねうら王独自拡張)
 #define ENABLE_BIT_OPERATORS_ON(T)													\
