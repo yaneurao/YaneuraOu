@@ -82,7 +82,7 @@ struct RootMove
 	// GUIに返すponder moveをできる限り準備しようとしますが、
 	// そうでない場合、「ponder on」の際に考えるべきものが何もなくなります。
 
-	bool extract_ponder_from_tt(const TranspositionTable& tt, Position& pos);
+	bool extract_ponder_from_tt(const TranspositionTable& tt, Position& pos, Move ponder_candidate);
 
 	// std::count(),std::find()などで指し手と比較するときに必要。
 	bool operator==(const Move& m) const { return pv[0] == m; }

@@ -114,7 +114,7 @@ namespace Search {
 	// GUIに返すponder moveをできる限り準備しようとしますが、
 	// そうでない場合、「ponder on」の際に考えるべきものが何もなくなります。
 
-	bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt, Position& pos)
+	bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt, Position& pos, Move ponder_candidate)
 	{
 		StateInfo st;
 
@@ -131,8 +131,18 @@ namespace Search {
 		auto [ttHit, ttData, ttWriter] = tt.probe(pos.key(), pos);
 		if (ttHit)
 		{
-			if (MoveList<LEGAL>(pos).contains(ttData.move))
-				pv.push_back(ttData.move);
+			Move m = ttData.move;
+			//if (MoveList<LEGAL>(pos).contains(ttData.move))
+			// ⇨ Stockfishのこのコード、pseudo_legalとlegalで十分なのではないか？
+			if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
+				pv.push_back(m);
+		}
+		// 置換表にもなかったので以前のiteration時のpv[1]をほじくり返す。
+		else if (ponder_candidate)
+		{
+			Move m = ponder_candidate;
+			if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
+				pv.push_back(m);
 		}
 
 		pos.undo_move(pv[0]);

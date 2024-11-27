@@ -837,7 +837,7 @@ SKIP_SEARCH:;
 		// pvにはbestmoveのときの読み筋(PV)が格納されているので、ponderとしてpv[1]があればそれを出力してやる。
 		// また、pv[1]がない場合(rootでfail highを起こしたなど)、置換表からひねり出してみる。
 		if (bestThread->rootMoves[0].pv.size() > 1
-			|| bestThread->rootMoves[0].extract_ponder_from_tt(TT, rootPos))
+			|| bestThread->rootMoves[0].extract_ponder_from_tt(TT, rootPos, Threads.main()->ponder_candidate))
 			std::cout << " ponder " << bestThread->rootMoves[0].pv[1];
 
 		std::cout << sync_endl;
