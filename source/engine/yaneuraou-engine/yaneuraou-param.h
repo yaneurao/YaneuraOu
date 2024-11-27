@@ -27,9 +27,9 @@
 
 // Reductionsテーブルの初期化用
 // 重要度　★★★★★
-// 元の値 = Stockfish 16 : 2037 , Stockfish 17 : 1843 ,step = 8
+// 元の値 = Stockfish 16 : 2037 , Stockfish 17(2024.8) : 1843 ,Stockfish 17(2024.11) : 1943 , step = 8
 // [PARAM] min:1500,max:2500,step:2,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 1843;
+PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 1943;
 
 // Reductionの計算式に出てくる定数
 // 重要度　★★★★☆
@@ -58,14 +58,14 @@ PARAM_DEFINE PARAM_REDUCTION_GAMMA = 795;
 // 深さに比例したfutility pruning
 
 // 重要度　★★★★☆
-// 元の値 = 118 , step = 20
+// 元の値 = 109 , step = 20
 // [PARAM] min:100,max:300,step:10,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 118;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 109;
 
 // 重要度　★★★★☆
-// 元の値 = 33 , step = 10
+// 元の値 = 27 , step = 10
 // [PARAM] min:10,max:200,step:5,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 33;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 27;
 
 // 重要度　★★★★☆
 // 元の値 = 138 , step = 30

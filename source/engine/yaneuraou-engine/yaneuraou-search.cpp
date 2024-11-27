@@ -197,7 +197,7 @@ namespace {
 // depth(残り探索深さ)に応じたfutility margin。
 // ※ RazoringはStockfish12で効果がないとされてしまい除去された。
 Value futility_margin(Depth d, bool noTtCutNode, bool improving, bool oppWorsening) {
-	Value futilityMult = Value(PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode);
+	Value futilityMult       = Value(PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode);
 	Value improvingDeduction = Value(int(improving) * futilityMult * 2);
 	Value worseningDeduction = Value(int(oppWorsening) * futilityMult / 3);
 	return Value(futilityMult * d - improvingDeduction - worseningDeduction);
@@ -254,8 +254,8 @@ Value to_corrected_static_eval(Value v /*, const Worker& w, const Position& pos 
 	const auto  micv  = w.minorPieceCorrectionHistory[us][minor_piece_index(pos)];
 	const auto  wnpcv = w.nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)];
 	const auto  bnpcv = w.nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)];
-	const auto  cv =
-	  (6245 * pcv + 3442 * mcv + 3471 * macv + 5958 * micv + 6566 * (wnpcv + bnpcv)) / 131072;
+	const auto cv =
+		(6384 * pcv + 3583 * macv + 6492 * micv + 6725 * (wnpcv + bnpcv) + cntcv * 5880) / 131072;
 	v += cv;
 
 	return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
@@ -270,7 +270,7 @@ Value to_corrected_static_eval(Value v /*, const Worker& w, const Position& pos 
 // History and stats update bonus, based on depth
 // depthに基づく、historyとstatsのupdate bonus
 
-int stat_bonus(Depth d) { return std::min(179 * d - 108, 1598); }
+int stat_bonus(Depth d) { return std::min(168 * d - 100, 1718); }
 	// →　やねうら王では、Stockfishの統計値、統計ボーナスに関して手を加えないことにしているので
 	// この値はStockfishの値そのまま。
 
@@ -280,7 +280,7 @@ int stat_bonus(Depth d) { return std::min(179 * d - 108, 1598); }
 // 「統計的なペナルティ」または「マイナスの修正値」を計算するために使用される。
 // この関数は、ある行動が望ましくない結果をもたらした場合に、その行動の評価を減少させるために使われる
 // TODO : あとで
-int stat_malus(Depth d) { return std::min(820 * d - 261, 2246); }
+int stat_malus(Depth d) { return std::min(768 * d - 257, 2351); }
 
 
 #if 0
@@ -468,7 +468,8 @@ void Search::clear()
 		;
 
 	for (size_t i = 1; i < reductions.size(); ++i)
-		reductions[i] = int((PARAM_REDUCTIONS_PARAM1 / 100.0 /*(100で割ったあとの数値が)18.43*/  + std::log(THREAD_SIZE) / 2) * std::log(i));
+		reductions[i] = int((PARAM_REDUCTIONS_PARAM1 / 100.0 /*(100で割ったあとの数値が)19.43*/
+						+ std::log(THREAD_SIZE) / 2) * std::log(i));
 		// TODO あとで
 
 	// ここ、log(THREAD_SIZE)/2 の /2 のところ、何か良さげな係数を掛けて調整すべきだと思う。
@@ -1101,7 +1102,7 @@ void Thread::search()
 			beta      = std::min(avg + delta, VALUE_INFINITE);
 
 			// Adjust optimism based on root move's previousScore (~4 Elo)
-            //optimism[us]  = 132 * avg / (std::abs(avg) + 89);
+            //optimism[ us] = 150 * avg / (std::abs(avg) + 85);
             //optimism[~us] = -optimism[us];
 			// → このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
 
@@ -1310,8 +1311,9 @@ void Thread::search()
 			{
 				// 1つしか合法手がない(one reply)であるだとか、利用できる時間を使いきっているだとか、
 
-				double fallingEval = (1067 + 223 * (mainThread->bestPreviousAverageScore - bestValue)
-										+  97 * (mainThread->iterValue[iterIdx] - bestValue)) / 10000.0;
+				double fallingEval = (11 + 2 * (mainThread->bestPreviousAverageScore - bestValue)
+										+  (mainThread->iterValue[iterIdx] - bestValue))
+									/ 100.0;
 				fallingEval = std::clamp(fallingEval, 0.580, 1.667);
 
 				// If the bestMove is stable over several iterations, reduce time accordingly
