@@ -259,9 +259,9 @@ PARAM_DEFINE PARAM_ASPIRATION_SEARCH2 = 13797;
 
 // move pickerでsortする係数 (super sort使用時)
 // 重要度　★★★★★
-// 元の値 = 3130 , step = 1
+// 元の値 = 3560 , step = 1
 // [PARAM] min:0,max:6000,step:500,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_MOVEPICKER_SORT_ALPHA1 = 3500;
+PARAM_DEFINE PARAM_MOVEPICKER_SORT_ALPHA1 = 3560;
 
 // move pickerでsortする係数 (super sort使用しない時)
 // 重要度　★★★★★

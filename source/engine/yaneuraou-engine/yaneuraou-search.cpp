@@ -2489,7 +2489,6 @@ moves_loop: // When in check, search starts here
 	// moveCount			: 調べた指し手の数(合法手に限る)
 	// moveCountPruning		: moveCountによって枝刈りをするかのフラグ(quietの指し手を生成しない)
 	int  moveCount        = 0;
-	bool moveCountPruning = false;
 
 	// -----------------------
 	// Step 13. Loop through all pseudo-legal moves until no moves remain
@@ -2504,7 +2503,7 @@ moves_loop: // When in check, search starts here
 	//    ※　do_move()までにはlegalかどうかの判定が必要。
 
 	// moveCountPruningがtrueの時はnext_move()はQUIETの指し手を返さないので注意。
-	while ((move = mp.next_move(moveCountPruning)) != Move::none())
+	while ((move = mp.next_move()) != Move::none())
 	{
 		ASSERT_LV3(pos.pseudo_legal(move) && pos.legal_promote(move));
 
@@ -2597,9 +2596,9 @@ moves_loop: // When in check, search starts here
 		{
 			// Skip quiet moves if movecount exceeds our FutilityMoveCount threshold (~8 Elo)
 			// movecountがFutilityMoveCountの閾値を超えた場合、quietの手をスキップします。（約8 Elo）
-			// ※ moveCountPruningとはmoveCountベースの枝刈りを実行するかどうかのフラグ
 
-			moveCountPruning = moveCount >= futility_move_count(improving, depth);
+			if (moveCount >= futility_move_count(improving, depth))
+				mp.skip_quiet_moves();
 
 			// Reduced depth of the next LMR search
 			// 次のLMR探索における減らさたあとの深さ

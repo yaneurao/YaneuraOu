@@ -467,7 +467,7 @@ Move MovePicker::select(Pred filter) {
 
 // ※ 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
 // skipQuiets : これがtrueだとQUIETな指し手は返さない。
-Move MovePicker::next_move(bool skipQuiets) {
+Move MovePicker::next_move() {
 
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 	auto quiet_threshold = [](Depth d) { return -PARAM_MOVEPICKER_SORT_ALPHA1 * d; };
@@ -707,5 +707,7 @@ top:
 	ASSERT(false);
 	return Move::none(); // Silence warning
 }
+
+void MovePicker::skip_quiet_moves() { skipQuiets = true; }
 
 #endif // defined(USE_MOVE_PICKER)

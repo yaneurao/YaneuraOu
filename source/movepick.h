@@ -391,7 +391,10 @@ public:
 	// 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
 	// 指し手が尽きればMove::none()が返る。
 	// 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
-	Move next_move(bool skipQuiets = false);
+	Move next_move();
+
+	// next_move()で、quietな指し手をskipするためのフラグをセットする。
+	void skip_quiet_moves();
 
 private:
 	template <PickType T, typename Pred> Move select(Pred);
@@ -439,6 +442,9 @@ private:
 
 	// コンストラクタで渡されたrootからの手数
 	int   ply;
+
+	// next_move()で、quietな指し手をskipするかのフラグ
+	bool  skipQuiets = false;
 
 	// 指し手生成バッファ
 	// 最大合法手の数 = 593 , これを要素数が32の倍数になるようにpaddingすると608。
