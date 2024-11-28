@@ -203,28 +203,6 @@ Value futility_margin(Depth d, bool noTtCutNode, bool improving, bool oppWorseni
 	return futilityMult * d - improvingDeduction - worseningDeduction;
 }
 
-// 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
-
-// Reductions lookup table initialized at startup
-// 探索深さを減らすためのReductionテーブル。起動時に初期化する。
-std::array<int,MAX_MOVES> reductions; // [depth or moveNumber]
-
-// 残り探索深さをこの深さだけ減らす。
-// 注意 : Stockfish 17(2024.11)で、1024倍して返すことになった。
-//
-// 引数の意味
-//   d  : depth
-//   mn : move_count
-//   i  : improving , 評価値が2手前から上がっているかのフラグ。
-//                    上がっていないなら悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
-//   delta, rootDelta : staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やしたいので、
-//                   そのためのフラグ。(これがtrueだとreduction量が1増える)
-Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
-	int reductionScale = reductions[d] * reductions[mn];
-	return (reductionScale + PARAM_REDUCTION_ALPHA - delta * PARAM_REDUCTION_GAMMA / rootDelta)
-		+ (!i && reductionScale > PARAM_REDUCTION_BETA) * 1135;
-	// PARAM_REDUCTION_BETAの値、将棋ではもう少し小さくして、reductionの適用範囲を広げた方がいいかも？
-}
 
 // 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
 
@@ -287,6 +265,28 @@ int stat_bonus(Depth d) { return std::min(168 * d - 100, 1718); }
 // TODO : あとで
 int stat_malus(Depth d) { return std::min(768 * d - 257, 2351); }
 
+// 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
+
+// Reductions lookup table initialized at startup
+// 探索深さを減らすためのReductionテーブル。起動時に初期化する。
+std::array<int, MAX_MOVES> reductions; // [depth or moveNumber]
+
+// 残り探索深さをこの深さだけ減らす。
+// 注意 : Stockfish 17(2024.11)で、1024倍して返すことになった。
+//
+// 引数の意味
+//   d  : depth
+//   mn : move_count
+//   i  : improving , 評価値が2手前から上がっているかのフラグ。
+//                    上がっていないなら悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
+//   delta, rootDelta : staticEvalとchildのeval(value)の差が一貫して低い時にreduction量を増やしたいので、
+//                   そのためのフラグ。(これがtrueだとreduction量が1増える)
+Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
+	int reductionScale = reductions[d] * reductions[mn];
+	return (reductionScale + PARAM_REDUCTION_ALPHA - delta * PARAM_REDUCTION_GAMMA / rootDelta)
+		+ (!i && reductionScale > PARAM_REDUCTION_BETA) * 1135;
+	// PARAM_REDUCTION_BETAの値、将棋ではもう少し小さくして、reductionの適用範囲を広げた方がいいかも？
+}
 
 #if 0
 // チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
@@ -902,9 +902,9 @@ void search_thread_init(Thread* th, Stack* ss , Move pv[])
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 7; i > 0; --i)
 	{
-		(ss - i)->continuationHistory = &th->continuationHistory[0][0](NO_PIECE, SQ_ZERO); // Use as a sentinel
+		(ss - i)->continuationHistory           = &th->continuationHistory[0][0](NO_PIECE, SQ_ZERO); // Use as a sentinel
 //      (ss - i)->continuationCorrectionHistory = &this->continuationCorrectionHistory[NO_PIECE][0];
-		(ss - i)->staticEval = VALUE_NONE;
+		(ss - i)->staticEval                    = VALUE_NONE;
 	}
 
 	// Stack(探索用の構造体)上のply(手数)は事前に初期化しておけば探索時に代入する必要がない。
@@ -2023,25 +2023,30 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	}
 
 	// -----------------------
-	// Step 6. Static evaluation of the position
-	// Step 6. 局面の静的な評価
+	//     Lazy Evaluator
+	// 評価関数の遅延評価子(やねうら王独自拡張)
 	// -----------------------
 
-	Value unadjustedStaticEval = VALUE_NONE;
-
 	// この局面で評価関数を呼び出したのか。(do_move()までには呼ばないと駄目)
-	// ※ やねうら王開発版にて独自追加
 	bool evaluated = false;
 	auto evaluate = [&](Position& pos) { evaluated = true; return ::evaluate(pos); };
 	auto lazy_evaluate = [&](Position& pos) {
-#if defined(USE_LAZY_EVALUATE)
+#if defined(USE_LAZY_EVALUATE) && defined(USE_DIFF_EVAL)
+		// まだこのnodeでevaluate()が呼び出されていなかったのであれば呼び出す。
 		if (!evaluated)
 		{
 			evaluated = true;
 			evaluate_with_no_return(pos);
 		}
 #endif
-	};
+		};
+
+	// -----------------------
+	// Step 6. Static evaluation of the position
+	// Step 6. 局面の静的な評価
+	// -----------------------
+
+	Value unadjustedStaticEval = VALUE_NONE;
 
 	if (ss->inCheck)
 	{
@@ -2107,19 +2112,17 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// Stockfish 17のコード
 		if (unadjustedStaticEval == VALUE_NONE)
 			// TT raceで破壊されてるっぽい？
-			unadjustedStaticEval =
-			// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
-			evaluate(pos);
+
+			// unadjustedStaticEval = evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
+			unadjustedStaticEval = evaluate(pos);
 
 		// 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
 		// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 
-		else if (PvNode)
+		else if (PvNode) {
 			//		Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
 			// → TODO : hint_common_parent_position()実装するか検討する。
-			unadjustedStaticEval = evaluate(pos);
-		// ないほうがいいか？ ⇨ V836dev_oとV836dev_pの比較
-		// ⇨ スレッド数が多くてTT raceが起きやすいと違うかもな…。
+		}
 #else
 		unadjustedStaticEval = evaluate(pos);
 #endif
@@ -2293,7 +2296,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		//  ⇨ evalがbetaを超えているので1手パスしてもbetaは超えそう。だからnull moveを試す
 		&&  ss->staticEval >= beta - PARAM_NULL_MOVE_MARGIN1 * depth + PARAM_NULL_MOVE_MARGIN2
 		&& !excludedMove
-	//	&&  pos.non_pawn_material(us)  // これ終盤かどうかを意味する。将棋でもこれに相当する条件が必要かも。
+	//	&&  pos.non_pawn_material(us)  // 盤上にpawn以外の駒がある ≒ pawnだけの終盤ではない。将棋でもこれに相当する条件が必要かも。
 		&&  ss->ply >= thisThread->nmpMinPly
         &&  beta > VALUE_TB_LOSS_IN_MAX_PLY
 		// 同じ手番側に連続してnull moveを適用しない
@@ -2713,7 +2716,7 @@ moves_loop: // When in check, search starts here
 					ss->staticEval + (bestValue < ss->staticEval - 45 ? 140 : 43) + 141 * lmrDepth;
 
 				// Futility pruning: parent node (~13 Elo)
-				if (!ss->inCheck && lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH/*12*/ && futilityValue <= alpha)
+				if (!ss->inCheck && lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH && futilityValue <= alpha)
 				{
 					if (bestValue <= futilityValue
 						&& std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY
@@ -3730,16 +3733,16 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		return ttData.value;
 
 	// -----------------------
-	// Step 4. Static evaluation of the position
-	// Step 4. この局面の静止評価
+	//     Lazy Evaluator
+	// 評価関数の遅延評価子(やねうら王独自拡張)
 	// -----------------------
 
-	// 置換表に書いてあったevalの値をなるべく壊さずに保存するための変数
-	Value unadjustedStaticEval = VALUE_NONE;
+	// この局面で評価関数を呼び出したのか。(do_move()までには呼ばないと駄目)
 	bool evaluated = false;
 	auto evaluate = [&](Position& pos) { evaluated = true; return ::evaluate(pos); };
 	auto lazy_evaluate = [&](Position& pos) {
-#if defined(USE_LAZY_EVALUATE)
+#if defined(USE_LAZY_EVALUATE) && defined(USE_DIFF_EVAL)
+		// まだこのnodeでevaluate()が呼び出されていなかったのであれば呼び出す。
 		if (!evaluated)
 		{
 			evaluated = true;
@@ -3747,6 +3750,14 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		}
 #endif
 	};
+
+	// -----------------------
+	// Step 4. Static evaluation of the position
+	// Step 4. この局面の静止評価
+	// -----------------------
+
+	// 置換表に書いてあったevalの値をなるべく壊さずに保存するための変数
+	Value unadjustedStaticEval = VALUE_NONE;
 
 	if (ss->inCheck)
 	{

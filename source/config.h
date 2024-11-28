@@ -394,6 +394,9 @@
 // 検討目的なら、これをオンにするのは好ましくない。)
 // #define ENABLE_QUICK_DRAW
 
+// 差分計算型評価関数であるか？(次のnodeに行く前に必ずevaluate()が必要である場合にdefineする)
+// #define USE_DIFF_EVAL
+
 // ===============================================================
 // ここ以降では、↑↑↑で設定した内容に基づき必要なdefineを行う。
 // ===============================================================
@@ -435,6 +438,11 @@ constexpr int MAX_PLY_NUM = 246;
 
 		// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
 		#define USE_SHARED_MEMORY_IN_EVAL
+	#endif
+
+	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE)
+		// 差分計算型評価関数である場合、次のnodeに行く前に必ずevaluate()が必要である。
+		#define USE_DIFF_EVAL
 	#endif
 
 	// 学習機能を有効にするオプション。

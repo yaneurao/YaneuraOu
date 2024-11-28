@@ -45,9 +45,9 @@ void Thread::clear()
 {
 #if defined(USE_MOVE_PICKER)
 	mainHistory.fill(0);
-	captureHistory.fill(0);
+	captureHistory.fill(-758);
 #if defined(ENABLE_PAWN_HISTORY)
-	pawnHistory.fill(0);
+	pawnHistory.fill(-1158);
 	pawnCorrectionHistory.fill(0);
 	materialCorrectionHistory.fill(0);
 	majorPieceCorrectionHistory.fill(0);
@@ -73,11 +73,11 @@ void Thread::clear()
 		for (StatsType c : { NoCaptures, Captures })
 			//for (auto& to : continuationHistory[inCheck][c])
 			//	for (auto& h : to)
-			//		h->fill(-678);
+			//		h->fill(-675);
 
 			// ↑この初期化コードは、ContinuationHistory::fill()に移動させた。
 
-			continuationHistory[inCheck][c].fill(-678);
+			continuationHistory[inCheck][c].fill(-645);
 
 #endif
 }
