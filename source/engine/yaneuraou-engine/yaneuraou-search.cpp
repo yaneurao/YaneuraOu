@@ -1694,10 +1694,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// 前の指し手で移動させた先の升目
 	// → null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
 	// → Stockfish 16でMove::null()の時は、prevSq == SQ_NONEとして扱うように変更になった。[2023/10/15]
-	Square prevSq           = (ss-1)->currentMove.is_ok() ? (ss-1)->currentMove.to_sq() : SQ_NONE;
+	Square prevSq = (ss - 1)->currentMove.is_ok() ? (ss - 1)->currentMove.to_sq() : SQ_NONE;
 
-	ss->statScore        = 0;
-	
+	ss->statScore = 0;
+
 	// -----------------------
 	// Step 4. Transposition table lookup.
 	// Step 4. 置換表の参照
@@ -1754,7 +1754,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	そのどちらが得なのかということのようである。
 	**/
 
-	posKey  = pos.hash_key();
+	posKey = pos.hash_key();
 	auto [ttHit, ttData, ttWriter] = TT.probe(posKey, pos);
 
 	// Need further processing of the saved data
@@ -2028,15 +2028,21 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// -----------------------
 
 	// この局面で評価関数を呼び出したのか。(do_move()までには呼ばないと駄目)
-	bool evaluated = false;
-	auto evaluate = [&](Position& pos) { evaluated = true; return ::evaluate(pos); };
-	auto lazy_evaluate = [&](Position& pos) {
-#if defined(USE_LAZY_EVALUATE)
-		// まだこのnodeでevaluate()が呼び出されていなかったのであれば呼び出す。
-		if (!evaluated)
+	Value evaluatedValue = VALUE_NONE;
+	auto evaluate = [&](Position& pos)
 		{
-			evaluated = true;
-			evaluate_with_no_return(pos);
+			if (evaluatedValue == VALUE_NONE)
+				evaluatedValue = ::evaluate(pos);
+			return evaluatedValue;
+		};
+	auto lazy_evaluate = [&](Position& pos) {
+#if defined(USE_LAZY_EVALUATE) && defined(USE_DIFF_EVAL)
+		// ⇨ 差分計算型の評価関数ではないときは、lazy_evaluateする必要がないので、駒得評価関数のときは何もしない。
+		if (evaluatedValue == VALUE_NONE)
+		{
+			//evaluatedValue = VALUE_INFINITE;
+			//::evaluate_with_no_return(pos);
+			evaluatedValue = ::evaluate(pos);
 		}
 #endif
 		};
@@ -2111,21 +2117,27 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 #if defined(USE_LAZY_EVALUATE)
 		// Stockfish 17のコード
 		if (unadjustedStaticEval == VALUE_NONE)
+		{
 			// TT raceで破壊されてるっぽい？
 
 			// unadjustedStaticEval = evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
 			unadjustedStaticEval = evaluate(pos);
 
-		// 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
-		// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
-
+			// 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
+			// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
+		}
 		else if (PvNode) {
 			//		Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
 			// → TODO : hint_common_parent_position()実装するか検討する。
-			unadjustedStaticEval = evaluate(pos);
+
+			//ASSERT(unadjustedStaticEval != VALUE_NONE);
+			//unadjustedStaticEval = evaluate(pos);
+
 			// TODO : ここでevaluate()が必須な理由がよくわからない。
 			//        Stockfishには無いのに…。なぜなのか…。
-			//        次nodeに行くまでにどこかでevaluate()されないpathがあるのではないか。
+			// 
+			// lazy_evaluate()に変える                        ⇨ 弱い(V8.38dev-n7)
+			// unadjustedStaticEvalに代入せずに単にevaluate() ⇨ 特に弱くはなさそう(V838dev_n8)
 		}
 #else
 		unadjustedStaticEval = evaluate(pos);
@@ -3742,15 +3754,20 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	// -----------------------
 
 	// この局面で評価関数を呼び出したのか。(do_move()までには呼ばないと駄目)
-	bool evaluated = false;
-	auto evaluate = [&](Position& pos) { evaluated = true; return ::evaluate(pos); };
-	auto lazy_evaluate = [&](Position& pos) {
-#if defined(USE_LAZY_EVALUATE)
-		// まだこのnodeでevaluate()が呼び出されていなかったのであれば呼び出す。
-		if (!evaluated)
+	Value evaluatedValue = VALUE_NONE;
+	auto evaluate = [&](Position& pos)
 		{
-			evaluated = true;
-			evaluate_with_no_return(pos);
+			if (evaluatedValue == VALUE_NONE)
+				evaluatedValue = ::evaluate(pos);
+			return evaluatedValue;
+		};
+	auto lazy_evaluate = [&](Position& pos) {
+#if defined(USE_LAZY_EVALUATE) && defined(USE_DIFF_EVAL)
+		if (evaluatedValue == VALUE_NONE)
+		{
+			//evaluatedValue = VALUE_INFINITE;
+			//::evaluate_with_no_return(pos);
+			evaluatedValue = ::evaluate(pos);
 		}
 #endif
 	};
@@ -3848,7 +3865,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 #if defined(WRITE_QSEARCH_MATE1PLY_TO_TT)
 					ttWriter.write(posKey, bestValue , ss->ttPv, BOUND_EXACT,
-						std::min(MAX_PLY - 1, depth + 6), move, unadjustedStaticEval, TT.generation());
+						DEPTH_QS, move, unadjustedStaticEval, TT.generation());
+						// depth - 6 は値の範囲が良くない。DEPTH_QSにすべき。
 
 					// ⇨ 置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
 					// ⇨ 再度テスト(V8.36dev-d vs V8.36dev-e)
