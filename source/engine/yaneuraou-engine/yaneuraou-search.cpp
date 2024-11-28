@@ -197,10 +197,10 @@ namespace {
 // depth(残り探索深さ)に応じたfutility margin。
 // ※ RazoringはStockfish12で効果がないとされてしまい除去された。
 Value futility_margin(Depth d, bool noTtCutNode, bool improving, bool oppWorsening) {
-	Value futilityMult       = Value(PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode);
-	Value improvingDeduction = Value(int(improving) * futilityMult * 2);
-	Value worseningDeduction = Value(int(oppWorsening) * futilityMult / 3);
-	return Value(futilityMult * d - improvingDeduction - worseningDeduction);
+	Value futilityMult       = PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode;
+	Value improvingDeduction = improving * futilityMult * 2;
+	Value worseningDeduction = oppWorsening * futilityMult / 3;
+	return futilityMult * d - improvingDeduction - worseningDeduction;
 }
 
 // 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
@@ -299,7 +299,7 @@ int stat_malus(Depth d) { return std::min(768 * d - 257, 2351); }
 // Add a small random component to draw evaluations to avoid 3fold-blindness
 // 引き分け時の評価値VALUE_DRAW(0)の代わりに±1の乱数みたいなのを与える。
 // nodes : 現在の探索node数(乱数のseed代わりに用いる)
-Value value_draw(size_t nodes) { return VALUE_DRAW - 1 + Value(nodes & 0x2); }
+Value value_draw(size_t nodes) { return VALUE_DRAW - 1 + (nodes & 0x2); }
 #endif
 
 #if 0
@@ -372,7 +372,7 @@ Value value_to_tt(Value v, int ply);
 Value value_from_tt(Value v, int ply /*,int r50c */);
 void update_pv(Move* pv, Move move, const Move* childPv);
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
-void update_quiet_histories(const Position& pos, Stack* ss, Move move, int bonus);
+void update_quiet_histories(const Position& pos, Stack* ss, /*WorkerThread&*/ Thread& workerThread, Move move, int bonus);
 void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
 	ValueList<Move, MAX_QUIETS_SEARCHED>& quietsSearched,
 	ValueList<Move, MAX_QUIETS_SEARCHED>& capturesSearched,
@@ -565,8 +565,8 @@ void MainThread::search()
 
 	// 探索のleaf nodeでは、相手番(root_color != side_to_move)である場合、 +draw_valueではなく、-draw_valueを設定してやらないと非対称な探索となって良くない。
 	// 例) 自分は引き分けを勝ち扱いだと思って探索しているなら、相手は、引き分けを負けとみなしてくれないと非対称になる。
-	drawValueTable[REPETITION_DRAW][ us] = Value(+draw_value);
-	drawValueTable[REPETITION_DRAW][~us] = Value(-draw_value);
+	drawValueTable[REPETITION_DRAW][ us] = +draw_value;
+	drawValueTable[REPETITION_DRAW][~us] = -draw_value;
 
 	// PVの出力間隔[ms]
 	// go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
@@ -1137,7 +1137,7 @@ void Thread::search()
 			// Stockfish 16では10に変更された。
 			// Stockfish 17では 5に変更された。
 
-			delta     = Value(PARAM_ASPIRATION_SEARCH1) + std::abs(rootMoves[pvIdx].meanSquaredScore) / PARAM_ASPIRATION_SEARCH2;
+			delta     = PARAM_ASPIRATION_SEARCH1 + std::abs(rootMoves[pvIdx].meanSquaredScore) / PARAM_ASPIRATION_SEARCH2;
 			Value avg = rootMoves[pvIdx].averageScore;
 			alpha     = std::max(avg - delta,-VALUE_INFINITE);
 			beta      = std::min(avg + delta, VALUE_INFINITE);
@@ -1863,7 +1863,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			// fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
 
 			if (!ttCapture)
-				update_quiet_histories(pos, ss, ttData.move, stat_bonus(depth));
+				update_quiet_histories(pos, ss, /* *this */ *thisThread, ttData.move, stat_bonus(depth));
 
 	        // Extra penalty for early quiet moves of the previous ply (~0 Elo on STC, ~2 Elo on LTC)
 			// 1手前の早い時点のquietの指し手に対する追加のペナルティ
@@ -2668,6 +2668,10 @@ moves_loop: // When in check, search starts here
 					int   futilityValue = ss->staticEval
 						+ PARAM_FUTILITY_EVAL1
 						+ PARAM_FUTILITY_EVAL2 * lmrDepth
+						// StockfishのPieceValueは、やねうら王ではCapturePieceValue[]
+						// + CapturePieceValue[capturedPiece]
+						// ⇨ CapturePieceValuePlusPromoteのほうがより正確な評価ではないか？
+						+ CapturePieceValuePlusPromote(pos, move)
 						+ captHist / 7;
 
 					if (futilityValue <= alpha)
@@ -2679,7 +2683,7 @@ moves_loop: // When in check, search starts here
 
 				int seeHist = std::clamp(captHist / 33, -161 * depth, 156 * depth);
 
-				if (!pos.see_ge(move, - Value(PARAM_LMR_SEE_MARGIN1) * depth))
+				if (!pos.see_ge(move, - PARAM_LMR_SEE_MARGIN1 * depth - seeHist))
 					continue;
 			}
 			else
@@ -2732,7 +2736,7 @@ moves_loop: // When in check, search starts here
 				// 負のSEEを持つ指し手を枝刈りする(約4 Elo)
 				// ⇨ lmrDepthの2乗に比例するのでこのパラメーターの影響はすごく大きい。
 
-				if (!pos.see_ge(move, Value(- PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth)))
+				if (!pos.see_ge(move, - PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth))
 					continue;
 			}
 		}
@@ -2798,7 +2802,7 @@ moves_loop: // When in check, search starts here
 			if (!rootNode
 				&&  move == ttData.move
 				&& !excludedMove // 再帰的なsingular延長を除外する。
-		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH/*4*/ - (thisThread->completedDepth > 33) + ss->ttPv
+		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH - (thisThread->completedDepth > 33) + ss->ttPv
 			/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
 				&&  std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
 				&& (ttData.bound & BOUND_LOWER)
@@ -4062,7 +4066,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			//   歩損を許さないように +1 して、歩損する指し手は延長しないようにするほうがいいか？
 			//  →　 captureの時の歩損は、歩で取る、同角、同角みたいな局面なのでそこにはあまり意味なさげ。
 
-			if (!pos.see_ge(move, Value(-PARAM_BAD_ENOUGH_SEE_VALUE/*82*/)))
+			if (!pos.see_ge(move, -PARAM_BAD_ENOUGH_SEE_VALUE))
 				continue;
 		}
 
@@ -4316,9 +4320,9 @@ void update_all_stats(
 		ValueList<Move, MAX_QUIETS_SEARCHED>& capturesSearched,
 		Depth depth) {
 
-	Color   us         = pos.side_to_move();
-	Thread* thisThread = pos.this_thread();
-	CapturePieceToHistory& captureHistory = thisThread->captureHistory;
+	Color   us           = pos.side_to_move();
+	Thread& workerThread = *pos.this_thread();
+	CapturePieceToHistory& captureHistory = workerThread.captureHistory;
 	Piece moved_piece  = pos.moved_piece_after(bestMove);
 	PieceType captured;
 
@@ -4329,13 +4333,13 @@ void update_all_stats(
 	// Stockfish 16では、capture()からcapture_stage()に変更された。[2023/10/15]
 	if (!pos.capture_stage(bestMove))
 	{
-		update_quiet_histories(pos, ss, bestMove, bonus);
+		update_quiet_histories(pos, ss, workerThread, bestMove, bonus);
 
 		// Decrease stats for all non-best quiet moves
 		// 最善でないquietの指し手すべての統計を減少させる
 
 		for (Move move : quietsSearched)
-			update_quiet_histories(pos, ss, /*workerThread,*/ move, -malus);
+			update_quiet_histories(pos, ss, workerThread, move, -malus);
 	}
 	else {
 		// Increase stats for the best move in case it was a capture move
@@ -4413,10 +4417,9 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 // move      = これが良かった指し手
 
 void update_quiet_histories(
-	const Position& pos, Stack* ss, /*Search::Worker& workerThread, */ Move move, int bonus) {
+	const Position& pos, Stack* ss, /*Search::Worker& workerThread*/ Thread& workerThread,  Move move, int bonus) {
 
 	Color us = pos.side_to_move();
-	Thread& workerThread = *pos.this_thread();
 	workerThread.mainHistory(us, move.from_to()) << bonus;
 	if (ss->ply < LOW_PLY_HISTORY_SIZE)
 		workerThread.lowPlyHistory(ss->ply, move.from_to()) << bonus;
@@ -5146,11 +5149,10 @@ ValuePV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodesLim
 			// それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
 			selDepth = 0;
 
+			delta     = PARAM_ASPIRATION_SEARCH1 + std::abs(rootMoves[pvIdx].meanSquaredScore) / PARAM_ASPIRATION_SEARCH2;
 			Value avg = rootMoves[pvIdx].averageScore;
-			delta = Value(PARAM_ASPIRATION_SEARCH1) + int(avg) * avg / PARAM_ASPIRATION_SEARCH2;
-
-			alpha = std::max(avg - delta, -VALUE_INFINITE);
-			beta  = std::min(avg + delta,  VALUE_INFINITE);
+			alpha     = std::max(avg - delta, -VALUE_INFINITE);
+			beta      = std::min(avg + delta,  VALUE_INFINITE);
 
 			// aspiration search
 			int failedHighCnt = 0;
