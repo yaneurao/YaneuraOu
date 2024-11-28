@@ -2031,7 +2031,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	bool evaluated = false;
 	auto evaluate = [&](Position& pos) { evaluated = true; return ::evaluate(pos); };
 	auto lazy_evaluate = [&](Position& pos) {
-#if defined(USE_LAZY_EVALUATE) && defined(USE_DIFF_EVAL)
+#if defined(USE_LAZY_EVALUATE)
 		// まだこのnodeでevaluate()が呼び出されていなかったのであれば呼び出す。
 		if (!evaluated)
 		{
@@ -2122,6 +2122,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		else if (PvNode) {
 			//		Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
 			// → TODO : hint_common_parent_position()実装するか検討する。
+			unadjustedStaticEval = evaluate(pos);
+			// TODO : ここでevaluate()が必須な理由がよくわからない。
+			//        Stockfishには無いのに…。なぜなのか…。
+			//        次nodeに行くまでにどこかでevaluate()されないpathがあるのではないか。
 		}
 #else
 		unadjustedStaticEval = evaluate(pos);
@@ -3741,7 +3745,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	bool evaluated = false;
 	auto evaluate = [&](Position& pos) { evaluated = true; return ::evaluate(pos); };
 	auto lazy_evaluate = [&](Position& pos) {
-#if defined(USE_LAZY_EVALUATE) && defined(USE_DIFF_EVAL)
+#if defined(USE_LAZY_EVALUATE)
 		// まだこのnodeでevaluate()が呼び出されていなかったのであれば呼び出す。
 		if (!evaluated)
 		{

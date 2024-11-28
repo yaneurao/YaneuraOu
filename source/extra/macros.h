@@ -37,7 +37,7 @@ inline T& operator--(T& d) { return d = T(int(d) - 1); }
 
 ENABLE_FULL_OPERATORS_ON(Color)
 
-// StockfishではFileとRankはINCR_OPERATORだが、やねうら王では File同士の加算などができてほしいのでFULL_OPERATORに変うする。
+// StockfishではFileとRankはINCR_OPERATORだが、やねうら王では File同士の加算などができてほしいのでFULL_OPERATORに変更する。
 ENABLE_FULL_OPERATORS_ON(File)
 ENABLE_FULL_OPERATORS_ON(Rank)
 
