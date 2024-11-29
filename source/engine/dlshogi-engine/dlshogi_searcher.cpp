@@ -401,7 +401,7 @@ namespace dlshogi
 		std::memcpy(&pos_root , pos, sizeof(Position));
 
 		// 探索開始局面
-		const Node* current_root = tree->GetCurrentHead();
+		Node* current_root = tree->GetCurrentHead();
 		search_limits.current_root = tree->GetCurrentHead();
 
 		// "go ponder"で呼び出されているかのフラグの設定
@@ -480,6 +480,14 @@ namespace dlshogi
 		if (search_options.debug_message)
 			UctPrint::PrintPlayoutLimits(search_limits.time_manager , search_limits.nodes_limit);
 
+		// --- 詰みルーチン用の初期化
+
+		rootMateMove = Move::none();
+
+		// 詰みフラグのリセット。これ、リセットしておかないと同じ局面で二度goされたときに、二度目の時に
+		// すでに詰み探索が終わっている扱いになり、rootMateMoveがセットされない。
+		current_root->dfpn_checked = false;
+
 		// PVの詰み探索スレッド開始
 		for (auto& searcher : pv_mate_searchers)
 			searcher.Run();
@@ -532,7 +540,11 @@ namespace dlshogi
 		// この時点で探索スレッドをすべて停止させないと
 		// Virtual Lossを元に戻す前にbestmoveを選出してしまう。
 
-
+		// df-pnルーチンが詰みを見つけている。
+		// (この時のponderはセットなしでいいと思う。どうせ残りもdf-pnが見つけるので…)
+		if (rootMateMove != Move::none())
+			return rootMateMove;
+			
 		// 評価値が投了値を下回っていたら投了
 		if (best.wp < search_options.RESIGN_THRESHOLD) {
 			ponderMove = Move::none();
@@ -683,6 +695,13 @@ namespace dlshogi
 			return;
 			
 		// -- 時間制御
+
+		// df-pnが詰みの指し手を見つけている。
+		if (rootMateMove != Move::none())
+		{
+			interrupt();
+			return;
+		}
 
 		// 探索時間固定
 		// "go movetime XXX"のように指定するのでGUI側が対応していないかもしれないが。

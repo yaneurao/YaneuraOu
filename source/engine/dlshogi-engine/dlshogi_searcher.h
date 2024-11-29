@@ -378,6 +378,9 @@ namespace dlshogi
 		// 探索開始局面。これはこの局面の探索中には消失しないのでglobalに参照して良い。
 		Position pos_root;
 
+		// root局面でdf-pnが詰みを見つけているときは、これがMove::none()以外になる。
+		Move rootMateMove;
+
 	private:
 
 		// Root Node(探索開始局面)を展開する。
