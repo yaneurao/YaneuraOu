@@ -15,12 +15,13 @@ namespace dlshogi
 	//extern std::unique_ptr<NodeTree> tree;
 	//extern const Position* pos_root;
 
-	PvMateSearcher::PvMateSearcher(const int nodes, DlshogiSearcher* dl_searcher) :
+	PvMateSearcher::PvMateSearcher(const int nodes, DlshogiSearcher* dl_searcher /*, int thread_id*/) :
 		ready_th(true),
 		term_th(false),
 		th(nullptr),
 		dfpn(Mate::Dfpn::DfpnSolverType::Node48bitOrdering),
 		dl_searcher(dl_searcher)
+		/*,thread_id(thread_id)*/
 	{
 		// 子ノードを展開するから、探索ノード数の8倍ぐらいのメモリを要する
 		dfpn.alloc_by_nodes_limit((size_t)(nodes * 8));
@@ -174,6 +175,140 @@ namespace dlshogi
 		}
 	}
 
+#if 0
+	// BFS型の詰み探索をする。depth = (df-pnを呼び出す)残り探索depth。
+	// stopがくるか、df-pnの探索をしたならtrueを返す。
+	void PvMateSearcher::SearchInnerBFS(Position& pos, Node* uct_node, ChildNode* child_node, bool root, int depth)
+	{
+		// 停止
+		if (stop) return;
+
+		// いまから詰み探索済みフラグをチェックするのでlockが必要
+		Node::mtx_dfpn.lock();
+
+		// このnodeは詰み探索済みであるか？
+		if (!(uct_node->dfpn_proven_unsolvable || uct_node->dfpn_checked))
+		{
+			// 詰み探索まだ。
+
+			// いったん詰み探索をしたことにする。(他のスレッドがこの局面を重複して探索しないように。)
+			uct_node->dfpn_checked = true;
+			Node::mtx_dfpn.unlock();
+
+			// 詰みの場合、ノードを更新
+			Move mate_move = dfpn.mate_dfpn(pos, nodes_limit);
+			if (is_ok(mate_move)) {
+				// 詰みを発見した。
+
+				// rootで詰みを発見したのでメッセージを出力しておく。
+				if (root)
+				{
+					// 何手詰めか
+					int mate_ply = dfpn.get_mate_ply();
+					sync_cout << "info string found the root mate by df-pn , move = " << to_usi_string(mate_move) << " ,ply = " << mate_ply << sync_endl;
+
+					// 手数保存しておく。
+					//uct_node->dfpn_mate_ply = mate_ply;
+
+					// 読み筋を出力する。
+					std::stringstream pv;
+					for (auto move : dfpn.get_pv())
+						pv << ' ' << to_usi_string(move);
+					sync_cout << "info score mate " << mate_ply << " pv" << pv.str() << sync_endl;
+
+					// moveの指し手をSetLose()する。
+					// rootのchildは存在することが保証されている。(Expandしてから探索を開始するので)
+					auto* child = uct_node->child.get();
+					for (size_t i = 0; i < uct_node->child_num; ++i)
+						if (child[i].getMove() == mate_move)
+							// Node::Moveは上位8bitを使っているので.moveではなく.getMove()を用いる。
+						{
+							child[i].SetLose();
+							break;
+						}
+
+				}
+				else {
+
+					// SetWinしておけばPV line上なので次のUctSearchで更新されるはず。
+					// ここがrootなら、これでrootは詰みを発見するので自動的に探索が停止する。
+					// ゆえに、rootであるかの判定等は不要である。
+					child_node->SetWin();
+					// ⇨　moveの指し手を指したら、子ノードの局面に即詰みがあるということなので
+					//   現局面は負けの局面であることに注意。
+
+				}
+			}
+			else if (stop) {
+				// 途中で停止された場合、未探索に戻す。
+				std::lock_guard<std::mutex> lock(Node::mtx_dfpn);
+				uct_node->dfpn_checked = false;
+			}
+			// 探索中にPVが変わっている可能性があるため、ルートに戻る。
+			return;
+		}
+		else {
+			Node::mtx_dfpn.unlock();
+
+			/*
+
+				⇑⇑⇑
+				ここまでは、BFSじゃないほうと同一のロジック
+
+				ここからが違う。上位N個に対して展開していく。
+				⇓⇓⇓
+
+			*/
+
+			// 残り深さがあるなら..
+			if (depth < 1)
+				return;
+
+			// 詰み探索済みであることがわかったので、
+			// 子が展開済みの場合、PV上の次の手へ
+
+			// 未展開の場合、終了する
+			if (!uct_node->IsEvaled() || !uct_node->child) {
+				return;
+			}
+
+			// まだ子Nodeが生成されていないか？
+			if (!uct_node->child_nodes)
+				return;
+
+			// 訪問回数が最大の子ノードを選択
+			// ⇨　rootの時だけ時々second以降に行ってもいいかも..？
+			int indices[MAX_MOVES];
+			int N = 4; // 上位4個ずつ。
+			select_nth_child_node(uct_node, N, indices);
+
+			for (int i = 0; i < N; ++i)
+			{
+				int next_index = indices[i];
+				// 上位N個がないから-1がpaddingされてるパターン
+				if (next_index == -1)
+					break;
+
+				auto uct_next = uct_node->child_nodes[next_index].get();
+				// 次のnodeがまだ展開されてないパターン
+				if (!uct_next)
+					continue;
+
+				// 1手進める。
+				StateInfo st;
+				Move m = uct_node->child[next_index].getMove();
+				sync_cout << to_usi_string(m) << sync_endl;
+				pos.do_move(m, st);
+
+				// 再帰的に子を辿っていく。
+				SearchInnerBFS(pos, uct_next, &uct_node->child[next_index], false, depth - 1);
+
+				pos.undo_move(m);
+			}
+		}
+	}
+#endif
+
 	void PvMateSearcher::Run()
 	{
 		// th == nullptrなら、poolしているthread自体がないのでとりあえず生成をする。
@@ -192,7 +327,20 @@ namespace dlshogi
 
 						// PV上の詰み探索
 						auto* tree = dl_searcher->get_node_tree();
+
 						SearchInner(pos_copy, tree->GetCurrentHead(), nullptr, true);
+#if 0
+						// 偶数番のスレッドはPV line担当。
+						// 奇数番のスレッドはBFSしていく担当。
+						if ((thread_id & 1) == 0)
+							SearchInner(pos_copy, tree->GetCurrentHead(), nullptr, true);
+						else
+						{
+							// 6手の範囲内を完全に調べ尽くす。
+							SearchInnerBFS(pos_copy, tree->GetCurrentHead(), nullptr, true, 6);
+							std::this_thread::yield();
+						}
+#endif
 					}
 
 					std::unique_lock<std::mutex> lk(mtx_th);

@@ -50,6 +50,9 @@ namespace dlshogi
 		// 詰み探索を行う局面がないか、詰探索を1回したならば、returnする。
 		void SearchInner(Position& pos, Node* uct_node, ChildNode* child_node, bool root);
 
+		// BFS型の詰み探索をする。depth = (df-pnを呼び出す)残り探索depth。dfpnを呼び出した回数を返す。
+		//void SearchInnerBFS(Position& pos, Node* uct_node, ChildNode* child_node, bool root, int depth);
+
 		//// 探索済みノードを表現する
 		//static std::set<ChildNode*> searched;
 		//// ⇑にアクセスするときのmutex
@@ -70,6 +73,9 @@ namespace dlshogi
 
 		// globalにアクセスすると行儀悪いので..
 		DlshogiSearcher* dl_searcher;
+
+		// thread id。この番号によって挙動を変えたい時に用いる。
+		// int thread_id;
 
 		// ===============
 		// thread pool関連

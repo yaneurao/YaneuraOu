@@ -336,6 +336,10 @@ namespace dlshogi
 		// 持ち時間制御は、やねうら王の time managerをそのまま用いる。
 		search_limits.time_manager.init(limits,pos->side_to_move(),pos->game_ply());
 
+		// GenerateAllLegalMovesオプションは、usi.cpp側で、"go"コマンド時に
+		// Limits.generate_all_legal_movesに反映される。
+		// ゆえに、エンジン側では、これを反映させなければならない。
+		SetGetnerateAllLegalMoves(limits.generate_all_legal_moves);
 	}
 
 	// ノード数固定にしたい時は、USIの"go nodes XXX"ででき、これは、SetLimits()で反映するので↓は不要。

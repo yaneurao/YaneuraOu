@@ -1051,6 +1051,29 @@ namespace dlshogi
 		return select_index;
 	}
 
+	// 訪問回数が上からN個の子ノードを返す。
+	// N個ない時は、残りが-1で埋まる。
+	void select_nth_child_node(const Node* uct_node, int n, int(&indices)[MAX_MOVES])
+	{
+		const ChildNode* uct_child = uct_node->child.get();
+		const int child_num = uct_node->child_num;
+
+		int index = 0;
+		for (int i = 0; i < child_num; i++) {
+			// 勝ち負けが確定していない子に対して。
+			// あと、訪問回数が10回以上であること。
+			if (!(uct_child[i].IsWin() || uct_child[i].IsLose() || uct_child[i].move_count < 10))
+				indices[index++] = i;
+		}
+		std::partial_sort(indices, indices + std::min(n, index) , indices + index, [&uct_child](int a, int b) {
+			return uct_child[a].move_count > uct_child[b].move_count;
+			});
+
+		// 残りをn個まで-1でpaddingする。
+		for (int i = index; i < n; ++i)
+			indices[i] = -1;
+	}
+
 }
 
 

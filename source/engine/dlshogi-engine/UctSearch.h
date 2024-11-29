@@ -333,6 +333,10 @@ namespace dlshogi
 	// 訪問回数が最大の子ノードを選択
 	unsigned int select_max_child_node(const Node* uct_node);
 
+	// 訪問回数が上からN個の子ノードを返す。
+	// N個ない時は、残りが-1で埋まる。
+	void select_nth_child_node(const Node* uct_node, int n , int (&indices)[MAX_MOVES]);
+
 }
 
 #endif
