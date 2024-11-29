@@ -2040,9 +2040,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// ⇨ 差分計算型の評価関数ではないときは、lazy_evaluateする必要がないので、駒得評価関数のときは何もしない。
 		if (evaluatedValue == VALUE_NONE)
 		{
-			//evaluatedValue = VALUE_INFINITE;
-			//::evaluate_with_no_return(pos);
-			evaluatedValue = ::evaluate(pos);
+			evaluatedValue = VALUE_INFINITE;
+			::evaluate_with_no_return(pos);
+			//evaluatedValue = ::evaluate(pos);
 		}
 #endif
 		};
@@ -2130,14 +2130,19 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			//		Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
 			// → TODO : hint_common_parent_position()実装するか検討する。
 
+#if defined(YANEURAOU_ENGINE_NNUE)
+
 			//ASSERT(unadjustedStaticEval != VALUE_NONE);
-			//unadjustedStaticEval = evaluate(pos);
+			unadjustedStaticEval = evaluate(pos);
 
 			// TODO : ここでevaluate()が必須な理由がよくわからない。
 			//        Stockfishには無いのに…。なぜなのか…。
 			// 
 			// lazy_evaluate()に変える                        ⇨ 弱い(V8.38dev-n7)
 			// unadjustedStaticEvalに代入せずに単にevaluate() ⇨ 特に弱くはなさそう(V838dev_n8)
+			// 結論的には、NNUEのevaluate_with_no_return()とevaluate()の挙動が違うのが原因っぽい。
+			// これはあきませんわ…。
+#endif
 		}
 #else
 		unadjustedStaticEval = evaluate(pos);
@@ -3765,9 +3770,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 #if defined(USE_LAZY_EVALUATE) && defined(USE_DIFF_EVAL)
 		if (evaluatedValue == VALUE_NONE)
 		{
-			//evaluatedValue = VALUE_INFINITE;
-			//::evaluate_with_no_return(pos);
-			evaluatedValue = ::evaluate(pos);
+			evaluatedValue = VALUE_INFINITE;
+			::evaluate_with_no_return(pos);
+			//evaluatedValue = ::evaluate(pos);
 		}
 #endif
 	};
@@ -3807,6 +3812,13 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				unadjustedStaticEval =
 					// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
 					evaluate(pos);
+#if defined(NNUE_LAZY_EVALUATE) && defined(YANEURAOU_ENGINE_NNUE)
+			else if (PvNode) {
+				// やねうら王独自
+				unadjustedStaticEval = evaluate(pos);
+				// ⇨ NNUEだとこれ入れたほうが強い可能性が…。
+			}
+#endif
 
 			ss->staticEval = bestValue =
 				// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss );
