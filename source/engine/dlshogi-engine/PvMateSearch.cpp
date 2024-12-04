@@ -86,13 +86,18 @@ namespace dlshogi
 					// moveの指し手をSetLose()する。
 					// rootのchildは存在することが保証されている。(Expandしてから探索を開始するので)
 					auto* child = uct_node->child.get();
+
 					for (size_t i = 0; i < uct_node->child_num; ++i)
 						if (child[i].getMove() == mate_move)
 							// Node::Moveは上位8bitを使っているので.moveではなく.getMove()を用いる。
 						{
 							child[i].SetLose();
-							return;
+							break;
 						}
+
+					// 不成の指し手だと⇑で見つからないことがある。
+					// そのため、rootMateMoveという変数を用意して、こいつに代入することにする。
+					dl_searcher->rootMateMove = mate_move;
 
 				} else {
 

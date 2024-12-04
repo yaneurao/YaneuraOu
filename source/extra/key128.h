@@ -95,6 +95,14 @@ struct alignas(16) Key128
 
 	Key128 operator + (const Key128& rhs) const { return Key128(*this) += rhs; }
 	Key128 operator ^ (const Key128& rhs) const { return Key128(*this) ^= rhs; }
+
+	// sortなどで使うために比較演算子を定義しておく。
+    bool operator < (const Key128& rhs) const {
+        if (this->p[0] != rhs.p[0]) {
+            return this->p[0] < rhs.p[0];
+        }
+        return this->p[1] < rhs.p[1];
+    }
 };
 
 // std::unorded_map<Key128,string>みたいなのを使うときにoperator==とhash化が必要。

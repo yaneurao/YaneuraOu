@@ -495,12 +495,13 @@ namespace dlshogi
 		// 探索スレッドの開始
 		StartThreads();
 
-		// 探索スレッドの終了
-		TeminateThreads();
-
-		// PVの詰み探索スレッド停止
+		// PVの詰み探索スレッド停止(まず停止命令だけ送っておく)
 		for (auto& searcher : pv_mate_searchers)
 			searcher.Stop();
+
+		// 探索スレッドの終了(とすべてのスレッドの終了の待機)
+		TeminateThreads();
+
 		// PVの詰み探索スレッド終了待機
 		for (auto& searcher : pv_mate_searchers)
 			searcher.Join();
