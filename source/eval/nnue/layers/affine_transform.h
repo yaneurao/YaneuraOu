@@ -442,7 +442,7 @@ class AffineTransform {
 
 #else
         // Use dense implementation for the other architectures.
-        affine_transform_non_ssse3<kInputDimensions, kPaddedInputDimensions, kOutputDimensions>(
+        affine_transform_unaligned<kInputDimensions, kPaddedInputDimensions, kOutputDimensions>(
           output, weights_, biases_, input);
 #endif
 
