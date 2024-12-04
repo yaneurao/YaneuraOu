@@ -363,20 +363,8 @@ class AffineTransformSparseInput {
         }
         else
 #endif
-        {
-            std::memcpy(output, biases_, sizeof(std::int32_t) * kOutputDimensions);
-
-            for (IndexType i = 0; i < kInputDimensions; ++i)
-            {
-                if (input[i])
-                {
-                    const std::int8_t* w  = &weights_[i];
-                    const int          in = input[i];
-                    for (IndexType j = 0; j < kOutputDimensions; ++j)
-                        output[j] += w[j * kPaddedInputDimensions] * in;
-                }
-            }
-        }
+            affine_transform_non_ssse3<kInputDimensions, kPaddedInputDimensions, kOutputDimensions>(
+              output, weights_, biases_, input);
 
 #undef vec_set_32
 #undef vec_add_dpbusd_32
