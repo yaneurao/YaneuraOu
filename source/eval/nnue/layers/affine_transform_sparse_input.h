@@ -164,7 +164,7 @@ class AffineTransformSparseInput {
 
     static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || USE_NEON >= 8
-        return get_weight_index_scrambled(i);
+        return kOutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;
 #else
         return i;
 #endif
@@ -363,7 +363,20 @@ class AffineTransformSparseInput {
         }
         else
 #endif
-        {}
+        {
+            std::memcpy(output, biases_, sizeof(std::int32_t) * kOutputDimensions);
+
+            for (IndexType i = 0; i < kInputDimensions; ++i)
+            {
+                if (input[i])
+                {
+                    const std::int8_t* w  = &weights_[i];
+                    const int          in = input[i];
+                    for (IndexType j = 0; j < kOutputDimensions; ++j)
+                        output[j] += w[j * kPaddedInputDimensions] * in;
+                }
+            }
+        }
 
 #undef vec_set_32
 #undef vec_add_dpbusd_32

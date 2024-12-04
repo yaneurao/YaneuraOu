@@ -21,12 +21,12 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
 #if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
 #if defined(USE_SSE2)
     // At least a multiple of 16, with SSE2.
-    constexpr IndexType NumChunks   = CeilToMultiple<IndexType>(kInputDimensions, 16) / 16;
-    const __m128i       Zeros       = _mm_setzero_si128();
+    constexpr IndexType kNumChunks   = CeilToMultiple<IndexType>(kInputDimensions, 16) / 16;
+    const __m128i       kZeros       = _mm_setzero_si128();
     const auto          inputVector = reinterpret_cast<const __m128i*>(input);
 
 #elif defined(USE_NEON)
-    constexpr IndexType NumChunks   = CeilToMultiple<IndexType>(kInputDimensions, 16) / 16;
+    constexpr IndexType kNumChunks   = CeilToMultiple<IndexType>(kInputDimensions, 16) / 16;
     const auto          inputVector = reinterpret_cast<const int8x8_t*>(input);
 #endif
 
@@ -36,16 +36,16 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
 
 #if defined(USE_SSE2)
         __m128i    sumLo = _mm_cvtsi32_si128(biases[i]);
-        __m128i    sumHi = Zeros;
+        __m128i    sumHi = kZeros;
         const auto row   = reinterpret_cast<const __m128i*>(&weights[offset]);
-        for (IndexType j = 0; j < NumChunks; ++j)
+        for (IndexType j = 0; j < kNumChunks; ++j)
         {
             __m128i row_j           = _mm_load_si128(&row[j]);
             __m128i input_j         = _mm_load_si128(&inputVector[j]);
             __m128i extendedRowLo   = _mm_srai_epi16(_mm_unpacklo_epi8(row_j, row_j), 8);
             __m128i extendedRowHi   = _mm_srai_epi16(_mm_unpackhi_epi8(row_j, row_j), 8);
-            __m128i extendedInputLo = _mm_unpacklo_epi8(input_j, Zeros);
-            __m128i extendedInputHi = _mm_unpackhi_epi8(input_j, Zeros);
+            __m128i extendedInputLo = _mm_unpacklo_epi8(input_j, kZeros);
+            __m128i extendedInputHi = _mm_unpackhi_epi8(input_j, kZeros);
             __m128i productLo       = _mm_madd_epi16(extendedRowLo, extendedInputLo);
             __m128i productHi       = _mm_madd_epi16(extendedRowHi, extendedInputHi);
             sumLo                   = _mm_add_epi32(sumLo, productLo);
@@ -62,7 +62,7 @@ static void affine_transform_non_ssse3(std::int32_t*       output,
 
         int32x4_t  sum = {biases[i]};
         const auto row = reinterpret_cast<const int8x8_t*>(&weights[offset]);
-        for (IndexType j = 0; j < NumChunks; ++j)
+        for (IndexType j = 0; j < kNumChunks; ++j)
         {
             int16x8_t product = vmull_s8(inputVector[j * 2], row[j * 2]);
             product           = vmlal_s8(product, inputVector[j * 2 + 1], row[j * 2 + 1]);
@@ -136,7 +136,7 @@ class AffineTransform {
 
     static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
-        return get_weight_index_scrambled(i);
+        return kOutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;
 #else
         return i;
 #endif
@@ -310,7 +310,20 @@ class AffineTransform {
 			else
 #endif
 
-			{}
+			{
+				std::memcpy(output, biases_, sizeof(std::int32_t) * kOutputDimensions);
+
+				for (IndexType i = 0; i < kInputDimensions; ++i)
+				{
+					if (input[i])
+					{
+						const std::int8_t* w  = &weights_[i];
+						const int          in = input[i];
+						for (IndexType j = 0; j < kOutputDimensions; ++j)
+							output[j] += w[j * kPaddedInputDimensions] * in;
+					}
+				}
+			}
 		}
 		else if constexpr (kOutputDimensions == 1)
 		{
