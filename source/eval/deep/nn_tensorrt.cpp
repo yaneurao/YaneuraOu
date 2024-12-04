@@ -213,6 +213,50 @@ namespace Eval::dlshogi
 
 		ASSERT_LV3(network->getNbOutputs() == 2);
 
+#if defined(ENABLE_RYFAMATE_PATCH)
+	// testK FP32 softmax
+	if (true/*b_useFP16*/)
+	{
+		std::cout << "info string Ryfamate FP32 softmax patch." << std::endl;
+		config->setFlag(nvinfer1::BuilderFlag::kFP16);
+		config->setFlag(nvinfer1::BuilderFlag::kPREFER_PRECISION_CONSTRAINTS);
+		for (int i = 0; i < network->getNbLayers(); ++i) {
+			auto layer = network->getLayer(i);
+			auto layer_before = network->getLayer(i > 0 ? i - 1 : 0);
+			auto precition = layer->getPrecision();
+			std::string layername = layer->getName();
+
+			// debug output
+			// std::cout << "info string layer " << i << " type " << (int)layer->getType();
+			// if (layer->precisionIsSet())
+			// 	 std::cout << " prec_set " << (int)precition;
+			// else
+			// 	 std::cout << " prec_not_set";
+			// std::cout << " name " << layername << std::endl;
+
+			if (!layer->precisionIsSet()
+				// || precition == nvinfer1::DataType::kFLOAT
+				// || precition == nvinfer1::DataType::kHALF
+				)
+			{
+				if (layer->getType() == nvinfer1::LayerType::kSOFTMAX
+					// TODO: できれば汎用的なコードにする
+					|| (layer->getType() == nvinfer1::LayerType::kMATRIX_MULTIPLY && layername.find("blocks") != std::string::npos &&
+						layer_before->getType() == nvinfer1::LayerType::kELEMENTWISE)
+				){
+					// softmax層の精度をfp32に設定
+					layer->setPrecision(nvinfer1::DataType::kFLOAT);
+					// for (int j = 0; j < layer->getNbOutputs(); ++j) {
+						// layer->setOutputType(j, nvinfer1::DataType::kFLOAT);
+					// }
+					std::cout << "info string FP32 layer " << i << " type " << (int)layer->getType() << " name " << layername << std::endl;
+				}
+			}
+		}
+	}
+#endif
+
+
 		// Optimization Profiles
 		auto profile = builder->createOptimizationProfile();
 		const auto dims1 = inputDims[0].d;

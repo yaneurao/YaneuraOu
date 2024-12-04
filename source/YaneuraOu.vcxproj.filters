@@ -364,6 +364,9 @@
     <ClInclude Include="memory.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="book\policybook.h">
+      <Filter>リソース ファイル\book</Filter>
+    </ClInclude>
     <ClInclude Include="numa.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
@@ -593,6 +596,9 @@
     </ClCompile>
     <ClCompile Include="engine.cpp">
       <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="book\policybook.cpp">
+      <Filter>リソース ファイル\book</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

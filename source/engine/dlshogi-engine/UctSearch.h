@@ -153,6 +153,10 @@ namespace dlshogi
 		Node*	node;     // どのNodeに対するEvalNode()なのか。
 		Color	color;    // その時の手番
 
+#if defined(USE_POLICY_BOOK)
+		HASH_KEY key;     // この局面のhash key
+#endif
+
 		// 通常の探索では、このポインターはNodeVisitor::value_win を指している。
 		float* value_win; // leaf nodeでのvalue_winの値(これを辿ってきたNodeに対して符号を反転させながら伝播させていく)
 	};

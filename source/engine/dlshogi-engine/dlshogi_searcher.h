@@ -6,6 +6,7 @@
 
 #include "../../position.h"
 #include "../../book/book.h"
+#include "../../book/policybook.h"
 #include "../../mate/mate.h"
 #include "dlshogi_types.h"
 #include "PvMateSearch.h"
@@ -380,6 +381,11 @@ namespace dlshogi
 
 		// root局面でdf-pnが詰みを見つけているときは、これがMove::none()以外になる。
 		Move rootMateMove;
+
+#if defined(USE_POLICY_BOOK)
+		// PolicyBook本体
+		PolicyBook policy_book;
+#endif
 
 	private:
 

@@ -137,6 +137,11 @@ namespace dlshogi
 		// leaf nodeでの詰み探索用のMateSolverの初期化
 		for (auto& uct_searcher : thread_id_to_uct_searcher)
 			uct_searcher->InitMateSearcher(search_options);
+
+#if defined(USE_POLICY_BOOK)
+		policy_book.read_book();
+#endif
+
 	}
 
 	// 全スレッドでの探索開始

@@ -246,7 +246,11 @@ namespace dlshogi
 		make_input_features(*pos, current_policy_value_batch_index, packed_features1, packed_features2);
 
 		// 現在のNodeと手番を保存しておく。
-		policy_value_batch[current_policy_value_batch_index] = { node, pos->side_to_move() /* , pos->key() */ , value_win};
+		policy_value_batch[current_policy_value_batch_index] = { node, pos->side_to_move() ,
+#if defined(USE_POLICY_BOOK)
+			pos->hash_key() ,
+#endif
+			value_win};
 
 	#ifdef MAKE_BOOK
 		policy_value_book_key[current_policy_value_batch_index] = Book::bookKey(*pos);
@@ -925,6 +929,11 @@ namespace dlshogi
 			const ChildNumType child_num = node->child_num;
 			      ChildNode *  uct_child = node->child.get();
 
+#if defined(USE_POLICY_BOOK)
+				  HASH_KEY     key       = policy_value_batch[i].key;
+			auto* policy_book_entry      = grp->get_dlsearcher()->policy_book.probe_policy_book(key);
+#endif
+
 			// 合法手それぞれに対する遷移確率
 			std::vector<float> legal_move_probabilities;
 			// いまからemplace_backしていく回数がchild_numであることはわかっているので事前に要素を確保しておく。
@@ -961,9 +970,38 @@ namespace dlshogi
 			// Boltzmann distribution
 			softmax_temperature_with_normalize(legal_move_probabilities);
 
+#if !defined(USE_POLICY_BOOK)
 			for (ChildNumType j = 0; j < child_num; j++) {
 				uct_child[j].nnrate = legal_move_probabilities[j];
 			}
+#else
+			if (policy_book_entry == nullptr)
+			{
+				for (ChildNumType j = 0; j < child_num; j++) {
+					uct_child[j].nnrate = legal_move_probabilities[j];
+				}
+			} else {
+				// Policy Bookに従う。
+
+				// 元のPolicyの按分率
+				float original_policy_ratio = 0.2f;
+
+				for (ChildNumType j = 0; j < child_num; j++) {
+					uct_child[j].nnrate = legal_move_probabilities[j];
+					for (size_t k = 0 ; k < POLICY_BOOK_NUM; ++k)
+					{
+						if (policy_book_entry->move_ratio[k].move16 == uct_child[j].move.to_move16())
+						{
+							uct_child[j].nnrate = original_policy_ratio * uct_child[j].nnrate
+								+ (1.0f - original_policy_ratio) * policy_book_entry->move_ratio[k].ratio / ((1 << 16) - 1);
+							// PolicyBookEntryのratioは合計が(1 << 16) - 1になるように正規化されている。
+
+							break;
+						}
+					}
+				}
+			}
+#endif
 
 			// valueの値はここに返すことになっている。
 			*policy_value_batch[i].value_win = *value;
