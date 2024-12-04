@@ -164,7 +164,7 @@ class AffineTransformSparseInput {
 
     static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || USE_NEON >= 8
-        return get_weight_index_scrambled(i);
+        return kOutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;
 #else
         return i;
 #endif
@@ -363,7 +363,8 @@ class AffineTransformSparseInput {
         }
         else
 #endif
-        {}
+            affine_transform_non_ssse3<kInputDimensions, kPaddedInputDimensions, kOutputDimensions>(
+              output, weights_, biases_, input);
 
 #undef vec_set_32
 #undef vec_add_dpbusd_32
