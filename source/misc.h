@@ -149,7 +149,13 @@ public:
 	void        push_back(const T& value) { values_[size_++] = value; }
 	const T* begin() const { return values_; }
 	const T* end() const { return values_ + size_; }
+
 	const T& operator[](int index) const { return values_[index]; }
+	// ⇨ ここの引数、どうせ大きな配列は確保しないのでsize_tではなくintで良い。
+
+	// 非const版の begin/end(やねうら王独自追加)
+	T* begin() { return values_; }
+	T* end()   { return values_ + size_; }
 
 private:
 	T           values_[MaxSize];
@@ -499,7 +505,7 @@ namespace Tools
 	// RustにあるOption型のような何か
 	struct Result
 	{
-		Result(ResultCode code_) : code(code_) {}
+		constexpr Result(ResultCode code_) : code(code_) {}
 
 		// エラーの種類
 		ResultCode code;
@@ -517,7 +523,7 @@ namespace Tools
 		std::string to_string() const { return Tools::to_string(code); }
 
 		//  正常終了の時の型を返すbuilder
-		static Result Ok() { return Result(ResultCode::Ok); }
+		static constexpr Result Ok() { return Result(ResultCode::Ok); }
 	};
 }
 

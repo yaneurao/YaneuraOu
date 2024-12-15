@@ -843,6 +843,16 @@ protected:
 	uint16_t data;
 };
 
+// ハッシュ関数(std::unorderd_map<Move16,u32>のようなものを使いたいため)
+namespace std {
+	template<>
+	struct hash<Move16> {
+		size_t operator()(const Move16& m16) const {
+			return hash<u16>()(m16.to_u16());
+		}
+	};
+}
+
 // USI形式で指し手を表示する
 static std::ostream& operator<<(std::ostream& os, Move m)   { os << to_usi_string(m); return os; }
 static std::ostream& operator<<(std::ostream& os, Move16 m) { os << to_usi_string(m); return os; }

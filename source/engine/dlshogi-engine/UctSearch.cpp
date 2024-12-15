@@ -983,19 +983,39 @@ namespace dlshogi
 			} else {
 				// Policy Bookに従う。
 
+				u32 total = 0;
+				for (size_t i = 0; i < POLICY_BOOK_NUM; ++i)
+				{
+					if (policy_book_entry->move_freq[i].move16 == Move16::none())
+						break;
+					total += policy_book_entry->move_freq[i].freq;
+				}
+
 				// 元のPolicyの按分率
-				float original_policy_ratio = 0.2f;
+				// 
+				// 定跡の質により変化させる。
+				// totalが1000回    ⇨ さすがに信用していいのでは。100%
+				// totalが 100回    ⇨ 90%ぐらい信用できるか
+				// totalが  10回    ⇨ 80%
+				// totalが それ以下 ⇨ 70%
+				// みたいな感じにする。
+				// 0 < total <= u32_maxであることは保証されている。
+				//
+				// 注意 : 電竜戦の開始4手の玉の屈伸の棋譜を利用したときに、あれをPolicyとされてしまうと困る。
+				//  (PolicyBookを作るときに除外する必要がある)
+
+				float book_policy_ratio = 0.7f + 0.1f * std::clamp(0.0f, log10f(float(total)), 3.0f);
 
 				for (ChildNumType j = 0; j < child_num; j++) {
-					uct_child[j].nnrate = legal_move_probabilities[j];
+
+					uct_child[j].nnrate = legal_move_probabilities[j] * (1.0f - book_policy_ratio);
+
+					// PolicyBookに出現していた指し手であれば、それで按分する。
 					for (size_t k = 0 ; k < POLICY_BOOK_NUM; ++k)
 					{
-						if (policy_book_entry->move_ratio[k].move16 == uct_child[j].move.to_move16())
+						if (policy_book_entry->move_freq[k].move16 == uct_child[j].move.to_move16())
 						{
-							uct_child[j].nnrate = original_policy_ratio * uct_child[j].nnrate
-								+ (1.0f - original_policy_ratio) * policy_book_entry->move_ratio[k].ratio / ((1 << 16) - 1);
-							// PolicyBookEntryのratioは合計が(1 << 16) - 1になるように正規化されている。
-
+							uct_child[j].nnrate += book_policy_ratio * policy_book_entry->move_freq[k].freq / total;
 							break;
 						}
 					}
