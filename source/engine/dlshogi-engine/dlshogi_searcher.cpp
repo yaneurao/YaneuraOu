@@ -178,6 +178,13 @@ namespace dlshogi
 	// 対局終了時に呼び出されるハンドラ
 	void DlshogiSearcher::GameOver()
 	{
+#if defined(ENABLE_POLICY_BOOK_LEARN)
+		// 今回の棋譜をPolicyBookを書き出す必要がある。
+		auto last_position_cmd = Threads.main()->last_position_cmd_string;
+		auto sfen = last_position_cmd.substr(strlen("position "));
+		policy_book.append_sfen_to_db_bin(sfen);
+#endif
+
 	}
 
 	// 投了の閾値設定

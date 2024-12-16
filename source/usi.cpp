@@ -126,7 +126,7 @@ void bench_cmd(Position& pos, istringstream& is);
 
 
 // "gameover"コマンドに対するハンドラ
-#if defined(USE_GAMEOVER_HANDLER)
+#if defined(USE_GAMEOVER_HANDLER) || defined(YANEURAOU_ENGINE_DEEP)
 void gameover_handler(const string& cmd);
 #endif
 
@@ -678,10 +678,12 @@ void usi_cmdexec(Position& pos, StateListPtr& states, string& cmd)
 			// gameoverに対してbestmoveは返すべきではないのかも知れないが、
 			// それを言えばstopにだって…。
 
-#if defined(USE_GAMEOVER_HANDLER)
-			// "gameover"コマンドに対するハンドラを呼び出したいのか？
+#if defined(USE_GAMEOVER_HANDLER) || defined(YANEURAOU_ENGINE_DEEP)
+
 			if (token == "gameover")
+				// "gameover"コマンドに対するハンドラを呼び出したいのか？
 				gameover_handler(cmd);
+
 #endif
 
 			// "go infinite" , "go ponder"などで思考を終えて寝てるかも知れないが、

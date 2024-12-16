@@ -984,12 +984,14 @@ namespace dlshogi
 				// Policy Bookに従う。
 
 				u32 total = 0;
-				for (size_t i = 0; i < POLICY_BOOK_NUM; ++i)
+				size_t k1;
+				for (k1 = 0; k1 < POLICY_BOOK_NUM; ++k1)
 				{
-					if (policy_book_entry->move_freq[i].move16 == Move16::none())
+					if (policy_book_entry->move_freq[k1].move16 == Move16::none())
 						break;
-					total += policy_book_entry->move_freq[i].freq;
+					total += policy_book_entry->move_freq[k1].freq;
 				}
+				// ⇨ k1個だけ有効なmoveがあることがわかった。
 
 				// 元のPolicyの按分率
 				// 
@@ -1008,14 +1010,14 @@ namespace dlshogi
 
 				for (ChildNumType j = 0; j < child_num; j++) {
 
-					uct_child[j].nnrate = legal_move_probabilities[j] * (1.0f - book_policy_ratio);
+					uct_child[j].nnrate = (1.0f - book_policy_ratio) * legal_move_probabilities[j];
 
 					// PolicyBookに出現していた指し手であれば、それで按分する。
-					for (size_t k = 0 ; k < POLICY_BOOK_NUM; ++k)
+					for (size_t k2 = 0 ; k2 < k1; ++k2)
 					{
-						if (policy_book_entry->move_freq[k].move16 == uct_child[j].move.to_move16())
+						if (uct_child[j].move.to_move16() == policy_book_entry->move_freq[k2].move16)
 						{
-							uct_child[j].nnrate += book_policy_ratio * policy_book_entry->move_freq[k].freq / total;
+							uct_child[j].nnrate += book_policy_ratio * policy_book_entry->move_freq[k2].freq / total;
 							break;
 						}
 					}

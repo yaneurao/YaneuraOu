@@ -1496,9 +1496,9 @@ namespace SystemIO
 	// === BinaryWriter ===
 
 	// ファイルのopen
-	Tools::Result BinaryWriter::Open(const std::string& filename)
+	Tools::Result BinaryWriter::Open(const std::string& filename, bool append)
 	{
-		fp = fopen(filename.c_str(), "wb");
+		fp = fopen(filename.c_str(), append ? "ab" : "wb");
 		if (fp == nullptr)
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 

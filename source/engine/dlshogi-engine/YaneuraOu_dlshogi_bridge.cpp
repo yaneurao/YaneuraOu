@@ -518,7 +518,13 @@ namespace dlshogi
 	{
 		return (u64)searcher.search_limits.nodes_searched;
 	}
+}
 
+// USIの"gameover"に対して呼び出されるハンドラ。
+void gameover_handler(const std::string& cmd)
+{
+	// dlshogiのゲームオーバーのハンドラを呼び出す。
+	searcher.GameOver();
 }
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

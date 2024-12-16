@@ -741,7 +741,8 @@ namespace SystemIO
 	{
 	public:
 		// ファイルのopen
-		Tools::Result Open(const std::string& filename);
+		// append == trueで呼び出すと、このあとWriteしたものはファイル末尾に追記される。
+		Tools::Result Open(const std::string& filename, bool append = false);
 
 		// ptrの指すメモリからsize[byte]だけファイルに書き込む。
 		// ※　sizeは2GB制限があるので気をつけて。
