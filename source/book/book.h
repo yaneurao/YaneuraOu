@@ -333,7 +333,11 @@ namespace BookTools
 	// "sfen xxx moves yyy ..."
 	// また、局面を1つ進めるごとにposition_callback関数が呼び出される。
 	// 辿った局面すべてに対して何かを行いたい場合は、これを利用すると良い。
-	void feed_position_string(Position& pos, const std::string& root_sfen, std::deque<StateInfo>& si, const std::function<void(Position&)>& position_callback = [](Position&) {});
+	// 
+	// position_callbackは、その局面と、その局面での指し手が引数にセットされて呼び出される。
+	// 与えたsfenの最後の局面では、MoveはMove::none()が入って呼び出される。
+	void feed_position_string(Position& pos, const std::string& root_sfen, std::deque<StateInfo>& si,
+		const std::function<void(Position&, Move)>& position_callback = [](Position&, Move) {});
 
 	// 平手、駒落ちの開始局面集
 	// ここで返ってきた配列の、[0]は平手のsfenであることは保証されている。

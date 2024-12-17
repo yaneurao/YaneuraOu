@@ -1377,7 +1377,7 @@ namespace SystemIO
 			// 今回のループで書き込むbyte数
 			write_size = buf_size - write_cursor;
 			std::memcpy(&buf[write_cursor], ptr2, write_size);
-			if (fwrite(&buf[0], buf_size, 1, fp) == 0)
+			if (fwrite(buf.data(), buf_size, 1, fp) == 0)
 				return Tools::ResultCode::FileWriteError;
 
 			// buf[0..write_cursor-1]が窓で、ループごとにその窓がbuf_sizeずつずれていくと考える。

@@ -12,8 +12,9 @@
 
 static_assert(HASH_KEY_BITS == 128 , "HASH_KEY_BITS must be 128");
 
-#define POLICY_BOOK_DB_NAME      "eval/policy_book.db"
-#define POLICY_BOOK_DB_BIN_NAME  "eval/policy_book.db.bin"
+#define POLICY_BOOK_DB_NAME           "eval/policy_book.db"
+#define POLICY_BOOK_DB_BIN_NAME       "eval/policy_book.db.bin"
+#define POLICY_BOOK_LEARN_DB_BIN_NAME "eval/policy_book-learn.db.bin"
 
 // ============================================================
 //				Policy Book
@@ -83,6 +84,10 @@ public:
 
 	// PolicyBook同士のmerge
 	void PolicyBook::merge_book(const PolicyBook& book);
+
+	// "position "コマンドのposition以降の文字列を渡して、それを
+	// POLICY_BOOK_LEARN_DB_BIN_NAMEにappendで書き出す。
+	void append_sfen_to_db_bin(const std::string& sfen);
 
 	// ファイルから読み込んだか？
 	bool is_loaded() const { return book_body.size() != 0; }

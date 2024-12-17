@@ -218,7 +218,7 @@ struct SfenWriter
 			{
 				for (auto ptr : buffers)
 				{
-					fs.write((const char*)&((*ptr)[0]), sizeof(PackedSfenValue) * ptr->size());
+					fs.write(reinterpret_cast<const char*>(ptr->data()), sizeof(PackedSfenValue) * ptr->size());
 
 					sfen_write_count += ptr->size();
 
@@ -2314,7 +2314,7 @@ void shuffle_files(const vector<string>& filenames , const string& output_file_n
 		// ファイルに書き出す
 		fstream fs;
 		fs.open(make_filename(write_file_count++), ios::out | ios::binary);
-		fs.write((char*)&buf[0], size * sizeof(PackedSfenValue));
+		fs.write((char*)buf.data(), size * sizeof(PackedSfenValue));
 		fs.close();
 		a_count.push_back(size);
 

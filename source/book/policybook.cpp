@@ -9,7 +9,7 @@
 #include "../position.h"
 #include "../thread.h"
 #include "../usi.h"
-
+#include "../book/book.h"
 
 // freqの和がUINT16_MAXに収まるようにする。
 u16 MoveFreq32Record::overflow_check()
@@ -61,8 +61,8 @@ Tools::Result PolicyBook::read_book_db(std::string path)
 		reader.ReadLine(sfen);
 		if (sfen != "#YANEURAOU-POLICY-DB2024 1.00")
 		{
-			sync_cout << "info string Error! policy book header" << sync_endl;
-			Tools::exit();
+			sync_cout << "info string Error! invalid policy book header" << sync_endl;
+			return Tools::ResultCode::FileMismatch;
 		}
 		while (true)
 		{
@@ -161,6 +161,8 @@ Tools::Result PolicyBook::read_book_db_bin(std::string path)
 // PolicyBookを読み込み、."db.bin"ファイルを書き出す。
 Tools::Result PolicyBook::read_book()
 {
+
+#if !defined(ENABLE_POLICY_BOOK_LEARN)
 	// まだ読み込んでいないならば..
 	if (!is_loaded())
 	{
@@ -177,7 +179,35 @@ Tools::Result PolicyBook::read_book()
 		return result;
 	}
 
-	return Tools::Result::Ok(); // 読み込めたことにしておく。
+#else
+	// ただし、ENABLE_POLICY_BOOK_LEARNが定義されているときは、毎回読み込む。(局後学習データがあるため)
+
+	// binary化されたPolicyBookがあるなら、それを読み込む。
+	Tools::Result result = read_book_db_bin();
+	if (result.is_not_ok())
+	{
+		result = read_book_db();
+		if (result.is_ok())
+		{
+			// "db.bin"形式で書き出しておく。(次回の読み込み高速化のため)
+			result = write_book_db_bin();
+		}
+	}
+
+	// そもそも読み込んでいないのでmerge不要。
+	if (result.is_not_ok())
+		result = read_book_db_bin(POLICY_BOOK_LEARN_DB_BIN_NAME);
+	else {
+		PolicyBook pb;
+		result = pb.read_book_db_bin(POLICY_BOOK_LEARN_DB_BIN_NAME);
+		// 読み込みに成功したのでmergeする。
+		if (result.is_ok())
+			merge_book(pb);
+	}
+
+#endif
+
+	return result; // 読み込めたことにしておく。
 }
 
 
@@ -307,6 +337,31 @@ PolicyBookEntry* PolicyBook::probe_policy_book(HASH_KEY key)
 
 	// 同じキーを持つentryが複数ないことが保証されている。(読み込み時にwarningがでる)
 	return (it != book_body.end() && it->key == key) ? &*it : nullptr;
+}
+
+// "position "コマンドのposition以降の文字列を渡して、それを
+// POLICY_BOOK_LEARN_DB_BIN_NAMEにappendで書き出す。
+void PolicyBook::append_sfen_to_db_bin(const std::string& sfen)
+{
+	Position pos;
+	StateList si;
+	std::vector<PolicyBookEntry> entries;
+
+	BookTools::feed_position_string(pos, sfen, si, [&](Position& p, Move m) {
+		// 最後の局面は、m==Move::none()が入ってくる。
+		if (m == Move::none())
+			return;
+		PolicyBookEntry entry;
+		entry.key = p.hash_key();
+		entry.move_freq[0] = MoveFreq(m.to_move16(), 1);
+		entries.push_back(entry);
+		});
+
+	// ファイルにappendする。
+	SystemIO::BinaryWriter writer;
+	writer.Open(POLICY_BOOK_LEARN_DB_BIN_NAME, true);
+	auto result = writer.Write(entries.data(), sizeof(PolicyBookEntry) * entries.size());
+	sync_cout << "info string append " << POLICY_BOOK_LEARN_DB_BIN_NAME << ". status = " << result.to_string() << sync_endl;
 }
 
 #if 0
