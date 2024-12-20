@@ -178,6 +178,7 @@ Tools::Result PolicyBook::read_book()
 		}
 		return result;
 	}
+	return Tools::Result::Ok();
 
 #else
 	// ただし、ENABLE_POLICY_BOOK_LEARNが定義されているときは、毎回読み込む。(局後学習データがあるため)
@@ -204,10 +205,9 @@ Tools::Result PolicyBook::read_book()
 		if (result.is_ok())
 			merge_book(pb);
 	}
+	return result; // 読み込めたことにしておく。
 
 #endif
-
-	return result; // 読み込めたことにしておく。
 }
 
 
