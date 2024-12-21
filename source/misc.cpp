@@ -1995,6 +1995,15 @@ namespace StringExtension
 		return result;
 	}
 
+	// 文字列をfloat化する。float化に失敗した場合はdefault_の値を返す。
+	float to_float(const std::string input, float default_)
+	{
+		std::istringstream ss(input);
+		float result = default_; // 失敗したときはこの値のままになる
+		ss >> result;
+		return result;
+	}
+
 	// スペース、タブなど空白に相当する文字で分割して返す。
 	std::vector<std::string> split(const std::string& input)
 	{

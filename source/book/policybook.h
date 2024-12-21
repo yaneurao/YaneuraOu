@@ -16,6 +16,9 @@ static_assert(HASH_KEY_BITS == 128 , "HASH_KEY_BITS must be 128");
 #define POLICY_BOOK_DB_BIN_NAME       "eval/policy_book.db.bin"
 #define POLICY_BOOK_LEARN_DB_BIN_NAME "eval/policy_book-learn.db.bin"
 
+// POLICY_BOOK_DB_NAME のDBファイルの先頭行。
+#define POLICY_BOOK_HEADER            "#YANEURAOU-POLICY-DB2024 1.01"
+
 // ============================================================
 //				Policy Book
 // ============================================================
@@ -43,12 +46,15 @@ struct MoveFreq32
 	// → これ用意すると、overflowしている値が代入されてしまう。
 };
 
-constexpr int POLICY_BOOK_NUM = 4;
+constexpr int POLICY_BOOK_NUM = 3;
 
 // MoveFreq32がPOLICY_BOOK_NUMだけある構造体(内部で集計にのみ使用する)
 struct alignas(16) MoveFreq32Record
 {
 	MoveFreq32 move_freq32[POLICY_BOOK_NUM];
+
+	// この局面でのvalue。FLT_MAXなら、不明。
+	float value = FLT_MAX;
 
 	// freqの和がUINT16_MAXに収まるようにする。
 	// 返し値 : freqの和
@@ -60,6 +66,9 @@ struct alignas(32) PolicyBookEntry
 {
 	HASH_KEY key;
 	MoveFreq move_freq[POLICY_BOOK_NUM];
+
+	// この局面でのvalue。FLT_MAXなら、不明。
+	float value = FLT_MAX;
 
 	// MoveFreq32Record構造体の値をこの構造体のmove_freqに代入する。
 	void from_move_freq32rec(const MoveFreq32Record& mf32r);
@@ -83,7 +92,10 @@ public:
 	Tools::Result write_book_db_bin(std::string path = POLICY_BOOK_DB_BIN_NAME);
 
 	// PolicyBook同士のmerge
-	void PolicyBook::merge_book(const PolicyBook& book);
+	void merge_book(const PolicyBook& book);
+
+	// PolicyBookの重複レコードなどを掃除する。
+	void garbage_book();
 
 	// "position "コマンドのposition以降の文字列を渡して、それを
 	// POLICY_BOOK_LEARN_DB_BIN_NAMEにappendで書き出す。

@@ -59,19 +59,6 @@ namespace dlshogi {
 	u64 nodes_visited();
 }
 
-namespace Eval::dlshogi {
-
-	// 価値(勝率)を評価値[cp]に変換。
-	// USIではcp(centi-pawn)でやりとりするので、そのための変換に必要。
-	// 	 eval_coef : 勝率を評価値に変換する時の定数。default = 756
-	// 
-	// 返し値 :
-	//   +29900は、評価値の最大値
-	//   -29900は、評価値の最小値
-	//   +30000,-30000は、(おそらく)詰みのスコア
-	Value value_to_cp(const float score, float eval_coef);
-}
-
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 
 #endif // ifndef __DLSHOGI_MIN_H_INCLUDED__

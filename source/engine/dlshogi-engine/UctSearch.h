@@ -150,11 +150,11 @@ namespace dlshogi
 	// EvalNode()ごとにどのNodeとColorから呼び出されたのかを記録しておく構造体。
 	// NNから返し値がもらえた時に、ここに記録されているNodeについて、その情報を更新する。
 	struct BatchElement {
-		Node*	node;     // どのNodeに対するEvalNode()なのか。
-		Color	color;    // その時の手番
+		Node*	node;       // どのNodeに対するEvalNode()なのか。
+		Color	color;      // その時の手番
 
 #if defined(USE_POLICY_BOOK)
-		HASH_KEY key;     // この局面のhash key
+		HASH_KEY key;       // この局面のhash key
 #endif
 
 		// 通常の探索では、このポインターはNodeVisitor::value_win を指している。

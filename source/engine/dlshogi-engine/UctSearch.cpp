@@ -524,6 +524,13 @@ namespace dlshogi
 	//
 	float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, NodeVisitor& visitor)
 	{
+#if defined(USE_POLICY_BOOK)
+		// PolicyBookからvalueを与えられていたら、それをそのまま返す。
+		// ただし、root局面では、いまから探索しないといけないので、それはしない。
+		if (parent!=nullptr && current->policy_book_value != FLT_MAX)
+			return 1.0f - current->policy_book_value;
+#endif
+
 		auto ds = grp->get_dlsearcher();
 		auto& options = ds->search_options;
 
@@ -983,6 +990,11 @@ namespace dlshogi
 			} else {
 				// Policy Bookに従う。
 
+				// 評価値の書かれている局面であるか？
+				float v = policy_book_entry->value;
+				if (v != FLT_MAX)
+					node->policy_book_value = v;
+
 				u32 total = 0;
 				size_t k1;
 				for (k1 = 0; k1 < POLICY_BOOK_NUM; ++k1)
@@ -1006,7 +1018,7 @@ namespace dlshogi
 				// 注意 : 電竜戦の開始4手の玉の屈伸の棋譜を利用したときに、あれをPolicyとされてしまうと困る。
 				//  (PolicyBookを作るときに除外する必要がある)
 
-				float book_policy_ratio = 0.7f + 0.1f * std::clamp(0.0f, log10f(float(total)), 3.0f);
+				float book_policy_ratio = 0.7f + 0.1f * std::clamp(log10f(float(total)), 0.0f, 3.0f);
 
 				for (ChildNumType j = 0; j < child_num; j++) {
 

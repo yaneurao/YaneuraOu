@@ -170,6 +170,11 @@ namespace dlshogi
 		// 展開した子ノード以外はnullptrのまま。
 		std::unique_ptr<std::unique_ptr<Node>[]> child_nodes;
 
+#if defined(USE_POLICY_BOOK)
+		// PolicyBookから与えられたvalue
+		// なければ FLT_MAX
+		float policy_book_value = FLT_MAX;
+#endif
 
 		// 詰み関連のフラグ
 		bool dfpn_checked; // df-pn調べ済み

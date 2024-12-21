@@ -1008,6 +1008,9 @@ namespace StringExtension
 	// 文字列をint化する。int化に失敗した場合はdefault_の値を返す。
 	int to_int(const std::string input, int default_);
 
+	// 文字列をfloat化する。float化に失敗した場合はdefault_の値を返す。
+	float to_float(const std::string input, float default_);
+
 	// スペース、タブなど空白に相当する文字で分割して返す。
 	std::vector<std::string> split(const std::string& input);
 

@@ -398,6 +398,14 @@
 // ※ 次の子nodeに行くときに必ずevaluate()を呼び出さないといけないタイプの評価関数。
 // #define USE_DIFF_EVAL
 
+// PolicyBookを使うのか？
+// TODO : ⇨ PolicyBookについて、記事を書く。
+// #define USE_POLICY_BOOK
+
+// PolicyBookの局後学習を有効化するのか？
+// TODO : ⇨ PolicyBookの局後学習について、記事を書く。
+// #define ENABLE_POLICY_BOOK_LEARN
+
 // ===============================================================
 // ここ以降では、↑↑↑で設定した内容に基づき必要なdefineを行う。
 // ===============================================================
@@ -706,6 +714,12 @@ constexpr bool pretty_jp = true;
 constexpr bool pretty_jp = false;
 #endif
 
+// --- PolicyBook
+
+// PolicyBookを使うときは、hash keyを128bitにする。局面のhash keyが衝突してしまうとまずいので…。
+#if defined(USE_POLICY_BOOK)
+#define HASH_KEY_BITS 128
+#endif
 
 // --- hash key bits and TT_CLUSTER_SIZE
 
@@ -891,5 +905,4 @@ constexpr bool pretty_jp = false;
 #define ADD_BOARD_EFFECT_REWIND(color_,sq_,e1_) { board_effect[color_].e[sq_] += (uint8_t)e1_; }
 #define ADD_BOARD_EFFECT_BOTH_REWIND(color_,sq_,e1_,e2_) { board_effect[color_].e[sq_] += (uint8_t)e1_; board_effect[~color_].e[sq_] += (uint8_t)e2_; }
 
-#endif // ifndef _CONFIG_H_INCLUDED
-
+#endif // if !defined(CONFIG_H_INCLUDED)

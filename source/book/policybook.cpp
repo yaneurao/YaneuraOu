@@ -10,6 +10,7 @@
 #include "../thread.h"
 #include "../usi.h"
 #include "../book/book.h"
+#include "../eval/deep/nn.h"
 
 // freqの和がUINT16_MAXに収まるようにする。
 u16 MoveFreq32Record::overflow_check()
@@ -37,6 +38,7 @@ void PolicyBookEntry::from_move_freq32rec(const MoveFreq32Record& mf32r)
 		move_freq[i].move16 =     mf32r.move_freq32[i].move16 ;
 		move_freq[i].freq   = u16(mf32r.move_freq32[i].freq  );
 	}
+	value = mf32r.value;
 }
 
 
@@ -59,7 +61,7 @@ Tools::Result PolicyBook::read_book_db(std::string path)
 		Position pos;
 		StateInfo si;
 		reader.ReadLine(sfen);
-		if (sfen != "#YANEURAOU-POLICY-DB2024 1.00")
+		if (sfen != POLICY_BOOK_HEADER)
 		{
 			sync_cout << "info string Error! invalid policy book header" << sync_endl;
 			return Tools::ResultCode::FileMismatch;
@@ -73,16 +75,38 @@ Tools::Result PolicyBook::read_book_db(std::string path)
 			reader.ReadLine(moves_str);
 			auto moves = StringExtension::split(moves_str);
 
+			// 末尾判定が面倒なので、delimiterをセットしておく。
+			moves.emplace_back("");
+			moves.emplace_back("");
+
 			// 7g7f 123 のように指し手と出現頻度が書いてあるので正規化する。
+			// 7g7f 123 value 0.50
+			// のように、その局面での手番側から見たvalueを付与することができる。
+			// 7g7f 123 eval 400
+			// のようにevalを付与することもできる。この場合、eval_coef=800として勝率に変換される。
+			// いまどきのソフトは800より小さいのだが、ここをあえて大きな値にすることで、valueとして
+			// (0.5からの乖離が)大きめの値にする。
 
 			// 出現頻度を保管しておく。
 			MoveFreq32Record mf32r;
 
-			for (size_t i = 0 , j = 0 ; i < POLICY_BOOK_NUM; ++i)
+			for (size_t i = 0 , j = 0 ; ; i += 2)
 			{
-				if (i * 2 + 1 < moves.size())
-				{
-					Move16 move16 = USI::to_move16(moves[i * 2 + 0]);
+				auto& movestr = moves[i];
+				if (movestr == "")
+					break;
+				if (movestr == "value")
+					mf32r.value = StringExtension::to_float(moves[i + 1], FLT_MAX);
+				else if (movestr == "eval")
+					mf32r.value = Eval::dlshogi::cp_to_value(StringExtension::to_int(moves[i + 1], 0), 800);
+				else {
+					// もうお腹いっぱい。ここPOLICY_BOOK_NUM以上
+					// 書いてもいいことにはなっているのでこの判定が必要。
+					// まだこのあとvalueかevalが来ることはあるのでループは続行する。
+					if (j >= POLICY_BOOK_NUM)
+						continue;
+
+					Move16 move16 = USI::to_move16(movestr);
 
 					// 不成の指し手があるなら、それを無視する。
 					// (これを計算に入れてしまうと、Policyの合計が100%にならなくなる)
@@ -90,7 +114,7 @@ Tools::Result PolicyBook::read_book_db(std::string path)
 						continue;
 
 					mf32r.move_freq32[j].move16 = move16;
-					mf32r.move_freq32[j].freq   = StringExtension::to_int(moves[i * 2 + 1], 1);
+					mf32r.move_freq32[j].freq   = StringExtension::to_int(moves[i + 1], 1);
 					j++;
 				}
 			}
@@ -113,7 +137,10 @@ Tools::Result PolicyBook::read_book_db(std::string path)
 		sync_cout << "info string read " << counter << "..done." << sync_endl;
 
 		// sortしないと二分探索できない。
-		sort_book();
+		// sort_book();
+
+		// 重複レコードがあるかも知れないのでgarbageしておく。
+		garbage_book();
 
 		/*
 		// テストコード
@@ -238,6 +265,16 @@ void PolicyBook::merge_book(const PolicyBook& book)
 	// 連結
 	book_body.insert(book_body.end(), book.book_body.begin(), book.book_body.end());
 
+	// お掃除
+	garbage_book();
+
+	// 最終的なレコード数を出力する。
+	sync_cout << "..done. " << book_body.size() << " records." << sync_endl;
+}
+
+// PolicyBookの重複レコードなどを掃除する。
+void PolicyBook::garbage_book()
+{
 	// sort
 	std::sort(book_body.begin(), book_body.end(), [](PolicyBookEntry& x, PolicyBookEntry& y)
 		{ return x.key < y.key; });
@@ -256,11 +293,17 @@ void PolicyBook::merge_book(const PolicyBook& book)
 			HASH_KEY key = book_body[read_cursor].key;
 			// ⇨ このkeyと一致するところを集計して一つにまとめる。
 
-			for ( ; read_cursor < book_body.size() && key == book_body[read_cursor].key; ++read_cursor)
+			// これも集計しないといけない。
+			float value = FLT_MAX;
+
+			for (; read_cursor < book_body.size() && key == book_body[read_cursor].key; ++read_cursor)
 			{
 				auto& mf = book_body[read_cursor].move_freq;
 				for (int k = 0; k < POLICY_BOOK_NUM && mf[k].move16 != Move16::none(); ++k)
 					counter[mf[k].move16] += mf[k].freq;
+				float v = book_body[read_cursor].value;
+				if (v != FLT_MAX)
+					value = v;
 			}
 			// summarize終わったので、book_body[i]に反映させる。
 
@@ -275,6 +318,7 @@ void PolicyBook::merge_book(const PolicyBook& book)
 
 			// book_body[write_cursor]に反映。(POLICY_BOOK_NUM個、entryを埋めるのを忘れずに)
 			book_body[write_cursor].key = key;
+			book_body[write_cursor].value = value;
 
 			MoveFreq32Record mf32r;
 			for (size_t k = 0; k < POLICY_BOOK_NUM; ++k)
@@ -284,7 +328,7 @@ void PolicyBook::merge_book(const PolicyBook& book)
 			mf32r.overflow_check();
 
 			book_body[write_cursor].from_move_freq32rec(mf32r);
-			
+
 			// read_cursorは、keyが一致しないところ(今回集計していないところ)まで進んだ。
 		}
 		else {
@@ -298,9 +342,6 @@ void PolicyBook::merge_book(const PolicyBook& book)
 	}
 	// write_cursor - 1 までが有効なデータなので切り詰める。
 	book_body.resize(write_cursor);
-
-	// 最終的なレコード数を出力する。
-	sync_cout << "..done. " << book_body.size() << " records." << sync_endl;
 }
 
 
@@ -349,7 +390,8 @@ void PolicyBook::append_sfen_to_db_bin(const std::string& sfen)
 
 	BookTools::feed_position_string(pos, sfen, si, [&](Position& p, Move m) {
 		// 最後の局面は、m==Move::none()が入ってくる。
-		if (m == Move::none())
+		// また、不成の指し手は無視しないと対局時のPolicyの確率の合計が100%にならなくなる。
+		if (m == Move::none() || !pos.pseudo_legal_s<false>(m))
 			return;
 		PolicyBookEntry entry;
 		entry.key = p.hash_key();
