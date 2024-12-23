@@ -83,8 +83,8 @@ Tools::Result PolicyBook::read_book_db(std::string path)
 			// 7g7f 123 value 0.50
 			// のように、その局面での手番側から見たvalueを付与することができる。
 			// 7g7f 123 eval 400
-			// のようにevalを付与することもできる。この場合、eval_coef=800として勝率に変換される。
-			// いまどきのソフトは800より小さいのだが、ここをあえて大きな値にすることで、valueとして
+			// のようにevalを付与することもできる。この場合、eval_coef=300として勝率に変換される。
+			// いまどきのソフトは550程度だが、ここをあえて小さな値にすることで、valueとして
 			// (0.5からの乖離が)大きめの値にする。
 
 			// 出現頻度を保管しておく。
@@ -98,7 +98,7 @@ Tools::Result PolicyBook::read_book_db(std::string path)
 				if (movestr == "value")
 					mf32r.value = StringExtension::to_float(moves[i + 1], FLT_MAX);
 				else if (movestr == "eval")
-					mf32r.value = Eval::dlshogi::cp_to_value(StringExtension::to_int(moves[i + 1], 0), 800);
+					mf32r.value = Eval::dlshogi::cp_to_value(StringExtension::to_int(moves[i + 1], 0), 300);
 				else {
 					// もうお腹いっぱい。ここPOLICY_BOOK_NUM以上
 					// 書いてもいいことにはなっているのでこの判定が必要。
