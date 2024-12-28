@@ -1901,6 +1901,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 	// 以下は、やねうら王独自のコード。
 
+	// -----------------------
+	//    1手詰みか？
+	// -----------------------
+
 	if (!rootNode && !ttHit
 #if !defined(CHECK_MATE1PLY_REGARDLESS_OF_EXCLUDED_MOVE)
 		&& !excludedMove
@@ -1910,10 +1914,6 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// excludedMoveがある時はttHitしてttMoveがあるはずだが、置換表壊されるケースがあるので念のためチェックはしないといけない。
 		// !rootnodeではなく!PvNodeの方がいいかも？
 		// (PvNodeでは置換表の指し手を信用してはいけないという方針なら)
-
-		// -----------------------
-		//    1手詰みか？
-		// -----------------------
 
 		// excludedMoveがある時には本当は、それを除外して詰み探索をする必要があるが、
 		// 詰みがある場合は、singular extensionの判定の前までにbeta cutするので、結局、
@@ -1984,11 +1984,16 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 				return bestValue;
 			}
 		}
+	}
 
-		// -----------------------
-		//    宣言勝ちか？
-		// -----------------------
-
+	// -----------------------
+	//    宣言勝ちか？
+	// -----------------------
+	
+	// 置換表にhitしていないときは宣言勝ちの判定をまだやっていないということなので今回やる。
+	// PvNodeでは置換表の指し手を信用してはいけないので毎回やる。
+	if (!ttData.move || PvNode)
+	{
 		// 王手がかかってようがかかってまいが、宣言勝ちの判定は正しい。
 		// (トライルールのとき王手を回避しながら入玉することはありうるので)
 		// トライルールのときここで返ってくるのは16bitのmoveだが、置換表に格納するには問題ない。
