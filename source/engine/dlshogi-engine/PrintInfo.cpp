@@ -156,14 +156,13 @@ namespace dlshogi::UctPrint
 		// 勝率を[centi-pawn]に変換
 		int cp = Eval::dlshogi::value_to_cp((float)best.wp,eval_coef);
 
-		ss << "info" << nps;
+		ss << "info";
+		if (multipv == 1) // multipv = 1のときはpvと同時に出力。
+			ss << nps;
 
 		// MultiPVが2以上でないなら、"multipv .."は出力しないようにする。(MultiPV非対応なGUIかも知れないので)
 		if (multipv > 1)
-		{
-			ss << " multipv " << (multipv_num + 1)
-			   << " nodes "   << best.move_count; 
-		}
+			ss << " multipv " << (multipv_num + 1);
 
 		ss << " depth " << moves.size() << " score cp " << cp;
 		
@@ -174,6 +173,9 @@ namespace dlshogi::UctPrint
 			for (auto m : moves)
 				ss << ' ' << to_usi_string(m);
 		}
+
+		if (multipv > 1 && multipv == multipv_num + 1) // multipv時の最後の出力なのでnode数等の出力をここにつなげてやる。
+			ss << std::endl << "info" << nps;
 
 		return ss.str();
 	}
@@ -189,11 +191,8 @@ namespace dlshogi::UctPrint
 		std::stringstream nps;
 		nps << " nps "      << (po_info.nodes_searched * 1000LL / (u64)finish_time)
 			<< " time "     <<  finish_time
-			<< " hashfull " << (po_info.current_root->move_count * 1000LL / options.uct_node_limit);
-
-		// multiPv >= 2のときは、個別の訪問回数を出力したいので全体の訪問回数は出力しない。
-		if (multiPv == 1)
-			nps << " nodes "    <<  po_info.nodes_searched;
+			<< " hashfull " << (po_info.current_root->move_count * 1000LL / options.uct_node_limit)
+			<< " nodes "    <<  po_info.nodes_searched;
 
 #if 0
 		if (rootNode->mate_ply > 0)
