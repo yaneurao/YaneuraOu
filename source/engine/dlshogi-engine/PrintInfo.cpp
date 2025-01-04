@@ -162,7 +162,17 @@ namespace dlshogi::UctPrint
 
 		// MultiPVが2以上でないなら、"multipv .."は出力しないようにする。(MultiPV非対応なGUIかも知れないので)
 		if (multipv > 1)
-			ss << " multipv " << (multipv_num + 1);
+			ss << " multipv " << (multipv_num + 1) << " nodes " << best.move_count;
+			/*
+				multipvのとき、nodesとして各指し手の訪問回数を出力する。
+				これは、定跡生成の時や、評価関数モデルの精度を知る上で重要な情報である。
+
+				ここで出力しているのはvisit(このnodeの訪問回数で、今回より前のgoの分も含む)から、
+				全体のnodesより大きな値を出力することもある。
+
+				そこでGUI側では、multipvのnodesは一応保存しておき、multipvのついていないinfoコマンドによるnodesを
+				受け取ったなら、以降はそちらを優先して表示するというようなロジックが必要になる。
+			*/
 
 		ss << " depth " << moves.size() << " score cp " << cp;
 		
