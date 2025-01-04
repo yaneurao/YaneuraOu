@@ -2077,7 +2077,8 @@ bool Position::see_ge(Move m, Value threshold) const
                 break;
             occupied ^= least_significant_square_bb(bb);
 
-			// 桂で取ったところでその背後にある駒がattckersに追加されることはないので、whileに戻る。
+			// 桂で取ったところでその背後にある駒がattckersに追加されることはないので、何も追加する必要はなく、
+			// ループ先頭のwhileに戻る。
 			continue;
         }
 
@@ -2166,15 +2167,15 @@ bool Position::see_ge(Move m, Value threshold) const
 		case DIRECT_RD: attackers |= rayEffect<DIRECT_RD>(to, occupied) & pieces<BISHOP_HORSE>(); break;
 		case DIRECT_LU: attackers |= rayEffect<DIRECT_LU>(to, occupied) & pieces<BISHOP_HORSE>(); break;
 
-		// 上方向に移動した時の背後の駒によってtoの地点に利くのは、後手の香 + 先後の飛車
+		// (toに対してsqが)上方向。背後の駒によってtoの地点に利くのは、後手の香 + 先後の飛車
 		case DIRECT_U : attackers |= rayEffect<DIRECT_U >(to, occupied) & (pieces<ROOK_DRAGON>() | pieces<WHITE, LANCE>()); break;
 
-		// 下方向に移動した時の背後の駒によってtoの地点に利くのは、先手の香 + 先後の飛車
+		// (toに対してsqが)下方向。背後の駒によってtoの地点に利くのは、先手の香 + 先後の飛車
 		case DIRECT_D : attackers |= rayEffect<DIRECT_D >(to, occupied) & (pieces<ROOK_DRAGON>() | pieces<BLACK, LANCE>()); break;
 
 		// 左右方向に移動した時の背後の駒によってtoの地点に利くのは、飛車・龍。
-		case DIRECT_L : attackers |= rayEffect<DIRECT_L> (to, occupied) & pieces<ROOK_DRAGON>(); break;
-		case DIRECT_R : attackers |= rayEffect<DIRECT_R> (to, occupied) & pieces<ROOK_DRAGON>(); break;
+		case DIRECT_L : attackers |= rayEffect<DIRECT_L >(to, occupied) & pieces<ROOK_DRAGON>(); break;
+		case DIRECT_R : attackers |= rayEffect<DIRECT_R >(to, occupied) & pieces<ROOK_DRAGON>(); break;
 
 		default: UNREACHABLE; break;
 		}
