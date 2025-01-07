@@ -168,9 +168,6 @@ namespace Eval::dlshogi
 			FatalError("parseFromFile");
 		}
 
-		// builder->setMaxBatchSize(max_batch_size);
-		// config->setMaxWorkspaceSize(64_MiB);
-
 		// 教師局面なくてcalibration_cache用意できないのでコメントアウトしておく。(yane)
 #if 0
 		std::unique_ptr<nvinfer1::IInt8Calibrator> calibrator;
