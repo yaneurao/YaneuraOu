@@ -89,33 +89,25 @@ namespace Eval::dlshogi
 		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y2_dev, sizeof(NN_Output_Value)  * max_batch_size));
 
-		infer_inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
-
 		return load_model(model_path);
 	}
 
 	void NNTensorRT::release()
 	{
-		// load()でメモリ確保を行った場合、inputBindings.size() == 4のはず。
-		if (infer_inputBindings.size())
-		{
-			// 安全のため、GPU IDをスレッドと関連付けてから開放する。
-			// ※　これは本来しなくても良いと思うのだが、ドライバー側の実装次第では
-			//     何か地雷を踏む可能性がなくはないので安全側に倒しておく。
+		// 安全のため、GPU IDをスレッドと関連付けてから開放する。
+		// ※　これは本来しなくても良いと思うのだが、ドライバー側の実装次第では
+		//     何か地雷を踏む可能性がなくはないので安全側に倒しておく。
 
-			// メモリを確保した時のCUDAデバイスを設定する。
-			set_device(gpu_id);
+		// メモリを確保した時のCUDAデバイスを設定する。
+		set_device(gpu_id);
 
-			// メモリの開放
-			checkCudaErrors(cudaFree(p1_dev));
-			checkCudaErrors(cudaFree(p2_dev));
-			checkCudaErrors(cudaFree(x1_dev));
-			checkCudaErrors(cudaFree(x2_dev));
-			checkCudaErrors(cudaFree(y1_dev));
-			checkCudaErrors(cudaFree(y2_dev));
-			infer_inputBindings.resize(0);
-
-		}
+		// メモリの開放
+		checkCudaErrors(cudaFree(p1_dev));
+		checkCudaErrors(cudaFree(p2_dev));
+		checkCudaErrors(cudaFree(x1_dev));
+		checkCudaErrors(cudaFree(x2_dev));
+		checkCudaErrors(cudaFree(y1_dev));
+		checkCudaErrors(cudaFree(y2_dev));
 	}
 
 	// 使用可能なデバイス数を取得する。
