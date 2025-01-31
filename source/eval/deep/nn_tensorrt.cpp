@@ -89,33 +89,25 @@ namespace Eval::dlshogi
 		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y2_dev, sizeof(NN_Output_Value)  * max_batch_size));
 
-		infer_inputBindings = { x1_dev, x2_dev, y1_dev, y2_dev };
-
 		return load_model(model_path);
 	}
 
 	void NNTensorRT::release()
 	{
-		// load()でメモリ確保を行った場合、inputBindings.size() == 4のはず。
-		if (infer_inputBindings.size())
-		{
-			// 安全のため、GPU IDをスレッドと関連付けてから開放する。
-			// ※　これは本来しなくても良いと思うのだが、ドライバー側の実装次第では
-			//     何か地雷を踏む可能性がなくはないので安全側に倒しておく。
+		// 安全のため、GPU IDをスレッドと関連付けてから開放する。
+		// ※　これは本来しなくても良いと思うのだが、ドライバー側の実装次第では
+		//     何か地雷を踏む可能性がなくはないので安全側に倒しておく。
 
-			// メモリを確保した時のCUDAデバイスを設定する。
-			set_device(gpu_id);
+		// メモリを確保した時のCUDAデバイスを設定する。
+		set_device(gpu_id);
 
-			// メモリの開放
-			checkCudaErrors(cudaFree(p1_dev));
-			checkCudaErrors(cudaFree(p2_dev));
-			checkCudaErrors(cudaFree(x1_dev));
-			checkCudaErrors(cudaFree(x2_dev));
-			checkCudaErrors(cudaFree(y1_dev));
-			checkCudaErrors(cudaFree(y2_dev));
-			infer_inputBindings.resize(0);
-
-		}
+		// メモリの開放
+		checkCudaErrors(cudaFree(p1_dev));
+		checkCudaErrors(cudaFree(p2_dev));
+		checkCudaErrors(cudaFree(x1_dev));
+		checkCudaErrors(cudaFree(x2_dev));
+		checkCudaErrors(cudaFree(y1_dev));
+		checkCudaErrors(cudaFree(y2_dev));
 	}
 
 	// 使用可能なデバイス数を取得する。
@@ -167,9 +159,6 @@ namespace Eval::dlshogi
 		{
 			FatalError("parseFromFile");
 		}
-
-		builder->setMaxBatchSize(max_batch_size);
-		config->setMaxWorkspaceSize(64_MiB);
 
 		// 教師局面なくてcalibration_cache用意できないのでコメントアウトしておく。(yane)
 #if 0
@@ -268,6 +257,7 @@ namespace Eval::dlshogi
 		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
 		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
 		config->addOptimizationProfile(profile);
+		config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 64_MiB);
 
 		// TensorRT 8 より nvinfer1::IBuilder::buildSerializedNetwork() が追加され、 nvinfer1::IBuilder::buildEngineWithConfig() は非推奨となった。
 		// nvinfer1::IBuilder::buildEngineWithConfig() は TensorRT 10.0 にて削除される見込み。
@@ -387,8 +377,8 @@ namespace Eval::dlshogi
 				return Tools::ResultCode::FileWriteError;
 		}
 
-		inputDims1 = infer_engine->getBindingDimensions(0);
-		inputDims2 = infer_engine->getBindingDimensions(1);
+		inputDims1 = infer_engine->getTensorShape("input1");
+		inputDims2 = infer_engine->getTensorShape("input2");
 
 		return Tools::ResultCode::Ok;
 	}
@@ -397,8 +387,8 @@ namespace Eval::dlshogi
 	{
 		inputDims1.d[0] = batch_size;
 		inputDims2.d[0] = batch_size;
-		infer_context->setBindingDimensions(0, inputDims1);
-		infer_context->setBindingDimensions(1, inputDims2);
+		infer_context->setInputShape("input1", inputDims1);
+		infer_context->setInputShape("input2", inputDims2);
 #if defined(UNPACK_CUDA)
 		checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(PType) * ((batch_size * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3), cudaMemcpyHostToDevice, cudaStreamPerThread));
 		checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(PType) * ((batch_size * ((int)MAX_FEATURES2_NUM) + 7) >> 3), cudaMemcpyHostToDevice, cudaStreamPerThread));
@@ -408,7 +398,11 @@ namespace Eval::dlshogi
 		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
 		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
 #endif
-		const bool status = infer_context->enqueue(batch_size, infer_inputBindings.data(), cudaStreamPerThread, nullptr);
+		infer_context->setTensorAddress("input1", x1_dev);
+		infer_context->setTensorAddress("input2", x2_dev);
+		infer_context->setTensorAddress("output_policy", y1_dev);
+		infer_context->setTensorAddress("output_value", y2_dev);
+		const bool status = infer_context->enqueueV3(cudaStreamPerThread);
 		ASSERT_LV3(status);
 		checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(NN_Output_Policy) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
 		checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(NN_Output_Value ) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
