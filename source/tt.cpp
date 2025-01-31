@@ -65,7 +65,7 @@ TranspositionTable TT; // global TT
 // pv node     1 bit : PV nodeで調べた値であるかのフラグ
 // bound type  2 bit : 格納されているvalue値の性質(fail low/highした時の値であるだとか)
 // value      16 bit : このnodeでのsearch()の返し値
-// eval value 16 bit : このnodeでのevaluate()の返し値
+// evaluation 16 bit : このnodeでのevaluate()の返し値
 //
 // generation , pv node , bound type をあわせると 5 + 1 + 2 bit = 8 bitとなる。
 // TTEntryは、この3つを合わせた変数として generation8 が格納されている。

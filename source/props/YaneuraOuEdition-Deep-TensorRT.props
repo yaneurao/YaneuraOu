@@ -9,15 +9,15 @@
     <OutDir>$(OutBaseDir)$(YaneuraOuDir)\</OutDir>
     <TargetName>$(ProjectName)-$(YaneuraOuTarget)</TargetName>
     <_PropertySheetDisplayName>YaneuraOuEdition-Deep-TensorRT</_PropertySheetDisplayName>
-    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\ProgramData\YaneuraOu\TensorRT-8.6.1.6\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\include</IncludePath>
-    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);C:\ProgramData\YaneuraOu\TensorRT-8.6.1.6\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\lib\x64</LibraryPath>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);C:\ProgramData\YaneuraOu\TensorRT-10.8.0.43\include;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\include</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64);C:\ProgramData\YaneuraOu\TensorRT-10.8.0.43\lib;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.8\lib\x64</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <PreprocessorDefinitions>YANEURAOU_ENGINE_DEEP;TENSOR_RT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);cudart.lib;nvinfer.lib;nvonnxparser.lib</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);cudart.lib;nvinfer_10.lib;nvonnxparser_10.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -29,35 +29,35 @@
     </BuildMacro>
   </ItemGroup>
   <ItemGroup>
-    <Content Condition="Exists('C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-8.9.7.29_cuda12-archive\bin\cudnn_adv_infer64_8.dll')" Include="C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-8.9.7.29_cuda12-archive\bin\cudnn_adv_infer64_8.dll">
+    <Content Condition="Exists('C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-9.7.0.66_cuda12-archive\bin\cudnn_adv_infer64_8.dll')" Include="C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-9.7.0.66_cuda12-archive\bin\cudnn_adv_infer64_8.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-8.9.7.29_cuda12-archive\bin\cudnn_cnn_infer64_8.dll')" Include="C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-8.9.7.29_cuda12-archive\bin\cudnn_cnn_infer64_8.dll">
+    <Content Condition="Exists('C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-9.7.0.66_cuda12-archive\bin\cudnn_cnn_infer64_8.dll')" Include="C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-9.7.0.66_cuda12-archive\bin\cudnn_cnn_infer64_8.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-8.9.7.29_cuda12-archive\bin\cudnn_ops_infer64_8.dll')" Include="C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-8.9.7.29_cuda12-archive\bin\cudnn_ops_infer64_8.dll">
+    <Content Condition="Exists('C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-9.7.0.66_cuda12-archive\bin\cudnn_ops_infer64_8.dll')" Include="C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-9.7.0.66_cuda12-archive\bin\cudnn_ops_infer64_8.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-8.9.7.29_cuda12-archive\bin\cudnn64_8.dll')" Include="C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-8.9.7.29_cuda12-archive\bin\cudnn64_8.dll">
+    <Content Condition="Exists('C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-9.7.0.66_cuda12-archive\bin\cudnn64_8.dll')" Include="C:\ProgramData\YaneuraOu\cudnn-windows-x86_64-9.7.0.66_cuda12-archive\bin\cudnn64_8.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Condition="Exists('C:\ProgramData\YaneuraOu\TensorRT-8.6.1.6\lib\nvinfer_builder_resource.dll')" Include="C:\ProgramData\YaneuraOu\TensorRT-8.6.1.6\lib\nvinfer_builder_resource.dll">
+    <Content Condition="Exists('C:\ProgramData\YaneuraOu\TensorRT-10.8.0.43\lib\nvinfer_builder_resource_10.dll')" Include="C:\ProgramData\YaneuraOu\TensorRT-10.8.0.43\lib\nvinfer_builder_resource_10.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Include="C:\ProgramData\YaneuraOu\TensorRT-8.6.1.6\lib\nvinfer.dll">
+    <Content Include="C:\ProgramData\YaneuraOu\TensorRT-10.8.0.43\lib\nvinfer_10.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Include="C:\ProgramData\YaneuraOu\TensorRT-8.6.1.6\lib\nvinfer_plugin.dll">
+    <Content Include="C:\ProgramData\YaneuraOu\TensorRT-10.8.0.43\lib\nvinfer_plugin_10.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
-    <Content Include="C:\ProgramData\YaneuraOu\TensorRT-8.6.1.6\lib\nvonnxparser.dll">
+    <Content Include="C:\ProgramData\YaneuraOu\TensorRT-10.8.0.43\lib\nvonnxparser_10.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <Visible>false</Visible>
     </Content>
