@@ -164,7 +164,7 @@ EVAL_EMBEDDING = OFF
 ifneq (,$(findstring em++,$(COMPILER)))
 	CPPFLAGS += -O2
 else
-	CPPFLAGS += -Ofast
+	CPPFLAGS += -O3 -ffast-math
 endif
 
 # デバッガーを使わないなら、NDEBUGをdefineする。
