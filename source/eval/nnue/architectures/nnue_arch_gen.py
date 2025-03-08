@@ -37,7 +37,7 @@ out_path = os.path.join(out_dir, filename)
 print(f"output file path  : {out_path}")
 
 if os.path.exists(out_path):
-    print("Warning : file always exists. stop.")
+    print("Warning : file already exists. stop.")
     exit()
 
 # 大文字化して、'-'を'_'に置換したアーキテクチャ名
