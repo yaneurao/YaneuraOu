@@ -83,8 +83,8 @@ class FeatureTransformer {
 	static constexpr IndexType kHalfDimensions = kTransformedFeatureDimensions;
 
 #if defined(VECTOR)
-	static constexpr IndexType kTileHeight = kNumRegs * sizeof(vec_t) / 2;
-	static_assert(kHalfDimensions % kTileHeight == 0, "kTileHeight must divide kHalfDimensions");
+	//static constexpr IndexType kTileHeight = kNumRegs * sizeof(vec_t) / 2;
+	//static_assert(kHalfDimensions % kTileHeight == 0, "kTileHeight must divide kHalfDimensions");
 #endif
 
    public:
