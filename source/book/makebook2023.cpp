@@ -238,8 +238,9 @@ namespace MakeBook2023
 	// これは棋譜の指し手などを定跡DBに登録する時に評価値が確定しないのでそういう時に用いる。
 	const int BOOK_VALUE_NONE = numeric_limits<s16>::min();
 
-	const int BOOK_VALUE_MAX  = numeric_limits<s16>::max()-1;
-	const int BOOK_VALUE_MIN  = numeric_limits<s16>::min()+1;
+	// MATEより大きなスコアを使うと、表示のときにバグる可能性がある。
+	const int BOOK_VALUE_MAX  =  VALUE_MATE;
+	const int BOOK_VALUE_MIN  = -VALUE_MATE;
 
 	// 定跡で千日手手順の時のdepth。∞であることがわかる特徴的な定数にしておくといいと思う。
 	const u16 BOOK_DEPTH_INF = 999;
@@ -342,9 +343,9 @@ namespace MakeBook2023
 	// あるnodeに対してその親nodeとその何番目の指し手がこのnodeに接続されているのかを保持する構造体。
 	struct ParentMove
 	{
-		ParentMove(BookNodeIndex parent,size_t move_index):parent(parent),move_index((u32)move_index){}
+		ParentMove(BookNodeIndex parent_index,size_t move_index):parent_index(parent_index),move_index((u32)move_index){}
 
-		BookNodeIndex parent;
+		BookNodeIndex parent_index;
 		u32 move_index;
 	};
 
@@ -406,8 +407,8 @@ namespace MakeBook2023
 		// そのため、HASH_KEY_BITSは128か256が望ましい。
 		if (HASH_KEY_BITS < 128)
 		{
-			cout << "WARNING! : HASH_KEY_BITS = " << HASH_KEY_BITS << " is too short." << endl;
-			cout << "    Rebuild with a set HASH_KEY_BITS == 128 or 256." << endl;
+			std::cout << "WARNING! : HASH_KEY_BITS = " << HASH_KEY_BITS << " is too short." << endl;
+			std::cout << "    Rebuild with a set HASH_KEY_BITS == 128 or 256." << endl;
 		}
 	}
 
@@ -515,15 +516,22 @@ namespace MakeBook2023
 			cout << "readbook_path      : " << readbook_path  << endl;
 			cout << "writebook_path     : " << writebook_path << endl;
 
+			/*
+			note: DrawValueの変更について。
+
+				引き分けのスコアを0から変更するには、各局面について、初期局面が{ 先手, 後手 }の2通りを
+				持つ必要がある。
+
+				ここでは、その処理をしていないので、DrawValueの変更した場合の動作は未定義。
+			*/
+
 			// DrawValueBlackの反映(DrawValueWhiteは無視)
-			drawValueTable[REPETITION_DRAW][BLACK] =   Value((int)Options["DrawValueBlack"]);
-			drawValueTable[REPETITION_DRAW][WHITE] = - Value((int)Options["DrawValueBlack"]);
-
+			drawValueTable[REPETITION_DRAW][BLACK] = 0; //  Value((int)Options["DrawValueBlack"]);
+			drawValueTable[REPETITION_DRAW][WHITE] = 0; //  -Value((int)Options["DrawValueBlack"]);
 			// 引き分けのスコアを変更したいなら先に変更しておいて欲しい。
-			cout << "draw_value_black   : " << draw_value(REPETITION_DRAW, BLACK) << endl;
-			cout << "draw_value_white   : " << draw_value(REPETITION_DRAW, WHITE) << endl;
-
-			cout << endl;
+			//cout << "draw_value_black   : " << draw_value(REPETITION_DRAW, BLACK) << endl;
+			//cout << "draw_value_white   : " << draw_value(REPETITION_DRAW, WHITE) << endl;
+			//cout << endl;
 
 			// 定跡の開始局面。
 			// "book/root_sfens.txt"からrootのsfen集合を読み込むことにする。
@@ -572,6 +580,10 @@ namespace MakeBook2023
 
 			// 行番号
 			size_t line_no = 0;
+
+			// 王手している局面のhashの集合。
+			// 連続王手の千日手の検出のために必要。
+			unordered_set<BookNodeIndex> checked_positions;
 
 			// sfen文字列はファイルに書き出す。
 			SystemIO::TextWriter sfen_writer;
@@ -666,7 +678,12 @@ namespace MakeBook2023
 					}
 #endif
 
-					hashkey_to_index[white_hash_key] = BookNodeIndex(book_nodes.size()); // emplace_back()する前のsize()が今回追加されるindex
+					auto book_node_index = BookNodeIndex(book_nodes.size()); // emplace_back()する前のsize()が今回追加されるindex
+					hashkey_to_index[white_hash_key] = book_node_index;
+
+					// 王手されている局面なら、これを追加しておく。(連続王手の千日手の検出のためにあとで使う)
+					if (pos.checkers())
+						checked_positions.insert(book_node_index);
 
 					// BookNode.packed_sfenには先手番の局面だけを登録する。
 					//pos.set(black_sfen, &si, Threads.main());
@@ -814,6 +831,47 @@ namespace MakeBook2023
 
 			//cout << "converged_moves : " << converged_moves << endl;
 
+			/*
+				note : ペタショック化アルゴリズム、連続王手の処理のアルゴリズム
+
+				本アルゴリズムのゴール : 連続王手からなる閉経路(ループ)を発見できれば良い。
+				あとはそのループの指し手の評価値を -INF(マイナス無限大 = 自分負け)で初期化すれば、
+				あとは通常のペタショック化アルゴリズムを適用できる。
+
+				連続王手からなる閉経路をいまcheck loopと書く。
+
+				・check loopの発見方法アルゴリズムについて
+
+				ある局面が王手がかかっている局面とする。そうすると、check loop上の局面であるなら、
+				この2手先の局面も王手がかかっているはずである。(このことは、背理法によって証明できる。)
+				逆に、王手のかかっている2手先の局面が王手がかかっている局面を数珠つなぎにしたものはcheck loopでもある。
+
+				そこで、前者の条件を満たすまで最大でMAX_PLY(定跡の最大長さ)回だけ繰り返せば良い。
+
+				疑似アルゴリズムで書くと以下のようになる。
+
+				```
+				checks = 王手のかかっている局面の集合
+				for ＿ in range(MAX_PLY):
+					for check in checks:
+						if checkの2手先に王手がかかっている局面がない:
+							checks.remove(check) # この局面を取り除く
+				```
+
+				たったこれだけである。これにより、このループを抜けるとchecksにcheck loop上の局面だけが残る。
+				(これを数珠つなぎにする処理は必要)
+
+				数珠つなぎにする処理は、以下のようにcheck loopの局面取り出して調べると手っ取り早い。
+
+				```
+				checked_pos = []
+				for check in checks:
+					for checked in check.children:
+						if checkedの子 in checks:
+							checked_pos.append(checked)
+				```
+			*/
+
 			// やねうら王の定跡DBの構築
 			//cout << "build yaneuraou book : " << endl;
 
@@ -907,7 +965,7 @@ namespace MakeBook2023
 
 					for(auto& pm : book_node.parents)
 					{
-						auto  parent_index      = pm.parent;
+						auto  parent_index      = pm.parent_index;
 						auto& parent            = book_nodes[parent_index];
 						auto  parent_move_index = pm.move_index;
 
@@ -947,6 +1005,98 @@ namespace MakeBook2023
 				}
 			}
 
+			// 連続王手の千日手の処理。連続王手のループを作っている指し手の評価値を +INF / -INFで初期化する。
+			{
+				// 1. 連続王手のループの検出
+
+				cout << "before : checked_positions.size() == " << checked_positions.size() << endl;
+
+				// 連続王手局面の候補集合に対して、
+				// その局面の2つ親に王手がかかっていない局面がなくなるまで繰り返す。
+				bool removed = true;
+				while (removed) {
+					removed = false;
+					for (auto it = checked_positions.begin(); it != checked_positions.end(); /* ++it */ ) {
+
+						// 局面 *itは、(手番側に)王手がかかっている局面。
+
+						auto  book_node_index = *it;
+						auto& book_node = this->book_nodes[book_node_index];
+
+						// この局面の親の親(子の子)がひとつもchecked_positionsでなければ、
+						// この局面は連続王手にはなっていないのでremoveしてやる。
+
+						for (auto& node_parent : book_node.parents)
+						{
+							auto parent_index = node_parent.parent_index;
+							if (parent_index == BookNodeIndexNull)
+								continue;
+
+							auto& parent_node = this->book_nodes[parent_index];
+							for (auto& parent : parent_node.parents)
+							{
+								// 親の親のindex
+								auto pp_index = parent.parent_index;
+								// BookNodeIndexNullなら次でchecked_positionsには存在しないindexなので
+								// このチェックは不要だが、このあとのコードと同一のスタイルにするために書いておく。
+								if (pp_index == BookNodeIndexNull)
+									continue;
+
+								if (checked_positions.count(pp_index) > 0)
+									goto PP_Checked;
+							}
+						}
+
+						// 2つ親で王手がかかっていなかったので、この局面を連続王手の候補集合から削除。
+						it = checked_positions.erase(it);
+						removed = true;
+						continue;
+
+						// ２つ親で王手がかかっていたのでOK。
+					PP_Checked:
+						++it;
+					}
+				}
+
+				// 2. 連続王手のループに対して、そのループの指し手の評価値を +INF / -INFにする。
+
+				cout << "after  : checked_positions.size() == " << checked_positions.size() << endl;
+
+				// checked_positionsへの指し手を -INF , 数珠つなぎにされている局面への指し手を +INFにする
+				for (auto it = checked_positions.begin(); it != checked_positions.end(); ++it ) {
+
+					auto  book_node_index = *it;
+					auto& book_node = this->book_nodes[book_node_index];
+					for (auto& parent_node : book_node.parents)
+					{
+						auto parent_index = parent_node.parent_index;
+						if (parent_index == BookNodeIndexNull)
+							continue;
+
+						auto& parent_book_node = this->book_nodes[parent_index];
+						for (auto& parent : parent_book_node.parents)
+						{
+							auto pp_index = parent.parent_index;
+							if (pp_index == BookNodeIndexNull)
+								continue;
+
+							if (checked_positions.count(pp_index) > 0)
+							{
+								// この経路の評価値を +INFと-INFにする。
+								auto parent_move_index = parent_node.move_index;
+								parent_book_node.moves[parent_move_index].vd = ValueDepth(BOOK_VALUE_MIN, BOOK_DEPTH_INF);
+
+								auto  pp_move_index = parent.move_index;
+								auto& pp_book_node  = this->book_nodes[parent.parent_index];
+								pp_book_node.moves[pp_move_index].vd = ValueDepth(BOOK_VALUE_MAX, BOOK_DEPTH_INF);
+							}
+						}
+					}
+
+				}
+
+			}
+
 			// 後退解析その2 : すべてのノードの親に評価値を伝播。MAX_PLY回行われる。
 
 			cout << "Retrograde Analysis : Step II  -> Propagate the eval to the parents of all nodes." << endl;
@@ -983,7 +1133,7 @@ namespace MakeBook2023
 						// 子の評価値は、それぞれの親のこの局面に進む指し手の評価値としてそのまま伝播される。
 						for(auto& parent : book_node.parents)
 						{
-							BookNodeIndex parent_index = parent.parent;
+							BookNodeIndex parent_index = parent.parent_index;
 							BookNode&     parent_node  = book_nodes[parent_index];
 							BookMove&     parent_move  = parent_node.moves[parent.move_index];
 
@@ -1044,6 +1194,9 @@ namespace MakeBook2023
 			// 合流チェックによって合流させた指し手の数。
 			if (!next)
 				cout << "converged_moves  : " << converged_moves << endl;
+
+			// 王手されている局面の数
+			//cout << "in-check         : " << checked_positions.size() << endl;
 
 			// 後退解析において判明した、leafから見てループではなかったノード数
 			cout << "retro_counter1   : " << retro_counter1 << endl;
@@ -1353,7 +1506,8 @@ namespace MakeBook2023
 
 							auto& next_book_node = book_nodes[next_book_node_index];
 							auto& p = next_book_node.parents;
-							p.erase(std::find_if(p.begin(), p.end(), [&](auto& pm){ return pm.parent == book_node_index; }));
+							p.erase(std::find_if(p.begin(), p.end(), [&](auto& pm)
+								{ return pm.parent_index == book_node_index; }));
 
 							// この手はないものとして、この book_node_index を起点として上流に更新していけばOK。
 							book_node.moves[best_index].move = Move16::none();
@@ -1430,17 +1584,17 @@ namespace MakeBook2023
 
 						for(auto& pm : book_node.parents)
 						{
-							auto& parent_book_node = book_nodes[pm.parent];
+							auto& parent_book_node = book_nodes[pm.parent_index];
 							ValueDepth parent_parent_vd;
 							size_t     parent_best_index;
 							auto parent_best_vd    = get_bestvalue(book_node, parent_parent_vd, parent_best_index);
 
 							if (delete_flag)
 								// 1a. この局面に至る親からの指し手をすべて削除。
-								book_nodes[pm.parent].moves[pm.move_index].move = Move16::none();
+								book_nodes[pm.parent_index].moves[pm.move_index].move = Move16::none();
 							else
 								// 1b. この局面に至る親からの指し手の評価値を更新
-								book_nodes[pm.parent].moves[pm.move_index].vd = best_vd;
+								book_nodes[pm.parent_index].moves[pm.move_index].vd = best_vd;
 
 							// これ⇑によって親のbestに変化が生じたのか？
 							auto parent_best_vd2   = get_bestvalue(book_node, parent_parent_vd, parent_best_index);
@@ -1448,10 +1602,10 @@ namespace MakeBook2023
 							{
 								// 2. 親を更新対象に追加
 								// すでに一度でも追加しているならこれ以上は追加しない。(ループ防止)
-								if (already_updated_node.count(pm.parent) == 0)
+								if (already_updated_node.count(pm.parent_index) == 0)
 								{
-									already_updated_node.insert(pm.parent);
-									queue.push_back(pm.parent);
+									already_updated_node.insert(pm.parent_index);
+									queue.push_back(pm.parent_index);
 								}
 							}
 						}
