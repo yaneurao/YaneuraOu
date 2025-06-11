@@ -606,7 +606,10 @@ namespace MakeBook2023
 						// 2行目には
 						// # NOE:258
 						// よって、この文字列をparseする必要がある。
-						auto splited = StringExtension::Split(line.substr(2),",");
+
+						// いったん変数に入れておかないと、temporary objectのstring_viewを作ることになってそのあと不正になる。
+						auto line2 = line.substr(2);
+						auto splited = StringExtension::Split(line2,",");
 						for(auto command : splited)
 						{
 							auto splited2 = StringExtension::Split(command,":");
@@ -616,7 +619,7 @@ namespace MakeBook2023
 								if (token == "NOE" && splited2.size() == 2) // numbers of entires
 								{
 									size_t noe = StringExtension::to_int(string(splited2[1]), 0);
-									cout << "Number of Sfen Entries = " << noe << endl;
+									cout << "noe:" << noe;
 
 									// エントリー数が事前にわかったので、その分だけそれぞれの構造体配列を確保する。
 									book_nodes.reserve(noe);

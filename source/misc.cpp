@@ -2071,6 +2071,8 @@ namespace StringExtension
 	}
 
 	// sを文字列spで分割した文字列集合を返す。
+	// ※　返し値はstring_view(参照を持っている)の配列なので、引数として一時オブジェクトを渡さないように注意してください。
+	//    一時オブジェクトへの参照を含むstring_viewをこの関数が返してしまうことになる。
 	std::vector<std::string_view> Split(std::string_view s, std::string_view delimiter) {
 		std::vector<std::string_view> res;
 
