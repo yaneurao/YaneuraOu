@@ -585,7 +585,7 @@
     <ClCompile Include="engine\yo-cluster\ClusterStrategy.cpp">
       <Filter>リソース ファイル\engine\yo-cluster</Filter>
     </ClCompile>
-    <ClCompile Include="book\makebook2023.cpp">
+    <ClCompile Include="book\makebook2025.cpp">
       <Filter>リソース ファイル\book</Filter>
     </ClCompile>
     <ClCompile Include="engine\dlshogi-engine\PvMateSearch.cpp">
