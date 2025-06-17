@@ -368,9 +368,9 @@ namespace dlshogi
 	{
 		TerminateUctSearch();
 
-		search_groups.release();
-		tree.release(); // treeの開放を行う時にGCが必要なのでCGをあとから開放
-		gc.release();
+		search_groups.reset();
+		tree.reset(); // treeの開放を行う時にGCが必要なのでCGをあとから開放
+		gc.reset();
 	}
 
 
