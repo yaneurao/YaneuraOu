@@ -346,7 +346,7 @@ namespace MakeBook2025
 		// 💡 : 前回計算時のものと、今回の計算に用いるものとで2面用意して、交互に役割を入れ替えて用いるような実装が考えられるが、
 		//       その方法だと、千日手サイクル(通常偶数手)が２つ接続されていたりすると、２つの値が交互に循環し続けたりすることがある。
 		//       なので、何も考えずに同じ面に対して更新し続けたほうが良いようである。
-		// 📝 : ValueDepthのデフォルトコンストラクタで初期化されている。
+		// 📝 : init_cycle_nodes()で初期化されている。
 		ValueDepth vd;
 
 		// 棋譜に出現したこの局面の手番。(書き出す時にこれを再現する)
@@ -392,6 +392,9 @@ namespace MakeBook2025
 
 			// 後退解析その2 : 連続王手の千日手のループを抽出
 			extract_check_loop();
+
+			// 千日手スコアで各ノードを初期化する。
+			init_cycle_nodes();
 
 			// 後退解析その3 : 評価値の親ノードへの伝播
 			propagate_all_nodes();
@@ -569,11 +572,6 @@ namespace MakeBook2025
 				if (line.length() >= 5 && line.substr(0, 5) == "sfen ")
 				{
 					string sfen = line.substr(5); // 新しいsfen文字列を"sfen "を除去して格納
-
-					//if (sfen._Starts_with("l5rnl/3+R1pg2/1+B3Gkp1/p5p1p/1pp1ps1P1/P5P1P/1PS1P4/2G2+b3/LNK5L w GSPs2n3p"))
-					//{
-					//	cout << original_sfens.size() << endl;
-					//}
 
 					// sfen文字列はテンポラリファイルに書き出しておく。(もし末尾に手数があるなら、それも含めてそのまま書き出す)
 					// あとで局面を書き出す時に用いる。
@@ -1005,6 +1003,32 @@ namespace MakeBook2025
 			progress.check(BOOK_MAX_PLY);
 		}
 
+		// 千日手スコアで各ノードを初期化する。
+		void init_cycle_nodes()
+		{
+			cout << "Retrograde Analysis : Step III -> Initialize the cycle nodes." << endl;
+
+			Tools::ProgressBar progress;
+			progress.reset(book_nodes.size() - 1);
+
+			// サイクルになっているノードのみを千日手スコアで初期化する。
+			// サイクルになっていなければ、remove_const_nodes()でconst node化されているはず。
+			for (size_t i = 0 ; i < book_nodes.size() ; ++i)
+			{
+				auto& node = book_nodes[i];
+				if (!node.const_node)
+				{
+					if (!node.check_loop)
+						// 通常の(連続王手の千日手ではない)千日手なら0で初期化。
+						node.vd = ValueDepth(0, BOOK_DEPTH_MAX);
+					else
+						// 連続王手の千日手であるなら、王手されているなら(parent用のvdは)-INF,王手されてないなら+INFで初期化。
+						node.vd = ValueDepth(node.checked ? BOOK_VALUE_MIN : BOOK_VALUE_MAX, BOOK_DEPTH_MAX);
+				}
+				progress.check(i);
+			}
+		}
+
 		// このnodeの内容を出力する。(debug用)
 		void dump_node(BookNodeIndex index)
 		{
@@ -1032,7 +1056,7 @@ namespace MakeBook2025
 		// 
 		// 返し値
 		//   今回更新されたノード数。
-		u64 propagate_all_nodes_once(int ply)
+		u64 propagate_all_nodes_once()
 		{
 			// 今回更新されたnode数
 			u64 nodes_count = 0;
@@ -1040,18 +1064,9 @@ namespace MakeBook2025
 			{
 				auto& node = book_nodes[i];
 
-				//if (i == 1041565)
-				//	dump_node(i);
-
 				// const node　⇨　vdの値が変わらないので更新は無駄
 				// check loop  ⇨  このあとdfsで更新するのでここで更新するとおかしくなる
 				if (node.const_node || node.check_loop)
-					continue;
-
-				// 十分に伝播が行われたあとに定期的に更新をさぼることにより、
-				// 千日手サイクル(通常偶数nodeからなる)で２つの評価値が循環し続けるのを防ぐ。
-				// たぶん、この処理、あったほうが良い。
-				if (ply >= 160 && prng.rand(5) == 0)
 					continue;
 
 				auto best = bestvd_for_parent(node);
@@ -1128,7 +1143,7 @@ namespace MakeBook2025
 		// 「各ノードのbestvalueを親ノードに伝播させる」をBOOK_MAX_PLY回繰り返す。
 		void propagate_all_nodes()
 		{
-			cout << "Retrograde Analysis : Step III -> Propagate the eval to the parents of all nodes." << endl;
+			cout << "Retrograde Analysis : Step IX  -> Propagate the eval to the parents of all nodes." << endl;
 
 			Tools::ProgressBar progress;
 			progress.reset(BOOK_MAX_PLY - 1);
@@ -1137,7 +1152,7 @@ namespace MakeBook2025
 			for (int ply = 0; ply < BOOK_MAX_PLY; ++ply)
 			{
 				// 親nodeにValueDepthを伝播させる。
-				propagate_all_nodes_once(ply);
+				propagate_all_nodes_once();
 
 				// check loop上の局面だけdfsする。
 				dfs_for_check_loop_nodes();
@@ -1334,10 +1349,6 @@ namespace MakeBook2025
 		// テンポラリファイルを書き出さない。
 		bool fast;
 
-		// -- tools
-
-		// 乱数生成
-		PRNG prng;
 	};
 }
 
