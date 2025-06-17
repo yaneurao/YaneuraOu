@@ -175,7 +175,8 @@ private:
 	void increase_capacity() {
 		size_t new_capacity = capacity == 0 ? 1 : capacity * 2;
 		if (new_capacity > UINT16_MAX) {
-			throw std::length_error("SmallVector exceeds maximum capacity");
+			cout << "Error! : SmallVector exceeds maximum capacity" << endl;
+			Tools::exit();
 		}
 		reserve(static_cast<uint16_t>(new_capacity));
 	}
