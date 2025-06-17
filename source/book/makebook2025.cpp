@@ -833,7 +833,7 @@ namespace MakeBook2025
 			Tools::ProgressBar progress;
 			progress.reset(BOOK_MAX_PLY);
 
-			for(int i = 0; i < BOOK_MAX_PLY ; ++i)
+			for(int i = 0; i < BOOK_MAX_PLY; ++i)
 			{
 				u64 count = remove_const_nodes_once();
 				const_nodes += count;
@@ -1071,6 +1071,11 @@ namespace MakeBook2025
 
 				auto best = bestvd_for_parent(node);
 
+				// これは循環ではないものが絡んだためにBOOK_DEPTH_MAXになっていないだけで、
+				// 実際は循環であると思う。
+				if (best.depth > BOOK_MAX_PLY)
+					best.depth = BOOK_DEPTH_MAX;
+
 				// 前回からvdが変化した箇所のカウント。
 				nodes_count += node.vd != best;
 
@@ -1143,22 +1148,27 @@ namespace MakeBook2025
 		// 「各ノードのbestvalueを親ノードに伝播させる」をBOOK_MAX_PLY回繰り返す。
 		void propagate_all_nodes()
 		{
-			cout << "Retrograde Analysis : Step IX  -> Propagate the eval to the parents of all nodes." << endl;
+			cout << "Retrograde Analysis : Step IV  -> Propagate the eval to the parents of all nodes." << endl;
 
 			Tools::ProgressBar progress;
-			progress.reset(BOOK_MAX_PLY - 1);
+			progress.reset(BOOK_MAX_PLY + 100);
 
-			// 最大でBOOK_MAX_PLY回だけ評価値を伝播させる。
-			for (int ply = 0; ply < BOOK_MAX_PLY; ++ply)
+			// 最大でBOOK_MAX_PLY + 100回だけ評価値を伝播させる。
+			for (int ply = 0; ply < BOOK_MAX_PLY + 100; ++ply)
 			{
 				// 親nodeにValueDepthを伝播させる。
-				propagate_all_nodes_once();
+				u64 updating_nodes = propagate_all_nodes_once();
 
 				// check loop上の局面だけdfsする。
 				dfs_for_check_loop_nodes();
 
 				progress.check(ply);
+
+				// 更新がすべて完了したので早期終了。
+				if (updating_nodes == 0)
+					break;
 			}
+			progress.check(BOOK_MAX_PLY + 100);
 		}
 
 		// ペタショック化した定跡ファイルを書き出す。
