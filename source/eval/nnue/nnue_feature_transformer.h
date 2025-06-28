@@ -85,6 +85,7 @@ class FeatureTransformer {
 #if defined(VECTOR)
 	//static constexpr IndexType kTileHeight = kNumRegs * sizeof(vec_t) / 2;
 	//static_assert(kHalfDimensions % kTileHeight == 0, "kTileHeight must divide kHalfDimensions");
+	// ⇨  AVX-512でこの制約守れないっぽ。
 #endif
 
    public:

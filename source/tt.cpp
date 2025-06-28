@@ -198,6 +198,9 @@ void TTEntry::_save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, 
 		ASSERT_LV3(-VALUE_INFINITE <   v  && v < VALUE_INFINITE  ||  v == VALUE_NONE);
 		ASSERT_LV3(-VALUE_MAX_EVAL <= ev && ev <= VALUE_MAX_EVAL || ev == VALUE_NONE);
 	}
+	// depthが高くてBOUND_EXACTでないときは、BOUND_EXACTと差別化するためにdepthを1引いておく。
+	else if (depth8 + DEPTH_ENTRY_OFFSET >= 5 && Bound(genBound8 & 0x3) != BOUND_EXACT)
+		depth8--;
 }
 
 
@@ -466,11 +469,13 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::_probe(const Key key_for_
 
 	TTEntry* replace = tte;
 	for (int i = 1; i < ClusterSize; ++i)
-		if (replace->depth8 - replace->relative_age(generation8) * 2
-	> tte[i].depth8 - tte[i].relative_age(generation8) * 2)
+		if (replace->depth8 - replace->relative_age(generation8)
+			> tte[i].depth8 - tte[i].relative_age(generation8))
 			replace = &tte[i];
 
-	return { false, TTData(), TTWriter(replace) };
+	return { false,
+			TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_ENTRY_OFFSET, BOUND_NONE, false},
+			TTWriter(replace) };
 }
 
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key     key, const Position& pos) const { return _probe(key               , (TTE_KEY_TYPE)(key >> 1          ), pos); }

@@ -148,7 +148,7 @@ enum Square : int8_t
 	// ゼロと末尾
 	SQ_ZERO = 0, SQ_NB = 81,
 	SQUARE_NB = SQ_NB,       // Stockfishとの互換性維持のために定義
-	SQ_NONE = SQ_NB,         // Stockfishとの互換性維持のために定義
+	SQ_NONE   = SQ_NB,       // Stockfishとの互換性維持のために定義
 	SQ_NB_PLUS1 = SQ_NB + 1, // 玉がいない場合、SQ_NBに移動したものとして扱うため、配列をSQ_NB+1で確保しないといけないときがあるのでこの定数を用いる。
 
 	// 方角に関する定数。StockfishだとNORTH=北=盤面の下を意味するようだが、
