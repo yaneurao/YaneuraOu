@@ -144,7 +144,7 @@ namespace Eval::dlshogi
 	typedef DType NN_Output_Value;
 
 	// NNの出力特徴量その2 (PolicyNetwork) : それぞれの指し手の実現確率
-	typedef DType NN_Output_Policy[MAX_MOVE_LABEL_NUM*SQ_NB];
+	typedef DType NN_Output_Policy[MAX_MOVE_LABEL_NUM * int(SQ_NB)];
 
 	// 入力特徴量を生成する。
 	//   position  : このあとEvalNode()を呼び出したい局面
