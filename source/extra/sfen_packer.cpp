@@ -451,8 +451,8 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 	auto& stream = packer.stream;
 	stream.set_data((u8*)&sfen);
 
-	std::memset(this, 0, sizeof(Position));
-	std::memset(si, 0, sizeof(StateInfo));
+	std::memset(static_cast<void*>(this), 0, sizeof(Position));
+	std::memset(static_cast<void*>(si), 0, sizeof(StateInfo));
 	st = si;
 
 	// 手番

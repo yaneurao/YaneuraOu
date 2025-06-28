@@ -159,12 +159,13 @@ std::string pretty(Piece pc) {
 // sfen文字列で盤面を設定する
 void Position::set(std::string sfen , StateInfo* si , Thread* th)
 {
-	std::memset(this, 0, sizeof(Position));
+	std::memset(static_cast<void*>(this), 0, sizeof(Position));
+	// ⇨ やねうら王ではPositionがPODでない(BitboardやHASH_KEYがPODでない)のでコンパイル時にwarningが出るからvoid*にcastしている。
 
 	// 局面をrootより遡るためには、ここまでの局面情報が必要で、それは引数のsiとして渡されているという解釈。
 	// ThreadPool::start_thinking()では、
 	// ここをいったんゼロクリアしたのちに、呼び出し側で、そのsiを復元することにより、局面を遡る。
-	std::memset(si, 0, sizeof(StateInfo));
+	std::memset(static_cast<void*>(si), 0, sizeof(StateInfo));
 	st = si;
 
 	// 変な入力をされることはあまり想定していない。
@@ -1876,7 +1877,7 @@ void Position::do_null_move(StateInfo& newSt) {
 
 	// この場合、StateInfo自体は丸ごとコピーしておかないといけない。(他の初期化をしないので)
 	// よく考えると、StateInfo、新しく作る必要もないのだが…。まあ、CheckInfoがあるので仕方ないか…。
-	std::memcpy(&newSt, st, sizeof(StateInfo));
+	std::memcpy(static_cast<void*>(& newSt), st, sizeof(StateInfo));
 
 	// TODO : NNUEの場合、accumulatorのコピー不要なのでは…？
 	//std::memcpy(&newSt, st, offsetof(StateInfo, accumulator));
