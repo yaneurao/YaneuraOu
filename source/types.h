@@ -57,7 +57,7 @@ constexpr size_t  size_min  = (std::numeric_limits<size_t> ::min)();
 // --------------------
 
 // 手番
-enum Color { BLACK=0/*先手*/,WHITE=1/*後手*/,COLOR_NB /* =2 */ , COLOR_ZERO = 0,};
+enum Color : int8_t { BLACK=0/*先手*/,WHITE=1/*後手*/,COLOR_NB /* =2 */ , COLOR_ZERO = 0,};
 
 // 相手番を返す
 constexpr Color operator ~(Color c) { return (Color)(c ^ 1);  }
@@ -73,7 +73,7 @@ std::ostream& operator<<(std::ostream& os, Color c);
 // --------------------
 
 //  例) FILE_3なら3筋。
-enum File : int { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 , FILE_NB , FILE_ZERO=0 };
+enum File : int8_t { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 , FILE_NB , FILE_ZERO=0 };
 
 // 正常な値であるかを検査する。assertで使う用。
 constexpr bool is_ok(File f) { return FILE_ZERO <= f && f < FILE_NB; }
@@ -94,7 +94,7 @@ static std::ostream& operator<<(std::ostream& os, File f) { os << (char)('1' + f
 // --------------------
 
 // 例) RANK_4なら4段目。
-enum Rank : int { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9 , RANK_NB , RANK_ZERO = 0};
+enum Rank : int8_t { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9 , RANK_NB , RANK_ZERO = 0};
 
 // 正常な値であるかを検査する。assertで使う用。
 constexpr bool is_ok(Rank r) { return RANK_ZERO <= r && r < RANK_NB; }
@@ -130,7 +130,7 @@ static std::ostream& operator<<(std::ostream& os, Rank r) { os << (char)('a' + r
 // 盤上の升目に対応する定数。
 // 盤上右上(１一が0)、左下(９九)が80
 // 方角を表現するときにマイナスの値を使うので符号型である必要がある。
-enum Square : int32_t
+enum Square : int8_t
 {
 	// 以下、盤面の右上から左下までの定数。
 	// これを定義していなくとも問題ないのだが、デバッガでSquare型を見たときに
@@ -379,25 +379,22 @@ constexpr int MAX_PLY = MAX_PLY_NUM;
 // 探索深さを表現する型
 using Depth = int;
 
-enum : int {
+// The following DEPTH_ constants are used for TT entries and QS movegen stages. In regular search,
+// TT depth is literal: the search depth (effort) used to make the corresponding TT value.
+// In qsearch, however, TT entries only store the current QS movegen stage (which should thus compare
+// lower than any regular search depth).
+// 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
+constexpr Depth DEPTH_QS = 0;
 
-	// The following DEPTH_ constants are used for TT entries and QS movegen stages. In regular search,
-	// TT depth is literal: the search depth (effort) used to make the corresponding TT value.
-	// In qsearch, however, TT entries only store the current QS movegen stage (which should thus compare
-	// lower than any regular search depth).
-	// 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
-	DEPTH_QS		    = 0,
+// For TT entries where no searching at all was done (whether regular or qsearch) we use
+// _UNSEARCHED, which should thus compare lower than any QS or regular depth. _ENTRY_OFFSET is used
+// only for the TT entry occupancy check (see tt.cpp), and should thus be lower than _UNSEARCHED.
 
-	// For TT entries where no searching at all was done (whether regular or qsearch) we use
-	// _UNSEARCHED, which should thus compare lower than any QS or regular depth. _ENTRY_OFFSET is used
-	// only for the TT entry occupancy check (see tt.cpp), and should thus be lower than _UNSEARCHED.
+// DEPTH_NONEは探索せずに値を求めたという意味に使う。
+constexpr Depth DEPTH_UNSEARCHED   = -2;
 
-	// DEPTH_NONEは探索せずに値を求めたという意味に使う。
-	DEPTH_UNSEARCHED   = -2,
-
-	// TTの下駄履き用(TTEntryが使われているかどうかのチェックにのみ用いる)
-	DEPTH_ENTRY_OFFSET = -3
-};
+// TTの下駄履き用(TTEntryが使われているかどうかのチェックにのみ用いる)
+constexpr Depth DEPTH_ENTRY_OFFSET = -3;
 
 // --------------------
 //     評価値の性質
@@ -406,7 +403,7 @@ enum : int {
 // searchで探索窓を設定するので、この窓の範囲外の値が返ってきた場合、
 // high fail時はこの値は上界(真の値はこれより小さい)、low fail時はこの値は下界(真の値はこれより大きい)
 // である。
-enum Bound {
+enum Bound : int8_t {
 	BOUND_NONE,  // 探索していない(DEPTH_NONE)ときに、最善手か、静的評価スコアだけを置換表に格納したいときに用いる。
 	BOUND_UPPER, // 上界(真の評価値はこれより小さい) = 詰みのスコアや、nonPVで評価値があまり信用ならない状態であることを表現する。
 	BOUND_LOWER, // 下界(真の評価値はこれより大きい)
@@ -488,6 +485,25 @@ constexpr Value mate_in(int ply) { return (Value)(VALUE_MATE - ply); }
 constexpr Value mated_in(int ply) { return (Value)(-VALUE_MATE + ply); }
 
 
+// ValueがVALUE_NONEでなければtrue。
+constexpr bool is_valid(Value value) { return value != VALUE_NONE; }
+
+// Valueが、VALUE_TB_WIN_IN_MAX_PLY以上(詰み確定のスコア)であればtrue。
+constexpr bool is_win(Value value) {
+	assert(is_valid(value));
+	return value >= VALUE_TB_WIN_IN_MAX_PLY;
+}
+
+// Valueが詰まされ確定のスコアより低いならtrue。
+constexpr bool is_loss(Value value) {
+	assert(is_valid(value));
+	return value <= VALUE_TB_LOSS_IN_MAX_PLY;
+}
+
+// Valueが詰み/詰まされ確定のスコアならtrue。
+constexpr bool is_decisive(Value value) { return is_win(value) || is_loss(value); }
+
+
 // --------------------
 //        駒
 // --------------------
@@ -496,7 +512,7 @@ constexpr Value mated_in(int ply) { return (Value)(-VALUE_MATE + ply); }
 extern const char* USI_PIECE;
 
 // 駒の種類(先後の区別なし)
-enum PieceType : uint32_t
+enum PieceType : int8_t
 {
 	// 金の順番を飛の後ろにしておく。KINGを8にしておく。
 	// こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
@@ -531,7 +547,7 @@ enum PieceType : uint32_t
 };
 
 // 駒(先後の区別あり)
-enum Piece : uint32_t
+enum Piece : int8_t
 {
 	NO_PIECE = 0,
 
