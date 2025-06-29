@@ -58,7 +58,7 @@ struct Stack {
 	int             cutoffCnt;			// cut off(betaを超えたので枝刈りとしてreturn)した回数。
 	int             reduction;          // このnodeでのreductionの量
 	bool            isPvNode;           // PV nodeであるかのフラグ。
-
+	int             quietMoveStreak;    // quietの指し手が親nodeからこのnodeまでに何連続したか。
 };
 
 #endif

@@ -2662,6 +2662,9 @@ moves_loop: // When in check, search starts here
 		// 今回の指し手で王手になるかどうか
 		givesCheck = pos.gives_check(move);
 
+		// quietの指し手の連続回数
+		(ss + 1)->quietMoveStreak = (!capture && !givesCheck) ? (ss->quietMoveStreak + 1) : 0;
+
 		// Calculate new depth for this move
 		// 今回の指し手に関して新しいdepth(残り探索深さ)を計算する。
 		newDepth   = depth - 1;
@@ -3028,8 +3031,8 @@ moves_loop: // When in check, search starts here
 		// These reduction adjustments have no proven non-linear scaling
 		// これらのreductionの調整には、非線形スケーリングの証明はない
 
-		// Increase reduction for cut nodes (~4 Elo)
-		// カットノードのreductionを増やす (約4 Elo)
+		// Increase reduction for cut nodes
+		// カットノードのreductionを増やす
 
 		// cut nodeにおいてhistoryの値が悪い指し手に対してはreduction量を増やす。
 		// ※　PVnodeではIID時でもcutNode == trueでは呼ばないことにしたので、
@@ -3051,6 +3054,9 @@ moves_loop: // When in check, search starts here
 
 		if ((ss + 1)->cutoffCnt > 3)
 			r += 938 + allNode * 960;
+
+		if (!capture && !givesCheck && ss->quietMoveStreak >= 2)
+			r += (ss->quietMoveStreak - 1) * 50;
 
 		// For first picked move (ttMove) reduce reduction (~3 Elo)
 		// 最初に選ばれた指し手（ttMove）ではreductionを減らします。（約3 Elo）
