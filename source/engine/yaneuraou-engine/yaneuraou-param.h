@@ -31,25 +31,6 @@
 // [PARAM] min:1500,max:3500,step:2,interval:2,time_rate:1,fixed
 PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2796;
 
-// Reductionの計算式に出てくる定数
-// 重要度　★★★★☆
-// 元の値 = Stockfish 17 : 1239,1304 ,step = 128
-// [PARAM] min:0,max:2048,step:32,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_ALPHA = 1304;
-
-// Reductionの計算式に出てくる定数
-// 重要度　★★★★☆
-// 元の値 = Stockfish 17 : 1341,1423 , step = 128
-// [PARAM] min:300,max:1500,step:64,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_BETA = 1423;
-
-// Reductionの計算式に出てくる定数
-// 重要度　★★★★☆
-// 元の値 = Stockfish 17 : 795,814 , step = 128
-// [PARAM] min:300,max:1500,step:16,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_REDUCTION_GAMMA = 814;
-
-
 
 //
 // futility pruning

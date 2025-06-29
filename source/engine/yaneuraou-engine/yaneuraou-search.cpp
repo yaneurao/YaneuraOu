@@ -283,9 +283,7 @@ std::array<int, MAX_MOVES> reductions; // [depth or moveNumber]
 //                   そのためのフラグ。(これがtrueだとreduction量が1増える)
 Depth reduction(bool i, Depth d, int mn, Value delta, Value rootDelta) {
 	int reductionScale = reductions[d] * reductions[mn];
-	return (reductionScale + PARAM_REDUCTION_ALPHA - delta * PARAM_REDUCTION_GAMMA / rootDelta)
-		+ (!i && reductionScale > PARAM_REDUCTION_BETA) * 1135;
-	// PARAM_REDUCTION_BETAの値、将棋ではもう少し小さくして、reductionの適用範囲を広げた方がいいかも？
+	return reductionScale - delta * 794 / rootDelta + !i * reductionScale * 205 / 512 + 1086;
 }
 
 #if 0
@@ -4304,15 +4302,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 // なので置換表に格納する前に、この変換をしなければならない。
 // 詰みにまつわるスコアでないなら関係がないので何の変換も行わない。
 // ply : root node からの手数。(ply_from_root)
-Value value_to_tt(Value v, int ply) {
+Value value_to_tt(Value v, int ply) { return is_win(v) ? v + ply : is_loss(v) ? v - ply : v; }
+	// →　これ足した結果がabs(x) < VALUE_INFINITEであることを確認すべきだと思う。
 
-	//		assert(v != VALUE_NONE);
-	ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);
-	// →　これ足した結果がabs(x) < VALUE_INFINITEであることを確認すべきでは…。
-
-	return  v >= VALUE_TB_WIN_IN_MAX_PLY  ? v + ply
-		  : v <= VALUE_TB_LOSS_IN_MAX_PLY ? v - ply : v;
-}
 
 // Inverse of value_to_tt(): it adjusts a mate or TB score from the transposition
 // table (which refers to the plies to mate/be mated from current position) to
@@ -4330,11 +4322,11 @@ Value value_to_tt(Value v, int ply) {
 // ply : root node からの手数。(ply_from_root)
 Value value_from_tt(Value v, int ply) {
 
-	if (v == VALUE_NONE)
+	if (!is_valid(v))
 		return VALUE_NONE;
 
 	// handle TB win or better
-	if (v >= VALUE_TB_WIN_IN_MAX_PLY)
+	if (is_win(v))
 	{
 		/*
         // Downgrade a potentially false mate score
@@ -4350,7 +4342,7 @@ Value value_from_tt(Value v, int ply) {
 	}
 
 	// handle TB loss or worse
-	if (v <= VALUE_TB_LOSS_IN_MAX_PLY)
+	if (is_loss(v))
 	{
 		/*
         if (v <= VALUE_MATED_IN_MAX_PLY && VALUE_MATE + v > 100 - r50c)
