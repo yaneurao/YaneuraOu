@@ -4060,15 +4060,13 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		// 今回捕獲されるであろう駒による評価値の上昇分を
 		// 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 
-		if (bestValue > VALUE_TB_LOSS_IN_MAX_PLY /* && pos.non_pawn_material(us) */
-			)
+		if (!is_loss(bestValue))
 		{
 			// Futility pruning and moveCount pruning (~10 Elo)
 			// futility枝刈りとmove countに基づく枝刈り（約10 Eloの向上）
 
-			if (!givesCheck
-				&& move.to_sq() != prevSq
-				&& futilityBase > VALUE_TB_LOSS_IN_MAX_PLY
+			// Futility pruning and moveCount pruning
+			if (!givesCheck && move.to_sq() != prevSq && !is_loss(futilityBase)
 				// &&  type_of(move) != PROMOTION
 				// この最後の条件、入れたほうがいいのか？
 				// →　入れない方が良さげ。(V7.74taya-t50 VS V7.74taya-t51)
@@ -4085,11 +4083,11 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				// ⇨　これ、加算した結果、s16に収まらない可能性があるが、
 				//     計算はs32で行って、そのあと、この値を用いないからセーフ。
 
-				// If static eval + value of piece we are going to capture is much lower
-				// than alpha we can prune this move. (~2 Elo)
+				// If static eval + value of piece we are going to capture is
+				// much lower than alpha, we can prune this move.
 
 				// 静的評価値とキャプチャする駒の価値を合わせたものがalphaより大幅に低い場合、
-				// この手を枝刈りすることができます (約2 Elo)。
+				// この手を枝刈りすることができます。
 
 				if (futilityValue <= alpha)
 				{
@@ -4100,9 +4098,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				// ⇨ ここ、わりと棋力に影響する。下手なことするとR30ぐらい変わる。
 
 				// If static exchange evaluation is low enough
-				// we can prune this move. (~2 Elo)
+				// we can prune this move.
 				// 静的交換評価が十分に低い場合、
-				// この手を枝刈りできます。（約2 Elo）
+				// この手を枝刈りできます。
 
 				// ■ 備考
 				//
@@ -4116,9 +4114,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				}
 			}
 
-
-			// Continuation history based pruning (~3 Elo)
-			// 継続履歴に基づく枝刈り (約3 Elo)
+			// Continuation history based pruning
+			// 継続履歴に基づく枝刈り
 			// ※ Stockfish12でqsearch()にも導入された。
 
 			// ■ 備考
@@ -4128,12 +4125,11 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 			if (!capture
 				&&    (*contHist[0])(pos.moved_piece_after(move), move.to_sq())
-					+ (*contHist[1])(pos.moved_piece_after(move), move.to_sq())
 				/*
 					+ thisThread->pawnHistory[pawn_structure_index(pos)][pos.moved_piece(move)]
 					[move.to_sq()]
 				*/
-				<= 5095 /* TODO : ここ、調整すべき */)
+					<= 6218)
 				continue;
 
 			// Do not search moves with bad enough SEE values (~5 Elo)
@@ -4148,31 +4144,28 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 				continue;
 		}
 
-		// TODO : prefetchは、入れると遅くなりそうだが、many coreだと違うかも。
-		// Speculative prefetch as early as possible
-		//prefetch(TT.first_entry(pos.key_after(move)));
-
-	    // Update the current move
-		// 現在このスレッドで探索している指し手を保存しておく。
-
-		ss->currentMove = move;
-
-		ss->continuationHistory = &(thisThread->continuationHistory [ss->inCheck                ]
-																	[capture                    ])
-										                            (pos.moved_piece_after(move),
-																	 move.to_sq()               );
-
-		//ss->continuationCorrectionHistory =
-		//	&thisThread->continuationCorrectionHistory[pos.moved_piece(move)][move.to_sq()];
 
 		// -----------------------
 		// Step 7. Make and search the move
 		// Step 7. 指し手で進め探索する
 		// -----------------------
 
+		Piece movedPiece = pos.moved_piece_after(move);
+
 		// 1手動かして、再帰的にqsearch()を呼ぶ
 		lazy_evaluate(pos);
 		pos.do_move(move, st, givesCheck);
+
+		// Update the current move
+		// 現在このスレッドで探索している指し手を保存しておく。
+		ss->currentMove = move;
+
+		ss->continuationHistory =
+			&(thisThread->continuationHistory[ss->inCheck][capture])(movedPiece,move.to_sq());
+
+		//ss->continuationCorrectionHistory =
+		//	&thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
+
 		value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha, depth - 1);
 		pos.undo_move(move);
 
@@ -4253,8 +4246,28 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 								  // rootから詰みまでの手数。
 	}
 
-	if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY && bestValue >= beta)
-		bestValue = (3 * bestValue + beta) / 4;
+	if (!is_decisive(bestValue) && bestValue > beta)
+		bestValue = (bestValue + beta) / 2;
+
+
+	// 盤面にkingとpawnしか残ってないときに特化したstalemate判定。
+	/*
+	Color us = pos.side_to_move();
+	if (!ss->inCheck && !moveCount && !pos.non_pawn_material(us)
+		&& type_of(pos.captured_piece()) >= ROOK)
+	{
+		if (!((us == WHITE ? shift<NORTH>(pos.pieces(us, PAWN))
+						   : shift<SOUTH>(pos.pieces(us, PAWN)))
+			  & ~pos.pieces()))  // no pawn pushes available
+		{
+			pos.state()->checkersBB = Rank1BB;  // search for legal king-moves only
+			if (!MoveList<LEGAL>(pos).size())   // stalemate
+				bestValue = VALUE_DRAW;
+			pos.state()->checkersBB = 0;
+		}
+	}
+	*/
+
 
 	// Save gathered info in transposition table. The static evaluation
 	// is saved as it was before adjustment by correction history.

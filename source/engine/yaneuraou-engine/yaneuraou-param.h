@@ -210,10 +210,10 @@ PARAM_DEFINE PARAM_LMR_MARGIN2 = 13;
 
 // 重要度　★★☆☆☆
 // →　重要なパラメーターではあるが、下手にいじらないほうがよさげ。
-// 元の値 = Stockfish 14 : 95 , Stockfish 16 : 90 , Stockfish 17 : 82 ,83 , step = 10
+// 元の値 = Stockfish 14 : 95 , Stockfish 16 : 90 , Stockfish 17 : 82 ,83 , Stockfish 17.1 : 74, step = 10
 // min:0,max:128,step:1,interval:1,time_rate:1,
 // [PARAM] min:50,max:200,step:10,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 83;
+PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 74;
 
 
 //
