@@ -53,10 +53,14 @@ void Thread::clear()
 	pawnCorrectionHistory.fill(5);
 	minorPieceCorrectionHistory.fill(0);
 	nonPawnCorrectionHistory.fill(0);
+#endif
 
+	ttMoveHistory = 0;
+
+#if defined(ENABLE_PAWN_HISTORY)
 	for (auto& to : continuationCorrectionHistory)
 		for (auto& h : to)
-			h->fill(0);
+			h->fill(8);
 #endif
 
 	// ここは、未初期化のときに[NO_PIECE][SQ_ZERO]を指すので、ここを-1で初期化しておくことによって、
@@ -72,13 +76,18 @@ void Thread::clear()
 		for (StatsType c : { NoCaptures, Captures })
 			//for (auto& to : continuationHistory[inCheck][c])
 			//	for (auto& h : to)
-			//		h->fill(-675);
+			//		h->fill(-473);
 
 			// ↑この初期化コードは、ContinuationHistory::fill()に移動させた。
 
 			continuationHistory[inCheck][c].fill(-473);
 
-#endif
+	//for (size_t i = 1; i < reductions.size(); ++i)
+	//	reductions[i] = int(2796 / 128.0 * std::log(i));
+
+	//refreshTable.clear(networks[numaAccessToken]);
+
+#endif // MOVE_PICKER
 }
 
 // 待機していたスレッドを起こして探索を開始させる

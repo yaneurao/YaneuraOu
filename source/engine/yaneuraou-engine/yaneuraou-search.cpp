@@ -3064,13 +3064,19 @@ moves_loop: // When in check, search starts here
 			//         clamp()を用いるのではなく、max()とmin()を組み合わせて書かないといけない。
 
 			Depth d = std::max(1, std::min(newDepth - r / 1024,
-				newDepth + !allNode + (PvNode && !bestMove)))
-				+ (ss - 1)->isPvNode;
+										   newDepth + !allNode + (PvNode && !bestMove)))
+					+ (ss - 1)->isPvNode;
 
-			value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
+			ss->reduction = newDepth - d;
+			value         = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
+			ss->reduction = 0;
 
 			// Do a full-depth search when reduced LMR search fails high
-			// 深さを減らしたLMR探索がfail highをした時、full depth(元の探索深さ)で探索する。
+			// (*Scaler) Usually doing more shallower searches
+			// doesn't scale well to longer TCs
+			// 深さを減らした LMR 探索がfail highを出した場合は、full depth(元の探索深さ)で探索を行う
+			// （*Scaler）通例、より浅い探索を増やしても
+			// 長い持ち時間制限ではうまくスケールしない
 
 			if (value > alpha && d < newDepth)
 			{
@@ -3079,20 +3085,21 @@ moves_loop: // When in check, search starts here
 				// LMRの結果に基づいて完全な探索深さを調整します - 
 				// 結果が十分に良ければ深く探索し、十分に悪ければ浅く探索します。
 
-				const bool doDeeperSearch     = value > (bestValue + 42 + 2 * newDepth); // (~1 Elo)
-				const bool doShallowerSearch  = value <  bestValue + 10;				 // (~2 Elo)
+				const bool doDeeperSearch     = value > (bestValue + 42 + 2 * newDepth);
+				const bool doShallowerSearch  = value <  bestValue + 9;
 
 				newDepth += doDeeperSearch - doShallowerSearch;
 
 				if (newDepth > d)
 					value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth, !cutNode);
 
-				// Post LMR continuation history updates (~1 Elo)
-				// LMR後のcontinuation historyの更新（約1 Elo）
+				// Post LMR continuation history updates
+				// LMR後のcontinuation historyの更新
 
-				int bonus = 2 * (value >= beta) * stat_bonus(newDepth);
-				update_continuation_histories(ss, movedPiece, move.to_sq(), bonus);
+				update_continuation_histories(ss, movedPiece, move.to_sq(), 1508);
 			}
+			else if (value > alpha && value < bestValue + 9)
+				newDepth--;
 		}
 
 		// -----------------------
@@ -3103,16 +3110,19 @@ moves_loop: // When in check, search starts here
 		else if (!PvNode || moveCount > 1)
 		{
 
-            // Increase reduction if ttMove is not present (~1 Elo)
-			// ttMoveが存在しない場合、削減を増やします。（約1 Elo）
+            // Increase reduction if ttMove is not present
+			// ttMoveが存在しない場合、削減を増やします。
 
             if (!ttData.move)
-				r += 2037;
+				r += 1128;
+
+			r -= thisThread->ttMoveHistory / 8;
 
 			// Note that if expected reduction is high, we reduce search depth by 1 here (~9 Elo)
 			// 期待される削減が大きい場合、ここで探索深さを1減らすことに注意してください。（約9 Elo）
 
-			value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, newDepth - (r > 2983), !cutNode);
+			value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha,
+								   newDepth - (r > 3564) - (r > 4969 && newDepth > 2), !cutNode);
 		}
 
 		// For PV nodes only, do a full PV search on the first move or after a fail high,
@@ -3135,7 +3145,7 @@ moves_loop: // When in check, search starts here
 			// Extend move from transposition table if we are about to dive into qsearch.
 			// qsearchに入ろうとしている場合、置換表からの手を延長します。
 
-			if (move == ttData.move && ss->ply <= thisThread->rootDepth * 2)
+			if (move == ttData.move && thisThread->rootDepth > 8)
 				newDepth = std::max(newDepth, 1);
 
 			// full depthで探索するときはcutNodeにしてはいけない。
@@ -3391,8 +3401,8 @@ moves_loop: // When in check, search starts here
 		update_all_stats(pos, ss,/* *this,*/ bestMove, prevSq, quietsSearched, capturesSearched, depth,
 			ttData.move, moveCount);
 
-		//if (!PvNode)
-		//	ttMoveHistory << (bestMove == ttData.move ? 800 : -879);
+		if (!PvNode)
+			thisThread->ttMoveHistory << (bestMove == ttData.move ? 800 : -879);
 	}
 
 	// Bonus for prior countermove that caused the fail low

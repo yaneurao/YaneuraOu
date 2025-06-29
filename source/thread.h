@@ -203,6 +203,9 @@ public:
 	PawnHistory pawnHistory;
 #endif
 
+	// ttMoveの補正値
+	TTMoveHistory ttMoveHistory;
+
 #endif
 
 	// Stockfish10ではスレッドごとにcontemptを保持するように変わった。

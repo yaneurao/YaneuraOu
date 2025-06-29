@@ -353,5 +353,7 @@ private:
 
 #endif
 
+using TTMoveHistory = StatsEntry<std::int16_t, 8192>;
+
 #endif // #ifndef HISTORY_H_INCLUDED
 
