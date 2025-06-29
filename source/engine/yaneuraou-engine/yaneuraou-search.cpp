@@ -1527,10 +1527,11 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	bool givesCheck, improving, priorCapture, opponentWorsening;
 
 	// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
-	// doFullDepthSearch	: LMRのときにfail highが起きるなどしたので元の残り探索深さで探索することを示すフラグ
 	// ttCapture			: 置換表の指し手がcaptureする指し手であるか
-	// pvExact				: PvNodeで置換表にhitして、しかもBOUND_EXACT
 	bool capture, ttCapture;
+
+	// 1手前の局面でのreductionの量
+	int  priorReduction;
 
 	// moveによって移動させる駒
 	Piece movedPiece;
@@ -1676,6 +1677,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// 前の指し手で移動させた先の升目
 	// null moveのときはis_ok() == falseなのでSQ_NONEとする。
 	Square prevSq        = (ss - 1)->currentMove.is_ok() ? (ss - 1)->currentMove.to_sq() : SQ_NONE;
+	priorReduction       = (ss - 1)->reduction;
+	(ss - 1)->reduction  = 0;
 	bestMove             = Move::none();
 	ss->statScore        = 0;
 	ss->isPvNode         = PvNode;
@@ -2259,7 +2262,14 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	//   左辺のほうが大きい(相手の評価値が悪化している)ならば、
 	//   相手の評価値が悪くなっていっていることを意味している。
 
-	opponentWorsening = ss->staticEval + (ss - 1)->staticEval > 2;
+	opponentWorsening = ss->staticEval > -(ss - 1)->staticEval;
+
+	// 1手前のreductionに応じた残りdepthの調整
+
+	if (priorReduction >= 3 && !opponentWorsening)
+		depth++;
+	if (priorReduction >= 1 && depth >= 2 && ss->staticEval + (ss - 1)->staticEval > 175)
+		depth--;
 
 	// -----------------------
 	// Step 7. Razoring (~1 Elo)

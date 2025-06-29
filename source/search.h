@@ -56,7 +56,7 @@ struct Stack {
 	bool            ttPv;				// 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
 	bool            ttHit;				// 置換表にhitしたかのフラグ
 	int             cutoffCnt;			// cut off(betaを超えたので枝刈りとしてreturn)した回数。
-
+	int             reduction;          // このnodeでのreductionの量
 	bool            isPvNode;           // PV nodeであるかのフラグ。
 
 };
