@@ -1452,7 +1452,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// Dive into quiescence search when the depth reaches zero
 	// 残り探索深さが1手未満であるなら現在の局面のまま静止探索を呼び出す
 	if (depth <= 0)
-		return qsearch<PvNode ? PV : NonPV>(pos, ss, alpha, beta);
+	{
+		constexpr auto nt = PvNode ? PV : NonPV;
+		return qsearch<nt>(pos, ss, alpha, beta);
+	}
 
 	// Limit the depth if extensions made it too large
 	// 拡張によって深さが大きくなりすぎた場合、深さを制限します
@@ -1670,15 +1673,14 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// rootからの手数
 	ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
+	// 前の指し手で移動させた先の升目
+	// null moveのときはis_ok() == falseなのでSQ_NONEとする。
+	Square prevSq        = (ss - 1)->currentMove.is_ok() ? (ss - 1)->currentMove.to_sq() : SQ_NONE;
 	bestMove             = Move::none();
+	ss->statScore        = 0;
+	ss->isPvNode         = PvNode;
 	(ss + 2)->cutoffCnt  = 0;
 
-	// 前の指し手で移動させた先の升目
-	// → null moveのときにprevSq == 1 == SQ_12になるのどうなのか…。
-	// → Stockfish 16でMove::null()の時は、prevSq == SQ_NONEとして扱うように変更になった。[2023/10/15]
-	Square prevSq = (ss - 1)->currentMove.is_ok() ? (ss - 1)->currentMove.to_sq() : SQ_NONE;
-
-	ss->statScore = 0;
 
 	// -----------------------
 	// Step 4. Transposition table lookup.
@@ -1803,10 +1805,10 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	if (  !PvNode                     // PV nodeでは置換表の指し手では枝刈りしない(PV nodeはごくわずかしかないので..)
 	    && !excludedMove
 	    && ttData.depth > depth - (ttData.value <= beta) // 置換表に登録されている探索深さのほうが深くて
-		&& ttData.value != VALUE_NONE // Can happen when !ttHit or when access race in probe()
+		&& is_valid(ttData.value)     // Can happen when !ttHit or when access race in probe()
 								      // !ttHitの場合やprobe()でのアクセス競合時に発生する可能性があります。
 		&& (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER))
-		&& (cutNode == (ttData.value >= beta) || depth > 8))
+		&& (cutNode == (ttData.value >= beta) || depth > 5))
 		// ■ 解説
 		// 
 		// ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
@@ -1814,7 +1816,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// 今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
 		// このままこの値でreturnして良い。
 	{
-	    // If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
+		// If ttMove is quiet, update move sorting heuristics on TT hit
 		// ttMoveがquietの指し手である場合、置換表ヒット時に指し手のソート用ヒューリスティクスを更新します。
 
 		// ■ 備考
@@ -1841,19 +1843,20 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 		if (ttData.move && ttData.value >= beta)
 		{
-	        // Bonus for a quiet ttMove that fails high (~2 Elo)
+			// Bonus for a quiet ttMove that fails high
 			// fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
 
 			if (!ttCapture)
-				update_quiet_histories(pos, ss, /* *this */ *thisThread, ttData.move, stat_bonus(depth));
+				update_quiet_histories(pos, ss, /* *this */ *thisThread, ttData.move,
+					std::min(125 * depth - 77, 1157));
 
-	        // Extra penalty for early quiet moves of the previous ply (~0 Elo on STC, ~2 Elo on LTC)
+			// Extra penalty for early quiet moves of the previous ply
 			// 1手前の早い時点のquietの指し手に対する追加のペナルティ
 
 			// 1手前がMove::null()であることを考慮する必要がある。
 
-	        if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 2 && !priorCapture)
-				update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -stat_malus(depth + 1));
+			if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 3 && !priorCapture)
+				update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -2301);
 
 		}
 
@@ -1863,11 +1866,33 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// グラフ履歴の相互作用問題に対する部分的な回避策
 		// rule50カウントが高い場合は、トランスポジションテーブルによるカットオフを行いません。
 
-		// ⇨　将棋では関係のないルールなので無視して良いが、rule50_count < 90 が通常の状態なので、
+		// ⇨　将棋では関係のないルールなので無視して良いが、rule50_count < 90 が(チェスの)通常の状態なので、
 		//    if成立時のreturnはしなければならない。
+		/*
+		if (pos.rule50_count() < 90)
+		{
+			// TTによるcut off。
+			// TODO : 将棋でもこの処理いるかも？
 
-		//if (pos.rule50_count() < 90)
-			return ttData.value;
+			if (depth >= 8 && ttData.move && pos.pseudo_legal(ttData.move) && pos.legal(ttData.move)
+				&& !is_decisive(ttData.value))
+			{
+				do_move(pos, ttData.move, st);
+				Key nextPosKey = pos.key();
+				auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey);
+				undo_move(pos, ttData.move);
+
+				// Check that the ttValue after the tt move would also trigger a cutoff
+				if (!is_valid(ttDataNext.value))
+					return ttData.value;
+				if ((ttData.value >= beta) == (-ttDataNext.value >= beta))
+					return ttData.value;
+			}
+			else
+				return ttData.value;
+		}
+		*/
+		return ttData.value;
 	}
 
 	// -----------------------
@@ -3042,8 +3067,8 @@ moves_loop: // When in check, search starts here
 		r -= ss->statScore * 1287 / 16384;
 
 		// -----------------------
-		// Step 17. Late moves reduction / extension (LMR, ~117 Elo)
-		// Step 17. 遅い手の削減／延長（LMR、約117 Elo）
+		// Step 17. Late moves reduction / extension (LMR)
+		// Step 17. 遅い指し手の削減／延長（LMR)
 		// -----------------------
 
 		// ■ 備考
@@ -3076,7 +3101,9 @@ moves_loop: // When in check, search starts here
 			// ⇨ 備考) C++の仕様上、std::clamp(x, min, max)は、min > maxの時に未定義動作であるから、
 			//         clamp()を用いるのではなく、max()とmin()を組み合わせて書かないといけない。
 
-            Depth d = std::max(1, std::min(newDepth - r/1024, newDepth + !allNode));
+			Depth d = std::max(1, std::min(newDepth - r / 1024,
+				newDepth + !allNode + (PvNode && !bestMove)))
+				+ (ss - 1)->isPvNode;
 
 			value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
 
