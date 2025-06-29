@@ -2317,7 +2317,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		&& !excludedMove
 	//	&&  pos.non_pawn_material(us)  // 盤上にpawn以外の駒がある ≒ pawnだけの終盤ではない。将棋でもこれに相当する条件が必要かも。
 		&&  ss->ply >= thisThread->nmpMinPly
-        &&  beta > VALUE_TB_LOSS_IN_MAX_PLY
+        && !is_loss(beta)
 		// 同じ手番側に連続してnull moveを適用しない
 		)
 	{
@@ -2326,7 +2326,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// Null move dynamic reduction based on depth and eval
 		// (残り探索)深さと評価値に基づくnull moveの動的なreduction
 
-		Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA, 7) + depth / 3 + 5;
+		Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA, 6) + depth / 3 + 5;
 
 		ss->currentMove         = Move::null();
 		// null moveなので、王手はかかっていなくて駒取りでもない。
@@ -2348,9 +2348,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// Do not return unproven mate or TB scores
 		// 証明されていないmate scoreやTB scoreはreturnで返さない。
 
-	    if (nullValue >= beta
-			&& nullValue < VALUE_TB_WIN_IN_MAX_PLY
-			)
+		if (nullValue >= beta && !is_win(nullValue))
 		{
 			// 1手パスしてもbetaを上回りそうであることがわかったので
 			// これをもう少しちゃんと検証しなおす。
@@ -2378,17 +2376,22 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		}
 	}
 
+	// ここでimproving計算しなおす。
+	improving |= ss->staticEval >= beta + 94;
+
 	// -----------------------
-	// Step 10. Internal iterative reductions (~9 Elo)
-	// Step 10. 内部反復リダクション（約9 Elo）
+	// Step 10. Internal iterative reductions
+	// Step 10. 内部反復リダクション
 	// -----------------------
 
-	// For PV nodes without a ttMove, we decrease depth.
-	// ttMoveのないPVノードでは、深さを減少させます。
+	// For PV nodes without a ttMove as well as for deep enough cutNodes, we decrease depth.
+	// (*Scaler) Especially if they make IIR less aggressive.
 
-	if (    PvNode
-		&& !ttData.move)
-		depth -= 3;
+	// ttMove を持たない PV ノードや、十分に深い cutNodes については、探索深度を減らします。
+	// （*Scaler）特に、IIR のアグレッシブさが抑えられる場合に適用されます。
+
+	if (!allNode && depth >= 6 && !ttData.move)
+		depth--;
 
 	// Use qsearch if depth <= 0
 	// (depthをreductionした結果、)もしdepth <= 0ならqsearchを用いる
@@ -2396,17 +2399,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	if (depth <= 0)
 		return qsearch<PV>(pos, ss, alpha, beta);
 
-	// For cutNodes, if depth is high enough, decrease depth by 2 if there is no ttMove,
-	// or by 1 if there is a ttMove with an upper bound.
-
-	// カットノードの場合、深さが十分にある場合は、ttMoveがない場合に深さを2減らし、
-	// ttMoveが上限値を持つ場合は深さを1減らします。
-
-	if (cutNode && depth >= 7 && (!ttData.move || ttData.bound == BOUND_UPPER))
-		depth -= 1 + !ttData.move;
-
 	// -----------------------
-	// Step 11. ProbCut (~10 Elo)
+	// Step 11. ProbCut
 	// -----------------------
 
 	// If we have a good enough capture (or queen promotion) and a reduced search
@@ -2417,32 +2411,20 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// 直前の手を（ほぼ）安全に枝刈りできます。
 
 	// probCutに使うbeta値。
-	probCutBeta = beta + PARAM_PROBCUT_MARGIN1
-		- PARAM_PROBCUT_MARGIN2A * improving
-		- PARAM_PROBCUT_MARGIN2B * opponentWorsening;
+	probCutBeta = beta + PARAM_PROBCUT_MARGIN1 - PARAM_PROBCUT_MARGIN2A * improving;
 
-	if (   !PvNode
-		&&  depth > 3
-		&&  std::abs(beta) < VALUE_TB_WIN_IN_MAX_PLY
-			
-	    // If value from transposition table is lower than probCutBeta, don't attempt probCut
-		// there and in further interactions with transposition table cutoff depth is set to depth - 3
-		// because probCut search has depth set to depth - 4 but we also do a move before it
-		// So effective depth is equal to depth - 3
+	if (    depth >= 3
+		&& !is_decisive(beta)
 
-		// もし置換表から取り出したvalueがprobCutBetaより小さいなら、そこではprobCutを試みず、
-		// 置換表との相互作用では、cutoff depthをdepth - 3に設定されます。
-		// なぜなら、probCut searchはdepth - 4に設定されていますが、我々はその前に指すので、
-		// 実効的な深さはdepth - 3と同じになるからです。
-
-		&& !(  ttData.depth >= depth - 3
-			&& ttData.value != VALUE_NONE
-			&& ttData.value < probCutBeta))
+		// If value from transposition table is lower than probCutBeta, don't attempt
+		// probCut there
+		// 置換表から得た値が probCutBeta より低い場合は、そこで probCut を試みない
+		&& !(is_valid(ttData.value) && ttData.value < probCutBeta))
 	{
 		ASSERT_LV3(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
 
 		MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &thisThread->captureHistory);
-		Piece      captured;
+		Depth      probCutDepth = std::max(depth - 5, 0);
 
 		// 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
 		// cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
@@ -2452,10 +2434,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			ASSERT_LV3(move.is_ok());
 			ASSERT_LV5(pos.pseudo_legal(move) && pos.legal_promote(move));
 
-			if (move == excludedMove)
-				continue;
-
-			if (!pos.legal(move))
+			if (move == excludedMove || !pos.legal(move))
 				continue;
 
 			//ASSERT_LV3(pos.capture_stage(move));
@@ -2464,23 +2443,15 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			// (GenerateAllLegalMovesオプションがオンであっても)歩の成らずは返してこないことを保証すべき。
 
 			movedPiece      = pos.moved_piece_after(move);
-			captured        = pos.piece_on(move.to_sq());
-
-			// Prefetch the TT entry for the resulting position
-			//prefetch(TT.first_entry(pos.key_after(move)));
-			// → 将棋だとこのprefetch、効果がなさげなのでコメントアウト。
-
-			ss->currentMove         = move;
-			ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck][true])
-										(movedPiece, move.to_sq());
-			//ss->continuationCorrectionHistory =
-			//	&this->continuationCorrectionHistory[movedPiece][move.to_sq()];
-
-			// TODO:あとで
-			//thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
 
 			lazy_evaluate(pos);
 			pos.do_move(move, st);
+
+			ss->currentMove = move;
+			ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck][true])
+				(movedPiece, move.to_sq());
+			//ss->continuationCorrectionHistory =
+			//	&this->continuationCorrectionHistory[movedPiece][move.to_sq()];
 
 			// Perform a preliminary qsearch to verify that the move holds
 			// この指し手がよさげであることを確認するための予備的なqsearch
@@ -2490,31 +2461,25 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			// If the qsearch held, perform the regular search
 			// よさげであったので、普通に探索する
 
-			if (value >= probCutBeta)
-				value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, depth - 4, !cutNode);
+			if (value >= probCutBeta && probCutDepth > 0)
+				value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, probCutDepth,
+					!cutNode);
 
 			pos.undo_move(move);
 
 			if (value >= probCutBeta)
 			{
-				thisThread->captureHistory(movedPiece, move.to_sq(), type_of(captured)) << 1300;
-
 				// Save ProbCut data into transposition table
 				// ProbCutのdataを置換表に保存する。
 
-				ttWriter.write(posKey, value_to_tt(value, ss->ply),
-					ss->ttPv, BOUND_LOWER, depth - 3, move, unadjustedStaticEval, TT.generation());
+				ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER,
+					probCutDepth + 1, move, unadjustedStaticEval, TT.generation());
 
-				return std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY
-							? value - (probCutBeta - beta)
-							: value;
+				if (!is_decisive(value))
+					return value - (probCutBeta - beta);
 			}
 
 		} // end of while
-
-		//Eval::NNUE::hint_common_parent_position(pos);
-		// TODO : あとで検証する。
-
 	}
 
 moves_loop: // When in check, search starts here
