@@ -221,20 +221,6 @@ Value to_corrected_static_eval(Value v /*, const Worker& w, const Position& pos 
 	return v;
 }
 
-// History and stats update bonus, based on depth
-// depthに基づく、historyとstatsのupdate bonus
-
-int stat_bonus(Depth d) { return std::min(168 * d - 100, 1718); }
-	// →　やねうら王では、Stockfishの統計値、統計ボーナスに関して手を加えないことにしているので
-	// この値はStockfishの値そのまま。
-
-// History and stats update malus, based on depth
-// depthに基づく、historyとstatsのupdate malus
-// ※ malus(「悪い」、「不利益」みたいな意味)は
-// 「統計的なペナルティ」または「マイナスの修正値」を計算するために使用される。
-// この関数は、ある行動が望ましくない結果をもたらした場合に、その行動の評価を減少させるために使われる
-// TODO : あとで
-int stat_malus(Depth d) { return std::min(768 * d - 257, 2351); }
 
 // 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較
 
@@ -3365,14 +3351,10 @@ moves_loop: // When in check, search starts here
 	// このStockfishのassert、合法手を生成しているので重すぎる。良くない。
 	ASSERT_LV5(moveCount || !ss->inCheck || excludedMove || !MoveList<LEGAL>(pos).size());
 
-    // Adjust best value for fail high cases at non-pv nodes
-	// 非PVノードでのfail highの場合に最良値を調整する
+	// Adjust best value for fail high cases
+	// fail highの場合に最良値を調整する
 
-    if (!PvNode && bestValue >= beta
-		&& std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY
-		&& std::abs(beta)      < VALUE_TB_WIN_IN_MAX_PLY
-		&& std::abs(alpha)     < VALUE_TB_WIN_IN_MAX_PLY
-		)
+	if (bestValue >= beta && !is_decisive(bestValue) && !is_decisive(alpha))
         bestValue = (bestValue * depth + beta) / (depth + 1);
 
 	// Stockfishでは、ここのコードは以下のようになっているが、これは、
@@ -3405,8 +3387,8 @@ moves_loop: // When in check, search starts here
 			thisThread->ttMoveHistory << (bestMove == ttData.move ? 800 : -879);
 	}
 
-	// Bonus for prior countermove that caused the fail low
-	// fail lowを引き起こした1手前のcountermoveに対するボーナス
+	// Bonus for prior quiet countermove that caused the fail low
+	// fail lowを引き起こした1手前のquiet countermoveに対するボーナス
 
 	// bestMoveがない == fail lowしているケース。
 	// fail lowを引き起こした前nodeでのcounter moveに対してボーナスを加点する。
@@ -3414,34 +3396,40 @@ moves_loop: // When in check, search starts here
 
 	else if (!priorCapture && prevSq != SQ_NONE)
 	{
-
-		int bonus = (117 * (depth > 5) + 39 * !allNode + 168 * ((ss - 1)->moveCount > 8)
-			+ 115 * (!ss->inCheck && bestValue <= ss->staticEval - 108)
-			+ 119 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 83));
-
 		// Proportional to "how much damage we have to undo"
 		// 「元に戻す必要がある損害の大きさ」に比例する
 
-		bonus += std::min(-(ss - 1)->statScore / 113, 300);
+		int bonusScale = -220;
+		bonusScale += std::min(-(ss - 1)->statScore / 103, 323);
+		bonusScale += std::min(73 * depth, 531);
+		bonusScale += 174 * ((ss - 1)->moveCount > 8);
+		bonusScale += 144 * (!ss->inCheck && bestValue <= ss->staticEval - 104);
+		bonusScale += 128 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 82);
 
-		bonus  = std::max(bonus, 0);
+		bonusScale = std::max(bonusScale, 0);
+
+		const int scaledBonus = std::min(159 * depth - 94, 1501) * bonusScale;
 
 		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
-										stat_bonus(depth) * bonus / 93);
+										scaledBonus * 412 / 32768);
 
 		thisThread->mainHistory(~us, (ss - 1)->currentMove.from_to())
-			<< stat_bonus(depth) * bonus / 179;
+			<< scaledBonus * 203 / 32768;
 
 		//if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
 		//	thisThread->pawnHistory[pawn_structure_index(pos)][pos.piece_on(prevSq)][prevSq]
-		//	<< stat_bonus(depth) * bonus / 24;
+		//<< scaledBonus * 1040 / 32768;
 	}
 
-	// Bonus when search fails low and there is a TT move
-	// 探索がfail lowし、TT moveがある場合のボーナス
+	// Bonus for prior capture countermove that caused the fail low
+	// 前のfail lowを引き起こしたcapture countermoveに対するボーナス
+	else if (priorCapture && prevSq != SQ_NONE)
+	{
+		Piece capturedPiece = pos.captured_piece();
+		assert(capturedPiece != NO_PIECE);
+		thisThread->captureHistory(pos.piece_on(prevSq),prevSq,type_of(capturedPiece)) << 1080;
+	}
 
-	else if (ttData.move && !allNode)
-		thisThread->mainHistory(us, ttData.move.from_to()) << stat_bonus(depth) * 23 / 100;
 
 	// ■ 注意
 	//
@@ -3453,14 +3441,15 @@ moves_loop: // When in check, search starts here
 	*/
 
 	// If no good move is found and the previous position was ttPv, then the previous
-	// opponent move is probably good and the new position is added to the search tree. (~7 Elo)
+	// opponent move is probably good and the new position is added to the search tree.
 
 	// もし良い指し手が見つからず(bestValueがalphaを更新せず)、前の局面はttPvを選んでいた場合は、
 	// 前の相手の手がおそらく良い手であり、新しい局面が探索木に追加される。
 	// (ttPvをtrueに変更してTTEntryに保存する)
 
 	if (bestValue <= alpha)
-		ss->ttPv = ss->ttPv || ((ss - 1)->ttPv && depth > 3);
+		ss->ttPv = ss->ttPv || (ss - 1)->ttPv;
+
 
 	// -----------------------
 	//  置換表に保存する
@@ -3488,7 +3477,8 @@ moves_loop: // When in check, search starts here
 			  bestValue >= beta  ? BOUND_LOWER
 			: PvNode && bestMove ? BOUND_EXACT
 			                     : BOUND_UPPER,
-			depth, bestMove, unadjustedStaticEval, TT.generation());
+			moveCount != 0 ? depth : std::min(MAX_PLY - 1, depth + 6), bestMove,
+				unadjustedStaticEval, TT.generation());
 	}
 
 	// correction historyは実装しない。
@@ -3498,21 +3488,9 @@ moves_loop: // When in check, search starts here
 		&& ((bestValue < ss->staticEval && bestValue < beta)  // negative correction & no fail high
 			|| (bestValue > ss->staticEval && bestMove)))     // positive correction & no fail low
 	{
-		const auto m = (ss - 1)->currentMove;
-
 		auto bonus = std::clamp(int(bestValue - ss->staticEval) * depth / 8,
 			-CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
-		thisThread->pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)]
-			<< bonus * 107 / 128;
-		thisThread->majorPieceCorrectionHistory[us][major_piece_index(pos)] << bonus * 162 / 128;
-		thisThread->minorPieceCorrectionHistory[us][minor_piece_index(pos)] << bonus * 148 / 128;
-		thisThread->nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)]
-			<< bonus * 122 / 128;
-		thisThread->nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)]
-			<< bonus * 185 / 128;
-
-		if (m.is_ok())
-			(*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()] << bonus;
+		update_correction_history(pos, ss, *thisThread, bonus);
 	}
 #endif
 
