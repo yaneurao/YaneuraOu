@@ -193,17 +193,6 @@ namespace {
 //      探索用の定数
 // -----------------------
 
-// Futility margin
-// depth(残り探索深さ)に応じたfutility margin。
-// ※ RazoringはStockfish12で効果がないとされてしまい除去された。
-Value futility_margin(Depth d, bool noTtCutNode, bool improving, bool oppWorsening) {
-	Value futilityMult       = PARAM_FUTILITY_MARGIN_ALPHA1  - PARAM_FUTILITY_MARGIN_ALPHA2 * noTtCutNode;
-	Value improvingDeduction = improving * futilityMult * 2;
-	Value worseningDeduction = oppWorsening * futilityMult / 3;
-	return futilityMult * d - improvingDeduction - worseningDeduction;
-}
-
-
 // 【計測資料 29.】　Move CountベースのFutiliy Pruning、Stockfish 9と10での比較
 
 // 残り探索depthが少なくて、王手がかかっていなくて、王手にもならないような指し手を
@@ -2072,6 +2061,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// -----------------------
 
 	Value unadjustedStaticEval = VALUE_NONE;
+	// TODO : あとで
+	const auto correctionValue = 0; //  correction_value(*thisThread, pos, ss);
 
 	if (ss->inCheck)
 	{
@@ -2275,8 +2266,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		return qsearch<NonPV>(pos, ss, alpha, beta);
 
 	// -----------------------
-	// Step 8. Futility pruning: child node (~40 Elo)
-	// Step 8. futility枝刈り：子ノード（約40 Elo）
+	// Step 8. Futility pruning: child node
+	// Step 8. futility枝刈り：子ノード
 	// -----------------------
 
 	// The depth condition is important for mate finding.
@@ -2292,30 +2283,30 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// Stockfish9までは、futility pruningを、root node以外に適用していたが、
 	// Stockfish10でnonPVにのみの適用に変更になった。
 
-	if (   !ss->ttPv
-		&&  depth < PARAM_FUTILITY_RETURN_DEPTH
-		&&  eval - futility_margin(depth, cutNode && !ss->ttHit, improving, opponentWorsening)
-				- (ss - 1)->statScore / 290
-			>= beta
-		&&  eval >= beta
-		&& (!ttData.move || ttCapture)
-		&&  beta > VALUE_TB_LOSS_IN_MAX_PLY
-		&&  eval < VALUE_TB_WIN_IN_MAX_PLY
-		// ⇨ 詰み絡みのスコアはmate distance pruningで枝刈りされるはずで、ここでは枝刈りしない。
-		)
+	{
+		// Futility margin
+		// depth(残り探索深さ)に応じたfutility margin。
+		auto futility_margin = [&](Depth d) {
+			Value futilityMult = 93 - 20 * (cutNode && !ss->ttHit);
 
-		// ※　統計値(mainHistoryとかstatScoreとか)のしきい値に関しては、
-		// やねうら王ではStockfishから調整しないことにしているので、
-		// 上のif式に出てくる定数については調整しないことにする。
+			return futilityMult * d                     //
+				- improving * futilityMult * 2          //
+				- opponentWorsening * futilityMult / 3  //
+				+ (ss - 1)->statScore / 376             //
+				+ std::abs(correctionValue) / 168639;
+			};
 
-		return beta + (eval - beta) / 3;
+		if (!ss->ttPv && depth < 14 && eval - futility_margin(depth) >= beta && eval >= beta
+			&& (!ttData.move || ttCapture) && !is_loss(beta) && !is_win(eval))
+			return beta + (eval - beta) / 3;
+	}
 
 	// ここでimproving計算しなおす。
 	improving |= ss->staticEval >= beta + 100;
 
 	// -----------------------
-	// Step 9. Null move search with verification search (~35 Elo)
-	// Step 9. 検証探索を伴うnull move探索（約35 Elo）
+	// Step 9. Null move search with verification search
+	// Step 9. 検証探索を伴うnull move探索
 	// -----------------------
 
 	if (   cutNode
@@ -3816,6 +3807,9 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		unadjustedStaticEval = evaluate(pos);
 #endif
 	} else {
+
+		// TODO : あとで
+		//const auto correctionValue = correction_value(*thisThread, pos, ss);
 
 		if (ss->ttHit)
 		{

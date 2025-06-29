@@ -38,15 +38,6 @@ PARAM_DEFINE PARAM_REDUCTIONS_PARAM1 = 2796;
 
 // 深さに比例したfutility pruning
 
-// 重要度　★★★★☆
-// 元の値 = 109 , step = 20
-// [PARAM] min:100,max:300,step:10,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA1 = 109;
-
-// 重要度　★★★★☆
-// 元の値 = 27 , step = 10
-// [PARAM] min:10,max:200,step:5,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_ALPHA2 = 27;
 
 // 重要度　★★★★☆
 // 元の値 = 138 , step = 30
@@ -70,14 +61,6 @@ PARAM_DEFINE PARAM_FUTILITY_EVAL2 = 253;
 // 元の値 = Stockfish 14 : 200 , Stockfish 16 : 200 , Stockfish 17 : 280 , 306 , Stockfish 17.1 : 376,  step = 20
 // [PARAM] min:50,max:300,step:30,interval:1,time_rate:1,
 PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 376;
-
-// futility pruningの適用depth。
-// 重要度　★★★☆☆
-// この制限自体が要らない可能性がある。→　そうでもなかった。→こんなdepthいじらんほうがマシ
-// 元の値 = Stockfish 17 : 13,14 , step = 1
-// [PARAM] min:5,max:15,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_FUTILITY_RETURN_DEPTH = 14;
-
 
 
 // 親nodeでのfutilityの適用depth。
