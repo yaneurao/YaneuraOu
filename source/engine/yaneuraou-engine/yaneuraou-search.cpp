@@ -373,11 +373,17 @@ Value value_from_tt(Value v, int ply /*,int r50c */);
 void update_pv(Move* pv, Move move, const Move* childPv);
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
 void update_quiet_histories(const Position& pos, Stack* ss, /*WorkerThread&*/ Thread& workerThread, Move move, int bonus);
-void update_all_stats(const Position& pos, Stack* ss, Move bestMove, Value bestValue, Value beta, Square prevSq,
+void update_all_stats(
+	const Position&                       pos,
+	Stack*                                ss,
+	// Search::Worker& workerThread,
+	Move                                  bestMove,
+	Square                                prevSq,
 	ValueList<Move, MAX_QUIETS_SEARCHED>& quietsSearched,
 	ValueList<Move, MAX_QUIETS_SEARCHED>& capturesSearched,
-	Depth depth);
-
+	Depth                                 depth,
+	Move                                  ttMove,
+	int                                   moveCount);
 
 // Utility to verify move generation. All the leaf nodes up
 // to the given depth are generated and counted, and the sum is returned.
@@ -3437,12 +3443,14 @@ moves_loop: // When in check, search starts here
 	// // alphaよりも大きな探索値を生み出す手がある場合、探索された手の統計を更新します
 
 	else if (bestMove)
-
+	{
 		// quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
+		update_all_stats(pos, ss,/* *this,*/ bestMove, prevSq, quietsSearched, capturesSearched, depth,
+			ttData.move, moveCount);
 
-		update_all_stats(pos, ss, bestMove, bestValue, beta, prevSq, quietsSearched,
-			capturesSearched, depth);
-
+		//if (!PvNode)
+		//	ttMoveHistory << (bestMove == ttData.move ? 800 : -879);
+	}
 
 	// Bonus for prior countermove that caused the fail low
 	// fail lowを引き起こした1手前のcountermoveに対するボーナス
@@ -4382,43 +4390,46 @@ void update_pv(Move* pv, Move move, const Move* childPv) {
 // prevSq : 直前の指し手の駒の移動先。直前の指し手がMove::none()の時はSQ_NONE
 
 void update_all_stats(
-		const Position& pos,
-		Stack* ss,
-		Move bestMove,
-		Value bestValue,
-		Value beta,
-		Square prevSq,
-		ValueList<Move, MAX_QUIETS_SEARCHED>& quietsSearched,
-		ValueList<Move, MAX_QUIETS_SEARCHED>& capturesSearched,
-		Depth depth) {
+	const Position& pos,
+	Stack* ss,
+	// Search::Worker& workerThread,
+	Move                                  bestMove,
+	Square                                prevSq,
+	ValueList<Move, MAX_QUIETS_SEARCHED>& quietsSearched,
+	ValueList<Move, MAX_QUIETS_SEARCHED>& capturesSearched,
+	Depth                                 depth,
+	Move                                  ttMove,
+	int                                   moveCount)
+{
 
 	Color   us           = pos.side_to_move();
 	Thread& workerThread = *pos.this_thread();
-	CapturePieceToHistory& captureHistory = workerThread.captureHistory;
-	Piece moved_piece  = pos.moved_piece_after(bestMove);
-	PieceType captured;
 
-	int bonus = stat_bonus(depth + 1);
-	int malus = stat_malus(depth    );
+	CapturePieceToHistory& captureHistory = workerThread.captureHistory;
+	Piece moved_piece    = pos.moved_piece_after(bestMove);
+	PieceType capturedPiece;
+
+	int bonus = std::min(143 * depth -  89, 1496) + 302 * (bestMove == ttMove);
+	int malus = std::min(737 * depth - 179, 3141) -  30 *  moveCount;
 
 	// Stockfish 14ではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
 	// Stockfish 16では、capture()からcapture_stage()に変更された。[2023/10/15]
 	if (!pos.capture_stage(bestMove))
 	{
-		update_quiet_histories(pos, ss, workerThread, bestMove, bonus);
+		update_quiet_histories(pos, ss, workerThread, bestMove, bonus * 1059 / 1024);
 
 		// Decrease stats for all non-best quiet moves
 		// 最善でないquietの指し手すべての統計を減少させる
 
 		for (Move move : quietsSearched)
-			update_quiet_histories(pos, ss, workerThread, move, -malus);
+			update_quiet_histories(pos, ss, workerThread, move, -malus * 1310 / 1024);
 	}
 	else {
 		// Increase stats for the best move in case it was a capture move
 		// 最善手が捕獲する指し手だった場合、その統計を増加させる
 
-		captured = type_of(pos.piece_on(bestMove.to_sq()));
-		captureHistory(moved_piece, bestMove.to_sq(), captured) << bonus;
+		capturedPiece = type_of(pos.piece_on(bestMove.to_sq()));
+		captureHistory(moved_piece, bestMove.to_sq(), capturedPiece) << bonus * 1213 / 1024;
 	}
 
 	// Extra penalty for a quiet early move that was not a TT move in
@@ -4434,7 +4445,7 @@ void update_all_stats(
 		&& ( (ss - 1)->moveCount == 1 + (ss - 1)->ttHit )
 		&&   !pos.captured_piece()
 		)
-		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -malus);
+		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -malus * 580 / 1024);
 
 	// Decrease stats for all non-best capture moves
 	// 最善の捕獲する指し手以外のすべての手の統計を減少させます
@@ -4444,9 +4455,9 @@ void update_all_stats(
 		// ここ、moved_piece_before()で、捕獲前の駒の価値で考えたほうがいいか？
 		// → MovePickerでcaptureHistoryを用いる時に、moved_piece_afterの方で表引きしてるので、
 		//  それに倣う必要がある。
-		moved_piece = pos.moved_piece_after(move);
-		captured    = type_of(pos.piece_on(move.to_sq()));
-		captureHistory(moved_piece, move.to_sq(), captured) << -malus;
+		moved_piece   = pos.moved_piece_after(move);
+		capturedPiece = type_of(pos.piece_on(move.to_sq()));
+		captureHistory(moved_piece, move.to_sq(), capturedPiece) << -malus * 1388 / 1024;
 	}
 }
 
