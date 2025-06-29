@@ -3768,7 +3768,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	if (  !PvNode
 		&& ttData.depth >= DEPTH_QS
-		&& ttData.value != VALUE_NONE  // Can happen when !ttHit or when access race in probe()
+		&& is_valid(ttData.value)      // Can happen when !ttHit or when access race in probe()
 								       // ↑置換表から取り出したときに他スレッドが値を潰している可能性があるのでこのチェックが必要
         && (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER)))
 
@@ -3841,7 +3841,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// bestValueの初期値としてこの局面のevaluate()の値を使う。これを上回る指し手があるはずなのだが..
 
 			unadjustedStaticEval = ttData.eval;
-			if (unadjustedStaticEval == VALUE_NONE)
+			if (!is_valid(unadjustedStaticEval))
 				unadjustedStaticEval =
 					// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
 					evaluate(pos);
@@ -3864,8 +3864,8 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			ss->staticEval = bestValue = unadjustedStaticEval = evaluate(pos);
 #endif
 
-			// ttValue can be used as a better position evaluation (~13 Elo)
-			// ttValueは、より良い局面評価として使用できます（約13 Elo）
+			// ttValue can be used as a better position evaluation
+			// ttValueは、より良い局面評価として使用できます
 
 			// ■ 備考
 			//
@@ -3875,10 +3875,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// ただし、mate valueは変更しない方が良いので、abs(ttValue) < VALUE_TB_WIN_IN_MAX_PLY は、
 			// そのための条件。
 
-			// ttValue can be used as a better position evaluation (~13 Elo)
-			// ttValue は、より良い局面評価として使用できる（約13 Eloの向上）。
-
-			if (std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY
+			if (is_valid(ttData.value) && !is_decisive(ttData.value)
 				&& (ttData.bound & (ttData.value > bestValue ? BOUND_LOWER : BOUND_UPPER)))
 				bestValue = ttData.value;
 
@@ -3936,11 +3933,15 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			//   正しい値のはず。
 
 #if defined(USE_LAZY_EVALUATE)
-			unadjustedStaticEval =
-				(ss - 1)->currentMove != Move::null()
-				//? evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us])
-				  ? evaluate(pos)
-				  : -(ss - 1)->staticEval;
+			//unadjustedStaticEval =
+			//	(ss - 1)->currentMove != Move::null()
+			//	//? evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us])
+			//	  ? evaluate(pos)
+			//	  : -(ss - 1)->staticEval;
+
+			// TODO : ここ、あとでよく考える。
+
+			unadjustedStaticEval = evaluate(pos);
 #else
 			unadjustedStaticEval = evaluate(pos);
 #endif
@@ -3956,7 +3957,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			// どちらが優れているかわからないので、optimizerに任せる。
 
 			ss->staticEval = bestValue =
-				// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss );
+				// to_corrected_static_eval(unadjustedStaticEval, correctionValue);
 				unadjustedStaticEval;
 
 		}
@@ -3972,7 +3973,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		if (bestValue >= beta)
 		{
 			// bestValueを少しbetaのほうに寄せる。
-			if (std::abs(bestValue) < VALUE_TB_WIN_IN_MAX_PLY)
+			if (!is_decisive(bestValue))
 				bestValue = (bestValue + beta) / 2;
 
 			if (!ss->ttHit)

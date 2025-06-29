@@ -67,9 +67,9 @@ PARAM_DEFINE PARAM_FUTILITY_EVAL2 = 253;
 
 // 静止探索でのfutility pruning
 // 重要度　★★★★☆
-// 元の値 = Stockfish 14 : 200 , Stockfish 16 : 200 , Stockfish 17 : 280 , 306 , step = 20
+// 元の値 = Stockfish 14 : 200 , Stockfish 16 : 200 , Stockfish 17 : 280 , 306 , Stockfish 17.1 : 376,  step = 20
 // [PARAM] min:50,max:300,step:30,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 306;
+PARAM_DEFINE PARAM_FUTILITY_MARGIN_QUIET = 376;
 
 // futility pruningの適用depth。
 // 重要度　★★★☆☆
