@@ -2867,6 +2867,14 @@ moves_loop: // When in check, search starts here
 			// 前に動かされた駒を取る場合の延長
 		}
 
+		// -----------------------
+		// Step 16. Make the move
+		// Step 16. 指し手で進める
+		// -----------------------
+
+		// 指し手で1手進める
+		lazy_evaluate(pos);
+		pos.do_move(move, st, givesCheck);
 
 		// -----------------------
 		//   1手進める前の枝刈り
@@ -2879,19 +2887,6 @@ moves_loop: // When in check, search starts here
 		// これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
 		newDepth += extension;
 
-		// -----------------------
-		//      1手進める
-		// -----------------------
-
-		// この時点で置換表をprefetchする。将棋においては、指し手に駒打ちなどがあって指し手を適用したkeyを
-		// 計算するコストがわりとあるので、これをやってもあまり得にはならない。無効にしておく。
-
-		// Speculative prefetch as early as possible
-		// 投機的なprefetch
-		//prefetch(TT.first_entry(pos.key_after(move)));
-
-		// ⇨　将棋では効果なさそうなので端折る。
-
 		// Update the current move (this must be done after singular extension search)
 		// 現在このスレッドで探索している指し手を更新しておく。(これは、singular extension探索のあとになされるべき)
 		ss->currentMove = move;
@@ -2900,44 +2895,22 @@ moves_loop: // When in check, search starts here
 																   (movedPiece ,
 																    move.to_sq());
 		//ss->continuationCorrectionHistory =
-		//	&thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
+		//  &thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
 		//uint64_t nodeCount = rootNode ? uint64_t(nodes) : 0;
 
-		// -----------------------
-		// Step 16. Make the move
-		// Step 16. 指し手で進める
-		// -----------------------
+		// Decrease reduction for PvNodes (*Scaler)
+		// Pv Nodesに対してreductionを減らす(*Scaler)
 
-		// 指し手で1手進める
-		lazy_evaluate(pos);
-		pos.do_move(move, st, givesCheck);
-
-		// These reduction adjustments have proven non-linear scaling.
-		// They are optimized to time controls of 180 + 1.8 and longer,
-		// so changing them or adding conditions that are similar requires
-		// tests at these types of time controls.
-
-		// これらのリダクション調整は、非線形スケーリングであることが証明されています。
-		// 調整は180 + 1.8およびそれ以上の持ち時間に最適化されています。
-		// したがって、これらを変更したり、似た条件を追加する場合には、
-		// 同じ種類の持ち時間でテストが必要です。
-
-		// Decrease reduction if position is or has been on the PV (~7 Elo)
-		// 局面がPVにあるか、あった場合、リダクションを減少させます（約7 Elo）
-
-		// この局面がPV上にあり、fail lowしそうであるならreductionを減らす
-		// (fail lowしてしまうとまた探索をやりなおさないといけないので)
         if (ss->ttPv)
-            r -= 1024 + (ttData.value > alpha) * 1024 + (ttData.depth >= depth) * 1024;
-
-		// Decrease reduction for PvNodes (~0 Elo on STC, ~2 Elo on LTC)
-		// PvNode のreductionを減らす (STC では約0 Elo、LTC では約2 Elo)
-
-		if (PvNode)
-			r -= 1024;
+			r -= 2437 + PvNode * 926 + (ttData.value > alpha) * 901
+			+ (ttData.depth >= depth) * (943 + cutNode * 1180);
 
 		// These reduction adjustments have no proven non-linear scaling
-		// これらのreductionの調整には、非線形スケーリングの証明はない
+		// これらの減少量調整には、非線形スケーリングの有効性が証明されていません
+
+		r += 316;  // Base reduction offset to compensate for other tweaks
+		r -= moveCount * 66;
+		r -= std::abs(correctionValue) / 28047;
 
 		// Increase reduction for cut nodes
 		// カットノードのreductionを増やす
@@ -2949,43 +2922,45 @@ moves_loop: // When in check, search starts here
 		// 【計測資料 18.】cut nodeのときにreductionを増やすかどうか。
 
 		if (cutNode)
-			r += 2518 - (ttData.depth >= depth && ss->ttPv) * 991;
-
+			r += 2864 + 966 * !ttData.move;
+		
 		// Increase reduction if ttMove is a capture but the current move is not a capture (~3 Elo)
 		// ttMove が捕獲する指し手で現在の手が捕獲する指し手でない場合、reductionを増やす (約3 Elo)
 
-		if (ttCapture && !capture)
-			r += 1043 + (depth < 8) * 999;
+		// Increase reduction if ttMove is a capture
+		if (ttCapture)
+			r += 1210 + (depth < 8) * 963;
 
-		// Increase reduction if next ply has a lot of fail high (~5 Elo)
-		// 次の手でfail highが多い場合、reductionを増やします。（約5 Elo）
-
-		if ((ss + 1)->cutoffCnt > 3)
-			r += 938 + allNode * 960;
+		// Increase reduction if next ply has a lot of fail high
+		// 次の手でfail highが多い場合、reductionを増やす
+		if ((ss + 1)->cutoffCnt > 2)
+			r += 1036 + allNode * 848;
 
 		if (!capture && !givesCheck && ss->quietMoveStreak >= 2)
 			r += (ss->quietMoveStreak - 1) * 50;
 
-		// For first picked move (ttMove) reduce reduction (~3 Elo)
-		// 最初に選ばれた指し手（ttMove）ではreductionを減らします。（約3 Elo）
+		// For first picked move (ttMove) reduce reduction
+		// 最初に選ばれた指し手（ttMove）ではreductionを減らす
 
-		else if (move == ttData.move)
-			r -= 1879;
+		if (move == ttData.move)
+			r -= 2006;
 
 		// 【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
 		// contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
 		if (capture)
-			ss->statScore = 0;
+			ss->statScore =
+				826 * /* int(PieceValue[pos.captured_piece()])*/ CapturePieceValuePlusPromote(pos, move) / 128
+				+ thisThread->captureHistory(movedPiece, move.to_sq(), type_of(pos.captured_piece()))
+				- 5030;
 		else
 			ss->statScore =   2 * thisThread->mainHistory(us, move.from_to())
 						+     (*contHist[0])(movedPiece, move.to_sq())
-						+     (*contHist[1])(movedPiece, move.to_sq())
-						- 3996;
+						+     (*contHist[1])(movedPiece, move.to_sq()) - 3206;
 			
-		// Decrease/increase reduction for moves with a good/bad history (~8 Elo)
-		// 良い/悪い履歴を持つ手に対して、reductionを減らす/増やす (約8 Elo)
+		// Decrease/increase reduction for moves with a good/bad history
+		// 良い/悪い履歴を持つ手に対して、reductionを減らす/増やす
 
-		r -= ss->statScore * 1287 / 16384;
+		r -= ss->statScore * 826 / 8192;
 
 		// -----------------------
 		// Step 17. Late moves reduction / extension (LMR)
