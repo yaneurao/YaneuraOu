@@ -44,16 +44,15 @@ Thread::~Thread()
 void Thread::clear()
 {
 #if defined(USE_MOVE_PICKER)
-	mainHistory.fill(0);
-	captureHistory.fill(-758);
+	mainHistory.fill(67);
+	lowPlyHistory.fill(107);
+	captureHistory.fill(-688);
+
 #if defined(ENABLE_PAWN_HISTORY)
-	pawnHistory.fill(-1158);
-	pawnCorrectionHistory.fill(0);
-	materialCorrectionHistory.fill(0);
-	majorPieceCorrectionHistory.fill(0);
+	pawnHistory.fill(-1287);
+	pawnCorrectionHistory.fill(5);
 	minorPieceCorrectionHistory.fill(0);
-	nonPawnCorrectionHistory[WHITE].fill(0);
-	nonPawnCorrectionHistory[BLACK].fill(0);
+	nonPawnCorrectionHistory.fill(0);
 
 	for (auto& to : continuationCorrectionHistory)
 		for (auto& h : to)
@@ -77,7 +76,7 @@ void Thread::clear()
 
 			// ↑この初期化コードは、ContinuationHistory::fill()に移動させた。
 
-			continuationHistory[inCheck][c].fill(-645);
+			continuationHistory[inCheck][c].fill(-473);
 
 #endif
 }

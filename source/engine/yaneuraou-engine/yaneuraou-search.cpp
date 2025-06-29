@@ -458,26 +458,8 @@ void Search::clear()
 	// pvとnon pvのときのreduction定数
 	// 0.05とか変更するだけで勝率えらく変わる
 
-	// EVAL_LEARNの時は、1スレで探索しないといけないので、1スレで最強になるように枝刈りを甘くする必要がある。
-	// つまりは、この時、Threads.size() == 1と見做す必要がある。
-
-	//for (int i = 1; i < MAX_MOVES; ++i)
-	//	Reductions[i] = int(20.81 * std::log(i));
-
-	size_t THREAD_SIZE =
-	#if defined(EVAL_LEARN)
-		1
-	#else
-		Threads.size()
-	#endif
-		;
-
 	for (size_t i = 1; i < reductions.size(); ++i)
-		reductions[i] = int((PARAM_REDUCTIONS_PARAM1 / 100.0 /*(100で割ったあとの数値が)19.43*/
-						+ std::log(THREAD_SIZE) / 2) * std::log(i));
-		// TODO あとで
-
-	// ここ、log(THREAD_SIZE)/2 の /2 のところ、何か良さげな係数を掛けて調整すべきだと思う。
+		reductions[i] = int(PARAM_REDUCTIONS_PARAM1 / 128.0 * std::log(i));
 
 	// -----------------------
 	//   定跡の読み込み
@@ -1142,9 +1124,9 @@ void Thread::search()
 			alpha     = std::max(avg - delta,-VALUE_INFINITE);
 			beta      = std::min(avg + delta, VALUE_INFINITE);
 
-			// Adjust optimism based on root move's previousScore (~4 Elo)
-            //optimism[ us] = 150 * avg / (std::abs(avg) + 85);
-            //optimism[~us] = -optimism[us];
+			//// Adjust optimism based on root move's averageScore
+			//optimism[us] = 137 * avg / (std::abs(avg) + 91);
+			//optimism[~us] = -optimism[us];
 			// → このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
 
 			// Start with a small aspiration window and, in the case of a fail
@@ -4792,11 +4774,10 @@ namespace Search {
 		// https://github.com/lichess-org/stockfish.wasm/commit/4f591186650ab9729705dc01dec1b2d099cd5e29
 		elapsed = std::max(elapsed, TimePoint(1));
 #endif
-		const auto& rootMoves = pos.this_thread()->rootMoves;
-		size_t pvIdx = pos.this_thread()->pvIdx;
-		size_t multiPV = std::min(size_t(Options["MultiPV"]), rootMoves.size());
-
-		uint64_t nodes_searched = Threads.nodes_searched();
+		const auto nodes_searched = Threads.nodes_searched();
+		const auto& rootMoves     = pos.this_thread()->rootMoves;
+		size_t pvIdx              = pos.this_thread()->pvIdx;
+		size_t multiPV            = std::min(size_t(Options["MultiPV"]), rootMoves.size());
 
 		// MultiPVでは上位N個の候補手と読み筋を出力する必要がある。
 		for (size_t i = 0; i < multiPV; ++i)
@@ -4818,8 +4799,16 @@ namespace Search {
 			if (v == -VALUE_INFINITE)
 				v = VALUE_ZERO; // この場合でもとりあえず出力は行う。
 
-			//bool tb = TB::RootInTB && abs(v) < VALUE_MATE_IN_MAX_PLY;
+			//bool tb = worker.tbConfig.rootInTB && std::abs(v) <= VALUE_TB;
 			//v = tb ? rootMoves[i].tbScore : v;
+
+			bool isExact = i != pvIdx /* || tb */ || !updated;  // tablebase- and previous-scores are exact
+
+			//// Potentially correct and extend the PV, and in exceptional cases v
+			//  if (is_decisive(v) && std::abs(v) < VALUE_MATE_IN_MAX_PLY
+			//	    && ((!rootMoves[i].scoreLowerbound && !rootMoves[i].scoreUpperbound) || isExact))
+			//	    syzygy_extend_pv(worker.options, worker.limits, pos, rootMoves[i], v);
+
 
 			if (ss.rdbuf()->in_avail()) // 1行目でないなら連結のための改行を出力
 				ss << std::endl;
@@ -4834,7 +4823,8 @@ namespace Search {
 
 			// これが現在探索中の指し手であるなら、それがlowerboundかupperboundかは表示させる
 			if (i == pvIdx && /*!tb &&*/ updated) // tablebase- and previous-scores are exact
-				ss << (rootMoves[i].scoreLowerbound ? " lowerbound" : (rootMoves[i].scoreUpperbound ? " upperbound" : ""));
+				ss << (rootMoves[i].scoreLowerbound ? " lowerbound"
+					: (rootMoves[i].scoreUpperbound ? " upperbound" : ""));
 
 			// 将棋所はmultipvに対応していないが、とりあえず出力はしておく。
 			if (multiPV > 1)
@@ -5230,7 +5220,7 @@ ValuePV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodesLim
 	Value delta			 = -VALUE_INFINITE;
 	Value bestValue		 = -VALUE_INFINITE;
 
-	th->lowPlyHistory.fill(0);
+	th->lowPlyHistory.fill(86);
 
 	while (++rootDepth <= depth
 		// node制限を超えた場合もこのループを抜ける
@@ -5370,7 +5360,7 @@ void UnitTest(Test::UnitTester& tester)
 }
 
 
-}
+} // namespace Learner
 #endif
 
 #endif // YANEURAOU_ENGINE

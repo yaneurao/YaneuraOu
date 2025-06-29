@@ -19,19 +19,42 @@
 
 #if defined(ENABLE_PAWN_HISTORY)
 // 歩の陣形に対するhistory
-constexpr int PAWN_HISTORY_SIZE = 512;
-inline int pawn_structure(const Position& pos) { return pos.pawn_key() & (PAWN_HISTORY_SIZE - 1); }
-#endif
-constexpr int LOW_PLY_HISTORY_SIZE     = 4;
+constexpr int PAWN_HISTORY_SIZE = 512;    // has to be a power of 2
 
-// StatsEntryはstat tableの値を格納する。これは、大抵数値であるが、指し手やnestされたhistoryでさえありうる。
-// 多次元配列であるかのように呼び出し側でstats tablesを用いるために、
-// 生の値を用いる代わりに、history updateを行なうentry上でoperator<<()を呼び出す。
+static_assert((PAWN_HISTORY_SIZE& (PAWN_HISTORY_SIZE - 1)) == 0,
+	"PAWN_HISTORY_SIZE has to be a power of 2");
+
+enum PawnHistoryType {
+	Normal,
+	Correction
+};
+
+template<PawnHistoryType T = Normal>
+inline int pawn_structure_index(const Position& pos) {
+	return pos.pawn_key() & ((T == Normal ? PAWN_HISTORY_SIZE : CORRECTION_HISTORY_SIZE) - 1);
+}
+#endif
+
+constexpr int LOW_PLY_HISTORY_SIZE     = 5;
+
+// StatsEntry is the container of various numerical statistics. We use a class
+// instead of a naked value to directly call history update operator<<() on
+// the entry. The first template parameter T is the base type of the array,
+// and the second template parameter D limits the range of updates in [-D, D]
+// when we update values with the << operator
+
+// StatsEntry は各種数値統計のコンテナです。
+// 生の値ではなくクラスを使うことで、エントリに対して直接 << 演算子で履歴を更新できます。
+// 最初のテンプレートパラメータ T は配列の基本型を表し、
+// 2 番目のテンプレートパラメータ D は << 演算子による更新時の範囲を [-D, D] に制限します。
 
 // T : このEntryの実体
 // D : abs(entry) <= Dとなるように制限される。
 template<typename T, int D>
 class StatsEntry {
+
+	//static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
+	//static_assert(D <= std::numeric_limits<T>::max(), "D overflows T");
 
 	T entry;
 
