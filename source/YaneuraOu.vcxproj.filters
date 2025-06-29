@@ -370,10 +370,10 @@
     <ClInclude Include="numa.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="engine.h">
+    <ClInclude Include="usi_option.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="usi_option.h">
+    <ClInclude Include="history.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
   </ItemGroup>
@@ -592,9 +592,6 @@
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
     <ClCompile Include="memory.cpp">
-      <Filter>リソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="engine.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="book\policybook.cpp">
