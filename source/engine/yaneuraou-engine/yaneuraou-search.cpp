@@ -2090,14 +2090,6 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	}
 	else if (excludedMove)
 	{
-		// Providing the hint that this node's accumulator will be used often
-		// brings significant Elo gain (~13 Elo).
-
-		// このノードのアキュムレータが頻繁に使用されることを示唆するヒントを提供することで、
-		// かなりのElo向上（約13 Elo）が得られる。
-
-		// Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
-		// TODO : → 今回のNNUEの計算は端折れるのか？
 
 #if defined(USE_LAZY_EVALUATE)
 		// Stockfish 17のコード
@@ -2135,23 +2127,17 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 #if defined(USE_LAZY_EVALUATE)
 		// Stockfish 17のコード
-		if (unadjustedStaticEval == VALUE_NONE)
+		if (!is_valid(unadjustedStaticEval))
 		{
-			// TT raceで破壊されてるっぽい？
-
-			// unadjustedStaticEval = evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
 			unadjustedStaticEval = evaluate(pos);
 
 			// 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
 			// あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
 		}
 		else if (PvNode) {
-			//		Eval::NNUE::hint_common_parent_position(pos, networks[numaAccessToken], refreshTable);
-			// → TODO : hint_common_parent_position()実装するか検討する。
 
 #if defined(YANEURAOU_ENGINE_NNUE)
 
-			//ASSERT(unadjustedStaticEval != VALUE_NONE);
 			unadjustedStaticEval = evaluate(pos);
 
 			// TODO : ここでevaluate()が必須な理由がよくわからない。
@@ -2168,7 +2154,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 #endif
 
 		ss->staticEval = eval =
-			// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss);
+			// to_corrected_static_eval(unadjustedStaticEval, correctionValue);
 			unadjustedStaticEval;
 
 	    // ttValue can be used as a better position evaluation
@@ -2189,11 +2175,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	}
 	else
 	{
-		unadjustedStaticEval =
-			// evaluate(networks[numaAccessToken], pos, refreshTable, thisThread->optimism[us]);
-			evaluate(pos);
+		unadjustedStaticEval = evaluate(pos);
 		ss->staticEval = eval =
-			// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss);
+			// to_corrected_static_eval(unadjustedStaticEval, correctionValue);
 			unadjustedStaticEval;
 
 		// Static evaluation is saved as it was before adjustment by correction history
@@ -3574,7 +3558,9 @@ moves_loop: // When in check, search starts here
 // Quiescence search function, which is called by the main search function with
 // depth zero, or recursively with further decreasing depth. With depth <= 0, we
 // "should" be using static eval only, but tactical moves may confuse the static eval.
-// To fight this horizon effect, we implement this qsearch of tactical moves (~155 Elo).
+// To fight this horizon effect, we implement this qsearch of tactical moves.
+// See https://www.chessprogramming.org/Horizon_Effect
+// and https://www.chessprogramming.org/Quiescence_Search
 
 // 静止探索関数です。この関数は、メインの探索関数から深さ0で呼び出されるか、
 // 再帰的にさらに深さを減らして呼び出されます。
@@ -3713,17 +3699,17 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 
 	auto draw_type = pos.is_repetition(ss->ply);
 	if (draw_type != REPETITION_NONE)
-		return value_from_tt(draw_value(draw_type, us), ss->ply);
+		return draw_value(draw_type, us);
 
 	// 16手以内の循環になってないのにqsearchで16手も延長している場合、
 	// 置換表の指し手だけで長い循環になっている可能性が高く、
 	// これは引き分け扱いにしてしまう。(やねうら王独自改良)
 	if (depth <= -16)
-		return draw_value(REPETITION_DRAW, pos.side_to_move());
+		return draw_value(REPETITION_DRAW, us);
 
 	// 最大手数の到達
 	if (ss->ply >= MAX_PLY || pos.game_ply() > Limits.max_game_ply)
-		return draw_value(REPETITION_DRAW, pos.side_to_move());
+		return draw_value(REPETITION_DRAW, us);
 
 	ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
