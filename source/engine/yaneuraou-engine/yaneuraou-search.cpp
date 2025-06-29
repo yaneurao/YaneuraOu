@@ -4462,21 +4462,17 @@ void update_all_stats(
 // ⇨　Stockfish 16で3手前も見るようになった。
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 {
-	// これstat_bonusの計算のときに係数を掛けておくべきでは…。
-	bonus = bonus * 50 / 64;
+	static constexpr std::array<ConthistBonus, 6> conthist_bonuses = {
+	  {{1, 1092}, {2, 631}, {3, 294}, {4, 517}, {5, 126}, {6, 445}} };
 
-	for (int i : {1, 2, 3, 4, 6})
-	//for (int i : {1, 2, 4, 6})
-	// ⇨　TODO : 3手前も更新するの、強くなってない気がする。(V7.74taya-t20 vs V7.74taya-t21)
+	for (const auto [i, weight] : conthist_bonuses)
 	{
-	    // Only update the first 2 continuation histories if we are in check
+		// Only update the first 2 continuation histories if we are in check
 		// 王手がかかっている場合のみ、最初の2つのcontinuation historiesを更新する
-
 		if (ss->inCheck && i > 2)
 			break;
-		if ((ss - i)->currentMove.is_ok())
-			(*(ss - i)->continuationHistory)(pc, to) << bonus / (1 + (i == 3));
-						// ⇨　 i==3は弱くしか影響しないので2で割ると言う意味。
+		if (((ss - i)->currentMove).is_ok())
+			(*(ss - i)->continuationHistory)(pc,to) << bonus * weight / 1024;
 	}
 }
 
@@ -4492,15 +4488,19 @@ void update_quiet_histories(
 	const Position& pos, Stack* ss, /*Search::Worker& workerThread*/ Thread& workerThread,  Move move, int bonus) {
 
 	Color us = pos.side_to_move();
-	workerThread.mainHistory(us, move.from_to()) << bonus;
-	if (ss->ply < LOW_PLY_HISTORY_SIZE)
-		workerThread.lowPlyHistory(ss->ply, move.from_to()) << bonus;
+	workerThread.mainHistory(us, move.from_to()) << bonus;    // Untuned to prevent duplicate effort
 
-	update_continuation_histories(ss, pos.moved_piece_after(move), move.to_sq(), bonus);
+	if (ss->ply < LOW_PLY_HISTORY_SIZE)
+		workerThread.lowPlyHistory(ss->ply, move.from_to()) << bonus * 792 / 1024;
+
+	update_continuation_histories(ss, pos.moved_piece_after(move), move.to_sq(),
+		bonus * (bonus > 0 ? 1082 : 784) / 1024);
+
 
 #if defined(ENABLE_PAWN_HISTORY)
 	int pIndex = pawn_structure_index(pos);
-	workerThread.pawnHistory[pIndex][pos.moved_piece(move)][move.to_sq()] << bonus / 2;
+	workerThread.pawnHistory[pIndex][pos.moved_piece(move)][move.to_sq()]
+		<< bonus * (bonus > 0 ? 705 : 450) / 1024;
 #endif
 }
 

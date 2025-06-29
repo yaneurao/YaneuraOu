@@ -306,6 +306,12 @@ struct InfoIteration {
 	size_t           currmovenumber;
 };
 
+// Continuation Historyに対するBonus値の配列の型
+struct ConthistBonus {
+	int index;
+	int weight;
+};
+
 
 } // end of namespace Search
 
