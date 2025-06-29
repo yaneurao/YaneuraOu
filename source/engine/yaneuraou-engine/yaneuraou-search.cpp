@@ -1677,9 +1677,9 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// 前の指し手で移動させた先の升目
 	// null moveのときはis_ok() == falseなのでSQ_NONEとする。
 	Square prevSq        = (ss - 1)->currentMove.is_ok() ? (ss - 1)->currentMove.to_sq() : SQ_NONE;
+	bestMove             = Move::none();
 	priorReduction       = (ss - 1)->reduction;
 	(ss - 1)->reduction  = 0;
-	bestMove             = Move::none();
 	ss->statScore        = 0;
 	ss->isPvNode         = PvNode;
 	(ss + 2)->cutoffCnt  = 0;
@@ -2167,8 +2167,8 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			// to_corrected_static_eval(unadjustedStaticEval, *thisThread, pos, ss);
 			unadjustedStaticEval;
 
-	    // ttValue can be used as a better position evaluation (~7 Elo)
-		// ttValue は、より良い局面評価として使用できる（約7 Eloの向上）。
+	    // ttValue can be used as a better position evaluation
+		// ttValue は、より良い局面評価として使用できる
 
 		// ■ 備考
 		// 
@@ -2178,7 +2178,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		// 2. ttValue < evaluate()でかつ、ttValueがBOUND_UPPERなら、真の値はこれより小さいはずだから、
 		//   evalとしてttValueを採用したほうがこの局面に対する評価値の見積りとして適切である。
 
-		if (    ttData.value != VALUE_NONE
+		if (is_valid(ttData.value)
 			&& (ttData.bound & (ttData.value > eval ? BOUND_LOWER : BOUND_UPPER)))
 			eval = ttData.value;
 
@@ -2221,16 +2221,17 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// is_ok()はMove::null()かのチェック。
 	// 1手前でMove::null()ではなく、王手がかかっておらず、駒を取る指し手ではなかったなら…。
 
-	if ((ss - 1)->currentMove.is_ok() && !(ss - 1)->inCheck && !priorCapture)
+	// Use static evaluation difference to improve quiet move ordering
+	if (((ss - 1)->currentMove).is_ok() && !(ss - 1)->inCheck && !priorCapture && !ttHit)
 	{
-		int bonus = std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -1831, 1428) + 623;
+		int bonus = std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -1858, 1492) + 661;
 		// TODO : この右辺の↑係数、調整すべきか？
-		thisThread->mainHistory(~us,((ss - 1)->currentMove).from_to()) << bonus;
+		thisThread->mainHistory(~us, ((ss - 1)->currentMove).from_to()) << bonus * 1057 / 1024;
 
 #if defined(ENABLE_PAWN_HISTORY)
 		if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
 			thisThread->pawnHistory(pawn_structure_index(pos),pos.piece_on(prevSq),prevSq)
-			<< bonus;
+			<< bonus * 1266 / 1024;
 #endif
 	}
 
@@ -2275,19 +2276,15 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	// Step 7. Razoring (~1 Elo)
 	// -----------------------
 
-	// If eval is really low, check with qsearch if we can exceed alpha. If the
-	// search suggests we cannot exceed alpha, return a speculative fail low.
+	// If eval is really low, skip search entirely and return the qsearch value.
+	// For PvNodes, we must have a guard against mates being returned.
 
-	// 評価値が(alphaより)非常に低い場合、qsearchを使ってalphaを超えられるかを確認します。
-	// もし探索結果がalphaを超えられないことを示唆する場合は、仮のfail lowを返します。
+	// 評価値が非常に低い場合、検索を完全にスキップして qsearch の値を返します。
+	// PvNode では、チェックメイトが返されるのを防ぐためのガードが必要です。
 
-	if (eval < alpha - 469 - 307 * depth * depth)
-	// ↑ここのパラメーター調整しても ~1 Eloなので調整しないことにする。
-	{
-		value = qsearch<NonPV>(pos, ss, alpha - 1, alpha);
-		if (value < alpha && std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY)
-			return value;
-	}
+	if (!PvNode && eval < alpha - 486 - 325 * depth * depth)
+		// ↑ここのパラメーター調整しても ~1 Eloなので調整しないことにする。
+		return qsearch<NonPV>(pos, ss, alpha, beta);
 
 	// -----------------------
 	// Step 8. Futility pruning: child node (~40 Elo)
