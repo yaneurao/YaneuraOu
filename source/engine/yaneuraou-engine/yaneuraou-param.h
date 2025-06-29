@@ -133,28 +133,6 @@ PARAM_DEFINE PARAM_PROBCUT_MARGIN2A = 58;
 // [PARAM] min:20,max:500,step:10,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_PROBCUT_MARGIN3 = 400;
 
-//
-// singular extension
-//
-
-// singular extensionの前提depth。
-// これ変更すると他のパラメーターががらっと変わるので固定しておく。
-// 元の値 = Stockfish 14 : 4 , Stockfish 16 : 4 , step = 1
-// [PARAM] min:2,max:13,step:1,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_SINGULAR_EXTENSION_DEPTH = 4;
-
-// singular extensionのsingular betaを計算するときのマージン
-// 重要度　★★★★☆
-// 元の値 = Stockfish 16 : 64 , Stockfish 17 : 54,56 , step = 8
-// [PARAM] min:16,max:1024,step:4,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_SINGULAR_MARGIN1 = 56;
-
-// singular extensionのsingular betaを計算するときの係数
-// 重要度　★★★★☆
-// 自己対局だとすごく強くなって見えるかもしれないが、まやかしである。
-// 元の値 = Stockfish 16 : 57 , Stockfish 17 : 77,79 , step = 8
-// [PARAM] min:0,max:1024,step:8,interval:2,time_rate:1,fixed
-PARAM_DEFINE PARAM_SINGULAR_MARGIN2 = 79;
 
 //
 // LMR

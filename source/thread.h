@@ -14,6 +14,7 @@
 #include "search.h"
 #include "thread_win32_osx.h"
 //#include "types.h"
+#include "history.h"
 
 #if defined(EVAL_LEARN)
 // 学習用の実行ファイルでは、スレッドごとに置換表を持ちたい。

@@ -2723,175 +2723,148 @@ moves_loop: // When in check, search starts here
 		}
 
 		// -----------------------
-		// Step 15. Extensions (~100 Elo)
-		// Step 15. (探索の)延長(約100 Elo)
+		// Step 15. Extensions
+		// Step 15. (探索の)延長
 		// -----------------------
 
-		// We take care to not overdo to avoid search getting stuck.
-		// 探索が停滞しないように、やりすぎないよう注意します。
+		// Singular extension search. If all moves but one
+		// fail low on a search of (alpha-s, beta-s), and just one fails high on
+		// (alpha, beta), then that move is singular and should be extended. To
+		// verify this we do a reduced search on the position excluding the ttMove
+		// and if the result is lower than ttValue minus a margin, then we will
+		// extend the ttMove. Recursive singular search is avoided.
 
-		if (ss->ply < thisThread->rootDepth * 2)
-			// rootDepthの2倍より延長しない
+		// (*Scaler) Generally, higher singularBeta (i.e closer to ttValue)
+		// and lower extension margins scale well.
+
+		// 特殊延長探索。もし (alpha-s, beta-s) の探索で 1 手を除くすべての手が fail low となり、
+		// (alpha, beta) の探索でただ 1 手だけが fail high となった場合、
+		// その手はシンギュラー（特異）と判断し、延長すべきです。
+		// これを検証するため、ttMove を除外した局面で縮小探索を行い、
+		// その結果が ttValue からマージンを引いた値より低ければ、ttMove を延長します。
+		// 再帰的なシンギュラー探索は回避されます。
+		//
+		// （*Scaler）一般的に、より高い singularBeta（すなわち ttValue に近い値）と、
+		// より低い延長マージンはスケーリングに適しています。
+
+		// ■ メモ
+		// 
+		//   Stockfishの実装だとmargin = 2 * depthだが、
+		//   将棋だと1手以外はすべてそれぐらい悪いことは多々あり、
+		//   ほとんどの指し手がsingularと判定されてしまう。
+		//   これでは効果がないので、1割ぐらいの指し手がsingularとなるぐらいの係数に調整する。
+		//
+		// ■ 備考
+		//  
+		//   singular延長で強くなるのは、あるnodeで1手だけが特別に良い場合、相手のプレイヤーもそのnodeでは
+		//   その指し手を選択する可能性が高く、それゆえ、相手のPVもそこである可能性が高いから、そこを相手よりわずかにでも
+		//   読んでいて詰みを回避などできるなら、その相手に対する勝率は上がるという理屈。
+		//   いわば、0.5手延長が自己対戦で(のみ)強くなるのの拡張。
+		//   そう考えるとベストな指し手のスコアと2番目にベストな指し手のスコアとの差に応じて1手延長するのが正しいのだが、
+		//   2番目にベストな指し手のスコアを小さなコストで求めることは出来ないので…。
+		//
+
+		// singular延長をするnodeであるか。
+		if (!rootNode
+			&& move == ttData.move
+			&& !excludedMove // 再帰的なsingular延長を除外する。
+			&& depth >= 6 - (thisThread->completedDepth > 27) + ss->ttPv && is_valid(ttData.value)
+			&& !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
+			&& ttData.depth >= depth - 3)
 		{
+			// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != Move::none())
+			// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
+			// null window searchするときに大きなコストを伴いかねないから。)
 
-			// singular延長と王手延長。
+			// このmargin値は評価関数の性質に合わせて調整されるべき。
+			Value singularBeta = ttData.value - (58 + 76 * (ss->ttPv && !PvNode)) * depth / 57;
+			Depth singularDepth = newDepth / 2;
 
-			// Singular extension search (~76 Elo, ~170 nElo). If all moves but one
-			// fail low on a search of (alpha-s, beta-s), and just one fails high on
-			// (alpha, beta), then that move is singular and should be extended. To
-			// verify this we do a reduced search on the position excluding the ttMove
-			// and if the result is lower than ttValue minus a margin, then we will
-			// extend the ttMove. Recursive singular search is avoided.
+			// move(ttMove)の指し手を以下のsearch()での探索から除外
+			ss->excludedMove = move;
+			// 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
+			// 浅いdepthでnull windowなので、すぐに探索は終わるはず。
+			value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
+			ss->excludedMove = Move::none();
 
-			// Note: the depth margin and singularBeta margin are known for having
-			// non-linear scaling. Their values are optimized to time controls of
-			// 180+1.8 and longer so changing them requires tests at these types of
-			// time controls. Generally, higher singularBeta (i.e closer to ttValue)
-			// and lower extension margins scale well.
-
-			// シンギュラー延長探索（約76 Elo、約170 nElo）。もしすべての手が
-			// (alpha-s, beta-s)の探索で失敗し、ただ1手だけが(alpha, beta)で成功する場合、
-			// その手はシンギュラーと見なされ、延長されるべきです。
-			// これを検証するために、ttMoveを除いた位置で減らされた深さでの探索を行い、
-			// 結果がttValueからマージンを引いた値よりも小さい場合、
-			// ttMoveを延長します。再帰的なシンギュラー探索は回避されます。
-
-			// 注意: 深さのマージンやsingularBetaのマージンは非線形なスケーリングがあることが知られています。
-			// これらの値は180+1.8以上の時間設定に最適化されており、これらのタイプの時間設定でテストする必要があります。
-			// 一般的に、singularBetaが高いほど（つまり、ttValueに近いほど）、
-			// 拡張マージンが低いほどスケールが良くなります。
-
-
-			// ■ メモ
-			// 
-			//   Stockfishの実装だとmargin = 2 * depthだが、
-			//   将棋だと1手以外はすべてそれぐらい悪いことは多々あり、
-			//   ほとんどの指し手がsingularと判定されてしまう。
-			//   これでは効果がないので、1割ぐらいの指し手がsingularとなるぐらいの係数に調整する。
-			//
-			// ■ 備考
-			//  
-			//   singular延長で強くなるのは、あるnodeで1手だけが特別に良い場合、相手のプレイヤーもそのnodeでは
-			//   その指し手を選択する可能性が高く、それゆえ、相手のPVもそこである可能性が高いから、そこを相手よりわずかにでも
-			//   読んでいて詰みを回避などできるなら、その相手に対する勝率は上がるという理屈。
-			//   いわば、0.5手延長が自己対戦で(のみ)強くなるのの拡張。
-			//   そう考えるとベストな指し手のスコアと2番目にベストな指し手のスコアとの差に応じて1手延長するのが正しいのだが、
-			//   2番目にベストな指し手のスコアを小さなコストで求めることは出来ないので…。
-			//
-
-			// singular延長をするnodeであるか。
-			if (!rootNode
-				&&  move == ttData.move
-				&& !excludedMove // 再帰的なsingular延長を除外する。
-		        &&  depth >= PARAM_SINGULAR_EXTENSION_DEPTH - (thisThread->completedDepth > 33) + ss->ttPv
-			/*  &&  ttValue != VALUE_NONE Already implicit in the next condition */
-				&&  std::abs(ttData.value) < VALUE_TB_WIN_IN_MAX_PLY // 詰み絡みのスコアはsingular extensionはしない。(Stockfish 10～)
-				&& (ttData.bound & BOUND_LOWER)
-				&&  ttData.depth >= depth - 3)
-				// このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != Move::none())
-				// (そうでないとsingularの指し手以外に他の有望な指し手がないかどうかを調べるために
-				// null window searchするときに大きなコストを伴いかねないから。)
+			// 置換表の指し手以外がすべてfail lowしているならsingular延長確定。
+			// (延長され続けるとまずいので何らかの考慮は必要)
+			if (value < singularBeta)
 			{
-				// このmargin値は評価関数の性質に合わせて調整されるべき。
-		        Value singularBeta  = ttData.value
-					- (PARAM_SINGULAR_MARGIN1
-			         + PARAM_SINGULAR_MARGIN2 * (ss->ttPv && !PvNode)) * depth / 64;
-				Depth singularDepth = newDepth / 2;
+				int corrValAdj = std::abs(correctionValue) / 248400;
+				int doubleMargin = -4 + 244 * PvNode - 206 * !ttCapture - corrValAdj
+					- 997 * thisThread->ttMoveHistory / 131072
+					- (ss->ply > thisThread->rootDepth) * 47;
+				int tripleMargin = 84 + 269 * PvNode - 253 * !ttCapture + 91 * ss->ttPv - corrValAdj
+					- (ss->ply * 2 > thisThread->rootDepth * 3) * 54;
 
-				// move(ttMove)の指し手を以下のsearch()での探索から除外
+				// We make sure to limit the extensions in some way to avoid a search explosion
+				// 2重延長を制限することで探索の組合せ爆発を回避する。
 
-				ss->excludedMove = move;
-				// 局面はdo_move()で進めずにこのnodeから浅い探索深さで探索しなおす。
-				// 浅いdepthでnull windowなので、すぐに探索は終わるはず。
-				value = search<NonPV>(pos, ss, singularBeta - 1, singularBeta, singularDepth, cutNode);
-				ss->excludedMove = Move::none();
+				extension =
+					1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
 
-				// 置換表の指し手以外がすべてfail lowしているならsingular延長確定。
-				// (延長され続けるとまずいので何らかの考慮は必要)
-				if (value < singularBeta)
-				{
-					int doubleMargin = 249 * PvNode - 194 * !ttCapture;
-					int tripleMargin = 94 + 287 * PvNode - 249 * !ttCapture + 99 * ss->ttPv;
-
-					// We make sure to limit the extensions in some way to avoid a search explosion
-					// 2重延長を制限することで探索の組合せ爆発を回避する。
-
-					// TODO : ここのパラメーター、調整すべきかも？
-					extension = 1 + (value < singularBeta - doubleMargin)
-						      + (value < singularBeta - tripleMargin);
-
-					depth += ((!PvNode) && (depth < 14));
-				}
-
-				// Multi-cut pruning
-				// Our ttMove is assumed to fail high based on the bound of the TT entry,
-				// and if after excluding the ttMove with a reduced search we fail high
-				// over the original beta, we assume this expected cut-node is not
-				// singular (multiple moves fail high), and we can prune the whole
-				// subtree by returning a softbound.
-
-				// マルチカット枝刈り
-				// 私たちのttMoveはfail highすると想定されており、
-				// 今、ttMoveなしの(この局面でttMoveの指し手を候補手から除外した)、
-				// reduced search(探索深さを減らした探索)でもfail highしました。
-				// したがって、この予想されるカットノードはsingular(1つだけ傑出した指し手)ではないと想定し、
-				// 複数の手がfail highすると考え、softboundを返すことで全サブツリーを枝刈りすることができます。
-
-				// 訳注)
-				// 
-				//  cut-node  : αβ探索において早期に枝刈りできるnodeのこと。
-				//              つまり、searchの引数で渡されたbetaを上回ることがわかったのでreturnできる(これをbeta cutと呼ぶ)
-				//              できるようなnodeのこと。
-				// 
-				//  softbound : lowerbound(下界)やupperbound(上界)のように真の値がその値より大きい(小さい)
-				//              ことがわかっているような値のこと。
-
-				else if (value >= beta && std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY)
-					return value;
-
-				// Negative extensions
-				// If other moves failed high over (ttValue - margin) without the
-				// ttMove on a reduced search, but we cannot do multi-cut because
-				// (ttValue - margin) is lower than the original beta, we do not know
-				// if the ttMove is singular or can do a multi-cut, so we reduce the
-				// ttMove in favor of other moves based on some conditions:
-
-				// 負の延長
-				// もしttMoveを使用せずに(ttValue - margin)以上で他の手がreduced search(簡略化した探索)で高いスコアを出したが、
-				// (ttValue - margin)が元のbetaよりも低いためにマルチカットを行えない場合、
-				// ttMoveがsingularかマルチカットが可能かはわからないので、
-				// いくつかの条件に基づいて他の手を優先してttMoveを減らします：
-
-				// If the ttMove is assumed to fail high over current beta (~7 Elo)
-				// ttMoveが現在のベータを超えて高いスコアを出すと仮定される場合（約7 Elo)
-
-				else if (ttData.value >= beta)
-					extension = -3;
-
-				// If we are on a cutNode but the ttMove is not assumed to fail high
-				// over current beta (~1 Elo)
-
-				// 現在のノードがカットノードであるが、ttMoveが現在のbetaを超えて
-				// fail highすると思われない場合（約1 Elo）
-
-				else if (cutNode)
-					extension = -2;
+				depth++;
 			}
 
-			// Check extensions (~1 Elo)
-			// 王手延長
+			// Multi-cut pruning
+			// Our ttMove is assumed to fail high based on the bound of the TT entry,
+			// and if after excluding the ttMove with a reduced search we fail high
+			// over the original beta, we assume this expected cut-node is not
+			// singular (multiple moves fail high), and we can prune the whole
+			// subtree by returning a softbound.
+
+			// マルチカット枝刈り
+			// 私たちのttMoveはfail highすると想定されており、
+			// 今、ttMoveなしの(この局面でttMoveの指し手を候補手から除外した)、
+			// reduced search(探索深さを減らした探索)でもfail highしました。
+			// したがって、この予想されるカットノードはsingular(1つだけ傑出した指し手)ではないと想定し、
+			// 複数の手がfail highすると考え、softboundを返すことで全サブツリーを枝刈りすることができます。
+
+			// 訳注)
+			// 
+			//  cut-node  : αβ探索において早期に枝刈りできるnodeのこと。
+			//              つまり、searchの引数で渡されたbetaを上回ることがわかったのでreturnできる(これをbeta cutと呼ぶ)
+			//              できるようなnodeのこと。
+			// 
+			//  softbound : lowerbound(下界)やupperbound(上界)のように真の値がその値より大きい(小さい)
+			//              ことがわかっているような値のこと。
+
+			else if (value >= beta && !is_decisive(value))
+				return value;
+
+			// Negative extensions
+			// If other moves failed high over (ttValue - margin) without the
+			// ttMove on a reduced search, but we cannot do multi-cut because
+			// (ttValue - margin) is lower than the original beta, we do not know
+			// if the ttMove is singular or can do a multi-cut, so we reduce the
+			// ttMove in favor of other moves based on some conditions:
+
+			// 負の延長
+			// もしttMoveを使用せずに(ttValue - margin)以上で他の手がreduced search(簡略化した探索)で高いスコアを出したが、
+			// (ttValue - margin)が元のbetaよりも低いためにマルチカットを行えない場合、
+			// ttMoveがsingularかマルチカットが可能かはわからないので、
+			// いくつかの条件に基づいて他の手を優先してttMoveを減らします：
+
+			// If the ttMove is assumed to fail high over current beta
+			// ttMoveが現在のベータを超えて高いスコアを出すと仮定される場合
+			else if (ttData.value >= beta)
+				extension = -3;
+
+			// If we are on a cutNode but the ttMove is not assumed to fail high
+			// over current beta
+			// 現在のノードがカットノードであるが、ttMoveが現在のbetaを超えて
+			// fail highすると思われない場合
+			else if (cutNode)
+				extension = -2;
 
 			//  注意 : 王手延長に関して、Stockfishのコード、ここに持ってくる時には気をつけること！
 			// →　将棋では王手はわりと続くのでそのまま持ってくるとやりすぎの可能性が高い。
 			// 備考) Stockfishで削除されたが、王手延長自体は何らかあった方が良い可能性はあるので条件を調整してはどうか。
 			// Remove check extension : https://github.com/official-stockfish/Stockfish/commit/96837bc4396d205536cdaabfc17e4885a48b0588
 
-			// Extension for capturing the previous moved piece (~1 Elo at LTC)
-			// 前に動かされた駒を取る場合の延長（LTCで約1 Elo）
-
-			else if (PvNode && move.to_sq() == prevSq
-				&& thisThread->captureHistory(movedPiece,move.to_sq(),type_of(pos.piece_on(move.to_sq()))) > 4321)
-				extension = 1;
+			// Extension for capturing the previous moved piece
+			// 前に動かされた駒を取る場合の延長
 		}
 
 
