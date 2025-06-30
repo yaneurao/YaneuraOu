@@ -127,13 +127,9 @@ private:
 	bool  skipQuiets = false;
 
 	// 指し手生成バッファ
-	// 最大合法手の数 = 593 , これを要素数が32の倍数になるようにpaddingすると608。
-	// 32byteの倍数になるようにcurを使いたいので+3(ttmoveとkillerの分)して、611。
-#if !defined(USE_SUPER_SORT)
+	// 最大合法手の数 = 593
+	// cf. https://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
 	ExtMove moves[MAX_MOVES];
-#else
-	ExtMove moves[611];
-#endif
 };
 
 #endif // defined(USE_MOVE_PICKER)

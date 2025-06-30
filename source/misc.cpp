@@ -411,13 +411,6 @@ const std::string config_info()
 		false;
 #endif
 
-	bool use_super_sort =
-#if defined(USE_SUPER_SORT)
-		true;
-#else
-		false;
-#endif
-
 	bool tuning_parameters =
 #if defined(TUNING_SEARCH_PARAMETERS)
 		true;
@@ -457,7 +450,6 @@ const std::string config_info()
 	config += o2("FOR_TOURNAMENT"           , for_tournament     );
 	config += o2("ENABLE_TEST_CMD"          , test_cmd           );
 	config += o2("ENABLE_MAKEBOOK_CMD"      , make_book_cmd      );
-	config += o2("USE_SUPER_SORT"           , use_super_sort     );
 	config += o2("TUNING_SEARCH_PARAMETERS" , tuning_parameters  );
 	config += o2("USE_GLOBAL_OPTIONS"       , global_options     );
 	config += o2("EVAL_LEARN"               , eval_learn         );

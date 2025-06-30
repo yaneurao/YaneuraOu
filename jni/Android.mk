@@ -182,7 +182,6 @@ LOCAL_SRC_FILES := \
   ../source/extra/bitop.cpp                                            \
   ../source/extra/long_effect.cpp                                      \
   ../source/extra/sfen_packer.cpp                                      \
-  ../source/extra/super_sort.cpp                                       \
   ../source/mate/mate.cpp                                              \
   ../source/mate/mate1ply_without_effect.cpp                           \
   ../source/mate/mate1ply_with_effect.cpp                              \

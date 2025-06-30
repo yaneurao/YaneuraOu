@@ -268,16 +268,8 @@
 //  高速化に関する設定
 // ---------------------
 
-
 // トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。ASSERTなし。GlobalOptionsなし。
 // #define FOR_TOURNAMENT
-
-// sortが少し高速化されるらしい。
-// 注意)
-//  安定ソートではないので並び順が以前のとは異なるから、benchコマンドの探索ノード数は変わる。
-//  CPU targetによって実装が変わるのでCPUによってbenchコマンドの探索ノード数は変わる。
-// #define USE_SUPER_SORT
-
 
 // ---------------------
 // ふかうら王(dlshogi互換エンジン)に関する設定。
