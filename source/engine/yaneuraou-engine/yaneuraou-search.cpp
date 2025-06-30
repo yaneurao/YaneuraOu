@@ -3212,9 +3212,8 @@ moves_loop: // When in check, search starts here
 		// その手を最善手に昇格させます。この際、α（アルファ）を少しだけ超えるが、
 		// β（ベータ）は超えないように見せかけます。
 
-		int inc =
-			(value == bestValue && (int(thisThread->nodes) & 15) == 0 && ss->ply + 2 >= thisThread->rootDepth
-				&& std::abs(value) + 1 < VALUE_TB_WIN_IN_MAX_PLY);
+		int inc = (value == bestValue && ss->ply + 2 >= thisThread->rootDepth
+			&& (int(thisThread->nodes) & 15) == 0 && !is_win(std::abs(value) + 1));
 
 		if (value + inc > bestValue)
 		{
@@ -3231,7 +3230,10 @@ moves_loop: // When in check, search starts here
 
 				if (value >= beta)
 				{
-					ss->cutoffCnt += !ttData.move + (extension < 2);
+					// (* Scaler) Especially if they make cutoffCnt increment more often.
+					// （*Scaler）特に cutoffCnt のインクリメントをより頻繁に行わせる場合に
+					ss->cutoffCnt += (extension < 2) || PvNode;
+
 					ASSERT_LV3(value >= beta); // Fail high
 
 					// value >= beta なら fail high(beta cut)
@@ -3240,21 +3242,18 @@ moves_loop: // When in check, search starts here
 					// beta cutである。
 					break;
 				}
-				else
-				{
-					// Reduce other moves if we have found at least one score improvement (~2 Elo)
-					// 少なくとも1つのスコアの改善が見られた場合、他の手(の探索深さ)を削減します。
 
-					if (depth > 2 && depth < 14 && std::abs(value) < VALUE_TB_WIN_IN_MAX_PLY)
-						depth -= 2;
+				// Reduce other moves if we have found at least one score improvement
+				// 少なくとも1つのスコアの改善が見られた場合、他の手(の探索深さ)を削減します。
+				if (depth > 2 && depth < 16 && !is_decisive(value))
+					depth -= 2;
 
-					ASSERT_LV3(depth > 0);
-					alpha = value; // Update alpha! Always alpha < beta
+				ASSERT_LV3(depth > 0);
+				alpha = value; // Update alpha! Always alpha < beta
 
-					// alpha値を更新したので更新しておく
-					// このとき相手からの詰みがあるかどうかを調べるなどしたほうが良いなら
-					// ここに書くべし。
-				}
+				// alpha値を更新したので更新しておく
+				// このとき相手からの詰みがあるかどうかを調べるなどしたほうが良いなら
+				// ここに書くべし。
 			}
 		}
 
