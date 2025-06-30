@@ -845,7 +845,7 @@ void search_thread_init(Thread* th, Stack* ss , Move pv[])
 	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
 	for (int i = 7; i > 0; --i)
 	{
-		(ss - i)->continuationHistory           = &th->continuationHistory[0][0](NO_PIECE, SQ_ZERO); // Use as a sentinel
+		(ss - i)->continuationHistory           = &th->continuationHistory[0][0][NO_PIECE][0]; // Use as a sentinel
 //      (ss - i)->continuationCorrectionHistory = &this->continuationCorrectionHistory[NO_PIECE][0];
 		(ss - i)->staticEval                    = VALUE_NONE;
 	}
@@ -2173,7 +2173,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	{
 		int bonus = std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -1858, 1492) + 661;
 		// TODO : この右辺の↑係数、調整すべきか？
-		thisThread->mainHistory(~us, ((ss - 1)->currentMove).from_to()) << bonus * 1057 / 1024;
+		thisThread->mainHistory[~us][((ss - 1)->currentMove).from_to()] << bonus * 1057 / 1024;
 
 #if defined(ENABLE_PAWN_HISTORY)
 		if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
@@ -2293,15 +2293,17 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 
 		Depth R = std::min(int(eval - beta) / PARAM_NULL_MOVE_DYNAMIC_GAMMA, 6) + depth / 3 + 5;
 
-		ss->currentMove         = Move::null();
+		ss->currentMove                   = Move::null();
+
 		// null moveなので、王手はかかっていなくて駒取りでもない。
 		// よって、continuationHistory[0(王手かかってない)][0(駒取りではない)][NO_PIECE][SQ_ZERO]
-		ss->continuationHistory = &thisThread->continuationHistory[0][0](NO_PIECE, SQ_ZERO);
-		//ss->continuationCorrectionHistory = &thisThread->continuationCorrectionHistory[NO_PIECE][0];
+		ss->continuationHistory           = &thisThread->continuationHistory[0][0][NO_PIECE][0];
 
-		// 王手がかかっている局面では ⇑の方にある goto moves_loop; によってそっちに行ってるので、
+		// ※　王手がかかっている局面では ⇑の方にある goto moves_loop; によってそっちに行ってるので、
 		// ここでは現局面で手番側に王手がかかっていない = 直前の指し手(非手番側)は王手ではない ことがわかっている。
 		// do_null_move()は、この条件を満たす必要がある。
+
+		//ss->continuationCorrectionHistory = &thisThread->continuationCorrectionHistory[NO_PIECE][0];
 
 		lazy_evaluate(pos);
 		pos.do_null_move(st);
@@ -2413,8 +2415,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 			pos.do_move(move, st);
 
 			ss->currentMove = move;
-			ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck][true])
-				(movedPiece, move.to_sq());
+			ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck][true][movedPiece][move.to_sq()];
 			//ss->continuationCorrectionHistory =
 			//	&this->continuationCorrectionHistory[movedPiece][move.to_sq()];
 
@@ -2621,7 +2622,7 @@ moves_loop: // When in check, search starts here
 			if (capture || givesCheck)
 			{
 				Piece capturedPiece = pos.piece_on(move.to_sq());
-				int   captHist      = thisThread->captureHistory(movedPiece, move.to_sq(), type_of(capturedPiece));
+				int   captHist      = thisThread->captureHistory[movedPiece][move.to_sq()][type_of(capturedPiece)];
 
 				// Futility pruning for captures
 				// 駒を取る指し手に対するfutility枝刈り
@@ -2668,8 +2669,8 @@ moves_loop: // When in check, search starts here
 			}
 			else
 			{
-				int history = (*contHist[0])(movedPiece, move.to_sq())
-							+ (*contHist[1])(movedPiece, move.to_sq())
+				int history = (*contHist[0])[movedPiece][move.to_sq()]
+							+ (*contHist[1])[movedPiece][move.to_sq()]
 #if defined(ENABLE_PAWN_HISTORY)
 							+ thisThread->pawnHistory(pawn_structure(pos), movedPiece, move.to_sq())
 #endif
@@ -2681,7 +2682,7 @@ moves_loop: // When in check, search starts here
 				if (history < -4229 * depth)
 					continue;
 
-				history += 68 * thisThread->mainHistory(us, move.from_to()) / 32;
+				history += 68 * thisThread->mainHistory[us][move.from_to()] / 32;
 
 				lmrDepth += history / 3388;
 
@@ -2890,10 +2891,8 @@ moves_loop: // When in check, search starts here
 		// Update the current move (this must be done after singular extension search)
 		// 現在このスレッドで探索している指し手を更新しておく。(これは、singular extension探索のあとになされるべき)
 		ss->currentMove = move;
-		ss->continuationHistory = &(thisThread->continuationHistory[ss->inCheck]
-																   [capture    ])
-																   (movedPiece ,
-																    move.to_sq());
+		ss->continuationHistory = &thisThread->continuationHistory[ss->inCheck][capture][movedPiece][move.to_sq()];
+
 		//ss->continuationCorrectionHistory =
 		//  &thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
 		//uint64_t nodeCount = rootNode ? uint64_t(nodes) : 0;
@@ -2950,12 +2949,12 @@ moves_loop: // When in check, search starts here
 		if (capture)
 			ss->statScore =
 				826 * /* int(PieceValue[pos.captured_piece()])*/ CapturePieceValuePlusPromote(pos, move) / 128
-				+ thisThread->captureHistory(movedPiece, move.to_sq(), type_of(pos.captured_piece()))
+				+ thisThread->captureHistory[movedPiece][move.to_sq()][type_of(pos.captured_piece())]
 				- 5030;
 		else
-			ss->statScore =   2 * thisThread->mainHistory(us, move.from_to())
-						+     (*contHist[0])(movedPiece, move.to_sq())
-						+     (*contHist[1])(movedPiece, move.to_sq()) - 3206;
+			ss->statScore =   2 * thisThread->mainHistory[us][move.from_to()]
+						+     (*contHist[0])[movedPiece][move.to_sq()]
+						+     (*contHist[1])[movedPiece][move.to_sq()] - 3206;
 			
 		// Decrease/increase reduction for moves with a good/bad history
 		// 良い/悪い履歴を持つ手に対して、reductionを減らす/増やす
@@ -3360,7 +3359,7 @@ moves_loop: // When in check, search starts here
 		update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
 										scaledBonus * 412 / 32768);
 
-		thisThread->mainHistory(~us, (ss - 1)->currentMove.from_to())
+		thisThread->mainHistory[~us][(ss - 1)->currentMove.from_to()]
 			<< scaledBonus * 203 / 32768;
 
 		//if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
@@ -3374,7 +3373,7 @@ moves_loop: // When in check, search starts here
 	{
 		Piece capturedPiece = pos.captured_piece();
 		assert(capturedPiece != NO_PIECE);
-		thisThread->captureHistory(pos.piece_on(prevSq),prevSq,type_of(capturedPiece)) << 1080;
+		thisThread->captureHistory[pos.piece_on(prevSq)][prevSq][type_of(capturedPiece)] << 1080;
 	}
 
 
@@ -4010,7 +4009,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 			//   成りでない && seeが負の指し手はNG。王手回避でなくとも、同様。
 
 			if (!capture
-				&&    (*contHist[0])(pos.moved_piece_after(move), move.to_sq())
+				&&    (*contHist[0])[pos.moved_piece_after(move)][move.to_sq()]
 				/*
 					+ thisThread->pawnHistory[pawn_structure_index(pos)][pos.moved_piece(move)]
 					[move.to_sq()]
@@ -4047,7 +4046,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		ss->currentMove = move;
 
 		ss->continuationHistory =
-			&(thisThread->continuationHistory[ss->inCheck][capture])(movedPiece,move.to_sq());
+			&thisThread->continuationHistory[ss->inCheck][capture][movedPiece][move.to_sq()];
 
 		//ss->continuationCorrectionHistory =
 		//	&thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
@@ -4320,7 +4319,7 @@ void update_all_stats(
 		// 最善手が捕獲する指し手だった場合、その統計を増加させる
 
 		capturedPiece = type_of(pos.piece_on(bestMove.to_sq()));
-		captureHistory(moved_piece, bestMove.to_sq(), capturedPiece) << bonus * 1213 / 1024;
+		captureHistory[moved_piece][bestMove.to_sq()][capturedPiece] << bonus * 1213 / 1024;
 	}
 
 	// Extra penalty for a quiet early move that was not a TT move in
@@ -4348,7 +4347,7 @@ void update_all_stats(
 		//  それに倣う必要がある。
 		moved_piece   = pos.moved_piece_after(move);
 		capturedPiece = type_of(pos.piece_on(move.to_sq()));
-		captureHistory(moved_piece, move.to_sq(), capturedPiece) << -malus * 1388 / 1024;
+		captureHistory[moved_piece][move.to_sq()][capturedPiece] << -malus * 1388 / 1024;
 	}
 }
 
@@ -4374,7 +4373,7 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus)
 		if (ss->inCheck && i > 2)
 			break;
 		if (((ss - i)->currentMove).is_ok())
-			(*(ss - i)->continuationHistory)(pc,to) << bonus * weight / 1024;
+			(*(ss - i)->continuationHistory)[pc][to] << bonus * weight / 1024;
 	}
 }
 
@@ -4390,10 +4389,10 @@ void update_quiet_histories(
 	const Position& pos, Stack* ss, /*Search::Worker& workerThread*/ Thread& workerThread,  Move move, int bonus) {
 
 	Color us = pos.side_to_move();
-	workerThread.mainHistory(us, move.from_to()) << bonus;    // Untuned to prevent duplicate effort
+	workerThread.mainHistory[us][move.from_to()] << bonus;    // Untuned to prevent duplicate effort
 
 	if (ss->ply < LOW_PLY_HISTORY_SIZE)
-		workerThread.lowPlyHistory(ss->ply, move.from_to()) << bonus * 792 / 1024;
+		workerThread.lowPlyHistory[ss->ply][move.from_to()] << bonus * 792 / 1024;
 
 	update_continuation_histories(ss, pos.moved_piece_after(move), move.to_sq(),
 		bonus * (bonus > 0 ? 1082 : 784) / 1024);

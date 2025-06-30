@@ -72,15 +72,11 @@ void Thread::clear()
 	// あまり意味がないが、無駄ではないらしい。
 	// Tweak history initialization : https://github.com/official-stockfish/Stockfish/commit/7d44b43b3ceb2eebc756709432a0e291f885a1d2
 
-	for (bool inCheck : { false, true })
-		for (StatsType c : { NoCaptures, Captures })
-			//for (auto& to : continuationHistory[inCheck][c])
-			//	for (auto& h : to)
-			//		h->fill(-473);
-
-			// ↑この初期化コードは、ContinuationHistory::fill()に移動させた。
-
-			continuationHistory[inCheck][c].fill(-473);
+	for (bool inCheck : {false, true})
+		for (StatsType c : {NoCaptures, Captures})
+			for (auto& to : continuationHistory[inCheck][c])
+				for (auto& h : to)
+					h.fill(-473);
 
 	//for (size_t i = 1; i < reductions.size(); ++i)
 	//	reductions[i] = int(2796 / 128.0 * std::log(i));

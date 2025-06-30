@@ -288,7 +288,7 @@ void MovePicker::score()
 			// → しかしこのあとsee_ge()の引数に使うのだが、see_ge()ではpromotionの価値を考慮してないので、
 			//    ここでpromotionの価値まで足し込んでしまうとそこと整合性がとれなくなるのか…。
 
-			m.value = (*captureHistory)(pc, to, type_of(capturedPiece))
+			m.value = (*captureHistory)[pc][to][type_of(capturedPiece)]
 						+ 7 * int(Eval::CapturePieceValuePlusPromote(pos, m)) + 1024 * bool(pos.check_squares(pt) & to);
 			// →　係数を掛けてるのは、
 			// このあと、GOOD_CAPTURE で、
@@ -305,15 +305,15 @@ void MovePicker::score()
 			// →　指し手オーダリングは、quietな指し手の間での優劣を付けたいわけで、
 			//    駒を成るような指し手はどうせevaluate()で大きな値がつくからそっちを先に探索することになる。
 
-			m.value  =  2 * (*mainHistory)(us, m.from_to());
+			m.value  =  2 * (*mainHistory)[us][m.from_to()];
 #if defined(ENABLE_PAWN_HISTORY)
-			m.value +=  2 * (*pawnHistory)(pawn_structure(pos), pc, to);
+			m.value +=  2 * (*pawnHistory)[pawn_structure(pos)][pc][to];
 #endif
-			m.value +=      (*continuationHistory[0])(pc,to);
-			m.value +=      (*continuationHistory[1])(pc,to);
-			m.value +=      (*continuationHistory[2])(pc,to);
-			m.value +=      (*continuationHistory[3])(pc,to);
-			m.value +=      (*continuationHistory[5])(pc,to);
+			m.value +=      (*continuationHistory[0])[pc][to];
+			m.value +=      (*continuationHistory[1])[pc][to];
+			m.value +=      (*continuationHistory[2])[pc][to];
+			m.value +=      (*continuationHistory[3])[pc][to];
+			m.value +=      (*continuationHistory[5])[pc][to];
 
 			// bonus for checks
 			m.value += (bool(pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 16384;
@@ -345,7 +345,7 @@ void MovePicker::score()
 
 			// lowPlyHistoryも加算
 			if (ply < LOW_PLY_HISTORY_SIZE)
-				m.value += 8 * (*lowPlyHistory)(ply, m.from_to()) / (1 + ply);
+				m.value += 8 * (*lowPlyHistory)[ply][m.from_to()] / (1 + ply);
 			
 		}
 		else // Type == EVASIONS
@@ -374,9 +374,9 @@ void MovePicker::score()
 			else
 			{
 				// それ以外の指し手に関してはhistoryの値の順番
-				m.value = (*mainHistory)(us, m.from_to()) + (*continuationHistory[0])(pc, to);
+				m.value = (*mainHistory)[us][m.from_to()] + (*continuationHistory[0])[pc][to];
 				if (ply < LOW_PLY_HISTORY_SIZE)
-					m.value += 2 * (*lowPlyHistory)(ply, m.from_to()) / (1 + ply);
+					m.value += 2 * (*lowPlyHistory)[ply][m.from_to()] / (1 + ply);
 			}
 		}
 	}
