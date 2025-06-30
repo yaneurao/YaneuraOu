@@ -483,9 +483,6 @@
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp">
       <Filter>リソース ファイル\engine\yaneuraou-engine</Filter>
     </ClCompile>
-    <ClCompile Include="extra\super_sort.cpp">
-      <Filter>リソース ファイル\extra</Filter>
-    </ClCompile>
     <ClCompile Include="eval\nnue\features\half_kpe9.cpp">
       <Filter>リソース ファイル\eval\nnue\features</Filter>
     </ClCompile>

@@ -115,7 +115,7 @@ private:
 	int stage;
 
 	// ProbCut用の指し手生成に用いる、直前の指し手で捕獲された駒の価値
-	Value threshold;
+	int threshold;
 
 	// コンストラクタで渡された探索深さ
 	Depth depth;
