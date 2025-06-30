@@ -26,19 +26,6 @@ void super_sort(ExtMove* start, ExtMove* end);
 #endif
 
 namespace {
-
-// -----------------------
-//   LVA
-// -----------------------
-
-// 被害が小さいように、LVA(価値の低い駒)を動かして取るほうが優先されたほうが良いので駒に価値の低い順に番号をつける。そのためのテーブル。
-// ※ LVA = Least Valuable Aggressor。cf.MVV-LVA
-
-constexpr Value LVATable[PIECE_WHITE] = {
-  Value(0), Value(1) /*歩*/, Value(2)/*香*/, Value(3)/*桂*/, Value(4)/*銀*/, Value(7)/*角*/, Value(8)/*飛*/, Value(6)/*金*/,
-  Value(10000)/*王*/, Value(5)/*と*/, Value(5)/*杏*/, Value(5)/*圭*/, Value(5)/*全*/, Value(9)/*馬*/, Value(10)/*龍*/,Value(11)/*成金*/
-};
-constexpr Value LVA(const PieceType pt) { return LVATable[pt]; }
   
 // -----------------------
 //   指し手オーダリング
@@ -265,28 +252,18 @@ void MovePicker::score()
 {
 	static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
 
-	// threatened        : 自分より価値の安い駒で当たりになっているか
-	// threatenedByPawn  : 敵の歩の利き。
-	// threatenedByMinor : 敵の歩・小駒による利き
-	// threatenedByRook  : 敵の大駒による利き(やねうら王では使わず)
+	Color us = pos.side_to_move();
 
-	// [[maybe_unused]] Bitboard threatenedByPawn, threatenedByMinor, threatenedByRook, threatenedPieces;
+	// 自分より価値の安い駒で当たりになっているか
+	//[[maybe_unused]] Bitboard threatByLesser[QUEEN + 1];
 
 	if constexpr (Type == QUIETS)
 	{
 #if 0
-		Color us = pos.side_to_move();
-		// squares threatened by pawns
-		threatenedByPawn  = pos.attacks_by<PAWN>(~us);
-		// squares threatened by minors or pawns
-		threatenedByMinor = pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatenedByPawn;
-		// squares threatened by rooks, minors or pawns
-		threatenedByRook  = pos.attacks_by<ROOK>(~us) | threatenedByMinor;
-
-		// pieces threatened by pieces of lesser material value
-		threatened =  (pos.pieces(us, QUEEN) & threatenedByRook)
-					| (pos.pieces(us, ROOK)  & threatenedByMinor)
-					| (pos.pieces(us, KNIGHT, BISHOP) & threatenedByPawn);
+		threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.attacks_by<PAWN>(~us);
+		threatByLesser[ROOK] =
+			pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatByLesser[KNIGHT];
+		threatByLesser[QUEEN] = pos.attacks_by<ROOK>(~us) | threatByLesser[ROOK];
 #endif
 
 #if 0
@@ -307,6 +284,12 @@ void MovePicker::score()
 
 	for (auto& m : *this)
 	{
+		const Square    from = m.from_sq();
+		const Square    to = m.to_sq();
+		const Piece     pc = pos.moved_piece_after(m); // TODO : ここ、afterのほうがいいか？
+		const PieceType pt = type_of(pc);
+		const Piece     capturedPiece = pos.piece_on(to);
+
 		if constexpr (Type == CAPTURES)
 		{
 			// Position::see()を用いると遅い。単に取る駒の価値順に調べたほうがパフォーマンス的にもいい。
@@ -323,9 +306,9 @@ void MovePicker::score()
 			// → しかしこのあとsee_ge()の引数に使うのだが、see_ge()ではpromotionの価値を考慮してないので、
 			//    ここでpromotionの価値まで足し込んでしまうとそこと整合性がとれなくなるのか…。
 
-			m.value = 7 * int(Eval::CapturePieceValuePlusPromote(pos, m))
-					   + (*captureHistory)(pos.moved_piece_after(m), m.to_sq(), type_of(pos.piece_on(m.to_sq())));
-			// →　係数を掛けたり全体を16で割ったりしているのは、
+			m.value = (*captureHistory)(pc, to, type_of(capturedPiece))
+						+ 7 * int(Eval::CapturePieceValuePlusPromote(pos, m)) + 1024 * bool(pos.check_squares(pt) & to);
+			// →　係数を掛けてるのは、
 			// このあと、GOOD_CAPTURE で、
 			//	return pos.see_ge(*cur, Value(-cur->value))
 			// のようにしてあって、要するにsee_ge()の時のスケール(PieceValue)に変換するため。
@@ -340,35 +323,32 @@ void MovePicker::score()
 			// →　指し手オーダリングは、quietな指し手の間での優劣を付けたいわけで、
 			//    駒を成るような指し手はどうせevaluate()で大きな値がつくからそっちを先に探索することになる。
 
-			Piece     pc = pos.moved_piece_after(m);
-			//PieceType pt = type_of(pos.moved_piece_before(m));
-			//Square    from = from_sq(m);
-			Square    to = m.to_sq();
-
-			m.value  =      (*mainHistory)(pos.side_to_move(), m.from_to());
+			m.value  =  2 * (*mainHistory)(pos.side_to_move(), m.from_to());
 #if defined(ENABLE_PAWN_HISTORY)
 			m.value +=  2 * (*pawnHistory)(pawn_structure(pos), pc, to);
 #endif
-			m.value +=  2 * (*continuationHistory[0])(pc,to);
+			m.value +=      (*continuationHistory[0])(pc,to);
 			m.value +=      (*continuationHistory[1])(pc,to);
-			m.value +=      (*continuationHistory[2])(pc,to) / 3;
+			m.value +=      (*continuationHistory[2])(pc,to);
 			m.value +=      (*continuationHistory[3])(pc,to);
 			m.value +=      (*continuationHistory[5])(pc,to);
 
 			// bonus for checks
-            //m.value += bool(pos.check_squares(pt) & to) * 16384;
-			// TODO : あとで効果を検証する[2023/10/29]
-
+			m.value += (bool(pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 16384;
+			// これ、効果があるのか検証したほうが良さげ。
 
 			//	移動元の駒が安い駒で当たりになっている場合、移動させることでそれを回避できるなら価値を上げておく。
 #if 0
-					+     (threatened & from_sq(m) ?
-							 (type_of(pos.moved_piece_before(m)) == QUEEN && !(to_sq(m) & threatenedByRook ) ? 50000
-							: type_of(pos.moved_piece_before(m)) == ROOK  && !(to_sq(m) & threatenedByMinor) ? 25000
-							:                                                !(to_sq(m) & threatenedByPawn ) ? 15000
-							:																					0)
-																											    0);
-				// → Stockfishのコードそのままは書けない。
+			// penalty for moving to a square threatened by a lesser piece
+			// or bonus for escaping an attack by a lesser piece.
+			if (KNIGHT <= pt && pt <= QUEEN)
+			{
+				static constexpr int bonus[QUEEN + 1] = { 0, 0, 144, 144, 256, 517 };
+				int v = threatByLesser[pt] & to ? -95 : 100 * bool(threatByLesser[pt] & from);
+				m.value += bonus[pt] * v;
+			}
+
+			// → Stockfishのコードそのままは書けない。
 #endif
 
 #if 0
@@ -383,8 +363,8 @@ void MovePicker::score()
 
 			// lowPlyHistoryも加算
 			if (ply < LOW_PLY_HISTORY_SIZE)
-				m.value += 8 * (*lowPlyHistory)(ply , m.from_to()) / (1 + 2 * ply);
-
+				m.value += 8 * (*lowPlyHistory)(ply, m.from_to()) / (1 + ply);
+			
 		}
 		else // Type == EVASIONS
 		{
@@ -400,17 +380,9 @@ void MovePicker::score()
 				// moved_piece_after()だと、角成りの方は、取られた時の損失が多いとみなされてしまい、
 				// オーダリング上、後回しになってしまう。
 
-				//m.value = PieceValue[pos.piece_on(to_sq(m))] - Value(type_of(pos.moved_piece(m)))
-				//		+ (1 << 28);
-
-				// 上記のStockfishのコードのValue()は関数ではなく単にValue型へcastしているだけ。
-				// 駒番号順に価値が低いと考えて(普通は成り駒ではないから)、LVAとしてそれを優先して欲しいという意味。
+				//m.value = PieceValue[capturedPiece] + (1 << 28);
 
 				m.value = Eval::CapturePieceValuePlusPromote(pos, m)
-				        - Value(LVA(type_of(pos.moved_piece_before(m))))
-						// ↑ここ、LVAテーブル使わずにPieceValueを64で割るとかできなくもないが、
-						// 　下手にやると、香と桂にような価値が近い駒に対して優先順位がつけられない。
-						//   愚直にLVAテーブル使うべき。
                         + (1 << 28);
                         // ⇑これは、captureの指し手のスコアがそうでない指し手のスコアより
                         //   常に大きくなるようにするための下駄履き。
@@ -418,14 +390,12 @@ void MovePicker::score()
 						//     captureの時にしておく。
 						
 			else
+			{
 				// それ以外の指し手に関してはhistoryの値の順番
-				m.value =     (*mainHistory)(pos.side_to_move(), m.from_to())
-						  +   (*continuationHistory[0])(pos.moved_piece_after(m), m.to_sq())
-#if defined(ENABLE_PAWN_HISTORY)
-						  +   (*pawnHistory)(pawn_structure(pos), pos.moved_piece_after(m), m.to_sq())
-#endif
-				;
-
+				m.value = (*mainHistory)(us, m.from_to()) + (*continuationHistory[0])(pc, to);
+				if (ply < LOW_PLY_HISTORY_SIZE)
+					m.value += 2 * (*lowPlyHistory)(ply, m.from_to()) / (1 + ply);
+			}
 		}
 	}
 }
@@ -439,22 +409,14 @@ void MovePicker::score()
 // ※　この関数の返し値は同時にthis->moveにも格納されるので活用すると良い。filterのなかでも
 //   この変数にアクセスできるので、指し手によってfilterするかどうかを選べる。
 
-template<MovePicker::PickType T, typename Pred>
+template<typename Pred>
 Move MovePicker::select(Pred filter) {
 
-	while (cur < endMoves)
-	{
-		// TがBestならBestを探してcurが指す要素と入れ替える。
-		// それがttMoveであるなら、もう一周する。
-		if constexpr (T == Best)
-			std::swap(*cur, *std::max_element(cur, endMoves));
-
+	for (; cur < endCur; ++cur)
 		// filter()のなかで*curにアクセスして判定するのでfilter()は引数を取らない。
 		if (*cur != ttMove && filter())
 			return *cur++;
 
-		cur++;
-	}
 	return Move::none();
 }
 
@@ -468,12 +430,6 @@ Move MovePicker::select(Pred filter) {
 // ※ 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
 // skipQuiets : これがtrueだとQUIETな指し手は返さない。
 Move MovePicker::next_move() {
-
-#if defined(USE_SUPER_SORT) && defined(USE_AVX2)
-	auto quiet_threshold = [](Depth d) { return -PARAM_MOVEPICKER_SORT_ALPHA1 * d; };
-#else
-	auto quiet_threshold = [](Depth d) { return -PARAM_MOVEPICKER_SORT_ALPHA2 * d; };
-#endif
 
 top:
 	switch (stage) {
@@ -491,27 +447,13 @@ top:
 	case PROBCUT_INIT:
 	case QCAPTURE_INIT:
 		cur = endBadCaptures = moves;
-
-#if !defined(MOVE_PICKER_GENERATE_CAPTURE)
-		// CAPTURE_INITのあとはこのあと残りの指し手を生成する必要があるので、generate_all_legal_movesがtrueなら、CAPTURE_PRO_PLUSで歩の成らずの指し手も生成する。
-		// PROBCUT_INIT、QCAPTURE_INITの時は、このあと残りの指し手を生成しないので歩の成らずを生成しても仕方がない。
-		if (stage == CAPTURE_INIT)
-			endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, cur) : generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
-		else if (stage == PROBCUT_INIT)
-			// ProbCutでは、歩の成りも生成する。
-			endMoves = generateMoves<CAPTURES_PRO_PLUS>(pos, cur);
-		else if (stage == QCAPTURE_INIT)
-			// qsearchでは歩の成りは不要。駒を取る手だけ生成すれば十分。
-			endMoves = generateMoves<CAPTURES>(pos, cur);
-#else
-		endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<CAPTURES_ALL>(pos, cur) : generateMoves<CAPTURES>(pos, cur);
-#endif
+		endCur = Search::Limits.generate_all_legal_moves ? generateMoves<CAPTURES_ALL>(pos, cur) : generateMoves<CAPTURES>(pos, cur);
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
 
 		// captureの指し手はそんなに数多くないので全数ソートで問題ないし、全数ソートした方が良い。
-		partial_insertion_sort(cur, endMoves, std::numeric_limits<int>::min());
+		partial_insertion_sort(cur, endCur, std::numeric_limits<int>::min());
 
 		++stage;
 		goto top;
@@ -519,16 +461,15 @@ top:
 	// 置換表の指し手を返したあとのフェーズ
 	// (killer moveの前のフェーズなのでkiller除去は不要)
 	case GOOD_CAPTURE:
-		if (select<Next>([&]() {
-				// Move losing capture to endBadCaptures to be tried later
-				// 損をする(SEE値が悪い)captureの指し手はあとで試すためにendBadCapturesに移動させる
-
-				// moveは駒打ちではないからsee()の内部での駒打ちは判定不要だが…。
-                return pos.see_ge(*cur, Value(-cur->value / 18)) ? true
-																 : (*endBadCaptures++ = *cur, false);
-				// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
+		if (select([&]() {
+			// moveは駒打ちではないからsee()の内部での駒打ちは判定不要だが…。
+			if (pos.see_ge(*cur, -cur->value / 18))
+				return true;
+			std::swap(*endBadCaptures++, *cur);
+			// 損をする捕獲する指し手はあとのほうで試行されるようにendBadCapturesに移動させる
+			return false;
 			}))
-			return *(cur -1);
+			return *(cur - 1);
 
 		++stage;
 		[[fallthrough]];
@@ -538,7 +479,7 @@ top:
 
 		if (!skipQuiets)
 		{
-			cur = endBadCaptures;
+			cur = endBadQuiets = endBadCaptures;
 
 			/*
 			moves          : バッファの先頭
@@ -585,11 +526,7 @@ top:
 			cur = (ExtMove*)Math::align((size_t)cur, 32);
 #endif
 
-#if !defined(MOVE_PICKER_GENERATE_CAPTURE)
-			endMoves = beginBadQuiets = endBadQuiets = Search::Limits.generate_all_legal_moves ? generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(pos, cur) : generateMoves<NON_CAPTURES_PRO_MINUS>(pos, cur);
-#else
-			endMoves = beginBadQuiets = endBadQuiets = Search::Limits.generate_all_legal_moves ? generateMoves<NON_CAPTURES_ALL          >(pos, cur) : generateMoves<NON_CAPTURES          >(pos, cur);
-#endif
+			endCur = Search::Limits.generate_all_legal_moves ? generateMoves<NON_CAPTURES_ALL>(pos, cur) : generateMoves<NON_CAPTURES>(pos, cur);
 			// 注意 : ここ⇑、CAPTURE_INITで生成した指し手に歩の成りの指し手が含まれているなら、それを除外しなければならない。
 
 			// 駒を捕獲しない指し手に対してオーダリングのためのスコアをつける
@@ -612,9 +549,9 @@ top:
 
 #if defined(USE_SUPER_SORT) && defined(USE_AVX2)
 			// SuperSortを有効にするとinsertion_sortと結果が異なるのでbenchコマンドの探索node数が変わって困ることがあるので注意。
-			partial_super_sort(cur, endMoves, quiet_threshold(depth));
+			partial_super_sort(cur, endCur, -3560 * depth);
 #else
-			partial_insertion_sort(cur, endMoves, quiet_threshold(depth));
+			partial_insertion_sort(cur, endCur, -3560 * depth);
 #endif
 
 			// →　sort時間がもったいないのでdepthが浅いときはscoreの悪い指し手を無視するようにしているだけで
@@ -633,71 +570,68 @@ top:
 		// (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
 		// ※　これ、指し手の数が多い場合、AVXを使って一気に削除しておいたほうが良いのでは..
 	case GOOD_QUIET:
-		if (!skipQuiets
-			&& select<Next>([&]() { return true; }))
-		{
-			if ((cur - 1)->value > -7998 || (cur - 1)->value <= quiet_threshold(depth))
-				return *(cur - 1);
+		if (!skipQuiets && select([&]() {
+			if (cur->value > -14000)
+				return true;
+			*endBadQuiets++ = *cur;
+			return false;
+			}))
+			return *(cur - 1);
 
-			// Remaining quiets are bad
-			// 残っているquietの手は悪手です
-
-			beginBadQuiets = cur - 1;
-		}
-
+		// Prepare the pointers to loop over the bad captures
 		// bad capturesの指し手を返すためにポインタを準備する。
-		// bad capturesの先頭を指すようにする。これは指し手生成バッファの先頭からの領域を再利用している。
+		// ※　bad capturesの先頭を指すようにする。これは指し手生成バッファの先頭からの領域を再利用している。
+
 		cur = moves;
-		endMoves = endBadCaptures;
+		endCur = endBadCaptures;
 
 		++stage;
 		[[fallthrough]];
 
 		// see()が負の指し手を返す。
 	case BAD_CAPTURE:
-		if (select<Next>([]() { return true; }))
+		if (select([]() { return true; }))
 			return *(cur - 1);
 
 		// Prepare the pointers to loop over the bad quiets
 		// 悪いquietの手をループするためのポインタを準備します
 
-		cur = beginBadQuiets;
-		endMoves = endBadQuiets;
+		cur = endBadCaptures;
+		endCur = endBadQuiets;
 
 		++stage;
 		[[fallthrough]];
 
 	case BAD_QUIET:
 		if (!skipQuiets)
-			return select<Next>([]() { return true; });
+			return select([]() { return true; });
 
 		return Move::none();
 
 		// 王手回避手の生成
 	case EVASION_INIT:
-		cur = moves;
-
-		endMoves = Search::Limits.generate_all_legal_moves ? generateMoves<EVASIONS_ALL>(pos, cur) : generateMoves<EVASIONS>(pos, cur);
+		cur    = moves;
+		endCur = Search::Limits.generate_all_legal_moves ? generateMoves<EVASIONS_ALL>(pos, cur) : generateMoves<EVASIONS>(pos, cur);
 
 		// 王手を回避する指し手に対してオーダリングのためのスコアをつける
 		score<EVASIONS>();
+
+		partial_insertion_sort(cur, endCur, std::numeric_limits<int>::min());
 
 		++stage;
 		[[fallthrough]];
 
 		// 王手回避の指し手を返す
 	case EVASION:
+		// 静止探索用の指し手を返す処理
+	case QCAPTURE:
 		// そんなに数は多くないはずだから、オーダリングがベストのスコアのものを選択する
-		return select<Best>([]() { return true; });
+		return select([]() { return true; });
 
 		// PROBCUTの指し手を返す
 	case PROBCUT:
-		return select<Next>([&]() { return pos.see_ge(*cur, threshold); });
+		return select([&]() { return pos.see_ge(*cur, threshold); });
 		// threadshold以上のSEE値で、ベストのものを一つずつ返す
-
-	// 静止探索用の指し手を返す処理
-	case QCAPTURE:
-		return select<Next>([]() { return true; });
 
 	default:
 		UNREACHABLE;
@@ -709,5 +643,20 @@ top:
 }
 
 void MovePicker::skip_quiet_moves() { skipQuiets = true; }
+
+
+// this function must be called after all quiet moves and captures have been generated
+bool MovePicker::can_move_king_or_pawn() const {
+	// SEE negative captures shouldn't be returned in GOOD_CAPTURE stage
+	assert(stage > GOOD_CAPTURE && stage != EVASION_INIT);
+
+	for (const ExtMove* m = moves; m < endCur; ++m)
+	{
+		PieceType movedPieceType = type_of(pos.moved_piece_after(*m));
+		if ((movedPieceType == PAWN || movedPieceType == KING) && pos.legal(*m))
+			return true;
+	}
+	return false;
+}
 
 #endif // defined(USE_MOVE_PICKER)

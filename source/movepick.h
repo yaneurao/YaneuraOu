@@ -39,13 +39,6 @@
 //
 class MovePicker
 {
-	// 生成順に次の1手を取得するのか、オーダリング上、ベストな指し手を取得するのかの定数
-	// (このクラスの内部で用いる。)
-	enum PickType {
-		Next,
-		Best
-	};
-
 public:
 
 	// このクラスは指し手生成バッファが大きいので、コピーして使うような使い方は禁止。
@@ -80,8 +73,12 @@ public:
 	// next_move()で、quietな指し手をskipするためのフラグをセットする。
 	void skip_quiet_moves();
 
+	// 王か歩を動かせるか？
+	bool can_move_king_or_pawn() const;
+
+
 private:
-	template <PickType T, typename Pred> Move select(Pred);
+	template <typename Pred> Move select(Pred);
 
 	// 指し手のオーダリング用
 	// GenType == CAPTURES : 捕獲する指し手のオーダリング
@@ -92,7 +89,7 @@ private:
 	// range-based forを使いたいので。
 	// 現在の指し手から終端までの指し手が返る。
 	ExtMove* begin() { return cur; }
-	ExtMove* end() { return endMoves; }
+	ExtMove* end() { return endCur; }
 
 	const Position&              pos;
 
@@ -109,11 +106,10 @@ private:
 	Move ttMove;
 
 	// cur            : 次に返す指し手
-	// endMoves       : 生成された指し手の末尾
+	// endCur         : 生成された指し手の末尾
 	// endBadCapture  : BadCaptureの終端(captureの指し手を試すフェイズでのendMovesから後方に向かって悪い捕獲の指し手を移動させていく時に用いる)
-	// beginBadQuiets : あとで
-	// endBadQuiets   : あとで
-	ExtMove *cur, *endMoves, *endBadCaptures, *beginBadQuiets, *endBadQuiets;
+	// endBadQuiets   : BadQuietsの終端
+	ExtMove *cur, *endCur, *endBadCaptures, *endBadQuiets;
 
 	// 指し手生成の段階
 	int stage;
