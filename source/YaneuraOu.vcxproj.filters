@@ -367,13 +367,13 @@
     <ClInclude Include="book\policybook.h">
       <Filter>リソース ファイル\book</Filter>
     </ClInclude>
-    <ClInclude Include="numa.h">
-      <Filter>リソース ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="usi_option.h">
-      <Filter>リソース ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="history.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="numa.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
   </ItemGroup>
@@ -588,11 +588,12 @@
     <ClCompile Include="engine\dlshogi-engine\PvMateSearch.cpp">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
-    <ClCompile Include="memory.cpp">
-      <Filter>リソース ファイル</Filter>
-    </ClCompile>
+    <ClCompile Include="memory.cpp" />
     <ClCompile Include="book\policybook.cpp">
       <Filter>リソース ファイル\book</Filter>
+    </ClCompile>
+    <ClCompile Include="engine.cpp">
+      <Filter>リソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

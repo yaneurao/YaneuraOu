@@ -5,11 +5,17 @@
 //#include <vector>
 
 #include "config.h"
+
+#include "history.h"
 #include "misc.h"
-#include "movepick.h"
+//#include "nnue/network.h"
+//#include "nnue/nnue_accumulator.h"
 #include "numa.h"
 #include "position.h"
-#include "tt.h"
+//#include "score.h"
+//#include "syzygy/tbprobe.h"
+//#include "timeman.h"
+//#include "types.h"
 
 // -----------------------
 //      探索用の定数
@@ -277,15 +283,55 @@ void clear();
 // depth : 反復深化のiteration深さ。
 std::string pv(const Position& pos, const TranspositionTable& tt, Depth depth);
 
-// TODO : 以下、作業中
 
-// Engineが持つべき短い情報
+
+// The UCI stores the uci options, thread pool, and transposition table.
+// This struct is used to easily forward data to the Search::Worker class.
+
+// UCIは、UCIオプション、スレッドプール、トランスポジションテーブルを保持する。
+// この構造体は、Search::Workerクラスへデータを簡単に渡すために使われる。
+
+struct SharedState {
+	SharedState(const OptionsMap& optionsMap,
+		ThreadPool& threadPool,
+		TranspositionTable& transpositionTable
+		// ,const LazyNumaReplicated<Eval::NNUE::Networks>& nets
+	) :
+		options(optionsMap),
+		threads(threadPool),
+		tt(transpositionTable)
+		// ,networks(nets)
+	{
+	}
+
+	const OptionsMap& options;
+	ThreadPool& threads;
+	TranspositionTable& tt;
+	//const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
+};
+
+
+class Worker;
+
+// Null Object Pattern, implement a common interface for the SearchManagers.
+// A Null Object will be given to non-mainthread workers.
+
+// Nullオブジェクトパターン：SearchManagerの共通インターフェースを実装する。
+// メインスレッドでないワーカーにはNullオブジェクトが与えられる。
+
+class ISearchManager {
+public:
+	virtual ~ISearchManager() {}
+	virtual void check_time(Search::Worker&) = 0;
+};
+
+// Engineが持つべき読み筋の情報(簡単版)
 struct InfoShort {
 	int   depth;
 	Value score;
 };
 
-// Engineが持つべき長い情報
+// Engineが持つべき読み筋の情報(完全版)
 struct InfoFull : InfoShort {
 	int              selDepth;
 	size_t           multiPV;
@@ -305,6 +351,160 @@ struct InfoIteration {
 	std::string_view currmove;
 	size_t           currmovenumber;
 };
+
+
+// SearchManager manages the search from the main thread. It is responsible for
+// keeping track of the time, and storing data strictly related to the main thread.
+class SearchManager : public ISearchManager {
+public:
+	using UpdateShort = std::function<void(const InfoShort&)>;
+	using UpdateFull = std::function<void(const InfoFull&)>;
+	using UpdateIter = std::function<void(const InfoIteration&)>;
+	using UpdateBestmove = std::function<void(std::string_view, std::string_view)>;
+
+	struct UpdateContext {
+		UpdateShort    onUpdateNoMoves;
+		UpdateFull     onUpdateFull;
+		UpdateIter     onIter;
+		UpdateBestmove onBestmove;
+	};
+
+
+	SearchManager(const UpdateContext& updateContext) :
+		updates(updateContext) {
+	}
+
+	void check_time(Search::Worker& worker) override;
+
+	void pv(Search::Worker& worker,
+		const ThreadPool& threads,
+		const TranspositionTable& tt,
+		Depth                     depth);
+
+	//Stockfish::TimeManagement tm;
+	double                    originalTimeAdjust;
+	int                       callsCnt;
+	std::atomic_bool          ponder;
+
+	std::array<Value, 4> iterValue;
+	double               previousTimeReduction;
+	Value                bestPreviousScore;
+	Value                bestPreviousAverageScore;
+	bool                 stopOnPonderhit;
+
+	size_t id;
+
+	const UpdateContext& updates;
+};
+
+class NullSearchManager : public ISearchManager {
+public:
+	void check_time(Search::Worker&) override {}
+};
+
+
+// Search::Worker is the class that does the actual search.
+// It is instantiated once per thread, and it is responsible for keeping track
+// of the search history, and storing data required for the search.
+class Worker {
+public:
+	Worker(SharedState&, std::unique_ptr<ISearchManager>, size_t, NumaReplicatedAccessToken);
+
+	// Called at instantiation to initialize reductions tables.
+	// Reset histories, usually before a new game.
+	void clear();
+
+	// Called when the program receives the UCI 'go' command.
+	// It searches from the root position and outputs the "bestmove".
+	void start_searching();
+
+	bool is_mainthread() const { return threadIdx == 0; }
+
+	void ensure_network_replicated();
+
+	// Public because they need to be updatable by the stats
+	ButterflyHistory mainHistory;
+	LowPlyHistory    lowPlyHistory;
+
+	CapturePieceToHistory captureHistory;
+	ContinuationHistory   continuationHistory[2][2];
+	//PawnHistory           pawnHistory;
+
+	//CorrectionHistory<Pawn>         pawnCorrectionHistory;
+	//CorrectionHistory<Minor>        minorPieceCorrectionHistory;
+	//CorrectionHistory<NonPawn>      nonPawnCorrectionHistory;
+	//CorrectionHistory<Continuation> continuationCorrectionHistory;
+
+	TTMoveHistory ttMoveHistory;
+
+private:
+	void iterative_deepening();
+
+	void do_move(Position& pos, const Move move, StateInfo& st);
+	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
+	void do_null_move(Position& pos, StateInfo& st);
+	void undo_move(Position& pos, const Move move);
+	void undo_null_move(Position& pos);
+
+	// This is the main search function, for both PV and non-PV nodes
+	template<NodeType nodeType>
+	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
+
+	// Quiescence search function, which is called by the main search
+	template<NodeType nodeType>
+	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
+
+	Depth reduction(bool i, Depth d, int mn, int delta) const;
+
+	// Pointer to the search manager, only allowed to be called by the main thread
+	SearchManager* main_manager() const {
+		assert(threadIdx == 0);
+		return static_cast<SearchManager*>(manager.get());
+	}
+
+	TimePoint elapsed() const;
+	TimePoint elapsed_time() const;
+
+	Value evaluate(const Position&);
+
+	LimitsType limits;
+
+	size_t                pvIdx, pvLast;
+	std::atomic<uint64_t> nodes, tbHits, bestMoveChanges;
+	int                   selDepth, nmpMinPly;
+
+	Value optimism[COLOR_NB];
+
+	Position  rootPos;
+	StateInfo rootState;
+	RootMoves rootMoves;
+	Depth     rootDepth, completedDepth;
+	Value     rootDelta;
+
+	size_t                    threadIdx;
+	NumaReplicatedAccessToken numaAccessToken;
+
+	// Reductions lookup table initialized at startup
+	std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
+
+	// The main thread has a SearchManager, the others have a NullSearchManager
+	std::unique_ptr<ISearchManager> manager;
+
+	//Tablebases::Config tbConfig;
+
+	const OptionsMap& options;
+	ThreadPool& threads;
+	TranspositionTable& tt;
+	//const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
+
+	// Used by NNUE
+	//Eval::NNUE::AccumulatorStack  accumulatorStack;
+	//Eval::NNUE::AccumulatorCaches refreshTable;
+
+	//friend class Stockfish::ThreadPool;
+	friend class SearchManager;
+};
+
 
 // Continuation Historyに対するBonus値の配列の型
 struct ConthistBonus {

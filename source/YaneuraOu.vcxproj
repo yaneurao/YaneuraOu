@@ -590,6 +590,7 @@
     <ClInclude Include="book\book.h" />
     <ClInclude Include="book\policybook.h" />
     <ClInclude Include="config.h" />
+    <ClInclude Include="engine.h" />
     <ClInclude Include="engine\dlshogi-engine\dlshogi_min.h" />
     <ClInclude Include="engine\dlshogi-engine\dlshogi_types.h" />
     <ClInclude Include="engine\dlshogi-engine\misc\fastmath.h" />
@@ -691,6 +692,7 @@
     <ClCompile Include="book\makebook2015.cpp" />
     <ClCompile Include="book\makebook2025.cpp" />
     <ClCompile Include="book\policybook.cpp" />
+    <ClCompile Include="engine.cpp" />
     <ClCompile Include="engine\dlshogi-engine\dlshogi_searcher.cpp" />
     <ClCompile Include="engine\dlshogi-engine\PrintInfo.cpp" />
     <ClCompile Include="engine\dlshogi-engine\PvMateSearch.cpp" />

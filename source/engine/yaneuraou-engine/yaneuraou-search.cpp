@@ -193,33 +193,55 @@ namespace {
 //   探索用の評価値補整
 // -----------------------
 
-// Add correctionHistory value to raw staticEval and guarantee evaluation
-// does not hit the tablebase range.
-
-// correctionHistoryの値を生のstaticEvalに加算し、
-// 評価がテーブルベースの範囲に達しないように保証します。
-
-Value to_corrected_static_eval(Value v /*, const Worker& w, const Position& pos */) {
 #if 0
-	const Color us    = pos.side_to_move();
-	const auto  pcv   = w.pawnCorrectionHistory[us][pawn_structure_index<Correction>(pos)];
-	const auto  mcv   = w.materialCorrectionHistory[us][material_index(pos)];
-	const auto  macv  = w.majorPieceCorrectionHistory[us][major_piece_index(pos)];
-	const auto  micv  = w.minorPieceCorrectionHistory[us][minor_piece_index(pos)];
-	const auto  wnpcv = w.nonPawnCorrectionHistory[WHITE][us][non_pawn_index<WHITE>(pos)];
-	const auto  bnpcv = w.nonPawnCorrectionHistory[BLACK][us][non_pawn_index<BLACK>(pos)];
-	const auto cv =
-		(6384 * pcv + 3583 * macv + 6492 * micv + 6725 * (wnpcv + bnpcv) + cntcv * 5880) / 131072;
-	v += cv;
+// (*Scalers):
+// The values with Scaler asterisks have proven non-linear scaling.
+// They are optimized to time controls of 180 + 1.8 and longer,
+// so changing them or adding conditions that are similar requires
+// tests at these types of time controls.
 
-	return std::clamp(v, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+	int correction_value(const Worker& w, const Position& pos, const Stack* const ss) {
+		const Color us = pos.side_to_move();
+		const auto  m = (ss - 1)->currentMove;
+		const auto  pcv   = w.pawnCorrectionHistory[pawn_structure_index<Correction>(pos)][us];
+		const auto  micv  = w.minorPieceCorrectionHistory[minor_piece_index(pos)][us];
+		const auto  wnpcv = w.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us];
+		const auto  bnpcv = w.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us];
+		const auto  cntcv =
+			m.is_ok() ? (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
+			: 0;
+
+		return 7696 * pcv + 7689 * micv + 9708 * (wnpcv + bnpcv) + 6978 * cntcv;
+	}
+
+	// Add correctionHistory value to raw staticEval and guarantee evaluation
+	// does not hit the tablebase range.
+	Value to_corrected_static_eval(const Value v, const int cv) {
+		return std::clamp(v + cv / 131072, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+	}
+
+	void update_correction_history(const Position& pos,
+		Stack* const    ss,
+		Search::Worker& workerThread,
+		const int       bonus) {
+		const Move  m = (ss - 1)->currentMove;
+		const Color us = pos.side_to_move();
+
+		static constexpr int nonPawnWeight = 172;
+
+		workerThread.pawnCorrectionHistory[pawn_structure_index<Correction>(pos)][us]
+			<< bonus * 111 / 128;
+		workerThread.minorPieceCorrectionHistory[minor_piece_index(pos)][us] << bonus * 151 / 128;
+		workerThread.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us]
+			<< bonus * nonPawnWeight / 128;
+		workerThread.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us]
+			<< bonus * nonPawnWeight / 128;
+
+		if (m.is_ok())
+			(*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
+			<< bonus * 141 / 128;
+	}
 #endif
-
-	// やねうら王では、evaluate()がVALUE_MAX_EVALの間の値しか返さないことは
-	// 保証されているし、現時点では、correction historyを用いていないので、
-	// ここでは何の補整もしない。
-	return v;
-}
 
 
 // 【計測資料 30.】　Reductionのコード、Stockfish 9と10での比較

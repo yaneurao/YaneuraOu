@@ -342,6 +342,7 @@ SOURCES  = \
 	movepick.cpp                                                               \
 	timeman.cpp                                                                \
 	memory.cpp                                                                 \
+	engine.cpp                                                                 \
 	book/book.cpp                                                              \
 	book/apery_book.cpp                                                        \
 	book/policybook.cpp                                                        \

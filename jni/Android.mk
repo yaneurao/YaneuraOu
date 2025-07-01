@@ -177,6 +177,7 @@ LOCAL_SRC_FILES := \
   ../source/movepick.cpp                                               \
   ../source/timeman.cpp                                                \
   ../source/memory.cpp                                                 \
+  ../source/engine.cpp                                                 \
   ../source/book/apery_book.cpp                                        \
   ../source/book/book.cpp                                              \
   ../source/extra/bitop.cpp                                            \

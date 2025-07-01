@@ -7,6 +7,7 @@
 #include "../search.h"
 #include "../misc.h"
 #include "../book/book.h"
+#include "../tt.h"
 
 using namespace std;
 

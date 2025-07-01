@@ -6,6 +6,7 @@
 #include "tt.h"
 #include "usi.h"
 #include "misc.h"
+#include "engine.h"
 
 // ファイルの中身を出力する。
 void print_file(const std::string& path)
@@ -33,7 +34,7 @@ int main(int argc, char* argv[])
 	Bitboards::init();
 	Position::init();
 
-	USIEngine engine(argc,argv);
+	Engine engine(argc,argv);
 
 	USI::init(Options);
 	Search::init();

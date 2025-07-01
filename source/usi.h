@@ -217,17 +217,5 @@ void is_ready(bool skipCorruptCheck = false);
 // 使い方はbenchコマンド(benchmark.cpp)のコードを見てほしい。
 void position_cmd(Position& pos, std::istringstream& is, StateListPtr& states);
 
-// エンジン本体
-// TODO : あとでengine.hに移動させる。
-class USIEngine
-{
-public:
-	USIEngine(int argc, char** argv) :
-		cli(argc, argv) {
-	}
-
-	CommandLine cli; // TODO : あとでUSIEngineに移動させる。
-};
-
 
 #endif // #ifndef USI_H_INCLUDED
