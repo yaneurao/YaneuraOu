@@ -7,11 +7,8 @@
 #include "pe9.h"
 #include "index_list.h"
 
-namespace Eval {
-
-namespace NNUE {
-
-namespace Features {
+namespace YaneuraOu {
+namespace Eval::NNUE::Features {
 
 inline Square GetSquareFromBonaPiece(BonaPiece p) {
   if (p < fe_hand_end) {
@@ -131,10 +128,7 @@ void PE9::AppendChangedIndices(
   }
 }
 
-}  // namespace Features
-
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE::Features
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)

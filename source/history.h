@@ -14,6 +14,8 @@
 #include "misc.h"
 #include "position.h"
 
+namespace YaneuraOu {
+
 // -----------------------
 //		history
 // -----------------------
@@ -180,6 +182,8 @@ using PawnHistory = Stats<std::int16_t, 8192, PAWN_HISTORY_SIZE, PIECE_NB, SQUAR
 #endif
 
 using TTMoveHistory = StatsEntry<std::int16_t, 8192>;
+
+} // namespace YaneuraOu
 
 #endif // #ifndef HISTORY_H_INCLUDED
 

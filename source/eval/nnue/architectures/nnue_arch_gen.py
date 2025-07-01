@@ -130,6 +130,7 @@ header += f"""
     #include "../layers/affine_transform_sparse_input.h"
     #include "../layers/clipped_relu.h"
 
+    namespace YaneuraOu {{
     namespace Eval::NNUE {{
 
         // Input features used in evaluation function
@@ -179,12 +180,13 @@ header += f"""
 header += f"""
         using Network = Layers::OutputLayer;
 
-    }}  // namespace Eval::NNUE
+    }} // namespace Eval::NNUE
+    }} // namespace YaneuraOu
 
     #endif // #ifndef NNUE_{c_arch}_H_INCLUDED
     """
 
-with open(out_path, "w") as f:
+with open(out_path, "w", encoding = 'utf-8') as f:
     f.write(textwrap.dedent(header).lstrip())
     # lstrip()は先頭行の改行の除去。ここでやらないとdedentが誤作動する。
 

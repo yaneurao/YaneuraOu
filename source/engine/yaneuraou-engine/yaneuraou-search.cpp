@@ -30,6 +30,8 @@
 #include "../../learn/learn.h"
 #include "../../mate/mate.h"
 
+namespace YaneuraOu {
+
 // -------------------
 // やねうら王独自追加
 // -------------------
@@ -1131,7 +1133,7 @@ void Thread::search()
 				// fail highするごとにdepthを下げていく処理
 				Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt - 3 * (searchAgainCounter + 1) / 4);
 				rootDelta = beta - alpha;
-				bestValue = ::search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
+				bestValue = YaneuraOu::search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
 
 				// Bring the best move to the front. It is critical that sorting
 				// is done with a stable algorithm because all the values but the
@@ -2030,7 +2032,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 	auto evaluate = [&](Position& pos)
 		{
 			if (evaluatedValue == VALUE_NONE)
-				evaluatedValue = ::evaluate(pos);
+				evaluatedValue = YaneuraOu::Eval::evaluate(pos);
 			return evaluatedValue;
 		};
 	auto lazy_evaluate = [&](Position& pos) {
@@ -2039,7 +2041,7 @@ Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, boo
 		if (evaluatedValue == VALUE_NONE)
 		{
 			evaluatedValue = VALUE_INFINITE;
-			::evaluate_with_no_return(pos);
+			YaneuraOu::Eval::evaluate_with_no_return(pos);
 			//evaluatedValue = ::evaluate(pos);
 		}
 #endif
@@ -3699,7 +3701,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 	auto evaluate = [&](Position& pos)
 		{
 			if (evaluatedValue == VALUE_NONE)
-				evaluatedValue = ::evaluate(pos);
+				evaluatedValue = YaneuraOu::Eval::evaluate(pos);
 			return evaluatedValue;
 		};
 	auto lazy_evaluate = [&](Position& pos) {
@@ -3707,7 +3709,7 @@ Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth)
 		if (evaluatedValue == VALUE_NONE)
 		{
 			evaluatedValue = VALUE_INFINITE;
-			::evaluate_with_no_return(pos);
+			YaneuraOu::Eval::evaluate_with_no_return(pos);
 			//evaluatedValue = ::evaluate(pos);
 		}
 #endif
@@ -5108,7 +5110,7 @@ ValuePV qsearch(Position& pos)
 	// 探索の初期化
 	init_for_search(pos, ss , pv, /* qsearch = */true);
 
-	auto bestValue = ::qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, 0);
+	auto bestValue = YaneuraOu::qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE, 0);
 
 	// 得られたPVを返す。
 	for (Move* p = &ss->pv[0]; p->is_ok(); ++p)
@@ -5212,7 +5214,7 @@ ValuePV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodesLim
 				Depth adjustedDepth =
 					std::max(1, rootDepth - failedHighCnt);
 				th->rootDelta = beta - alpha;
-				bestValue = ::search<Root>(pos, ss, alpha, beta, adjustedDepth, false);
+				bestValue = YaneuraOu::search<Root>(pos, ss, alpha, beta, adjustedDepth, false);
 
 				stable_sort(rootMoves.begin() + pvIdx, rootMoves.end());
 				//my_stable_sort(pos.this_thread()->thread_id(),&rootMoves[0] + pvIdx, rootMoves.size() - pvIdx);
@@ -5325,5 +5327,7 @@ void UnitTest(Test::UnitTester& tester)
 
 } // namespace Learner
 #endif
+
+} // namespace YaneuraOu
 
 #endif // YANEURAOU_ENGINE

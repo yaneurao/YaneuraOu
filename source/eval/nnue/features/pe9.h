@@ -10,11 +10,8 @@
 #include "../../../evaluate.h"
 #include "features_common.h"
 
-namespace Eval {
-
-namespace NNUE {
-
-namespace Features {
+namespace YaneuraOu {
+namespace Eval::NNUE::Features {
 
 // 特徴量PE9：玉以外の駒のBonaPieceと利き数の組み合わせ
 // ・利き数は先後各々最大2までに制限。0～2で3通り。先後で3*3=9通り。なお、持ち駒の場合は利き数0とする。
@@ -49,11 +46,8 @@ class PE9 {
                         BonaPiece** pieces);
 };
 
-}  // namespace Features
-
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE::Features
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

@@ -17,18 +17,20 @@
 
 #include "types.h"
 
+namespace YaneuraOu {
+
 // --------------------
 //  engine info
 // --------------------
 
 // "USI"コマンドに応答するために表示する。
-const std::string engine_info();
+std::string engine_info();
 
 // 使用したコンパイラについての文字列を返す。
-const std::string compiler_info();
+std::string compiler_info();
 
 // config.hで設定した値などについて出力する。
-const std::string config_info();
+std::string config_info();
 
 // --------------------
 //    prefetch命令
@@ -767,7 +769,7 @@ namespace SystemIO
 	{
 	public:
 		// 書き出し用のバッファサイズ([byte])
-		const size_t buf_size = 4096;
+		static constexpr size_t buf_size = 4096;
 
 		Tools::Result Open(const std::string& filename);
 
@@ -1316,5 +1318,7 @@ namespace Misc {
 	// このheaderに書いてある関数のUnitTest。
 	void UnitTest(Test::UnitTester& tester);
 }
+
+} // namespace YaneuraOu
 
 #endif // #ifndef MISC_H_INCLUDED

@@ -16,6 +16,7 @@
 #include "../eval/evaluate_common.h"
 #endif
 
+namespace YaneuraOu {
 namespace {
 
 	// "test genmoves" : 指し手生成テストコマンド
@@ -223,7 +224,7 @@ namespace {
 				std::cout << result;
 		}
 	}
-}
+} // namespace
 
 // ----------------------------------
 //      "test" command Decorator
@@ -245,7 +246,8 @@ namespace Test
 		return true;
 	}
 
-}
+} // namespace Test
 
+} // namespace YaneuraOu
 
 #endif // defined(ENABLE_TEST_CMD)

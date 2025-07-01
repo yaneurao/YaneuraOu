@@ -7,6 +7,8 @@
 
 #include "../position.h"
 
+namespace YaneuraOu {
+
 //#include <iostream>
 //using std::cout;
 using namespace BB_Table;
@@ -2169,5 +2171,6 @@ namespace Mate {
 //template Move Mate::mate_1ply_imp<BLACK>(const Position& pos);
 //template Move Mate::mate_1ply_imp<WHITE>(const Position& pos);
 
+} // namespace YaneuraOu
 
 #endif // if defined(MATE_1PLY)...

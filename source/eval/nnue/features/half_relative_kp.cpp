@@ -7,11 +7,8 @@
 #include "half_relative_kp.h"
 #include "index_list.h"
 
-namespace Eval {
-
-namespace NNUE {
-
-namespace Features {
+namespace YaneuraOu {
+namespace Eval::NNUE::Features {
 
 // 玉の位置とBonaPieceから特徴量のインデックスを求める
 template <Side AssociatedKing>
@@ -84,10 +81,7 @@ void HalfRelativeKP<AssociatedKing>::AppendChangedIndices(
 template class HalfRelativeKP<Side::kFriend>;
 template class HalfRelativeKP<Side::kEnemy>;
 
-}  // namespace Features
-
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE::Features
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)

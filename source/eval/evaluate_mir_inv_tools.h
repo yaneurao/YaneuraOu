@@ -9,8 +9,9 @@
 #include "../evaluate.h"
 #include <functional>
 
-namespace Eval
-{
+namespace YaneuraOu {
+namespace Eval {
+
 	// -------------------------------------------------
 	//                  tables
 	// -------------------------------------------------
@@ -40,7 +41,9 @@ namespace Eval
 
 	// この関数を明示的に呼び出すか、init()を呼び出すかしたときに、上のテーブルが初期化される。
 	void init_mir_inv_tables();
-}
+
+} // namespace Eval
+} // namespace YaneuraOu
 
 #endif // defined(USE_EVAL_LIST)
 #endif // _EVALUATE_MIR_INV_TOOLS_

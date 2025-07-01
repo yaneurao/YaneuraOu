@@ -11,6 +11,7 @@
 #include "features_common.h"
 #include <array>
 
+namespace YaneuraOu {
 namespace Eval::NNUE::Features {
 
 // Class template that represents a list of values
@@ -246,7 +247,8 @@ class FeatureSet<FeatureType> : public FeatureSetBase<FeatureSet<FeatureType>> {
   friend class FeatureSet;
 };
 
-}  // namespace Eval::NNUE::Features
+} // namespace Eval::NNUE::Features
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

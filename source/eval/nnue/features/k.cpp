@@ -7,11 +7,8 @@
 #include "k.h"
 #include "index_list.h"
 
-namespace Eval {
-
-namespace NNUE {
-
-namespace Features {
+namespace YaneuraOu {
+namespace Eval::NNUE::Features {
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
 void K::AppendActiveIndices(
@@ -42,10 +39,8 @@ void K::AppendChangedIndices(
   }
 }
 
-}  // namespace Features
 
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE::Features
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)

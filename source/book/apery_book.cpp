@@ -26,6 +26,8 @@
 #include <cstdint>
 #include <random>
 
+namespace YaneuraOu {
+
 namespace {
     // 64bit のランダムな値を返す為のクラス
     class MT64bit : public std::mt19937_64 {
@@ -100,4 +102,5 @@ const std::vector<AperyBookEntry>& AperyBook::get_entries(const Position& pos) c
     return it->second;
 }
 
-}
+} // namespace Book
+} // namespace YaneuraOu

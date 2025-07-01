@@ -22,7 +22,7 @@
 #endif
 
 using namespace std;
-
+namespace YaneuraOu {
 namespace {
 
 	// ----------------------------------
@@ -630,7 +630,8 @@ namespace Test
 		return true;
 	}
 
-}
+} // namespace Test
 
+} // namespace YaneuraOu
 
 #endif // defined(ENABLE_TEST_CMD)

@@ -10,6 +10,7 @@
 
 #include "../nnue_common.h"
 
+namespace YaneuraOu {
 namespace Eval::NNUE::Layers {
 
 // Input layer
@@ -70,7 +71,8 @@ class InputSlice {
  private:
 };
 
-}  // namespace Eval::NNUE::Layers
+} // namespace Eval::NNUE::Layers
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

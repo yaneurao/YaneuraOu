@@ -8,8 +8,8 @@
 #include "../usi.h"
 class Position;
 
-namespace Test
-{
+namespace YaneuraOu {
+namespace Test {
 
 	// --------------------
 	//      UnitTest
@@ -96,6 +96,7 @@ namespace Test
 
 	void UnitTest(Position& pos, std::istringstream& is);
 
-}
+} // namespace Test
+} // namespace YaneuraOu
 
 #endif // UNIT_TEST_H_INCLUDED

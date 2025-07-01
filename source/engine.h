@@ -20,6 +20,8 @@
 #include "thread.h"
 #include "tt.h"
 
+namespace YaneuraOu {
+
 // エンジン本体
 class Engine
 {
@@ -50,8 +52,7 @@ class Engine
 	CommandLine cli;
 };
 
-
-
+} // namespace YaneuraOu
 
 #endif // #ifndef ENGINE_H_INCLUDED
 

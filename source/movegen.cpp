@@ -4,7 +4,10 @@
 #include "position.h"
 
 #include <iostream>
+
 using namespace std;
+namespace YaneuraOu {
+
 using namespace BB_Table;
 
 // mlist_startからmlist_endまで(mlist_endは含まない)の指し手がpseudo_legal_s<true>であるかを
@@ -1009,3 +1012,5 @@ template ExtMove* generateMoves<QUIET_CHECKS_ALL      >(const Position& pos, Ext
 
 template ExtMove* generateMoves<RECAPTURES            >(const Position& pos, ExtMove* mlist, Square recapSq);
 template ExtMove* generateMoves<RECAPTURES_ALL        >(const Position& pos, ExtMove* mlist, Square recapSq);
+
+} // namespace YaneuraOu

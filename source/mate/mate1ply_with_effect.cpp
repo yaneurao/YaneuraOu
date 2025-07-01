@@ -8,9 +8,9 @@
 #include "../position.h"
 #include "../extra/long_effect.h"
 
-using namespace Effect8; // Effect24のほうは必要に応じて書く。
-
+namespace YaneuraOu {
 namespace {
+	using namespace Effect8; // Effect24のほうは必要に応じて書く。
 
 	// 超高速1手詰め判定ライブラリ
 
@@ -545,5 +545,7 @@ NextCandidate:;
 // templateの明示的な実体化
 //template Move Mate::mate_1ply_imp<BLACK>(const Position& pos);
 //template Move Mate::mate_1ply_imp<WHITE>(const Position& pos);
+
+} // namespace YaneuraOu
 
 #endif

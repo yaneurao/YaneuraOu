@@ -1,5 +1,5 @@
-﻿#ifndef __MATE_MOVE_PICKER_H_INCLUDED__
-#define __MATE_MOVE_PICKER_H_INCLUDED__
+﻿#ifndef MATE_MOVE_PICKER_H_INCLUDED
+#define MATE_MOVE_PICKER_H_INCLUDED
 
 #include "../config.h"
 
@@ -8,8 +8,9 @@
 #include "../position.h"
 #include "../evaluate.h" // CapturePieceValue
 
-namespace Mate
-{
+namespace YaneuraOu {
+namespace Mate {
+
 	// ===================================
 	//   MovePickerあとで改良する。
 	// ===================================
@@ -230,8 +231,9 @@ namespace Mate
 		ExtMove moveList[MaxCheckMoves];
 		ExtMove* last;
 	};
-}
-#endif
+} // namespace Mate
+} // namespace YaneuraOu
 
+#endif // defined(USE_MATE_SOLVER) || defined(USE_MATE_DFPN)
 
-#endif // ndef __MATE_MOVE_PICKER_H_INCLUDED__
+#endif // MATE_MOVE_PICKER_H_INCLUDED

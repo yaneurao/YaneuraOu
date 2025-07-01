@@ -17,9 +17,9 @@
 #include <numeric>      // std::accumulate()
 
 using namespace std;
+namespace YaneuraOu {
+namespace Book {
 
-namespace Book
-{
 	// 局面を与えて、その局面で思考させるために、やねうら王探索部が必要。
 #if defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)
 
@@ -665,5 +665,6 @@ namespace Book
 	}
 
 } // namespace Book
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))

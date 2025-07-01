@@ -10,11 +10,8 @@
 #include "../../../evaluate.h"
 #include "features_common.h"
 
-namespace Eval {
-
-namespace NNUE {
-
-namespace Features {
+namespace YaneuraOu {
+namespace Eval::NNUE::Features {
 
 // 特徴量K：玉の位置
 class K {
@@ -39,11 +36,8 @@ class K {
                                    IndexList* removed, IndexList* added);
 };
 
-}  // namespace Features
-
-}  // namespace NNUE
-
-}  // namespace Eval
+} // Eval::NNUE::Features
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

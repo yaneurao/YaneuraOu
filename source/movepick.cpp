@@ -13,6 +13,7 @@
 // パラメーターの自動調整フレームワークからパラメーターの値を読み込む
 #include "engine/yaneuraou-engine/yaneuraou-param-common.h"
 
+namespace YaneuraOu {
 namespace {
   
 // -----------------------
@@ -619,5 +620,7 @@ bool MovePicker::can_move_king_or_pawn() const {
 	}
 	return false;
 }
+
+} // namespace YaneuraOu
 
 #endif // defined(USE_MOVE_PICKER)

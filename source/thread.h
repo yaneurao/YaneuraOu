@@ -21,6 +21,8 @@
 #include "tt.h"
 #endif
 
+namespace YaneuraOu {
+
 // --------------------
 // スレッドの属するNumaを管理する
 // --------------------
@@ -378,6 +380,8 @@ private:
 
 // ThreadPoolのglobalな実体
 extern ThreadPool Threads;
+
+} // namespace YaneuraOu
 
 #endif // #ifndef THREAD_H_INCLUDED
 

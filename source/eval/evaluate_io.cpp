@@ -5,8 +5,9 @@
 #include <fstream>
 #include <cstring>	// memset()
 
-namespace EvalIO
-{
+namespace YaneuraOu {
+namespace EvalIO {
+
 	bool eval_convert(const EvalInfo& input, const EvalInfo& output, const std::vector<u16>* map)
 	{
 		// 特徴因子の型の数が異なるとそもそも変換できない。
@@ -339,4 +340,6 @@ namespace EvalIO
 
 		return true;
 	}
-}
+
+} // namespace EvalIO
+} // namespace YaneuraOu

@@ -1,5 +1,5 @@
-﻿#ifndef _SEARCH_H_INCLUDED_
-#define _SEARCH_H_INCLUDED_
+﻿#ifndef SEARCH_H_INCLUDED
+#define SEARCH_H_INCLUDED
 
 //#include <cstdint>
 //#include <vector>
@@ -16,6 +16,8 @@
 //#include "syzygy/tbprobe.h"
 //#include "timeman.h"
 //#include "types.h"
+
+namespace YaneuraOu {
 
 // -----------------------
 //      探索用の定数
@@ -512,8 +514,9 @@ struct ConthistBonus {
 	int weight;
 };
 
+} // namespace Search
 
-} // end of namespace Search
+} // namespace YaneuraOu
 
-#endif // _SEARCH_H_INCLUDED_
+#endif // SEARCH_H_INCLUDED
 

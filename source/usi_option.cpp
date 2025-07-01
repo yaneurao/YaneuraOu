@@ -7,10 +7,11 @@
 //#include "tt.h"
 #include "usi.h"
 
-using std::string;
+namespace YaneuraOu {
 
-// Option設定が格納されたglobal object。
-USI::OptionsMap Options;
+	// Option設定が格納されたglobal object。
+	// TODO : あとで移動させる。
+	USI::OptionsMap Options;
 
 namespace USI {
 
@@ -30,7 +31,7 @@ namespace USI {
 	std::vector<std::string> ekr_rules = { "NoEnteringKing", "CSARule24" , "CSARule24H" , "CSARule27" , "CSARule27H", "TryRule" };
 
 	// USIプロトコルで必要とされるcase insensitiveな less()関数
-	bool CaseInsensitiveLess::operator() (const string& s1, const string& s2) const {
+	bool CaseInsensitiveLess::operator() (const std::string& s1, const std::string& s2) const {
 
 		return std::lexicographical_compare(s1.begin(), s1.end(), s2.begin(), s2.end(),
 			[](char c1, char c2) { return tolower(c1) < tolower(c2); });
@@ -154,10 +155,10 @@ namespace USI {
 #endif
 		last_eval_dir = default_eval_dir;
 		o["EvalDir"] << Option(default_eval_dir, [](const USI::Option& o) {
-			if (last_eval_dir != string(o))
+			if (last_eval_dir != std::string(o))
 			{
 				// 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
-				last_eval_dir = string(o);
+				last_eval_dir = std::string(o);
 				load_eval_finished = false;
 			}
 		});
@@ -326,7 +327,7 @@ namespace USI {
 	}
 
 	// USIプロトコル経由で値を設定されたときにそれをcurrentValueに反映させる。
-	Option& Option::operator=(const string& v) {
+	Option& Option::operator=(const std::string& v) {
 
 		ASSERT_LV1(!type.empty());
 
@@ -390,7 +391,7 @@ namespace USI {
 		const auto& line2 = StringExtension::Replace(line,'=', ' ');
 
 		Parser::LineScanner scanner(line2);
-		string token0 = scanner.get_text();
+		std::string token0 = scanner.get_text();
 		if (token0 != "option")
 		{
 			// 空行は無視
@@ -414,12 +415,12 @@ namespace USI {
 		}
 		else {
 
-			string name, value, option_type;
+			std::string name, value, option_type;
 			int64_t min_value = 0, max_value = 1;
-			std::vector<string> combo_list;
+			std::vector<std::string> combo_list;
 			while (!scanner.eol())
 			{
-				string token = scanner.get_text();
+				std::string token = scanner.get_text();
 				if      (token == "name"   ) name = scanner.get_text();
 				else if (token == "type"   ) option_type = scanner.get_text();
 				else if (token == "default") value = scanner.get_text();
@@ -451,7 +452,7 @@ namespace USI {
 	// エンジンオプションをコンパイル時に設定する機能
 	// "ENGINE_OPTIONS"で指定した内容を設定する。
 	// 例) #define ENGINE_OPTIONS "FV_SCALE=24;BookFile=no_book"
-	void set_engine_options(const string& options)
+	void set_engine_options(const std::string& options)
 	{
 		// ";"で区切って複数指定できるものとする。
 		auto v = StringExtension::Split(options, ";");
@@ -461,13 +462,13 @@ namespace USI {
 
 	// カレントフォルダに"engine_options.txt"(これは引数で指定されている)が
 	// あればそれをオプションとしてOptions[]の値をオーバーライドする機能。
-	void read_engine_options(const string& filename)
+	void read_engine_options(const std::string& filename)
 	{
 		SystemIO::TextReader reader;
 		if (reader.Open(filename).is_not_ok())
 			return;
 
-		string line;
+		std::string line;
 		while (reader.ReadLine(line).is_ok())
 			build_option(line);
 	}
@@ -523,4 +524,4 @@ namespace USI {
 
 } // namespace USI
 
-
+} // namespace YaneuraOu

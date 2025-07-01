@@ -19,6 +19,7 @@
 #include <queue>
 
 using namespace std;
+namespace YaneuraOu {
 
 // ----------------------------------
 //      USI拡張コマンド "test"
@@ -1213,3 +1214,5 @@ EMSCRIPTEN_KEEPALIVE extern "C" int usi_command(const char *c_cmd) {
 	return 0;
 }
 #endif
+
+} // namespace YaneuraOu

@@ -7,7 +7,7 @@
 #include <sstream>
 
 using namespace std;
-
+namespace YaneuraOu {
 namespace Book
 {
 
@@ -85,6 +85,7 @@ namespace Book
 	}
 
 } // namespace Book
+} // namespace YaneuraOu
 
 #endif // defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
 

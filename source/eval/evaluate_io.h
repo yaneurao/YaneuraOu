@@ -6,8 +6,8 @@
 #include "../types.h"
 #include <vector>
 
-namespace EvalIO
-{
+namespace YaneuraOu {
+namespace EvalIO {
 
 	// 特徴因子名
 	// "VAR"は一次元配列。
@@ -200,6 +200,7 @@ namespace EvalIO
 	//
 	bool eval_convert(const EvalInfo& input, const EvalInfo& output, const std::vector<u16 /*BonaPiece*/>* map);
 
-}
+} // namespace EvalIO
+} // namespace YaneuraOu
 
 #endif // _EVALUATE_IO_H_

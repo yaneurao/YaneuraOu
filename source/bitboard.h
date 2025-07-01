@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+namespace YaneuraOu {
+
 namespace Bitboards
 {
 	// Bitboard関連のテーブル初期化のための関数
@@ -1130,5 +1132,6 @@ inline Bitboard least_significant_square_bb(Bitboard b) {
 	return (q0 != 0) ? Bitboard(q0 & -q0 , 0) : Bitboard(0, q1 & -q1);
 }
 
+} // namespace YaneuraOu
 
 #endif // #ifndef _BITBOARD_H_

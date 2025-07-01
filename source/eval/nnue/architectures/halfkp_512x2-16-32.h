@@ -11,6 +11,7 @@
 #include "../layers/affine_transform_sparse_input.h"
 #include "../layers/clipped_relu.h"
 
+namespace YaneuraOu {
 namespace Eval::NNUE {
 
 // Input features used in evaluation function
@@ -35,6 +36,7 @@ using OutputLayer = AffineTransform<HiddenLayer2, 1>;
 
 using Network = Layers::OutputLayer;
 
-}  // namespace Eval::NNUE
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif // #ifndef NNUE_HALFKP_512X2_16_32_H_INCLUDED

@@ -10,6 +10,8 @@
 
 #include <atomic>
 
+namespace YaneuraOu {
+
 // 棋譜からの学習や、自ら思考させて定跡を生成するときなど、
 // 複数スレッドが個別にSearch::think()を呼び出したいときに用いるヘルパクラス。
 // このクラスを派生させて用いる。
@@ -144,6 +146,8 @@ protected:
 	// tasksにアクセスするとき用のmutex
 	std::mutex task_mutex;
 };
+
+} // namespace YaneuraOu
 
 #endif // defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)
 

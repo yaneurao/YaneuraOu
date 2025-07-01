@@ -4,6 +4,7 @@
 #include "../misc.h"
 #include <map>
 
+namespace YaneuraOu {
 namespace Eval
 {
 #if !defined(USE_EVAL)
@@ -173,3 +174,4 @@ namespace Eval
 #endif
 
 } // namespace Eval
+} // namespace YaneuraOu

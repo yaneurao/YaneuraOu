@@ -52,7 +52,7 @@
 #include "../misc.h"
 
 using namespace std;
-using namespace Book;
+namespace YaneuraOu {
 
 // ある局面の指し手の配列、std::vector<Move>だとsize_t(64bit環境で8バイト)でcapacityとかsizeとか格納するので
 // 非常にもったいない。定跡のある局面の指し手が255手を超えることはないだろうから1byteでも十分。
@@ -175,7 +175,7 @@ private:
 	void increase_capacity() {
 		size_t new_capacity = capacity == 0 ? 1 : capacity * 2;
 		if (new_capacity > UINT16_MAX) {
-			cout << "Error! : SmallVector exceeds maximum capacity" << endl;
+			std::cout << "Error! : SmallVector exceeds maximum capacity" << std::endl;
 			Tools::exit();
 		}
 		reserve(static_cast<uint16_t>(new_capacity));
@@ -507,7 +507,7 @@ namespace MakeBook2025
 				if (line_no == 1)
 				{
 					// バージョン識別文字列がなければwarningを出す。
-					if (line.length() < 1 || line[0] != '#' || line != ::Book::BookDBHeader2016_100)
+					if (line.length() < 1 || line[0] != '#' || line != YaneuraOu::Book::BookDBHeader2016_100)
 						cout << "WARNING : illegal YaneuraOu Book header 2016" << endl;
 				}
 				else if (line_no == 2)
@@ -1199,7 +1199,7 @@ namespace MakeBook2025
 			progress.reset(book_nodes.size() - 1);
 
 			// バージョン識別用文字列
-			writer.WriteLine(::Book::BookDBHeader2016_100);
+			writer.WriteLine(YaneuraOu::Book::BookDBHeader2016_100);
 
 			SystemIO::TextReader sfen_reader;
 			if (!fast)
@@ -1360,16 +1360,15 @@ namespace MakeBook2025
 		bool fast;
 
 	};
-}
 
-using namespace MakeBook2025;
+} // namespace MakeBook2025
 
 namespace Book
 {
 	// 2025年以降に作ったmakebook拡張コマンド
 	// "makebook XXX"コマンド。XXXの部分に"build_tree"や"extend_tree"が来る。
 	// この拡張コマンドを処理したら、この関数は非0を返す。
-	int makebook2025(Position& pos, istringstream& is, const string& token)
+	int makebook2025(Position& pos, std::istringstream& is, const std::string& token)
 	{
 		if (token == "peta_shock") {
 
@@ -1383,13 +1382,15 @@ namespace Book
 			//      fast   : テンポラリファイルを書き出さない。(メモリ上に格納するのでその分だけメモリを消費する。)
 			//     ⇨  fastの時は、思考エンジンオプションのThreadsで指定したスレッド数で並列化して合流チェックなどを行う。
 			//		事前に "Threads 32"などとしてスレッド数を指定しておいてください。
-			PetaShock ps;
+			MakeBook2025::PetaShock ps;
 			ps.make_book(pos, is);
 			return 1;
 		}
 
 		return 0;
 	}
-}
+
+} // namespace Book
+} // namespace YaneuraOu
 
 #endif // defined (ENABLE_MAKEBOOK_CMD)

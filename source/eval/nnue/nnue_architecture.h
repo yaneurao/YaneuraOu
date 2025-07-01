@@ -60,6 +60,7 @@
 
 #endif
 
+namespace YaneuraOu {
 namespace Eval::NNUE {
 
 	static_assert(kTransformedFeatureDimensions % kMaxSimdWidth == 0, "");
@@ -70,7 +71,8 @@ namespace Eval::NNUE {
 	// 差分計算の代わりに全計算を行うタイミングのリスト
 	constexpr auto kRefreshTriggers = RawFeatures::kRefreshTriggers;
 
-}  // namespace Eval::NNUE
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

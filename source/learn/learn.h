@@ -7,6 +7,8 @@
 
 #include <vector>
 
+namespace YaneuraOu {
+
 // =====================
 //  学習時の設定
 // =====================
@@ -234,6 +236,8 @@ namespace Learner
 
 }
 
-#endif
+} // namespace YaneuraOu
+
+#endif // if defined(EVAL_LEARN)
 
 #endif // ifndef _LEARN_H_

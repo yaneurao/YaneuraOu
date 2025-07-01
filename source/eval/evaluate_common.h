@@ -6,15 +6,7 @@
 #if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 #include <functional>
 
-// KKファイル名
-#define KK_BIN "KK_synthesized.bin"
-
-// KKPファイル名
-#define KKP_BIN "KKP_synthesized.bin"
-
-// KPPファイル名
-#define KPP_BIN "KPP_synthesized.bin"
-
+namespace YaneuraOu {
 namespace Eval
 {
 
@@ -74,9 +66,8 @@ namespace Eval
 
 #endif
 
-
-}
-
+} // Eval
+} // namespace YaneuraOu
 
 #endif
 

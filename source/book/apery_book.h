@@ -26,6 +26,7 @@
 #include "../types.h"
 #include "../position.h"
 
+namespace YaneuraOu {
 namespace Book {
 
 	using Key = uint64_t;
@@ -54,7 +55,7 @@ namespace Book {
 		static Key ZobHand[PIECE_HAND_NB - 1][19];
 		static Key ZobTurn;
 	};
-
-}
+} // namespace Book
+} // namespace YaneuraOu
 
 #endif // #ifndef APERY_BOOK_HPP

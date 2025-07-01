@@ -11,6 +11,7 @@
 #include "../nnue_common.h"
 #include "simd.h"
 
+namespace YaneuraOu {
 namespace Eval::NNUE::Layers {
 
 template<IndexType kInputDimensions, IndexType kPaddedInputDimensions, IndexType kOutputDimensions>
@@ -465,7 +466,8 @@ class AffineTransform {
 	alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
 };
 
-}  // namespace Eval::NNUE::Layers
+} // namespace Eval::NNUE::Layers
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

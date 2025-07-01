@@ -1,5 +1,5 @@
-﻿#ifndef _POSITION_H_
-#define _POSITION_H_
+﻿#ifndef POSITION_H_INCLUDED
+#define POSITION_H_INCLUDED
 #include <deque>
 #include <memory> // For std::unique_ptr
 
@@ -14,6 +14,8 @@
 #include "extra/key128.h"
 #include "extra/long_effect.h"
 #include "misc.h"
+
+namespace YaneuraOu {
 
 // --------------------
 //     局面の情報
@@ -1068,5 +1070,6 @@ std::ostream& operator<<(std::ostream& os, const Position& pos);
 // depthに応じたZobrist Hashを得る。depthを含めてhash keyを求めたいときに用いる。
 HASH_KEY DepthHash(int depth);
 
+} // namespace YaneuraOu
 
-#endif // of #ifndef _POSITION_H_
+#endif // of #ifndef POSITION_H_INCLUDED

@@ -12,7 +12,7 @@
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
 #if !defined(ENGINE_VERSION)
 
-#define ENGINE_VERSION "8.60git"
+#define ENGINE_VERSION "8.70git"
 
 #endif
 // --------------------
@@ -633,7 +633,9 @@ struct GlobalOptions_
 	}
 };
 
-extern GlobalOptions_ GlobalOptions;
+namespace YaneuraOu {
+	extern GlobalOptions_ GlobalOptions;
+}
 
 #endif
 

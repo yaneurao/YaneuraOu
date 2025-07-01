@@ -11,6 +11,7 @@
 #include "../layers/affine_transform_sparse_input.h"
 #include "../layers/clipped_relu.h"
 
+namespace YaneuraOu {
 namespace Eval {
 
 namespace NNUE {
@@ -34,8 +35,9 @@ namespace NNUE {
 
 using Network = Layers::OutputLayer;
 
-}  // namespace NNUE
+} // namespace NNUE
 
-}  // namespace Eval
+} // namespace Eval
+} // namespace YaneuraOu
 
 #endif // #ifndef NNUE_HALFKPE9_256X2_32_32_H_INCLUDED

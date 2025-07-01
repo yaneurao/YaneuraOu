@@ -7,6 +7,8 @@
 #include "thread.h"
 #include "usi.h"
 
+namespace YaneuraOu {
+
 namespace {
 
 	// これぐらい自分が指すと終局すると考えて計画を練る。
@@ -206,6 +208,7 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 		if (/* Threads.main()->received_go_ponder*/ Options["USI_Ponder"])
 			optimumTime += optimumTime / 4;
 #endif
+
 	}
 
 	// 秒読みモードでかつ、持ち時間がないなら、最小思考時間も最大思考時間もその時間にしたほうが得
@@ -223,5 +226,7 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 	maximumTime = std::min(round_up(maximumTime), remain_time);
 
 }
+
+} // namespace YaneuraOu
 
 #endif

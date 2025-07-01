@@ -10,11 +10,9 @@
 #include "../../../evaluate.h"
 #include "features_common.h"
 
-namespace Eval {
+namespace YaneuraOu {
+namespace Eval::NNUE::Features {
 
-namespace NNUE {
-
-namespace Features {
 
 // 特徴量HalfKPE9：自玉または敵玉の位置と、玉以外の駒の位置と、利き数の組み合わせ
 // ・利き数は先後各々最大2までに制限。0～2で3通り。先後で3*3=9通り。なお、持ち駒の場合は利き数0とする。
@@ -55,11 +53,8 @@ class HalfKPE9 {
                         BonaPiece** pieces, Square* sq_target_k);
 };
 
-}  // namespace Features
-
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE::Features
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

@@ -11,6 +11,7 @@
 #include "../../../evaluate.h"
 #include "../nnue_common.h"
 
+namespace YaneuraOu {
 namespace Eval::NNUE::Features {
 
 // インデックスリストの型
@@ -36,8 +37,8 @@ enum class Side {
   kEnemy,   // 相手側
 };
 
-}  // namespace Eval::NNUE::Features
-
+} // namespace Eval::NNUE::Features
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

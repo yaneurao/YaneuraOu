@@ -1,4 +1,5 @@
-﻿#include "mate.h"
+﻿// ⚠ このファイルは、mate.cppからincludeするので、変なnamespaceに入れてはならない。
+
 #if defined(USE_MATE_DFPN)
 
 /*
@@ -42,6 +43,8 @@
 #include "../position.h"
 #include "../thread.h"
 #include "mate_move_picker.h"
+
+namespace YaneuraOu {
 
 #if defined (DFPN64)
 // Node数が64bitで表現できる数まで扱える版
@@ -294,6 +297,8 @@ namespace Mate::Dfpn32
 	};
 
 #endif // defined (DFPN32)
+
+	// 以下、DFPN64,DFPN32の共通コード
 
 	// ===================================
 	// 子ノード、ノードのメモリマネージャー
@@ -1252,4 +1257,6 @@ namespace Mate::Dfpn32
 
 #endif //defined(DFPN64) || defined(DFPN32)
 
-#endif // defined(USE_DFPN)
+} // namespace YaneuraOu
+
+#endif // defined(USE_MATE_DFPN)

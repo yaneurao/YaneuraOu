@@ -17,6 +17,8 @@
 #include "types.h"
 #include "position.h"
 
+namespace YaneuraOu {
+
 // -----------------------
 //   MovePicker
 // -----------------------
@@ -131,6 +133,8 @@ private:
 	// cf. https://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
 	ExtMove moves[MAX_MOVES];
 };
+
+} // namespace YaneuraOu
 
 #endif // defined(USE_MOVE_PICKER)
 

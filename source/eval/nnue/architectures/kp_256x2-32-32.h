@@ -11,9 +11,8 @@
 #include "../layers/affine_transform_sparse_input.h"
 #include "../layers/clipped_relu.h"
 
-namespace Eval {
-
-namespace NNUE {
+namespace YaneuraOu {
+namespace Eval::NNUE {
 
 // 評価関数で用いる入力特徴量
 using RawFeatures = Features::FeatureSet<Features::K, Features::P>;
@@ -33,8 +32,7 @@ using OutputLayer = AffineTransform<HiddenLayer2, 1>;
 
 using Network = Layers::OutputLayer;
 
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif // #ifndef NNUE_KP_256X2_32_32_H_INCLUDED

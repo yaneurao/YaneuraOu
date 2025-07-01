@@ -9,6 +9,7 @@
 
 // dlshogiのN手詰めルーチン
 
+namespace YaneuraOu {
 namespace Mate {
 
 	// 3手詰めチェック
@@ -266,5 +267,6 @@ namespace Mate {
 
 
 } // namespace Mate
+} // namespace YaneuraOu
 
 #endif // defined(USE_MATE_SOLVER)

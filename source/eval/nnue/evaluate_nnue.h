@@ -13,6 +13,8 @@
 //#include "../../misc.h"
 #include "../../memory.h"
 
+namespace YaneuraOu {
+
 // 評価関数のソースコードへの埋め込みをする時は、EVAL_EMBEDDINGをdefineして、
 // ⇓この2つのシンボルを正しく定義するembedded_nnue.cppを書けば良い。
 #if defined(EVAL_EMBEDDING)
@@ -56,7 +58,8 @@ namespace Eval::NNUE {
 	// 評価関数パラメータを書き込む
 	bool WriteParameters(std::ostream& stream);
 
-}  // namespace Eval::NNUE
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

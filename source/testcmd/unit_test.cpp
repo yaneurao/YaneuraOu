@@ -10,11 +10,12 @@
 #include "../tt.h"
 
 using namespace std;
+namespace YaneuraOu {
 
 #if defined(YANEURAOU_ENGINE) && defined (EVAL_LEARN)
-namespace Learner {
-	void UnitTest(Test::UnitTester& unittest);
-}
+	namespace Learner {
+		void UnitTest(Test::UnitTester& unittest);
+	}
 #endif
 
 namespace Test
@@ -192,5 +193,5 @@ namespace Test
 
 	}
 
-}
-
+} // namespace Test;
+} // namespace YaneuraOu;

@@ -11,7 +11,7 @@
 
 #include "types.h"
 
-//namespace Stockfish {
+namespace YaneuraOu {
 
 void* std_aligned_alloc(size_t alignment, size_t size);
 void  std_aligned_free(void* ptr);
@@ -197,7 +197,6 @@ T* align_ptr_up(T* ptr) {
       reinterpret_cast<char*>((ptrint + (Alignment - 1)) / Alignment * Alignment));
 }
 
-
-//}  // namespace Stockfish
+} // namespace YaneuraOu
 
 #endif  // #ifndef MEMORY_H_INCLUDED

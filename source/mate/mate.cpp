@@ -2,8 +2,9 @@
 #if defined (USE_MATE_1PLY)
 #include "../position.h"
 
-namespace Mate
-{
+namespace YaneuraOu {
+namespace Mate {
+
 	// 1手詰めテーブルの初期化関数
 	// ※　これは、mate1ply_without_effect.cppか、mate1ply_with_effect.cppのいずれかで定義されている。
 	void init_mate_1ply();
@@ -333,11 +334,12 @@ namespace Mate
 #endif // #if defined(USE_MATE_SOLVER)|| defined(USE_MATE_DFPN)
 
 } // namespace Mate
-
+} // namespace YaneuraOu
 
 #if defined(USE_MATE_DFPN)
 
 // dfpnの実装、以下の二通りをifdefで書き分けてあるので、DFPN32とDFPN64をそれぞれdefineして、二度includeする。
+// ⚠ このファイルをincludeするとき、namespace YaneuraOuのなかからincludeしてはならない。
 
 // Node数32bitまでしか扱えない版
 #define DFPN32
@@ -349,6 +351,7 @@ namespace Mate
 #include "mate_dfpn.hpp"
 #undef DFPN64
 
+namespace YaneuraOu {
 namespace {
 
 	std::unique_ptr<Mate::Dfpn::MateDfpnSolverInterface> BuildNode32bitSolver()
@@ -390,7 +393,7 @@ namespace {
 	{
 		return std::make_unique<Mate::Dfpn64::MateDfpnPn<u64,true /* 指し手Orderingあり*/, true /* with hash*/>>();
 	}
-}
+} // namespace
 
 namespace Mate::Dfpn
 {
@@ -416,7 +419,10 @@ namespace Mate::Dfpn
 		}
 	}
 
-}
-#endif
+} // namespace Mate::Dfpn
+
+} // namespace YaneuraOu
+
+#endif // defined(USE_MATE_DFPN)
 
 #endif // defined (USE_MATE_1PLY)

@@ -16,6 +16,8 @@
 #include "./wasm_simd.h"
 #endif
 
+namespace YaneuraOu {
+
 // HACK: Use _mm256_loadu_si256() instead of _mm256_load_si256. Otherwise a binary
 //       compiled with older g++ crashes because the output memory is not aligned
 //       even though alignas is specified.
@@ -137,7 +139,9 @@ namespace Eval::NNUE {
       std::memcpy(&result, &v, sizeof(IntType));
       return result;
   }
-}  // namespace Eval::NNUE
+
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

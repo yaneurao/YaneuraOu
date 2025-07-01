@@ -7,6 +7,8 @@
 #include "misc.h"
 #include "memory.h"
 
+namespace YaneuraOu {
+
 struct Key128;
 struct Key256;
 
@@ -222,5 +224,7 @@ private:
 };
 
 extern TranspositionTable TT;
+
+} // namespace YaneuraOu
 
 #endif // #ifndef TT_H_INCLUDED

@@ -46,8 +46,7 @@ using AdjustTokenPrivileges_t =
 }
 #endif
 
-
-//namespace Stockfish {
+namespace YaneuraOu {
 
 // Wrappers for systems where the c++17 implementation does not guarantee the
 // availability of aligned_alloc(). Memory allocated with std_aligned_alloc()
@@ -281,4 +280,5 @@ void aligned_large_pages_free(void* mem) {
 void aligned_large_pages_free(void* mem) { std_aligned_free(mem); }
 
 #endif
-//}  // namespace Stockfish
+
+} // namespace YaneuraOu

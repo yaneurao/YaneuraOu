@@ -9,6 +9,8 @@
 
 #include <unordered_map>
 
+namespace YaneuraOu {
+
 namespace Search { struct LimitsType; };
 
 
@@ -349,6 +351,7 @@ namespace BookTools
 	// 先頭に"sfen "とついているので注意。
 	std::vector<std::string> get_next_sfens(std::string root_sfen);
 
-}
+} // namespace Book
+} // namespace YaneuraOu
 
 #endif // #ifndef INCLUDED_

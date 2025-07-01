@@ -1,12 +1,12 @@
 ﻿#include "../evaluate.h"
 #include "../position.h"
 
-using namespace std;
-
-namespace Eval
-{
 #if defined (USE_PIECE_VALUE)
 
+using namespace std;
+namespace YaneuraOu {
+namespace Eval
+{
     // 駒の価値
     int PieceValue[PIECE_NB] =
     {
@@ -177,6 +177,7 @@ namespace Eval
         return os;
     }
 
-#endif // defined(USE_EVAL_LIST)
-
 } // namespace Eval
+} // namespace YaneuraOu {
+
+#endif // defined(USE_EVAL_LIST)

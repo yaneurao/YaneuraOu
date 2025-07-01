@@ -1,7 +1,9 @@
-﻿#ifndef _KEY128_H_
-#define _KEY128_H_
+﻿#ifndef KEY128_H_INCLUDED
+#define KEY128_H_INCLUDED
 
 #include "../types.h"
+
+namespace YaneuraOu {
 
 // --------------------
 //     拡張hash key
@@ -105,16 +107,6 @@ struct alignas(16) Key128
     }
 };
 
-// std::unorded_map<Key128,string>みたいなのを使うときにoperator==とhash化が必要。
-
-template <>
-struct std::hash<Key128> {
-	size_t operator()(const Key128& k) const {
-		// 下位bit返すだけで良いのでは？
-		return (size_t)(k.extract64<0>());
-	}
-};
-
 static std::ostream& operator << (std::ostream& os, const Key128& k)
 {
 	// 上位bitから出力する。(数字ってそういうものであるから…)
@@ -193,14 +185,6 @@ struct alignas(32) Key256
 
 };
 
-template <>
-struct std::hash<Key256> {
-	size_t operator()(const Key256& k) const {
-		// 下位bit返すだけで良いのでは？
-		return (size_t)(k.extract64<0>());
-	}
-};
-
 static std::ostream& operator << (std::ostream& os, const Key256& k)
 {
 	// 上位bitから出力する。(数字ってそういうものであるから…)
@@ -213,4 +197,25 @@ static Key hash_key_to_key(const Key     key) { return key               ; }
 static Key hash_key_to_key(const Key128& key) { return key.extract64<0>(); }
 static Key hash_key_to_key(const Key256& key) { return key.extract64<0>(); }
 
-#endif // _KEY128_H_
+} // namespace YaneuraOu
+
+// std::unorded_map<Key128,string>みたいなのを使うときにoperator==とhash化が必要。
+// ⚠ これはglobal namespaceで定義しないと駄目。
+
+template <>
+struct std::hash<YaneuraOu::Key128> {
+	size_t operator()(const YaneuraOu::Key128& k) const {
+		// 下位bit返すだけで良いのでは？
+		return (size_t)(k.extract64<0>());
+	}
+};
+
+template <>
+struct std::hash<YaneuraOu::Key256> {
+	size_t operator()(const YaneuraOu::Key256& k) const {
+		// 下位bit返すだけで良いのでは？
+		return (size_t)(k.extract64<0>());
+	}
+};
+
+#endif // ifndef KEY128_H_INCLUDED

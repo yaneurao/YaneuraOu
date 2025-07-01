@@ -38,6 +38,8 @@
 /// _WIN32                  Building on Windows (any)
 /// _WIN64                  Building on Windows 64 bit
 
+namespace YaneuraOu {
+
 // --------------------
 //  型の最小値・最大値
 // --------------------
@@ -785,7 +787,7 @@ public:
 	// -- 文字列化
 
 	// USI形式の文字列にする。
-	std::string to_usi_string() const { return ::to_usi_string(*this); }
+	std::string to_usi_string() const { return YaneuraOu::to_usi_string(*this); }
 
 	// -- unordered_mapなどで比較するときに用いる。operator<()は定義したくないので、こちらを用いる。
 	struct MoveHash {
@@ -853,21 +855,11 @@ public:
 	// -- 文字列化
 
 	// USI形式の文字列にする。
-	std::string to_usi_string() const { return ::to_usi_string(*this); }
+	std::string to_usi_string() const { return YaneuraOu::to_usi_string(*this); }
 
 protected:
 	uint16_t data;
 };
-
-// ハッシュ関数(std::unorderd_map<Move16,u32>のようなものを使いたいため)
-namespace std {
-	template<>
-	struct hash<Move16> {
-		size_t operator()(const Move16& m16) const {
-			return hash<u16>()(m16.to_u16());
-		}
-	};
-}
 
 // USI形式で指し手を表示する
 static std::ostream& operator<<(std::ostream& os, Move m)   { os << to_usi_string(m); return os; }
@@ -1270,9 +1262,20 @@ namespace Test
 	void UnitTest(Position& pos,std::istringstream& is);
 }
 
+} // namespace YaneuraOu
+
 // --------------------
 //  operators and macros
 // --------------------
+
+// ハッシュ関数(std::unorderd_map<Move16,u32>のようなものを使いたいため)
+// ⚠ これはglobal namespaceで定義しないと駄目。
+template<>
+struct std::hash<YaneuraOu::Move16> {
+	size_t operator()(const YaneuraOu::Move16& m16) const {
+		return hash<u16>()(m16.to_u16());
+	}
+};
 
 #include "extra/macros.h"
 

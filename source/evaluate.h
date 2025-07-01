@@ -4,6 +4,8 @@
 #include "config.h"
 #include "types.h"
 
+namespace YaneuraOu {
+
 // -------------------------------------
 //   評価関数に対応するheaderの読み込み
 // -------------------------------------
@@ -398,5 +400,7 @@ namespace Eval {
 #endif
 
 }
+
+} // namespace YaneuraOu
 
 #endif // #ifndef _EVALUATE_H_

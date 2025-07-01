@@ -15,6 +15,7 @@
 #include "extra/key128.h"
 #include "testcmd/unit_test.h"
 
+namespace YaneuraOu {
 
 TranspositionTable TT; // global TT
 
@@ -596,5 +597,7 @@ void TranspositionTable::UnitTest(Test::UnitTester& unittest)
 		}
 	}
 }
+
+} // namespace YaneuraOu
 
 //}  // namespace Stockfish

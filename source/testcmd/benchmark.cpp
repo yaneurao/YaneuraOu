@@ -12,7 +12,7 @@
 #endif
 
 using namespace std;
-
+namespace YaneuraOu {
 // ----------------------------------
 //  USI拡張コマンド "bench"(ベンチマーク)
 // ----------------------------------
@@ -242,4 +242,4 @@ void bench_cmd(Position& current, istringstream& is)
 		Options[s.first] = std::string(s.second);
 }
 
-
+} // namespace YaneuraOu

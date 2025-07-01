@@ -6,6 +6,8 @@
 #include "usi.h"
 #include "tt.h"
 
+namespace YaneuraOu {
+
 ThreadPool Threads;		// Global object
 
 Thread::Thread(size_t n) : idx(n) , stdThread(&Thread::idle_loop, this)
@@ -412,3 +414,5 @@ bool ThreadPool::search_finished() const
 
 	return true;
 }
+
+} // namespace YaneuraOu

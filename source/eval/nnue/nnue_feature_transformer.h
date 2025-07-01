@@ -14,6 +14,7 @@
 
 #include <cstring>  // std::memset()
 
+namespace YaneuraOu {
 namespace Eval::NNUE {
 
 // If vector instructions are enabled, we update and refresh the
@@ -411,7 +412,8 @@ class FeatureTransformer {
 	alignas(kCacheLineSize) WeightType weights_[kHalfDimensions * kInputDimensions];
 };  // class FeatureTransformer
 
-}  // namespace Eval::NNUE
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

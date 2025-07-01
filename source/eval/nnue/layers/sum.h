@@ -9,11 +9,8 @@
 
 #include "../nnue_common.h"
 
-namespace Eval {
-
-namespace NNUE {
-
-namespace Layers {
+namespace YaneuraOu {
+namespace Eval::NNUE::Layers {
 
 // 複数の層の出力の和を取る層
 template <typename FirstPreviousLayer, typename... RemainingPreviousLayers>
@@ -155,11 +152,8 @@ class Sum<PreviousLayer> {
   PreviousLayer previous_layer_;
 };
 
-}  // namespace Layers
-
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Layers::NNUE::Eval
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

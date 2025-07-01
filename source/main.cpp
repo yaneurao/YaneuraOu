@@ -8,24 +8,29 @@
 #include "misc.h"
 #include "engine.h"
 
-// ファイルの中身を出力する。
-void print_file(const std::string& path)
-{
-	SystemIO::TextReader reader;
-	if (reader.Open(path).is_not_ok())
-		return;
+namespace YaneuraOu {
+	// ファイルの中身を出力する。
+	void print_file(const std::string& path)
+	{
+		SystemIO::TextReader reader;
+		if (reader.Open(path).is_not_ok())
+			return;
 
-	std::string line;
-	while (reader.ReadLine(line).is_ok())
-		sync_cout << line << sync_endl;
+		std::string line;
+		while (reader.ReadLine(line).is_ok())
+			sync_cout << line << sync_endl;
+	}
 }
 
 // ----------------------------------------
 //  main()
 // ----------------------------------------
 
+// main関数は、namespaceに入れてはならない。(それをするとWindowsアプリ扱いされてしまう)
 int main(int argc, char* argv[])
 {
+	using namespace YaneuraOu;
+
 	// 起動時に説明書きを出力。
 	print_file("startup_info.txt");
 

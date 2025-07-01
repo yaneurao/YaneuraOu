@@ -15,6 +15,8 @@
 #endif
 
 using namespace std;
+namespace YaneuraOu {
+
 using namespace Effect8;
 
 std::string SFEN_HIRATE = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
@@ -3274,3 +3276,5 @@ void Position::UnitTest(Test::UnitTester& tester)
 // ----------------------------------
 template bool Position::pseudo_legal_s<false>(const Move m) const;
 template bool Position::pseudo_legal_s< true>(const Move m) const;
+
+} // namespace YaneuraOu

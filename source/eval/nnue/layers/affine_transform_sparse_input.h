@@ -13,6 +13,7 @@
 #include "affine_transform.h"
 #include "simd.h"
 
+namespace YaneuraOu {
 namespace Eval::NNUE::Layers {
 
 #if defined(USE_SSSE3) || USE_NEON >= 8
@@ -394,7 +395,8 @@ class AffineTransformSparseInput {
 	alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
 };
 
-}  // namespace Eval::NNUE::Layers
+} // namespace Eval::NNUE::Layers
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

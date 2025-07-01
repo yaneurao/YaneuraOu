@@ -17,7 +17,7 @@
     #include <arm_neon.h>
 #endif
 
-
+namespace YaneuraOu {
 namespace Simd
 {
 
@@ -113,6 +113,6 @@ namespace Simd
 
 
 } // namespace Simd 
-
+} // namespace YaneuraOu
 
 #endif // ifndef SIMD_H_INCLUDED

@@ -9,6 +9,8 @@
 #include "types.h"
 #include "position.h"
 
+namespace YaneuraOu {
+
 // --------------------
 //     USI関連
 // --------------------
@@ -217,5 +219,6 @@ void is_ready(bool skipCorruptCheck = false);
 // 使い方はbenchコマンド(benchmark.cpp)のコードを見てほしい。
 void position_cmd(Position& pos, std::istringstream& is, StateListPtr& states);
 
+} // namespace YaneuraOu
 
 #endif // #ifndef USI_H_INCLUDED

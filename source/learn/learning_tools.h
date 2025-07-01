@@ -13,8 +13,9 @@
 
 #include <cmath>	// std::sqrt()
 
-namespace EvalLearningTools
-{
+namespace YaneuraOu {
+namespace EvalLearningTools {
+
 	// -------------------------------------------------
 	//                     初期化
 	// -------------------------------------------------
@@ -1013,8 +1014,8 @@ namespace EvalLearningTools
 		return os;
 	}
 
-
-}
+} // namespace EvalLearningTools {
+} // namespace YaneuraOu {
 
 #endif // defined (EVAL_LEARN)
 #endif

@@ -17,6 +17,7 @@
 
 #include "evaluate_nnue.h"
 
+namespace YaneuraOu {
 namespace Eval {
 
     namespace NNUE {
@@ -362,6 +363,7 @@ namespace Eval {
         std::cout << "--- EVAL STAT: not implemented" << std::endl;
     }
 
-}  // namespace Eval
+} // namespace Eval
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)

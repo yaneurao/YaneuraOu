@@ -4,10 +4,11 @@
 #include "../types.h"
 #include <array>
 
-// KPPT,KPP_PPTで使うためのヘルパクラス
-// 手番つきの評価値の合計を計算するために用いる。
-
+namespace YaneuraOu {
 namespace Eval {
+
+	// KPPT,KPP_PPTで使うためのヘルパクラス
+	// 手番つきの評価値の合計を計算するために用いる。
 
 	// std::array<T,2>に対して 基本的な演算を提供する。
 	template <typename Tl, typename Tr>
@@ -239,5 +240,6 @@ namespace Eval {
 	static bool operator != (const EvalSum& lhs, const EvalSum rhs) { return !(lhs == rhs); }
 
 } // namespace Eval
+} // namespace YaneuraOu
 
 #endif // EVAL_SUM_H

@@ -10,6 +10,8 @@
 #include "../extra/key128.h"
 #include "../misc.h"
 
+namespace YaneuraOu {
+
 static_assert(HASH_KEY_BITS == 128 , "HASH_KEY_BITS must be 128");
 
 #define POLICY_BOOK_DB_NAME           "eval/policy_book.db"
@@ -117,6 +119,8 @@ private:
 	// PolicyBook本体
 	std::vector<PolicyBookEntry> book_body;
 };
-#endif
 
+} // namespace YaneuraOu
+
+#endif // defined(USE_POLICY_BOOK)
 #endif

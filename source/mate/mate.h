@@ -1,5 +1,5 @@
-﻿#ifndef __MATE_H_INCLUDED__
-#define __MATE_H_INCLUDED__
+﻿#ifndef MATE_H_INCLUDED
+#define MATE_H_INCLUDED
 
 #include "../types.h"
 #if defined (USE_MATE_1PLY)
@@ -8,8 +8,10 @@
 #include <memory> // std::unique_ptr<>
 #include <atomic> // std::atomic<>
 
-namespace Mate
-{
+namespace YaneuraOu {
+
+namespace Mate {
+
 	// Mate関連で使うテーブルの初期化
 	// ※　Bitboard::init()から呼び出される。
 	void init();
@@ -218,7 +220,7 @@ namespace Mate
 		int max_game_ply = 0;
 	};
 
-#endif
+#endif // defined(USE_MATE_SOLVER)
 }
 
 #if defined(USE_MATE_DFPN)
@@ -366,10 +368,9 @@ namespace Mate::Dfpn
 	};
 
 } // namespace Mate::Dfpn
-#endif
+#endif // defined(USE_MATE_DFPN)
 
+} // namespace YaneuraOu
+#endif // defined (USE_MATE_1PLY)
 
-#endif // namespace Mate
-
-#endif // __MATE_H_INCLUDED__
-
+#endif // MATE_H_INCLUDED

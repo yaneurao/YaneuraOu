@@ -3,6 +3,8 @@
 #include "search.h"
 #include "tt.h"
 
+namespace YaneuraOu {
+
 // ----------------------------------------
 //    const
 // ----------------------------------------
@@ -121,3 +123,5 @@ Move16 Move::to_move16() const { return Move16(data); }
 #if defined(USE_GLOBAL_OPTIONS)
 GlobalOptions_ GlobalOptions;
 #endif
+
+} // namespace YaneuraOu

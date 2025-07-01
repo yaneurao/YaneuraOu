@@ -7,6 +7,7 @@
 #include <sstream>
 
 using namespace std;
+namespace YaneuraOu {
 
 // ----- Bitboard const
 
@@ -1153,4 +1154,4 @@ void Bitboard256::UnitTest(Test::UnitTester& tester)
 	}
 }
 
-
+} // namespace YaneuraOu

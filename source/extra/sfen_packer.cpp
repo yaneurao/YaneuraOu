@@ -10,6 +10,7 @@
 #include <cstring>	// std::memset()
 
 using namespace std;
+namespace YaneuraOu {
 
 // -----------------------------------
 //        局面の圧縮・解凍
@@ -635,6 +636,7 @@ std::string Position::sfen_unpack(const PackedSfen& sfen)
 	return sp.unpack();
 }
 
+} // namespace YaneuraOu
 
 #endif // USE_SFEN_PACKER
 
