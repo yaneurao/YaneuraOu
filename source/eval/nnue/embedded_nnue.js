@@ -35,12 +35,14 @@ async function main() {
   // Heap OOM if string template is used...
   const w = (s) => process.stdout.write(s);
   w(`#include <cstddef>\n`);
+  w(`namespace YaneuraOu {\n`);
   w(`extern const char* gEmbeddedNNUEData;\n`);
   w(`extern const std::size_t gEmbeddedNNUESize;\n`);
   w(`const char* gEmbeddedNNUEData = "`);
   w(literal);
   w(`";\n`);
   w(`const std::size_t gEmbeddedNNUESize = ${size};\n`);
+  w(`}\n`);
 }
 
 if (require.main == module) {
