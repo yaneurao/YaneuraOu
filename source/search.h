@@ -38,8 +38,6 @@ class OptionsMap;
 // 探索関係
 namespace Search {
 
-#if defined(USE_MOVE_PICKER)
-
 // -----------------------
 //  探索のときに使うStack
 // -----------------------
@@ -69,7 +67,6 @@ struct Stack {
 	int             quietMoveStreak;    // quietの指し手が親nodeからこのnodeまでに何連続したか。
 };
 
-#endif
 
 // RootMove struct is used for moves at the root of the tree. For each root move
 // we store a score and a PV (really a refutation in the case of moves which

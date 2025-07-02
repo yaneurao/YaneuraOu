@@ -7,7 +7,7 @@
 #include "../../extra/all.h"
 
 using namespace std;
-using namespace Search;
+using namespace YaneuraOu::Search;
 
 // --- 詰み将棋探索
 
@@ -57,8 +57,9 @@ using namespace Search;
 // http://d.hatena.ne.jp/GMA0BN/20090521/1242911867
 //
 
-namespace MateEngine
-{
+namespace YaneuraOu {
+namespace MateEngine {
+
 	// 詰将棋エンジン用のMovePicker(指し手生成器)
 	struct MovePicker
 	{
@@ -946,7 +947,7 @@ namespace MateEngine
 	}
 
 
-}
+} // namespace MateEngine
 
 void USI::extra_option(USI::OptionsMap & o) {
 	o[MateEngine::kMorePreciseMatePv] << USI::Option(true);
@@ -990,5 +991,7 @@ void Thread::search()
 
 	MateEngine::dfpn(rootPos);
 }
+
+} // namespace YaneuraOu
 
 #endif

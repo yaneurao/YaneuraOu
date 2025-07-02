@@ -29,13 +29,13 @@
 
 #if defined(EVAL_LEARN)
 #include "../../learn/learning_tools.h"
-using namespace EvalLearningTools;
+using namespace YaneuraOu::EvalLearningTools;
 #endif
 
 using namespace std;
 
-namespace Eval
-{
+namespace YaneuraOu {
+namespace Eval {
 
 	// 評価関数パラメーター
 	// 2GBを超える配列は確保できないようなのでポインターにしておき、動的に確保する。
@@ -1173,7 +1173,7 @@ namespace Eval
 		}
 	}
 
-
-}
+} // namespace Eval
+} // namespace YaneuraOu
 
 #endif // defined (EVAL_KPP_KKPT)

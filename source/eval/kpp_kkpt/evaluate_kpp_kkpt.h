@@ -10,8 +10,8 @@
 #include "../../evaluate.h"
 #include "../evaluate_common.h"
 
-namespace Eval
-{
+namespace YaneuraOu {
+namespace Eval {
 
 	// -----------------------------
 	//    評価関数パラメーターの型
@@ -55,7 +55,8 @@ namespace Eval
 	const u64 size_of_kpp = (u64)SQ_NB*(u64)fe_end*(u64)fe_end*(u64)sizeof(ValueKpp);
 	const u64 size_of_eval = size_of_kk + size_of_kkp + size_of_kpp;
 
-}      // namespace Eval
+} // namespace Eval
+} // namespace YaneuraOu
 
 #endif // defined(EVAL_KPP_KKPT)
 

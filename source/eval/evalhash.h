@@ -4,6 +4,8 @@
 #include "../types.h"
 #include "../misc.h"
 
+namespace YaneuraOu {
+
 // シンプルなHashTableの実装。Sizeは2のべき乗。
 // 評価値のcacheに用いる。
 template <typename T>
@@ -46,5 +48,7 @@ private:
 	size_t size = 0;
 	T* entries_ = nullptr;
 };
+
+} // namespace YaneuraOu
 
 #endif // EVALHASH_H_INCLUDED

@@ -1273,7 +1273,7 @@ namespace Test
 template<>
 struct std::hash<YaneuraOu::Move16> {
 	size_t operator()(const YaneuraOu::Move16& m16) const {
-		return hash<u16>()(m16.to_u16());
+		return hash<YaneuraOu::u16>()(m16.to_u16());
 	}
 };
 

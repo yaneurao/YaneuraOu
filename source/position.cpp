@@ -9,6 +9,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstring> // std::memset()
+#include <stack>
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 #include "eval/evaluate_common.h"
@@ -613,7 +614,6 @@ std::ostream& operator<<(std::ostream& os, const Position& pos)
 }
 
 #if defined (KEEP_LAST_MOVE)
-#include <stack>
 
 // 開始局面からこの局面にいたるまでの指し手を表示する。
 std::string Position::moves_from_start(bool is_pretty) const

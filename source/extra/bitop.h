@@ -40,6 +40,8 @@
 #include <arm_neon.h>
 #endif
 
+namespace YaneuraOu {
+
 // ----------------------------
 //      type define(uint , sint)
 // ----------------------------
@@ -369,5 +371,7 @@ inline uint64_t bswap64(uint64_t u) {
 		((u & 0x00000000000000FFu) << 56u);
 #endif
 }
+
+} // namespace YaneuraOu
 
 #endif

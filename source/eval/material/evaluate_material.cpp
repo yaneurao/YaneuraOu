@@ -14,8 +14,9 @@
 #include <numeric>	 // for std::accumulate()
 #define SIZE_OF_ARRAY(array) (sizeof(array)/sizeof(array[0]))
 
-namespace Eval
-{
+namespace YaneuraOu {
+namespace Eval {
+
 	// 駒得のみの評価関数のとき。
 	void load_eval() {}
 	void print_eval_stat(Position& pos) {}
@@ -901,7 +902,8 @@ namespace Eval
 
 #endif // MATERIAL_LEVEL
 
-}
+} // namespace Eval
+} // namespace YaneuraOu
 
 #endif // defined(EVAL_MATERIAL)
 

@@ -37,22 +37,12 @@
 
 #if defined(EVAL_LEARN)
 #include "../../learn/learning_tools.h"
-using namespace EvalLearningTools;
+using namespace YaneuraOu::EvalLearningTools;
 #endif
 
 using namespace std;
 namespace YaneuraOu {
 namespace Eval {
-
-	// KKファイル名
-	constexpr const char* KK_BIN = "KK_synthesized.bin";
-
-	// KKPファイル名
-	constexpr const char* KKP_BIN = "KKP_synthesized.bin";
-
-	// KPPファイル名
-	constexpr const char* KPP_BIN = "KPP_synthesized.bin";
-
 
 	// 評価関数パラメーター
 	// 2GBを超える配列は確保できないようなのでポインターにしておき、動的に確保する。

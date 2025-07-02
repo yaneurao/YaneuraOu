@@ -4,8 +4,6 @@
 #include "config.h"
 #include "types.h"
 
-namespace YaneuraOu {
-
 // -------------------------------------
 //   評価関数に対応するheaderの読み込み
 // -------------------------------------
@@ -18,6 +16,7 @@ namespace YaneuraOu {
 //             評価関数
 // -------------------------------------
 
+namespace YaneuraOu {
 struct StateInfo;
 
 namespace Eval {

@@ -197,7 +197,7 @@ namespace Eval
 #endif
 	}
 
-}
+} // namesapce Eval
 
 } // namespace YaneuraOu
 

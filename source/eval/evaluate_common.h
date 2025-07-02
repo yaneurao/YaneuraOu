@@ -10,6 +10,19 @@ namespace YaneuraOu {
 namespace Eval
 {
 
+#if defined (EVAL_KPPT) || defined(EVAL_KPP_KKPT) 
+
+	// KKファイル名
+	constexpr const char* KK_BIN = "KK_synthesized.bin";
+
+	// KKPファイル名
+	constexpr const char* KKP_BIN = "KKP_synthesized.bin";
+
+	// KPPファイル名
+	constexpr const char* KPP_BIN = "KPP_synthesized.bin";
+
+#endif
+
 #if defined(USE_EVAL_HASH)
 	// prefetchする関数
 	void prefetch_evalhash(const Key key);

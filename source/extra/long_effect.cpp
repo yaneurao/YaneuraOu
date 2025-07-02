@@ -14,6 +14,8 @@
 
 #include <cstring>	// std::memset()
 
+namespace YaneuraOu {
+
 // Effect8::operator<<()で用いるヘルパー関数
 // 3*3ならN=3 , 5*5ならN=5..
 std::ostream& output_around_n(std::ostream& os, uint32_t d,int n)
@@ -645,6 +647,8 @@ namespace LongEffect
     Effect24::init();
   }
 
-}
+} // namespace Effect8
+} // namespace YaneuraOu {
+
 
 #endif // LONG_EFFECT_LIBRARY

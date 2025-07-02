@@ -1,13 +1,13 @@
 ﻿#include "../evaluate.h"
 #include "../position.h"
 
-#if defined (USE_PIECE_VALUE)
-
 using namespace std;
 namespace YaneuraOu {
-namespace Eval
-{
-    // 駒の価値
+namespace Eval {
+
+#if defined (USE_PIECE_VALUE)
+
+	// 駒の価値
     int PieceValue[PIECE_NB] =
     {
         0, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue,GoldValue,
@@ -50,11 +50,11 @@ namespace Eval
 			+ (move.is_promote() ? (Value)ProDiffPieceValue[pos.piece_on(move.from_sq())] : VALUE_ZERO);
 	}
 
-#endif
-
+#endif // defined (USE_PIECE_VALUE)
 
 #if defined(USE_EVAL_LIST)
-    ExtBonaPiece kpp_board_index[PIECE_NB] = {
+
+	ExtBonaPiece kpp_board_index[PIECE_NB] = {
         { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
         { f_pawn, e_pawn },
         { f_lance, e_lance },
@@ -176,8 +176,8 @@ namespace Eval
 
         return os;
     }
+#endif // defined(USE_EVAL_LIST)
 
 } // namespace Eval
 } // namespace YaneuraOu {
 
-#endif // defined(USE_EVAL_LIST)

@@ -3,6 +3,7 @@
 
 #if defined(USER_ENGINE)
 
+namespace YaneuraOu {
 
 // USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。実験に使ってください。
 void user_test(Position& pos_, std::istringstream& is)
@@ -40,5 +41,7 @@ void MainThread::search()
 void Thread::search()
 {
 }
+
+} // namespace YaneuraOu
 
 #endif // USER_ENGINE

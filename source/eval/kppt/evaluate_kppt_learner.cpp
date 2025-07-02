@@ -24,8 +24,9 @@
 
 // --- 以下、定義
 
-namespace Eval
-{
+namespace YaneuraOu {
+namespace Eval {
+
 	using namespace EvalLearningTools;
 
 	// bugなどにより間違って書き込まれた値を補正する。
@@ -391,6 +392,7 @@ namespace Eval
 		return Weight::eta;
 	}
 
-}
+} // namespace Eval
+} // namespace YaneuraOu
 
 #endif // EVAL_LEARN
