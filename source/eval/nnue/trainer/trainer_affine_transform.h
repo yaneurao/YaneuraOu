@@ -13,9 +13,8 @@
 
 #include <random>
 
-namespace Eval {
-
-namespace NNUE {
+namespace YaneuraOu {
+namespace Eval::NNUE {
 
 // 学習：アフィン変換層
 template <typename PreviousLayer, IndexType OutputDimensions>
@@ -294,9 +293,8 @@ class Trainer<Layers::AffineTransform<PreviousLayer, OutputDimensions>> {
   LearnFloatType learning_rate_scale_;
 };
 
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_LEARN) && defined(EVAL_NNUE)
 

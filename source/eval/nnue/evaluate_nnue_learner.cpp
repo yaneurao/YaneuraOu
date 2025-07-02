@@ -33,6 +33,7 @@
 #include "trainer/trainer_clipped_relu.h"
 #include "trainer/trainer_sum.h"
 
+namespace YaneuraOu {
 namespace Eval {
 
 namespace NNUE {
@@ -239,6 +240,7 @@ double get_eta() {
   return NNUE::GetGlobalLearningRateScale() * EvalLearningTools::Weight::eta;
 }
 
-}  // namespace Eval
+} // namespace Eval
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_LEARN) && defined(EVAL_NNUE)

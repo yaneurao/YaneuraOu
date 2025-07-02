@@ -74,6 +74,7 @@
 #endif
 
 using namespace std;
+namespace YaneuraOu {
 
 // これは探索部で定義されているものとする。
 extern Book::BookMoveSelector book;
@@ -386,7 +387,7 @@ void MultiThinkGenSfen::thread_worker(size_t thread_id)
 		th->tt.clear();
 
 		// 探索部で定義されているBookMoveSelectorのメンバを参照する。
-		auto& book = ::book;
+		auto& book = YaneuraOu::book;
 
 		// 1局分の局面を保存しておき、終局のときに勝敗を含めて書き出す。
 		// 書き出す関数は、この下にあるflush_psv()である。
@@ -2927,6 +2928,7 @@ void learn(Position&, istringstream& is)
 
 
 } // namespace Learner
+} // namespace YaneuraOu
 
 #if defined(EVAL_LEARN) && defined(GENSFEN2019)
 
@@ -2940,8 +2942,9 @@ void learn(Position&, istringstream& is)
 
 using namespace std;
 
-namespace
-{
+namespace YaneuraOu {
+namespace {
+
 	// C#のstring.Split()みたいなの
 	vector<string> split(const string &s, char delim) {
 		vector<string> elems;
@@ -2954,7 +2957,7 @@ namespace
 		}
 		return elems;
 	}
-}
+} // namespace
 
 namespace Learner {
 
@@ -3535,7 +3538,9 @@ namespace Learner {
 #endif
 
 	}
-}
+
+} // namespace Learner
+} // namespace YaneuraOu
 
 #endif // defined(EVAL_LEARN) && defined(GENSFEN2019)
 

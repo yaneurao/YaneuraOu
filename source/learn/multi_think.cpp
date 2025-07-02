@@ -8,6 +8,8 @@
 
 #include <thread>
 
+namespace YaneuraOu {
+
 void MultiThink::go_think()
 {
 	// あとでOptionsの設定を復元するためにコピーで保持しておく。
@@ -119,5 +121,6 @@ void MultiThink::go_think()
 
 }
 
+} // namespace YaneuraOu
 
-#endif // defined(EVAL_LEARN)
+#endif // defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)

@@ -10,11 +10,8 @@
 #include "../../nnue_common.h"
 #include "../trainer.h"
 
-namespace Eval {
-
-namespace NNUE {
-
-namespace Features {
+namespace YaneuraOu {
+namespace Eval::NNUE::Features {
 
 // 入力特徴量を学習用特徴量に変換するクラステンプレート
 // デフォルトでは学習用特徴量は元の入力特徴量と同じとし、必要に応じて特殊化する
@@ -101,11 +98,8 @@ constexpr std::size_t GetArrayLength(const T (&/*array*/)[N]) {
   return N;
 }
 
-}  // namespace Features
-
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE::Features
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 

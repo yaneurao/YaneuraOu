@@ -11,9 +11,8 @@
 #include "../layers/input_slice.h"
 #include "trainer.h"
 
-namespace Eval {
-
-namespace NNUE {
+namespace YaneuraOu {
+namespace Eval::NNUE {
 
 // 学習：入力層
 class SharedInputTrainer {
@@ -247,9 +246,8 @@ class Trainer<Layers::InputSlice<OutputDimensions, Offset>> {
   std::vector<LearnFloatType> gradients_;
 };
 
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_LEARN) && defined(EVAL_NNUE)
 

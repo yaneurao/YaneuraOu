@@ -11,9 +11,8 @@
 #include "../layers/sum.h"
 #include "trainer.h"
 
-namespace Eval {
-
-namespace NNUE {
+namespace YaneuraOu {
+namespace Eval::NNUE {
 
 // 学習：複数の層の出力の和を取る層
 template <typename FirstPreviousLayer, typename... RemainingPreviousLayers>
@@ -183,9 +182,8 @@ class Trainer<Layers::Sum<PreviousLayer>> {
   std::vector<LearnFloatType> output_;
 };
 
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_LEARN) && defined(EVAL_NNUE)
 

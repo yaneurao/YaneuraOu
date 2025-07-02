@@ -6,6 +6,7 @@
 #if defined(EVAL_LEARN)
 
 #include <vector>
+#include "../position.h"
 
 namespace YaneuraOu {
 
@@ -188,7 +189,6 @@ typedef float LearnFloatType;
 // ----------------------
 // Learnerで用いるstructの定義
 // ----------------------
-#include "../position.h"
 
 namespace Learner
 {

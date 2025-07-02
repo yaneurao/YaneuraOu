@@ -1,5 +1,5 @@
-﻿#ifndef _MULTI_THINK_
-#define _MULTI_THINK_
+﻿#ifndef MULTI_THINK_H_INCLUDED
+#define MULTI_THINK_H_INCLUDED
 
 #include "../config.h"
 
@@ -151,4 +151,4 @@ protected:
 
 #endif // defined(EVAL_LEARN) && defined(YANEURAOU_ENGINE)
 
-#endif
+#endif // MULTI_THINK_H_INCLUDED

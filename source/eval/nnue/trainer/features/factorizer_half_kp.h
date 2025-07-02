@@ -12,11 +12,8 @@
 #include "../../features/half_relative_kp.h"
 #include "factorizer.h"
 
-namespace Eval {
-
-namespace NNUE {
-
-namespace Features {
+namespace YaneuraOu {
+namespace Eval::NNUE::Features {
 
 // 入力特徴量を学習用特徴量に変換するクラステンプレート
 // HalfKP用特殊化
@@ -94,11 +91,9 @@ class Factorizer<HalfKP<AssociatedKing>> {
 template <Side AssociatedKing>
 constexpr FeatureProperties Factorizer<HalfKP<AssociatedKing>>::kProperties[];
 
-}  // namespace Features
+} // namespace Eval::NNUE::Features
+} // namespace YaneuraOu
 
-}  // namespace NNUE
-
-}  // namespace Eval
 
 #endif  // defined(EVAL_NNUE)
 

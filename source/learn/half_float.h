@@ -1,5 +1,5 @@
-﻿#ifndef __HALF_FLOAT_H__
-#define __HALF_FLOAT_H__
+﻿#ifndef HALF_FLOAT_H_INCLUDED
+#define HALF_FLOAT_H_INCLUDED
 
 // Half Float Library by yaneurao
 // (16-bit float)
@@ -8,6 +8,8 @@
 // コンパイラの生成するfloat型のコードがIEEE 754の形式であると仮定して、それを利用する。
 
 #include "../types.h"
+
+namespace YaneuraOu {
 
 namespace HalfFloat
 {
@@ -130,4 +132,6 @@ namespace HalfFloat
 
 }
 
-#endif // __HALF_FLOAT_H__
+} // namespace YaneuraOu
+
+#endif // HALF_FLOAT_H_INCLUDED

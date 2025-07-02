@@ -9,9 +9,8 @@
 
 #include "../../learn/learn.h"
 
-namespace Eval {
-
-namespace NNUE {
+namespace YaneuraOu {
+namespace Eval::NNUE {
 
 // 学習の初期化を行う
 void InitializeTraining(double eta1, u64 eta1_epoch,
@@ -39,9 +38,8 @@ void UpdateParameters(u64 epoch);
 // 学習に問題が生じていないかチェックする
 void CheckHealth();
 
-}  // namespace NNUE
-
-}  // namespace Eval
+}  // namespace Eval::NNUE
+}  // namespace YaneuraOu
 
 #endif  // defined(EVAL_LEARN) && defined(EVAL_NNUE)
 

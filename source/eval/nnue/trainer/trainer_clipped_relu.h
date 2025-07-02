@@ -11,9 +11,8 @@
 #include "../layers/clipped_relu.h"
 #include "trainer.h"
 
-namespace Eval {
-
-namespace NNUE {
+namespace YaneuraOu {
+namespace Eval::NNUE {
 
 // 学習：アフィン変換層
 template <typename PreviousLayer>
@@ -158,9 +157,8 @@ private:
 	LearnFloatType max_activations_[kOutputDimensions];
 };
 
-}  // namespace NNUE
-
-}  // namespace Eval
+} // namespace Eval::NNUE
+} // namespace YaneuraOu
 
 #endif  // defined(EVAL_LEARN) && defined(EVAL_NNUE)
 
