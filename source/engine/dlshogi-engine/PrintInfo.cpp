@@ -11,8 +11,9 @@
 #include <iomanip>		// std::setw()
 #include <sstream>		// std::stringstream
 
-namespace dlshogi::UctPrint
-{
+namespace YaneuraOu {
+namespace dlshogi::UctPrint {
+
 	// ---   print PV   ---
 
 	// ChildNode*を2つ与えて、どちらのほうが良い指し手であるかを判定する。
@@ -321,7 +322,8 @@ namespace dlshogi::UctPrint
 		sync_cout << "Reuse : " << count << " Playouts" << sync_endl;
 	}
 
-}
+} // namespace dlshogi::UctPrint
+} // namespace YaneuraOu
 
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

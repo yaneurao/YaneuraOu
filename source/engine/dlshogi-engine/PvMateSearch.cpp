@@ -9,8 +9,9 @@
 #include "dlshogi_searcher.h"
 #include "UctSearch.h"
 
-namespace dlshogi
-{
+namespace YaneuraOu {
+namespace dlshogi {
+
 	// ゲーム木
 	//extern std::unique_ptr<NodeTree> tree;
 	//extern const Position* pos_root;
@@ -395,8 +396,9 @@ namespace dlshogi
 			th = nullptr; // 二重Term()に対して安全に
 		}
 	}
-}
 
+} // namespace dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 #endif // ndef __PV_MATE_SEARCH_CPP__

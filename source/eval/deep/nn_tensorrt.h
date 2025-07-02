@@ -16,6 +16,8 @@
 
 #include "nn.h"
 
+namespace YaneuraOu {
+
 // CUDA APIの返し値のエラーチェックを行うヘルパ
 // エラーが発生すれば、その旨を出力して終了する。
 void checkCudaErrors(cudaError_t status);
@@ -100,6 +102,7 @@ namespace Eval::dlshogi
 	};
 
 } // namespace Eval::dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP) && defined(TENSOR_RT)
 #endif // ndef __NN_TENSORRT_H_INCLUDED__

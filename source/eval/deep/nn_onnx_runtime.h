@@ -13,8 +13,9 @@
 #include "nn.h"
 #include "nn_types.h"
 
-namespace Eval::dlshogi
-{
+namespace YaneuraOu {
+namespace Eval::dlshogi {
+
 	// ONNXRUNTIME用
 	class NNOnnxRuntime : public NN
 	{
@@ -36,6 +37,7 @@ namespace Eval::dlshogi
 	};
 
 } // namespace Eval::dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(ONNXRUNTIME)
 #endif // defined(YANEURAOU_ENGINE_DEEP)

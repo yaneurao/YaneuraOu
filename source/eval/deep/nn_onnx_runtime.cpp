@@ -18,10 +18,12 @@
 #include "../../usi.h"
 
 using namespace std;
+
+namespace YaneuraOu {
 using namespace Tools;
 
-namespace Eval::dlshogi
-{
+namespace Eval::dlshogi {
+
 	// モデルファイルの読み込み。
 	Result NNOnnxRuntime::load(const std::string& model_filename , int gpu_id , int batch_size)
 	{
@@ -147,7 +149,7 @@ namespace Eval::dlshogi
 	}
 
 } // namespace Eval::dlshogi
-
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP) && defined(ONNXRUNTIME)
 

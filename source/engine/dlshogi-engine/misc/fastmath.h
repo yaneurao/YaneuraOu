@@ -30,6 +30,7 @@
 #include <cstring>
 #include <cmath>
 
+namespace YaneuraOu {
 
 // These stunts are performed by trained professionals, do not try this at home.
 
@@ -80,3 +81,5 @@ inline float FastExp(const float a) { return FastPow2(1.442695040f * a); }
 inline float FastLogit(const float a) {
   return 0.5f * FastLog((1.0f + a) / (1.0f - a));
 }
+
+} // namespace YaneuraOu

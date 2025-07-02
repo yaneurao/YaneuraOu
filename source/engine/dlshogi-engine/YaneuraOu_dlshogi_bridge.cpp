@@ -18,6 +18,7 @@
 
 // --- やねうら王のsearchのoverride
 
+namespace YaneuraOu {
 using namespace dlshogi;
 using namespace Eval::dlshogi;
 
@@ -526,5 +527,7 @@ void gameover_handler(const std::string& cmd)
 	// dlshogiのゲームオーバーのハンドラを呼び出す。
 	searcher.GameOver();
 }
+
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

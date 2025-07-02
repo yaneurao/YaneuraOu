@@ -13,8 +13,9 @@
 
 // dlshogiの探索部で構造体化・クラス化されていないものを集めたもの。
 
-namespace dlshogi
-{
+namespace YaneuraOu {
+namespace dlshogi {
+
 	struct Node;
 	class NodeTree;
 	class NodeGarbageCollector;
@@ -455,6 +456,7 @@ namespace dlshogi
 	};
 
 } // namespace dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 #endif // ndef __DLSHOGI_SEARCHER_H_INCLUDED__

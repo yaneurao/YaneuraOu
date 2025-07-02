@@ -9,6 +9,7 @@
 
 // 外部から探索部の一部の機能だけ呼び出したい時用のheader
 
+namespace YaneuraOu {
 namespace dlshogi {
 
 	// 探索結果を返す。
@@ -57,7 +58,10 @@ namespace dlshogi {
 	//  →　そちらは、Position::do_move()した回数。
 	// こちらは、GPUでevaluate()を呼び出した回数。俗に言うnodes visited。
 	u64 nodes_visited();
-}
+
+} // namespace dlshogi
+} // namespace YaneuraOu
+
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 

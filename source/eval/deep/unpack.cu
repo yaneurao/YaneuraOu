@@ -1,5 +1,7 @@
 ﻿#include "unpack.cuh"
 
+namespace YaneuraOu {
+
 #if defined(TRT_NN_FP16)
 typedef __half DType;
 typedef short FType;
@@ -48,3 +50,5 @@ void unpack_features2(const int batch_size, PType* p2, DType* x2, cudaStream_t s
 {
 	unpack_features2_kernel<<<batch_size, features2_size, 0, stream>>>((char*)p2, (FType*)x2, batch_size * features2_size);
 }
+
+} // namespace YaneuraOu

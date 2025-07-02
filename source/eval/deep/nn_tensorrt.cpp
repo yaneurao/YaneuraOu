@@ -6,6 +6,11 @@
 #include "unpack.cuh"
 //#include "dlshogi_types.h"
 
+using namespace std;
+
+namespace YaneuraOu {
+using namespace Tools;
+
 namespace {
 	void FatalError(const std::string& s) {
 		std::cerr << s << "\nAborting...\n";
@@ -65,10 +70,6 @@ void checkCudaErrors(cudaError_t status) {
 //		FatalError(_error.str());
 //	}
 //}
-
-
-using namespace std;
-using namespace Tools;
 
 namespace Eval::dlshogi
 {
@@ -410,6 +411,7 @@ namespace Eval::dlshogi
 	}
 
 } // namespace Eval::dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP) && defined (TENSOR_RT)
 

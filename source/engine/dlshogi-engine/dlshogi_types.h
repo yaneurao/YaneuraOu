@@ -9,8 +9,9 @@
 // dlshogiのソースコードを参考にさせていただいています。
 // DeepLearningShogi GitHub : https://github.com/TadaoYamaoka/DeepLearningShogi
 
-namespace dlshogi
-{
+namespace YaneuraOu {
+namespace dlshogi {
+
 	// Virtual Loss (Best Parameter)
 	// Virtual Lossが何かわからない人は「MCTS Virtual Loss」とかでググれ。
 	constexpr int VIRTUAL_LOSS = 1;
@@ -57,8 +58,8 @@ namespace dlshogi
 	// 何もせずにリターンしたことを示す。
 	constexpr float DISCARDED = -FLT_MAX;
 
-
-}
+} // namespace dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 #endif // __DLSHOGI_TYPES_H_INCLUDED__

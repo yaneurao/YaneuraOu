@@ -7,6 +7,8 @@
 #include "Node.h"
 #include "UctSearch.h"
 
+namespace YaneuraOu {
+
 namespace dlshogi
 {
 	struct SearchLimits;
@@ -48,7 +50,8 @@ namespace dlshogi::UctPrint
 	//   silent : これがtrueなら読み筋は出力しない。
 	BestMovePonder get_best_move_multipv(const Node* rootNode, const SearchLimits& po_info, const SearchOptions& options, bool silent);
 
-}
+} // namespace dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 

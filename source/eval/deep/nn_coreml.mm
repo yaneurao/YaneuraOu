@@ -9,6 +9,8 @@
 #include "../../usi.h"
 
 using namespace std;
+
+namespace YaneuraOu {
 using namespace Tools;
 
 
@@ -207,7 +209,7 @@ namespace Eval::dlshogi
 	}
 
 } // namespace Eval::dlshogi
-
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP) && defined(COREML)
 

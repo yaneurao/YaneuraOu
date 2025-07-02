@@ -8,8 +8,9 @@
 #include "../../position.h"
 #include "dlshogi_types.h"
 
-namespace dlshogi
-{
+namespace YaneuraOu {
+namespace dlshogi {
+
 	struct Node;
 	class NodeGarbageCollector;
 
@@ -344,7 +345,8 @@ namespace dlshogi
 		std::atomic<int> next_thread_id;
 	};
 
-}
+} // namespace dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 

@@ -14,10 +14,12 @@
 #include "../../misc.h"
 
 using namespace std;
+
+namespace YaneuraOu {
 using namespace Tools;
 
-namespace Eval::dlshogi
-{
+namespace Eval::dlshogi {
+
 	// forwardに渡すメモリの確保
 	void* NN::alloc(size_t size)
 	{
@@ -100,6 +102,6 @@ namespace Eval::dlshogi
 	}
 
 } // namespace Eval::dlshogi
-
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

@@ -2,8 +2,9 @@
 #if defined(YANEURAOU_ENGINE_DEEP)
 #include "../../misc.h"
 
-namespace dlshogi
-{
+namespace YaneuraOu {
+namespace dlshogi {
+
 	// --- struct Node
 
 	std::mutex Node::mtx_dfpn;
@@ -143,6 +144,7 @@ namespace dlshogi
 		current_head = game_root_node.get();
 	}
 
-}
+} // namespace dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

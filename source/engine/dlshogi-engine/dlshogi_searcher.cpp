@@ -13,8 +13,9 @@
 #include "../../thread.h"
 #include "../../mate/mate.h"
 
-namespace dlshogi
-{
+namespace YaneuraOu {
+namespace dlshogi {
+
 	// --------------------------------------------------------------------
 	//  DlshogiSearcher : dlshogiの探索部で、globalになっていたものをクラス化したもの。
 	// --------------------------------------------------------------------
@@ -1056,6 +1057,8 @@ namespace dlshogi
 		};
 	}
 
-}
+} // namespace dlshogi
+} // namespace YaneuraOu
+
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

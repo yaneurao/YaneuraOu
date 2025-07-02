@@ -9,6 +9,8 @@
 #include "../../bitboard.h"
 
 using namespace std;
+
+namespace YaneuraOu {
 using namespace Tools;
 
 namespace
@@ -739,6 +741,8 @@ namespace Eval
 	// 考え中。
 	// NN::forward()を呼ぶ実装にするかも。
 	Value evaluate(const Position& pos) { return VALUE_ZERO; }
-}
+
+} // namespace Eval::dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(EVAL_DEEP

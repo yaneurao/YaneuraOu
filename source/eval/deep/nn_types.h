@@ -15,8 +15,9 @@
 #include <cuda_fp16.h>
 #endif
 
-namespace Eval::dlshogi
-{
+namespace YaneuraOu {
+namespace Eval::dlshogi {
+
 	// === GPU関連の設定 ===
 
 	// GPUの最大数(これ以上のGPUは扱えない)
@@ -188,6 +189,7 @@ namespace Eval::dlshogi
 	extern std::vector<std::string> ModelPaths;
 
 } // namespace Eval::dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 #endif // ndef __DLSHOGI_EVALUATE_H_INCLUDED__

@@ -12,6 +12,7 @@
 #include "../../mate/mate.h"
 
 #include <limits>           // max<T>()
+#include <sstream>
 
 // 完全なログ出力をしてdlshogiと比較する時用。
 //#define LOG_PRINT
@@ -21,8 +22,11 @@
 //   ※　たぶんあとで消す
 // -------------------------------------------------------------------------------------------
 
+using namespace std;
+namespace YaneuraOu {
+
 #if defined(LOG_PRINT)
-#include <sstream>
+
 struct MoveIntFloat
 {
 	MoveIntFloat(Move move, int label, float nnrate) : move(move),label(label),nnrate(nnrate){}
@@ -87,7 +91,6 @@ MyLogger logger;
 // -------------------------------------------------------------------------------------------
 
 using namespace Eval::dlshogi;
-using namespace std;
 
 #define LOCK_EXPAND grp->get_dlsearcher()->mutex_expand.lock();
 #define UNLOCK_EXPAND grp->get_dlsearcher()->mutex_expand.unlock();
@@ -1146,7 +1149,7 @@ namespace dlshogi
 			indices[i] = -1;
 	}
 
-}
-
+} // namespace dlshogi
+} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
