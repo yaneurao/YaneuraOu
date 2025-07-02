@@ -10,6 +10,8 @@
 #include "../../mate/mate.h"
 
 using namespace std;
+namespace YaneuraOu {
+
 using namespace Mate::Dfpn;
 
 namespace
@@ -138,5 +140,7 @@ void MainThread::search()
 void Thread::search()
 {
 }
+
+} // namespace YaneuraOu
 
 #endif // YANEURAOU_MATE_ENGINE

@@ -474,6 +474,10 @@ constexpr int MAX_PLY_NUM = 246;
 		// 駒割のみの評価関数ではサポートされていない機能をundefする。
 		#undef EVAL_LEARN
 
+		#if !defined(MATERIAL_LEVEL)
+			#define MATERIAL_LEVEL 001
+		#endif
+
 		// 実験用評価関数
 		// 駒得評価関数の拡張扱いをする。
 		#if MATERIAL_LEVEL >= 002
