@@ -229,7 +229,7 @@ namespace USI {
 		USI::extra_option(o);
 
 #if defined(ENGINE_OPTIONS)
-		const string opt = ENGINE_OPTIONS;
+		const std::string opt = ENGINE_OPTIONS;
 		set_engine_options(opt);
 #endif
 
