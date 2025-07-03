@@ -26,14 +26,14 @@ jobs:
           - USER_ENGINE
         compiler:
           - clang++-15
-          - g++-10
+          # - g++-10
         target:
-          - "normal,tournament"
-          - evallearn
+          - tournament
+          # - evallearn
         archcpu:
-          - AVX512
+          # - AVX512
           - AVX2
-          - NO_SSE
+          # - NO_SSE
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions

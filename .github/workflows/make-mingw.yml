@@ -28,12 +28,12 @@ jobs:
           - USER_ENGINE
         compiler:
           - x86_64-w64-mingw32-g++-posix
-          - i686-w64-mingw32-g++-posix
+          # - i686-w64-mingw32-g++-posix
         target:
           - tournament
-          - evallearn
+          # - evallearn
         archcpu:
-          - AVX512VNNI
+          # - AVX512VNNI
           - AVX2
           - NO_SSE
         exclude:

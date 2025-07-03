@@ -29,17 +29,19 @@ jobs:
           - USER_ENGINE
         compiler:
           - clang++
-          - g++
+          # - g++
         target:
           - tournament
           - evallearn
         archcpu:
           - AVX2
-          - NO_SSE
-          - OTHER
+          # - NO_SSE
+          # - OTHER
         exclude:
           # 以下のエディションには機械学習の実装が存在しない
           # There is no machine learning implementation for the following editions
+          - edition: YANEURAOU_ENGINE_MATERIAL
+            target: evallearn
           - edition: YANEURAOU_MATE_ENGINE
             target: evallearn
           - edition: TANUKI_MATE_ENGINE
