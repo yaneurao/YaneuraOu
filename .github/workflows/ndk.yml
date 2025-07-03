@@ -11,10 +11,10 @@ on:
 
 jobs:
   build-android:
-    # ubuntu-latest = ubuntu-20.04
+    # ubuntu-latest = ubuntu-22.04
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     strategy:
       matrix:
@@ -37,7 +37,7 @@ jobs:
         #   32bit向けにビルドのテスト自体はやりたいのでAndroid r23bに戻そっと…😢
 
       - name: Checkout own repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: main
 
