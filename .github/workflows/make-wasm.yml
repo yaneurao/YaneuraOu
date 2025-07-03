@@ -19,11 +19,11 @@ jobs:
     strategy:
       matrix:
         edition:
-          - halfkp
+          # - halfkp
           - halfkp.noeval
           - halfkpe9.noeval
           - halfkpvm.noeval
-          - k-p
+          # - k-p
           - k-p.noeval
           - material
           - material9
