@@ -167,10 +167,10 @@ namespace USI {
 		const char* default_eval_file = "nn.bin";
 		last_eval_file = default_eval_file;
 		o["EvalFile"] << Option(default_eval_file, [](const USI::Option& o) {
-			if (last_eval_file != string(o))
+			if (last_eval_file != std::string(o))
 			{
 				// 評価関数ファイル名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
-				last_eval_file = string(o);
+				last_eval_file = std::string(o);
 				load_eval_finished = false;
 			}
 		});
@@ -228,6 +228,7 @@ namespace USI {
 		// 各エンジンがOptionを追加したいだろうから、コールバックする。
 		USI::extra_option(o);
 
+// コンパイル時にエンジンオプションが指定されている。
 #if defined(ENGINE_OPTIONS)
 		const std::string opt = ENGINE_OPTIONS;
 		set_engine_options(opt);
