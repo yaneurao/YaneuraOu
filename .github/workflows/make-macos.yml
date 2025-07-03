@@ -24,7 +24,7 @@ jobs:
         compiler:
           - clang++
         target:
-          - "normal,tournament"
+          - tournament
         archcpu:
           - APPLEM1
 
