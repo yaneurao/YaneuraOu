@@ -82,20 +82,6 @@ static TimePoint now() {
 		// 10倍早く時間が経過するようにして、持ち時間制御のテストなどを行う。
 }
 
-// --------------------
-//    HashTable
-// --------------------
-
-// このclass、Stockfishにあるんだけど、
-// EvalHashとしてLargePageを用いる同等のclassをすでに用意しているので、使わない。
-
-//template<class Entry, int Size>
-//struct HashTable {
-//	Entry* operator[](Key key) { return &table[(uint32_t)key & (Size - 1)]; }
-//
-//private:
-//	std::vector<Entry> table = std::vector<Entry>(Size);
-//};
 
 // --------------------
 //  sync_out/sync_endl
@@ -109,34 +95,14 @@ static TimePoint now() {
 // sync_out << "bestmove " << m << sync_endl;
 // のように用いる。
 
-enum SyncCout { IO_LOCK, IO_UNLOCK };
+enum SyncCout {
+	IO_LOCK,
+	IO_UNLOCK
+};
 std::ostream& operator<<(std::ostream&, SyncCout);
 
 #define sync_cout std::cout << IO_LOCK
 #define sync_endl std::endl << IO_UNLOCK
-
-// --------------------
-//   from Stockfish
-// --------------------
-
-// Stockfish にあるけどやねうら王では使ってない。
-
-//// align_ptr_up() : get the first aligned element of an array.
-//// ptr must point to an array of size at least `sizeof(T) * N + alignment` bytes,
-//// where N is the number of elements in the array.
-//template <uintptr_t Alignment, typename T>
-//T* align_ptr_up(T* ptr)
-//{
-//  static_assert(alignof(T) < Alignment);
-//
-//  const uintptr_t ptrint = reinterpret_cast<uintptr_t>(reinterpret_cast<char*>(ptr));
-//  return reinterpret_cast<T*>(reinterpret_cast<char*>((ptrint + (Alignment - 1)) / Alignment * Alignment));
-//}
-//
-//
-//// IsLittleEndian : true if and only if the binary is compiled on a little endian machine
-//static inline const union { uint32_t i; char c[4]; } Le = { 0x01020304 };
-//static inline const bool IsLittleEndian = (Le.c[0] == 4);
 
 // --------------------
 //      ValueList
