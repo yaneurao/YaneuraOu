@@ -178,6 +178,8 @@ LOCAL_SRC_FILES := \
   ../source/timeman.cpp                                                \
   ../source/memory.cpp                                                 \
   ../source/engine.cpp                                                 \
+  ../source/search.cpp                                                 \
+  ../source/benchmark.cpp                                              \
   ../source/book/apery_book.cpp                                        \
   ../source/book/book.cpp                                              \
   ../source/extra/bitop.cpp                                            \
@@ -192,7 +194,6 @@ LOCAL_SRC_FILES := \
   ../source/eval/evaluate_io.cpp                                       \
   ../source/eval/evaluate_mir_inv_tools.cpp                            \
   ../source/eval/material/evaluate_material.cpp                        \
-  ../source/testcmd/benchmark.cpp                                      \
   ../source/testcmd/mate_test_cmd.cpp                                  \
   ../source/testcmd/normal_test_cmd.cpp                                \
   ../source/testcmd/unit_test.cpp
@@ -276,7 +277,7 @@ endif
 
 # abe
 ifeq ($(findstring abe,$(ENGINE_BRANCH)),abe)
-CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY -DFORCE_BIND_THIS_THREAD
+CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY
 endif
 
 

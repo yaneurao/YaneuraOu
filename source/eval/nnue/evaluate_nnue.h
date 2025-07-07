@@ -14,17 +14,6 @@
 #include "../../memory.h"
 
 namespace YaneuraOu {
-
-// 評価関数のソースコードへの埋め込みをする時は、EVAL_EMBEDDINGをdefineして、
-// ⇓この2つのシンボルを正しく定義するembedded_nnue.cppを書けば良い。
-#if defined(EVAL_EMBEDDING)
-	extern const char*  gEmbeddedNNUEData;
-	extern const size_t gEmbeddedNNUESize;
-#else
-	const char   gEmbeddedNNUEData[1] = {0x0};
-	const size_t gEmbeddedNNUESize = 1;
-#endif
-
 namespace Eval::NNUE {
 
 	// Hash value of evaluation function structure

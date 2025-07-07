@@ -1,0 +1,54 @@
+﻿#ifndef PERFT_H_INCLUDED
+#define PERFT_H_INCLUDED
+
+//#include <cstdint>
+
+//#include "movegen.h"
+#include "position.h"
+#include "types.h"
+#include "usi.h"
+
+namespace YaneuraOu::Benchmark {
+
+// Utility to verify move generation. All the leaf nodes up
+// to the given depth are generated and counted, and the sum is returned.
+
+// 指し手生成を検証するためのユーティリティ。
+// 指定された深さまでの全ての葉ノードを生成してカウントし、
+// その合計を返す。
+
+template<bool Root>
+uint64_t perft(Position& pos, Depth depth) {
+
+    StateInfo st;
+
+    uint64_t   cnt, nodes = 0;
+    const bool leaf = (depth == 2);
+
+    for (const auto& m : MoveList<LEGAL_ALL>(pos))
+    {
+        if (Root && depth <= 1)
+            cnt = 1, nodes++;
+        else
+        {
+            pos.do_move(m, st);
+            cnt = leaf ? MoveList<LEGAL_ALL>(pos).size() : perft<false>(pos, depth - 1);
+            nodes += cnt;
+            pos.undo_move(m);
+        }
+        if (Root)
+            sync_cout << USIEngine::move(m /*, pos.is_chess960()*/ ) << ": " << cnt << sync_endl;
+    }
+    return nodes;
+}
+
+inline uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
+    StateListPtr states(new std::deque<StateInfo>(1));
+    Position     p;
+    p.set(fen, /* isChess960,*/ &states->back());
+
+    return perft<true>(p, depth);
+}
+}
+
+#endif  // PERFT_H_INCLUDED

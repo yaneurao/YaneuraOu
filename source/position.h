@@ -163,14 +163,9 @@ struct StateInfo {
 
 };
 
-class Thread;
-
 // --------------------
 //     局面の定数
 // --------------------
-
-// 平手の開始局面
-extern std::string SFEN_HIRATE;
 
 /// A list to keep track of the position states along the setup moves (from the
 /// start position to the position just before the search starts). Needed by
@@ -244,9 +239,8 @@ public:
 
 	// Positionのコンストラクタで平手に初期化すると、compute_eval()が呼び出され、このときに
 	// 評価関数テーブルを参照するが、isready()が呼び出されていないのでこの初期化が出来ない。
-	Position() = default;
-
-	Position(const Position&) = delete;
+	Position()                           = default;
+	Position(const Position&)            = delete;
 	Position& operator=(const Position&) = delete;
 
 	// Positionで用いるZobristテーブルの初期化
@@ -257,7 +251,7 @@ public:
 	// 局面を遡るために、rootまでの局面の情報が必要であるから、それを引数のsiで渡してやる。
 	// 遡る必要がない場合は、StateInfo si;に対して&siなどとして渡しておけば良い。
 	// 内部的にmemset(si,0,sizeof(StateInfo))として、この渡されたインスタンスをクリアしている。
-	void set(std::string sfen , StateInfo* si , Thread* th);
+	Position& set(const std::string& sfenStr,/* bool isChess960,*/ StateInfo* si);
 
 	// 局面のsfen文字列を取得する
 	// ※ USIプロトコルにおいては不要な機能ではあるが、デバッグのために局面を標準出力に出力して
@@ -276,7 +270,7 @@ public:
 
 	// 平手の初期盤面を設定する。
 	// siについては、上記のset()にある説明を読むこと。
-	void set_hirate(StateInfo*si,Thread* th) { set(SFEN_HIRATE,si,th); }
+	void set_hirate(StateInfo*si) { set(StartSFEN, si); }
 
 	// --- properties
 
@@ -286,9 +280,6 @@ public:
 	// (将棋の)開始局面からの手数を返す。
 	// 平手の開始局面なら1が返る。(0ではない)
 	int game_ply() const { return gamePly; }
-
-	// この局面クラスを用いて探索しているスレッドを返す。 
-	Thread* this_thread() const { return thisThread; }
 
 	// 盤面上の駒を返す。
 	// ※ sq == SQ_NBの時、NO_PIECEが返ることは保証されている。
@@ -740,10 +731,10 @@ public:
 	static std::string sfen_unpack(const PackedSfen& sfen);
 
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
-	// pos.set(sfen_unpack(data),si,th); と等価。
+	// pos.set(sfen_unpack(data),si); と等価。
 	// 渡された局面に問題があって、エラーのときはTools::Result::SomeErrorを返す。
 	// PackedSfenにgamePlyは含まないので復元できない。そこを設定したいのであれば引数で指定すること。
-	Tools::Result set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , Thread* th, bool mirror=false , int gamePly_ = 0);
+	Tools::Result set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , bool mirror=false , int gamePly_ = 0);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
@@ -788,7 +779,7 @@ public:
 	friend struct MoveGenerator;
 
 	// UnitTest
-	static void UnitTest(Test::UnitTester&);
+	static void UnitTest(Test::UnitTester& tester, Engine& engine);
 
 private:
 
@@ -905,9 +896,6 @@ private:
 
 	// 初期局面からの手数(初期局面 == 1)
 	int gamePly;
-
-	// この局面クラスを用いて探索しているスレッド
-	Thread* thisThread;
 
 	// 現局面に対応するStateInfoのポインタ。
 	// do_move()で次の局面に進むときは次の局面のStateInfoへの参照をdo_move()の引数として渡される。

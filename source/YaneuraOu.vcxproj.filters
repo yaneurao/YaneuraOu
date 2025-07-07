@@ -376,6 +376,18 @@
     <ClInclude Include="numa.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="usi_option.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="benchmark.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="timeman.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="perft.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -558,9 +570,6 @@
     <ClCompile Include="testcmd\mate_test_cmd.cpp">
       <Filter>リソース ファイル\testcmd</Filter>
     </ClCompile>
-    <ClCompile Include="testcmd\benchmark.cpp">
-      <Filter>リソース ファイル\testcmd</Filter>
-    </ClCompile>
     <ClCompile Include="testcmd\unit_test.cpp">
       <Filter>リソース ファイル\testcmd</Filter>
     </ClCompile>
@@ -588,11 +597,19 @@
     <ClCompile Include="engine\dlshogi-engine\PvMateSearch.cpp">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
-    <ClCompile Include="memory.cpp" />
     <ClCompile Include="book\policybook.cpp">
       <Filter>リソース ファイル\book</Filter>
     </ClCompile>
     <ClCompile Include="engine.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="memory.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="benchmark.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="search.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

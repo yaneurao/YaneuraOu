@@ -5273,7 +5273,7 @@ ValuePV search(Position& pos, int depth_, size_t multiPV /* = 1 */, u64 nodesLim
 }
 
 // UnitTest : プレイヤー同士の対局
-void UnitTest(Test::UnitTester& tester)
+void UnitTest(Test::UnitTester& tester, Engine& engine)
 {
 	// 対局回数→0ならskip
 	s64 auto_player_loop = tester.options["auto_player_loop"];
@@ -5283,7 +5283,7 @@ void UnitTest(Test::UnitTester& tester)
 		StateInfo si;
 
 		// 平手初期化
-		auto hirate_init  = [&] { pos.set_hirate(&si, Threads.main()); };
+		auto hirate_init  = [&] { pos.set_hirate(&si); };
 		// 探索深さ
 		auto depth = int(tester.options["auto_player_depth"]);
 

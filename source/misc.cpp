@@ -62,6 +62,7 @@ using fun8_t = bool(*)(HANDLE, BOOL, PTOKEN_PRIVILEGES, DWORD, PTOKEN_PRIVILEGES
 #include <cmath>				// std::exp()
 #include <filesystem>           // create_directory()
 #include "usi.h"				// Options
+#include "thread.h"             // ThreadPool
 #include "testcmd/unit_test.h"	// UnitTester
 
 using namespace std;
@@ -167,27 +168,89 @@ void start_logger(const string& fname) { Logger::start(fname); }
 //  engine info
 // --------------------
 
-string engine_info() {
+// Returns the full name of the current Stockfish version.
+//
+// For local dev compiles we try to append the commit SHA and
+// commit date from git. If that fails only the local compilation
+// date is set and "nogit" is specified:
+//      Stockfish dev-YYYYMMDD-SHA
+//      or
+//      Stockfish dev-YYYYMMDD-nogit
+//
+// For releases (non-dev builds) we only include the version number:
+//      Stockfish version
+
+// 現在のStockfishのバージョンのフルネームを返します。
+//
+// ローカルの開発用ビルドでは、gitからコミットSHAと
+// コミット日を付加しようとします。これに失敗した場合は、
+// ローカルのコンパイル日だけが設定され、「nogit」が指定されます：
+//      Stockfish dev-YYYYMMDD-SHA
+//      または
+//      Stockfish dev-YYYYMMDD-nogit
+//
+// リリース（開発版でない）ビルドでは、バージョン番号のみを含めます：
+//      Stockfish version
+
+#if 0
+std::string engine_version_info() {
+	std::stringstream ss;
+	ss << "Stockfish " << version << std::setfill('0');
+
+	// "dev"版であれば日付を出力する機能。
+	if constexpr (version == "dev")
+	{
+		ss << "-";
+#ifdef GIT_DATE
+		ss << stringify(GIT_DATE);
+#else
+		constexpr std::string_view months("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec");
+
+		std::string       month, day, year;
+		std::stringstream date(__DATE__);  // From compiler, format is "Sep 21 2008"
+
+		date >> month >> day >> year;
+		ss << year << std::setw(2) << std::setfill('0') << (1 + months.find(month) / 4)
+			<< std::setw(2) << std::setfill('0') << day;
+#endif
+
+		ss << "-";
+
+#ifdef GIT_SHA
+		ss << stringify(GIT_SHA);
+#else
+		ss << "nogit";
+#endif
+	}
+
+	return ss.str();
+}
+#endif
+
+
+std::string engine_info(bool to_usi) {
+	//return engine_version_info()
+	//	+ (to_usi ? "\nid author " : " by ")
+	//	+ "the YaneuraOu developers (see AUTHORS file)";
 
 	stringstream ss;
+	string engine_name, author;
 
 	// カレントフォルダに"engine_name.txt"があればその1行目をエンジン名とする機能
 	ifstream ifs("engine_name.txt");
 	if (!ifs.fail())
 	{
 		// 1行目が読み込めなかったときのためにデフォルト値を設定しておく。
-		string str = "default engine";
-		Tools::getline(ifs, str);
-		ss << "id name " << str << endl;
+		engine_name = "default engine";
+		Tools::getline(ifs, engine_name);
 
 		// 2行目が読み込めなかったときのためにデフォルト値を設定しておく。
-		str = "default author";
-		Tools::getline(ifs, str);
-		ss << "id author " << str << endl;
+		author = "default author";
+		Tools::getline(ifs, author);
 	}
 	else
 	{
-		ss << "id name " <<
+		engine_name =
 			// Makefileのほうでエンジン表示名が指定されているならそれに従う。
 #if defined(ENGINE_NAME_FROM_MAKEFILE)
 			// マクロの内容の文字列化
@@ -198,29 +261,31 @@ string engine_info() {
 #undef STRINGIFY
 #undef TOSTRING
 #else
-			ENGINE_NAME
+			string(ENGINE_NAME)
 #endif
-			<< ' '
-			<< EVAL_TYPE_NAME << ' '
-			<< ENGINE_VERSION << setfill('0')
-			<< (Is64Bit ? " 64" : " 32")
-			<< TARGET_CPU
+			+ ' '
+			+ EVAL_TYPE_NAME + ' '
+			+ ENGINE_VERSION
+			+ (Is64Bit ? " 64" : " 32")
+			+ TARGET_CPU
 #if defined(FOR_TOURNAMENT)
-			<< " TOURNAMENT"
+			+" TOURNAMENT"
 #endif
 
 #if defined(EVAL_LEARN)
-			<< " EVAL_LEARN"
+			+" EVAL_LEARN"
 #endif
-			<< endl
+			;
 #if !defined(YANEURAOU_ENGINE_DEEP)
-			<< "id author by yaneurao" << endl;
+			author = "yaneurao";
 #else
-			<< "id author by Tadao Yamaoka , yaneurao" << endl;
+			author = "Tadao Yamaoka , yaneurao";
 #endif
 	}
 
-	return ss.str();
+	return engine_name
+		+ (to_usi ? "\nid author " : " by ")
+		+ author;
 }
 
 // 使用したコンパイラについての文字列を返す。
@@ -355,7 +420,7 @@ string config_info()
 	string config = "\nconfigured by config.h";
 
 	auto o  = [](string(p) , string(q)) { return "\n" + (p + string(20,' ')).substr(0,20) + " : " + q; };
-	auto o1 = [&o](const char* p , u64  u ) { return o(string(p) , to_string(u) ); };
+	auto o1 = [&o](const char* p , u64  u ) { return o(string(p) , std::to_string(u) ); };
 	auto o2 = [&o](const char* p , bool b ) { return o(string(p) , b ? "true":"false"); };
 
 	// 評価関数タイプ
@@ -514,6 +579,9 @@ ostream& operator<<(ostream& os, SyncCout sc) {
 
 	return os;
 }
+
+void sync_cout_start() { std::cout << IO_LOCK; }
+void sync_cout_end() { std::cout << IO_UNLOCK; }
 
 // --------------------
 //  prefetch命令
@@ -703,8 +771,12 @@ namespace WinProcGroup {
 //  Timer
 // --------------------
 
-TimePoint Timer::elapsed() const { return TimePoint(Search::Limits.npmsec ? Threads.nodes_searched() : now() - startTime); }
-TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(Search::Limits.npmsec ? Threads.nodes_searched()/*これ正しくないがこのモードでponder使わないからいいや*/ : now() - startTimeFromPonderhit); }
+void Timer::reset() { startTime = startTimeFromPonderhit = now(); }
+void Timer::reset_for_ponderhit() { startTimeFromPonderhit = now(); }
+TimePoint Timer::elapsed() const { return TimePoint(now() - startTime); }
+TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(now() - startTimeFromPonderhit); }
+TimePoint Timer::now() const { return Search::Limits.npmsec ? now() : YaneuraOu::now(); }
+
 
 #if defined(USE_TIME_MANAGEMENT)
 
@@ -744,7 +816,7 @@ namespace Tools
 
 	// 進捗を表示しながら並列化してゼロクリア
 	// ※ Stockfishのtt.cppのTranspositionTable::clear()にあるコードと同等のコード。
-	void memclear([[maybe_unused]] const char* name_, void* table, size_t size)
+	void memclear(ThreadPool& threads, const char* name_, void* table, size_t size)
 	{
 #if !defined(EVAL_LEARN) && !defined(__EMSCRIPTEN__)
 
@@ -754,42 +826,32 @@ namespace Tools
 		// ゆえに、分割してゼロクリアして、一定時間ごとに進捗を出力する。
 
 		// Options["Threads"]が使用できるスレッド数とは限らない(ふかうら王など)
-		auto thread_num = size_t(Threads.size()); // Options["Threads"];
+		const size_t threadCount = threads.num_threads();
 
 		if (name_ != nullptr)
-			sync_cout << "info string " + string(name_) + " : Start clearing with " <<  thread_num << " threads , Hash size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
+			sync_cout << "info string " + string(name_) + " : Start clearing with " << threadCount << " threads , size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
 
 		// マルチスレッドで並列化してクリアする。
 
-		vector<thread> threads;
-
-		for (size_t idx = 0; idx < thread_num; idx++)
+		for (size_t i = 0; i < threadCount; ++i)
 		{
-			threads.push_back(thread([table, size, thread_num, idx]() {
-
-				// NUMA環境では、bindThisThread()を呼び出しておいたほうが速くなるらしい。
-
-				// Thread binding gives faster search on systems with a first-touch policy
-				if (thread_num > 8)
-					WinProcGroup::bindThisThread(idx);
-
+			threads.run_on_thread(i, [table, size, threadCount, i]() {
 				// それぞれのスレッドがhash tableの各パートをゼロ初期化する。
 				// start  : このスレッドによるゼロクリア開始位置
 				// stride : 各スレッドのゼロクリアするサイズ
 				// len    : このスレッドによるゼロクリアするサイズ。
 				//          strideと等しいが、最後のスレッドだけは端数を考慮し、
 				//			size - start のサイズだけクリアする必要がある。
-				const size_t stride = size / thread_num,
-							 start  = stride * idx,
-							 len    = idx != thread_num - 1 ?
-									  stride : size - start;
+				const size_t stride = size / threadCount,
+				start = stride * i,
+				len = (i != threadCount - 1) ? stride : size - start;
 
 				memset((uint8_t*)table + start, 0, len);
-				}));
+			});
 		}
 
-		for (thread& th : threads)
-			th.join();
+		for (size_t i = 0; i < threadCount; ++i)
+			threads.wait_on_thread(i);
 
 		if (name_ != nullptr)
 			sync_cout << "info string " + string(name_) + " : Finish clearing." << sync_endl;
@@ -946,7 +1008,7 @@ namespace Tools
 
 
 	// ResultCodeを文字列化する。
-	string to_string(ResultCode code)
+	std::string to_string(ResultCode code)
 	{
 		// enumに対してto_string()したいだけなのだが…。
 
@@ -2087,8 +2149,6 @@ string CommandLine::get_working_directory() {
 // StandardInputWrapper
 // --------------------
 
-StandardInput std_input;
-
 // 標準入力から1行もらう。Ctrl+Zが来れば"quit"が来たものとする。
 // また先行入力でqueueに積んでおくことができる。(次のinput()で取り出される)
 string StandardInput::input()
@@ -2117,17 +2177,17 @@ void StandardInput::push(const string& s)
 	cmds.push(s);
 }
 
-void StandardInput::parse_args(int argc, char* argv[])
+void StandardInput::parse_args(const CommandLine& cli)
 {
 	// ファイルからコマンドの指定
-	if (argc >= 3 && string(argv[1]) == "file")
+	if (cli.argc >= 3 && string(cli.argv[1]) == "file")
 	{
 		vector<string> cmds0;
-		SystemIO::ReadAllLines(argv[2], cmds0);
+		SystemIO::ReadAllLines(cli.argv[2], cmds0);
 
 		// queueに変換する。
 		for (auto c : cmds0)
-			std_input.push(c);
+			push(c);
 
 	} else {
 
@@ -2136,9 +2196,9 @@ void StandardInput::parse_args(int argc, char* argv[])
 		// 引数として指定されたものを一つのコマンドとして実行する機能
 		// ただし、','が使われていれば、そこでコマンドが区切れているものとして解釈する。
 
-		for (int i = 1; i < argc; ++i)
+		for (int i = 1; i < cli.argc; ++i)
 		{
-			string s = argv[i];
+			string s = cli.argv[i];
 
 			// sから前後のスペースを除去しないといけない。
 			while (*s.rbegin() == ' ') s.pop_back();
@@ -2148,7 +2208,7 @@ void StandardInput::parse_args(int argc, char* argv[])
 				cmd += s + " ";
 			else
 			{
-				std_input.push(cmd);
+				push(cmd);
 				cmd = "";
 			}
 		}
@@ -2163,7 +2223,7 @@ void StandardInput::parse_args(int argc, char* argv[])
 
 namespace Misc {
 	// このheaderに書いてある関数のUnitTest。
-	void UnitTest(Test::UnitTester& tester)
+	void UnitTest(Test::UnitTester& tester, Engine& engine)
 	{
 		auto section1 = tester.section("Misc");
 

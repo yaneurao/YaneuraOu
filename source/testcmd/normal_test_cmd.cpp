@@ -135,7 +135,7 @@ namespace {
 
 			// 局面を遡るためのStateInfoのlist。
 			StateListPtr states(new StateList(1));
-			pos.set_hirate(&states->back(),Threads.main());
+			pos.set_hirate(&states->back());
 
 			if (verbose)
 				std::cout << "position startpos moves";

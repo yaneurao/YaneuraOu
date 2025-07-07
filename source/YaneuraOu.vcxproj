@@ -585,6 +585,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="benchmark.h" />
     <ClInclude Include="bitboard.h" />
     <ClInclude Include="book\apery_book.h" />
     <ClInclude Include="book\book.h" />
@@ -674,6 +675,8 @@
     <ClInclude Include="misc.h" />
     <ClInclude Include="movepick.h" />
     <ClInclude Include="numa.h" />
+    <ClInclude Include="perft.h" />
+    <ClInclude Include="timeman.h" />
     <ClInclude Include="search.h" />
     <ClInclude Include="testcmd\unit_test.h" />
     <ClInclude Include="thread_win32_osx.h" />
@@ -685,6 +688,7 @@
     <ClInclude Include="usi_option.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="benchmark.cpp" />
     <ClCompile Include="bitboard.cpp" />
     <ClCompile Include="book\apery_book.cpp" />
     <ClCompile Include="book\book.cpp" />
@@ -747,7 +751,7 @@
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
     <ClCompile Include="movepick.cpp" />
-    <ClCompile Include="testcmd\benchmark.cpp" />
+    <ClCompile Include="search.cpp" />
     <ClCompile Include="testcmd\mate_test_cmd.cpp" />
     <ClCompile Include="testcmd\normal_test_cmd.cpp" />
     <ClCompile Include="testcmd\unit_test.cpp" />

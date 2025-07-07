@@ -21,21 +21,22 @@ namespace {
 } // namespace
 
 
-void Timer::init(const Search::LimitsType& limits, Color us, int ply)
+void Timer::init(const Search::LimitsType& limits, Color us, int ply, const OptionsMap* options)
 {
 	// reinit()が呼び出された時のために呼び出し条件を保存しておく。
 	lastcall_Limits = const_cast<Search::LimitsType*>(&limits);
 	lastcall_Us     = us;
 	lastcall_Ply    = ply;
+	lastcall_Opt    = options;
 
-	init_(limits, us, ply);
+	init_(limits, us, ply, *options);
 }
 
 // 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
 // これは探索の開始時に呼び出されて、今回の指し手のための思考時間を計算する。
 // limitsで指定された条件に基いてうまく計算する。
 // ply : ここまでの手数。平手の初期局面なら1。(0ではない)
-void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
+void Timer::init_(const Search::LimitsType& limits, Color us, int ply, const OptionsMap& options)
 {
 #if 0
 	// nodes as timeモード
@@ -68,24 +69,24 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 
 	// ネットワークのDelayを考慮して少し減らすべき。
 	// かつ、minimumとmaximumは端数をなくすべき
-	network_delay = (int)Options["NetworkDelay"];
+	network_delay = (int)options["NetworkDelay"];
 
 	// 探索終了予定時刻。このタイミングで初期化しておく。
 	search_end = 0;
 
 	// 今回の最大残り時間(これを超えてはならない)
 	// byoyomiとincの指定は残り時間にこの時点で加算して考える。
-	remain_time = limits.time[us] + limits.byoyomi[us] + limits.inc[us] - (TimePoint)Options["NetworkDelay2"];
+	remain_time = limits.time[us] + limits.byoyomi[us] + limits.inc[us] - (TimePoint)options["NetworkDelay2"];
 	// ここを0にすると時間切れのあと自爆するのでとりあえず100にしておく。
 	remain_time = std::max(remain_time, (TimePoint)100);
 
 	// 最小思考時間
-	minimum_thinking_time = (int)Options["MinimumThinkingTime"];
+	minimum_thinking_time = (int)options["MinimumThinkingTime"];
 
 	// 序盤重視率
 	// 　これはこんなパラメーターとして手で調整するべきではなく、探索パラメーターの一種として
 	//   別の方法で調整すべき。ただ、対人でソフトに早指ししたいときには意味があるような…。
-	int slowMover = (int)Options["SlowMover"];
+	int slowMover = (int)options["SlowMover"];
 
 	if (limits.rtime)
 	{
@@ -205,7 +206,7 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply)
 		// Ponderが有効になっている場合、ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
 		// これ本当はゲーム開始時にUSIコマンドで送られてくるべきだと思う。→　将棋所では、送られてきてた。"USI_Ponder"  [2019/04/29]
 		// ふかうら王の場合、Ponder当たったからと言って探索量減らさないし、Stochastic Ponderがあるから、まあこれはいいや…。
-		if (/* Threads.main()->received_go_ponder*/ Options["USI_Ponder"])
+		if (/* Threads.main()->received_go_ponder*/ options["USI_Ponder"])
 			optimumTime += optimumTime / 4;
 #endif
 

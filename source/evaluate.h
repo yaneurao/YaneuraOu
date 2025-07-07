@@ -4,6 +4,8 @@
 #include "config.h"
 #include "types.h"
 
+#include <functional>
+
 // -------------------------------------
 //   評価関数に対応するheaderの読み込み
 // -------------------------------------
@@ -398,8 +400,31 @@ namespace Eval {
 	void EvalHash_Clear();
 #endif
 
-}
+// 評価関数のalias。
+// 📝 USIEngine, Engineで用いる。
 
+#if defined(YANEURAOU_ENGINE_NNUE)
+
+// NNUE系では、Eval::NNUE::Networksを使う。
+using Evaluator = Eval::NNUE::Networks;
+
+#elif defined(USER_ENGINE)
+
+// 評価関数 (Eval::NNUE::Networksのようなメソッドを追加すること)
+class Networks
+{
+public:
+	void load(const std::string& evalfilePath);
+	bool save(const std::string& filename) const;
+	void verify(std::string evalfilePath, const std::function<void(std::string_view)>&) const;
+};
+
+using Evaluator = Eval::Networks;
+
+#endif
+
+
+} // namespace Eval
 } // namespace YaneuraOu
 
 #endif // #ifndef _EVALUATE_H_

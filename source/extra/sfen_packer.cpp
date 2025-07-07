@@ -446,7 +446,7 @@ struct SfenPacker
 
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。
-Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, Thread* th, bool mirror , int gamePly_ /* = 0 */)
+Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si, bool mirror , int gamePly_ /* = 0 */)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
@@ -596,8 +596,6 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 
 	//if (!is_ok(*this))
 	//	std::cout << "info string Illigal Position?" << endl;
-
-	thisThread = th;
 
 	return Tools::Result::Ok();
 }

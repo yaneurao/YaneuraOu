@@ -376,10 +376,10 @@ namespace MakeBook2025
 	{
 	public:
 		// 定跡をペタショック化する。
-		void make_book(Position& pos, istringstream& is)
+		void make_book(istringstream& is, string book_dir)
 		{
 			// 初期化等
-			initialize(is);
+			initialize(is, book_dir);
 
 			// ペタショック化する定跡ファイルの読み込み
 			read_book();
@@ -411,7 +411,7 @@ namespace MakeBook2025
 		// === helper function ===
 
 		// 初期化
-		void initialize(istringstream& is)
+		void initialize(istringstream& is, string book_dir)
 		{
 			// hashkeyのbit数をチェックして、128bit未満であれば警告を出す。
 
@@ -437,7 +437,7 @@ namespace MakeBook2025
 					fast = true;
 			}
 
-			string BOOK_DIR = Options["BookDir"];
+			string BOOK_DIR = book_dir;
 
 			readbook_path  = Path::Combine(BOOK_DIR, readbook_path);
 			writebook_path = Path::Combine(BOOK_DIR, writebook_path);
@@ -593,7 +593,7 @@ namespace MakeBook2025
 
 					// hashkey_to_indexには後手番の局面のhash keyからのindexを登録する。
 					StateInfo si;
-					pos.set(white_sfen, &si, Threads.main());
+					pos.set(white_sfen, &si);
 					HASH_KEY white_hash_key = pos.hash_key();
 					// 元の定跡ファイルにflipした局面は登録されていないものとする。
 					// ⇨  登録されていたら、あとから出現した局面を優先する。
@@ -627,7 +627,7 @@ namespace MakeBook2025
 				auto ponder_str = scanner.get_text(); // 使わないがskipはしないといけない。
 				auto value      = (s16)std::clamp((int)scanner.get_number(0), BOOK_VALUE_MIN, BOOK_VALUE_MAX);
 				auto depth      = (s16)scanner.get_number(0);
-				Move16 move16 = (move_str == "none" || move_str == "None" || move_str == "resign") ? Move16::none() : USI::to_move16(move_str);
+				Move16 move16 = (move_str == "none" || move_str == "None" || move_str == "resign") ? Move16::none() : USIEngine::to_move16(move_str);
 				//Move16 ponder = (ponder_str == "none" || ponder_str == "None" || ponder_str == "resign") ? Move16::none() : USI::to_move16(ponder_str);
 
 				// 先手の局面として登録しないといけないので後手番であるなら指し手もflipする。
@@ -680,7 +680,7 @@ namespace MakeBook2025
 				if (book_node.color == WHITE)
 					sfen = Position::sfen_to_flipped_sfen(sfen);
 
-				pos.set(sfen, &si, Threads.main());
+				pos.set(sfen, &si);
 				ASSERT_LV3(pos.side_to_move() == BLACK);
 
 				// 元ファイルの定跡DBに登録されていた指し手
@@ -1368,7 +1368,7 @@ namespace Book
 	// 2025年以降に作ったmakebook拡張コマンド
 	// "makebook XXX"コマンド。XXXの部分に"build_tree"や"extend_tree"が来る。
 	// この拡張コマンドを処理したら、この関数は非0を返す。
-	int makebook2025(Position& pos, std::istringstream& is, const std::string& token)
+	int makebook2025(std::istringstream& is, const std::string& token, const OptionsMap& options)
 	{
 		if (token == "peta_shock") {
 
@@ -1383,7 +1383,8 @@ namespace Book
 			//     ⇨  fastの時は、思考エンジンオプションのThreadsで指定したスレッド数で並列化して合流チェックなどを行う。
 			//		事前に "Threads 32"などとしてスレッド数を指定しておいてください。
 			MakeBook2025::PetaShock ps;
-			ps.make_book(pos, is);
+			auto book_dir = options["BookDir"];
+			ps.make_book(is, book_dir);
 			return 1;
 		}
 

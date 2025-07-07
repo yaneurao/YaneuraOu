@@ -144,7 +144,7 @@ Tools::Result PolicyBook::read_book_db(std::string path)
 
 		/*
 		// テストコード
-		pos.set_hirate(&si,Threads.main());
+		pos.set_hirate(&si);
 		auto key = pos.hash_key();
 		auto ptr = probe_policy_book(key);
 		if (ptr != nullptr)
@@ -415,7 +415,7 @@ void merge_test()
 
 	Position pos;
 	StateInfo si;
-	pos.set_hirate(&si, Threads.main());
+	pos.set_hirate(&si);
 	auto key = pos.hash_key();
 
 	{

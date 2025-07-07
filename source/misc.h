@@ -19,12 +19,20 @@
 
 namespace YaneuraOu {
 
+class OptionsMap;
+class Engine;
+
 // --------------------
-//  engine info
+//     engine info
 // --------------------
 
+// エンジンのバージョン情報を返す。
+//std::string engine_version_info();
+
 // "USI"コマンドに応答するために表示する。
-std::string engine_info();
+//  to_usi : これがtrueのときは、"usi"コマンドに対する応答として呼び出されたという意味。
+//           これがfalseのときは、起動直後の出力用。
+std::string engine_info(bool to_usi = false);
 
 // 使用したコンパイラについての文字列を返す。
 std::string compiler_info();
@@ -103,6 +111,10 @@ std::ostream& operator<<(std::ostream&, SyncCout);
 
 #define sync_cout std::cout << IO_LOCK
 #define sync_endl std::endl << IO_UNLOCK
+
+// sync_cout / sync_endlと同等のlock～unlock。
+void sync_cout_start();
+void sync_cout_end();
 
 // --------------------
 //      ValueList
@@ -336,16 +348,22 @@ namespace WinProcGroup {
 
 namespace Search { struct LimitsType; }
 
+// 時間計測用。
+// Search::Limits.npmsec が trueのときは、Limits.nodesFunc()を呼び出して経過時間の代わりとする。
 struct Timer
 {
+	// FUNC nodes : 探索ノード数を返す関数。
+	// Search::Limits.npmsec が trueのときは、nodes()を呼び出して経過時間の代わりとする。
 	// タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
-	void reset() { startTime = startTimeFromPonderhit = now(); }
+	void reset();
 
 	// "ponderhit"からの時刻を計測する用
-	void reset_for_ponderhit() { startTimeFromPonderhit = now(); }
+	// "ponderhit"のタイミングでこの関数を呼び出す。
+	void reset_for_ponderhit();
 
-	// 探索開始からの経過時間。単位は[ms]
-	// 探索node数に縛りがある場合、elapsed()で探索node数が返ってくる仕様にすることにより、一元管理できる。
+	// 探索開始からの経過時間。
+	//   Search::Limits.npmsecがtrue のとき、経過node数。
+	//                          falseのとき、経過時間。単位は[ms]。
 	TimePoint elapsed() const;
 
 	// reset_for_ponderhit()からの経過時間。その関数は"ponderhit"したときに呼び出される。
@@ -364,16 +382,20 @@ struct Timer
 	// 　相性があまりよろしくないのでこの機能はやねうら王ではサポートしないことにする。
 #endif
 
+	// 現在時刻が返る。
+	// Search::Limits.npmsec が trueのときは、Limits.nodesFunc()を呼び出して現在時刻の代わりとする。
+	TimePoint now() const;
+
 	// このシンボルが定義されていると、今回の思考時間を計算する機能が有効になる。
 #if defined(USE_TIME_MANAGEMENT)
 
 	// 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
 	// ※　ここで渡しているlimitsは、今回の探索の終わりまでなくならないものとする。
 	//    "ponderhit"でreinit()でこの変数を参照することがあるため。
-	void init(const Search::LimitsType& limits, Color us, int ply);
+	void init(const Search::LimitsType& limits, Color us, int ply, const OptionsMap* options);
 
 	// ponderhitの時に残り時間が付与されている時(USI拡張)、再度思考時間を調整するために↑のinit()相当のことを行う。
-	void reinit() { init_(*lastcall_Limits, lastcall_Us, lastcall_Ply);}
+	void reinit() { init_(*lastcall_Limits, lastcall_Us, lastcall_Ply, *lastcall_Opt);}
 
 	TimePoint minimum() const { return minimumTime; }
 	TimePoint optimum() const { return optimumTime; }
@@ -400,12 +422,13 @@ private:
 	TimePoint remain_time;
 
 	// init()の内部実装用。
-	void init_(const Search::LimitsType& limits, Color us, int ply);
+	void init_(const Search::LimitsType& limits, Color us, int ply, const OptionsMap& options);
 
 	// init()が最後に呼び出された時に各引数。これを保存しておき、reinit()の時にはこれを渡す。
 	Search::LimitsType* lastcall_Limits; // どこかに確保しっぱなしにするだろうからポインタでいいや…
 	Color lastcall_Us;
 	int lastcall_Ply;
+	const OptionsMap* lastcall_Opt;
 
 #endif
 
@@ -426,6 +449,8 @@ extern Timer Time;
 //  ツール類
 // --------------------
 
+class ThreadPool;
+
 namespace Tools
 {
 	// 進捗を表示しながら並列化してゼロクリア
@@ -434,7 +459,7 @@ namespace Tools
 	// nameは"Hash" , "eHash"などクリアしたいものの名前を書く。
 	// メモリクリアの途中経過が出力されるときにその名前(引数nameで渡している)が出力される。
 	// name == nullptrのとき、途中経過は表示しない。
-	void memclear(const char* name, void* table, size_t size);
+	void memclear(YaneuraOu::ThreadPool& threads, const char* name, void* table, size_t size);
 
 	// insertion sort
 	// 昇順に並び替える。学習時のコードで使いたい時があるので用意してある。
@@ -1266,7 +1291,7 @@ public:
 	void push(const std::string& s);
 
 	// main()に引数として渡されたパラメーターを解釈してqueueに積む。
-	void parse_args(int argc, char* argv[]);
+	void parse_args(const CommandLine& cli);
 
 private:
 	// 先行入力されたものを積んでおくqueue。
@@ -1274,15 +1299,13 @@ private:
 	std::queue<std::string> cmds;
 };
 
-extern StandardInput std_input;
-
 // --------------------
 //     UnitTest
 // --------------------
 
 namespace Misc {
 	// このheaderに書いてある関数のUnitTest。
-	void UnitTest(Test::UnitTester& tester);
+	void UnitTest(Test::UnitTester& tester, Engine& engine);
 }
 
 } // namespace YaneuraOu

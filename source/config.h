@@ -1,5 +1,5 @@
-﻿#ifndef _CONFIG_H_INCLUDED
-#define _CONFIG_H_INCLUDED
+﻿#ifndef CONFIG_H_INCLUDED
+#define CONFIG_H_INCLUDED
 
 // ============================================================
 //
@@ -362,11 +362,6 @@
 // #define USE_GAMEOVER_HANDLER
 
 
-// "Threads"オプション が 8以下の設定の時でも強制的に bindThisThread()を呼び出して、指定されたNUMAで動作するようにする。
-// "ThreadIdOffset"オプションと併用して、狙ったNUMAで動作することを強制することができる。
-// #define FORCE_BIND_THIS_THREAD
-
-
 // PVの出力時の千日手に関する出力をすべて"rep_draw"に変更するオプション。
 // GUI側が、何らかの都合で"rep_draw"のみしか処理できないときに用いる。
 // #define PV_OUTPUT_DRAW_ONLY
@@ -398,6 +393,9 @@
 // TODO : ⇨ PolicyBookの局後学習について、記事を書く。
 // #define ENABLE_POLICY_BOOK_LEARN
 
+// NNUE評価関数の実行ファイルへの埋め込み(incbinを用いる)
+// #define NNUE_EMBEDDING
+
 // ===============================================================
 // ここ以降では、↑↑↑で設定した内容に基づき必要なdefineを行う。
 // ===============================================================
@@ -406,7 +404,6 @@
 constexpr int MAX_PLY_NUM = 246;
 
 // デバッグ時の標準出力への局面表示などに日本語文字列を用いる。
-
 #define PRETTY_JP
 
 // --------------------

@@ -361,7 +361,7 @@ namespace Book {
 				} while (token == "startpos" || token == "moves" || token == "sfen");
 
 				if (hirate)
-					pos.set_hirate(&state,Threads.main());
+					pos.set_hirate(&state);
 
 				vector<Move> m;				// 初手から(moves+1)手までの指し手格納用
 

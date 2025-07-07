@@ -11,8 +11,12 @@
 
 namespace YaneuraOu {
 
-namespace Search { struct LimitsType; };
+class Engine;
 
+namespace Search {
+	struct LimitsType;
+	using  RootMoves = std::vector<RootMove>;
+};
 
 // 定跡処理関連のnamespace
 namespace Book
@@ -145,6 +149,9 @@ namespace Book
 	// ・on the flyが指定されているときは実際はメモリ上にはないがこれを透過的に扱う。
 	struct MemoryBook
 	{
+		// 初期化としてOptionsMapを渡してやる必要がある。
+		void Init(OptionsMap& options);
+		
 		// [ASYNC] 定跡として登録されているかを調べて返す。
 		// ・見つからなかった場合、nullptrが返る。
 		// ・read_book()のときにon_the_flyが指定されていれば実際にはメモリ上には定跡データが存在しないので
@@ -242,6 +249,9 @@ namespace Book
 		// 判定のためにファイル名を内部的に保持してある。
 		std::string book_name;
 		std::string pure_book_name; // book_nameからフォルダ名を取り除いたもの。
+
+		// init()で渡されたOptionsMap
+		OptionsMapRef options;
 	};
 
 #if defined (ENABLE_MAKEBOOK_CMD)
@@ -254,14 +264,14 @@ namespace Book
 	struct BookMoveSelector
 	{
 		// extra_option()で呼び出すと、定跡関係のオプション項目をオプション(OptionMap)に追加する。
-		void init(USI::OptionsMap & o);
+		void init(OptionsMap& o);
 
 		// 定跡ファイルの読み込み。
 		// ・Search::clear()からこの関数を呼び出す。
 		// ・Search::clear()は、USIのisreadyコマンドのときに呼び出されるので
 		// 　定跡をメモリに丸読みするのであればこのタイミングで行なう。
 		// ・Search::clear()が呼び出されたときのOptions["BookOnTheFly"]の値をcaptureして使う。(ことになる)
-		void read_book() { memory_book.read_book(get_book_name(), (bool)Options["BookOnTheFly"]); }
+		void read_book();
 
 		// --- 定跡の指し手の選択
 
@@ -276,7 +286,7 @@ namespace Book
 		//   on_the_fly == falseでなければ、非同期にこの関数を呼び出してはならない。
 		// ・Options["USI_OwnBook"]==trueにすることでエンジン側の定跡を有効化されていないなら、
 		// 　probe()には常に失敗する。(falseが返る)
-		bool probe(Thread& th , Search::LimitsType& limit);
+		bool probe(Search::RootMoves& rootMoves , Search::LimitsType& limit);
 
 		// 現在の局面が定跡に登録されているかを調べる。
 		// ・pos.RootMovesを持っていないときに、現在の局面が定跡にhitするか調べてhitしたらその指し手を返す。
@@ -297,7 +307,7 @@ namespace Book
 
 		// 定跡ファイル名を返す。
 		// Option["BookDir"]が定跡ファイルの入っているフォルダなのでこれを連結した定跡ファイルのファイル名を返す。
-		std::string get_book_name() const { return Path::Combine((std::string)Options["BookDir"], (std::string)Options["BookFile"]); }
+		std::string get_book_name() const;
 
 		// probe()の下請け
 		// forceHit == trueのときは、設定オプションの値を無視して強制的に定跡にhitさせる。(BookPvMovesの実装で用いる)
@@ -318,10 +328,13 @@ namespace Book
 		std::string pv_builder(Position& pos, Move16 m , int rest_ply);
 
 		AsyncPRNG prng;
+
+		// init()で渡されたOptionsMap
+		OptionsMapRef options;
 	};
 
 	// 定跡部のUnitTest
-	void UnitTest(Test::UnitTester& tester);
+	void UnitTest(Test::UnitTester& tester, Engine& engine);
 }
 
 // 定跡関係の処理のための補助ツール群

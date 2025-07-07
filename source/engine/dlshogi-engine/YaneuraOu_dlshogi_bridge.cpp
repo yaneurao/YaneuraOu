@@ -243,7 +243,7 @@ void Search::clear()
 	// 初回探索をキャッシュ
 	Position pos_tmp;
 	StateInfo si;
-	pos_tmp.set_hirate(&si,Threads.main());
+	pos_tmp.set_hirate(&si);
 	LimitsType limits;
 	limits.nodes = 1;
 	searcher.SetLimits(limits);

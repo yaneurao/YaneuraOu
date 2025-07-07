@@ -1138,6 +1138,10 @@ enum MOVE_GEN_TYPE
 
 class Position; // 前方宣言
 
+// 平手の開始局面のSFEN文字列。
+// 📝 Stockfishではengine.cppとuci.cppで定義されている。
+extern const std::string StartSFEN;
+
 // 指し手を生成器本体
 // gen_typeとして生成する指し手の種類をシてする。gen_allをfalseにすると歩の不成、香の8段目の不成は生成しない。通常探索中はそれでいいはず。
 // mlist : 指し手を返して欲しい指し手生成バッファのアドレス
@@ -1273,7 +1277,7 @@ namespace Test
 template<>
 struct std::hash<YaneuraOu::Move16> {
 	size_t operator()(const YaneuraOu::Move16& m16) const {
-		return hash<YaneuraOu::u16>()(m16.to_u16());
+		return std::hash<YaneuraOu::u16>()(m16.to_u16());
 	}
 };
 

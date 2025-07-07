@@ -1,7 +1,6 @@
 ﻿#include "position.h"
 #include "misc.h"
 #include "tt.h"
-#include "thread.h"
 #include "mate/mate.h"
 #include "book/book.h"
 #include "testcmd/unit_test.h"
@@ -19,8 +18,6 @@ using namespace std;
 namespace YaneuraOu {
 
 using namespace Effect8;
-
-std::string SFEN_HIRATE = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 
 // set_max_repetition_ply()で設定される、千日手の最大遡り手数
 int Position::max_repetition_ply = 16;
@@ -159,8 +156,16 @@ std::string pretty(Piece pc) {
 }
 #endif
 
+// Initializes the position object with the given FEN string.
+// This function is not very robust - make sure that input FENs are correct,
+// this is assumed to be the responsibility of the GUI.
+
+// 指定されたFEN文字列でPositionオブジェクトを初期化します。
+// この関数はあまり堅牢ではありません。入力されるFEN文字列が正しいことを確認してください。
+// FENの正当性はGUI側の責任であると想定されています。
+
 // sfen文字列で盤面を設定する
-void Position::set(std::string sfen , StateInfo* si , Thread* th)
+Position& Position::set(const std::string& sfen , StateInfo* si)
 {
 	std::memset(static_cast<void*>(this), 0, sizeof(Position));
 	// ⇨ やねうら王ではPositionがPODでない(BitboardやHASH_KEYがPODでない)のでコンパイル時にwarningが出るからvoid*にcastしている。
@@ -331,8 +336,7 @@ void Position::set(std::string sfen , StateInfo* si , Thread* th)
 		std::cout << "info string Illigal Position?" << endl;
 #endif
 
-	thisThread = th;
-
+	return *this;
 }
 
 // 局面のsfen文字列を取得する。
@@ -497,7 +501,7 @@ const std::string Position::sfen_to_flipped_sfen(std::string sfen)
 #if 1
 	Position pos;
 	StateInfo si;
-	pos.set(sfen,&si,Threads.main());
+	pos.set(sfen, &si);
 	return pos.flipped_sfen();
 #else
 	// この局面クラスを利用せず文字列操作だけで求めて返す。
@@ -1192,9 +1196,6 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	ASSERT_LV3(&new_st != st);
 
 	constexpr Color Them = ~Us;
-
-	// 探索ノード数 ≒do_move()の呼び出し回数のインクリメント。
-	thisThread->nodes.fetch_add(1, std::memory_order_relaxed);
 
 	//std::cout << *this << m << std::endl;
 
@@ -2669,7 +2670,7 @@ namespace {
 	};
 }
 
-void Position::UnitTest(Test::UnitTester& tester)
+void Position::UnitTest(Test::UnitTester& tester, Engine& engine)
 {
 	auto section1 = tester.section("Position");
 
@@ -2680,21 +2681,21 @@ void Position::UnitTest(Test::UnitTester& tester)
 	StateInfo si;
 
 	// 任意局面での初期化。
-	auto pos_init = [&](const std::string& sfen_) { pos.set(sfen_, &si, Threads.main()); };
+	auto pos_init = [&](const std::string& sfen_) { pos.set(sfen_, &si); };
 
 	// 平手初期化
-	auto hirate_init  = [&] { pos.set_hirate(&si, Threads.main()); };
+	auto hirate_init  = [&] { pos.set_hirate(&si); };
 	// 2枚落ち初期化
-	auto handi2_sfen = "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
-	auto handi2_init = [&] { pos.set(handi2_sfen , &si, Threads.main()); };
+	auto handi2_sfen  = "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
+	auto handi2_init  = [&] { pos.set(handi2_sfen , &si); };
 
 	// 4枚落ち初期化
-	auto handi4_sfen = "1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
-	auto handi4_init = [&] { pos.set(handi4_sfen, &si, Threads.main()); };
+	auto handi4_sfen  = "1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
+	auto handi4_init  = [&] { pos.set(handi4_sfen, &si); };
 
 	// 指し手生成祭りの局面
 	auto matsuri_sfen = "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1";
-	auto matsuri_init = [&] { pos.set(matsuri_sfen, &si, Threads.main()); };
+	auto matsuri_init = [&] { pos.set(matsuri_sfen, &si); };
 
 	Move16 m16;
 	Move m;
@@ -3106,7 +3107,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			auto &packed_sfen = packed_sfens[i];
 
 			StateInfo si;
-			pos.set(sfen, &si, Threads.main());
+			pos.set(sfen, &si);
 
 			PackedSfen ps;
 			pos.sfen_pack(ps);
@@ -3180,7 +3181,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			pos.sfen_pack(ps);
 
 			Position pos2;
-			pos2.set_from_packed_sfen(ps, &si, Threads.main());
+			pos2.set_from_packed_sfen(ps, &si);
 			string sfen2 = pos2.sfen(game_ply);
 
 			return sfen == sfen2;
@@ -3200,7 +3201,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			pos.sfen_pack(ps);
 
 			Position pos2;
-			pos2.set_from_packed_sfen(ps, &si, Threads.main());
+			pos2.set_from_packed_sfen(ps, &si);
 			// ここから駒を5枚ほど落とす。
 			int count = 0;
 			for(auto sq : SQ)
@@ -3217,7 +3218,7 @@ void Position::UnitTest(Test::UnitTester& tester)
 			pos2.sfen_pack(ps); // 駒落ちのpacked sfenができた。
 
 			Position pos3;
-			pos3.set_from_packed_sfen(ps, &si, Threads.main());
+			pos3.set_from_packed_sfen(ps, &si);
 
 			string sfen3 = pos3.sfen(game_ply);
 

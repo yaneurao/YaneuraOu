@@ -10,6 +10,7 @@
 #include "memory.h"
 #include "misc.h"
 #include "thread.h"
+#include "engine.h"
 
 // やねうら王独自拡張
 #include "extra/key128.h"
@@ -286,18 +287,21 @@ static_assert((sizeof(Cluster) % 32) == 0, "Unexpected Cluster size");
 // トランスポジションテーブルはクラスターで構成されており、
 // 各クラスターはClusterSize個のTTEntryで構成されます。
 
-void TranspositionTable::resize(size_t mbSize/*, ThreadPool& threads */) {
+void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
+
 #if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE) || defined(YANEURAOU_ENGINE_DEEP)
 	// これらのエンジンでは、この置換表は用いないので確保しない。
 	return;
 #endif
 
+#if 0
 	// Optionのoverrideによってスレッド初期化前にハンドラが呼び出された。これは無視する。
 	if (Threads.size() == 0)
 		return;
 
 	// 探索が終わる前に次のresizeが来ると落ちるので探索の終了を待つ。
 	Threads.main()->wait_for_search_finished();
+#endif
 
 	// mbSizeの単位は[MB]なので、ここでは1MBの倍数単位のメモリが確保されるが、
 	// 仕様上は、1MBの倍数である必要はない。
@@ -341,12 +345,6 @@ void TranspositionTable::resize(size_t mbSize/*, ThreadPool& threads */) {
 	// →　Stockfish、ここでclear()呼び出しているが、Search::clear()からTT.clear()を呼び出すので
 	// 二重に初期化していることになると思う。
 
-#if defined(EVAL_LEARN)
-	// スレッドごとにTTを持つ実装なら、確保しているメモリサイズが変更になったので、
-	// スレッドごとのTTを初期化してやる必要がある。
-	init_tt_per_thread();
-#endif
-
 }
 
 // Initializes the entire transposition table to zero,
@@ -354,7 +352,8 @@ void TranspositionTable::resize(size_t mbSize/*, ThreadPool& threads */) {
 
 // トランスポジションテーブル全体をマルチスレッドでゼロに初期化します。
 
-void TranspositionTable::clear(/* ThreadPool& threads */) {
+void TranspositionTable::clear(ThreadPool& threads) {
+
 #if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE)
 	// MateEngineではこの置換表は用いないのでクリアもしない。
 	return;
@@ -386,7 +385,7 @@ void TranspositionTable::clear(/* ThreadPool& threads */) {
 
 	// 進捗を表示しながら並列化してゼロクリア
 	// Stockfishのここにあったコードは、独自の置換表を実装した時にも使いたいため、tt.cppに移動させた。
-	Tools::memclear("USI_Hash", table, size);
+	Tools::memclear(threads, "USI_Hash", table, size);
 }
 
 // Returns an approximation of the hashtable
@@ -554,19 +553,20 @@ void TranspositionTable::init_tt_per_thread()
 //			UnitTest
 // ----------------------------------
 
-void TranspositionTable::UnitTest(Test::UnitTester& unittest)
+void TranspositionTable::UnitTest(Test::UnitTester& unittest, Engine& engine)
 {
 	auto section1 = unittest.section("TT");
 	{
-		// 1024[MB]確保
 		TranspositionTable tt;
-		tt.resize(1024);
+
+		// 1024[MB]確保
+		tt.resize(1024,*engine.getThreads());
+		tt.clear(*engine.getThreads());
 
 		auto section2 = unittest.section("probe()");
 		Position pos;
 		StateInfo si;
-		auto th = Threads.main();
-		pos.set_hirate(&si, th);
+		pos.set_hirate(&si);
 
 		HASH_KEY posKey = pos.hash_key();
 		auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);

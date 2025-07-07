@@ -10,6 +10,7 @@ namespace YaneuraOu {
 // ----------------------------------------
 
 const char* USI_PIECE = ". P L N S B R G K +P+L+N+S+B+R+G+.p l n s b r g k +p+l+n+s+b+r+g+k";
+const std::string StartSFEN = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
 
 // ----------------------------------------
 //    tables
@@ -45,8 +46,8 @@ std::string pretty(Move m, Piece movedPieceType)
 		return pretty(m.to_sq()) + pretty2(movedPieceType) + (m.is_promote() ? (pretty_jp ? "成" : "+") : "") + "[" + pretty(m.from_sq()) + "]";
 }
 
-std::string to_usi_string(Move   m){ return USI::move(m); }
-std::string to_usi_string(Move16 m){ return USI::move(m); }
+std::string to_usi_string(Move   m){ return USIEngine::move(m); }
+std::string to_usi_string(Move16 m){ return USIEngine::move(m); }
 
 std::ostream& operator<<(std::ostream& os, Color c) { os << ((c == BLACK) ? (pretty_jp ? "先手" : "BLACK") : (pretty_jp ? "後手" : "WHITE")); return os; }
 

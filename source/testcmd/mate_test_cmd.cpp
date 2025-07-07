@@ -106,7 +106,7 @@ namespace {
 
 			while (true)
 			{
-				pos.set_hirate(&(states[0]), Threads[thread_id]);
+				pos.set_hirate(&(states[0]));
 
 				for (int ply = 0; ply < MAX_PLY; ++ply)
 				{
@@ -354,7 +354,7 @@ namespace {
 				auto sfen = (*problems)[i];
 				sfen2 = sfen;
 				StateInfo si;
-				pos.set(sfen, &si, Threads.main());
+				pos.set(sfen, &si);
 				Move move;
 				for (size_t j = 0; j < loop; ++j)
 				{

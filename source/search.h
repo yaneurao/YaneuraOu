@@ -15,9 +15,15 @@
 //#include "score.h"
 //#include "syzygy/tbprobe.h"
 //#include "timeman.h"
+#include "timeman.h"
 //#include "types.h"
 
 namespace YaneuraOu {
+
+// NNUE以外のエンジンであるなら、空のNetworksを定義しておく。
+#if !defined(YANEURAOU_ENGINE_NNUE)
+namespace Eval::NNUE { struct Networks{}; }
+#endif
 
 // -----------------------
 //      探索用の定数
@@ -145,8 +151,9 @@ struct LimitsType {
 	// PODでない型をmemsetでゼロクリアすると破壊してしまうので明示的に初期化する。
 	LimitsType() {
 		time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec = movetime = TimePoint(0);
-		/*movestogo = */depth = mate = perft = infinite = 0;
-		nodes = 0;
+		/* movestogo =*/ depth = mate = perft = infinite = 0;
+		nodes                                            = 0;
+		ponderMode                                       = false;
 
 		// --- やねうら王で、将棋用に追加したメンバーの初期化。
 
@@ -175,15 +182,18 @@ struct LimitsType {
 	}
 
 	// root(探索開始局面)で、探索する指し手集合。特定の指し手を除外したいときにここから省く
-	std::vector<Move> searchmoves;
+	std::vector<std::string> searchmoves;
 
-	// time[]   : 残り時間(ms換算で)
-	// inc[]    : 1手ごとに増加する時間(フィッシャールール)
-	// npmsec   : 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
+	// time[]    : 残り時間(ms換算で)
+	// inc[]     : 1手ごとに増加する時間(フィッシャールール)
+	// npmsec    : 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
 	// 　　→　将棋と相性がよくないのでこの機能をサポートしないことにする。
-	// movetime : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
-	TimePoint time[COLOR_NB] , inc[COLOR_NB] , npmsec , movetime /* , startTime; */;
+	// movetime  : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
+	// startTime : "go"コマンドを受け取った時のnow()。なるべく早くに格納しておき、時差をなくす。
+	TimePoint                time[COLOR_NB], inc[COLOR_NB], npmsec, movetime , startTime;
 
+	// movestogo: この手数で引き分け。
+	//			📌 USIプロトコルではサポートしない。エンジンオプションで設定すべき。
 	// depth    : 探索深さ固定(0以外を指定してあるなら)
 	// mate     : 詰み専用探索(USIの'go mate'コマンドを使ったとき)
 	//		詰み探索モードのときは、ここに詰みの手数が指定されている。
@@ -193,14 +203,21 @@ struct LimitsType {
 	//		時間制限なしであれば、INT32_MAXが入っている。
 	// perft    : perft(performance test)中であるかのフラグ。非0なら、perft時の深さが入る。
 	// infinite : 思考時間無制限かどうかのフラグ。非0なら無制限。
-	int /* movestogo,*/ depth, mate, perft, infinite;
+	int                      /* movestogo,*/ depth, mate, perft, infinite;
 
 	// 今回のgoコマンドでの指定されていた"nodes"(探索ノード数)の値。
 	// これは、USIプロトコルで規定されているものの将棋所では送ってこない。ShogiGUIはたぶん送ってくる。
 	// goコマンドで"nodes"が指定されていない場合は、"エンジンオプションの"NodesLimit"の値。
-	uint64_t nodes;
+	uint64_t                 nodes;
+
+	// ponderが有効なのか？
+	bool                     ponderMode;
 
 	// -- やねうら王が将棋用に追加したメンバー
+
+	// 探索ノード数を返す関数。事前にセットしておくと、npmsecがtrueのときに、Timer classなどで
+	// この関数を呼び出してノード数を取得する。(npmsecをtrueにするときは必ずセットしておくこと)
+	std::function<uint64_t()> nodesFunc;
 
 	// 秒読み(ms換算で)
 	TimePoint byoyomi[COLOR_NB];
@@ -293,13 +310,13 @@ std::string pv(const Position& pos, const TranspositionTable& tt, Depth depth);
 struct SharedState {
 	SharedState(const OptionsMap& optionsMap,
 		ThreadPool& threadPool,
-		TranspositionTable& transpositionTable
-		// ,const LazyNumaReplicated<Eval::NNUE::Networks>& nets
+		TranspositionTable& transpositionTable,
+		const LazyNumaReplicated<Eval::Evaluator>& nets
 	) :
 		options(optionsMap),
 		threads(threadPool),
-		tt(transpositionTable)
-		// ,networks(nets)
+		tt(transpositionTable),
+		networks(nets)
 	{
 	}
 
@@ -307,6 +324,9 @@ struct SharedState {
 	ThreadPool& threads;
 	TranspositionTable& tt;
 	//const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
+	// ⇨  やねうら王では、評価関数をさらに抽象化する。
+	//	📝 直接NNUEのclass名を指定するのは避けたい考え。
+	const LazyNumaReplicated<Eval::Evaluator>& networks;
 };
 
 
@@ -380,7 +400,8 @@ public:
 		const TranspositionTable& tt,
 		Depth                     depth);
 
-	//Stockfish::TimeManagement tm;
+	YaneuraOu::TimeManagement tm;
+
 	double                    originalTimeAdjust;
 	int                       callsCnt;
 	std::atomic_bool          ponder;
@@ -401,22 +422,37 @@ public:
 	void check_time(Search::Worker&) override {}
 };
 
+#if defined(YANEURAOU_ENGINE)
 
 // Search::Worker is the class that does the actual search.
 // It is instantiated once per thread, and it is responsible for keeping track
 // of the search history, and storing data required for the search.
+
+// Search::Worker は、実際の探索処理を行うクラスです。
+// このクラスはスレッドごとに1つインスタンス化され、
+// 探索履歴の管理や、探索に必要なデータの保持を担当します。
+
 class Worker {
 public:
-	Worker(SharedState&, std::unique_ptr<ISearchManager>, size_t, NumaReplicatedAccessToken);
+	Worker(SharedState& sharedState, std::unique_ptr<ISearchManager> searchManager, size_t, NumaReplicatedAccessToken numa);
 
 	// Called at instantiation to initialize reductions tables.
 	// Reset histories, usually before a new game.
+	// インスタンス化時に呼び出され、リダクションテーブルを初期化する。
+	// 通常、新しい対局の前に履歴をリセットする。
+	// 📝 "usinewgame"のタイミングで各スレッドに対して呼び出される。
 	void clear();
 
 	// Called when the program receives the UCI 'go' command.
 	// It searches from the root position and outputs the "bestmove".
+	// プログラムが UCI の 'go' コマンドを受け取ったときに呼び出される。
+	// ルート局面から探索を行い、"bestmove" を出力する。
+	// 📝 "go"コマンドが来た時にメインスレッドに対して呼び出される。
+	//     そのあと並列探索したいなら、この関数のなかで
+	//     threads.start_searching()を呼び出して、メインスレッド以外の探索も開始する。
 	void start_searching();
 
+	// メインスレッドであるならtrueを返す。
 	bool is_mainthread() const { return threadIdx == 0; }
 
 	void ensure_network_replicated();
@@ -439,10 +475,20 @@ public:
 private:
 	void iterative_deepening();
 
+	// 1手進める
+	// 📝 nodesは自動的にインクリメントされる。
+	// 💡 givesCheckはこの指し手moveで王手になるか。これが事前にわかっているなら、後者を呼び出したほうが速くて良い。
 	void do_move(Position& pos, const Move move, StateInfo& st);
 	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
+
+	// null moveで1手進める
+	// 📝 nodesはインクリメントされない。
 	void do_null_move(Position& pos, StateInfo& st);
+
+	// moveで進めたものを1手戻す
 	void undo_move(Position& pos, const Move move);
+
+	// null moveで進めたものを1手戻す
 	void undo_null_move(Position& pos);
 
 	// This is the main search function, for both PV and non-PV nodes
@@ -456,6 +502,8 @@ private:
 	Depth reduction(bool i, Depth d, int mn, int delta) const;
 
 	// Pointer to the search manager, only allowed to be called by the main thread
+	// 検索マネージャへのポインタ。メインスレッドからのみ呼び出すことが許可されています。
+
 	SearchManager* main_manager() const {
 		assert(threadIdx == 0);
 		return static_cast<SearchManager*>(manager.get());
@@ -466,21 +514,38 @@ private:
 
 	Value evaluate(const Position&);
 
+	// 今回の"go"コマンドで渡された思考条件
 	LimitsType limits;
 
 	size_t                pvIdx, pvLast;
-	std::atomic<uint64_t> nodes, tbHits, bestMoveChanges;
+
+	// nodes           : 探索ノード数(Position::do_move()するときに自分でこれをインクリメントする)
+	// tbHits          : tablebase(終盤データベース)にhitした回数。将棋では使わない。
+	// bestMoveChanges : 探索中にrootのbestmoveが変化した回数
+	std::atomic<uint64_t> nodes, /* tbHits,*/ bestMoveChanges;
 	int                   selDepth, nmpMinPly;
 
 	Value optimism[COLOR_NB];
 
+	// 探索開始局面
 	Position  rootPos;
+
+	// rootPosに対するStateInfo
 	StateInfo rootState;
+
+	// Rootの指し手
 	RootMoves rootMoves;
+
+	// 探索した深さ
 	Depth     rootDepth, completedDepth;
+
+	// aspiration searchのroot delta
 	Value     rootDelta;
 
+	// スレッドの通し番号。0ならばmain thread。
 	size_t                    threadIdx;
+
+	// このWorker threadに対応るNumaのtoken
 	NumaReplicatedAccessToken numaAccessToken;
 
 	// Reductions lookup table initialized at startup
@@ -490,17 +555,27 @@ private:
 	std::unique_ptr<ISearchManager> manager;
 
 	//Tablebases::Config tbConfig;
+	// 📌 Tablebasesは将棋では用いない。
 
+	// エンジンOption管理
 	const OptionsMap& options;
+
+	// thread管理
 	ThreadPool& threads;
+
+	// 置換表
 	TranspositionTable& tt;
+
+	// 評価関数
 	//const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
+	// ⇨  やねうら王では、評価関数をさらに抽象化する。
+	const LazyNumaReplicated<Eval::Evaluator>& networks;
 
 	// Used by NNUE
 	//Eval::NNUE::AccumulatorStack  accumulatorStack;
 	//Eval::NNUE::AccumulatorCaches refreshTable;
 
-	//friend class Stockfish::ThreadPool;
+	friend class YaneuraOu::ThreadPool;
 	friend class SearchManager;
 };
 
@@ -510,6 +585,60 @@ struct ConthistBonus {
 	int index;
 	int weight;
 };
+
+#else
+
+// やねうら王の通常探索部を用いない時の最小限のWorker
+// 💡 それぞれの変数・メソッドの意味については、やねうら王探索部のWorkerのコメントを確認すること。
+
+class Worker
+{
+public:
+
+	Worker(SharedState& sharedState, std::unique_ptr<ISearchManager> searchManager, size_t, NumaReplicatedAccessToken numa);
+
+	// 📌 このworkerの初期化はここに書く。
+	void clear();
+
+	// 📌 探索の処理をここに書く。
+	void start_searching();
+
+	bool is_mainthread() const { return threadIdx == 0; }
+
+	Position  rootPos;
+	StateInfo rootState;
+	RootMoves rootMoves;
+	size_t    threadIdx;
+	LimitsType limits;
+
+	void ensure_network_replicated();
+
+private:
+	void do_move(Position& pos, const Move move, StateInfo& st);
+	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
+	void do_null_move(Position& pos, StateInfo& st);
+	void undo_move(Position& pos, const Move move);
+	void undo_null_move(Position& pos);
+
+	SearchManager* main_manager() const {
+		assert(threadIdx == 0);
+		return static_cast<SearchManager*>(manager.get());
+	}
+
+	std::atomic<uint64_t> nodes;
+	
+	std::unique_ptr<ISearchManager> manager;
+	const OptionsMap& options;
+	ThreadPool& threads;
+
+	NumaReplicatedAccessToken numaAccessToken;
+	const LazyNumaReplicated<Eval::Evaluator>& networks;
+
+	friend class YaneuraOu::ThreadPool;
+	friend class SearchManager;
+};
+
+#endif
 
 } // namespace Search
 

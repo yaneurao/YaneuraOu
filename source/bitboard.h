@@ -5,6 +5,8 @@
 
 namespace YaneuraOu {
 
+class Engine;
+
 namespace Bitboards
 {
 	// Bitboard関連のテーブル初期化のための関数
@@ -261,7 +263,7 @@ struct alignas(16) Bitboard
 	}
 
 	// UnitTest
-	static void UnitTest(Test::UnitTester&);
+	static void UnitTest(Test::UnitTester& tester, Engine& engine);
 };
 
 // 抑制していた警告を元に戻す。
@@ -424,7 +426,7 @@ struct alignas(32) Bitboard256
 	Bitboard merge() const;
 
 	// UnitTest
-	static void UnitTest(Test::UnitTester&);
+	static void UnitTest(Test::UnitTester& tester, Engine& engine);
 };
 
 inline bool Bitboard256::operator == (const Bitboard256& rhs) const

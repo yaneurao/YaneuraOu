@@ -343,6 +343,8 @@ SOURCES  = \
 	timeman.cpp                                                                \
 	memory.cpp                                                                 \
 	engine.cpp                                                                 \
+	search.cpp                                                                 \
+	benchmark.cpp                                                              \
 	book/book.cpp                                                              \
 	book/apery_book.cpp                                                        \
 	book/policybook.cpp                                                        \
@@ -360,8 +362,7 @@ SOURCES  = \
 	eval/material/evaluate_material.cpp                                        \
 	testcmd/unit_test.cpp                                                      \
 	testcmd/mate_test_cmd.cpp                                                  \
-	testcmd/normal_test_cmd.cpp                                                \
-	testcmd/benchmark.cpp
+	testcmd/normal_test_cmd.cpp                                                
 
 CUDA_SOURCES =
 
@@ -557,7 +558,7 @@ endif
 
 # abe
 ifneq (,$(findstring abe,$(ENGINE_BRANCH)))
-	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY -DFORCE_BIND_THIS_THREAD
+	CPPFLAGS += -DPV_OUTPUT_DRAW_ONLY
 endif
 
 

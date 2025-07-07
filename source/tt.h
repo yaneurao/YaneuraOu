@@ -6,6 +6,7 @@
 #include "types.h"
 #include "misc.h"
 #include "memory.h"
+#include "thread.h"
 
 namespace YaneuraOu {
 
@@ -119,21 +120,15 @@ public:
 	// Set TT size
 	// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。[MB]単位。
 
-	void resize(size_t mbSize /*, ThreadPool& threads */);
+	void resize(size_t mbSize,ThreadPool& threads);  // Set TT size
 
 	// Re-initialize memory, multithreaded
 	// メモリを再初期化、マルチスレッド対応
 
 	// 置換表のエントリーの全クリア
 	// 並列化してクリアするので高速。
-	// 備考)
-	// LEARN版のときは、
-	// 単一スレッドでメモリをクリアする。(他のスレッドは仕事をしているので..)
-	// 教師生成を行う時は、対局の最初にスレッドごとのTTに対して、
-	// このclear()が呼び出されるものとする。
-	// 例) th->tt.clear();
 
-	void clear();
+	void clear(ThreadPool& threads);                  // Re-initialize memory, multithreaded
 
 	// Approximate what fraction of entries (permille) have been written to during this root search
 	// このルート探索中に書き込まれたエントリの割合（パーミル単位）を概算します。
@@ -189,13 +184,7 @@ public:
 	TTEntry* first_entry(const Key128& key) const;
 	TTEntry* first_entry(const Key256& key) const;
 
-#if defined(EVAL_LEARN)
-	// 学習用の実行ファイルでは、スレッド数が変更になったときに各ThreadごとのTTに
-	// メモリを再割り当てする必要がある。
-	void init_tt_per_thread();
-#endif
-
-	static void UnitTest(Test::UnitTester& unittest);
+	static void UnitTest(Test::UnitTester& unittest, Engine& engine);
 
 private:
 	friend struct TTEntry;
