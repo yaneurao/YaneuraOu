@@ -325,9 +325,9 @@ namespace Mate {
 	}
 
 	// 置換表のエントリーの全クリア
-	void MateHashTable::clear()
+	void MateHashTable::clear(ThreadPool& threads)
 	{
-		Tools::memclear("MateHash", table , entryCount * sizeof(MateHashEntry));
+		Tools::memclear(threads, "MateHash", table , entryCount * sizeof(MateHashEntry));
 	}
 
 

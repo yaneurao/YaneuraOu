@@ -123,16 +123,25 @@ class Engine
 	std::string                            thread_allocation_information_as_string() const;
 	std::string                            thread_binding_information_as_string() const;
 
-	// -- やねうら王独自
+	// 📌 やねうら王独自 📌
 
-	// 評価関数を読み込み済みであるか？
-	bool eval_loaded = false;
+	// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行うこと。
+	void isready();
+
+	// 自作のエンジンに追加のエンジンオプションを用意したいときは、この関数のなかで定義する。
+	// Engineのコンストラクタからコールバックされる。
+	void extra_option();
+
+#if defined(USER_ENGINE)
+	void user_cmd(std::istringstream& is);
+#endif
 
 	// スレッドプールの取得
 	ThreadPool* getThreads() { return &threads; }
 
 	// 局面の取得
 	Position* getPosition() { return &pos; }
+
 
    private:
 

@@ -241,21 +241,21 @@ Engine::Engine(std::optional<std::string> path) :
 	//     verify_networks()のなかで前回のpathと違うなら読み直す。
 
 #if defined(EVAL_EMBEDDING)
-	const std::string default_eval_dir = "<internal>";
+	const char* default_eval_dir = "<internal>";
 #elif !defined(__EMSCRIPTEN__)
-	const std::string default_eval_dir = "eval";
+	const char* default_eval_dir = "eval";
 #else
 		// WASM
-	const std::string default_eval_dir = ".";
+	const char* default_eval_dir = ".";
 #endif
 	options.add("EvalDir", Option(default_eval_dir));
 
 #if defined(YANEURAOU_ENGINE_NNUE)
-	const std::string default_eval_file = "nn.bin";
+	const char* default_eval_file = "nn.bin";
 #elif defined(USER_ENGINE)
-	const std::string default_eval_file = "eval.bin";
+	const char* default_eval_file = "eval.bin";
 #else
-	const std::string default_eval_file = "eval.bin";
+	const char* default_eval_file = "eval.bin";
 #endif
 	options.add("EvalFile", Option(default_eval_file));
 
@@ -273,6 +273,10 @@ Engine::Engine(std::optional<std::string> path) :
 			return numa_config_information_as_string() + "\n"
 				+ thread_allocation_information_as_string();
 			}));
+
+	// 📌 やねうら王独自
+	//     各エンジン向けに、追加でオプションを生やす。
+	extra_option();
 
 	// 📝 Optionのhandlerは options.add()の時点では呼び出されない。
 	//     そこで、反映が必要なhandlerはここで呼び出してやる。

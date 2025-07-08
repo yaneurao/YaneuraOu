@@ -67,8 +67,8 @@ static std::fstream result_log;
 Book::BookMoveSelector book;
 
 // USIに追加オプションを設定したいときは、この関数を定義すること。
-// USI::init()のなかからコールバックされる。
-void USI::extra_option(USI::OptionsMap & o)
+// USIEngine::init()のなかからコールバックされる。
+void USIEngine::extra_option(OptionsMap & o)
 {
 	//   定跡設定
 

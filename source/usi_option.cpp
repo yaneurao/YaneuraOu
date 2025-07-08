@@ -95,14 +95,6 @@ Option::Option(const char* v, OnChange f) :
 	defaultValue = currentValue = v;
 }
 
-Option::Option(const std::string& v, OnChange f) :
-	type("string"),
-	min(0),
-	max(0),
-	on_change(std::move(f)) {
-	defaultValue = currentValue = v;
-}
-
 Option::Option(bool v, OnChange f) :
 	type("check"),
 	min(0),
@@ -181,11 +173,14 @@ Option& Option::operator=(const std::string& v) {
 	if (type == "combo")
 	{
 		OptionsMap         comboMap;  // To have case insensitive compare
+									  // 📝 comboのvalueを小文字化して比較したいのでOptionsMapを流用する。
 		std::string        token;
 		std::istringstream ss(defaultValue);
+		// defaultValueにスペース区切りで書かれているのでこれをparseする。
 		while (ss >> token)
 			comboMap.add(token, Option());
 		if (!comboMap.count(v) || v == "var")
+			// defaultValueのなかに見つからなかったのでリタイア
 			return *this;
 	}
 
@@ -210,6 +205,7 @@ Option& Option::operator=(const std::string& v) {
 }
 
 std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
+	// OptionsMapへの登録順に出力されてほしいので、idxを0から増やしていき、Option::idxが一致したものを表示していく。
 	for (size_t idx = 0; idx < om.options_map.size(); ++idx)
 		for (const auto& it : om.options_map)
 			if (it.second.idx == idx)
@@ -298,34 +294,6 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 		return os;
 	}
 
-	// --- Optionクラスのコンストラクタと変換子
-
-	Option::Option(const char* v, OnChange f) : type("string"), min(0), max(0), on_change(f)
-	{
-		defaultValue = currentValue = v;
-	}
-
-	Option::Option(bool v, OnChange f) : type("check"), min(0), max(0), on_change(f)
-	{
-		defaultValue = currentValue = (v ? "true" : "false");
-	}
-
-	Option::Option(OnChange f) : type("button"), min(0), max(0), on_change(f)
-	{
-	}
-
-	// Stockfishでは第一引数がdouble型だが、これは使わないと思うのでs64に変更する。
-	Option::Option(s64 v, s64 minv, s64 maxv, OnChange f) : type("spin"), min(minv), max(maxv), on_change(f)
-	{
-		defaultValue = currentValue = std::to_string(v);
-	}
-
-	Option::Option(const std::vector<std::string>& list, const std::string& v, OnChange f)
-		: type("combo"), on_change(f), list(list)
-	{
-		defaultValue = currentValue = v;
-	}
-
 	// --- 以下、やねうら王、独自拡張。
 
 	// 評価関数を読み込んだかのフラグ。これはevaldirの変更にともなってfalseにする。
@@ -358,56 +326,6 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 			build_option(std::string(line));
 	}
 
-	// idxの値を書き換えないoperator "<<"
-	void Option::overwrite(const Option& o)
-	{
-		// 値が書き換わるのか？
-		bool modified = this->currentValue != o.currentValue;
-
-		// backup
-		auto fn = this->on_change;
-		auto idx_ = idx;
-
-		*this = o;
-
-		// restore
-		idx = idx_;
-		this->on_change = fn;
-
-		// 値が書き換わったならハンドラを呼び出してやる。
-		if (modified && fn)
-			fn(*this);
-	}
-
-	// min = max = default = paramになる上書き
-	void Option::overwrite(const std::string& param)
-	{
-		// 値が書き換わるのか？
-		bool modified = this->currentValue != param;
-		auto fn = this->on_change;
-
-		if (modified)
-		{
-			this->currentValue = this->defaultValue = param;
-			if (type == "spin")
-				min = max = stoll(param);
-			else if (type == "check")
-				min = max = param == "true";
-			else if (type == "combo")
-			{
-				list.clear();
-				list.emplace_back(param);
-			}
-			// else if (type == "string")
-			//	; // do_nothing
-		}
-
-		// 値が書き換わったならハンドラを呼び出してやる。
-		if (modified && fn)
-			fn(*this);
-	}
-
-}
 #endif
 
 // --------------------
@@ -527,6 +445,17 @@ std::string OptionsMap::set_option_if_exists(const std::string& option_name, con
 	return std::string("No such option: ") + option_name;
 }
 
+// idxを指定して、それに対応するOptionを取得する。
+std::pair<const std::string, const Option&> OptionsMap::get_option_by_idx(int idx) const
+{
+	for (const auto& o : options_map)
+		if (o.second.idx == idx)
+			return o;
+
+	assert(false);
+	return *options_map.begin(); // 警告が出るので..
+}
+
 // option名を指定して、その値を出力した文字列を構成する。
 // option名が省略された時は、すべてのオプションの値を出力した文字列を構成する。
 std::string OptionsMap::get_option(const std::string& option_name)
@@ -534,13 +463,28 @@ std::string OptionsMap::get_option(const std::string& option_name)
 	// すべてを出力するモード
 	bool all = option_name == "";
 
+	// キーの最大長を取得
+	// 💡 "=="のindentを揃えたいため
+
+	size_t max_key_length = 0;
+	for (const auto& o : options_map) {
+		max_key_length = std::max(max_key_length, o.first.length());
+	}
+
 	std::string result;
-	for (auto& o : options_map)
+	for (int idx = 0; idx < options_map.size(); ++idx)
 	{
+		auto it = get_option_by_idx(idx);
+
 		// 大文字、小文字を無視して比較。また、nameが指定されていなければすべてのオプション設定の現在の値を表示。
-		if ((!StringExtension::stricmp(option_name, o.first)) || all)
+		if ((!StringExtension::stricmp(option_name, it.first)) || all)
 		{
-			result += "Options[" + o.first + "] == " + std::string(options_map[o.first]) + "\n";
+			result += "Options[" + it.first + "]"
+				// "=="のindentを揃えるための処理
+				+ std::string(max_key_length - it.first.length() + 1, ' ')
+				+ "== "
+				+ std::string(it.second) + "\n";
+
 			if (!all)
 				return result;
 		}

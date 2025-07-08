@@ -1425,7 +1425,7 @@ namespace Book
 
 		Move16 bestMove16, ponderMove16;
 		Value value;
-		if (probe_impl(pos , Limits.silent, bestMove16, ponderMove16, value))
+		if (probe_impl(pos , global_options.silent, bestMove16, ponderMove16, value))
 		{
 			// bestMoveは16bit Moveなので32bit化する必要がある。
 			Move bestMove = pos.to_move(bestMove16);

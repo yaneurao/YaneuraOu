@@ -8,6 +8,8 @@
 #include <memory> // std::unique_ptr<>
 #include <atomic> // std::atomic<>
 
+#include "../thread.h"
+
 namespace YaneuraOu {
 
 namespace Mate {
@@ -148,7 +150,7 @@ namespace Mate {
 
 		// 置換表のエントリーの全クリア
 		// 連続対局の時はクリアしなくともいいような気はするが…。
-		void clear();
+		void clear(ThreadPool& threads);
 
 	private:
 		// 置換表の先頭アドレス

@@ -150,7 +150,8 @@ struct LimitsType {
 	// Init explicitly due to broken value-initialization of non POD in MSVC
 	// PODでない型をmemsetでゼロクリアすると破壊してしまうので明示的に初期化する。
 	LimitsType() {
-		time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec = movetime = TimePoint(0);
+
+		time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] /* = npmsec */ = movetime = TimePoint(0);
 		/* movestogo =*/ depth = mate = perft = infinite = 0;
 		nodes                                            = 0;
 		ponderMode                                       = false;
@@ -158,18 +159,7 @@ struct LimitsType {
 		// --- やねうら王で、将棋用に追加したメンバーの初期化。
 
 		byoyomi[WHITE] = byoyomi[BLACK] = TimePoint(0);
-		max_game_ply = 100000;
 		rtime = 0;
-
-		// 入玉に関して
-		enteringKingRule = EKR_NONE;
-		enteringKingPoint[BLACK] = 28; // Position::set()でupdate_entering_point()が呼び出されて設定される。
-		enteringKingPoint[WHITE] = 27; // Position::set()でupdate_entering_point()が呼び出されて設定される。
-
-		silent = consideration_mode = outout_fail_lh_pv = false;
-		pv_interval = 0;
-		generate_all_legal_moves = true;
-		wait_stop = false;
 	}
 
 	// 時間制御を行うのか。
@@ -190,7 +180,7 @@ struct LimitsType {
 	// 　　→　将棋と相性がよくないのでこの機能をサポートしないことにする。
 	// movetime  : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
 	// startTime : "go"コマンドを受け取った時のnow()。なるべく早くに格納しておき、時差をなくす。
-	TimePoint                time[COLOR_NB], inc[COLOR_NB], npmsec, movetime , startTime;
+	TimePoint                time[COLOR_NB], inc[COLOR_NB] /*, npmsec*/ , movetime, startTime;
 
 	// movestogo: この手数で引き分け。
 	//			📌 USIプロトコルではサポートしない。エンジンオプションで設定すべき。
@@ -215,76 +205,12 @@ struct LimitsType {
 
 	// -- やねうら王が将棋用に追加したメンバー
 
-	// 探索ノード数を返す関数。事前にセットしておくと、npmsecがtrueのときに、Timer classなどで
-	// この関数を呼び出してノード数を取得する。(npmsecをtrueにするときは必ずセットしておくこと)
-	std::function<uint64_t()> nodesFunc;
-
 	// 秒読み(ms換算で)
 	TimePoint byoyomi[COLOR_NB];
 
-	// この手数で引き分けとなる。256なら256手目を指したあとに引き分け。
-	// USIのoption["MaxMovesToDraw"]の値。0が設定されていたら、引き分けなしだからmax_game_ply = 100000が代入されることになっている。
-	// (残り手数を計算する時に桁あふれすると良くないのでint_maxにはしていない)
-	// この値が0なら引き分けルールはなし(無効)。
-	// ※　この変数の値が設定されるタイミングは、"go"コマンドに対してなので、
-	//     "go"コマンドが呼び出される前にはこの値は不定であるから用いないこと。
-	/*
-		初手(76歩とか)が1手目である。1手目を指す前の局面はPosition::game_ply() == 1である。
-		そして256手指された時点(257手目の局面で指す権利があること。サーバーから257手目の局面はやってこないものとする)で引き分けだとしたら
-		257手目(を指す前の局面)は、game_ply() == 257である。これが、引き分け扱いということになる。
-
-		pos.game_ply() > limits.max_game_ply
-
-		　で(かつ、詰みでなければ)引き分けということになる。
-
-		この引き分けの扱いについては、以下の記事が詳しい。
-		多くの将棋ソフトで256手ルールの実装がバグっている件
-		https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
-	*/
-	int max_game_ply;
-
 	// "go rtime 100"とすると100～300msぐらい考える。
 	TimePoint rtime;
-
-	// 入玉ルール設定
-	EnteringKingRule enteringKingRule;
-	// 駒落ち対応入玉ルーの時に、この点数以上であれば入玉宣言可能。
-	// 例) 27点法の2枚落ちならば、↓の[BLACK(下手 = 後手)]には 27 , ↓の[WHITE(上手 = 先手)]には 28-10 = 18 が代入されている。
-	int enteringKingPoint[COLOR_NB];
-
-	// 画面に出力しないサイレントモード(プロセス内での連続自己対戦のとき用)
-	// このときPVを出力しない。
-	bool silent;
-
-	// 検討モード用のPVを出力するのか
-	// ※ やねうら王のみ , ふかうら王は未対応。
-	bool consideration_mode;
-
-	// fail low/highのときのPVを出力するのか
-	bool outout_fail_lh_pv;
-
-	// PVの出力間隔(探索のときにMainThread::search()内で初期化する)
-	TimePoint pv_interval;
-
-	// 合法手を生成する時に全合法手を生成するのか(歩の不成など)
-	// エンジンオプションのGenerateAllLegalMovesの値がこのフラグに反映される。
-	// 
-	// Position::pseudo_legal()も、このフラグに応じてどこまでをpseudo-legalとみなすかが変わる。
-	// (このフラグがfalseなら歩の不成は非合法手扱い)
-	bool generate_all_legal_moves;
-
-	// "go"コマンドに"wait_stop"がついていたかのフラグ。
-	// これがついていると、stopが送られてくるまで思考しつづける。
-	// 本来の"bestmove"を返すタイミングになると、"info string time to return bestmove."と出力する。
-	// この機能は、Clusterのworkerで、持時間制御はworker側にさせたいが、思考は継続させたい時に用いる。
-	bool wait_stop;
-
-#if defined(TANUKI_MATE_ENGINE)
-	std::vector<Move16> pv_check;
-#endif
 };
-
-extern LimitsType Limits;
 
 // 探索部の初期化。
 void init();

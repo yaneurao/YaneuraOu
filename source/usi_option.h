@@ -33,10 +33,8 @@ public:
 	Option(OnChange = nullptr);
 	Option(bool v, OnChange = nullptr);
 	Option(const char* v, OnChange = nullptr);
-	Option(const std::string& v, OnChange = nullptr); // やねうら王独自
-
 	//Option(double v, int minv, int maxv, OnChange = nullptr);
-	// ⇨  やねうら王では、s64に変更。
+	// ⇨ 💡 やねうら王では、引数をs64に変更
 	Option(s64 v, s64 minv, s64 maxv, OnChange = nullptr);
 
 	Option(const char* v, const char* cur, OnChange = nullptr);
@@ -44,7 +42,7 @@ public:
 	Option& operator=(const std::string&);
 
 	//operator int() const;
-	// ⇨  やねうら王では、s64に変更。
+	// 📌 やねうら王では、s64に変更する。
 	operator s64() const;
 
 	operator std::string() const;
@@ -75,7 +73,10 @@ private:
 	s64               min, max;
 
 	// 追加した順に0,1,2,…
-	// 📝 これは、OptionsMap.add()で追加する時に設定される。
+	// 💡 これは、OptionsMap.add()で追加する時に設定される。
+	// 📝 "usi"コマンド応答で、OptionsMapへの登録順に出力されてほしいので、
+	//     カウンターを0から増やしていき、Option::idxが一致したものを表示していくようになっている。
+	//     この変数は、そのためのもの。
 	size_t            idx;
 
 	// このOptionの設定値が変更された時に呼び出されるevent handler。
@@ -127,10 +128,16 @@ public:
 	// 返し値) 値を変更したとき、変更できなかったときいずれも、出力するメッセージを返す。
 	std::string set_option_if_exists(const std::string& option_name, const std::string& option_value);
 
+	// idxを指定して、それに対応するOptionを取得する。
+	// ⚠ 値が存在しないidxを指定すると落ちる。
+	std::pair<const std::string,const Option&> get_option_by_idx(int idx) const;
+
 private:
 	friend class Engine;
 	friend class Option;
 
+	// OptionsMapの中身一覧を出力する。
+	// 💡 "usi"コマンドの応答に用いる。
 	friend std::ostream& operator<<(std::ostream&, const OptionsMap&);
 
 	// The options container is defined as a std::map

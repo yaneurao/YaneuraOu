@@ -104,10 +104,6 @@ std::ostream& operator<<(std::ostream& os, RepetitionState rs)
 // 探索用のglobalな変数
 // ----------------------------------------
 
-namespace Search {
-	LimitsType Limits;
-}
-
 // 引き分け時のスコア(とそのdefault値)
 Value drawValueTable[REPETITION_NB][COLOR_NB] =
 {
@@ -121,8 +117,6 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
 
 Move16 Move::to_move16() const { return Move16(data); }
 
-#if defined(USE_GLOBAL_OPTIONS)
-GlobalOptions_ GlobalOptions;
-#endif
+GlobalOptions global_options;
 
 } // namespace YaneuraOu

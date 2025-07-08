@@ -352,8 +352,6 @@ namespace Search { struct LimitsType; }
 // Search::Limits.npmsec が trueのときは、Limits.nodesFunc()を呼び出して経過時間の代わりとする。
 struct Timer
 {
-	// FUNC nodes : 探索ノード数を返す関数。
-	// Search::Limits.npmsec が trueのときは、nodes()を呼び出して経過時間の代わりとする。
 	// タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
 	void reset();
 
@@ -362,8 +360,6 @@ struct Timer
 	void reset_for_ponderhit();
 
 	// 探索開始からの経過時間。
-	//   Search::Limits.npmsecがtrue のとき、経過node数。
-	//                          falseのとき、経過時間。単位は[ms]。
 	TimePoint elapsed() const;
 
 	// reset_for_ponderhit()からの経過時間。その関数は"ponderhit"したときに呼び出される。
@@ -372,15 +368,6 @@ struct Timer
 
 	// reset()されてからreset_for_ponderhit()までの時間
 	TimePoint elapsed_from_start_to_ponderhit() const { return (TimePoint)(startTimeFromPonderhit - startTime); }
-
-#if 0
-	// 探索node数を経過時間の代わりに使う。(こうするとタイマーに左右されない思考が出来るので、思考に再現性を持たせることが出来る)
-	// node数を指定して探索するとき、探索できる残りnode数。
-	// ※　StockfishでここintになっているのはTimePointにするのが正しいと思う。[2020/01/20]
-	TimePoint availableNodes;
-	// →　NetworkDelayやMinimumThinkingTimeなどの影響を考慮するのが難しく、将棋の場合、
-	// 　相性があまりよろしくないのでこの機能はやねうら王ではサポートしないことにする。
-#endif
 
 	// 現在時刻が返る。
 	// Search::Limits.npmsec が trueのときは、Limits.nodesFunc()を呼び出して現在時刻の代わりとする。

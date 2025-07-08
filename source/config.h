@@ -268,7 +268,7 @@
 //  高速化に関する設定
 // ---------------------
 
-// トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。ASSERTなし。GlobalOptionsなし。
+// トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用でEVAL_HASH大きめ。EVAL_LEARN、TEST_CMD使用不可。ASSERTなし。
 // #define FOR_TOURNAMENT
 
 // ---------------------
@@ -351,11 +351,6 @@
 // (Position::moves_from_start_pretty()などにより、わかりやすい手順が得られる。
 // ただし通常探索においてはやや遅くなるので思考エンジンとしてリリースするときには無効にしておくこと。
 // #define KEEP_LAST_MOVE
-
-
-// GlobalOptionという、EVAL_HASHを有効/無効を切り替えたり、置換表の有効/無効を切り替えたりする
-// オプションのための変数が使えるようになる。スピードが1%ぐらい遅くなるので大会用のビルドではオフを推奨。
-// #define USE_GLOBAL_OPTIONS
 
 
 // USIプロトコルでgameoverコマンドが送られてきたときに gameover_handler()を呼び出す。
@@ -460,9 +455,6 @@ constexpr int MAX_PLY_NUM = 246;
 
 	//#define LONG_EFFECT_LIBRARY
 
-	// GlobalOptionsは有効にしておく。
-	#define USE_GLOBAL_OPTIONS
-
 	// -- 各評価関数ごとのconfiguration
 
 	#if defined(YANEURAOU_ENGINE_MATERIAL)
@@ -564,7 +556,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_SOLVER
 	#define USE_MATE_DFPN
 	#define USE_PIECE_VALUE
-	#define ENABLE_TEST_CMD
+	//#define ENABLE_TEST_CMD  // TODO : あとで
 #endif
 
 
@@ -610,34 +602,6 @@ constexpr int MAX_PLY_NUM = 246;
 
 #if defined(TUNING_SEARCH_PARAMETERS) && !defined(USE_GAMEOVER_HANDLER)
 	#define USE_GAMEOVER_HANDLER
-#endif
-
-// --------------------
-//   GlobalOptions
-// --------------------
-
-#if defined(USE_GLOBAL_OPTIONS)
-
-struct GlobalOptions_
-{
-	// eval hashを有効/無効化する。
-	// (USE_EVAL_HASHがdefineされていないと有効にはならない。)
-	bool use_eval_hash;
-
-	// 置換表のprobe()を有効化/無効化する。E
-	// (無効化するとTT.probe()が必ずmiss hitするようになる)
-	bool use_hash_probe;
-
-	GlobalOptions_()
-	{
-		use_eval_hash = use_hash_probe = true;
-	}
-};
-
-namespace YaneuraOu {
-	extern GlobalOptions_ GlobalOptions;
-}
-
 #endif
 
 // --------------------

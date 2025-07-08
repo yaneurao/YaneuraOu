@@ -421,6 +421,21 @@ public:
 
 using Evaluator = Eval::Networks;
 
+#else
+// パラメーター読み込みの必要な評価関数を使わない場合。
+
+class Networks
+{
+public:
+	// 📌 パラメーターの読み書きは不要。
+
+	void load(const std::string& evalfilePath) {}
+	bool save(const std::string& filename) const { return false; }
+	void verify(std::string evalfilePath, const std::function<void(std::string_view)>&) const {}
+};
+
+using Evaluator = Eval::Networks;
+
 #endif
 
 

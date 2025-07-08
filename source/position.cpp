@@ -914,7 +914,7 @@ bool Position::legal_pawn_drop(const Color us, const Square to) const
 // ↑これがtrueならば、歩の不成も合法手扱い。
 bool Position::pseudo_legal(const Move m) const
 {
-	return Search::Limits.generate_all_legal_moves ? pseudo_legal_s<true>(m) : pseudo_legal_s<false>(m);
+	return global_options.generate_all_legal_moves ? pseudo_legal_s<true>(m) : pseudo_legal_s<false>(m);
 }
 
 // ※　mがこの局面においてpseudo_legalかどうかを判定するための関数。
@@ -2385,8 +2385,7 @@ RepetitionState Position::is_repetition(int ply, int& found_ply) const
 // 現在の盤面から、入玉に必要な駒点を計算し、Search::Limits::enteringKingPointに設定する。
 void Position::update_entering_point()
 {
-	auto& limits = Search::Limits;
-	auto rule = limits.enteringKingRule;
+	auto rule = global_options.enteringKingRule;
 	int points[COLOR_NB];
 
 	switch (rule)
@@ -2443,13 +2442,13 @@ void Position::update_entering_point()
 		points[WHITE] -= 56 - p;
 	}
 
-	limits.enteringKingPoint[BLACK] = points[BLACK];
-	limits.enteringKingPoint[WHITE] = points[WHITE];
+	global_options.enteringKingPoint[BLACK] = points[BLACK];
+	global_options.enteringKingPoint[WHITE] = points[WHITE];
 }
 
 Move Position::DeclarationWin() const
 {
-	auto rule = Search::Limits.enteringKingRule;
+	auto rule = global_options.enteringKingRule;
 
 	switch (rule)
 	{
@@ -2528,7 +2527,7 @@ Move Position::DeclarationWin() const
 
 		// ↓ 駒落ち対応などを考慮して、enteringKingPoint[]を参照することにした。
 
-		if (score < Search::Limits.enteringKingPoint[us])
+		if (score < global_options.enteringKingPoint[us])
 			return Move::none();
 
 		// 評価関数でそのまま使いたいので駒点を返しておくのもアリか…。
@@ -2674,9 +2673,6 @@ void Position::UnitTest(Test::UnitTester& tester, Engine& engine)
 {
 	auto section1 = tester.section("Position");
 
-	// Search::Limitsのalias
-	auto& limits = Search::Limits;
-
 	Position pos;
 	StateInfo si;
 
@@ -2700,8 +2696,12 @@ void Position::UnitTest(Test::UnitTester& tester, Engine& engine)
 	Move16 m16;
 	Move m;
 
+	// いまから、global_optionsを書き換えるので、あとで元に戻す必要がある。
+	auto options_backup = global_options;
+	SCOPE_EXIT({ global_options = options_backup; });
+
 	// 歩の不成の指し手を生成しない状態でテストする。
-	limits.generate_all_legal_moves = false;
+	global_options.generate_all_legal_moves = false;
 
 	// to_move() のテスト
 	{
@@ -2839,64 +2839,64 @@ void Position::UnitTest(Test::UnitTester& tester, Engine& engine)
 			// 27点法の入玉可能点数 平手 : 先手=28,後手=27
 			auto section3 = tester.section("EKR_27_POINT");
 
-			limits.enteringKingRule = EKR_27_POINT;
+			global_options.enteringKingRule = EKR_27_POINT;
 			hirate_init();
 			
-			tester.test("hirate", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 27);
+			tester.test("hirate", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 27);
 
 			// 2枚落ち初期化 , 駒落ち対応でないなら、この時も 先手=28,後手=27
 			handi2_init();
-			tester.test("handi2", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 27);
+			tester.test("handi2", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 27);
 		}
 
 		{
 			// 24点法の入玉可能点数 平手 : 先手=31,後手=31
 			auto section3 = tester.section("EKR_24_POINT");
 
-			limits.enteringKingRule = EKR_24_POINT;
+			global_options.enteringKingRule = EKR_24_POINT;
 			hirate_init();
 
-			tester.test("hirate", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 31);
+			tester.test("hirate", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 31);
 
 			// 2枚落ち初期化 , 駒落ち対応でないなら、この時も 先手=31,後手=31
 			handi2_init();
-			tester.test("handi2", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 31);
+			tester.test("handi2", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 31);
 		}
 
 		{
 			// 27点法の入玉可能点数 平手 : 先手=28,後手=27
 			auto section3 = tester.section("EKR_27_POINT_H");
 
-			limits.enteringKingRule = EKR_27_POINT_H;
+			global_options.enteringKingRule = EKR_27_POINT_H;
 			hirate_init();
 
-			tester.test("hirate", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 27);
+			tester.test("hirate", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 27);
 
 			// 2枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=17,下手(BLACK)=28
 			handi2_init();
-			tester.test("handi2", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 17);
+			tester.test("handi2", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 17);
 
 			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=15,下手(BLACK)=28
 			handi4_init();
-			tester.test("handi4", limits.enteringKingPoint[BLACK] == 28 && limits.enteringKingPoint[WHITE] == 15);
+			tester.test("handi4", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 15);
 		}
 
 		{
 			// 24点法の入玉可能点数 平手 : 先手=31,後手=31
 			auto section3 = tester.section("EKR_24_POINT_H");
 
-			limits.enteringKingRule = EKR_24_POINT_H;
+			global_options.enteringKingRule = EKR_24_POINT_H;
 			hirate_init();
 
-			tester.test("hirate", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 31);
+			tester.test("hirate", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 31);
 
 			// 2枚落ち初期化 , 駒落ち対応なのでこの時 上手(WHITE)=21,下手(BLACK)=31
 			handi2_init();
-			tester.test("handi2", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 21);
+			tester.test("handi2", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 21);
 
 			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=19,下手(BLACK)=31
 			handi4_init();
-			tester.test("handi4", limits.enteringKingPoint[BLACK] == 31 && limits.enteringKingPoint[WHITE] == 19);
+			tester.test("handi4", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 19);
 		}
 	}
 

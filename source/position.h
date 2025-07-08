@@ -246,6 +246,9 @@ public:
 	// Positionで用いるZobristテーブルの初期化
 	static void init();
 
+	// 📌　やねうら王では、Position内部でSearch::LimitsTypeを使うので、これを事前に外部から渡してもらう。
+	void set_limits(Search::LimitsType& limits);
+
 	// sfen文字列で盤面を設定する
 	// ※　内部的にinit()は呼び出される。
 	// 局面を遡るために、rootまでの局面の情報が必要であるから、それを引数のsiで渡してやる。

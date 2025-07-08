@@ -22,6 +22,7 @@
 #include "../learn/learn.h"
 #include "../mate/mate.h"
 #include "../evaluate.h"
+#include "../engine.h"
 
 // これもおまけしておく。
 using namespace std;

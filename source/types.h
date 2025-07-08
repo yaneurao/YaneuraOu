@@ -20,6 +20,7 @@
 #include <string>       // std::string使うので仕方ない
 #include <algorithm>    // std::max()を使うので仕方ない
 #include <limits>		// std::numeric_limitsを使うので仕方ない
+#include <chrono>       // std::chrono
 #include <cassert>
 
 #if defined(_MSC_VER)
@@ -1252,6 +1253,91 @@ namespace Eval
 	// を満たす。
 	Value evaluate(const Position& pos);
 }
+
+// --------------------
+//   GlobalOptions
+// --------------------
+
+typedef std::chrono::milliseconds::rep TimePoint;
+
+// エンジン設定(グローバル)
+struct GlobalOptions
+{
+	GlobalOptions()
+	{
+		max_game_ply = 100000;
+		// 入玉に関して
+		enteringKingRule = EKR_NONE;
+		enteringKingPoint[BLACK] = 28; // Position::set()でupdate_entering_point()が呼び出されて設定される。
+		enteringKingPoint[WHITE] = 27; // Position::set()でupdate_entering_point()が呼び出されて設定される。
+
+		silent = consideration_mode = outout_fail_lh_pv = false;
+		pv_interval = 0;
+		generate_all_legal_moves = true;
+		wait_stop = false;
+	}
+
+	// この手数で引き分けとなる。256なら256手目を指したあとに引き分け。
+	// USIのoption["MaxMovesToDraw"]の値。0が設定されていたら、引き分けなしだからmax_game_ply = 100000が代入されることになっている。
+	// (残り手数を計算する時に桁あふれすると良くないのでint_maxにはしていない)
+	// この値が0なら引き分けルールはなし(無効)。
+	// ※　この変数の値が設定されるタイミングは、"go"コマンドに対してなので、
+	//     "go"コマンドが呼び出される前にはこの値は不定であるから用いないこと。
+	/*
+		初手(76歩とか)が1手目である。1手目を指す前の局面はPosition::game_ply() == 1である。
+		そして256手指された時点(257手目の局面で指す権利があること。サーバーから257手目の局面はやってこないものとする)で引き分けだとしたら
+		257手目(を指す前の局面)は、game_ply() == 257である。これが、引き分け扱いということになる。
+
+		pos.game_ply() > limits.max_game_ply
+
+	　	 で(かつ、詰みでなければ)引き分けということになる。
+
+		この引き分けの扱いについては、以下の記事が詳しい。
+		多くの将棋ソフトで256手ルールの実装がバグっている件
+		https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
+	*/
+	int max_game_ply;
+
+	// 入玉ルール設定
+	EnteringKingRule enteringKingRule;
+	// 駒落ち対応入玉ルーの時に、この点数以上であれば入玉宣言可能。
+	// 例) 27点法の2枚落ちならば、↓の[BLACK(下手 = 後手)]には 27 , ↓の[WHITE(上手 = 先手)]には 28-10 = 18 が代入されている。
+	// 📝 Position::update_entering_point()で、enteringKingRuleに基づいて↓を求めている。
+	int enteringKingPoint[COLOR_NB];
+
+	// 画面に出力しないサイレントモード(プロセス内での連続自己対戦のとき用)
+	// このときPVを出力しない。
+	bool silent;
+
+	// 検討モード用のPVを出力するのか
+	// ※ やねうら王のみ , ふかうら王は未対応。
+	bool consideration_mode;
+
+	// fail low/highのときのPVを出力するのか
+	bool outout_fail_lh_pv;
+
+	// PVの出力間隔(探索のときにMainThread::search()内で初期化する)
+	TimePoint pv_interval;
+
+	// 合法手を生成する時に全合法手を生成するのか(歩の不成など)
+	// エンジンオプションのGenerateAllLegalMovesの値がこのフラグに反映される。
+	// 
+	// Position::pseudo_legal()も、このフラグに応じてどこまでをpseudo-legalとみなすかが変わる。
+	// (このフラグがfalseなら歩の不成は非合法手扱い)
+	bool generate_all_legal_moves;
+
+	// "go"コマンドに"wait_stop"がついていたかのフラグ。
+	// これがついていると、stopが送られてくるまで思考しつづける。
+	// 本来の"bestmove"を返すタイミングになると、"info string time to return bestmove."と出力する。
+	// この機能は、Clusterのworkerで、持時間制御はworker側にさせたいが、思考は継続させたい時に用いる。
+	bool wait_stop;
+
+#if defined(TANUKI_MATE_ENGINE)
+	std::vector<Move16> pv_check;
+#endif
+};
+
+extern GlobalOptions global_options;
 
 // --------------------
 //      UnitTest

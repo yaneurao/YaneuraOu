@@ -775,8 +775,8 @@ void Timer::reset() { startTime = startTimeFromPonderhit = now(); }
 void Timer::reset_for_ponderhit() { startTimeFromPonderhit = now(); }
 TimePoint Timer::elapsed() const { return TimePoint(now() - startTime); }
 TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(now() - startTimeFromPonderhit); }
-TimePoint Timer::now() const { return Search::Limits.npmsec ? now() : YaneuraOu::now(); }
-
+TimePoint Timer::now() const { return /* Search::Limits.npmsec ? now() : YaneuraOu::now(); */ YaneuraOu::now(); }
+// 📝 npmsec、思考時間を秒単位に切り上げ処理をしているのと相性が悪いので、やねうら王では採用しないことにした。
 
 #if defined(USE_TIME_MANAGEMENT)
 

@@ -1,4 +1,4 @@
-﻿#include "nn_coreml.h"
+#include "nn_coreml.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP) && defined(COREML)
 
@@ -210,4 +210,3 @@ namespace Eval::dlshogi {
 } // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP) && defined(COREML)
-

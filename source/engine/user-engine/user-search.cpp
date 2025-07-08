@@ -2,70 +2,64 @@
 
 #if defined(USER_ENGINE)
 
+/*
+
+	ユーザーエンジンを製作するサンプル
+
+	これを参考に、あなただけのユーザーエンジンを作ってみてください。
+
+*/
+
 #include "../../types.h"
 #include "../../extra/all.h"
 
 namespace YaneuraOu {
 
-#if 0
-// USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。実験に使ってください。
-void user_test(Position& pos_, std::istringstream& is)
-{
-}
-
-// USIに追加オプションを設定したいときは、この関数を定義すること。
-// USI::init()のなかからコールバックされる。
-void extra_option(OptionsMap & o)
-{
-}
-
-// 起動時に呼び出される。時間のかからない探索関係の初期化処理はここに書くこと。
-void Search::init()
-{
-}
-
-// isreadyコマンドの応答中に呼び出される。時間のかかる処理はここに書くこと。
-void  Search::clear()
-{
-}
-
-// 探索開始時に呼び出される。
-// この関数内で初期化を終わらせ、slaveスレッドを起動してThread::search()を呼び出す。
-// そのあとslaveスレッドを終了させ、ベストな指し手を返すこと。
-void MainThread::search()
-{
-  // 例)
-  //  for (auto th : Threads.slaves) th->start_searching();
-  //  Thread::search();
-  //  for (auto th : Threads.slaves) th->wait_for_search_finished();
-}
-
-// 探索本体。並列化している場合、ここがslaveのエントリーポイント。
-void Thread::search()
-{
-}
-
-#endif
-
-
 namespace Eval {
 
 	// 評価関数
 
+	// 評価関数パラメーターが読み込まれているかのチェック。
 	void Networks::verify(std::string evalfilePath, const std::function<void(std::string_view)>&) const
 	{
 		sync_cout << "Networks::verify, evalFilePath = " << evalfilePath << sync_endl;
 	}
 
+	// 評価関数パラメーターを読み込む。
 	void Networks::load(const std::string& evalfilePath) {
 		sync_cout << "Networks::load, evalFilePath = " << evalfilePath << sync_endl;
 	}
 
+	// 評価関数パラメーターを保存する。
 	bool Networks::save(const std::string& evalfilePath) const
 	{
 		sync_cout << "Networks::save , filename = " << evalfilePath << sync_endl;
 		return false;
 	}
+}
+
+// エンジンに追加オプションを設定したいときは、この関数を定義すること。
+// Engineのコンストラクタからコールバックされる。
+void Engine::extra_option()
+{
+	sync_cout << "Engine::extra_option" << sync_endl;
+
+	// 試しに、Optionを生やしてみる。
+	options.add("HogeOption", Option("hogehoge"));
+}
+
+// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行うこと。
+void Engine::isready()
+{
+	sync_cout << "Engine::isready" << sync_endl;
+}
+
+// 💡 USER_ENGINEでは、
+//     USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。
+//     実験にお使いください。
+void Engine::user_cmd(std::istringstream& is)
+{
+	sync_cout << "Engine::user_cmd" << sync_endl;
 }
 
 namespace Search {
