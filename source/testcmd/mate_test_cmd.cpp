@@ -544,13 +544,12 @@ namespace {
 		// →　デフォルト1024にしておかないと置換表あふれるな。
 		string ttSize = (is >> token) ? token : "1024";
 
-		Options["USI_Hash"] = ttSize;
+		options["USI_Hash"] = ttSize;
 
-		Search::LimitsType limits;
 
 		// ConsiderationModeをオフにしておかないとPV出力の時に置換表を漁るのでその時にdo_move()をして
 		// 探索ノード数が加算されてしまい、depth固定のbenchなのに探索ノード数が変化することがある。
-		limits.consideration_mode = false;
+		global_options.consideration_mode = false;
 		// →　ただし、探索部でこのオプションの値を上書きしていないものとする。
 
 		// 探索制限
@@ -558,7 +557,7 @@ namespace {
 		limits.mate = 100000; // 100秒
 
 		// Optionsの影響を受けると嫌なので、その他の条件を固定しておく。
-		limits.enteringKingRule = EKR_NONE;
+		global_options.enteringKingRule = EKR_NONE;
 
 		// 評価関数の読み込み等
 		is_ready();

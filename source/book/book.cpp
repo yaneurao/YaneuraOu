@@ -1484,7 +1484,7 @@ namespace Book
 	}
 
 	// 定跡部のUnitTest
-	void UnitTest(Test::UnitTester& tester, Engine& engine)
+	void UnitTest(Test::UnitTester& tester, IEngine& engine)
 	{
 		// 少し書こうとしたが、ファイルから読み込むテストでないと大したテストにならないので考え中。
 #if 0

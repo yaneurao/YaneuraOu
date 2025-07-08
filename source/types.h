@@ -1352,6 +1352,13 @@ namespace Test
 	void UnitTest(Position& pos,std::istringstream& is);
 }
 
+// --------------------
+//      Search
+// --------------------
+
+// 思考エンジンinterface
+class IEngine;
+
 } // namespace YaneuraOu
 
 // --------------------
@@ -1368,6 +1375,10 @@ struct std::hash<YaneuraOu::Move16> {
 };
 
 #include "extra/macros.h"
+
+// 自作エンジンのEntry Point。
+// 使い方は自作エンジンのサンプルであるUSER_ENGINEの user-engine/user-search.cpp を参考にすること。
+extern void engine_main();
 
 
 #endif // #ifndef _TYPES_H_INCLUDED

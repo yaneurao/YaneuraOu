@@ -38,29 +38,29 @@ namespace Eval {
 	}
 }
 
-// エンジンに追加オプションを設定したいときは、この関数を定義すること。
-// Engineのコンストラクタからコールバックされる。
-void Engine::extra_option()
+class UserEngine : public Engine
 {
-	sync_cout << "Engine::extra_option" << sync_endl;
+	// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行う。
+	virtual void isready() override
+	{
+		sync_cout << "Engine::isready" << sync_endl;
+	}
 
-	// 試しに、Optionを生やしてみる。
-	options.add("HogeOption", Option("hogehoge"));
-}
+	// エンジンに追加オプションを設定したいときは、この関数を定義する。
+	virtual void extra_option() override
+	{
+		sync_cout << "Engine::extra_option" << sync_endl;
 
-// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行うこと。
-void Engine::isready()
-{
-	sync_cout << "Engine::isready" << sync_endl;
-}
+		// 試しに、Optionを生やしてみる。
+		options.add("HogeOption", Option("hogehoge"));
+	}
 
-// 💡 USER_ENGINEでは、
-//     USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。
-//     実験にお使いください。
-void Engine::user_cmd(std::istringstream& is)
-{
-	sync_cout << "Engine::user_cmd" << sync_endl;
-}
+	// USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。実験に使う。
+	virtual void user(std::istringstream& is) override
+	{
+		sync_cout << "Engine::user_cmd" << sync_endl;
+	}
+};
 
 namespace Search {
 
@@ -95,8 +95,23 @@ namespace Search {
 		sync_cout << "SearchManager::check_time" << sync_endl;
 	}
 
-
 } // namespace Search
 } // namespace YaneuraOu
+
+using namespace YaneuraOu;
+
+// 自作のエンジンのentry point
+void engine_main()
+{
+	// ここで作ったエンジン
+	UserEngine engine;
+
+	// USIコマンドの応答部
+	USIEngine usi;
+	usi.set_engine(engine);
+
+	// USIコマンドの応答のためのループ
+	usi.loop();
+}
 
 #endif // USER_ENGINE

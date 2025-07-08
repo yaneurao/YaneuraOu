@@ -334,7 +334,7 @@ namespace Book
 	};
 
 	// 定跡部のUnitTest
-	void UnitTest(Test::UnitTester& tester, Engine& engine);
+	void UnitTest(Test::UnitTester& tester, IEngine& engine);
 }
 
 // 定跡関係の処理のための補助ツール群

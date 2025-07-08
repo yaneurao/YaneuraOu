@@ -61,7 +61,7 @@ namespace Test {
 		// 各classに実装されたstatic UnitTest(UnitTest&)を呼び出す時に用いる。
 		// この関数fが呼び出される前にbefore_run()、呼び出された後にafter_run()が呼び出されるので
 		// そこに共通の初期化コードを書いたりできる。(かも)
-		void run(std::function<void(UnitTester&, Engine& engine)> f);
+		void run(std::function<void(UnitTester&, IEngine& engine)> f);
 
 		// run()の直前、直後に呼び出されるcallback
 		std::function<void()> before_run;
@@ -74,7 +74,7 @@ namespace Test {
 		// OptionsMapを流用して用いることにする。
 		OptionsMap options;
 
-		Engine* engine;
+		IEngine* engine;
 
 	protected:
 		// 現在のsection名。
@@ -95,7 +95,7 @@ namespace Test {
 	// UnitTest本体。"unittest"コマンドで呼び出される。
 	// --------------------
 
-	void UnitTest(std::istringstream& is, Engine& engine);
+	void UnitTest(std::istringstream& is, IEngine& engine);
 
 } // namespace Test
 } // namespace YaneuraOu

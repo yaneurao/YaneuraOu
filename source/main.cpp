@@ -33,6 +33,9 @@ namespace
 // main関数は、namespaceに入れてはならない。(それをするとWindowsアプリ扱いされてしまう)
 int main(int argc, char* argv[])
 {
+	// CommandLineにはglobal objectがあるので、これに設定しておく。
+	CommandLine::g.set_arg(argc, argv);
+
 	// Stockfishに倣い、起動直後にソフト名と作者の出力。
 	std::cout << engine_info() << std::endl;
 
@@ -44,11 +47,8 @@ int main(int argc, char* argv[])
 	Bitboards::init();
 	Position::init();
 
-	// USIコマンドの応答部
-	USIEngine usi(argc,argv);
-
-	// USIコマンドの応答のためのループ
-	usi.loop();
+	// 自作Engineのentry point
+	engine_main();
 
 	return 0;
 }

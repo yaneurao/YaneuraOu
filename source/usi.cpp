@@ -63,9 +63,13 @@ void USIEngine::print_info_string(std::string_view str) {
 	sync_cout_end();
 }
 
-USIEngine::USIEngine(int argc, char** argv) :
-	engine(argv[0]),
-	cli(argc, argv) {
+USIEngine::USIEngine(/*int argc, char** argv*/)
+	// :
+	//engine(argv[0]),
+	// 📌 やねうら王では、Engine engineは、あとからset_engine()で渡すように変更した。
+	//cli(argc, argv)
+	// 📌  やねうら王では、CommandLine::gが持つようになったのでこのclassには持たせない。
+{
 
 #if 0 // TODO : あとで
 	engine.get_options().add_info_listener([](const std::optional<std::string>& str) {
@@ -82,7 +86,7 @@ USIEngine::USIEngine(int argc, char** argv) :
 void USIEngine::loop()
 {
 	// コマンドラインと"startup.txt"に書かれているUSIコマンドをstd_inputに積む。
-	enqueue_startup_command();
+	//enqueue_startup_command();
 
 #if !defined(__EMSCRIPTEN__)
 
@@ -538,7 +542,7 @@ bool USIEngine::usi_cmdexec(const std::string& cmd)
 		position(is);
 
 	else if (token == "usinewgame")
-		engine.search_clear();
+		engine.usinewgame();
 
 	// 思考エンジンの準備が出来たかの確認
 	else if (token == "isready")
@@ -594,11 +598,9 @@ bool USIEngine::usi_cmdexec(const std::string& cmd)
 	else if (token == "unittest")
 		unittest(is);
 
-#if defined(USER_ENGINE)
 	// ユーザーによる実験用コマンド。Engine::user_cmd()が呼び出される。
 	else if (token == "user")
-		engine.user_cmd(is);
-#endif
+		engine.user(is);
 
 	// エンジンオプションの簡易変更機能
 	else {
@@ -860,9 +862,9 @@ void USIEngine::benchmark(std::istream& args) {
 	uint64_t    nodes = 0, cnt = 1;
 	uint64_t    nodesSearched = 0;
 
+#if 0
 	engine.set_on_update_full([&](const Engine::InfoFull& i) { nodesSearched = i.nodes; });
 
-#if 0
 	engine.set_on_iter([](const auto&) {});
 	engine.set_on_update_no_moves([](const auto&) {});
 	engine.set_on_bestmove([](const auto&, const auto&) {});
@@ -1462,7 +1464,7 @@ void USIEngine::moves()
 void USIEngine::enqueue_startup_command()
 {
 	// コマンドラインから積まれたコマンドをstd_inputに積んでやる。
-	std_input.parse_args(cli);
+	std_input.parse_args(CommandLine::g);
 
 	// "startup.txt"というファイルがあれば、この内容を実行してやる。
 	// そのため、std_inputにそこに書かれているコマンドを積んでやる。
@@ -1556,7 +1558,7 @@ std::string USIEngine::value(Value v)
 
 
 // namespace USI内のUnitTest。
-void USIEngine::UnitTest(Test::UnitTester& tester, Engine& engine)
+void USIEngine::UnitTest(Test::UnitTester& tester, IEngine& engine)
 {
 	auto section1 = tester.section("USI");
 
@@ -1574,7 +1576,6 @@ void USIEngine::UnitTest(Test::UnitTester& tester, Engine& engine)
 	SCOPE_EXIT({ global_options = options_backup; });
 
 	{
-
 		auto section2 = tester.section("to_move()");
 		{
 			//auto section3 = tester.section("unpromoted pawn move");

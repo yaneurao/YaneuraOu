@@ -18,6 +18,8 @@ namespace
 {
 	// Solver本体
 	MateDfpnSolver solver(DfpnSolverType::None);
+
+	vector<string> solver_list = { "32bitNodeSolver", "64bitNodeSolver" };
 }
 
 // エンジンに追加オプションを設定したいときは、この関数を定義すること。
@@ -28,7 +30,7 @@ void Engine::extra_option()
 	//  0なら出力なし。
 	options.add("PvInterval", Option(1000, 0, 100000));
 
-	options.add("SolverType", Option("32bitNodeSolver", "32bitNodeSolver 64bitNodeSolver"));
+	options.add("SolverType", Option(solver_list , solver_list[0]));
 
 	// 探索ノード制限。0なら無制限。
 	options.add("NodesLimit", Option(0, 0, INT64_MAX));
@@ -39,9 +41,9 @@ void  Engine::isready()
 {
 	// Sovler種別
 	auto solver_type = (string)options["SolverType"];
-	if (solver_type == "32bitNodeSolver")
+	if (solver_type == solver_list[0])
 		solver.ChangeSolverType(Mate::Dfpn::DfpnSolverType::Node32bit);
-	else if (solver_type == "64bitNodeSolver")
+	else if (solver_type == solver_list[1])
 		solver.ChangeSolverType(Mate::Dfpn::DfpnSolverType::Node64bit);
 	else
 		solver.ChangeSolverType(Mate::Dfpn::DfpnSolverType::None);

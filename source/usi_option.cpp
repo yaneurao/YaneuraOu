@@ -127,6 +127,17 @@ Option::Option(const char* v, const char* cur, OnChange f) :
 	currentValue = cur;
 }
 
+Option::Option(const std::vector<std::string>& list, const std::string& cur, OnChange f) :
+	type("combo"),
+	min(0),
+	max(0),
+	on_change(std::move(f)) {
+
+	// listの文字列をスペース区切りで連結してdefaultValueに突っ込む。
+	defaultValue = StringExtension::Join(list, " ");
+	currentValue = cur;
+}
+
 Option::operator s64() const {
 	ASSERT_LV1(type == "check" || type == "spin");
 	//return (type == "spin" ? std::stoi(currentValue) : currentValue == "true");

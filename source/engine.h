@@ -27,8 +27,181 @@ namespace YaneuraOu {
 // 前方宣言
 namespace Book { struct BookMoveSelector; }
 
-// エンジン本体
-class Engine
+// 思考エンジンのinterface
+class IEngine
+{
+public:
+	/*
+		📌 自作エンジンでoverrideすると良いmethod。📌
+
+		extra_option()
+			エンジンに追加オプションを設定したいときは、この関数をoverrideする。
+			📝 GetOptions()->add()を用いて、Optionを追加する。
+
+		isready()
+			"isready"コマンドが送られてきた時の応答。
+	        評価関数パラメーターの読み込みや、置換表の初期化など時間のかかる処理はここに書く。
+
+		usinewgame()
+			"usinewgame"コマンドが送られてきた時の応答。
+			毎局、開始時にGUI側から送られてくるので1局ごとに行う探索部の初期化などはここに書く。
+
+		verify_networks()
+			評価関数部の初期化が行えているかのチェックを行う。
+
+		save_network()
+			評価関数パラメーターを保存する。
+
+	*/
+
+	// エンジンに追加オプションを設定したいときは、この関数をoverrideする。
+	// この関数は、Engineのコンストラクタから呼び出される。
+	// 📝 GetOptions()->add()を用いて、Optionを追加する。
+	virtual void extra_option() = 0;
+
+	// 評価関数部の初期化が行えているかのチェックを行う。
+	virtual void verify_networks() = 0;
+
+	// 評価関数パラメーターを保存する。
+	// "export_net"コマンドに対して呼び出される。
+	virtual void save_network(const std::string& path) = 0;
+
+	// blocking call to wait for search to finish
+	// 探索が完了するのを待機する。(完了したらリターンする)
+	// 📝 ThreadPoolのmain_threadの完了を待機している。
+	virtual void wait_for_search_finished() = 0;
+
+	// 📌 Properties
+
+	// スレッドプール(探索用スレッド)の取得
+	virtual ThreadPool* getThreads() = 0;
+	
+	// 局面の取得
+	// 探索開始局面(root)を格納するPositionクラス
+	// "position"コマンドで設定された局面が格納されている。
+	virtual Position* getPosition() = 0;
+
+	// OptionsMapを取得
+	virtual OptionsMap& get_options() = 0;
+
+	// (探索中の)現在の局面のsfen文字列を返す。
+	virtual std::string sfen() const = 0;
+
+	// 局面を視覚化した文字列を取得する。(デバッグ用)
+	virtual std::string visualize() const = 0;
+
+	// 📌 USIコマンドのhandler(同名のUSIコマンドが送られてきた時のhandler)
+
+	// "isready"コマンド。時間のかかる初期化処理はここで行うこと。
+	virtual void isready() = 0;
+
+	// "usinewgame"コマンド。
+	// GUIからはこのコマンドが1局の最初に送られてくることは保証されているので、
+	// 1局ごとに行いたい探索部の初期化は、ここで行うこと。
+	virtual void usinewgame() = 0;
+
+	// "go"コマンド。ThreadPoolのmain threadに対して探索を開始(start_searching)する。
+	// non blocking call to start searching
+	// 探索を開始する。(non blocking呼び出し)
+	virtual void go(Search::LimitsType& limits) = 0;
+
+	// "stop"コマンド。ThreadPoolに対してstop信号を送信する。
+	// non blocking call to stop searching
+	// 探索を停止させる。(non blocking呼び出し)
+	virtual void stop() = 0;
+
+	// "perft"コマンド。perftとは、performance testの略。
+	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) = 0;
+
+	// "trace"コマンド。現在の局面に対して評価関数を呼び出して結果を出力する。
+	virtual void trace_eval() const = 0;
+
+	// "user"コマンド。ユーザー(エンジン実装者)の実験用。
+	virtual void user(std::istringstream& is) = 0;
+
+	// 💡 interfaceなので仮想デストラクタが必要
+	virtual ~IEngine() {}
+};
+
+// エンジンの基底クラス
+// 📝 これを派生させて、自作のエンジンを作成する。
+//     USIEngine::set_engine()でその派生クラスを渡して使う。
+class Engine : public IEngine
+{
+public:
+	virtual void extra_option() override {}
+	virtual void verify_networks() override {}
+	virtual void save_network(const std::string& path) override {}
+	virtual void wait_for_search_finished() override;
+	virtual ThreadPool* getThreads() override { return &threads; }
+	virtual Position* getPosition() override { return &pos; }
+	virtual OptionsMap& get_options() override { return options; }
+	virtual std::string sfen() const override { return pos.sfen(); }
+	virtual std::string Engine::visualize() const override;
+	virtual void isready() override {}
+	virtual void usinewgame() override {};
+	virtual void go(Search::LimitsType& limits) override;
+	virtual void stop() override;
+	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override;
+	virtual void trace_eval() const override {}
+	virtual void user(std::istringstream& is) override {};
+
+protected:
+
+	// 📌 エンジンを実装するために必要な最低限のコンポーネント
+
+	// 探索開始局面(root)を格納するPositionクラス
+	// "position"コマンドで設定された局面が格納されている。
+	Position           pos;
+
+	// ここまでの局面に対するStateInfoのlist
+	StateListPtr       states;
+
+	// 思考エンジンオプション
+	OptionsMap         options;
+
+	// スレッドプール(探索用スレッド)
+	ThreadPool         threads;
+};
+
+// IEngine派生classを入れておいて、使うためのwrapper
+// 📝 これを用意せずにIEngine*を直接用いてもいいのだが
+//    そうすると engine-> のように参照型を使う必要があって、
+class EngineWrapper : public IEngine
+{
+public:
+	// Engine派生classをセットする。
+	void set_engine(IEngine& _engine) { engine = &_engine; }
+
+	// Engineのoverride
+	// 📌 すべてset_engine()で渡されたengineに委譲する。
+
+	virtual void extra_option() override { engine->extra_option(); }
+	virtual void verify_networks() override { engine->verify_networks(); }
+	virtual void save_network(const std::string& path) override { engine->save_network(path); }
+	virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
+	virtual ThreadPool* getThreads() override { return engine->getThreads(); }
+	virtual Position* getPosition() override { return engine->getPosition(); }
+	virtual OptionsMap& get_options() override { return engine->get_options(); }
+	virtual std::string sfen() const override { return engine->sfen(); }
+	virtual std::string visualize() const override { return engine->visualize(); }
+	virtual void isready() override { engine->isready(); }
+	virtual void usinewgame() override { engine->usinewgame(); }
+	virtual void go(Search::LimitsType& limits) override { engine->go(limits); }
+	virtual void stop() override { engine->stop(); }
+	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override { return engine->perft(fen, depth); }
+	virtual void trace_eval() const override { engine->trace_eval(); }
+	virtual void user(std::istringstream& is) override { engine->user(is); }
+
+private:
+	IEngine* engine;
+};
+
+#if 0
+// やねうら王の通常探索部
+// 📌 これがStockfishのEngine classに相当する。
+//     エンジン共通で必要なものは、IEngine/Engine(これが、それぞれエンジンのinterfaceとエンジン基底class)に移動させた。
+class YaneuraOuEngine : public Engine
 {
    public:
 	// 読み筋
@@ -37,20 +210,10 @@ class Engine
 	using InfoIter  = Search::InfoIteration;
 
 	// pathとして起動path(main関数で渡されたargv[0])を渡す。
-	Engine(std::optional<std::string> path = std::nullopt);
+	// ⇨  やねうら王ではこれをやめることにした。
+	//    CommandLine::gから取得する。
+	YaneuraOuEngine(/* std::optional<std::string> path = std::nullopt*/ );
 
-	// performance test ("perft"コマンドの処理 )
-	std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */ );
-
-	// non blocking call to start searching
-	// 探索を開始する。(non blocking呼び出し)
-
-	void go(Search::LimitsType&);
-
-	// non blocking call to stop searching
-	// 探索を停止させる。(non blocking呼び出し)
-
-	void stop();
 
 	// blocking call to wait for search to finish
 	// 探索が完了のを待機する。(blocking呼び出し)
@@ -148,18 +311,6 @@ class Engine
 	// Numaの管理用(どのNumaを使うかというIDみたいなもの)
 	NumaReplicationContext numaContext;
 
-	// 探索開始局面(root)を格納するPositionクラス
-	// "position"コマンドで設定された局面が格納されている。
-	Position     pos;
-
-	// ここまでの局面に対するStateInfoのlist
-	StateListPtr states;
-
-	// 思考エンジン設定
-	OptionsMap                               options;
-
-	// スレッドプール(探索用スレッド)
-	ThreadPool                               threads;
 
 	// このEngineで保有している置換表
 	TranspositionTable                       tt;
@@ -175,6 +326,7 @@ class Engine
 	std::function<void(std::string_view)> onVerifyNetworks;
 
 };
+#endif
 
 } // namespace YaneuraOu
 

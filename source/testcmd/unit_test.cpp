@@ -20,6 +20,7 @@ namespace YaneuraOu {
 
 namespace Test
 {
+
 	// --------------------
 	//      UnitTest
 	// --------------------
@@ -32,6 +33,7 @@ namespace Test
 	{
 		cout << "=== Start UnitTest ===" << endl;
 	}
+
 	UnitTester::~UnitTester()
 	{
 		cout << "=== Summary UnitTest ===" << endl;
@@ -75,7 +77,7 @@ namespace Test
 		++test_count;
 	}
 
-	void UnitTester::run(std::function<void(UnitTester&, Engine& )> f)
+	void UnitTester::run(std::function<void(UnitTester&, IEngine& )> f)
 	{
 		// 対象の関数を実行する前に呼び出されるcallback
 		if (before_run)
@@ -120,7 +122,7 @@ namespace Test
 	//  unittest auto_player_loop 1000 auto_player_depth 6
 	//  →　探索深さ6での自己対局を1000回行うUnitTest。(やねうら王探索部 + EVAL_LEARN版が必要)
 
-	void UnitTest(istringstream& is, Engine& engine)
+	void UnitTest(istringstream& is, IEngine& engine)
 	{
 		// UnitTestを呼び出してくれるclass。
 		UnitTester tester;

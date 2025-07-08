@@ -263,7 +263,7 @@ struct alignas(16) Bitboard
 	}
 
 	// UnitTest
-	static void UnitTest(Test::UnitTester& tester, Engine& engine);
+	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 };
 
 // 抑制していた警告を元に戻す。
@@ -426,7 +426,7 @@ struct alignas(32) Bitboard256
 	Bitboard merge() const;
 
 	// UnitTest
-	static void UnitTest(Test::UnitTester& tester, Engine& engine);
+	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 };
 
 inline bool Bitboard256::operator == (const Bitboard256& rhs) const

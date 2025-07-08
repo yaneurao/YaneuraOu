@@ -782,7 +782,7 @@ public:
 	friend struct MoveGenerator;
 
 	// UnitTest
-	static void UnitTest(Test::UnitTester& tester, Engine& engine);
+	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 
 private:
 

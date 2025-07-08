@@ -2669,7 +2669,7 @@ namespace {
 	};
 }
 
-void Position::UnitTest(Test::UnitTester& tester, Engine& engine)
+void Position::UnitTest(Test::UnitTester& tester, IEngine& engine)
 {
 	auto section1 = tester.section("Position");
 

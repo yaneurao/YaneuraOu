@@ -184,7 +184,7 @@ public:
 	TTEntry* first_entry(const Key128& key) const;
 	TTEntry* first_entry(const Key256& key) const;
 
-	static void UnitTest(Test::UnitTester& unittest, Engine& engine);
+	static void UnitTest(Test::UnitTester& unittest, IEngine& engine);
 
 private:
 	friend struct TTEntry;

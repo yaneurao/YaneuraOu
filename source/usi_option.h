@@ -31,13 +31,22 @@ public:
 
 	Option(const OptionsMap*);
 	Option(OnChange = nullptr);
+
+	// bool
 	Option(bool v, OnChange = nullptr);
+
+	// string
 	Option(const char* v, OnChange = nullptr);
+
+	// integer
 	//Option(double v, int minv, int maxv, OnChange = nullptr);
 	// ⇨ 💡 やねうら王では、引数をs64に変更
 	Option(s64 v, s64 minv, s64 maxv, OnChange = nullptr);
 
+	// combo
+	// 📌 Option("A B C","B")のようなcombo形式。
 	Option(const char* v, const char* cur, OnChange = nullptr);
+	Option(const std::vector<std::string>& list, const std::string& cur, OnChange = nullptr);
 
 	Option& operator=(const std::string&);
 

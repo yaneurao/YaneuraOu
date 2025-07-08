@@ -22,7 +22,14 @@ namespace YaneuraOu {
 // 内包しているEngineに対して司令を送る。
 class USIEngine {
 public:
-	USIEngine(int argc, char** argv);
+	// 📝 やねうら王では、CommandLine::gを見れば良いので、argc,argvは引数として渡さないことにした。
+	USIEngine(/*int argc, char** argv */);
+
+	// USIEngine classから使うEngine。
+	// 📌 やねうら王独自。エンジンの実装を変更できるように、
+	//     IEngine(エンジン interface)を渡し、エンジンを動的に切り替えたり、
+	//     複数の異なるエンジンから成るUSIEngineを同時に使うことができるようにする。
+	void set_engine(IEngine& _engine) { engine.set_engine(_engine); }
 
 	// main threadをUSIメッセージの受信のために待機させる。
 	// "quit"コマンドが送られてくるまでこのループは抜けない。
@@ -113,14 +120,17 @@ public:
 
 	// このclassのUnitTest。
 	// 📌 やねうら王独自
-	static void UnitTest(Test::UnitTester& tester, Engine& engine);
+	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 
 private:
 	// 内包している思考エンジン
-	Engine	    engine;
+	//Engine	    engine;
+	// 📌 やねうら王ではengineを切り替えられるようにIEngineをくるんだEngineWrapperというclassを用いる。
+	EngineWrapper engine;
 
 	// main関数にコマンドラインから渡された引数
-	CommandLine cli;
+	//CommandLine cli;
+	// 📌 やねうら王では、CommandLine::gを用いるから、このclassが保持する必要がない。
 
 	// string_viewを"\n"で複数行に分割して、それを"info string .."の形で出力する。
 	static void print_info_string(std::string_view str);

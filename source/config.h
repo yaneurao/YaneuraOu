@@ -556,7 +556,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_SOLVER
 	#define USE_MATE_DFPN
 	#define USE_PIECE_VALUE
-	//#define ENABLE_TEST_CMD  // TODO : あとで
+	// #define ENABLE_TEST_CMD // TODO あとで
 #endif
 
 

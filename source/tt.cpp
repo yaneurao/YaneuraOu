@@ -289,11 +289,6 @@ static_assert((sizeof(Cluster) % 32) == 0, "Unexpected Cluster size");
 
 void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
 
-#if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE) || defined(YANEURAOU_ENGINE_DEEP)
-	// これらのエンジンでは、この置換表は用いないので確保しない。
-	return;
-#endif
-
 #if 0
 	// Optionのoverrideによってスレッド初期化前にハンドラが呼び出された。これは無視する。
 	if (Threads.size() == 0)
@@ -553,7 +548,7 @@ void TranspositionTable::init_tt_per_thread()
 //			UnitTest
 // ----------------------------------
 
-void TranspositionTable::UnitTest(Test::UnitTester& unittest, Engine& engine)
+void TranspositionTable::UnitTest(Test::UnitTester& unittest, IEngine& engine)
 {
 	auto section1 = unittest.section("TT");
 	{

@@ -2145,6 +2145,9 @@ string CommandLine::get_working_directory() {
 	return workingDirectory;
 }
 
+// CommandLine global object
+CommandLine CommandLine::g;
+
 // --------------------
 // StandardInputWrapper
 // --------------------
@@ -2223,7 +2226,7 @@ void StandardInput::parse_args(const CommandLine& cli)
 
 namespace Misc {
 	// このheaderに書いてある関数のUnitTest。
-	void UnitTest(Test::UnitTester& tester, Engine& engine)
+	void UnitTest(Test::UnitTester& tester, IEngine& engine)
 	{
 		auto section1 = tester.section("Misc");
 

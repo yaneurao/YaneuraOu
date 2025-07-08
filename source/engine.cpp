@@ -6,6 +6,50 @@
 
 namespace YaneuraOu {
 
+// 局面を視覚化した文字列を取得する。
+std::string Engine::visualize() const {
+	std::stringstream ss;
+	ss << pos;
+	return ss.str();
+}
+
+// blocking call to wait for search to finish
+// 探索が完了のを待機する。(完了したらリターンする)
+void Engine::wait_for_search_finished() { threads.main_thread()->wait_for_search_finished(); }
+
+#if 0
+void Engine::usinewgame()
+{
+	wait_for_search_finished();
+
+	//tt.clear(threads);
+	threads.clear();
+
+	// @TODO wont work with multiple instances
+	//Tablebases::init(options["SyzygyPath"]);  // Free mapped files
+	// 📌 将棋ではTablebasesは用いない。
+}
+#endif
+
+std::uint64_t Engine::perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
+	verify_networks();
+
+	return Benchmark::perft(fen, depth /*, isChess960 */);
+}
+
+
+void Engine::go(Search::LimitsType& limits) {
+	ASSERT_LV3(limits.perft == 0);
+	//verify_networks();
+
+	threads.start_thinking(options, pos, states, limits);
+}
+
+void Engine::stop() { threads.stop = true; }
+
+
+#if 0
+
 // 開始局面
 //constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 // 📌 やねうら王では、StartSFENを type.h で宣言している。
@@ -16,7 +60,7 @@ constexpr int  MaxHashMB = Is64Bit ? 33554432 : 2048;
 // 最大スレッド数
 int            MaxThreads = std::max(1024, 4 * int(get_hardware_concurrency()));
 
-Engine::Engine(std::optional<std::string> path) :
+YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 	//binaryDirectory(path ? CommandLine::get_binary_directory(*path) : ""),
 	numaContext(NumaConfig::from_system()),
 	states(new std::deque<StateInfo>(1)),
@@ -55,7 +99,7 @@ Engine::Engine(std::optional<std::string> path) :
 #elif defined(TANUKI_MATE_ENGINE)
 	constexpr int HashMB = 4096;
 #elif defined(YANEURAOU_MATE_ENGINE)
-	constexpr int HashMB = 64; // not used
+	constexpr int HashMB = 1024;
 #else
 	// other engine
 	constexpr int HashMB = 16; // maybe not used
@@ -286,30 +330,6 @@ Engine::Engine(std::optional<std::string> path) :
 	resize_threads();
 }
 
-std::uint64_t Engine::perft(const std::string& fen, Depth depth /*, bool isChess960 */ ) {
-	verify_networks();
-
-	return Benchmark::perft(fen, depth /*, isChess960 */ );
-}
-
-void Engine::go(Search::LimitsType& limits) {
-	ASSERT_LV3(limits.perft == 0);
-	verify_networks();
-
-	threads.start_thinking(options, pos, states, limits);
-}
-
-void Engine::stop() { threads.stop = true; }
-
-void Engine::search_clear() {
-	wait_for_search_finished();
-
-	tt.clear(threads);
-	threads.clear();
-
-	// @TODO wont work with multiple instances
-	//Tablebases::init(options["SyzygyPath"]);  // Free mapped files
-}
 
 void Engine::set_on_update_no_moves(std::function<void(const Engine::InfoShort&)>&& f) {
 	updateContext.onUpdateNoMoves = std::move(f);
@@ -342,13 +362,6 @@ std::string Engine::sfen() const { return pos.sfen(); }
 // 盤面を180°回転させる。
 void Engine::flip() { /* pos.flip(); */ }
 
-// 局面を視覚化した文字列を取得する。
-std::string Engine::visualize() const {
-	std::stringstream ss;
-	ss << pos;
-	return ss.str();
-}
-
 void Engine::set_on_iter(std::function<void(const Engine::InfoIter&)>&& f) {
 	updateContext.onIter = std::move(f);
 }
@@ -362,9 +375,6 @@ void Engine::set_on_verify_networks(std::function<void(std::string_view)>&& f) {
 	onVerifyNetworks = std::move(f);
 }
 
-// blocking call to wait for search to finish
-// 探索が完了のを待機する。(完了したらリターンする)
-void Engine::wait_for_search_finished() { threads.main_thread()->wait_for_search_finished(); }
 
 
 int Engine::get_hashfull(int maxAge) const { return tt.hashfull(maxAge); }
@@ -408,6 +418,12 @@ void Engine::resize_threads() {
 
 void Engine::set_tt_size(size_t mb) {
 	wait_for_search_finished();
+
+#if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE) || defined(YANEURAOU_ENGINE_DEEP)
+	//　これらのengineでは、この標準TTを用いない。
+	return;
+#endif
+
 	tt.resize(mb, threads);
 }
 
@@ -523,6 +539,6 @@ std::string Engine::thread_allocation_information_as_string() const {
 //  やねうら王独自拡張
 // --------------------
 
-
+#endif
 
 } // namespace YaneuraOu

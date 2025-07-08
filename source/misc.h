@@ -40,6 +40,7 @@ std::string compiler_info();
 // config.hで設定した値などについて出力する。
 std::string config_info();
 
+
 // --------------------
 //    prefetch命令
 // --------------------
@@ -309,20 +310,27 @@ inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
 }
 
 // --------------------
-//  コマンドライン
+//   コマンドライン
 // --------------------
 
 struct CommandLine {
 public:
+	CommandLine() {}
 	CommandLine(int _argc, char** _argv) :
 		argc(_argc),
 		argv(_argv) {}
+
+	// コンストラクタでargc,argvを渡さなかった時に、あとから設定する。
+	void set_arg(int _argc, char** _argv) { argc = _argc, argv = _argv; }
 
 	static std::string get_binary_directory(std::string argv0);
 	static std::string get_working_directory();
 
 	int    argc;
 	char** argv;
+
+	// global object
+	static CommandLine g;
 };
 
 // --------------------
@@ -1292,7 +1300,7 @@ private:
 
 namespace Misc {
 	// このheaderに書いてある関数のUnitTest。
-	void UnitTest(Test::UnitTester& tester, Engine& engine);
+	void UnitTest(Test::UnitTester& tester, IEngine& engine);
 }
 
 } // namespace YaneuraOu
