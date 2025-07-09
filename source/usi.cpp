@@ -23,6 +23,10 @@
 using namespace std;
 namespace YaneuraOu {
 
+namespace Test {
+	void test_cmd(IEngine& engine, std::istringstream& is);
+}
+
 // benchmark用のコマンドその2
 constexpr auto BenchmarkCommand = "speedtest";
 
@@ -489,11 +493,6 @@ bool USIEngine::usi_cmdexec(const std::string& cmd)
 	else if (token == "mate1") cout << pos.mate1ply() << endl;
 #endif
 
-#if defined (ENABLE_TEST_CMD)
-	// テストコマンド
-	else if (token == "test") Test::test_cmd(pos, is);
-#endif
-
 #if defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
 	// 定跡を作るコマンド
 	else if (token == "makebook") Book::makebook_cmd(pos, is);
@@ -608,9 +607,15 @@ bool USIEngine::usi_cmdexec(const std::string& cmd)
 	else if (token == "unittest")
 		unittest(is);
 
+#if defined (ENABLE_TEST_CMD)
+		// テストコマンド
+	else if (token == "test") Test::test_cmd(engine, is);
+#endif
+
 	// ユーザーによる実験用コマンド。Engine::user_cmd()が呼び出される。
 	else if (token == "user")
 		engine.user(is);
+
 
 	// エンジンオプションの簡易変更機能
 	else {
@@ -1059,12 +1064,12 @@ std::uint64_t USIEngine::perft(const Search::LimitsType& limits) {
 namespace Test
 {
 	// 通常のテスト用コマンド。コマンドを処理した時 trueが返る。
-	bool normal_test_cmd(Position& pos, std::istringstream& is, const std::string& token);
+	bool normal_test_cmd(IEngine& engine, std::istringstream& is, const std::string& token);
 
 	// 詰み関係のテスト用コマンド。コマンドを処理した時 trueが返る。
-	bool mate_test_cmd(Position& pos, std::istringstream& is, const std::string& token);
+	bool mate_test_cmd(IEngine& engine, std::istringstream& is, const std::string& token);
 
-	void test_cmd(Position& pos, std::istringstream& is)
+	void test_cmd(IEngine& engine, std::istringstream& is)
 	{
 		std::string token;
 		is >> token;
@@ -1072,11 +1077,11 @@ namespace Test
 		// デザパタのDecoratorの呼び出しみたいな感じで書いていく。
 
 		// 通常のテスト用コマンド
-		if (normal_test_cmd(pos, is, token))
+		if (normal_test_cmd(engine, is, token))
 			return;
 
 		// 詰み関係のテスト用コマンド
-		if (mate_test_cmd(pos, is, token))
+		if (mate_test_cmd(engine, is, token))
 			return;
 
 		sync_cout << "info string Error! : unknown command = " << token << sync_endl;
@@ -1441,7 +1446,7 @@ void USIEngine::isready()
 // "moves"コマンドのhandler
 void USIEngine::moves()
 {
-	auto& pos = *engine.getPosition();
+	auto& pos = engine.get_position();
 	for (auto m : MoveList<LEGAL_ALL>(pos))
 		cout << Move(m) << ' ';
 	cout << endl;

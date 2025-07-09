@@ -555,8 +555,8 @@ void TranspositionTable::UnitTest(Test::UnitTester& unittest, IEngine& engine)
 		TranspositionTable tt;
 
 		// 1024[MB]確保
-		tt.resize(1024,*engine.getThreads());
-		tt.clear(*engine.getThreads());
+		tt.resize(1024,engine.get_threads());
+		tt.clear(engine.get_threads());
 
 		auto section2 = unittest.section("probe()");
 		Position pos;

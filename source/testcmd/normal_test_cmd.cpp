@@ -21,8 +21,10 @@ namespace {
 
 	// "test genmoves" : 指し手生成テストコマンド
 	// positionコマンドで設定されている現在の局面から。
-	void gen_moves(Position& pos, std::istringstream& is)
+	void gen_moves(IEngine& engine, std::istringstream& is)
 	{
+		auto& pos = engine.get_position();
+
 		// 試行回数
 		int64_t loop = 30000000;
 
@@ -70,8 +72,11 @@ namespace {
 	//	 何らか引っかかることが多いので開発の時に便利。
 	//   goコマンド相当の処理で対局させているので通常の探索部であればどの探索部に対しても機能する。
 
-	void auto_play(std::istringstream& is)
+	void auto_play(IEngine& engine, std::istringstream& is)
 	{
+		auto& options = engine.get_options();
+		auto& threads = engine.get_threads();
+
 		Position pos;
 
 		// 対局回数
@@ -119,21 +124,20 @@ namespace {
 		// ふかうら王の場合、root mate searchが回っていると探索を打ち切らないので、ここで
 		// 同じ思考時間になってしまう可能性がある。
 		if (options.count("RootMateSearchNodesLimit"))
-			options["RootMateSearchNodesLimit"] = std::to_string(100); // 100ノードに減らしておく。
+			options.set_option_if_exists("RootMateSearchNodesLimit",std::to_string(100)); // 100ノードに減らしておく。
 
 		//if (Options.count("DNN_Batch_Size1"))
 		//	Options["DNN_Batch_Size1"] = std::to_string(32); // これも減らしておかないとbatchsizeまでで時間がきてしまう。
 		// →　このタイミングでやるとmodelのrebuildが起きるのか…。
 
 		// isreadyが呼び出されたものとする。
-		Search::clear();
+		engine.isready();
 
 		// 思考時間のランダム化のための乱数
 		PRNG prng;
 
 		for (uint64_t i = 0; i < loop ; ++i)
 		{
-
 			// 局面を遡るためのStateInfoのlist。
 			StateListPtr states(new StateList(1));
 			pos.set_hirate(&states->back());
@@ -186,16 +190,18 @@ namespace {
 				*states0.get() = *states.get(); // dequeのcopyを行う。
 
 				// 思考時間、nodes_limit、1～4倍の間でランダム化
+				Search::LimitsType lm;
 				lm.movetime = movetime * (1000 + prng.rand(3000)) / 1000;
 				lm.nodes    = nodes_limit * (1000 + prng.rand(3000)) / 1000;
 
-				Threads.start_thinking(pos, states0 , lm);
-				Threads.main()->wait_for_search_finished();
-				auto rootMoves = Threads.main()->rootMoves;
+				threads.start_thinking(options, pos, states0 , lm);
+				threads.wait_for_search_finished();
+				auto& rootMoves = threads.main_thread()->worker->rootMoves;
+				// ⚠ best threadから選出したほうがいいかも知れないが、どれがbest threadか、わからない…。
 
 				ASSERT_LV3(rootMoves.size());
 
-				Move m = rootMoves.at(0).pv[0]; // 1番目に並び変わっているはず。
+				Move m  = rootMoves.at(0).pv[0]; // 1番目に並び変わっているはず。
 				Value v = rootMoves.at(0).score;
 
 				if (mateScoreColor == pos.side_to_move() && v < VALUE_MATE)
@@ -234,14 +240,11 @@ namespace {
 namespace Test
 {
 	// 通常のテストコマンド。コマンドを処理した時 trueが返る。
-	bool normal_test_cmd(Position& pos , std::istringstream& is, const std::string& token)
+	bool normal_test_cmd(IEngine& engine , std::istringstream& is, const std::string& token)
 	{
-		if (token == "genmoves")         gen_moves(is);       // 現在の局面に対して指し手生成のテストを行う。
-		else if (token == "autoplay")    auto_play(is);       // 連続自己対局を行う。
-#if defined (EVAL_LEARN)
-		else if (token == "evalsave")    Eval::save_eval("");      // 現在の評価関数のパラメーターをファイルに保存
-#endif
-		else return false;									       // どのコマンドも処理することがなかった
+		if (token == "genmoves")         gen_moves(engine, is);       // 現在の局面に対して指し手生成のテストを行う。
+		else if (token == "autoplay")    auto_play(engine, is);       // 連続自己対局を行う。
+		else return false;									          // どのコマンドも処理することがなかった
 			
 		// いずれかのコマンドを処理した。
 		return true;

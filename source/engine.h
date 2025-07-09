@@ -124,12 +124,12 @@ public:
 	// 📌 Properties
 
 	// スレッドプール(探索用スレッド)の取得
-	virtual ThreadPool* getThreads() = 0;
+	virtual ThreadPool& get_threads() = 0;
 	
 	// 局面の取得
 	// 探索開始局面(root)を格納するPositionクラス
 	// "position"コマンドで設定された局面が格納されている。
-	virtual Position* getPosition() = 0;
+	virtual Position& get_position() = 0;
 
 	// OptionsMapを取得
 	virtual OptionsMap& get_options() = 0;
@@ -191,8 +191,8 @@ public:
 	virtual void wait_for_search_finished() override;
 	virtual void verify_networks() override {}
 	virtual void save_network(const std::string& path) override {}
-	virtual ThreadPool* getThreads() override { return &threads; }
-	virtual Position* getPosition() override { return &pos; }
+	virtual ThreadPool& get_threads() override { return threads; }
+	virtual Position& get_position() override { return pos; }
 	virtual OptionsMap& get_options() override { return options; }
 	virtual std::string sfen() const override { return pos.sfen(); }
 	virtual std::string Engine::visualize() const override;
@@ -250,8 +250,8 @@ public:
 	virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
 	virtual void verify_networks() override { engine->verify_networks(); }
 	virtual void save_network(const std::string& path) override { engine->save_network(path); }
-	virtual ThreadPool* getThreads() override { return engine->getThreads(); }
-	virtual Position* getPosition() override { return engine->getPosition(); }
+	virtual ThreadPool& get_threads() override { return engine->get_threads(); }
+	virtual Position& get_position() override { return engine->get_position(); }
 	virtual OptionsMap& get_options() override { return engine->get_options(); }
 	virtual std::string sfen() const override { return engine->sfen(); }
 	virtual std::string visualize() const override { return engine->visualize(); }
