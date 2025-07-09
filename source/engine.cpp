@@ -7,9 +7,6 @@
 
 namespace YaneuraOu {
 
-// 最大スレッド数
-int            MaxThreads = std::max(1024, 4 * int(get_hardware_concurrency()));
-
 Engine::Engine() :
 	numaContext(NumaConfig::from_system()),
 	states(new std::deque<StateInfo>(1)),
@@ -102,6 +99,29 @@ std::string Engine::visualize() const {
 // 探索が完了のを待機する。(完了したらリターンする)
 void Engine::wait_for_search_finished() { threads.main_thread()->wait_for_search_finished(); }
 
+// "position"コマンドの下請け。
+// sfen文字列 + movesのあとに書かれていた(USIの)指し手文字列から、現在の局面を設定する。
+void Engine::set_position(const std::string& sfen, const std::vector<std::string>& moves) {
+
+	// Drop the old state and create a new one
+	// 古い状態を破棄して新しい状態を作成する
+
+	states = StateListPtr(new std::deque<StateInfo>(1));
+	pos.set(sfen /*, options["UCI_Chess960"]*/ , &states->back());
+
+	for (const auto& move : moves)
+	{
+		auto m = USIEngine::to_move(pos, move);
+
+		if (m == Move::none())
+			break;
+
+		states->emplace_back();
+		pos.do_move(m, states->back());
+	}
+}
+
+
 #if 0
 void Engine::usinewgame()
 {
@@ -178,8 +198,6 @@ void Engine::resize_threads() {
 //constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 // 📌 やねうら王では、StartSFENを type.h で宣言している。
 
-// 最大置換表サイズ
-constexpr int  MaxHashMB = Is64Bit ? 33554432 : 2048;
 
 
 YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
@@ -203,17 +221,6 @@ YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 	// 局面を初期局面に設定する。
 	pos.set(StartSFEN, &states->back());
 
-	// optionのdefault値を設定する。
-#if !defined(__EMSCRIPTEN__)
-	// Hash上限。32bitモードなら2GB、64bitモードなら33TB
-	constexpr int MaxHashMB = Is64Bit ? 33554432 : 2048;
-#else
-	// yaneuraou.wasm
-	// メモリの調整
-	// stockfish.wasmの数値を基本的に使用している
-	constexpr int MaxHashMB = 2048;
-
-#endif
 
 
 #if defined(YANEURAOU_ENGINE)

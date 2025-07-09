@@ -22,131 +22,204 @@ namespace
 	vector<string> solver_list = { "32bitNodeSolver", "64bitNodeSolver" };
 }
 
-// エンジンに追加オプションを設定したいときは、この関数を定義すること。
-// Engineのコンストラクタからコールバックされる。
-void Engine::extra_option()
-{
-	//  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
-	//  0なら出力なし。
-	options.add("PvInterval", Option(1000, 0, 100000));
-
-	options.add("SolverType", Option(solver_list , solver_list[0]));
-
-	// 探索ノード制限。0なら無制限。
-	options.add("NodesLimit", Option(0, 0, INT64_MAX));
-}
-
-// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行うこと。
-void  Engine::isready()
-{
-	// Sovler種別
-	auto solver_type = (string)options["SolverType"];
-	if (solver_type == solver_list[0])
-		solver.ChangeSolverType(Mate::Dfpn::DfpnSolverType::Node32bit);
-	else if (solver_type == solver_list[1])
-		solver.ChangeSolverType(Mate::Dfpn::DfpnSolverType::Node64bit);
-	else
-		solver.ChangeSolverType(Mate::Dfpn::DfpnSolverType::None);
-
-	u64 mem = options["USI_Hash"];
-	sync_cout << "info string DfPn memory allocation , USI_Hash = " << mem << " [MB]" << sync_endl;
-	solver.alloc(mem);
-}
 
 namespace Search {
 
-// このworker(探索用の1つのスレッド)の初期化
-// 📝 これは、"usinewgame"のタイミングで、すべての探索スレッド(エンジンオプションの"Threads"で決まる)に対して呼び出される。
-void Worker::clear() {}
+	class YaneuraOuMateWorker : public Worker
+	{
+	public:
 
-void Worker::start_searching()
-{
-	// 思考エンジンからの返し値
-	// 詰将棋ルーチンからMove::resign()が返ってくることはないので、この値が変化していたら返し値があったことを意味する。
-	atomic<Move> move = Move::resign();
+		YaneuraOuMateWorker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken) :
+			// 基底classのconstructorの呼び出し
+			Worker(options, threads, threadIdx, numaAccessToken) {
+		}
 
-	// 探索ノード数制限
-	u64 nodes_limit = options["NodesLimit"];
-
-	// 詰将棋の探索用スレッド
-	auto thread = std::thread([&]()
+		// このworker(探索用の1つのスレッド)の初期化
+		// 📝 これは、"usinewgame"のタイミングで、すべての探索スレッド(エンジンオプションの"Threads"で決まる)に対して呼び出される。
+		virtual void clear() override
 		{
-			move = solver.mate_dfpn(rootPos, nodes_limit);
-		});
 
-	Timer time;
-	time.reset(); // 探索開始からの経過時間を記録しておく。
-	TimePoint lastPvOutput = 0; // 前回のPV出力時刻
-	TimePoint pvInterval = options["PvInterval"]; // PV出力間隔
+		}
 
-	// 読み筋の出力するヘルパ
-	auto print_pv = [&]() {
-		auto elapsed = time.elapsed();
-		u64 nodes_searched = solver.get_nodes_searched();
+		// Workerによる探索の開始
+		// 📝　メインスレッドに対して呼び出される。
+		//     そのあと非メインスレッドに対してstart_searching()を呼び出すのは、threads.start_searching()を呼び出すと良い。
+		virtual void start_searching() override
+		{
+			// 思考エンジンからの返し値
+			// 詰将棋ルーチンからMove::resign()が返ってくることはないので、この値が変化していたら返し値があったことを意味する。
+			atomic<Move> move = Move::resign();
 
-		// nps算出
-		u64 nps = nodes_searched * 1000 / elapsed;
+			// 探索ノード数制限
+			u64 nodes_limit = options["NodesLimit"];
 
-		sync_cout << "info time " << elapsed << " nodes " << nodes_searched << " nps " << nps
-			      << " hashfull " << solver.hashfull() << " pv" << USIEngine::move(solver.get_current_pv()) << sync_endl;
+			// 詰将棋の探索用スレッド
+			auto thread = std::thread([&]()
+				{
+					move = solver.mate_dfpn(rootPos, nodes_limit);
+				});
+
+			Timer time;
+			time.reset(); // 探索開始からの経過時間を記録しておく。
+			TimePoint lastPvOutput = 0; // 前回のPV出力時刻
+			TimePoint pvInterval = options["PvInterval"]; // PV出力間隔
+
+			// 読み筋の出力するヘルパ
+			auto print_pv = [&]() {
+				auto elapsed = time.elapsed();
+				u64 nodes_searched = solver.get_nodes_searched();
+
+				// nps算出
+				u64 nps = nodes_searched * 1000 / elapsed;
+
+				sync_cout << "info time " << elapsed << " nodes " << nodes_searched << " nps " << nps
+					<< " hashfull " << solver.hashfull() << " pv" << USIEngine::move(solver.get_current_pv()) << sync_endl;
+				};
+
+
+
+			// 時間切れ判定するヘルパ
+			// 将棋ではgo mateのあとmateに使う秒数が入ってきている。
+			auto time_up = [&]() { return limits.mate && time.elapsed() >= limits.mate; };
+
+			// 探索の終了を待つ
+			while (!threads.stop && !time_up() && move.load() == Move::resign())
+			{
+				Tools::sleep(100);
+
+				auto elapsed = time.elapsed();
+				if (pvInterval && elapsed > lastPvOutput + pvInterval)
+				{
+					print_pv();
+					lastPvOutput = time.elapsed();
+				}
+			}
+
+			thread.join();
+
+			// 最後に必ず1回PVを出力する。
+			print_pv();
+
+			if (time_up())
+			{
+				sync_cout << "checkmate timeout" << sync_endl;
+			}
+			else if (move.load() == Move::none())
+			{
+				if (solver.is_out_of_memory())
+					sync_cout << "info string Out Of Memory." << sync_endl;
+				else if (solver.get_nodes_searched() >= nodes_limit)
+					sync_cout << "info string Exceeded NodesLimit." << sync_endl;
+
+				sync_cout << "checkmate none" << sync_endl; // 不明
+			}
+			else if (move.load() == Move::null())
+			{
+				// 不詰が証明された
+				sync_cout << "checkmate nomate" << sync_endl;
+			}
+			else {
+				auto pv = solver.get_pv();
+				sync_cout << "checkmate" << USIEngine::move(pv) << sync_endl;
+			}
+		}
+
 	};
 
-	
-
-	// 時間切れ判定するヘルパ
-	// 将棋ではgo mateのあとmateに使う秒数が入ってきている。
-	auto time_up = [&]() { return limits.mate && time.elapsed() >= limits.mate; };
-
-	// 探索の終了を待つ
-	while (!threads.stop && !time_up() && move.load() == Move::resign())
-	{
-		Tools::sleep(100);
-
-		auto elapsed = time.elapsed();
-		if (pvInterval && elapsed > lastPvOutput + pvInterval)
-		{
-			print_pv();
-			lastPvOutput = time.elapsed();
-		}
-	}
-
-	thread.join();
-
-	// 最後に必ず1回PVを出力する。
-	print_pv();
-
-	if (time_up())
-	{
-		sync_cout << "checkmate timeout" << sync_endl;
-	}
-	else if (move.load() == Move::none())
-	{
-		if (solver.is_out_of_memory())
-			sync_cout << "info string Out Of Memory." << sync_endl;
-		else if (solver.get_nodes_searched() >= nodes_limit)
-			sync_cout << "info string Exceeded NodesLimit." << sync_endl;
-
-		sync_cout << "checkmate none" << sync_endl; // 不明
-	}
-	else if (move.load() == Move::null())
-	{
-		// 不詰が証明された
-		sync_cout << "checkmate nomate" << sync_endl;
-	}
-	else {
-		auto pv = solver.get_pv();
-		sync_cout << "checkmate" << USIEngine::move(pv) << sync_endl;
-	}
-}
-
-// 探索中に、main threadから一定間隔ごとに呼び出して
-// ここで残り時間のチェックを行う。(ことになっている)
-void SearchManager::check_time(Search::Worker& worker)
-{
-	sync_cout << "SearchManager::check_time" << sync_endl;
-}
 
 } // namespace Search
+
+class YaneuraOuMateEngine : public Engine
+{
+	// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行う。
+	virtual void isready() override
+	{
+		// Sovler種別
+		auto solver_type = (string)options["SolverType"];
+		if (solver_type == solver_list[0])
+			solver.ChangeSolverType(Mate::Dfpn::DfpnSolverType::Node32bit);
+		else if (solver_type == solver_list[1])
+			solver.ChangeSolverType(Mate::Dfpn::DfpnSolverType::Node64bit);
+		else
+			solver.ChangeSolverType(Mate::Dfpn::DfpnSolverType::None);
+
+		u64 mem = options["USI_Hash"];
+		sync_cout << "info string DfPn memory allocation , USI_Hash = " << mem << " [MB]" << sync_endl;
+		solver.alloc(mem);
+
+		// Engine classのisready()でスレッド数の反映処理などがあるので、そちらに委譲してやる。
+		Engine::isready();
+	}
+
+	// エンジンに追加オプションを設定したいときは、この関数を定義する。
+	virtual void add_options() override
+	{
+		// 基底classのadd_options()を呼び出して"Threads", "NumaPolicy"など基本的なオプションを生やす。
+		Engine::add_options();
+
+		// 置換表のサイズ。[MB]で指定。
+		options.add(  //
+			"USI_Hash", Option(1024, 1, MaxHashMB, [this](const Option& o) {
+				// set_tt_size();
+				// ⇨  どうせisready()で確保するので、handlerを呼び出して反映させる必要はない。
+				return std::nullopt;
+				}));
+
+		//  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
+		//  0なら出力なし。
+		options.add("PvInterval", Option(1000, 0, 100000));
+
+		options.add("SolverType", Option(solver_list, solver_list[0]));
+
+		// 探索ノード制限。0なら無制限。
+		options.add("NodesLimit", Option(0, 0, INT64_MAX));
+	}
+
+	// USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。実験に使う。
+	virtual void user(std::istringstream& is) override
+	{
+		sync_cout << "UserEngine::user_cmd" << sync_endl;
+	}
+
+	// スレッド数を反映させる関数
+	virtual void resize_threads() override
+	{
+		// 💡 Engine::resize_threads()を参考に書くと良いでしょう。
+
+		// 📌 探索の終了を待つ
+		threads.wait_for_search_finished();
+
+		// 📌 スレッド数のリサイズ
+
+		// 💡　難しいことは考えずにコピペして使ってください。"Search::UserWorker"と書いてあるところに、
+		//      あなたの作成したWorker派生classの名前を書きます。
+		auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
+			{ return std::make_unique<Search::YaneuraOuMateWorker>(options, threads, threadIdx, numaAccessToken); };
+		threads.set(options["Threads"], numaContext.get_numa_config(), options, worker_factory);
+
+		// 📌 NUMAの設定
+
+		// スレッドの用いる評価関数パラメーターが正しいNUMAに属するようにする
+		threads.ensure_network_replicated();
+	}
+};
+
 } // namespace YaneuraOu
+
+using namespace YaneuraOu;
+
+// 自作のエンジンのentry point
+void engine_main()
+{
+	// ここで作ったエンジン
+	YaneuraOuMateEngine engine;
+
+	// USIコマンドの応答部
+	USIEngine usi;
+	usi.set_engine(engine); // エンジン実装を差し替える。
+
+	// USIコマンドの応答のためのループ
+	usi.loop();
+}
 
 #endif // YANEURAOU_MATE_ENGINE

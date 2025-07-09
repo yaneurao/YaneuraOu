@@ -24,8 +24,27 @@
 
 namespace YaneuraOu {
 
+// --------------------
+//       定数
+// --------------------
+
+// 最大スレッド数
+static int    MaxThreads = std::max(1024, 4 * int(get_hardware_concurrency()));
+
+// 最大USI_Hash
+#if !defined(__EMSCRIPTEN__)
+// Hash上限。32bitモードなら2GB、64bitモードなら32TB
+constexpr int MaxHashMB = Is64Bit ? 33554432 : 2048;
+#else
+// yaneuraou.wasm
+// メモリの調整
+// stockfish.wasmの数値を基本的に使用している
+constexpr int MaxHashMB = 2048;
+#endif
+
 // 前方宣言
 namespace Book { struct BookMoveSelector; }
+
 
 // 思考エンジンのinterface
 class IEngine
@@ -46,6 +65,10 @@ public:
 			ここでスレッド生成のためにThreadPool::set()を呼び出しており、その時に
 			Worker派生classのfactoryを渡す必要がある。
 			この部分を変更することによって、生成するWorker派生classを変更することができる。
+
+		set_tt_size()
+			options["USI_Hash"]などの置換表サイズに対して、それが変更された時に呼び出されるhandler。
+			置換表的なものを使用するときは、これをoverrideすると便利。
 
 		isready()
 			"isready"コマンドが送られてきた時の応答。
@@ -80,6 +103,10 @@ public:
 	// 💡 Worker::resize_threads()がその処理なので、Worker::resize_threads()の実装を参考にすること。
 	//     また、USER_ENGINEの実装(user-engine.cpp)も参考にすること。
 	virtual void resize_threads() = 0;
+
+	// options["USI_Hash"]などの置換表サイズに対して、それが変更された時に呼び出されるhandler。
+	// 置換表的なものを使用するときは、これをoverrideすると便利。
+	virtual void set_tt_size() = 0;
 
 	// blocking call to wait for search to finish
 	// 探索が完了するのを待機する。(完了したらリターンする)
@@ -123,6 +150,10 @@ public:
 	// 1局ごとに行いたい探索部の初期化は、ここで行うこと。
 	virtual void usinewgame() = 0;
 
+	// "position"コマンドの下請け。
+	// sfen文字列 + movesのあとに書かれていた(USIの)指し手文字列から、現在の局面を設定する。
+	virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) = 0;
+
 	// "go"コマンド。ThreadPoolのmain threadに対して探索を開始(start_searching)する。
 	// non blocking call to start searching
 	// 探索を開始する。(non blocking呼び出し)
@@ -156,6 +187,7 @@ public:
 
 	virtual void add_options() override;
 	virtual void resize_threads() override;
+	virtual void set_tt_size() override {}
 	virtual void wait_for_search_finished() override;
 	virtual void verify_networks() override {}
 	virtual void save_network(const std::string& path) override {}
@@ -166,6 +198,7 @@ public:
 	virtual std::string Engine::visualize() const override;
 	virtual void isready() override;
 	virtual void usinewgame() override {};
+	virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override;
 	virtual void go(Search::LimitsType& limits) override;
 	virtual void stop() override;
 	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override;
@@ -213,6 +246,7 @@ public:
 
 	virtual void add_options() override { engine->add_options(); }
 	virtual void resize_threads() override { engine->resize_threads(); }
+	virtual void set_tt_size() override { engine->set_tt_size(); }
 	virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
 	virtual void verify_networks() override { engine->verify_networks(); }
 	virtual void save_network(const std::string& path) override { engine->save_network(path); }
@@ -223,6 +257,7 @@ public:
 	virtual std::string visualize() const override { return engine->visualize(); }
 	virtual void isready() override { engine->isready(); }
 	virtual void usinewgame() override { engine->usinewgame(); }
+	virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override { engine->set_position(sfen, moves); }
 	virtual void go(Search::LimitsType& limits) override { engine->go(limits); }
 	virtual void stop() override { engine->stop(); }
 	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override { return engine->perft(fen, depth); }

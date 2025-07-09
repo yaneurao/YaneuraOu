@@ -1166,17 +1166,9 @@ namespace YaneuraouTheCluster
 // USI関係のコマンド処理
 // --------------------
 
-
-
-// "position"コマンド処理部
+// "position"コマンドのhandler
 void USIEngine::position(std::istringstream& is)
-//void USIEngine::position(Position& pos, istringstream& is , StateListPtr& states)
 {
-#if 0
-
-	auto& options = engine_options();
-
-	Move m;
 	string token, sfen;
 
 	is >> token;
@@ -1184,46 +1176,32 @@ void USIEngine::position(std::istringstream& is)
 	if (token == "startpos")
 	{
 		// 初期局面として初期局面のFEN形式の入力が与えられたとみなして処理する。
-		sfen = SFEN_HIRATE;
+		sfen = StartSFEN;
 		is >> token; // もしあるなら"moves"トークンを消費する。
 	}
 	// 局面がfen形式で指定されているなら、その局面を読み込む。
 	// UCI(チェスプロトコル)ではなくUSI(将棋用プロトコル)だとここの文字列は"fen"ではなく"sfen"
-	// この"sfen"という文字列は省略可能にしたいので..
 	else {
+		// 💡 この"sfen"という文字列は省略可能にしたいので
+		//     Stockfishのコードを少し工夫して書き換える。
+
+		// "sfen"なら吸い込むが、"sfen"でないなら、それを局面文字列の一部とみなす。
 		if (token != "sfen")
 			sfen += token + " ";
+
 		while (is >> token && token != "moves")
 			sfen += token + " ";
 	}
 
-	// 新しく渡す局面なので古いものは捨てて新しいものを作る。
-	states = StateListPtr(new StateList(1));
-	pos.set(sfen, &states->back());
-
-	std::vector<Move> moves_from_game_root;
+	std::vector<std::string> moves;
 
 	// 指し手のリストをパースする(あるなら)
-	while (is >> token && (m = USIEngine::to_move(pos, token)) != Move::none())
+	while (is >> token)
 	{
-		// 1手進めるごとにStateInfoが積まれていく。これは千日手の検出のために必要。
-		states->emplace_back();
-		if (m == Move::null()) // do_move に MOVE_NULL を与えると死ぬので
-			pos.do_null_move(states->back());
-		else
-			pos.do_move(m, states->back());
-
-		moves_from_game_root.emplace_back(m);
+		moves.push_back(token);
 	}
 
-	// やねうら王では、ここに保存しておくことになっている。
-	Threads.main()->game_root_sfen = sfen;
-	Threads.main()->moves_from_game_root = std::move(moves_from_game_root);
-
-	// 盤面を設定しなおしたのでこのフラグはfalseに。
-	Threads.main()->position_is_dirty = false;
-
-#endif
+	engine.set_position(sfen, moves);
 }
 
 
