@@ -15,22 +15,26 @@ namespace YaneuraOu {
 // スリープ状態に入るまで待機します。
 // 'searching' および 'exit' は、すでに設定されている必要がある点に注意してください。
 
-Thread::Thread(Search::SharedState& sharedState,
-	std::unique_ptr<Search::ISearchManager> sm,
-	size_t                                  n,
+Thread::Thread(
+	//Search::SharedState& sharedState,
+	//std::unique_ptr<Search::ISearchManager> sm,
+	Search::WorkerFactory                   worker_factory,
+	size_t                                  thread_id,
 	OptionalThreadToNumaNodeBinder          binder) :
-	idx(n),
-	nthreads(sharedState.options["Threads"]),
-	stdThread(&Thread::idle_loop, this) {
+	idx(thread_id),
+	//nthreads(sharedState.options["Threads"]),
+	stdThread(&Thread::idle_loop, this)
+{
 
 #if !defined(__EMSCRIPTEN__)
-	run_custom_job([this, &binder, &sharedState, &sm, n]() {
+	run_custom_job([this, &binder /* ,&sharedState, &sm*/ , worker_factory, thread_id]() {
 		// Use the binder to [maybe] bind the threads to a NUMA node before doing
 		// the Worker allocation. Ideally we would also allocate the SearchManager
 		// here, but that's minor.
 		this->numaAccessToken = binder();
 		this->worker =
-			std::make_unique<Search::Worker>(sharedState, std::move(sm), n, this->numaAccessToken);
+			//std::make_unique<Search::Worker>(/* sharedState, std::move(sm),*/ thread_id, this->numaAccessToken);
+			std::move(worker_factory(thread_id, this->numaAccessToken));
 		});
 
 	// スレッドはsearching == trueで開始するので、このままworkerのほう待機状態にさせておく
@@ -138,7 +142,7 @@ void Thread::idle_loop() {
 }
 
 
-Search::SearchManager* ThreadPool::main_manager() { return main_thread()->worker->main_manager(); }
+//Search::SearchManager* ThreadPool::main_manager() { return main_thread()->worker->main_manager(); }
 
 uint64_t ThreadPool::nodes_searched() const { return accumulate(&Search::Worker::nodes); }
 //uint64_t ThreadPool::tb_hits() const { return accumulate(&Search::Worker::tbHits); }
@@ -151,9 +155,15 @@ uint64_t ThreadPool::nodes_searched() const { return accumulate(&Search::Worker:
 // 作成され起動されたスレッドは、すぐに idle_loop 内でスリープ状態に入ります。
 // リサイズ時には、必要に応じてスレッドのバインディングを可能にするために再作成されます。
 
-void ThreadPool::set(const NumaConfig& numaConfig,
-	Search::SharedState                         sharedState,
-	const Search::SearchManager::UpdateContext& updateContext) {
+void ThreadPool::set(
+	size_t                       requested_threads,
+	const NumaConfig&            numaConfig,
+	const OptionsMap&            options,
+	const Search::WorkerFactory& worker_factory
+	//Search::SharedState                         sharedState,
+	//const Search::SearchManager::UpdateContext& updateContext
+	)
+{
 
 	// いま生成済みのスレッドは全部解体してしまう。
 	if (threads.size() > 0)  // destroy any existing thread(s)
@@ -166,7 +176,8 @@ void ThreadPool::set(const NumaConfig& numaConfig,
 		boundThreadToNumaNode.clear();
 	}
 
-	const size_t requested = sharedState.options["Threads"];
+	const size_t requested = requested_threads; // options["Threads"];
+	// ⇨  やねうら王では、ここ、"Threads"の値を反映させたくない。(DL系などで、ここに柔軟性が必要)
 
 	if (requested > 0)  // create new thread(s)
 	{
@@ -190,7 +201,7 @@ void ThreadPool::set(const NumaConfig& numaConfig,
 		//   none ... バインドしない(1PCで複数エンジンを動かすときはこちらにすべき。)
 		//   auto ... バインドする。
 
-		const std::string numaPolicy(sharedState.options["NumaPolicy"]);
+		const std::string numaPolicy(options["NumaPolicy"]);
 		const bool        doBindThreads = [&]() {
 			if (numaPolicy == "none")
 				return false;
@@ -210,9 +221,9 @@ void ThreadPool::set(const NumaConfig& numaConfig,
 		{
 			const size_t    threadId = threads.size();
 			const NumaIndex numaId = doBindThreads ? boundThreadToNumaNode[threadId] : 0;
-			auto            manager = threadId == 0 ? std::unique_ptr<Search::ISearchManager>(
-				std::make_unique<Search::SearchManager>(updateContext))
-				: std::make_unique<Search::NullSearchManager>();
+			//auto            manager = threadId == 0 ? std::unique_ptr<Search::ISearchManager>(
+			//	std::make_unique<Search::SearchManager>(updateContext))
+			//	: std::make_unique<Search::NullSearchManager>();
 
 			// When not binding threads we want to force all access to happen
 			// from the same NUMA node, because in case of NUMA replicated memory
@@ -228,8 +239,11 @@ void ThreadPool::set(const NumaConfig& numaConfig,
 			auto binder = doBindThreads ? OptionalThreadToNumaNodeBinder(numaConfig, numaId)
 										: OptionalThreadToNumaNodeBinder(numaId);
 
+			//threads.emplace_back(
+			//	std::make_unique<Thread>(sharedState, std::move(manager), threadId, binder));
+
 			threads.emplace_back(
-				std::make_unique<Thread>(sharedState, std::move(manager), threadId, binder));
+				std::make_unique<Thread>(worker_factory, threadId, binder));
 		}
 
 		// 📑 std::make_unique<Thread>()でもWorker::clear()が呼び出されるので起動時には二重にclearしてしまうが、仕方がないか…。
@@ -253,6 +267,8 @@ void ThreadPool::clear() {
 	for (auto&& th : threads)
 		th->wait_for_search_finished();
 
+	// あとで
+#if 0
 	// These two affect the time taken on the first move of a game:
 	main_manager()->bestPreviousAverageScore = VALUE_INFINITE;
 	main_manager()->previousTimeReduction = 0.85;
@@ -261,6 +277,7 @@ void ThreadPool::clear() {
 	main_manager()->bestPreviousScore = VALUE_INFINITE;
 	main_manager()->originalTimeAdjust = -1;
 	main_manager()->tm.clear();
+#endif
 }
 
 void ThreadPool::run_on_thread(size_t threadId, std::function<void()> f) {
@@ -285,13 +302,16 @@ void ThreadPool::start_thinking(const OptionsMap& options,
 
 	main_thread()->wait_for_search_finished();
 
+	// TODO あとで
+#if 0
 	main_manager()->stopOnPonderhit = stop = abortedSearch = false;
 	main_manager()->ponder = limits.ponderMode;
 
 	increaseDepth = true;
+#endif
 
 	Search::RootMoves rootMoves;
-	const auto        legalmoves = MoveList<LEGAL>(pos);
+	const auto        legalmoves = MoveList<LEGAL_ALL>(pos);
 
 	for (const auto& usiMove : limits.searchmoves)
 	{
@@ -335,7 +355,9 @@ void ThreadPool::start_thinking(const OptionsMap& options,
 		th->run_custom_job([&]() {
 			th->worker->limits = limits;
 			th->worker->nodes = /* th->worker->tbHits = */ 0;
-#if defined(YANEURAOU_ENGINE)
+
+// TODO : あとで
+#if 0
 			th->worker->bestMoveChanges = 0;
 			th->worker->nmpMinPly = 0;
 			th->worker->rootDepth = th->worker->completedDepth = 0;

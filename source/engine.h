@@ -34,9 +34,18 @@ public:
 	/*
 		📌 自作エンジンでoverrideすると良いmethod。📌
 
-		extra_option()
+		add_options()
 			エンジンに追加オプションを設定したいときは、この関数をoverrideする。
 			📝 GetOptions()->add()を用いて、Optionを追加する。
+			💡 Engine::add_options()で"Threads","NumaPolicy"などのエンジンオプションを生やしているので
+			    これらが必要なのであれば、add_options()をoverrideしてEngine::add_options()を呼び出すこと。
+
+		resize_threads()
+			options["Threads"]やoptions["NumaPolicy"]が変更になった時に呼び出され、
+			スレッドを必要な数だけ再生成するhandler。
+			ここでスレッド生成のためにThreadPool::set()を呼び出しており、その時に
+			Worker派生classのfactoryを渡す必要がある。
+			この部分を変更することによって、生成するWorker派生classを変更することができる。
 
 		isready()
 			"isready"コマンドが送られてきた時の応答。
@@ -57,7 +66,26 @@ public:
 	// エンジンに追加オプションを設定したいときは、この関数をoverrideする。
 	// この関数は、Engineのコンストラクタから呼び出される。
 	// 📝 GetOptions()->add()を用いて、Optionを追加する。
-	virtual void extra_option() = 0;
+	// 💡 Engine::add_options()で"Threads", "NumaPolicy"などのエンジンオプションを生やしているので
+	//     これらが必要なのであれば、add_options()をoverrideしてEngine::add_options()を呼び出すこと。
+	virtual void add_options() = 0;
+
+	// options["Threads"]やoptions["NumaPolicy"]が変更になった時に呼び出され、
+	// スレッドを必要な数だけ再生成するhandler。
+	//
+	// ここでスレッド生成のためにThreadPool::set()を呼び出しており、その時に
+	// Worker派生classのfactoryを渡す必要がある。この部分を変更することによって、
+	// 生成するWorker派生classを変更することができる。
+	// 
+	// 💡 Worker::resize_threads()がその処理なので、Worker::resize_threads()の実装を参考にすること。
+	//     また、USER_ENGINEの実装(user-engine.cpp)も参考にすること。
+	virtual void resize_threads() = 0;
+
+	// blocking call to wait for search to finish
+	// 探索が完了するのを待機する。(完了したらリターンする)
+	// 📝 ThreadPoolのmain_threadの完了を待機している。
+	virtual void wait_for_search_finished() = 0;
+
 
 	// 評価関数部の初期化が行えているかのチェックを行う。
 	virtual void verify_networks() = 0;
@@ -65,11 +93,6 @@ public:
 	// 評価関数パラメーターを保存する。
 	// "export_net"コマンドに対して呼び出される。
 	virtual void save_network(const std::string& path) = 0;
-
-	// blocking call to wait for search to finish
-	// 探索が完了するのを待機する。(完了したらリターンする)
-	// 📝 ThreadPoolのmain_threadの完了を待機している。
-	virtual void wait_for_search_finished() = 0;
 
 	// 📌 Properties
 
@@ -129,16 +152,19 @@ public:
 class Engine : public IEngine
 {
 public:
-	virtual void extra_option() override {}
+	Engine();
+
+	virtual void add_options() override;
+	virtual void resize_threads() override;
+	virtual void wait_for_search_finished() override;
 	virtual void verify_networks() override {}
 	virtual void save_network(const std::string& path) override {}
-	virtual void wait_for_search_finished() override;
 	virtual ThreadPool* getThreads() override { return &threads; }
 	virtual Position* getPosition() override { return &pos; }
 	virtual OptionsMap& get_options() override { return options; }
 	virtual std::string sfen() const override { return pos.sfen(); }
 	virtual std::string Engine::visualize() const override;
-	virtual void isready() override {}
+	virtual void isready() override;
 	virtual void usinewgame() override {};
 	virtual void go(Search::LimitsType& limits) override;
 	virtual void stop() override;
@@ -162,6 +188,15 @@ protected:
 
 	// スレッドプール(探索用スレッド)
 	ThreadPool         threads;
+
+	// Numaの管理用(どのNumaを使うかというIDみたいなもの)
+	NumaReplicationContext numaContext;
+
+	// 📌 エンジンで用いるヘルパー関数
+
+	// NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
+	void set_numa_config_from_option(const std::string& o);
+
 };
 
 // IEngine派生classを入れておいて、使うためのwrapper
@@ -176,10 +211,11 @@ public:
 	// Engineのoverride
 	// 📌 すべてset_engine()で渡されたengineに委譲する。
 
-	virtual void extra_option() override { engine->extra_option(); }
+	virtual void add_options() override { engine->add_options(); }
+	virtual void resize_threads() override { engine->resize_threads(); }
+	virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
 	virtual void verify_networks() override { engine->verify_networks(); }
 	virtual void save_network(const std::string& path) override { engine->save_network(path); }
-	virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
 	virtual ThreadPool* getThreads() override { return engine->getThreads(); }
 	virtual Position* getPosition() override { return engine->getPosition(); }
 	virtual OptionsMap& get_options() override { return engine->get_options(); }
@@ -307,10 +343,6 @@ class YaneuraOuEngine : public Engine
 
 
    private:
-
-	// Numaの管理用(どのNumaを使うかというIDみたいなもの)
-	NumaReplicationContext numaContext;
-
 
 	// このEngineで保有している置換表
 	TranspositionTable                       tt;

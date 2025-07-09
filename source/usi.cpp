@@ -82,6 +82,16 @@ USIEngine::USIEngine(/*int argc, char** argv*/)
 
 }
 
+void USIEngine::set_engine(IEngine& _engine)
+{
+	engine.set_engine(_engine);
+
+	// ⚠ やねうら王では、Engineのコンストラクタではoptionを生やさない設計に変更した。
+	//     よって、add_options()をここで明示的に呼び出してoptionを生やす必要がある。
+	engine.add_options();
+}
+
+
 // USI応答部ループ
 void USIEngine::loop()
 {
@@ -546,7 +556,7 @@ bool USIEngine::usi_cmdexec(const std::string& cmd)
 
 	// 思考エンジンの準備が出来たかの確認
 	else if (token == "isready")
-		isready();
+		engine.isready();
 
 	else if (token == BenchmarkCommand)
 		benchmark(is);
@@ -1313,6 +1323,7 @@ void USIEngine::getoption(istringstream& is)
 	sync_cout << options.get_option(option_name) << sync_endl;
 }
 
+#if 0
 // isreadyコマンド処理部
 void USIEngine::isready()
 {
@@ -1446,6 +1457,8 @@ void USIEngine::isready()
 	sync_cout << "readyok" << sync_endl;
 
 }
+#endif
+
 
 // "moves"コマンドのhandler
 void USIEngine::moves()

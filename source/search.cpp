@@ -3,21 +3,27 @@
 
 namespace YaneuraOu {
 
-Search::Worker::Worker(SharedState&                    sharedState,
-                       std::unique_ptr<ISearchManager> sm,
-                       size_t                          threadId,
-                       NumaReplicatedAccessToken       token) :
+Search::Worker::Worker(
+	OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken
+	/*
+						SharedState&                    sharedState,
+                        std::unique_ptr<ISearchManager> sm,
+                        size_t                          threadId,
+                        NumaReplicatedAccessToken       token
+	*/
+	) :
     // Unpack the SharedState struct into member variables
-    threadIdx(threadId),
-    numaAccessToken(token),
+	options(options),
+	threads(threads),
+	threadIdx(threadIdx),
+    numaAccessToken(numaAccessToken)
+
+	/*
     manager(std::move(sm)),
-    options(sharedState.options),
-    threads(sharedState.threads),
-    networks(sharedState.networks)
-#if defined(YANEURAOU_ENGINE)
-    ,tt(sharedState.tt)
-	,refreshTable(networks[token])
-#endif
+    networks(sharedState.networks),
+    tt(sharedState.tt)
+	refreshTable(networks[token])
+	*/
 {
     //clear();
 
@@ -26,11 +32,14 @@ Search::Worker::Worker(SharedState&                    sharedState,
 	//      また、"usinewgame"に対して Engine.search_clear()が呼び出されるので、そこからもWorker::clear()が呼び出される。
 }
 
+// あとで
+#if 0
 void Search::Worker::ensure_network_replicated() {
     // Access once to force lazy initialization.
     // We do this because we want to avoid initialization during search.
     (void) (networks[numaAccessToken]);
 }
+#endif
 
 // void Search::Worker::start_searching()
 // 💡　エンジン実装部で定義する。

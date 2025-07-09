@@ -29,7 +29,7 @@ public:
 	// 📌 やねうら王独自。エンジンの実装を変更できるように、
 	//     IEngine(エンジン interface)を渡し、エンジンを動的に切り替えたり、
 	//     複数の異なるエンジンから成るUSIEngineを同時に使うことができるようにする。
-	void set_engine(IEngine& _engine) { engine.set_engine(_engine); }
+	void set_engine(IEngine& _engine);
 
 	// main threadをUSIメッセージの受信のために待機させる。
 	// "quit"コマンドが送られてくるまでこのループは抜けない。

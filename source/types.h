@@ -1353,7 +1353,7 @@ namespace Test
 }
 
 // --------------------
-//      Search
+//      Engine
 // --------------------
 
 // 思考エンジンinterface

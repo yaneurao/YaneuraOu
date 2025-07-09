@@ -15,41 +15,64 @@
 
 namespace YaneuraOu {
 
-namespace Eval {
+namespace Search {
 
-	// 評価関数
-
-	// 評価関数パラメーターが読み込まれているかのチェック。
-	void Networks::verify(std::string evalfilePath, const std::function<void(std::string_view)>&) const
+	class UserWorker : public Worker
 	{
-		sync_cout << "Networks::verify, evalFilePath = " << evalfilePath << sync_endl;
-	}
+	public:
 
-	// 評価関数パラメーターを読み込む。
-	void Networks::load(const std::string& evalfilePath) {
-		sync_cout << "Networks::load, evalFilePath = " << evalfilePath << sync_endl;
-	}
+		UserWorker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken):
+			// 基底classのconstructorの呼び出し
+			Worker(options,threads,threadIdx,numaAccessToken){ }
 
-	// 評価関数パラメーターを保存する。
-	bool Networks::save(const std::string& evalfilePath) const
-	{
-		sync_cout << "Networks::save , filename = " << evalfilePath << sync_endl;
-		return false;
-	}
-}
+		// このworker(探索用の1つのスレッド)の初期化
+		// 📝 これは、"usinewgame"のタイミングで、すべての探索スレッド(エンジンオプションの"Threads"で決まる)に対して呼び出される。
+		virtual void clear() override
+		{
+			sync_cout << "UserWorker::clear" << sync_endl;
+		}
+
+		// Workerによる探索の開始
+		// 📝　メインスレッドに対して呼び出される。
+		//     そのあと非メインスレッドに対してstart_searching()を呼び出すのは、threads.start_searching()を呼び出すと良い。
+		virtual void start_searching() override
+		{
+			sync_cout << "UserWorker::start_searching , position sfen = " << rootPos.sfen() << ", threadIdx = " << threadIdx << sync_endl;
+
+			if (is_mainthread())
+			{
+				threads.start_searching();  // start non-main threads
+
+				Sleep(1000);
+
+				// bestmoveとして投了する。
+				sync_cout << "bestmove resign" << sync_endl;
+			}
+		}
+
+	};
+
+
+} // namespace Search
 
 class UserEngine : public Engine
 {
 	// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行う。
 	virtual void isready() override
 	{
-		sync_cout << "Engine::isready" << sync_endl;
+		sync_cout << "UserEngine::isready" << sync_endl;
+
+		// Engine classのisready()でスレッド数の反映処理などがあるので、そちらに委譲してやる。
+		Engine::isready();
 	}
 
 	// エンジンに追加オプションを設定したいときは、この関数を定義する。
-	virtual void extra_option() override
+	virtual void add_options() override
 	{
-		sync_cout << "Engine::extra_option" << sync_endl;
+		// 基底classのadd_options()を呼び出して"Threads", "NumaPolicy"など基本的なオプションを生やす。
+		Engine::add_options();
+
+		sync_cout << "UserEngine::add_options" << sync_endl;
 
 		// 試しに、Optionを生やしてみる。
 		options.add("HogeOption", Option("hogehoge"));
@@ -58,44 +81,32 @@ class UserEngine : public Engine
 	// USI拡張コマンド"user"が送られてくるとこの関数が呼び出される。実験に使う。
 	virtual void user(std::istringstream& is) override
 	{
-		sync_cout << "Engine::user_cmd" << sync_endl;
+		sync_cout << "UserEngine::user_cmd" << sync_endl;
+	}
+
+	// スレッド数を反映させる関数
+	virtual void resize_threads() override
+	{
+		// 💡 Engine::resize_threads()を参考に書くと良いでしょう。
+
+		// 📌 探索の終了を待つ
+		threads.wait_for_search_finished();
+
+		// 📌 スレッド数のリサイズ
+
+		// 💡　難しいことは考えずにコピペして使ってください。"Search::UserWorker"と書いてあるところに、
+		//      あなたの作成したWorker派生classの名前を書きます。
+		auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
+			{ return std::make_unique<Search::UserWorker>(options, threads, threadIdx, numaAccessToken); };
+		threads.set(options["Threads"], numaContext.get_numa_config(), options, worker_factory);
+
+		// 📌 NUMAの設定
+
+		// スレッドの用いる評価関数パラメーターが正しいNUMAに属するようにする
+		threads.ensure_network_replicated();
 	}
 };
 
-namespace Search {
-
-	// このworker(探索用の1つのスレッド)の初期化
-	// 📝 これは、"usinewgame"のタイミングで、すべての探索スレッド(エンジンオプションの"Threads"で決まる)に対して呼び出される。
-	void Worker::clear()
-	{
-		sync_cout << "Worker::clear" << sync_endl;
-	}
-
-	// Workerによる探索の開始
-	// 📝　メインスレッドに対して呼び出される。
-	//     そのあと非メインスレッドに対してstart_searching()を呼び出すのは、threads.start_searching()を呼び出すと良い。
-	void Worker::start_searching()
-	{
-		sync_cout << "Worker::start_searching , position sfen = " << rootPos.sfen() << ", threadIdx = " << threadIdx << sync_endl;
-
-		if (is_mainthread())
-		{
-			threads.start_searching();  // start non-main threads
-
-			// 1秒後にcheck_time()を呼び出してみる。
-			Sleep(1000);
-			main_manager()->check_time(*this);
-		}
-	}
-
-	// 探索中に、main threadから一定間隔ごとに呼び出して
-	// ここで残り時間のチェックを行う。(ことになっている)
-	void SearchManager::check_time(Search::Worker& worker)
-	{
-		sync_cout << "SearchManager::check_time" << sync_endl;
-	}
-
-} // namespace Search
 } // namespace YaneuraOu
 
 using namespace YaneuraOu;
@@ -108,7 +119,7 @@ void engine_main()
 
 	// USIコマンドの応答部
 	USIEngine usi;
-	usi.set_engine(engine);
+	usi.set_engine(engine); // エンジン実装を差し替える。
 
 	// USIコマンドの応答のためのループ
 	usi.loop();

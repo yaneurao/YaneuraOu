@@ -31,7 +31,6 @@ using fun6_t = bool(*)(HANDLE, DWORD, PHANDLE);
 using fun7_t = bool(*)(LPCSTR, LPCSTR, PLUID);
 using fun8_t = bool(*)(HANDLE, BOOL, PTOKEN_PRIVILEGES, DWORD, PTOKEN_PRIVILEGES, PDWORD);
 }
-
 #endif
 
 #include <fstream>
@@ -264,7 +263,7 @@ std::string engine_info(bool to_usi) {
 			string(ENGINE_NAME)
 #endif
 			+ ' '
-			+ EVAL_TYPE_NAME + ' '
+			+ (*EVAL_TYPE_NAME == 0 ? "" : std::string(" ") + EVAL_TYPE_NAME)
 			+ ENGINE_VERSION
 			+ (Is64Bit ? " 64" : " 32")
 			+ TARGET_CPU

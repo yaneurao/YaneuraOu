@@ -3,8 +3,93 @@
 #include "perft.h"
 #include "usi_option.h"
 #include "book/book.h"
+#include "search.h"
 
 namespace YaneuraOu {
+
+// 最大スレッド数
+int            MaxThreads = std::max(1024, 4 * int(get_hardware_concurrency()));
+
+Engine::Engine() :
+	numaContext(NumaConfig::from_system()),
+	states(new std::deque<StateInfo>(1)),
+	threads()
+{
+	// 局面は平手の開始局面にしておく。
+	pos.set(StartSFEN, &states->back());
+
+	//resize_threads();
+	// ⚠ スレッドは置換表のクリアなどで必要になるので、
+	//     このタイミングでresize_threads()を呼び出すことで、
+	//      options["Threads"]の設定を仮に反映させたいのだが、
+	//     派生classのコンストラクタの初期化が終わっていないので、ここから呼び出しても
+	//     派生class側のresize_threads()が呼び出されない。
+	//     そこで仕方がないのでadd_options()のタイミングでresize_threads()を呼び出すことにする。
+
+}
+
+void Engine::add_options()
+{
+	// 📌 最低限のoptionを生やす。
+	//     これが要らなければ、このEngine classを派生させて、add_optionsをoverrideして、
+	//     このadd_options()を呼び出さないようにしてください。
+	// ⚠ だとして、その時にもresize_threads()は呼び出して、スレッド自体は生成するようにしてください。
+
+	options.add(
+		// 📝 やねうら王では default threadを4に変更する。
+		//     過去にdefault設定のまま対局させて「やねうら王弱い」という人がいたため。
+		"Threads", Option(4, 1, MaxThreads, [this](const Option&) {
+			resize_threads();
+			//return thread_allocation_information_as_string();
+			return std::nullopt;
+		}));
+
+	// NumaPolicy
+	//   Numaの割り当て方針
+	// 
+	// auto     : 自動
+	// system   : OS任せ
+	// hardware : hardwareに従う
+	// none     : なし
+
+	options.add(
+		"NumaPolicy", Option("auto", [this](const Option& o) {
+			set_numa_config_from_option(o);
+			//return numa_config_information_as_string() + "\n"
+			//	+ thread_allocation_information_as_string();
+			return std::nullopt;
+		}));
+
+	// このタイミングで"Threads"の設定を仮に反映させる。
+	// 📝 Threadsを1以上にしておかないと、このあと置換表のクリアなど、
+	//     複数スレッドを用いて行うことができなくなるため。
+	resize_threads();
+}
+
+// NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
+void Engine::set_numa_config_from_option(const std::string& o) {
+	if (o == "auto" || o == "system")
+	{
+		numaContext.set_numa_config(NumaConfig::from_system());
+	}
+	else if (o == "hardware")
+	{
+		// Don't respect affinity set in the system.
+		numaContext.set_numa_config(NumaConfig::from_system(false));
+	}
+	else if (o == "none")
+	{
+		numaContext.set_numa_config(NumaConfig{});
+	}
+	else
+	{
+		numaContext.set_numa_config(NumaConfig::from_string(o));
+	}
+
+	// Force reallocation of threads in case affinities need to change.
+	resize_threads();
+	threads.ensure_network_replicated();
+}
 
 // 局面を視覚化した文字列を取得する。
 std::string Engine::visualize() const {
@@ -31,6 +116,14 @@ void Engine::usinewgame()
 }
 #endif
 
+void Engine::isready()
+{
+	// エンジン設定のスレッド数を反映させる。
+	resize_threads();
+
+	sync_cout << "readyok" << sync_endl;
+}
+
 std::uint64_t Engine::perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
 	verify_networks();
 
@@ -47,6 +140,37 @@ void Engine::go(Search::LimitsType& limits) {
 
 void Engine::stop() { threads.stop = true; }
 
+void Engine::resize_threads() {
+
+	// 📌 探索の終了を待つ
+	threads.wait_for_search_finished();
+
+	// 📌 スレッド数のリサイズ
+
+	//threads.set(numaContext.get_numa_config(), { options, threads, tt, networks }, updateContext);
+
+	// ⇨  やねうら王ではここでWorkerFactoryを渡すように変更。
+	//    これにより、生成Worker(Worker派生class)をEngine派生classで選択できる。
+
+	auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
+		{ return std::make_unique<Search::Worker>(options, threads, threadIdx, numaAccessToken); };
+	threads.set(options["Threads"], numaContext.get_numa_config(), options, worker_factory);
+
+	// 📌 置換表の再割り当て。
+
+	// Reallocate the hash with the new threadpool size
+	// 新しいスレッドプールのサイズに合わせてハッシュを再割り当てする
+	//set_tt_size(options["USI_Hash"]);
+
+	//  ⇨  EngineがTTを持っているとは限らないので、この部分を分離したい。
+	//     やねうら王ではここでやるのをやめて、resize_tt()のほうで行うようにする。
+
+	// 📌 NUMAの設定
+
+	// スレッドの用いる評価関数パラメーターが正しいNUMAに属するようにする
+	threads.ensure_network_replicated();
+}
+
 
 #if 0
 
@@ -57,8 +181,6 @@ void Engine::stop() { threads.stop = true; }
 // 最大置換表サイズ
 constexpr int  MaxHashMB = Is64Bit ? 33554432 : 2048;
 
-// 最大スレッド数
-int            MaxThreads = std::max(1024, 4 * int(get_hardware_concurrency()));
 
 YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 	//binaryDirectory(path ? CommandLine::get_binary_directory(*path) : ""),
@@ -303,20 +425,6 @@ YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 #endif
 	options.add("EvalFile", Option(default_eval_file));
 
-	// NumaPolicy
-	//   Numaの割り当て方針
-	// 
-	// auto     : 自動
-	// system   : OS任せ
-	// hardware : hardwareに従う
-	// none     : なし
-
-	options.add(
-		"NumaPolicy", Option("auto", [this](const Option& o) {
-			set_numa_config_from_option(o);
-			return numa_config_information_as_string() + "\n"
-				+ thread_allocation_information_as_string();
-			}));
 
 	// 📌 やねうら王独自
 	//     各エンジン向けに、追加でオプションを生やす。
@@ -381,40 +489,6 @@ int Engine::get_hashfull(int maxAge) const { return tt.hashfull(maxAge); }
 
 
 // modifiers
-
-void Engine::set_numa_config_from_option(const std::string& o) {
-	if (o == "auto" || o == "system")
-	{
-		numaContext.set_numa_config(NumaConfig::from_system());
-	}
-	else if (o == "hardware")
-	{
-		// Don't respect affinity set in the system.
-		numaContext.set_numa_config(NumaConfig::from_system(false));
-	}
-	else if (o == "none")
-	{
-		numaContext.set_numa_config(NumaConfig{});
-	}
-	else
-	{
-		numaContext.set_numa_config(NumaConfig::from_string(o));
-	}
-
-	// Force reallocation of threads in case affinities need to change.
-	resize_threads();
-	threads.ensure_network_replicated();
-}
-
-void Engine::resize_threads() {
-	threads.wait_for_search_finished();
-	threads.set(numaContext.get_numa_config(), { options, threads, tt, networks }, updateContext);
-
-	// Reallocate the hash with the new threadpool size
-	// 新しいスレッドプールのサイズに合わせてハッシュを再割り当てする
-	set_tt_size(options["USI_Hash"]);
-	threads.ensure_network_replicated();
-}
 
 void Engine::set_tt_size(size_t mb) {
 	wait_for_search_finished();

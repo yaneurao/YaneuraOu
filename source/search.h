@@ -212,6 +212,60 @@ struct LimitsType {
 	TimePoint rtime;
 };
 
+/*
+	📌  すべてのWorkerの基底classに相当する最小限のWorker 📌
+
+	💡  それぞれの変数・メソッドの意味については、
+         やねうら王探索部のWorker(YaneuraOuWorker)のコメントを確認すること。
+
+	📝  エンジンを自作する時は、このclassを派生させて、このclassのfactoryをThreadPoolに渡す。
+		例として、USER_ENGINE である、user-engine.cpp のソースコードを見ると良い。
+*/
+
+class Worker;
+typedef std::function<std::unique_ptr<Worker>(size_t /*threadIdx*/, NumaReplicatedAccessToken /*numaAccessToken*/)> WorkerFactory;
+
+class Worker
+{
+public:
+
+	Worker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken);
+
+	// 📌 このworkerの初期化は(派生classで)ここに書く。
+	virtual void clear(){}
+
+	// 📌 探索の処理を(派生classで)ここに書く。
+	virtual void start_searching(){}
+
+	bool is_mainthread() const { return threadIdx == 0; }
+
+	Position  rootPos;
+	StateInfo rootState;
+	RootMoves rootMoves;
+	size_t    threadIdx;                       // 📑コンストラクタで渡されたもの
+	LimitsType limits;
+
+	virtual void ensure_network_replicated(){}
+
+protected:
+	void do_move(Position& pos, const Move move, StateInfo& st);
+	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
+	void do_null_move(Position& pos, StateInfo& st);
+	void undo_move(Position& pos, const Move move);
+	void undo_null_move(Position& pos);
+
+	std::atomic<uint64_t> nodes;
+
+	const OptionsMap& options;                 // 📑コンストラクタで渡されたもの
+	ThreadPool& threads;                       // 📑コンストラクタで渡されたもの 
+	NumaReplicatedAccessToken numaAccessToken; // 📑コンストラクタで渡されたもの
+
+	friend class YaneuraOu::ThreadPool;
+	friend class SearchManager;
+};
+
+#if 0
+
 // 探索部の初期化。
 void init();
 
@@ -497,6 +551,9 @@ private:
 	// ⇨  やねうら王では、評価関数をさらに抽象化する。
 	const LazyNumaReplicated<Eval::Evaluator>& networks;
 
+	// 💡 なぜLazyNumaPeplicatedでくるむ必要があるかについては、
+	//     LazyNumaReplicatedの定義のところに書いてある解説を読むこと。
+
 	// Used by NNUE
 	//Eval::NNUE::AccumulatorStack  accumulatorStack;
 	//Eval::NNUE::AccumulatorCaches refreshTable;
@@ -514,61 +571,14 @@ struct ConthistBonus {
 
 #else
 
-// やねうら王の通常探索部を用いない時の最小限のWorker
-// 💡 それぞれの変数・メソッドの意味については、やねうら王探索部のWorkerのコメントを確認すること。
+#endif
 
-class Worker
-{
-public:
-
-	Worker(SharedState& sharedState, std::unique_ptr<ISearchManager> searchManager, size_t, NumaReplicatedAccessToken numa);
-
-	// 📌 このworkerの初期化はここに書く。
-	void clear();
-
-	// 📌 探索の処理をここに書く。
-	void start_searching();
-
-	bool is_mainthread() const { return threadIdx == 0; }
-
-	Position  rootPos;
-	StateInfo rootState;
-	RootMoves rootMoves;
-	size_t    threadIdx;
-	LimitsType limits;
-
-	void ensure_network_replicated();
-
-private:
-	void do_move(Position& pos, const Move move, StateInfo& st);
-	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
-	void do_null_move(Position& pos, StateInfo& st);
-	void undo_move(Position& pos, const Move move);
-	void undo_null_move(Position& pos);
-
-	SearchManager* main_manager() const {
-		assert(threadIdx == 0);
-		return static_cast<SearchManager*>(manager.get());
-	}
-
-	std::atomic<uint64_t> nodes;
-	
-	std::unique_ptr<ISearchManager> manager;
-	const OptionsMap& options;
-	ThreadPool& threads;
-
-	NumaReplicatedAccessToken numaAccessToken;
-	const LazyNumaReplicated<Eval::Evaluator>& networks;
-
-	friend class YaneuraOu::ThreadPool;
-	friend class SearchManager;
-};
 
 #endif
 
 } // namespace Search
-
 } // namespace YaneuraOu
+
 
 #endif // SEARCH_H_INCLUDED
 

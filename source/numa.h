@@ -1426,6 +1426,48 @@ class NumaReplicated: public NumaReplicatedBase {
 // unique_ptrを使用して強制的にボクシングします。追加の間接参照によって問題が発生する場合は、
 // カスタムボクシング型のオプションを追加する必要があるかもしれません。
 
+/*
+	📝
+		「遅延複製（Lazy Replication）」とは、必要になるまで（遅延して）複製を行わず、
+		実際にそのNUMAノードからアクセスされたときに初めて複製するという意味。
+
+		そして「異なるNUMAノードのときだけ複製する」というのは、より具体的には：
+
+			1. 最初は1つだけインスタンスを作成：
+				NUMAノード0で T 型のインスタンスを生成（T は複製したいオブジェクト型）。
+
+				他のNUMAノード用にはまだインスタンスを生成しない（つまり nullptr のまま）。
+
+			2. アクセスされたNUMAノードのインデックスが 0 のとき：
+
+				既存の instances[0] をそのまま返す。
+
+			3. アクセスされたNUMAノードが 0 以外のとき：
+
+				そのインデックスの instances[n] が nullptr なら：
+				mutex をロックして（スレッド安全に）
+
+				instances[n] = std::make_unique<T>(*instances[0]); として複製を生成
+
+				そのNUMAノード上で std::make_unique<T> を呼び出すために cfg.execute_on_numa_node(n, ...) を使って、
+				該当ノードにスレッドを一時的にバインドして生成、既に存在していれば、そのまま返す
+
+
+		実際の使い方。
+				const LazyNumaReplicated<Eval::Evaluator>& networks;
+		のように評価関数をLazyNumaReplicatedでくるむ。
+
+		以下のようなコードで、実際にnumaにアクセスする。まだ複製が完了していないnumaであれば、
+		このときにパラメーターがそのnuma用に複製される。
+
+			void Search::Worker::ensure_network_replicated() {
+				// Access once to force lazy initialization.
+				// We do this because we want to avoid initialization during search.
+				(void) (networks[numaAccessToken]);
+			}
+
+*/
+
 template<typename T>
 class LazyNumaReplicated: public NumaReplicatedBase {
    public:

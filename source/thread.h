@@ -77,14 +77,23 @@ private:
 // ⇨  探索時に用いる、それぞれのスレッド。これを探索用スレッド数だけ確保する。
 //    ただしメインスレッドはこのclassを継承してMainThreadにして使う。
 
+namespace Search {
+	class Worker;
+	typedef std::function<std::unique_ptr<Worker>(size_t /*thread_idx*/, NumaReplicatedAccessToken /*token*/)> WorkerFactory;
+}
+
 class Thread {
 public:
 
 	// thread_id : ThreadPoolで何番目のthreadであるか。この値は、idx(スレッドID)となる。
-	Thread(Search::SharedState&,
-		std::unique_ptr<Search::ISearchManager>,
-		size_t thread_id,
-		OptionalThreadToNumaNodeBinder);
+	Thread(
+		//Search::SharedState&,
+		//std::unique_ptr<Search::ISearchManager>,
+		// 📌 やねうら王では、SharedStateとISearchManagerを使わずに、Workerのfactoryを使ってWorkerを直接生成する。
+		Search::WorkerFactory          factory,
+		size_t                         thread_id,
+		OptionalThreadToNumaNodeBinder binder
+	);
 	virtual ~Thread();
 
 	// スレッド起動後、この関数が呼び出される。
@@ -94,14 +103,18 @@ public:
 	//      同期待ちのwait等
 	// ------------------------------
 
-	// workerを開始させるときに呼び出す。
+	// workerに探索を開始させる。
+	// 📝 "go"コマンドに対して呼び出される。
 	void start_searching();
 
 	// このクラスが保持している探索で必要なテーブル(historyなど)をクリアする。
+	// 📝 "usinewgame"に対して呼び出される。
 	void clear_worker();
 
 	void run_custom_job(std::function<void()> f);
 
+	// 評価関数パラメーターが、このthreadが属するNUMAにも配置されているかを確かめて、
+	// 配置されていなければ、評価関数パラメーターをコピーする。
 	void ensure_network_replicated();
 
 	// Thread has been slightly altered to allow running custom jobs, so
@@ -117,7 +130,8 @@ public:
 	// さらなる作業が必要なため、この関数のリネームはその作業が
 	// 実施される時まで保留されています。
 
-	// 💡 探索が終わるのを待機する。(searchingフラグがfalseになるのを待つ)
+	// start_searching()で開始した探索の終了を待機する。
+	// 💡 searchingフラグがfalseになるのを待つ。
 
 	void   wait_for_search_finished();
 
@@ -137,13 +151,15 @@ private:
 
 	// thread id。main threadなら0。slaveなら1から順番に値が割当てられる。
 	// nthreadsは、スレッド数。(options["Threads"]の値)
-	size_t                    idx, nthreads;
+	// 📌 nthreads使わないと思う。やねうら王ではコメントアウト
+	size_t                    idx /*, nthreads */;
 
 	// exit      : このフラグが立ったら終了する。
 	// searching : 探索中であるかを表すフラグ。プログラムを簡素化するため、事前にtrueにしてある。
 	bool                      exit = false, searching = true;  // Set before starting std::thread
 
 	// stack領域を増やしたstd::thread
+	// Workerは、このthreadに割り当てて実行する。
 	NativeThread              stdThread;
 
 	NumaReplicatedAccessToken numaAccessToken;
@@ -182,6 +198,14 @@ public:
 	// mainスレッドに思考を開始させる。
 	void   start_thinking(const OptionsMap&, Position&, StateListPtr&, Search::LimitsType);
 
+	// メイン以外のすべてのスレッドのstart_searching()を呼び出す。(並列探索の開始)
+	// 💡 mainスレッドで呼び出す。
+	void   start_searching();
+
+	// 探索の終了(すべてのスレッドの終了)を待つ
+	// start_thinking(), start_searching()で開始したスレッドがその対象。
+	void   wait_for_search_finished() const;
+
 	void   run_on_thread(size_t threadId, std::function<void()> f);
 	void   wait_on_thread(size_t threadId);
 	size_t num_threads() const;
@@ -189,12 +213,26 @@ public:
 	// set()で生成したスレッドの初期化
 	void   clear();
 
-	// スレッド数を変更する。
-	void   set(const NumaConfig& numaConfig,
-		Search::SharedState,
-		const Search::SearchManager::UpdateContext&);
+	// requested_threadsの数になるように、スレッド数を変更する。
+	void   set(size_t requested_threads, const NumaConfig& numaConfig,
+		const OptionsMap& options, const Search::WorkerFactory& worker_factory);
+	// 💡 Stockfishでは、
+	//        Search::SharedState,
+	//        const Search::SearchManager::UpdateContext&
+	//     を渡しているが、やねうら王ではこれらを分離する。
+	// 
+	//     また、Stockfishでは、options["Threads"]から生成するスレッド数を決めているが、
+	//     やねうら王では、DL系でこのエンジンオプションからスレッド数をを決めたくないので
+	//     ここに柔軟性を持たせる。
+	// 
+	// 📝 スレッド数を変更するということは、スレッド数が足りなければ、スレッドを生成しなければならない。
+	//     スレッド(Thread class)は、その実行jobとしてWorker classの派生classを持っているので、
+	//     スレッド生成のためにはWorkerの生成を行う能力が必要である。そのため、ここでは、WorkerFactoryを渡している。
+	//
+	// ⚠ このmethodはEngine::resize_threads()からのみ呼び出される。
+	//
 
-	Search::SearchManager* main_manager();
+	//Search::SearchManager* main_manager();
 
 	// mainスレッドを取得する。これはthis[0]がそう。
 	Thread* main_thread() const { return threads.front().get(); }
@@ -210,10 +248,6 @@ public:
 
 	Thread* get_best_thread() const;
 
-	// メイン以外のすべてのスレッドのstart_searching()を呼び出す。(並列探索の開始)
-	void                   start_searching();
-	void                   wait_for_search_finished() const;
-
 	std::vector<size_t> get_bound_thread_count_by_numa_node() const;
 
 	void ensure_network_replicated();
@@ -228,7 +262,6 @@ public:
 	auto empty() const noexcept { return threads.empty(); }
 
 private:
-
 	// 現局面までのStateInfoのlist
 	StateListPtr                         setupStates;
 
