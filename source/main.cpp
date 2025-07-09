@@ -7,7 +7,6 @@
 #include "position.h"
 #include "usi.h"
 #include "misc.h"
-#include "engine.h"
 
 using namespace YaneuraOu;
 
@@ -47,8 +46,8 @@ int main(int argc, char* argv[])
 	Bitboards::init();
 	Position::init();
 
-	// 自作Engineのentry point
-	engine_main();
+	// 自作Engineのentry point(これはEngineFuncRegisterを用いて登録されている。)
+	YaneuraOu::run_engine_entry();
 
 	return 0;
 }

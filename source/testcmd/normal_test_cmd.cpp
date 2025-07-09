@@ -70,8 +70,10 @@ namespace {
 	//	 何らか引っかかることが多いので開発の時に便利。
 	//   goコマンド相当の処理で対局させているので通常の探索部であればどの探索部に対しても機能する。
 
-	void auto_play(Position& pos, std::istringstream& is)
+	void auto_play(std::istringstream& is)
 	{
+		Position pos;
+
 		// 対局回数
 		uint64_t loop = 50000; // default 5万回
 
@@ -108,17 +110,16 @@ namespace {
 
 		auto start = now();
 
-		Search::LimitsType lm;
 		// 読み筋の出力の抑制
-		lm.silent = true;
+		global_options.silent = true;
 
 		//lm.movetime = movetime; // これで時間固定の思考となる。
 		// →　毎回同じ指し手になると嫌だから、自分で乱数を加えてばらつかせる
 
 		// ふかうら王の場合、root mate searchが回っていると探索を打ち切らないので、ここで
 		// 同じ思考時間になってしまう可能性がある。
-		if (Options.count("RootMateSearchNodesLimit"))
-			Options["RootMateSearchNodesLimit"] = std::to_string(100); // 100ノードに減らしておく。
+		if (options.count("RootMateSearchNodesLimit"))
+			options["RootMateSearchNodesLimit"] = std::to_string(100); // 100ノードに減らしておく。
 
 		//if (Options.count("DNN_Batch_Size1"))
 		//	Options["DNN_Batch_Size1"] = std::to_string(32); // これも減らしておかないとbatchsizeまでで時間がきてしまう。
@@ -235,8 +236,8 @@ namespace Test
 	// 通常のテストコマンド。コマンドを処理した時 trueが返る。
 	bool normal_test_cmd(Position& pos , std::istringstream& is, const std::string& token)
 	{
-		if (token == "genmoves")         gen_moves(pos, is);       // 現在の局面に対して指し手生成のテストを行う。
-		else if (token == "autoplay")    auto_play(pos, is);       // 連続自己対局を行う。
+		if (token == "genmoves")         gen_moves(is);       // 現在の局面に対して指し手生成のテストを行う。
+		else if (token == "autoplay")    auto_play(is);       // 連続自己対局を行う。
 #if defined (EVAL_LEARN)
 		else if (token == "evalsave")    Eval::save_eval("");      // 現在の評価関数のパラメーターをファイルに保存
 #endif

@@ -189,8 +189,9 @@ namespace {
 
 	// 詰みルーチンに関するbenchをとる。
 	// このbenchには、"test genmate"コマンドで生成した詰み局面を利用すると良い。
-	void mate_bench(Position& pos, std::istringstream& is)
+	void mate_bench(std::istringstream& is)
 	{
+		Position pos;
 
 #if !(defined (USE_MATE_SOLVER) || defined(USE_MATE_DFPN))
 		cout << "Error! define USE_MATE_SOLVER or USE_MATE_DFPN" << endl;
@@ -616,14 +617,14 @@ namespace {
 namespace Test
 {
 	// 詰み関係のテストコマンド。コマンドを処理した時 trueが返る。
-	bool mate_test_cmd(Position& pos , std::istringstream& is, const std::string& token)
+	bool mate_test_cmd(std::istringstream& is, const std::string& token)
 	{
-		if (token == "genmate")         gen_mate(pos, is);         // N手詰みの局面を生成する。
-		else if (token == "matebench")  mate_bench(pos, is);       // 詰みルーチンに関するbenchをとる。
-		else if (token == "matebench2") mate_bench2(pos, is);      // MATE ENGINEのテスト。(ENGINEに対して局面図を送信する)
-		else if (token == "dfpn")       mate_dfpn(pos, is);        // 現在の局面に対してdf-pn詰め将棋ルーチンを呼び出す。
-		//else if (token == "matesolve") mate_solve(pos, is);      // 現在の局面に対してN手詰みルーチンを呼び出す。
-		else return false;									       // どのコマンドも処理することがなかった
+		if (token == "genmate")         gen_mate(is);         // N手詰みの局面を生成する。
+		else if (token == "matebench")  mate_bench(is);       // 詰みルーチンに関するbenchをとる。
+		else if (token == "matebench2") mate_bench2(is);      // MATE ENGINEのテスト。(ENGINEに対して局面図を送信する)
+		else if (token == "dfpn")       mate_dfpn(is);        // 現在の局面に対してdf-pn詰め将棋ルーチンを呼び出す。
+		//else if (token == "matesolve") mate_solve(is);      // 現在の局面に対してN手詰みルーチンを呼び出す。
+		else return false;									  // どのコマンドも処理することがなかった
 			
 		// いずれかのコマンドを処理した。
 		return true;

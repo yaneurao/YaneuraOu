@@ -616,10 +616,57 @@ std::string Engine::thread_allocation_information_as_string() const {
 	return ss.str();
 }
 
+#endif
+
 // --------------------
 //  やねうら王独自拡張
 // --------------------
 
-#endif
+
+// 📌 Engineのentry pointを登録しておく仕組み 📌
+
+using EngineEntry = std::tuple<std::function<void()>, std::string, int>;
+
+// エンジンの共通の登録先
+// 📝 static EngineFuncRegister reg_a(engine_main_a, 1); のようにしてengine_main_a()を登録する。
+//     USER_ENGINEであるuser-engine.cpp を参考にすること。
+static std::vector<EngineEntry>& engineFuncs() {
+	// 💡 関数のなかのstatic変数は最初に呼び出された時に初期化されることが保証されている。
+	//     なので、初期化順の問題は発生しない。
+	static std::vector<EngineEntry> funcs;
+	return funcs;
+}
+
+// エンジンの登録用のヘルパー
+EngineFuncRegister::EngineFuncRegister(std::function<void()> f, const std::string& engine_name, int priority)
+{
+	engineFuncs().push_back({ f , engine_name, priority });
+}
+
+// EngineFuncRegisterで登録されたEngineのうち、priorityの一番高いエンジンを起動する。
+void run_engine_entry()
+{
+	auto& v = engineFuncs();
+	// priorityの最大
+	EngineEntry* m = nullptr;
+	for (auto& entry : v)
+	{
+		//sync_cout << "info string engine name = " << std::get<1>(entry) << ", priority = " << std::get<2>(entry) << sync_endl;
+		if (!m || std::get<2>(*m) < std::get<2>(entry))
+		{
+			m = &entry;
+		}
+	}
+
+	// priority最大のentry pointを開始する。
+	if (m == nullptr) {
+		sync_cout << "Error: no engine entry point." << sync_endl;
+		Tools::exit();
+	}
+	else {
+		//sync_cout << "info string startup engine = " << std::get<1>(*m) << sync_endl;
+		std::get<0>(*m)(); // このエンジンを実行
+	}
+}
 
 } // namespace YaneuraOu

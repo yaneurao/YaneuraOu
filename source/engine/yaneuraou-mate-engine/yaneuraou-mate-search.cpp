@@ -208,18 +208,25 @@ class YaneuraOuMateEngine : public Engine
 
 using namespace YaneuraOu;
 
-// 自作のエンジンのentry point
-void engine_main()
-{
-	// ここで作ったエンジン
-	YaneuraOuMateEngine engine;
+namespace {
 
-	// USIコマンドの応答部
-	USIEngine usi;
-	usi.set_engine(engine); // エンジン実装を差し替える。
+	// 自作のエンジンのentry point
+	void engine_main()
+	{
+		// ここで作ったエンジン
+		YaneuraOuMateEngine engine;
 
-	// USIコマンドの応答のためのループ
-	usi.loop();
-}
+		// USIコマンドの応答部
+		USIEngine usi;
+		usi.set_engine(engine); // エンジン実装を差し替える。
+
+		// USIコマンドの応答のためのループ
+		usi.loop();
+	}
+
+	// このentry pointを登録しておく。
+	static EngineFuncRegister r(engine_main, "YaneuraOuMateEngine", 0);
+
+} // namespace
 
 #endif // YANEURAOU_MATE_ENGINE

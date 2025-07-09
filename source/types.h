@@ -1359,6 +1359,9 @@ namespace Test
 // 思考エンジンinterface
 class IEngine;
 
+// EngineFuncRegisterで登録されたEngineのうち、priorityの一番高いエンジンを起動する。
+void run_engine_entry();
+
 } // namespace YaneuraOu
 
 // --------------------

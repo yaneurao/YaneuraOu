@@ -395,6 +395,14 @@ class YaneuraOuEngine : public Engine
 };
 #endif
 
+// エンジンを登録するヘルパー
+// 📝 static EngineFuncRegister reg_a(engine_main_a, 0); のようにしてengineのentry pointを登録する。
+//     USER_ENGINEであるuser-engine.cpp を参考にすること。
+//     priorityが一番高いものが実行される。
+struct EngineFuncRegister {
+	EngineFuncRegister(std::function<void()> f, const std::string& engine_name, int priority);
+};
+
 } // namespace YaneuraOu
 
 #endif // #ifndef ENGINE_H_INCLUDED

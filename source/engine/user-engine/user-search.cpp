@@ -111,18 +111,26 @@ class UserEngine : public Engine
 
 using namespace YaneuraOu;
 
-// 自作のエンジンのentry point
-void engine_main()
-{
-	// ここで作ったエンジン
-	UserEngine engine;
+namespace {
 
-	// USIコマンドの応答部
-	USIEngine usi;
-	usi.set_engine(engine); // エンジン実装を差し替える。
+	// 自作のエンジンのentry point
+	void engine_main()
+	{
+		// ここで作ったエンジン
+		UserEngine engine;
 
-	// USIコマンドの応答のためのループ
-	usi.loop();
-}
+		// USIコマンドの応答部
+		USIEngine usi;
+		usi.set_engine(engine); // エンジン実装を差し替える。
+
+		// USIコマンドの応答のためのループ
+		usi.loop();
+	}
+
+	// このentry pointを登録しておく。
+	static EngineFuncRegister r(engine_main, "UserEngine", 0);
+
+} // namespace
+
 
 #endif // USER_ENGINE
