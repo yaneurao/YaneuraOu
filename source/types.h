@@ -1274,7 +1274,6 @@ struct GlobalOptions
 		silent = consideration_mode = outout_fail_lh_pv = false;
 		pv_interval = 0;
 		generate_all_legal_moves = true;
-		wait_stop = false;
 	}
 
 	// この手数で引き分けとなる。256なら256手目を指したあとに引き分け。
@@ -1325,12 +1324,6 @@ struct GlobalOptions
 	// Position::pseudo_legal()も、このフラグに応じてどこまでをpseudo-legalとみなすかが変わる。
 	// (このフラグがfalseなら歩の不成は非合法手扱い)
 	bool generate_all_legal_moves;
-
-	// "go"コマンドに"wait_stop"がついていたかのフラグ。
-	// これがついていると、stopが送られてくるまで思考しつづける。
-	// 本来の"bestmove"を返すタイミングになると、"info string time to return bestmove."と出力する。
-	// この機能は、Clusterのworkerで、持時間制御はworker側にさせたいが、思考は継続させたい時に用いる。
-	bool wait_stop;
 };
 
 extern GlobalOptions global_options;

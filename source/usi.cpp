@@ -509,14 +509,6 @@ bool USIEngine::usi_cmdexec(const std::string& cmd)
 
 #endif
 
-#if defined(USE_YO_CLUSTER)
-#if defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE)
-	else if (token == "cluster")
-		// cluster時のUSIメッセージの処理ループ
-		YaneuraouTheCluster::cluster_usi_loop(pos, is);
-#endif
-#endif
-
 #endif
 
 	// 起動時いきなりこれが飛んでくるので速攻応答しないとタイムアウトになる。
@@ -1150,21 +1142,6 @@ namespace Learner
 // "gameover"コマンドに対するハンドラ
 #if defined(USE_GAMEOVER_HANDLER) || defined(YANEURAOU_ENGINE_DEEP)
 void gameover_handler(const string& cmd);
-#endif
-
-// ----------------------------------
-//   USI拡張コマンド "cluster"
-//     やねうら王 The Cluster
-// ----------------------------------
-
-#if defined(USE_YO_CLUSTER)
-#if defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE)
-namespace YaneuraouTheCluster
-{
-	// cluster時のUSIメッセージの処理ループ
-	void cluster_usi_loop(Position& pos, std::istringstream& is);
-}
-#endif
 #endif
 
 // --------------------

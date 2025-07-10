@@ -53,7 +53,7 @@ namespace YaneuraouTheCluster
 
 	protected:
 		// "stop"をエンジンに対して送信したか。
-		bool stop_sent;
+		bool stop_sent = false;
 	};
 
 	// MultiPonder
@@ -76,7 +76,7 @@ namespace YaneuraouTheCluster
 			const std::string& root_sfen, std::vector<size_t> available_engines, bool same_color, std::string except_move);
 
 		// "stop"をエンジンに対して送信したか。
-		bool stop_sent;
+		bool stop_sent = false;
 
 		// 現在思考中のsfen
 		std::string searching_sfen;
@@ -101,10 +101,10 @@ namespace YaneuraouTheCluster
 		std::vector<std::string> make_search_moves(const std::string& sfen , size_t engine_num);
 
 		// "stop"をエンジンに対して送信したか。
-		bool stop_sent;
+		bool stop_sent = false;
 
 		// 現在、GOなのかGO_PONDERなのか、そうでないのか。
-		EngineState state;
+		EngineState state = EngineState::DISCONNECTED;
 	};
 
 	// GPS将棋のクラスター手法
@@ -119,7 +119,9 @@ namespace YaneuraouTheCluster
 	class GpsClusterStrategy : public IClusterStrategy
 	{
 	public:
+		GpsClusterStrategy(size_t n) : split_const(n) {}
 		virtual void on_connected(StrategyParam& param);
+		virtual void on_isready(StrategyParam& param);
 		virtual void on_go_command(StrategyParam& param, const Message& command);
 		virtual void on_idle(StrategyParam& param);
 
@@ -127,13 +129,44 @@ namespace YaneuraouTheCluster
 		// sfenを与えて、その局面の合法手を生成して、それをエンジンの数で分割したものを返す。
 		std::vector<std::string> make_search_moves(const std::string& sfen , size_t engine_num);
 
+		// 1局面を何分割するのか
+		size_t split_const;
+
+		// splitする時の
+		u64 nodes_limit = 10000;
+
 		// "stop"をエンジンに対して送信したか。
-		bool stop_sent;
+		bool stop_sent = false;
 	};
 
-	
-}
+	// GPS将棋のクラスター手法　その2
+	//  1局面をsplit_const(==N)に分割する。
+	//  すなわち、上位(N - 1)の指し手を展開し、それ以外の指し手を1台workerを割り当てる。
+	//  これを繰り返す。N = 3がdefaultだが、ここを可変にできる。
+	//  このNはコンストラクタで渡す。
+	class GpsClusterStrategy2 : public IClusterStrategy
+	{
+	public:
+		GpsClusterStrategy2(size_t n) : split_const(n) {}
+		virtual void on_connected(StrategyParam& param);
+		virtual void on_isready(StrategyParam& param);
+		virtual void on_go_command(StrategyParam& param, const Message& command);
+		virtual void on_idle(StrategyParam& param);
 
+	protected:
+		// sfenを与えて、その局面の合法手を生成して、それをエンジンの数で分割したものを返す。
+		std::vector<std::string> make_search_moves(const std::string& sfen , size_t engine_num);
+
+		// 1局面を何分割するのか
+		size_t split_const;
+
+		// splitする時の
+		u64 nodes_limit = 10000;
+
+		// "stop"をエンジンに対して送信したか。
+		bool stop_sent = false;
+	};
+}
 
 #endif // defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))
 #endif // ifndef CLUSTER_STRATEGY_H_INCLUDED

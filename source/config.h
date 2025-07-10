@@ -299,14 +299,6 @@
 // "source/engine/yaneuraou-engine/yaneuraou-param.h"をそこに配置すること。
 //#define TUNING_SEARCH_PARAMETERS
 
-
-// ---------------------
-//  YO-Cluster : YaneuraOu The Cluster
-// ---------------------
-
-// YO-Clusterを使う時は、これをdefineする。
-//#define USE_YO_CLUSTER
-
 // ---------------------
 // デバッグに関する設定
 // ---------------------

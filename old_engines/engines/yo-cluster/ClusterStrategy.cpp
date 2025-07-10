@@ -831,8 +831,12 @@ namespace YaneuraouTheCluster
 				// 接続後、対局前までにエンジン側から送られてきた"info ..."を、そのままGUIに流す。
 				EngineMode::SEND_INFO_BEFORE_GAME
 			));
+	}
 
+	void GpsClusterStrategy::on_isready(StrategyParam& param)
+	{
 		stop_sent = false;
+		nodes_limit = param.options.nodes_limit;
 	}
 
 	void GpsClusterStrategy::on_go_command(StrategyParam& param, const Message& command)
@@ -869,6 +873,228 @@ namespace YaneuraouTheCluster
 	}
 
 	void GpsClusterStrategy::on_idle(StrategyParam& param)
+	{
+		// すべてのbestmoveが来てから。
+		// ただし、一番最初にbestmoveを返してきたengineを基準とする。
+		auto& engines = param.engines;
+
+		// bestmoveを返したエンジンの数
+		int bestmove_received = 0;
+		for(auto& engine : engines)
+			if (!engine.peek_bestmove().empty())
+				++bestmove_received;
+
+		// まだすべてのエンジンがbestmoveを返していない。
+		if (bestmove_received < engines.size())
+		{
+			if (bestmove_received > 0)
+			{
+				// 少なくとも1つのエンジンはbestmoveを返したが、
+				// まだ全部のエンジンからbestmoveきてない。
+				// →　ここ、mateとかmatedとかで、即座にbestmoveを返してきているパターン、まずいのだが…。
+				// ここ、真面目に実装するのわりと難しい。
+
+				// stopを送信していないならすべてのengineに"stop"を送信してやる。
+				if (!stop_sent)
+				{
+					for(auto& engine : engines)
+						engine.send(USI_Message::STOP);
+
+					stop_sent = true;
+				}
+			}
+			return ;
+		}
+
+		// 一番良い評価値を返してきているエンジンを探す。
+
+		size_t best_engine = size_max;
+		int    best_value  = int_min;
+		vector<string>* best_log = nullptr;
+		for(size_t i = 0 ; i < engines.size(); ++i)
+		{
+			auto& engine = engines[i];
+
+			auto& log = *engine.peek_thinklog();
+			// 末尾からvalueの書いてあるlogを探す。
+			for(size_t j = log.size() ; j != 0 ; j --)
+			{
+				UsiInfo info;
+				parse_usi_info(log[j-1], info);
+
+				if (info.value != VALUE_NONE )
+				{
+					// 子節点なのでvalueの符号を反転。
+					if (j == 0 || j == 1)
+						info.value = -info.value;
+
+					if (info.value > best_value)
+					{
+						best_value  = info.value;
+						best_engine = i;
+						best_log    = &log;
+					}
+					// valueが書いてあったのでこのエンジンに関して
+					// ログを調べるのはこれで終わり。
+					break;
+				}
+			}
+		}
+
+		// 思考ログが存在しない。そんな馬鹿な…。
+		if (best_engine == size_max)
+		{
+			// こんなことをしてくるエンジンがいると楽観合議できない。
+			// 必ずbestmoveの手前で読み筋と評価値を送ってくれないと駄目。
+			error_to_gui("GpsClusterStrategy::on_idle , No think_log");
+			Tools::exit();
+		}
+
+		// ここまでの思考ログをまとめてGUIに送信する。
+		if (best_log != nullptr)
+			for(auto& line : *best_log)
+				send_to_gui(line);
+
+		// 思考ログのクリア
+		for(auto& engine : engines)
+			engine.clear_thinklog();
+
+		auto bestmove_str = engines[best_engine].peek_bestmove();
+		// engineすべてからbestmoveを取り除いておく。
+		for(auto& engine : engines)
+			engine.pull_bestmove();
+
+		 // これこのままGUI側に送信すればGUIに対して"bestmove XX"を返したことになる。
+		send_to_gui(bestmove_str);
+
+		// "bestmove XX ponder YY"の形だと思うので、YYを抽出して、その局面について思考エンジンにGO_PONDERさせる。
+
+		// 探索していた局面は、bestmoveを返したあとも次の"GO","GO_PONDER"が来るまではget_searching_sfen()で取得できることが保証されている。
+		// そこに、XXとYYを追加したsfen文字列を用意して、GO_PONDERする。
+
+		string bestmove, ponder;
+		parse_bestmove(bestmove_str, bestmove , ponder);
+
+		// XXかYYが"resign"のような、それによって局面を進められない指し手である場合(このとき、空の文字列となる)、
+		// GO_PONDERしてはならない。
+		if (bestmove.empty() || ponder.empty())
+			return ;
+
+		auto sfen = concat_sfen(engines[0].get_searching_sfen(), bestmove + " " + ponder);
+
+		// すべてのengineのponderを送って、ベストを拾う。
+		auto moves_list = make_search_moves(sfen, engines.size());
+		for(size_t i = 0; i < engines.size() ; ++i)
+		{
+			auto& engine = engines   [i];
+			auto& moves  = moves_list[i];
+			engine.send(Message(USI_Message::GO_PONDER, "go ponder" + moves , sfen));
+		}
+	}
+
+	// sfenを与えて、その局面の合法手を生成して、それをエンジンの数で分割したものを返す。
+	std::vector<std::string> GpsClusterStrategy::make_search_moves(const std::string& sfen , size_t engine_num)
+	{
+		vector<string> moves_list;
+		for(size_t i = 0 ; i < engine_num ; ++i)
+			moves_list.emplace_back(string());
+
+		Position pos;
+		std::deque<StateInfo> si;
+		BookTools::feed_position_string(pos, sfen, si, [](Position&){});
+
+		auto ml = MoveList<LEGAL>(pos);
+		if (ml.size() > engine_num + 1)
+		{
+			// MultiPV 2で探索して上位2手を1台ずつに割り当てる。
+			// エンジン数より少ないと1手すら割り当てられない。
+			// また、3つ目のエンジンはそれ以外であるため、そこに2手は割当たらないといけない。
+			// つまり3分割するなら4つ以上合法手がないと割り当てられない。
+
+			ExtMoves snlist;
+			nnue_search(sfen , split_const - 1 , nodes_limit , snlist );
+
+			for(size_t i = 0 ; i < split_const - 1 ; ++i)
+				//moves_list[i] = " searchmoves " + to_usi_string(snlist[i].move);
+			// →　これ、一手しかないので、
+			// 　　最小思考時間でbestmoveを返してくるエンジンがある。
+			// (やねうら王もそうなっている)　これleafを展開してからでないとまずい。
+				moves_list[i] = " " + to_usi_string(snlist[i].move);
+				// 局面を1手進めて全探索。
+
+			// 残りは3つ目のエンジンに割り当てる。
+			moves_list[split_const - 1] = " searchmoves";
+			for(size_t i = 0; i < ml.size(); ++i)
+			{
+				auto move = ml.at(i).move;
+
+				// MultiPVの上位2手は除外する。
+				for(size_t j = 0 ; j < split_const ; ++j)
+					if (move == snlist[0].move)
+						goto NEXT;
+
+				moves_list[split_const - 1] += " " + to_usi_string(move);
+			NEXT:;
+			}
+		}
+
+		return moves_list;
+	}
+
+
+	// ---------------------------------------
+	//     GpsClusterStrategy2
+	// ---------------------------------------
+
+	void GpsClusterStrategy2::on_connected(StrategyParam& param)
+	{
+		for(auto& engine : param.engines)
+			engine.set_engine_mode(EngineMode(
+				// 接続後、対局前までにエンジン側から送られてきた"info ..."を、そのままGUIに流す。
+				EngineMode::SEND_INFO_BEFORE_GAME
+			));
+	}
+
+	void GpsClusterStrategy2::on_isready(StrategyParam& param)
+	{
+		stop_sent = false;
+		nodes_limit = param.options.nodes_limit;
+	}
+
+	void GpsClusterStrategy2::on_go_command(StrategyParam& param, const Message& command)
+	{
+		auto& engines = param.engines;
+
+		// goコマンドの対象局面
+		auto  sfen    = command.position_sfen;
+
+		// いま go ponderで思考している局面と、command.position_sfenが一致するなら、エンジンに"ponderhit"を送ってやれば良い。
+		// いま、すべてのエンジンが同じ局面について"go ponder"しているはずなので、engines[0]だけ見て判定する。
+		if (engines[0].is_state_go_ponder() && engines[0].get_searching_sfen() == sfen)
+		{
+			// 今回の"go"の時に渡された残り時間等のパラメーターをそのままに、"ponderhit XXX .."の形式でエンジン側に送信。
+			for(auto& engine : engines)
+				engine.send(Message(USI_Message::PONDERHIT, strip_command(command.command) ));
+		}
+		else
+		{
+			// この局面についてponderしていなかったので愚直に"go"コマンドで思考させる。
+			//engine.send(command);
+
+			// → root_splitのためにrootの指し手を分割して、"go"の"searchmoves"として指定する。
+			const auto& sfen = command.position_sfen;
+			auto  moves_list = make_search_moves(sfen, engines.size());
+			for(size_t i = 0; i < engines.size() ; ++i)
+			{
+				auto& engine = engines   [i];
+				auto& moves  = moves_list[i];
+				engine.send(Message(USI_Message::GO, command.command + moves , sfen));
+			}
+		}
+		stop_sent = false;
+	}
+
+	void GpsClusterStrategy2::on_idle(StrategyParam& param)
 	{
 		// すべてのbestmoveが来てから。
 		// ただし、一番最初にbestmoveを返してきたengineを基準とする。
@@ -987,7 +1213,7 @@ namespace YaneuraouTheCluster
 	}
 
 	// sfenを与えて、その局面の合法手を生成して、それをエンジンの数で分割したものを返す。
-	std::vector<std::string> GpsClusterStrategy::make_search_moves(const std::string& sfen , size_t engine_num)
+	std::vector<std::string> GpsClusterStrategy2::make_search_moves(const std::string& sfen , size_t engine_num)
 	{
 		vector<string> moves_list;
 		for(size_t i = 0 ; i < engine_num ; ++i)
@@ -998,16 +1224,17 @@ namespace YaneuraouTheCluster
 		BookTools::feed_position_string(pos, sfen, si, [](Position&){});
 
 		auto ml = MoveList<LEGAL>(pos);
-		if (ml.size() >= engine_num)
+		if (ml.size() > engine_num + 1)
 		{
 			// MultiPV 2で探索して上位2手を1台ずつに割り当てる。
 			// エンジン数より少ないと1手すら割り当てられない。
+			// また、3つ目のエンジンはそれ以外であるため、そこに2手は割当たらないといけない。
+			// つまり3分割するなら4つ以上合法手がないと割り当てられない。
 
 			ExtMoves snlist;
-			nnue_search(sfen , 2 , 10000 , snlist );
+			nnue_search(sfen , split_const - 1 , nodes_limit , snlist );
 
-
-			for(size_t i = 0 ; i < 2 ; ++i)
+			for(size_t i = 0 ; i < split_const - 1 ; ++i)
 				//moves_list[i] = " searchmoves " + to_usi_string(snlist[i].move);
 			// →　これ、一手しかないので、
 			// 　　最小思考時間でbestmoveを返してくるエンジンがある。
@@ -1016,17 +1243,18 @@ namespace YaneuraouTheCluster
 				// 局面を1手進めて全探索。
 
 			// 残りは3つ目のエンジンに割り当てる。
-			moves_list[2] = " searchmoves";
+			moves_list[split_const - 1] = " searchmoves";
 			for(size_t i = 0; i < ml.size(); ++i)
 			{
 				auto move = ml.at(i).move;
 
 				// MultiPVの上位2手は除外する。
-				if (   move == snlist[0].move
-					|| move == snlist[1].move)
-					continue;
+				for(size_t j = 0 ; j < split_const ; ++j)
+					if (move == snlist[0].move)
+						goto NEXT;
 
-				moves_list[2] += " " + to_usi_string(move);
+				moves_list[split_const - 1] += " " + to_usi_string(move);
+			NEXT:;
 			}
 		}
 

@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 #include "../../types.h"
 
 // YO Cluster、共通ヘッダー
@@ -63,7 +64,7 @@ namespace YaneuraouTheCluster
 	};
 
 	// USI_Messageの文字列化
-	std::string to_string(USI_Message usi);
+	extern std::string to_string(USI_Message usi);
 
 	// EngineNegotiatorに対してClusterObserverから送信するメッセージ。
 	// 
@@ -144,7 +145,7 @@ namespace YaneuraouTheCluster
 	};
 
 	// EngineNegotiatorStateを文字列化する。
-	std::string to_string(EngineState state);
+	extern std::string to_string(EngineState state);
 
 	// ---------------------------------------
 	//          文字列操作
@@ -227,6 +228,128 @@ namespace YaneuraouTheCluster
 	// snlist      : [out] 上位の候補手
 	void nnue_search(const std::string& search_sfen , size_t multi_pv , int64_t nodes_limit , ExtMoves& snlist );
 #endif
+
+	// ---------------------------------------
+	//      Game Tree for GPS Cluster
+	// ---------------------------------------
+
+	class GpsNode;
+	class EngineNegotiator;
+
+	enum class GpsChildKind
+	{
+		ConstLeafNode,  // 定数VALUEノード
+		EngineLeafNode, // エンジンに接続されているノード
+		ToGpsNode,      // 次の子Node(GpsNode)に接続されている。
+	};
+
+	// 子nodeへのedge
+	class GpsChild
+	{
+	public:
+		// 種類
+		GpsChildKind kind;
+
+		// =====================================
+		//  kind == ConstLeafNode か EngineLeafNode の時
+		// =====================================
+
+		// このnodeのValue
+		Value value;
+
+		// =====================================
+		//       kind == ToGpsNode の時
+		// =====================================
+
+		// leafへの指し手
+		Move move;
+
+		// 指し手moveで子ノードへ行く。
+		std::unique_ptr<GpsNode> child;
+
+		// =====================================
+		//       kind == EngineLeafNodeの時
+		// =====================================
+
+		// このnodeが終端。movesとengineが有効。
+
+		// leafへの指し手(複数あり)
+		// これを"go"コマンドのsearchmovesとして一つのエンジンに割り当てる。
+		// moves.empty()の時はこの局面のすべての指し手
+		std::vector<Move> moves;
+
+		// engine
+		EngineNegotiator* engine;
+
+		// ↑engine == nullptrの時は定数node。
+		// engine == nullptrの時は↓のvalueが有効。
+	};
+
+	// 節点
+	class GpsNode
+	{
+	public:
+		// この局面の評価値
+		Value value;
+
+		// この局面のsfen
+		std::string sfen;
+
+		// 親node
+		// rootならnullptr
+		GpsNode* parent;
+
+		// 子node
+		std::vector<std::unique_ptr<GpsChild>> children;
+
+		// 出力用 depth = 1,2,3,..
+		void print(std::ostream& os, int depth) const;
+
+		GpsNode()
+		{
+			value  = VALUE_NONE;
+			parent = nullptr;
+		}
+	};
+
+	// クラスター用に分割したゲーム木
+	class GpsTree
+	{
+	public:
+
+		// 探索開始局面
+		std::unique_ptr<GpsNode> rootNode;
+
+		// 探索開始局面のsfen
+		std::string root_sfen;
+
+		// rootから探索して、best valueを返す。
+		Value search_root() { return search(rootNode.get());}
+
+	protected:
+		// GpsNodeから探索してbest valueを返す。
+		Value search(GpsNode* node);
+
+	};
+
+	// 出力用。デバッグ用。
+	// 
+	// 出力例)
+	// +- 7g7f
+	// |   |- 3c3d   - [Engine:1] // Engineが接続されている
+	// |   |- 8c8d   - [Engine:2]
+	// |   |- others - [Engine:3]
+	// |
+	// |- 2g2f
+	// |   |- all    - [Engine:4]
+	// |
+    // |- 5i5h
+	// |   |- [Value:0] // 定数Node
+	// |
+	// |- others - [Engine:5]
+	std::ostream& operator<<(std::ostream& os , const GpsTree* tree);
+
+
 
 }
 

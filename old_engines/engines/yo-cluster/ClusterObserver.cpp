@@ -82,42 +82,6 @@ using namespace std;
 
 namespace YaneuraouTheCluster
 {
-
-	// 何文字目まで一致したかを返す。
-	size_t get_match_length(const string& s1, const string& s2)
-	{
-		size_t i = 0;
-		while (i < s1.size()
-			&& i < s2.size()
-			&& s1[i] == s2[i])
-			++i;
-
-		return i;
-	}
-
-	// 何文字目まで一致したかを返す。sfen用。
-	// s1 = XX YY
-	// s2 = XX YY ZZ WW
-	//   →　このように一致して欲しい。
-	// s1 = XX YY CC
-	// s2 = XX YY ZZ WW
-	// 　→　この場合、s1を探索していたエンジンは、s2の局面はほぼ探索していないと思われるので
-	// ペナルティ一致しなかった文字長さ("CC")に比例したペナルティを課す。
-	size_t get_match_length_sfen(const string& s1, const string& s2)
-	{
-		size_t i = 0;
-		while (i < s1.size()
-			&& i < s2.size()
-			&& s1[i] == s2[i])
-			++i;
-
-		if (i != s1.size())
-			// cursorが末尾じゃないところで停止しているのでペナルティ
-			i = (size_t)((std::max)( (s64)s1.size() - (s64)(s1.size() - i)*3 , (s64)0));
-
-		return i;
-	}
-
 	// ---------------------------------------
 	//          cluster observer
 	// ---------------------------------------
@@ -537,7 +501,11 @@ namespace YaneuraouTheCluster
 		//      split        : rootで指し手分割を行うモード
 		//				→　workerは ConsiderationMode = falseにしてbestmoveを返す直前には必ず評価値を出力するように設定する必要がある。
 		//					さらに、workerは goコマンドの"wait_stop"機能に対応している必要がある。(やねうら王NNUEは対応している)
-		//      gps          : GPS将棋のクラスター手法。
+		//      gps  [分割数] : GPS将棋のクラスター手法。rootのみ分割。worker数N。
+		//				→　workerは ConsiderationMode = falseにしてbestmoveを返す直前には必ず評価値を出力するように設定する必要がある。
+		//                  分割数は、1局面を何個の指し手に分割するか。default == 3 , 分割数 == worker数でなければならない。
+		//		gps2 [分割数] : GPS将棋のクラスター手法。worker数可変。
+		//					さらに、workerは goコマンドの"wait_stop"機能に対応している必要がある。(やねうら王NNUEは対応している)
 		void parse_cluster_param(istringstream& is_, ClusterOptions& options , unique_ptr<IClusterStrategy>& strategy)
 		{
 			// USIメッセージの処理を開始している。いま何か出力してはまずい。
@@ -585,7 +553,15 @@ namespace YaneuraouTheCluster
 						else if (token == "split")
 							strategy = std::make_unique<RootSplitStrategy>();
 						else if (token == "gps")
-							strategy = std::make_unique<GpsClusterStrategy>();
+						{
+							const size_t split_const = (size_t)is.get_number(3);
+							strategy = std::make_unique<GpsClusterStrategy>(split_const);
+						}
+						else if (token == "gps2")
+						{
+							const size_t split_const = (size_t)is.get_number(3);
+							strategy = std::make_unique<GpsClusterStrategy2>(split_const);
+						}
 						// ..
 					}
 				}

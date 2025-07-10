@@ -55,10 +55,6 @@ YANEURAOU_EDITION := YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION := MATE_ENGINE
 #YANEURAOU_EDITION := USER_ENGINE
 
-# やねうら王のcluster機能を使いたいなら、これもdefineする。(define if you want to use YO-cluster)
-YO_CLUSTER = OFF
-#YO_CLUSTER = ON
-
 # エンジンの表示名 (engine displayname)
 # ("usi"コマンドに対して出力される)
 #ENGINE_NAME :=
@@ -257,17 +253,6 @@ endif
 
 ifneq ($(ENGINE_NAME),)
 CPPFLAGS += -DENGINE_NAME_FROM_MAKEFILE=$(ENGINE_NAME)
-endif
-
-# cluster
-ifeq ($(YO_CLUSTER),ON)
-	LOCAL_SRC_FILES += \
-		../source/engine/yo-cluster/ClusterCommon.cpp                      \
-		../source/engine/yo-cluster/EngineNegotiator.cpp                   \
-		../source/engine/yo-cluster/ProcessNegotiator.cpp                  \
-		../source/engine/yo-cluster/ClusterObserver.cpp                    \
-		../source/engine/yo-cluster/ClusterStrategy.cpp
-	CPPFLAGS += -DUSE_YO_CLUSTER
 endif
 
 # 開発用branch

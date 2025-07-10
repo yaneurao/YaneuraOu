@@ -601,11 +601,6 @@
     <ClInclude Include="engine\dlshogi-engine\PvMateSearch.h" />
     <ClInclude Include="engine\dlshogi-engine\UctSearch.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h" />
-    <ClInclude Include="engine\yo-cluster\ClusterCommon.h" />
-    <ClInclude Include="engine\yo-cluster\ClusterObserver.h" />
-    <ClInclude Include="engine\yo-cluster\ClusterStrategy.h" />
-    <ClInclude Include="engine\yo-cluster\EngineNegotiator.h" />
-    <ClInclude Include="engine\yo-cluster\ProcessNegotiator.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\deep\nn_types.h" />
     <ClInclude Include="eval\deep\nn.h" />
@@ -707,11 +702,6 @@
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp" />
     <ClCompile Include="engine\yaneuraou-mate-engine\yaneuraou-mate-search.cpp" />
-    <ClCompile Include="engine\yo-cluster\ClusterCommon.cpp" />
-    <ClCompile Include="engine\yo-cluster\ClusterStrategy.cpp" />
-    <ClCompile Include="engine\yo-cluster\EngineNegotiator.cpp" />
-    <ClCompile Include="engine\yo-cluster\ProcessNegotiator.cpp" />
-    <ClCompile Include="engine\yo-cluster\ClusterObserver.cpp" />
     <ClCompile Include="eval\deep\nn_types.cpp" />
     <ClCompile Include="eval\deep\nn.cpp" />
     <ClCompile Include="eval\deep\nn_onnx_runtime.cpp" />

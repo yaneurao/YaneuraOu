@@ -394,7 +394,7 @@ namespace TanukiMate {
 			}
 
 									// TODO : あとで修正する。
-			while (!threads.stop && (/* threads.main_thread()->ponder ||*/ limits.infinite || global_options.wait_stop))
+			while (!threads.stop && (/* threads.main_thread()->ponder ||*/ limits.infinite))
 			{
 				//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
 				// (思考のためには計算資源を使っていないので。)

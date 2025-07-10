@@ -45,11 +45,6 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 #YANEURAOU_EDITION = YANEURAOU_MATE_ENGINE
 #YANEURAOU_EDITION = USER_ENGINE
 
-# やねうら王のcluster機能を使いたいなら、これもdefineする。(define if you want to use YO-cluster)
-YO_CLUSTER = OFF
-#YO_CLUSTER = ON
-
-
 # ターゲットCPU (target cpu)
 
 # 利用できるCPU拡張命令を指定する。
@@ -537,16 +532,6 @@ endif
 
 ifneq ($(ENGINE_NAME),)
 	CPPFLAGS += -DENGINE_NAME_FROM_MAKEFILE=$(ENGINE_NAME)
-endif
-
-ifeq ($(YO_CLUSTER),ON)
-	SOURCES += \
-		engine/yo-cluster/ClusterCommon.cpp       \
-		engine/yo-cluster/ProcessNegotiator.cpp   \
-		engine/yo-cluster/EngineNegotiator.cpp    \
-		engine/yo-cluster/ClusterObserver.cpp     \
-		engine/yo-cluster/ClusterStrategy.cpp
-	CPPFLAGS += -DUSE_YO_CLUSTER
 endif
 
 

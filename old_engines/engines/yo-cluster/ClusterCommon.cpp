@@ -2,11 +2,12 @@
 
 #if defined(USE_YO_CLUSTER) && (defined(YANEURAOU_ENGINE_DEEP) || defined(YANEURAOU_ENGINE_NNUE))
 
-#include "ClusterCommon.h"
 #include "../../misc.h"
 #include "../../usi.h"
 #include "../../search.h"
 #include "../../thread.h"
+#include "ClusterCommon.h"
+#include "EngineNegotiator.h"
 
 using namespace std;
 
@@ -250,6 +251,45 @@ namespace YaneuraouTheCluster
 		}
 	}
 
+	// 現状、使っていない。あとで使うかも。
+	// 前回ponderしていた局面になるべく近い局面を割り当てるために必要になる。
+#if 0
+	// 何文字目まで一致したかを返す。
+	size_t get_match_length(const string& s1, const string& s2)
+	{
+		size_t i = 0;
+		while (i < s1.size()
+			&& i < s2.size()
+			&& s1[i] == s2[i])
+			++i;
+
+		return i;
+	}
+
+	// 何文字目まで一致したかを返す。sfen用。
+	// s1 = XX YY
+	// s2 = XX YY ZZ WW
+	//   →　このように一致して欲しい。
+	// s1 = XX YY CC
+	// s2 = XX YY ZZ WW
+	// 　→　この場合、s1を探索していたエンジンは、s2の局面はほぼ探索していないと思われるので
+	// ペナルティ一致しなかった文字長さ("CC")に比例したペナルティを課す。
+	size_t get_match_length_sfen(const string& s1, const string& s2)
+	{
+		size_t i = 0;
+		while (i < s1.size()
+			&& i < s2.size()
+			&& s1[i] == s2[i])
+			++i;
+
+		if (i != s1.size())
+			// cursorが末尾じゃないところで停止しているのでペナルティ
+			i = (size_t)((std::max)( (s64)s1.size() - (s64)(s1.size() - i)*3 , (s64)0));
+
+		return i;
+	}
+#endif
+
 	// ---------------------------------------
 	//          Search with multi pv
 	// ---------------------------------------
@@ -326,6 +366,96 @@ namespace YaneuraouTheCluster
 		}
 	}
 #endif
+
+	// ---------------------------------------
+	//      Game Tree for GPS Cluster
+	// ---------------------------------------
+
+	Value parse_thinklog(EngineNegotiator* engine) { return VALUE_ZERO; }
+
+	// best_valueを返しているGpsChildを返す。(この親を辿っていけばPVがわかる)
+	Value GpsTree::search(GpsNode* node)
+	{
+		Value     best_value = VALUE_NONE;
+
+		for(auto& child : node->children)
+		{
+			Value child_best_value = VALUE_NONE;
+
+			switch(child->kind)
+			{
+			case GpsChildKind::ToGpsNode:
+				// 子持ちなので、子供のなかの評価値の最大を返す。
+				// 子nodeなので符号は反転させておく。
+				child_best_value = - search(child->child.get());
+				break;
+
+			case GpsChildKind::EngineLeafNode:
+
+				// このnodeがleaf nodeだったので。
+				child_best_value = parse_thinklog(child->engine);
+				break;
+
+			case GpsChildKind::ConstLeafNode:
+
+				child_best_value = child->value;
+				break;
+			}
+
+			if (child_best_value != VALUE_NONE)
+			{
+				// これなら比較できる。
+				if (best_value == VALUE_NONE ||
+					best_value <= child_best_value)
+				{
+					best_value = child_best_value;
+				}
+			}
+		}
+		return best_value;
+	}
+
+	// 出力用　デバッグ用。
+	std::ostream& operator<<(std::ostream& os , const GpsTree* tree)
+	{
+		os << tree->rootNode;
+		return os;
+	}
+
+	// 出力用 depth = 1,2,3,..
+	void GpsNode::print(std::ostream& os , int depth) const
+	{
+		for(auto& child : this->children)
+		{
+			switch(child->kind)
+			{
+			case GpsChildKind::ToGpsNode:
+				print(os, depth + 1);
+				break;
+
+			case GpsChildKind::EngineLeafNode:
+			{
+				auto engine = child->engine; 
+				int engine_id = engine == nullptr ? -1 : (int)engine->get_engine_id();
+				os << "[Engine:" << engine_id << "]" << endl;
+				break;
+			}
+
+			case GpsChildKind::ConstLeafNode:
+				os << "[Value:" << value << "]" << endl;
+				break;
+			}
+		}
+	}
+
+	std::ostream& operator<<(std::ostream& os , const GpsNode* node)
+	{
+		node->print(os,1);
+		return os;
+	}
+
+
+
 }
 
 #endif

@@ -77,9 +77,6 @@
     <Filter Include="リソース ファイル\testcmd">
       <UniqueIdentifier>{f54ef520-240b-40a2-be3a-0c6c3df35b0b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\engine\yo-cluster">
-      <UniqueIdentifier>{81bfe4ec-70a8-412d-9241-496550d208fa}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -334,21 +331,6 @@
     <ClInclude Include="engine\dlshogi-engine\dlshogi_min.h">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\yo-cluster\ProcessNegotiator.h">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\yo-cluster\EngineNegotiator.h">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\yo-cluster\ClusterCommon.h">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\yo-cluster\ClusterStrategy.h">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\yo-cluster\ClusterObserver.h">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClInclude>
     <ClInclude Include="eval\nnue\architectures\halfkp_512x2-16-32.h">
       <Filter>リソース ファイル\eval\nnue\architectures</Filter>
     </ClInclude>
@@ -575,21 +557,6 @@
     </ClCompile>
     <ClCompile Include="eval\nnue\features\half_kp_vm.cpp">
       <Filter>リソース ファイル\eval\nnue\features</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\yo-cluster\ClusterObserver.cpp">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\yo-cluster\ProcessNegotiator.cpp">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\yo-cluster\EngineNegotiator.cpp">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\yo-cluster\ClusterCommon.cpp">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\yo-cluster\ClusterStrategy.cpp">
-      <Filter>リソース ファイル\engine\yo-cluster</Filter>
     </ClCompile>
     <ClCompile Include="book\makebook2025.cpp">
       <Filter>リソース ファイル\book</Filter>
