@@ -53,6 +53,9 @@ public:
 	/*
 		📌 自作エンジンでoverrideすると良いmethod。📌
 
+		💡 Engineは、思考エンジン1インスタンスにつき、1インスタンス。
+		    Worker, Threadは、探索スレッド1つにつき1インスタンス。
+
 		add_options()
 			エンジンに追加オプションを設定したいときは、この関数をoverrideする。
 			📝 GetOptions()->add()を用いて、Optionを追加する。

@@ -1331,10 +1331,6 @@ struct GlobalOptions
 	// 本来の"bestmove"を返すタイミングになると、"info string time to return bestmove."と出力する。
 	// この機能は、Clusterのworkerで、持時間制御はworker側にさせたいが、思考は継続させたい時に用いる。
 	bool wait_stop;
-
-#if defined(TANUKI_MATE_ENGINE)
-	std::vector<Move16> pv_check;
-#endif
 };
 
 extern GlobalOptions global_options;
