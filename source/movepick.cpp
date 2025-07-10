@@ -430,7 +430,7 @@ top:
 	case PROBCUT_INIT:
 	case QCAPTURE_INIT:
 		cur = endBadCaptures = moves;
-		endCur               = Search::Limits.generate_all_legal_moves ? generateMoves<CAPTURES_ALL>(pos, cur) : generateMoves<CAPTURES>(pos, cur);
+		endCur               = global_options.generate_all_legal_moves ? generateMoves<CAPTURES_ALL>(pos, cur) : generateMoves<CAPTURES>(pos, cur);
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
@@ -501,7 +501,7 @@ top:
 
 			*/
 
-			endCur = Search::Limits.generate_all_legal_moves ? generateMoves<NON_CAPTURES_ALL>(pos, cur) : generateMoves<NON_CAPTURES>(pos, cur);
+			endCur = global_options.generate_all_legal_moves ? generateMoves<NON_CAPTURES_ALL>(pos, cur) : generateMoves<NON_CAPTURES>(pos, cur);
 			// 注意 : ここ⇑、CAPTURE_INITで生成した指し手に歩の成りの指し手が含まれているなら、それを除外しなければならない。
 
 			// 駒を捕獲しない指し手に対してオーダリングのためのスコアをつける
@@ -573,7 +573,7 @@ top:
 		// 王手回避手の生成
 	case EVASION_INIT:
 		cur    = moves;
-		endCur = Search::Limits.generate_all_legal_moves ? generateMoves<EVASIONS_ALL>(pos, cur) : generateMoves<EVASIONS>(pos, cur);
+		endCur = global_options.generate_all_legal_moves ? generateMoves<EVASIONS_ALL>(pos, cur) : generateMoves<EVASIONS>(pos, cur);
 
 		// 王手を回避する指し手に対してオーダリングのためのスコアをつける
 		score<EVASIONS>();

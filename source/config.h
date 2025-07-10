@@ -802,7 +802,7 @@ constexpr bool pretty_jp = false;
 #if defined(EVAL_MATERIAL)
 	#if defined(MATERIAL_LEVEL)
 		// MATERIAL_LEVELの番号を"Level"として出力してやる。
-		#define EVAL_TYPE_NAME "MaterialLv" << MATERIAL_LEVEL
+		#define EVAL_TYPE_NAME "MaterialLv" + std::to_string(MATERIAL_LEVEL)
 	#else
 		// 適切な評価関数がないので単にEVAL_MATERIALを指定しているだけだから、EVAL_TYPE_NAMEとしては空欄でいいかと。
 		#define EVAL_TYPE_NAME ""
@@ -823,19 +823,19 @@ constexpr bool pretty_jp = false;
 #elif defined(EVAL_DEEP)
 	#if defined(ONNXRUNTIME)
 		#if defined(ORT_CPU)
-			#define EVAL_TYPE_NAME "ORT_CPU-" << EVAL_DEEP
+			#define EVAL_TYPE_NAME "ORT_CPU-" + EVAL_DEEP
 		#elif defined(ORT_DML)
-			#define EVAL_TYPE_NAME "ORT_DML-" << EVAL_DEEP
+			#define EVAL_TYPE_NAME "ORT_DML-" + EVAL_DEEP
 		#elif defined(ORT_TRT)
-			#define EVAL_TYPE_NAME "ORT_TRT-" << EVAL_DEEP
+			#define EVAL_TYPE_NAME "ORT_TRT-" + EVAL_DEEP
 		#else
-			#define EVAL_TYPE_NAME "ORT-" << EVAL_DEEP
+			#define EVAL_TYPE_NAME "ORT-" + EVAL_DEEP
 		#endif
 	#elif defined(TENSOR_RT)
 		#include "NvInferRuntimeCommon.h"
-		#define EVAL_TYPE_NAME "TensorRT" << std::to_string(getInferLibVersion()) << "-" << EVAL_DEEP
+		#define EVAL_TYPE_NAME "TensorRT" + std::to_string(getInferLibVersion()) + "-" + EVAL_DEEP
 	#elif defined(COREML)
-		#define EVAL_TYPE_NAME "CoreML-" << EVAL_DEEP
+		#define EVAL_TYPE_NAME "CoreML-" + EVAL_DEEP
 	#endif
 
 #else

@@ -263,7 +263,7 @@ std::string engine_info(bool to_usi) {
 			string(ENGINE_NAME)
 #endif
 			+ ' '
-			+ (*EVAL_TYPE_NAME == 0 ? "" : std::string(" ") + EVAL_TYPE_NAME)
+			+ (std::string(EVAL_TYPE_NAME).empty() ? "" : std::string(" ") + EVAL_TYPE_NAME)
 			+ ENGINE_VERSION
 			+ (Is64Bit ? " 64" : " 32")
 			+ TARGET_CPU

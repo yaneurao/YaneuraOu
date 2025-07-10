@@ -243,10 +243,12 @@ public:
 	// 　dlshogi::nodes_visited()を呼び出すこと。
 	uint64_t               nodes_searched() const;
 
-	// tablebaseにhitした回数。将棋では使わない。
+	// 💡 tablebaseにhitした回数。将棋では使わない。
 	//uint64_t               tb_hits() const;
 
-	Thread* get_best_thread() const;
+	// ⚠ これは、やねうら王の標準探索エンジンでしか使わないので、
+	//     YaneuraOuEngine側に移動させる。
+	//Thread* get_best_thread() const;
 
 	std::vector<size_t> get_bound_thread_count_by_numa_node() const;
 
@@ -261,12 +263,15 @@ public:
 	auto size() const noexcept { return threads.size(); }
 	auto empty() const noexcept { return threads.empty(); }
 
+	// 抱えているすべてのThread
+	// 💡 Stockfishではprivate memberなのだが、
+	//     やねうら王ではEngine派生class側からアクセスしたいことがあるのでpublicに変更。
+	std::vector<std::unique_ptr<Thread>> threads;
+
 private:
 	// 現局面までのStateInfoのlist
 	StateListPtr                         setupStates;
 
-	// vector<Thread*>からこのclassを継承させるのはやめて、このメンバーとして持たせるようにした。
-	std::vector<std::unique_ptr<Thread>> threads;
 	std::vector<NumaIndex>               boundThreadToNumaNode;
 
 	// Threadクラスの特定のメンバー変数を足し合わせたものを返す。

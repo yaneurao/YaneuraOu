@@ -45,7 +45,7 @@ namespace Eval {
 
 	// 評価関数ファイルを読み込む。
 	// 時間のかかる評価関数の初期化処理はここに書くこと。
-	// これは、"is_ready"コマンドの応答時に1度だけ呼び出される。2度呼び出すことは想定していない。
+	// これは、"isready"コマンドの応答時に1度だけ呼び出される。2度呼び出すことは想定していない。
 	// (ただし、EvalDir(評価関数フォルダ)が変更になったあと、isreadyが再度送られてきたら読みなおす。)
 	void load_eval();
 
@@ -406,7 +406,9 @@ namespace Eval {
 #if defined(YANEURAOU_ENGINE_NNUE)
 
 // NNUE系では、Eval::NNUE::Networksを使う。
-using Evaluator = Eval::NNUE::Networks;
+//using Evaluator = Eval::NNUE::Networks;
+// ⇨  これ、ここで使えるようにしようと思うと、大量のNNUEのheaderを読み込む必要が出てくる。
+#define Evaluator Eval::NNUE::Networks;
 
 #elif defined(USER_ENGINE)
 

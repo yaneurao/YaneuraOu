@@ -132,7 +132,7 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply, const Opt
 	// 残りの自分の手番の回数
 	// ⇨　plyは平手の初期局面が1。256手ルールとして、max_game_ply == 256だから、256手目の局面においてply == 256
 	// 　その1手前の局面においてply == 255。ply == 255 or 256のときにMTGが1にならないといけない。だから2足しておくのが正解。
-	const int MTG = std::min(limits.max_game_ply - ply + 2, move_horizon ) / 2;
+	const int MTG = std::min(global_options.max_game_ply - ply + 2, move_horizon ) / 2;
 
 	if (MTG <= 0)
 	{

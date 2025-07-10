@@ -49,7 +49,10 @@ void Search::Worker::do_move(Position& pos, const Move move, StateInfo& st) {
 }
 
 void Search::Worker::do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck) {
-#if defined(YANEURAOU_ENGINE)
+#if 0
+	// accumulatorStackを用いる実装。
+	// TODO : あとで
+
 	DirtyPiece dp = pos.do_move(move, st, givesCheck /*, &tt */);
 	// 📝　やねうら王では、TTのprefetchをしないので、ttを渡す必要がない。
 	nodes.fetch_add(1, std::memory_order_relaxed);
@@ -68,9 +71,10 @@ void Search::Worker::do_null_move(Position& pos, StateInfo& st)
 
 void Search::Worker::undo_move(Position& pos, const Move move) {
 	pos.undo_move(move);
-#if defined(YANEURAOU_ENGINE)
-	accumulatorStack.pop();
-#endif
+
+	// accumulatorStackを用いる実装はEngine派生class側で行うべき。
+	// TODO : あとで。
+	//accumulatorStack.pop();
 }
 
 void Search::Worker::undo_null_move(Position& pos) { pos.undo_null_move(); }
