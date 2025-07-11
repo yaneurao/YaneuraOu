@@ -20,26 +20,45 @@ namespace {
 
 } // namespace
 
+void TimeManagement::init(Search::LimitsType& limits,
+                          Color               us,
+                          int                 ply,
+                          const OptionsMap&   options) {
 
-void Timer::init(const Search::LimitsType& limits, Color us, int ply, const OptionsMap* options)
-{
-	// reinit()が呼び出された時のために呼び出し条件を保存しておく。
-	lastcall_Limits = const_cast<Search::LimitsType*>(&limits);
-	lastcall_Us     = us;
-	lastcall_Ply    = ply;
-	lastcall_Opt    = options;
+	// 📝 探索開始時刻をコピーしておく。
+	//     以降、elapsed_time()は、ここからの経過時間を返す。
+    startTime = limits.startTime;
 
-	init_(limits, us, ply, *options);
+    // reinit()が呼び出された時のために呼び出し条件を保存しておく。
+    lastcall_Limits = &limits;
+    lastcall_Us     = us;
+    lastcall_Ply    = ply;
+    lastcall_Opt    = const_cast<OptionsMap*>(&options);
+
+    init_(limits, us, ply, options);
 }
 
 // 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
 // これは探索の開始時に呼び出されて、今回の指し手のための思考時間を計算する。
 // limitsで指定された条件に基いてうまく計算する。
 // ply : ここまでの手数。平手の初期局面なら1。(0ではない)
-void Timer::init_(const Search::LimitsType& limits, Color us, int ply, const OptionsMap& options)
-{
-#if 0
-	// nodes as timeモード
+void TimeManagement::init_(Search::LimitsType& limits,
+                           Color               us,
+                           int                 ply,
+                           const OptionsMap&   options) {
+	#if 0 
+	TimePoint npmsec = TimePoint(options["nodestime"]);
+	// nodes as timeモード。やねうら王では用いない。
+
+    // If we have no time, we don't need to fully initialize TM.
+    // startTime is used by movetime and useNodesTime is used in elapsed calls.
+    startTime    = limits.startTime;
+
+	useNodesTime = npmsec != 0;
+
+    if (limits.time[us] == 0)
+        return;
+
 	TimePoint npmsec = Options["nodestime"];
 
 	// npmsecがUSI optionで指定されていれば、時間の代わりに、ここで指定されたnode数をベースに思考を行なう。
@@ -65,23 +84,24 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply, const Opt
 		// NetworkDelay , MinimumThinkingTimeなどもすべてnpmsecを掛け算しないといけないな…。
 		// 1000で繰り上げる必要もあるしなー。これtime managementと極めて相性が悪いのでは。
 	}
-#endif
+	#endif
 
 	// ネットワークのDelayを考慮して少し減らすべき。
 	// かつ、minimumとmaximumは端数をなくすべき
-	network_delay = (int)options["NetworkDelay"];
+    TimePoint network_delay = (int) options["NetworkDelay"];
 
 	// 探索終了予定時刻。このタイミングで初期化しておく。
-	search_end = 0;
+    search_end = 0;
 
 	// 今回の最大残り時間(これを超えてはならない)
 	// byoyomiとincの指定は残り時間にこの時点で加算して考える。
-	remain_time = limits.time[us] + limits.byoyomi[us] + limits.inc[us] - (TimePoint)options["NetworkDelay2"];
+    TimePoint remain_time =
+      limits.time[us] + limits.byoyomi[us] + limits.inc[us] - (TimePoint) options["NetworkDelay2"];
 	// ここを0にすると時間切れのあと自爆するのでとりあえず100にしておく。
-	remain_time = std::max(remain_time, (TimePoint)100);
+    remain_time = std::max(remain_time, (TimePoint) 100);
 
 	// 最小思考時間
-	minimum_thinking_time = (int)options["MinimumThinkingTime"];
+    TimePoint minimum_thinking_time = (int) options["MinimumThinkingTime"];
 
 	// 序盤重視率
 	// 　これはこんなパラメーターとして手で調整するべきではなく、探索パラメーターの一種として
@@ -221,12 +241,34 @@ void Timer::init_(const Search::LimitsType& limits, Color us, int ply, const Opt
 			minimumTime = optimumTime = maximumTime = limits.byoyomi[us] + limits.time[us];
 	}
 
+	// 1秒単位で繰り上げてdelayを引く。
+    // ただし、remain_timeよりは小さくなるように制限する。
+    auto round_up = [&](TimePoint t0) {
+        // 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
+        auto t = std::max(((t0 + 999) / 1000) * 1000, minimum_thinking_time);
+
+        // そこから、Options["NetworkDelay"]の値を引く
+        t = t - network_delay;
+
+        // これが元の値より小さいなら、もう1秒使わないともったいない。
+        if (t < t0)
+            t += 1000;
+
+        // remain_timeを上回ってはならない。
+        t = std::min(t, remain_time);
+        return t;
+    };
+
+
 	// 残り時間 - network_delay2よりは短くしないと切れ負けになる可能性が出てくる。
 	minimumTime = std::min(round_up(minimumTime), remain_time);
 	optimumTime = std::min(         optimumTime , remain_time);
 	maximumTime = std::min(round_up(maximumTime), remain_time);
 
 }
+
+TimePoint TimeManagement::minimum() const { return minimumTime; }
+
 
 } // namespace YaneuraOu
 

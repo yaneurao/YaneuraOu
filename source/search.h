@@ -179,8 +179,13 @@ struct LimitsType {
 	// npmsec    : 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
 	// 　　→　将棋と相性がよくないのでこの機能をサポートしないことにする。
 	// movetime  : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
-	// startTime : "go"コマンドを受け取った時のnow()。なるべく早くに格納しておき、時差をなくす。
-	TimePoint                time[COLOR_NB], inc[COLOR_NB] /*, npmsec*/ , movetime, startTime;
+	// startTime : 探索開始時刻。"go"コマンドを受け取った時のnow()。なるべく早くに格納しておき、時差をなくす。
+	//             💡 この時刻は、USIEngineの"go"のhandlerで設定される。
+    // startTimeFromPonderhit
+	//           : 📌 やねうら王独自追加。
+	//             ponderhitからの経過時間。
+	//             TimeManagement::reset()かreset_for_ponderhit()が呼び出された時刻。
+    TimePoint time[COLOR_NB], inc[COLOR_NB] /*, npmsec*/, movetime, startTime, startTimeFromPonderhit;
 
 	// movestogo: この手数で引き分け。
 	//			📌 USIプロトコルではサポートしない。エンジンオプションで設定すべき。

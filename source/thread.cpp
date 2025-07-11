@@ -225,6 +225,12 @@ void ThreadPool::set(
 			//	std::make_unique<Search::SearchManager>(updateContext))
 			//	: std::make_unique<Search::NullSearchManager>();
 
+			// 💡 Stockfishのこの実装は、main threadのときだけSearchManagerを渡して、main thread以外のときは
+			//     SearchManagerを使わせない(NullSearchManagerを渡す)という意味。しかし、結局探索部からmain threadでしか
+			//     SearchManagerを呼び出さないので、このような設計にする必要はないと思う。
+			//     WorkerからSearchManagerにアクセスできればそれだけでいいので、やねうら王では上の設計は採用しない。
+
+
 			// When not binding threads we want to force all access to happen
 			// from the same NUMA node, because in case of NUMA replicated memory
 			// accesses we don't want to trash cache in case the threads get scheduled

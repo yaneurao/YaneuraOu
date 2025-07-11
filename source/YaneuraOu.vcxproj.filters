@@ -370,6 +370,12 @@
     <ClInclude Include="perft.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="engine\yaneuraou-engine\yaneuraou-search.h">
+      <Filter>リソース ファイル\engine\yaneuraou-engine</Filter>
+    </ClInclude>
+    <ClInclude Include="score.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -577,6 +583,9 @@
       <Filter>リソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="search.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="score.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>

@@ -672,6 +672,7 @@
     <ClInclude Include="movepick.h" />
     <ClInclude Include="numa.h" />
     <ClInclude Include="perft.h" />
+    <ClInclude Include="score.h" />
     <ClInclude Include="timeman.h" />
     <ClInclude Include="search.h" />
     <ClInclude Include="testcmd\unit_test.h" />
@@ -742,6 +743,7 @@
     <ClCompile Include="misc.cpp" />
     <ClCompile Include="movegen.cpp" />
     <ClCompile Include="movepick.cpp" />
+    <ClCompile Include="score.cpp" />
     <ClCompile Include="search.cpp" />
     <ClCompile Include="testcmd\mate_test_cmd.cpp" />
     <ClCompile Include="testcmd\normal_test_cmd.cpp" />

@@ -182,8 +182,6 @@ namespace {
 				}
 #endif
 
-				Time.reset();
-
 				// Stockfish、start_thinking()のなかでstatesの所有権をstd::moveしてしまうので、コピーしておく。
 				// ※　start_thinking()でownership transferするの、こういうコードが書きにくくなって良くないと思う。
 				StateListPtr states0(new StateList(0));

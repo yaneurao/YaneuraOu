@@ -33,6 +33,8 @@
 
 namespace YaneuraOu {
 
+using namespace Search;
+
     // -------------------
     // やねうら王独自追加
     // -------------------
@@ -366,7 +368,6 @@ void YaneuraOuEngine::add_options() {
     #endif
 }
 
-namespace Search {
 // 並列探索において一番良い思考をしたthreadの選出。
 // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
 YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
@@ -439,7 +440,6 @@ YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
     // Threadに対してworkerが得られるから、これはYaneuraOuWorker*なのでdynamic_castして返す。
     return dynamic_cast<YaneuraOuWorker*>(bestThread->worker.get());
 }
-}  // namespace Search
 
 // -----------------------------------------------------------
 // 📌 ここからStockfishのsearch.cppを参考にしながら書く。 📌
@@ -458,7 +458,8 @@ void syzygy_extend_pv(const OptionsMap& options,
 	Value& v);
     #endif
 
-using namespace Search;
+//using namespace Search;
+// 💡 冒頭で書いたのでコメントアウト。
 
 namespace {
 
@@ -564,8 +565,10 @@ Search::YaneuraOuWorker::YaneuraOuWorker(OptionsMap&               options,
                                          ThreadPool&               threads,
                                          size_t                    threadIdx,
                                          NumaReplicatedAccessToken numaAccessToken,
-										 TranspositionTable&       tt) :
-    Search::Worker(options, threads, threadIdx, numaAccessToken), tt(tt) {
+										 TranspositionTable&       tt,
+										 YaneuraOuEngine&          engine) :
+    Search::Worker(options, threads, threadIdx, numaAccessToken), tt(tt),
+		engine(engine), manager(engine.manager) {
 
     // 💡 Worker::clear()が呼び出される。
     clear();
@@ -594,16 +597,21 @@ void Search::YaneuraOuWorker::start_searching() {
         return;
     }
 
-	#if 0
-    main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options,
-                            main_manager()->originalTimeAdjust);
-    tt.new_search();
+    main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options
+			/*  , main_manager()->originalTimeAdjust */);
+			// 💡 やねうら王では、originalTimeAdjustは用いない。
+
+	tt.new_search();
 
     if (rootMoves.empty())
     {
-        rootMoves.emplace_back(Move::none());
-        main_manager()->updates.onUpdateNoMoves(
-          {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
+        // rootで指し手がない = (将棋だと)詰みの局面である
+
+		rootMoves.emplace_back(Move::none());
+        //main_manager()->updates.onUpdateNoMoves(
+        //  {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
+		// 💡 チェスだと王手されていないなら引き分けだが、将棋だとつねに負け。
+		main_manager()->updates.onUpdateNoMoves({0, -VALUE_MATE });
     }
     else
     {
@@ -673,10 +681,65 @@ void Search::YaneuraOuWorker::start_searching() {
 
     auto bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0] /*, rootPos.is_chess960()*/);
     main_manager()->updates.onBestmove(bestmove, ponder);
-	#endif
 }
 
 
+
+void SearchManager::pv(Search::Worker&           worker,
+                       const ThreadPool&         threads,
+                       const TranspositionTable& tt,
+                       Depth                     depth) {}
+
+
+
+// Called in case we have no ponder move before exiting the search,
+// for instance, in case we stop the search during a fail high at root.
+// We try hard to have a ponder move to return to the GUI,
+// otherwise in case of 'ponder on' we have nothing to think about.
+
+// 探索を終了する前にponder moveがない場合に呼び出されます。
+// 例えば、rootでfail highが発生して探索を中断した場合などです。
+// GUIに返すponder moveをできる限り準備しようとしますが、
+// そうでない場合、「ponder on」の際に考えるべきものが何もなくなります。
+
+bool Search::RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
+                                              Position&                 pos,
+                                              Move                      ponder_candidate) {
+    StateInfo st;
+
+    ASSERT_LV3(pv.size() == 1);
+
+    // 💡 Stockfishでは if (pv[0] == Move::none()) となっているが、
+    //     詰みの局面が"ponderhit"で返ってくることがあるので、
+    //     ここでのpv[0] == Move::resign()であることがありうる。
+    //     だから、やねうら王では、ここは、is_ok()で判定する。
+
+    if (!pv[0].is_ok())
+        return false;
+
+    pos.do_move(pv[0], st);
+
+    auto [ttHit, ttData, ttWriter] = tt.probe(pos.key(), pos);
+    if (ttHit)
+    {
+        Move m = ttData.move;
+        //if (MoveList<LEGAL>(pos).contains(ttData.move))
+        // ⇨ Stockfishのこのコード、pseudo_legalとlegalで十分なのではないか？
+        if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
+            pv.push_back(m);
+    }
+	// 置換表にもなかったので以前のiteration時のpv[1]をほじくり返す。
+	// 🌠 やねうら王独自改良
+	else if (ponder_candidate)
+    {
+        Move m = ponder_candidate;
+        if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
+            pv.push_back(m);
+    }
+
+    pos.undo_move(pv[0]);
+    return pv.size() > 1;
+}
 
 }  // namespace YaneuraOu
 

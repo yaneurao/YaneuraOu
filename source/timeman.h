@@ -21,35 +21,57 @@ namespace YaneuraOu {
 	// その他のパラメータに応じて、思考に費やす最適な時間を計算します。
 
 	class TimeManagement {
-	public:
-		void init(Search::LimitsType& limits,
-			Color               us,
-			int                 ply,
-			const OptionsMap& options,
-			double& originalTimeAdjust);
+           public:
+            void init(Search::LimitsType& limits, Color us, int ply, const OptionsMap& options
+                      /* , double& originalTimeAdjust */
+                      // 💡 やねうら王では使わないことにする。
+            );
 
-		TimePoint optimum() const;
-		TimePoint maximum() const;
-		template<typename FUNC>
-		TimePoint elapsed(FUNC nodes) const {
-			return useNodesTime ? TimePoint(nodes()) : elapsed_time();
-		}
-		TimePoint elapsed_time() const { return now() - startTime; };
+            TimePoint optimum() const;
+            TimePoint maximum() const;
+            TimePoint minimum() const;  // 📌 やねうら王独自追加。
 
-		// 初期化。
-		// ※　やねうら王では使わない。
-		void clear() {}
+            // template<typename FUNC>
+            // TimePoint elapsed(FUNC nodes) const {
+            //   return useNodesTime ? TimePoint(nodes()) : elapsed_time();
+            // }
+            // 💡 やねうら王ではNodesTimeを使わない。
 
-		void advance_nodes_time(std::int64_t nodes);
+            // startTimeからの経過時間。
+            // 💡 startTimeは、init()した時にLimitsType::startTimeがコピーされる。そこからの経過時間。
+            TimePoint elapsed_time() const { return now() - startTime; };
 
-	private:
-		TimePoint startTime;
-		TimePoint optimumTime;
-		TimePoint maximumTime;
+            // 初期化。
+            // ※　やねうら王では使わない。
+            void clear() {}
 
-		std::int64_t availableNodes = -1;     // When in 'nodes as time' mode
-		bool         useNodesTime = false;  // True if we are in 'nodes as time' mode
-	};
+            //void advance_nodes_time(std::int64_t nodes);
+            // 💡 やねうら王ではNodesTimeを使わない。
+
+           private:
+            TimePoint startTime;  // 💡 探索開始時刻。LimitsType startTimeの値。
+            TimePoint optimumTime;
+            TimePoint maximumTime;
+            TimePoint minimumTime;  // 📌 やねうら王独自追加。
+
+            //std::int64_t availableNodes = -1;     // When in 'nodes as time' mode
+            //bool         useNodesTime   = false;  // True if we are in 'nodes as time' mode
+            // 💡 やねうら王ではNodesTimeを使わない。
+
+            // 📌　やねうら王独自追加。
+
+            // 探索終了の時間(startTime + search_end >= now()になったら停止)
+            TimePoint search_end;
+
+            // init()の内部実装。
+            void init_(Search::LimitsType& limits, Color us, int ply, const OptionsMap& options);
+
+            // 前回のinit()の値
+            Search::LimitsType* lastcall_Limits;
+            Color               lastcall_Us;
+            int                 lastcall_Ply;
+            OptionsMap*         lastcall_Opt;
+        };
 
 }  // namespace YaneuraOu
 

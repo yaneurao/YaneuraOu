@@ -303,20 +303,20 @@ void prefetch_evalhash(const Key key) {
 // 評価関数ファイルを読み込む
 // benchコマンドなどでOptionsを保存して復元するのでこのときEvalDirが変更されたことになって、
 // 評価関数の再読込の必要があるというフラグを立てるため、この関数は2度呼び出されることがある。
-void load_eval() {
+void load_eval(OptionsMap& options) {
     NNUE::Initialize();
 
 #if defined(EVAL_LEARN)
     if (!Options["SkipLoadingEval"])
 #endif
     {
-        const std::string dir_name = Options["EvalDir"];
-#if !defined(__EMSCRIPTEN__)
+        const std::string dir_name = options["EvalDir"];
+    #if !defined(__EMSCRIPTEN__)
 		const std::string file_name = NNUE::kFileName;
 #else
 		// WASM
-		const std::string file_name = Options["EvalFile"];
-#endif
+        const std::string file_name = options["EvalFile"];
+    #endif
         const Tools::Result result = [&] {
             if (dir_name != "<internal>") {
                 auto full_dir_name = Path::Combine(Directory::GetCurrentFolder(), dir_name);
