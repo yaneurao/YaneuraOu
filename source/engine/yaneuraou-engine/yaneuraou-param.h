@@ -177,11 +177,6 @@ PARAM_DEFINE PARAM_BAD_ENOUGH_SEE_VALUE = 74;
 // [PARAM] min:4,max:30,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_ASPIRATION_SEARCH1 = 10;
 
-// aspiration searchの定数。
-// 重要度　★★☆☆☆
-// 元の値 = Stockfish 16 : 15335, Stockfish 17 : 13797,13461 , Stockfish 17.1 : 11134 , step = 1000
-// [PARAM] min:10000,max:20000,step:1,interval:1,time_rate:1,fixed
-PARAM_DEFINE PARAM_ASPIRATION_SEARCH2 = 11134;
 
 
 // MovePicker

@@ -435,9 +435,6 @@ private:
 	TimePoint startTimeFromPonderhit;
 };
 
-extern Timer Time;
-
-
 // =====   以下は、やねうら王の独自追加   =====
 
 // --------------------

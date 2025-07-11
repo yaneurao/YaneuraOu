@@ -14,8 +14,11 @@ namespace YaneuraOu::Benchmark {
 // to the given depth are generated and counted, and the sum is returned.
 
 // 指し手生成を検証するためのユーティリティ。
-// 指定された深さまでの全ての葉ノードを生成してカウントし、
-// その合計を返す。
+// 指定された深さまでの全ての葉ノードを生成してカウントし、その合計を返す。
+
+// 💡 perftとはperformance testの略。
+//     開始局面から深さdepthまで全合法手で進めるときの総node数を数えあげる。
+//     指し手生成が正常に行われているかや、生成速度等のテストとして有用。
 
 template<bool Root>
 uint64_t perft(Position& pos, Depth depth) {

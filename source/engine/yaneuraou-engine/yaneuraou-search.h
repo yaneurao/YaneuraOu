@@ -64,6 +64,76 @@ struct InfoIteration {
     size_t           currmovenumber;
 };
 
+// 📌 Skill .. 手加減のための仕組み 📌
+//    やねうら王では実装しない。
+
+#if 0
+// Skill structure is used to implement strength limit. If we have a UCI_Elo,
+// we convert it to an appropriate skill level, anchored to the Stash engine.
+// This method is based on a fit of the Elo results for games played between
+// Stockfish at various skill levels and various versions of the Stash engine.
+// Skill 0 .. 19 now covers CCRL Blitz Elo from 1320 to 3190, approximately
+// Reference: https://github.com/vondele/Stockfish/commit/a08b8d4e9711c2
+
+// Skill 構造体は強さ制限を実装するために使われる。
+// UCI_Elo が指定されている場合、Stash エンジンを基準として
+// 適切なスキルレベルに変換する。
+// この方法は、さまざまなスキルレベルの Stockfish と
+// さまざまなバージョンの Stash エンジンとの対局結果に基づいている。
+// 現在、Skill 0 から 19 は、おおよそ CCRL Blitz の Elo 1320 から 3190 をカバーする。
+// 参考: https://github.com/vondele/Stockfish/commit/a08b8d4e9711c2
+
+// 💡 Skill構造体は強さの制限の実装に用いられる。
+//    (わざと手加減して指すために用いる) →　やねうら王では未使用
+
+struct Skill {
+    // Lowest and highest Elo ratings used in the skill level calculation
+    constexpr static int LowestElo  = 1320;
+    constexpr static int HighestElo = 3190;
+
+	// skill_level : 手加減のレベル。20未満であれば手加減が有効。0が一番弱い。(R2000以上下がる)
+	// uci_elo     : 0以外ならば、そのelo ratingになるように調整される。
+    Skill(int skill_level, int uci_elo) {
+        if (uci_elo)
+        {
+            double e = double(uci_elo - LowestElo) / (HighestElo - LowestElo);
+            level = std::clamp((((37.2473 * e - 40.8525) * e + 22.2943) * e - 0.311438), 0.0, 19.0);
+        }
+        else
+            level = double(skill_level);
+    }
+
+	// 手加減が有効であるか。
+    bool enabled() const { return level < 20.0; }
+
+	// SkillLevelがNなら探索深さもNぐらいにしておきたいので、
+	// depthがSkillLevelに達したのかを判定する。
+	bool time_to_pick(Depth depth) const { return depth == 1 + int(level); }
+
+	// 手加減が有効のときはMultiPV = 4で探索
+	Move pick_best(const RootMoves&, size_t multiPV);
+
+    double level;
+    Move   best = Move::none();
+};
+
+#else
+
+// 💡 やねうら王ではSkillLevelを実装しない。
+struct Skill {
+    // dummy constructor
+    Skill(int, int) {}
+
+    // 常にfalseを返す。つまり、手加減の無効化。
+    bool enabled() { return false; }
+    bool time_to_pick(Depth) const { return true; }
+    Move pick_best(size_t) { return Move::none(); }
+    Move best = Move::none();
+};
+
+#endif
+
+
 // 残り時間チェックを行ったり、main threadからのみアクセスされる探索manager
 // 💡 Stockfishの同名のclassとほぼ同じ内容。
 //     YaneuraOuEngineの1インスタンスに対して、SearchManagerが1インスタンスあれば良いので、
@@ -106,6 +176,9 @@ class SearchManager {
     std::atomic_bool          ponder;
 
     std::array<Value, 4> iterValue;
+
+	// 💡 timeReductionは読み筋が安定しているときに時間を短縮するための係数。
+	//     ここで保存しているのは、前回の反復深化のiterationの時のtimeReductionの値。
     double               previousTimeReduction;
     Value                bestPreviousScore;
     Value                bestPreviousAverageScore;
@@ -156,12 +229,13 @@ public:
 	// 評価関数のパラメーターが各NUMAにコピーされているようにする。
 	virtual void ensure_network_replicated() override;
 
-	// 探索の開始時に呼び出される。
+	// 探索の開始時にmain threadから呼び出される。
 	virtual void start_searching() override;
 
 	// 反復深化
-	// 💡 並列探索しているmain thread以外のthreadのentry point
-	void iterative_deepening() {}
+	// 💡 並列探索のentry point。
+	//     start_searching()から呼び出される。
+	void iterative_deepening();
 
 	// 並列探索において一番良い思考をしたthreadの選出。
     // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
@@ -171,17 +245,38 @@ public:
 	// 💡 Stockfishとの互換性のために用意。
 	SearchManager* main_manager() { return &manager; }
 
+	// 📌 Stockfishのsearch.hで定義されているWorkerが持っているメンバ変数 📌
 
-	// コンストラクタでもらった置換表
+	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
+    ButterflyHistory      mainHistory;
+    LowPlyHistory         lowPlyHistory;
+    CapturePieceToHistory captureHistory;
+
+    // コア数が多いか、長い持ち時間においては、ContinuationHistoryもスレッドごとに確保したほうが良いらしい。
+    // cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
+    // 添字の[2][2]は、[inCheck(王手がかかっているか)][capture_stage]
+    // →　この改造、レーティングがほぼ上がっていない。悪い改造のような気がする。
+    ContinuationHistory continuationHistory[2][2];
+
+	// MultiPVの時の現在探索中のPVのindexと、PVの末尾
+	size_t pvIdx, pvLast;
+
+	// selDepth : 選択探索の深さ。
+	// 💡depthとPV lineに対するUSI infoで出力するselDepth。
+	int    selDepth, nmpMinPly;
+
+	Depth rootDepth, completedDepth;
+
+	// 📌 コンストラクタでもらったやつ 📌
+
+	// 置換表
 	TranspositionTable& tt;
 
-	// コンストラクタでもらったengine
+	// Engine本体
 	YaneuraOuEngine& engine;
 
-	// コンストラクタでもらったSearchManager
+	// SearchManager
 	SearchManager& manager;
-
-	Depth     rootDepth, completedDepth;
 };
 
 } // namespace Search

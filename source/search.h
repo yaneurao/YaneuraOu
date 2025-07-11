@@ -240,6 +240,11 @@ public:
 	virtual void clear(){}
 
 	// 📌 探索の処理を(派生classで)ここに書く。
+	// 📝 このメソッドはmain threadから呼び出される。
+	//    そのあと、sub threadの探索を開始するには、このメソッドのなかから
+	//    ThreadPool.start_searching()を呼び出す。
+	//    そうすると、sub threadから、このstart_searching()が呼び出される。
+	//    並列探索の具体例としては、YaneuraOuWorker::start_searching()を見ること。
 	virtual void start_searching(){}
 
 	bool is_mainthread() const { return threadIdx == 0; }

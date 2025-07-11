@@ -769,32 +769,6 @@ TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(now() - start
 TimePoint Timer::now() const { return /* Search::Limits.npmsec ? now() : YaneuraOu::now(); */ YaneuraOu::now(); }
 // 📝 npmsec、思考時間を秒単位に切り上げ処理をしているのと相性が悪いので、やねうら王では採用しないことにした。
 
-#if defined(USE_TIME_MANAGEMENT)
-
-// 1秒単位で繰り上げてdelayを引く。
-// ただし、remain_timeよりは小さくなるように制限する。
-TimePoint Timer::round_up(TimePoint t0) const
-{
-	// 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
-	auto t = max(((t0 + 999) / 1000) * 1000, minimum_thinking_time);
-
-	// そこから、Options["NetworkDelay"]の値を引く
-	t = t - network_delay;
-
-	// これが元の値より小さいなら、もう1秒使わないともったいない。
-	if (t < t0)
-		t += 1000;
-
-	// remain_timeを上回ってはならない。
-	t = min(t, remain_time);
-	return t;
-}
-
-#endif
-
-Timer Time;
-
-
 // =====   以下は、やねうら王の独自追加   =====
 
 
