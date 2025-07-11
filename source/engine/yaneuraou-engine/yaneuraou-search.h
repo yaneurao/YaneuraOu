@@ -186,6 +186,11 @@ class SearchManager {
 
     size_t id;
 
+	// 前回のPV出力した時刻。PVが詰まるのを抑制するためのもの。
+	// 💡 startTimeからの経過時間。
+	// 📌 やねうら王独自
+	TimePoint lastPvInfoTime;
+
     const UpdateContext& updates;
 };
 }
@@ -199,6 +204,9 @@ public:
 
 	// 思考エンジンの追加オプションを設定する。
 	virtual void add_options() override;
+
+	// "isready"のタイミングでの初期化処理。
+	virtual void isready() override;
 
 	// 置換表
 	TranspositionTable tt;
@@ -229,13 +237,24 @@ public:
 	// 評価関数のパラメーターが各NUMAにコピーされているようにする。
 	virtual void ensure_network_replicated() override;
 
-	// 探索の開始時にmain threadから呼び出される。
+	// "go"コマンドでの探索の開始時にmain threadから呼び出される。
 	virtual void start_searching() override;
 
 	// 反復深化
 	// 💡 並列探索のentry point。
 	//     start_searching()から呼び出される。
 	void iterative_deepening();
+
+	// 探索本体
+	// 💡 最初、iterative_deepening()のなかから呼び出される。
+	template<NodeType nodeType>
+    Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
+
+	// 静止探索
+	// 💡 search()から、残りdepthが小さくなった時に呼び出される。
+	template<NodeType nodeType>
+	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
+
 
 	// 並列探索において一番良い思考をしたthreadの選出。
     // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
@@ -265,7 +284,9 @@ public:
 	// 💡depthとPV lineに対するUSI infoで出力するselDepth。
 	int    selDepth, nmpMinPly;
 
+	// aspiration searchで使う。
 	Depth rootDepth, completedDepth;
+    Value rootDelta;
 
 	// 📌 コンストラクタでもらったやつ 📌
 

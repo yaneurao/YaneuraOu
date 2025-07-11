@@ -360,6 +360,11 @@ namespace Search { struct LimitsType; }
 // Search::Limits.npmsec が trueのときは、Limits.nodesFunc()を呼び出して経過時間の代わりとする。
 struct Timer
 {
+    Timer() {}
+
+	// startTimeを引数sで初期化する。
+    Timer(TimePoint s) : startTime(s) {}
+
 	// タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
 	void reset();
 
@@ -380,52 +385,6 @@ struct Timer
 	// 現在時刻が返る。
 	// Search::Limits.npmsec が trueのときは、Limits.nodesFunc()を呼び出して現在時刻の代わりとする。
 	TimePoint now() const;
-
-	// このシンボルが定義されていると、今回の思考時間を計算する機能が有効になる。
-#if defined(USE_TIME_MANAGEMENT)
-
-	// 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
-	// ※　ここで渡しているlimitsは、今回の探索の終わりまでなくならないものとする。
-	//    "ponderhit"でreinit()でこの変数を参照することがあるため。
-	void init(const Search::LimitsType& limits, Color us, int ply, const OptionsMap* options);
-
-	// ponderhitの時に残り時間が付与されている時(USI拡張)、再度思考時間を調整するために↑のinit()相当のことを行う。
-	void reinit() { init_(*lastcall_Limits, lastcall_Us, lastcall_Ply, *lastcall_Opt);}
-
-	TimePoint minimum() const { return minimumTime; }
-	TimePoint optimum() const { return optimumTime; }
-	TimePoint maximum() const { return maximumTime; }
-
-	// 1秒単位で繰り上げてdelayを引く。
-	// ただし、remain_timeよりは小さくなるように制限する。
-	TimePoint round_up(TimePoint t) const;
-
-	// 探索終了の時間(startTime + search_end >= now()になったら停止)
-	std::atomic<TimePoint> search_end;
-
-private:
-	TimePoint minimumTime;
-	TimePoint optimumTime;
-	TimePoint maximumTime;
-
-	// Options["NetworkDelay"]の値
-	TimePoint network_delay;
-	// Options["MinimalThinkingTime"]の値
-	TimePoint minimum_thinking_time;
-
-	// 今回の残り時間 - Options["NetworkDelay2"]
-	TimePoint remain_time;
-
-	// init()の内部実装用。
-	void init_(const Search::LimitsType& limits, Color us, int ply, const OptionsMap& options);
-
-	// init()が最後に呼び出された時に各引数。これを保存しておき、reinit()の時にはこれを渡す。
-	Search::LimitsType* lastcall_Limits; // どこかに確保しっぱなしにするだろうからポインタでいいや…
-	Color lastcall_Us;
-	int lastcall_Ply;
-	const OptionsMap* lastcall_Opt;
-
-#endif
 
 private:
 	// 探索開始時刻。

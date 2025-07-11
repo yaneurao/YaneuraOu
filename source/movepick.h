@@ -110,8 +110,9 @@ private:
 	// cur            : 次に返す指し手
 	// endCur         : 生成された指し手の末尾
 	// endBadCapture  : BadCaptureの終端(captureの指し手を試すフェイズでのendMovesから後方に向かって悪い捕獲の指し手を移動させていく時に用いる)
-	// endBadQuiets   : BadQuietsの終端
-	ExtMove *cur, *endCur, *endBadCaptures, *endBadQuiets;
+	// endCaptures    : capturesの終端
+    // endGenerated   : 生成された終端
+    ExtMove *cur, *endCur, *endBadCaptures, *endCaptures, *endGenerated;
 
 	// 指し手生成の段階
 	int stage;

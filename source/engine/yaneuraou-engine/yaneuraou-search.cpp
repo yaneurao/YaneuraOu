@@ -368,6 +368,19 @@ void YaneuraOuEngine::add_options() {
     #endif
 }
 
+// "isready"のタイミングでの初期化処理。
+void YaneuraOuEngine::isready() {
+
+	// 📌 やねうら王独自オプションの内容を設定などに反映させる。
+
+	// 検討モード用のPVを出力するのか。
+    global_options.consideration_mode = options["ConsiderationMode"];
+
+    // fail low/highのときにPVを出力するかどうか。
+    global_options.outout_fail_lh_pv  = options["OutputFailLHPV"];
+
+}
+
 // 並列探索において一番良い思考をしたthreadの選出。
 // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
 YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
@@ -612,11 +625,41 @@ void Search::YaneuraOuWorker::start_searching() {
         return;
     }
 
+	// 📌 今回の思考時間の設定。
+    //    これは、ponderhitした時にponderhitにパラメーターが付随していれば
+    //    再計算するする必要性があるので、いずれにせよ呼び出しておく必要がある。
+
     main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options
 			/*  , main_manager()->originalTimeAdjust */);
 			// 💡 やねうら王では、originalTimeAdjustは用いない。
 
+	// 置換表の世代カウンターを進める(クリアではない)
 	tt.new_search();
+
+    // 📌 やねうら王固有の初期化 📌
+    
+	// PVが詰まるのを抑制するために、前回出力時刻を記録しておく。
+    main_manager()->lastPvInfoTime = 0;
+
+    // PVの出力間隔[ms]
+    // go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
+    // この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
+    global_options.pv_interval =
+      (limits.infinite || global_options.consideration_mode) ? 0 : (int) options["PvInterval"];
+
+    // 🌈 引き分けのスコア
+
+    // 引き分け時の値として現在の手番に応じた値を設定してやる。
+    Color us         = rootPos.side_to_move();
+    int draw_value = (int) ((us == BLACK ? options["DrawValueBlack"] : options["DrawValueWhite"])
+                            * Eval::PawnValue / 100);
+
+    // 探索のleaf nodeでは、相手番(root_color != side_to_move)である場合、 +draw_valueではなく、-draw_valueを設定してやらないと非対称な探索となって良くない。
+    // 例) 自分は引き分けを勝ち扱いだと思って探索しているなら、相手は、引き分けを負けとみなしてくれないと非対称になる。
+    drawValueTable[REPETITION_DRAW][ us]  = +draw_value;
+    drawValueTable[REPETITION_DRAW][~us] = -draw_value;
+
+	// ✋ 独自追加ここまで。
 
     if (rootMoves.empty())
     {
@@ -792,7 +835,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 	size_t multiPV = size_t(options["MultiPV"]);
 
 	//Skill skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
-	// 🧠 ↑これでエンジンオプション2つも増えるのやだな…。気が向いたらサポートすることにする。
+	// 🤔 ↑これでエンジンオプション2つも増えるのやだな…。気が向いたらサポートすることにする。
     Skill skill = Skill(/*(int)Options["SkillLevel"]*/ 20, 0);
 
     // When playing with strength handicap enable MultiPV search that we will
@@ -812,6 +855,10 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 	// ---------------------
     //   反復深化のループ
     // ---------------------
+
+	// PV出力用のtimer
+	// 📌 やねうら王独自
+	Timer time(limits.startTime);
 
 	// 反復深化の探索深さが深くなって行っているかのチェック用のカウンター
     // これが増えていない時、同じ深さを再度探索していることになる。(fail highし続けている)
@@ -869,7 +916,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
         for (RootMove& rm : rootMoves)
             rm.previousScore = rm.score;
 
-		// 🧠 将棋ではこれ使わなくていいような？
+		// 🤔 将棋ではこれ使わなくていいような？
 
         //size_t pvFirst = 0;
         //pvLast         = 0;
@@ -943,7 +990,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             //optimism[ us]  = 137 * avg / (std::abs(avg) + 91);
             //optimism[~us] = -optimism[us];
 			#endif
-            // 🧠 このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
+            // 🤔 このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
 			//     TODO : あとで検討する。
 
             // Start with a small aspiration window and, in the case of a fail
@@ -1055,7 +1102,12 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             }
 
             // Sort the PV lines searched so far and update the GUI
-            std::stable_sort(rootMoves.begin() + pvFirst, rootMoves.begin() + pvIdx + 1);
+            // これまでに探索したPVラインをソートし、GUIを更新する
+
+			// 💡 MultiPVの候補手をスコア順に再度並び替えておく。
+            //    (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
+
+			std::stable_sort(rootMoves.begin() /* + pvFirst */, rootMoves.begin() + pvIdx + 1);
 
             if (mainThread
                 && (threads.stop || pvIdx + 1 == multiPV || nodes > 10000000)
@@ -1064,8 +1116,16 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 // if we would have had time to fully search other root-moves. Thus
                 // we suppress this output and below pick a proven score/PV for this
                 // thread (from the previous iteration).
-                && !(threads.abortedSearch && is_loss(rootMoves[0].uciScore)))
-                main_manager()->pv(*this, threads, tt, rootDepth);
+
+				// 探索を中断したスレッドは、詰み直前のPVやTB損失のPVおよび
+				// 信頼できないスコアを持つ可能性がある。
+				// つまり、他のルートムーブを完全に探索する時間があれば、
+				// 遅延したり反証されたりするかもしれない。
+				// したがって、この出力を抑制し、以下でこのスレッドに対して
+				// （前回の反復から）証明済みのスコア／PVを選択する。
+
+                && !(threads.abortedSearch && is_loss(rootMoves[0].usiScore)))
+	                main_manager()->pv(*this, threads, tt, rootDepth);
 
             if (threads.stop)
                 break;
@@ -1083,7 +1143,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             Utility::move_to_front(rootMoves, [&lastBestPV = std::as_const(lastBestPV)](
                                                 const auto& rm) { return rm == lastBestPV[0]; });
             rootMoves[0].pv    = lastBestPV;
-            rootMoves[0].score = rootMoves[0].uciScore = lastBestScore;
+            rootMoves[0].score = rootMoves[0].usiScore = lastBestScore;
         }
         else if (rootMoves[0].pv[0] != lastBestPV[0])
         {
@@ -1096,7 +1156,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             continue;
 
         // Have we found a "mate in x"?
-        if (limits.mate && rootMoves[0].score == rootMoves[0].uciScore
+        if (limits.mate && rootMoves[0].score == rootMoves[0].usiScore
             && ((rootMoves[0].score >= VALUE_MATE_IN_MAX_PLY
                  && VALUE_MATE - rootMoves[0].score <= 2 * limits.mate)
                 || (rootMoves[0].score != -VALUE_INFINITE
@@ -1142,7 +1202,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             if (rootMoves.size() == 1)
                 totalTime = std::min(500.0, totalTime);
 
-            auto elapsedTime = elapsed();
+            auto elapsedTime = time.elapsed();
 
             if (completedDepth >= 10 && nodesEffort >= 97056 && elapsedTime > totalTime * 0.6540
                 && !mainThread->ponder)

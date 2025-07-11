@@ -414,6 +414,9 @@ Move MovePicker::select(Pred filter) {
 // skipQuiets : これがtrueだとQUIETな指し手は返さない。
 Move MovePicker::next_move() {
 
+	// 💡 good Quietの閾値
+	constexpr int goodQuietThreshold = -14000;
+
 top:
 	switch (stage) {
 
@@ -430,7 +433,9 @@ top:
 	case PROBCUT_INIT:
 	case QCAPTURE_INIT:
 		cur = endBadCaptures = moves;
-		endCur               = global_options.generate_all_legal_moves ? generateMoves<CAPTURES_ALL>(pos, cur) : generateMoves<CAPTURES>(pos, cur);
+        endCur = endCaptures = global_options.generate_all_legal_moves
+                                ? generateMoves<CAPTURES_ALL>(pos, cur)
+                                : generateMoves<CAPTURES>(pos, cur);
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
@@ -462,8 +467,6 @@ top:
 
 		if (!skipQuiets)
 		{
-			cur = endBadQuiets = endBadCaptures;
-
 			/*
 			moves          : バッファの先頭
 			endBadCaptures : movesから(endBadCaptures - 1) までに bad capturesの指し手が格納されている。
@@ -501,7 +504,9 @@ top:
 
 			*/
 
-			endCur = global_options.generate_all_legal_moves ? generateMoves<NON_CAPTURES_ALL>(pos, cur) : generateMoves<NON_CAPTURES>(pos, cur);
+            endCur = endGenerated = global_options.generate_all_legal_moves
+                        ? generateMoves<NON_CAPTURES_ALL>(pos, cur)
+                        : generateMoves<NON_CAPTURES>(pos, cur);
 			// 注意 : ここ⇑、CAPTURE_INITで生成した指し手に歩の成りの指し手が含まれているなら、それを除外しなければならない。
 
 			// 駒を捕獲しない指し手に対してオーダリングのためのスコアをつける
@@ -532,20 +537,15 @@ top:
 		// (置換表の指し手とkillerの指し手は返したあとなのでこれらの指し手は除外する必要がある)
 		// ※　これ、指し手の数が多い場合、AVXを使って一気に削除しておいたほうが良いのでは..
 	case GOOD_QUIET:
-		if (!skipQuiets && select([&]() {
-				if (cur->value > -14000)
-					return true;
-				*endBadQuiets++ = *cur;
-				return false;
-			}))
-			return *(cur - 1);
+        if (!skipQuiets && select([&]() { return cur->value > goodQuietThreshold; }))
+            return *(cur - 1);
 
 		// Prepare the pointers to loop over the bad captures
 		// bad capturesの指し手を返すためにポインタを準備する。
 		// ※　bad capturesの先頭を指すようにする。これは指し手生成バッファの先頭からの領域を再利用している。
 
-		cur = moves;
-		endCur = endBadCaptures;
+		cur    = moves;
+        endCur = endBadCaptures;
 
 		++stage;
 		[[fallthrough]];
@@ -558,22 +558,24 @@ top:
 		// Prepare the pointers to loop over the bad quiets
 		// 悪いquietの手をループするためのポインタを準備します
 
-		cur    = endBadCaptures;
-		endCur = endBadQuiets;
+        cur    = endCaptures;
+		endCur = endGenerated;
 
 		++stage;
 		[[fallthrough]];
 
 	case BAD_QUIET:
 		if (!skipQuiets)
-			return select([]() { return true; });
+            return select([&]() { return cur->value <= goodQuietThreshold; });
 
 		return Move::none();
 
 		// 王手回避手の生成
 	case EVASION_INIT:
 		cur    = moves;
-		endCur = global_options.generate_all_legal_moves ? generateMoves<EVASIONS_ALL>(pos, cur) : generateMoves<EVASIONS>(pos, cur);
+        endCur = endGenerated = global_options.generate_all_legal_moves
+                                ? generateMoves<EVASIONS_ALL>(pos, cur)
+                                : generateMoves<EVASIONS>(pos, cur);
 
 		// 王手を回避する指し手に対してオーダリングのためのスコアをつける
 		score<EVASIONS>();
@@ -612,7 +614,7 @@ bool MovePicker::can_move_king_or_pawn() const {
 	// SEE negative captures shouldn't be returned in GOOD_CAPTURE stage
 	assert(stage > GOOD_CAPTURE && stage != EVASION_INIT);
 
-	for (const ExtMove* m = moves; m < endCur; ++m)
+    for (const ExtMove* m = moves; m < endGenerated; ++m)
 	{
 		PieceType movedPieceType = type_of(pos.moved_piece_after(*m));
 		if ((movedPieceType == PAWN || movedPieceType == KING) && pos.legal(*m))
