@@ -2330,80 +2330,196 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         // 🤔 1手詰めと宣言勝ちがなかったのでこの時点でもsave()したほうがいいような気がしなくもない。
     }
 
-	// 🚧 工事中 🚧
-
-
-#if 0
-
+	// -----------------------
     // Step 6. Static evaluation of the position
+    // Step 6. 局面の静的な評価
+    // -----------------------
+
     Value      unadjustedStaticEval = VALUE_NONE;
-    const auto correctionValue      = correction_value(*thisThread, pos, ss);
-    if (ss->inCheck)
+
+	// TODO : あとで correction history
+    const auto correctionValue = 0; // correction_value(*thisThread, pos, ss);
+
+	// TODO : ここ、あとで元のコード見ながらなおす。
+	if (ss->inCheck)
     {
         // Skip early pruning when in check
-        ss->staticEval = eval = (ss - 2)->staticEval;
+        // 王手がかかっているときは、early pruning(早期枝刈り)をスキップする
+
+		ss->staticEval = eval = (ss - 2)->staticEval;
         improving             = false;
         goto moves_loop;
     }
     else if (excludedMove)
         unadjustedStaticEval = eval = ss->staticEval;
+    /*
+		📝  excludedMoveがあるときは、この局面の情報をTTに保存してはならない。
+			 (同一局面で異なるexcludedMoveを持つ局面が同じhashkeyを持つので情報の一貫性がなくなる。)
+			 ⇨ 異なるexcludedMoveに対して異なるhashkeyを持てばいいのだが
+			   例: auto posKey = pos.hash_key() ^ make_key(excludedMove);
+			 (以前のStockfishのバージョンではそのようにしていた)
+			  現在のコードのほうが強いようで、そのコードは取り除かれた。
+	*/
     else if (ss->ttHit)
     {
         // Never assume anything about values stored in TT
-        unadjustedStaticEval = ttData.eval;
-        if (!is_valid(unadjustedStaticEval))
-            unadjustedStaticEval = evaluate(pos);
+        // TTに格納されている値に関して何も仮定はしない
 
-        ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, correctionValue);
+        // 💡 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
+        //     あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
+
+		unadjustedStaticEval = ttData.eval;
+        if (!is_valid(unadjustedStaticEval))
+            unadjustedStaticEval = Eval::evaluate(pos);
+
+		// TODO : あとで correction history
+        ss->staticEval = eval =
+          unadjustedStaticEval;  // to_corrected_static_eval(unadjustedStaticEval, correctionValue);
 
         // ttValue can be used as a better position evaluation
+        // ttValue は、より良い局面評価として使用できる
+
+		/*
+			📝 ttValueのほうがこの局面の評価値の見積もりとして適切であるならそれを採用する。
+
+				1. ttValue > evaluate()でかつ、ttValueがBOUND_LOWERなら、真の値はこれより大きいはずだから、
+				  evalとしてttValueを採用して良い。
+
+				2. ttValue < evaluate()でかつ、ttValueがBOUND_UPPERなら、真の値はこれより小さいはずだから、
+				  evalとしてttValueを採用したほうがこの局面に対する評価値の見積りとして適切である。
+		*/
+
         if (is_valid(ttData.value)
             && (ttData.bound & (ttData.value > eval ? BOUND_LOWER : BOUND_UPPER)))
             eval = ttData.value;
     }
     else
     {
-        unadjustedStaticEval = evaluate(pos);
-        ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, correctionValue);
+        unadjustedStaticEval = Eval::evaluate(pos);
+
+		// TODO : あとでなおす correction history
+        ss->staticEval = eval =
+          unadjustedStaticEval; // to_corrected_static_eval(unadjustedStaticEval, correctionValue);
 
         // Static evaluation is saved as it was before adjustment by correction history
+        // 静的評価は、補正履歴による調整が行われる前の状態で保存される。
+
+		/*
+		  📝 excludedMoveがある時は、これを置換表に保存するのは危ない。
+              cf . Add / remove leaves from search tree ttPv : https://github.com/official-stockfish/Stockfish/commit/c02b3a4c7a339d212d5c6f75b3b89c926d33a800
+              上の方にある else if (excludedMove) でこの条件は除外されている。
+		*/
+
         ttWriter.write(posKey, VALUE_NONE, ss->ttPv, BOUND_NONE, DEPTH_UNSEARCHED, Move::none(),
                        unadjustedStaticEval, tt.generation());
+
+		// どうせ毎node評価関数を呼び出すので、evalの値にそんなに価値はないのだが、mate_1ply()を
+        // 実行したという証にはなるので意味がある。
     }
 
+	// -----------------------
+    //   evalベースの枝刈り
+    // -----------------------
+
     // Use static evaluation difference to improve quiet move ordering
+    // 静的評価の差を利用して、静かな手の順序付けを改善します。
+
+	/*
+		📝 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
+		    王手のときはここにはこない。(上のinCheckのなかでMOVES_LOOPに突入。)
+
+			is_ok()はMove::null()かのチェック。
+			1手前でMove::null()ではなく、王手がかかっておらず、駒を取る指し手ではなかったなら…。
+	*/
+
     if (((ss - 1)->currentMove).is_ok() && !(ss - 1)->inCheck && !priorCapture && !ttHit)
     {
         int bonus = std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -1858, 1492) + 661;
         thisThread->mainHistory[~us][((ss - 1)->currentMove).from_to()] << bonus * 1057 / 1024;
-        if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
+
+#if defined(ENABLE_PAWN_HISTORY)
+		if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
             thisThread->pawnHistory[pawn_structure_index(pos)][pos.piece_on(prevSq)][prevSq]
               << bonus * 1266 / 1024;
+#endif
     }
 
     // Set up the improving flag, which is true if current static evaluation is
     // bigger than the previous static evaluation at our turn (if we were in
     // check at our previous move we go back until we weren't in check) and is
     // false otherwise. The improving flag is used in various pruning heuristics.
+
+	// improvingフラグを設定します。これは、現在の静的評価が前回の自分の手番での
+    // 静的評価より大きい場合にtrueとなります（前回の手で王手を受けていた場合、
+    // 王手を受けていない局面まで遡って評価します）。
+    // それ以外の場合はfalseとなります。このimprovingフラグは、さまざまな枝刈り手法で使用されます。
+
+	/*
+		📝 improvingは、評価値が2手前の局面から上がって行っているのかのフラグ
+		    上がって行っているなら枝刈りを甘くする。
+
+		    VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
+		    枝刈りを甘くして調べないといけないのでimproving扱いとする。
+
+		💡 VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
+	*/
+
     improving = ss->staticEval > (ss - 2)->staticEval;
 
+	/*
+		📝 opponentWorseningは、相手の状況が悪化しているかのフラグ。
+	
+		💡 ss->staticEval == - (ss-1)->staticEval であるのが普通だが、
+		    左辺のほうが大きい(相手の評価値が悪化している)ならば、
+		    相手の評価値が悪くなっていっていることを意味している。
+	*/
+
     opponentWorsening = ss->staticEval > -(ss - 1)->staticEval;
+
+	// 1手前のreductionに応じた残りdepthの調整
 
     if (priorReduction >= 3 && !opponentWorsening)
         depth++;
     if (priorReduction >= 1 && depth >= 2 && ss->staticEval + (ss - 1)->staticEval > 175)
         depth--;
 
+	// -----------------------
     // Step 7. Razoring
+    // -----------------------
+
     // If eval is really low, skip search entirely and return the qsearch value.
     // For PvNodes, we must have a guard against mates being returned.
+
+	// 評価値が非常に低い場合、検索を完全にスキップして qsearch の値を返します。
+    // PvNode では、チェックメイトが返されるのを防ぐためのガードが必要です。
+
     if (!PvNode && eval < alpha - 486 - 325 * depth * depth)
         return qsearch<NonPV>(pos, ss, alpha, beta);
 
+	// -----------------------
     // Step 8. Futility pruning: child node
+    // Step 8. Futility枝刈り : 子ノード
+    // -----------------------
+
     // The depth condition is important for mate finding.
+    // depthの条件は詰みを発見するために重要である。
+
+	/*
+		📝 このあとの残り探索深さによって、評価値が変動する幅はfutility_margin(depth)だと見積れるので
+			evalからこれを引いてbetaより大きいなら、beta cutが出来る。
+
+			ただし、将棋の終盤では評価値の変動の幅は大きくなっていくので、進行度に応じたfutility_marginが必要となる。
+			ここでは進行度としてgamePly()を用いる。このへんはあとで調整すべき。
+
+			Stockfish9までは、futility pruningを、root node以外に適用していたが、
+			Stockfish10でnonPVにのみの適用に変更になった。
+	*/
+
     {
-        auto futility_margin = [&](Depth d) {
+        // futility margin
+        // 💡 depth(残り探索深さ)に応じたfutility margin。
+
+		auto futility_margin = [&](Depth d) {
             Value futilityMult = 93 - 20 * (cutNode && !ss->ttHit);
 
             return futilityMult * d                      //
@@ -2418,19 +2534,42 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
             return beta + (eval - beta) / 3;
     }
 
+	// -----------------------
     // Step 9. Null move search with verification search
-    if (cutNode && (ss - 1)->currentMove != Move::null() && eval >= beta
-        && ss->staticEval >= beta - 19 * depth + 389 && !excludedMove && pos.non_pawn_material(us)
-        && ss->ply >= thisThread->nmpMinPly && !is_loss(beta))
+    // Step 9. 検証探索を伴うnull move探索
+    // -----------------------
+
+    if (cutNode && (ss - 1)->currentMove != Move::null()
+		&& eval >= beta
+        //  🖊 evalがbetaを超えているので1手パスしてもbetaは超えそう。だからnull moveを試す
+        && ss->staticEval >= beta - 19 * depth + 389 && !excludedMove
+		// && pos.non_pawn_material(us)
+		// 💡 盤上にpawn以外の駒がある ≒ pawnだけの終盤ではない。
+		// 🤔 将棋でもこれに相当する条件が必要かも。
+        && ss->ply >= thisThread->nmpMinPly
+		&& !is_loss(beta)
+        // 同じ手番側に連続してnull moveを適用しない
+    )
     {
-        assert(eval - beta >= 0);
+        ASSERT_LV3(eval - beta >= 0);
 
         // Null move dynamic reduction based on depth
-        Depth R = 7 + depth / 3;
+        // (残り探索)深さと評価値に基づくnull moveの動的なreduction
+
+		Depth R = 7 + depth / 3;
 
         ss->currentMove                   = Move::null();
         ss->continuationHistory           = &thisThread->continuationHistory[0][0][NO_PIECE][0];
-        ss->continuationCorrectionHistory = &thisThread->continuationCorrectionHistory[NO_PIECE][0];
+
+		// TODO : あとで correction history
+        //ss->continuationCorrectionHistory = &thisThread->continuationCorrectionHistory[NO_PIECE][0];
+
+		// 💡  null moveなので、王手はかかっていなくて駒取りでもない。
+        //     よって、continuationHistory[0(王手かかってない)][0(駒取りではない)][NO_PIECE][SQ_ZERO]
+		//
+		// 📃 王手がかかっている局面では ⇑の方にある goto moves_loop; によってそっちに行ってるので、
+        //     ここでは現局面で手番側に王手がかかっていない = 直前の指し手(非手番側)は王手ではない ことがわかっている。
+        //     do_null_move()は、この条件を満たす必要がある。
 
         do_null_move(pos, st);
 
@@ -2439,18 +2578,31 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         undo_null_move(pos);
 
         // Do not return unproven mate or TB scores
+        // 証明されていないmate scoreやTB scoreはreturnで返さない。
+
         if (nullValue >= beta && !is_win(nullValue))
         {
+            // 1手パスしてもbetaを上回りそうであることがわかったので
+            // これをもう少しちゃんと検証しなおす。
+
             if (thisThread->nmpMinPly || depth < 16)
                 return nullValue;
 
-            assert(!thisThread->nmpMinPly);  // Recursive verification is not allowed
+			ASSERT_LV3(!thisThread->nmpMinPly);  // Recursive verification is not allowed
+                                                 // 再帰的な検証は認めていない。
 
             // Do verification search at high depths, with null move pruning disabled
             // until ply exceeds nmpMinPly.
-            thisThread->nmpMinPly = ss->ply + 3 * (depth - R) / 4;
+			// 
+            // 💡 null move枝刈りを無効化して、plyがnmpMinPlyを超えるまで
+            //     高いdepthで検証のための探索を行う。
 
-            Value v = search<NonPV>(pos, ss, beta - 1, beta, depth - R, false);
+			thisThread->nmpMinPly = ss->ply + 3 * (depth - R) / 4;
+
+			// 📝 nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。
+			//     cutNodeにしない。
+
+			Value v = search<NonPV>(pos, ss, beta - 1, beta, depth - R, false);
 
             thisThread->nmpMinPly = 0;
 
@@ -2459,52 +2611,83 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         }
     }
 
+	// ここでimproving計算しなおす。
+
     improving |= ss->staticEval >= beta + 94;
 
+	// -----------------------
     // Step 10. Internal iterative reductions
+    // Step 10. 内部反復リダクション
+    // -----------------------
+
     // For PV nodes without a ttMove as well as for deep enough cutNodes, we decrease depth.
     // (*Scaler) Especially if they make IIR less aggressive.
+	// ttMove を持たない PV ノードや、十分に深い cutNodes については、探索深度を減らします。
+    //（*Scaler）特に、IIR のアグレッシブさが抑えられる場合に適用されます。
+
     if (!allNode && depth >= 6 && !ttData.move)
         depth--;
 
+	// -----------------------
     // Step 11. ProbCut
+    // -----------------------
+
     // If we have a good enough capture (or queen promotion) and a reduced search
     // returns a value much above beta, we can (almost) safely prune the previous move.
-    probCutBeta = beta + 201 - 58 * improving;
-    if (depth >= 3
+
+	// 十分に良い駒取り（またはクイーン昇格）があり、
+    // (残り探索深さを)削減された探索でbetaを大幅に上回る値が返される場合、
+    // 直前の手を（ほぼ）安全に枝刈りできます。
+
+	// probCutに使うbeta値。
+    probCutBeta = beta + PARAM_PROBCUT_MARGIN1 - PARAM_PROBCUT_MARGIN2A * improving;
+
+	if (depth >= 3
         && !is_decisive(beta)
         // If value from transposition table is lower than probCutBeta, don't attempt
         // probCut there
+        // 置換表から得た値が probCutBeta より低い場合は、そこで probCut を試みない
         && !(is_valid(ttData.value) && ttData.value < probCutBeta))
     {
-        assert(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
+        ASSERT_LV3(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
 
         MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &thisThread->captureHistory);
         Depth      probCutDepth = std::max(depth - 5, 0);
 
+		// 💡 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
+        //     cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
+
         while ((move = mp.next_move()) != Move::none())
         {
-            assert(move.is_ok());
+            ASSERT_LV3(move.is_ok());
+            ASSERT_LV5(pos.pseudo_legal(move) && pos.legal_promote(move));
 
             if (move == excludedMove || !pos.legal(move))
                 continue;
 
-            assert(pos.capture_stage(move));
+            //assert(pos.capture_stage(move));
+            // ⚠ moveとして歩の成りも返ってくるが、これがcapture_stage()と一致するとは限らない。
+            //     MovePickerはprob cutの時に、
+            //    (GenerateAllLegalMovesオプションがオンであっても)歩の成らずは返してこないことを保証すべき。
 
-            movedPiece = pos.moved_piece(move);
+            movedPiece = pos.moved_piece_after(move);
 
             do_move(pos, move, st);
 
             ss->currentMove = move;
             ss->continuationHistory =
               &this->continuationHistory[ss->inCheck][true][movedPiece][move.to_sq()];
-            ss->continuationCorrectionHistory =
-              &this->continuationCorrectionHistory[movedPiece][move.to_sq()];
+            //ss->continuationCorrectionHistory =
+            //  &this->continuationCorrectionHistory[movedPiece][move.to_sq()];
 
             // Perform a preliminary qsearch to verify that the move holds
+            // この指し手がよさげであることを確認するための予備的なqsearch
+
             value = -qsearch<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1);
 
             // If the qsearch held, perform the regular search
+            // qsearch が維持された場合、通常の探索を実行する
+
             if (value >= probCutBeta && probCutDepth > 0)
                 value = -search<NonPV>(pos, ss + 1, -probCutBeta, -probCutBeta + 1, probCutDepth,
                                        !cutNode);
@@ -2514,16 +2697,23 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
             if (value >= probCutBeta)
             {
                 // Save ProbCut data into transposition table
-                ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER,
+                // ProbCutのdataを置換表に保存する。
+
+				ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, BOUND_LOWER,
                                probCutDepth + 1, move, unadjustedStaticEval, tt.generation());
 
                 if (!is_decisive(value))
                     return value - (probCutBeta - beta);
             }
-        }
+        } // end of while
     }
 
 moves_loop:  // When in check, search starts here
+			 // 王手がかかっている局面では、探索はここから始まる。
+
+	// 🚧 工事中 🚧
+
+#if 0
 
     // Step 12. A small Probcut idea
     probCutBeta = beta + 400;
@@ -3067,6 +3257,11 @@ void SearchManager::pv(Search::Worker&           worker,
 // TODO : あとで
 
 namespace {
+
+// Adjusts a mate or TB score from "plies to mate from the root" to
+// "plies to mate from the current position". Standard scores are unchanged.
+// The function is called before storing a value in the transposition table.
+Value value_to_tt(Value v, int ply) { return is_win(v) ? v + ply : is_loss(v) ? v - ply : v; }
 
 // Inverse of value_to_tt(): it adjusts a mate or TB score from the transposition
 // table (which refers to the plies to mate/be mated from current position) to

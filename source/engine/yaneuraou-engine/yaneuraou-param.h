@@ -83,11 +83,6 @@ PARAM_DEFINE PARAM_LMR_SEE_MARGIN1 = 158;
 //
 
 // 重要度　★★★☆☆
-// 元の値 = Stockfish 14 : 173 , Stockfish 16 : 152 , Stockfish 17 : 209,235 , Stockfish 17.1 : 213, step = 10
-// [PARAM] min:50,max:400,step:10,interval:1,time_rate:1,
-PARAM_DEFINE PARAM_NULL_MOVE_DYNAMIC_GAMMA = 213;
-
-// 重要度　★★★☆☆
 // 元の値 = Stockfish 17 : 23,21 , Stockfish 17.1 : 19,  step = 2
 // [PARAM] min:10,max:60,step:1,interval:1,time_rate:1,fixed
 PARAM_DEFINE PARAM_NULL_MOVE_MARGIN1 = 19;
