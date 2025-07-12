@@ -135,8 +135,8 @@ struct Skill {
 
 
 // 残り時間チェックを行ったり、main threadからのみアクセスされる探索manager
-// 💡 Stockfishの同名のclassとほぼ同じ内容。
-//     YaneuraOuEngineの1インスタンスに対して、SearchManagerが1インスタンスあれば良いので、
+// 💡 Stockfishの同名のclassとほぼ同じ内容。Stockfishのsearch.hにあるSearchManagerを参考にすること。
+// 🤔 YaneuraOuEngineの1インスタンスに対して、SearchManagerが1インスタンスあれば良いので、
 //     やねうら王では、YaneuraOuEngineのメンバーとして持たせることにする。
 class SearchManager {
    public:
@@ -228,6 +228,7 @@ namespace Search {
 // やねうら王の探索Worker
 // 📌 Stockfishから拡張して、やねうら王はエンジンを自由に差し替えられるようになっているので、
 //     自分のWorkerを定義するには、Search::Worker classから派生させる。
+// 💡 このclassのコードは、Stockfishのsearch.hにあるWorker classを参考にすること。
 class YaneuraOuWorker: public Worker {
    public:
     // 💡 コンストラクタでWorkerのコンストラクタを初期化しないといけないので、
@@ -346,6 +347,11 @@ class YaneuraOuWorker: public Worker {
 
     // SearchManager
     SearchManager& manager;
+};
+
+struct ConthistBonus {
+    int index;
+    int weight;
 };
 
 } // namespace Search

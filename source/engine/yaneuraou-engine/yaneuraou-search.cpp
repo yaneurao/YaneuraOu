@@ -553,8 +553,11 @@ Value value_to_tt(Value v, int ply);
 Value value_from_tt(Value v, int ply /*, int r50c */);
 void  update_pv(Move* pv, Move move, const Move* childPv);
 void  update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
-void  update_quiet_histories(
-   const Position& pos, Stack* ss, Search::Worker& workerThread, Move move, int bonus);
+void  update_quiet_histories(const Position&                pos,
+                             Stack*                         ss,
+                             Search::YaneuraOuWorker& workerThread,
+                             Move                           move,
+                             int                            bonus);
 
 // 📝 32は、quietsSearched、quietsSearchedの最大数。そのnodeで生成したQUIETS/CAPTURESの指し手を良い順に保持してある。
 //     bonusを加点するときにこれらの指し手に対して行う。
@@ -564,7 +567,7 @@ void  update_quiet_histories(
 
 void update_all_stats(const Position& pos,
                       Stack*          ss,
-                      Search::Worker& workerThread,
+                      Search::YaneuraOuWorker& workerThread,
                       Move            bestMove,
                       Square          prevSq,
                       SearchedList&   quietsSearched,
@@ -2032,37 +2035,86 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // At non-PV nodes we check for an early TT cutoff
     // 非PVノードでは、早期のTTカットオフを確認する
 
-	// 🚧 工事中 🚧
+	// 📝  PV nodeでは置換表の指し手では枝刈りしない。
+	//      PV nodeはごくわずかしかないし、重要な変化だから枝刈りしたくない。
 
-#if 0
-	if (!PvNode && !excludedMove && ttData.depth > depth - (ttData.value <= beta)
-        && is_valid(ttData.value)  // Can happen when !ttHit or when access race in probe()
+	if (!PvNode
+		&& !excludedMove
+		&& ttData.depth > depth - (ttData.value <= beta) // 置換表に登録されている探索深さのほうが深くて
+        && is_valid(ttData.value)   // Can happen when !ttHit or when access race in probe()
+							        // !ttHitの場合やprobe()でのアクセス競合時に発生する可能性がありうる。
         && (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER))
         && (cutNode == (ttData.value >= beta) || depth > 5))
+    /*
+		📝 解説
+		
+			ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
+			ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
+			今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
+			このままこの値でreturnして良い。
+	*/
     {
         // If ttMove is quiet, update move sorting heuristics on TT hit
+        // ttMoveがquietの指し手である場合、置換表ヒット時に指し手のソート用ヒューリスティクスを更新します。
+
         if (ttData.move && ttData.value >= beta)
         {
+			/*
+				📝 備考
+		
+					置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
+					捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
+		
+					ただし置換表の指し手には、hash衝突によりpseudo-leaglでない指し手である可能性がある。
+					update_quiet_stats()で、この指し手の移動元の駒を取得してCounter Moveとするが、
+					それがこの局面の手番側の駒ではないことがあるのでゆえにここでpseudo_legalのチェックをして、
+					Counter Moveに先手の指し手として後手の指し手が登録されるような事態を回避している。
+					その時に行われる誤ったβcut(枝刈り)は許容できる。(non PVで生じることなのでそこまで探索に対して悪い影響がない)
+					cf. https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
+
+					やねうら王ではttMoveがMove::win()であることはありうるので注意が必要。
+					is_ok(m)==falseの時、Position::to_move(m)がmをそのまま帰すことは保証されている。
+					そのためttMoveがMove::win()でありうる。これはstatのupdateをされると困るのでis_ok()で弾く必要がある。
+					is_ok()は、ttMove == Move::none()の時はfalseなのでこの条件を省略できる。
+					⇨　Move::win()書き出すの、筋が良くないし、入玉自体が超レアケースなので棋力に影響しないし、これやめることにする。
+
+					If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
+					置換表にhitした時に、ttMoveがquietの指し手であるなら、指し手並び替えheuristics(quiet_statsのこと)を更新する。
+			*/
+
             // Bonus for a quiet ttMove that fails high
+            // fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
+
             if (!ttCapture)
                 update_quiet_histories(pos, ss, *this, ttData.move,
                                        std::min(125 * depth - 77, 1157));
 
             // Extra penalty for early quiet moves of the previous ply
-            if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 3 && !priorCapture)
+            // 1手前の早い時点のquietの指し手に対する追加のペナルティ
+
+			// 💡 1手前がMove::null()であることを考慮する必要がある。
+
+			if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 3 && !priorCapture)
                 update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -2301);
         }
 
         // Partial workaround for the graph history interaction problem
         // For high rule50 counts don't produce transposition table cutoffs.
-        if (pos.rule50_count() < 90)
+
+		// グラフ履歴の相互作用問題に対する部分的な回避策
+        // rule50カウントが高い場合は、トランスポジションテーブルによるカットオフを行いません。
+
+        // ⚠ 将棋では関係のないルールなので無視して良いが、pos.rule50_count < 90 が(チェスの)通常の状態なので、
+        //     if成立時のreturnはしなければならない。
+
+		if (/* pos.rule50_count() < 90 */ true)
         {
             if (depth >= 8 && ttData.move && pos.pseudo_legal(ttData.move) && pos.legal(ttData.move)
                 && !is_decisive(ttData.value))
             {
                 do_move(pos, ttData.move, st);
                 Key nextPosKey                             = pos.key();
-                auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey);
+                auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey, pos);
                 undo_move(pos, ttData.move);
 
                 // Check that the ttValue after the tt move would also trigger a cutoff
@@ -2076,7 +2128,14 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         }
     }
 
+	// -----------------------
+    //     宣言勝ち
+    // -----------------------
+
     // Step 5. Tablebases probe
+    // ⚠ StockfishのStep 5.のコードはtablebase(終盤データベース)で将棋には関係ないので割愛。
+
+#if 0
     if (!rootNode && !excludedMove && tbConfig.cardinality)
     {
         int piecesCount = pos.count<ALL_PIECES>();
@@ -2128,6 +2187,153 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
             }
         }
     }
+#endif
+
+	// これは将棋にはないが、将棋には代わりに宣言勝ちというのがある。
+    // 宣言勝ちと1手詰めだと1手詰めの方が圧倒的に多いので、まず1手詰め判定を行う。
+
+    // 📌 以下は、やねうら王独自のコード 📌
+
+    // -----------------------
+    //    1手詰みか？
+    // -----------------------
+
+	/*
+		📝 ttHitしている時は、すでに1手詰め・宣言勝ちの判定は完了しているはずなので行わない。
+			excludedMoveがある時はttHitしてttMoveがあるはずだが、置換表壊されるケースがあるので
+			念のためチェックはしないといけない。
+
+			!rootnodeではなく!PvNodeの方がいいかも？
+			(PvNodeでは置換表の指し手を信用してはいけないという方針なら)
+
+			excludedMoveがある時には本当は、それを除外して詰み探索をする必要があるが、
+			詰みがある場合は、singular extensionの判定の前までにbeta cutするので、結局、
+			詰みがあるのにexcludedMoveが設定されているということはありえない。
+			よって、「excludedMoveは設定されていない」時だけ詰みがあるかどうかを調べれば良く、
+			この条件を詰み探索の事前条件に追加することができる。
+		
+			ただし、excludedMoveがある時、singular extensionの事前条件を満たすはずで、
+			singular extensionはttMoveが存在することがその条件に含まれるから、
+			ss->ttHit == trueになっているはず。
+		
+			RootNodeでは1手詰め判定、ややこしくなるのでやらない。(RootMovesの入れ替え等が発生するので)
+			置換表にhitしたときも1手詰め判定はすでに行われていると思われるのでこの場合もはしょる。
+			depthの残りがある程度ないと、1手詰めはどうせこのあとすぐに見つけてしまうわけで1手詰めを
+			見つけたときのリターン(見返り)が少ない。
+			ただ、静止探索で入れている以上、depth == 1でも1手詰めを判定したほうがよさげではある。
+	*/
+
+	if (!rootNode && !ttHit
+#if !defined(CHECK_MATE1PLY_REGARDLESS_OF_EXCLUDED_MOVE)
+        && !excludedMove
+#endif
+    )
+    {
+        if (PARAM_SEARCH_MATE1 && !ss->inCheck)
+        {
+            move = Mate::mate_1ply(pos);
+
+            if (move != Move::none())
+            {
+                /*
+					🤔 1手詰めスコアなので確実にvalue > alphaなはず。
+					    1手詰めは次のnodeで詰むという解釈
+
+					⚠ このとき、bestValueをvalue_to_tt()で変換してはならない。
+					    mate_in()はrootからの計算された詰みのスコアであるから、このまま置換表に格納してよい。
+                
+                		あるいは、VALUE_MATE - 1をvalue_to_tt()で変換したものを置換表に格納するかだが、
+					    その場合、returnで返す値を用意するのに再度変換が必要になるのでそういう書き方は良くない。
+				*/
+
+                bestValue = mate_in(ss->ply + 1);
+
+                ASSERT_LV3(pos.legal_promote(move));
+                if (!excludedMove)
+                    ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT,
+                                    std::min(MAX_PLY - 1, depth + 6), move, VALUE_NONE,
+                                    TT.generation());
+
+				// ⚠ excludedMoveがあるときは置換表に書き出さないルールになっているので、
+                //     この↑の条件式が必要なので注意。
+
+				/*
+				   📝 
+                　	 【計測資料 39.】 mate1plyの指し手を見つけた時に置換表の指し手でbeta
+					  cutする時と同じ処理をする。
+
+                      兄弟局面でこのmateの指し手がよい指し手ある可能性があるので ここでttMoveでbeta
+                      cutする時と同様の処理を行うと短い時間ではわずかに強くなるっぽいのだが
+                      長い時間で計測できる差ではなかったので削除。
+
+					💡
+						1手詰めを発見した時に、save()でdepthをどのように設定すべきか問題について。
+
+						即詰みは絶対であり、MAX_PLYの深さで探索した時の結果と同じであるから、
+						以前はMAX_PLYにしていたのだが、よく考えたら、即詰みがあるなら上位ノードで
+						枝刈りが発生してこのノードにはほぼ再訪問しないと考えられるのでこんなものが
+						置換表に残っている価値に乏しく、また、MAX_PLYにしてしまうと、
+						TTEntryのreplacement strategy上、depthが大きなTTEntryはかなりの優先度になり
+						いつまでもreplacementされない。
+
+						こんな情報、lostしたところで1手詰めならmate1ply()で一手も進めずに得られる情報であり、
+						最優先にreplaceすべきTTEntryにも関わらずである。
+
+						かと言ってDEPTH_NONEにするとtt->depth()が 0 になってしまい、枝刈りがされなくなる。
+						そこで、depth + 6 ぐらいがベストであるようだ。
+				*/
+
+				return bestValue;
+            }
+        }
+	}
+
+	// -----------------------
+    //      宣言勝ちか？
+    // -----------------------
+
+	// 置換表にhitしていないときは宣言勝ちの判定をまだやっていないということなので今回やる。
+    // PvNodeでは置換表の指し手を信用してはいけないので毎回やる。
+    if (!ttData.move || PvNode)
+    {
+        // 💡 王手がかかってようがかかってまいが、宣言勝ちの判定は正しい。
+        //     (トライルールのとき王手を回避しながら入玉することはありうるので)
+        //     トライルールのときここで返ってくるのは16bitのmoveだが、置換表に格納するには問題ない。
+        move = pos.DeclarationWin();
+        if (move != Move::none())
+        {
+            bestValue = mate_in(
+                ss->ply + 1);  // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+
+            ASSERT_LV3(pos.legal_promote(move));
+            /*
+				if (!excludedMove)
+					ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT,
+						std::min(MAX_PLY - 1, depth + 6),
+						is_ok(move) ? move : MOVE_NONE, // MOVE_WINはMOVE_NONEとして書き出す。
+						VALUE_NONE, TT.generation());
+			*/
+
+			/*
+				📝  is_ok(m)は、MOVE_WINではない通常の指し手(トライルールの時の51玉のような指し手)は
+					 その指手を置換表に書き出すという処理。
+            
+					 probe()でttData.move == MOVE_WINのケースを完全に考慮するのは非常に難しい。
+             　		 MOVE_WINの値は、置換表に書き出さないほうがいいと思う。
+            
+					 また、置換表にわざと書き込まないことによって、次にこのnodeに訪問したときに
+					 再度入玉判定を行い、枝刈りされることを期待している。
+			*/
+
+            return bestValue;
+        }
+        // 🤔 1手詰めと宣言勝ちがなかったのでこの時点でもsave()したほうがいいような気がしなくもない。
+    }
+
+	// 🚧 工事中 🚧
+
+
+#if 0
 
     // Step 6. Static evaluation of the position
     Value      unadjustedStaticEval = VALUE_NONE;
@@ -2902,58 +3108,95 @@ Value value_from_tt(Value v, int ply /*, int r50c */) {
 
     return v;
 }
+
+// Updates stats at the end of search() when a bestMove is found
+void update_all_stats(const Position&          pos,
+                      Stack*                   ss,
+                      Search::YaneuraOuWorker& workerThread,
+                      Move                     bestMove,
+                      Square                   prevSq,
+                      SearchedList&            quietsSearched,
+                      SearchedList&            capturesSearched,
+                      Depth                    depth,
+                      Move                     ttMove,
+                      int                      moveCount) {
+
+    CapturePieceToHistory& captureHistory = workerThread.captureHistory;
+    Piece                  movedPiece     = pos.moved_piece_after(bestMove);
+    PieceType              capturedPiece;
+
+    int bonus = std::min(143 * depth - 89, 1496) + 302 * (bestMove == ttMove);
+    int malus = std::min(737 * depth - 179, 3141) - 30 * moveCount;
+
+    if (!pos.capture_stage(bestMove))
+    {
+        update_quiet_histories(pos, ss, workerThread, bestMove, bonus * 1059 / 1024);
+
+        // Decrease stats for all non-best quiet moves
+        for (Move move : quietsSearched)
+            update_quiet_histories(pos, ss, workerThread, move, -malus * 1310 / 1024);
+    }
+    else
+    {
+        // Increase stats for the best move in case it was a capture move
+        capturedPiece = type_of(pos.piece_on(bestMove.to_sq()));
+        captureHistory[movedPiece][bestMove.to_sq()][capturedPiece] << bonus * 1213 / 1024;
+    }
+
+    // Extra penalty for a quiet early move that was not a TT move in
+    // previous ply when it gets refuted.
+    if (prevSq != SQ_NONE && ((ss - 1)->moveCount == 1 + (ss - 1)->ttHit) && !pos.captured_piece())
+        update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -malus * 580 / 1024);
+
+    // Decrease stats for all non-best capture moves
+    for (Move move : capturesSearched)
+    {
+        movedPiece    = pos.moved_piece_after(move);
+        capturedPiece = type_of(pos.piece_on(move.to_sq()));
+        captureHistory[movedPiece][move.to_sq()][capturedPiece] << -malus * 1388 / 1024;
+    }
 }
 
 
-// Called in case we have no ponder move before exiting the search,
-// for instance, in case we stop the search during a fail high at root.
-// We try hard to have a ponder move to return to the GUI,
-// otherwise in case of 'ponder on' we have nothing to think about.
+// Updates histories of the move pairs formed by moves
+// at ply -1, -2, -3, -4, and -6 with current move.
+void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
+    static constexpr std::array<ConthistBonus, 6> conthist_bonuses = {
+      {{1, 1092}, {2, 631}, {3, 294}, {4, 517}, {5, 126}, {6, 445}}};
 
-// 探索を終了する前にponder moveがない場合に呼び出されます。
-// 例えば、rootでfail highが発生して探索を中断した場合などです。
-// GUIに返すponder moveをできる限り準備しようとしますが、
-// そうでない場合、「ponder on」の際に考えるべきものが何もなくなります。
-
-bool Search::RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
-                                              Position&                 pos,
-                                              Move                      ponder_candidate) {
-    StateInfo st;
-
-    ASSERT_LV3(pv.size() == 1);
-
-    // 💡 Stockfishでは if (pv[0] == Move::none()) となっているが、
-    //     詰みの局面が"ponderhit"で返ってくることがあるので、
-    //     ここでのpv[0] == Move::resign()であることがありうる。
-    //     だから、やねうら王では、ここは、is_ok()で判定する。
-
-    if (!pv[0].is_ok())
-        return false;
-
-    pos.do_move(pv[0], st);
-
-    auto [ttHit, ttData, ttWriter] = tt.probe(pos.key(), pos);
-    if (ttHit)
+    for (const auto [i, weight] : conthist_bonuses)
     {
-        Move m = ttData.move;
-        //if (MoveList<LEGAL>(pos).contains(ttData.move))
-        // ⇨ Stockfishのこのコード、pseudo_legalとlegalで十分なのではないか？
-        if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
-            pv.push_back(m);
+        // Only update the first 2 continuation histories if we are in check
+        if (ss->inCheck && i > 2)
+            break;
+        if (((ss - i)->currentMove).is_ok())
+            (*(ss - i)->continuationHistory)[pc][to] << bonus * weight / 1024;
     }
-	// 置換表にもなかったので以前のiteration時のpv[1]をほじくり返す。
-	// 🌠 やねうら王独自改良
-	else if (ponder_candidate)
-    {
-        Move m = ponder_candidate;
-        if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
-            pv.push_back(m);
-    }
-
-    pos.undo_move(pv[0]);
-    return pv.size() > 1;
 }
 
+// Updates move sorting heuristics
+
+void update_quiet_histories(
+  const Position& pos, Stack* ss, Search::YaneuraOuWorker& workerThread, Move move, int bonus) {
+
+    Color us = pos.side_to_move();
+    workerThread.mainHistory[us][move.from_to()] << bonus;  // Untuned to prevent duplicate effort
+
+    if (ss->ply < LOW_PLY_HISTORY_SIZE)
+        workerThread.lowPlyHistory[ss->ply][move.from_to()] << bonus * 792 / 1024;
+
+    update_continuation_histories(ss, pos.moved_piece_after(move), move.to_sq(),
+                                  bonus * (bonus > 0 ? 1082 : 784) / 1024);
+
+    // TODO : pawnHistory必要か？
+#if 0
+    int pIndex = pawn_structure_index(pos);
+    workerThread.pawnHistory[pIndex][pos.moved_piece_after(move)][move.to_sq()]
+      << bonus * (bonus > 0 ? 705 : 450) / 1024;
+#endif
+}
+
+} // namespace
 
 #if 0
 // When playing with strength handicap, choose the best move among a set of
@@ -3001,12 +3244,56 @@ Move Skill::pick_best(const RootMoves& rootMoves, size_t multiPV) {
 }
 #endif
 
+// Called in case we have no ponder move before exiting the search,
+// for instance, in case we stop the search during a fail high at root.
+// We try hard to have a ponder move to return to the GUI,
+// otherwise in case of 'ponder on' we have nothing to think about.
 
+// 探索を終了する前にponder moveがない場合に呼び出されます。
+// 例えば、rootでfail highが発生して探索を中断した場合などです。
+// GUIに返すponder moveをできる限り準備しようとしますが、
+// そうでない場合、「ponder on」の際に考えるべきものが何もなくなります。
+
+bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
+                                              Position&                 pos,
+                                              Move                      ponder_candidate) {
+    StateInfo st;
+
+    ASSERT_LV3(pv.size() == 1);
+
+    // 💡 Stockfishでは if (pv[0] == Move::none()) となっているが、
+    //     詰みの局面が"ponderhit"で返ってくることがあるので、
+    //     ここでのpv[0] == Move::resign()であることがありうる。
+    //     だから、やねうら王では、ここは、is_ok()で判定する。
+
+    if (!pv[0].is_ok())
+        return false;
+
+    pos.do_move(pv[0], st);
+
+    auto [ttHit, ttData, ttWriter] = tt.probe(pos.key(), pos);
+    if (ttHit)
+    {
+        Move m = ttData.move;
+        //if (MoveList<LEGAL>(pos).contains(ttData.move))
+        // ⇨ Stockfishのこのコード、pseudo_legalとlegalで十分なのではないか？
+        if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
+            pv.push_back(m);
+    }
+    // 置換表にもなかったので以前のiteration時のpv[1]をほじくり返す。
+    // 🌠 やねうら王独自改良
+    else if (ponder_candidate)
+    {
+        Move m = ponder_candidate;
+        if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
+            pv.push_back(m);
+    }
+
+    pos.undo_move(pv[0]);
+    return pv.size() > 1;
+}
 
 
 }  // namespace YaneuraOu
-
-
-
 
 #endif // YANEURAOU_ENGINE
