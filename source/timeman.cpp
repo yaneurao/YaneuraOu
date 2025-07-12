@@ -268,6 +268,8 @@ void TimeManagement::init_(Search::LimitsType& limits,
 }
 
 TimePoint TimeManagement::minimum() const { return minimumTime; }
+TimePoint TimeManagement::optimum() const { return optimumTime; }
+TimePoint TimeManagement::maximum() const { return maximumTime; }
 
 
 } // namespace YaneuraOu

@@ -334,21 +334,43 @@ public:
 };
 
 // --------------------
-//  全プロセッサを使う
+//     Utility
 // --------------------
 
-// Windows環境において、プロセスが1個の論理プロセッサグループを超えてスレッドを
-// 実行するのは不可能である。これは、最大64コアまでの使用に制限されていることを普通、意味する。
-// これを克服するためには、いくつかの特殊なプラットフォーム固有のAPIを呼び出して、
-// それぞのスレッドがgroup affinityを設定しなければならない。
-// 元のコードはPeter ÖsterlundによるTexelから。
+namespace Utility {
 
-namespace WinProcGroup {
-	// 各スレッドがidle_loop()などで自分のスレッド番号(0～)を渡す。
-	// 1つ目のプロセッサをまず使い切るようにgroup affinityを割り当てる。
-	// 1つ目のプロセッサの論理コアを使い切ったら次は2つ目のプロセッサを使っていくような動作。
-	void bindThisThread(size_t idx);
+// vectorのなかから、条件に合致するものを探して、見つかればそれを先頭に移動させる。
+// 元の先頭から、その見つけた要素の1つ前までは後方に1つずらす。
+template<typename T, typename Predicate>
+void move_to_front(std::vector<T>& vec, Predicate pred) {
+    auto it = std::find_if(vec.begin(), vec.end(), pred);
+
+    if (it != vec.end())
+    {
+        std::rotate(vec.begin(), it, it + 1);
+    }
 }
+}
+
+// 到達しないことを明示して最適化を促す。
+// 💡 sf_assume(false)ならば、そこには到達しないことを明示する。sf_assume(true)ならば到達する。
+//     clangを除外してあるのは、警告が消えないからっぽい。
+
+#if defined(__GNUC__) && !defined(__clang__)
+    #if __GNUC__ >= 13
+        #define sf_assume(cond) __attribute__((assume(cond)))
+    #else
+        #define sf_assume(cond) \
+            do \
+            { \
+                if (!(cond)) \
+                    __builtin_unreachable(); \
+            } while (0)
+    #endif
+#else
+    // do nothing for other compilers
+    #define sf_assume(cond)
+#endif
 
 // -----------------------
 //  探索のときに使う時間管理用

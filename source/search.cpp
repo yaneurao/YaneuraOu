@@ -13,26 +13,30 @@ Search::Worker::Worker(
 	*/
 	) :
     // Unpack the SharedState struct into member variables
+	// 💡 StockfishではSharedState構造体から、このclassのmember変数を初期化しているが、
+	//     SharedStateは、やねうら王では採用しないことにした。
+
 	options(options),
 	threads(threads),
 	threadIdx(threadIdx),
     numaAccessToken(numaAccessToken)
 
-	/*
+	#if 0
     manager(std::move(sm)),
     networks(sharedState.networks),
     tt(sharedState.tt)
 	refreshTable(networks[token])
-	*/
+	#endif
 {
     //clear();
 
-	// 📝　これ不要だと思う。Engineのコンストラクタや、Threads変更時にはresize_threads()が呼び出されるし、
+	// 🤔　このclear()は不要だと思う。
+	//      Engineのコンストラクタや、Threads変更時にはresize_threads()が呼び出されるし、
 	//      resize_threads()のなかでThreadPool::clear()が呼び出され、そのなかからWorker::clear()が呼び出される。
 	//      また、"usinewgame"に対して Engine.search_clear()が呼び出されるので、そこからもWorker::clear()が呼び出される。
 }
 
-// あとで
+// TODO : あとで
 #if 0
 void Search::Worker::ensure_network_replicated() {
     // Access once to force lazy initialization.

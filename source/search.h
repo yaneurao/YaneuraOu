@@ -108,33 +108,37 @@ struct RootMove
 								: m.previousScore < previousScore;
 	}
 
+	// この指し手のためにどれだけのnodeを探索したか。
+	// 💡 反復深化がもう1回回りそうかの判定に用いる。
+    uint64_t effort        = 0;
+
 	// 今回の(反復深化の)iterationでの探索結果のスコア
-	Value score			= -VALUE_INFINITE;
+	Value score			   = -VALUE_INFINITE;
 
 	// 前回の(反復深化の)iterationでの探索結果のスコア
 	// 次のiteration時の探索窓の範囲を決めるときに使う。
-	Value previousScore = -VALUE_INFINITE;
+	Value previousScore    = -VALUE_INFINITE;
 
 	// aspiration searchの時に用いる。previousScoreの移動平均。
-	Value averageScore	= -VALUE_INFINITE;
+	Value averageScore	   = -VALUE_INFINITE;
 
 	// aspiration searchの時に用いる。二乗平均スコア。
 	Value meanSquaredScore = - VALUE_INFINITE * VALUE_INFINITE;
 
 	// USIに出力する用のscore
-	Value usiScore		= -VALUE_INFINITE;
+	Value usiScore		   = -VALUE_INFINITE;
 
 	// usiScoreはlowerboundになっているのか。
-	bool scoreLowerbound = false;
+	bool scoreLowerbound   = false;
 
 	// usiScoreはupperboundになっているのか。
-	bool scoreUpperbound = false;
+	bool scoreUpperbound   = false;
 
 	// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
-	int selDepth = 0;
+	int selDepth           = 0;
 
-	// チェスの定跡絡みの変数。将棋では未使用。
-	// int tbRank = 0;
+	// 💡 チェスのtablebase絡みの変数。将棋では未使用。
+	// int tbRank          = 0;
 	// Value tbScore;
 
 	// この指し手で進めたときのpv
@@ -264,7 +268,10 @@ protected:
 	void undo_move(Position& pos, const Move move);
 	void undo_null_move(Position& pos);
 
-	std::atomic<uint64_t> nodes;
+	// nodes           : 探索したnode数。do_move()で(自分で)カウントする。
+    // tbHits          : tablebaseにhitした回数。将棋では使わない。
+    // bestMoveChanges : bestMoveが反復深化のなかで変化した回数。これは、Worker派生classのほうで必要なら用意する。
+    std::atomic<uint64_t> nodes /*, tbHits, bestMoveChanges*/;
 
 	const OptionsMap& options;                 // 📑コンストラクタで渡されたもの
 	ThreadPool& threads;                       // 📑コンストラクタで渡されたもの 

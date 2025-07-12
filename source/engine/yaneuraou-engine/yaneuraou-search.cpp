@@ -613,7 +613,7 @@ void Search::YaneuraOuWorker::ensure_network_replicated() {
 
 void Search::YaneuraOuWorker::start_searching() {
 
-	// TODO : あとで	
+    // TODO : あとで
     //accumulatorStack.reset();
 
     // Non-main threads go directly to iterative_deepening()
@@ -625,20 +625,24 @@ void Search::YaneuraOuWorker::start_searching() {
         return;
     }
 
-	// 📌 今回の思考時間の設定。
-    //    これは、ponderhitした時にponderhitにパラメーターが付随していれば
-    //    再計算するする必要性があるので、いずれにせよ呼び出しておく必要がある。
+    // 📌 今回の思考時間の設定。
+    //     これは、ponderhitした時にponderhitにパラメーターが付随していれば
+    //     再計算するする必要性があるので、いずれにせよ呼び出しておく必要がある。
+    // 💡 やねうら王では、originalTimeAdjustは用いない。
 
     main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options
-			/*  , main_manager()->originalTimeAdjust */);
-			// 💡 やねうら王では、originalTimeAdjustは用いない。
+                            /*  , main_manager()->originalTimeAdjust */);
 
-	// 置換表の世代カウンターを進める(クリアではない)
-	tt.new_search();
+    // 📌 置換表のTTEntryの世代を進める。
+    // 📝 sub threadが動く前であるこのタイミングで置換表の世代を進めるべきである。
+    //     cf. Call TT.new_search() earlier. : https://github.com/official-stockfish/Stockfish/commit/ebc563059c5fc103ca6d79edb04bb6d5f182eaf5
+
+    // 置換表の世代カウンターを進める(クリアではない)
+    tt.new_search();
 
     // 📌 やねうら王固有の初期化 📌
-    
-	// PVが詰まるのを抑制するために、前回出力時刻を記録しておく。
+
+    // PVが詰まるのを抑制するために、前回出力時刻を記録しておく。
     main_manager()->lastPvInfoTime = 0;
 
     // PVの出力間隔[ms]
@@ -651,37 +655,156 @@ void Search::YaneuraOuWorker::start_searching() {
 
     // 引き分け時の値として現在の手番に応じた値を設定してやる。
     Color us         = rootPos.side_to_move();
-    int draw_value = (int) ((us == BLACK ? options["DrawValueBlack"] : options["DrawValueWhite"])
+    int   draw_value = (int) ((us == BLACK ? options["DrawValueBlack"] : options["DrawValueWhite"])
                             * Eval::PawnValue / 100);
 
     // 探索のleaf nodeでは、相手番(root_color != side_to_move)である場合、 +draw_valueではなく、-draw_valueを設定してやらないと非対称な探索となって良くない。
     // 例) 自分は引き分けを勝ち扱いだと思って探索しているなら、相手は、引き分けを負けとみなしてくれないと非対称になる。
-    drawValueTable[REPETITION_DRAW][ us]  = +draw_value;
+    drawValueTable[REPETITION_DRAW][us]  = +draw_value;
     drawValueTable[REPETITION_DRAW][~us] = -draw_value;
 
-	// ✋ 独自追加ここまで。
+    // 今回、通常探索をしたかのフラグ
+    // このフラグがtrueなら(定跡にhitしたり1手詰めを発見したりしたので)探索をスキップした。
+    bool search_skipped = true;
+
+    // ponder用の指し手の初期化
+    // やねうら王では、ponderの指し手がないとき、一つ前のiterationのときのPV上の(相手の)指し手を用いるという独自仕様。
+    // Stockfish本家もこうするべきだと思う。
+    main_manager()->ponder_candidate = Move::none();
+
+
+    #if defined(SHOGI24)
+    // ---------------------
+    //    将棋倶楽部24対策
+    // ---------------------
+
+    // 相手玉が取れるなら取る。
+    //
+    // 相手玉が取れる局面は、(直前で王手放置があったということだから)非合法局面で、
+    // 将棋所ではそのような局面からの対局開始はできないが、ShogiGUIでは対局開始できる。
+    //
+    // また、将棋倶楽部24で王手放置の局面を作ることができるので、
+    // 相手玉が取れることがある。
+    //
+    // ゆえに、取れるなら取る指し手を指せたほうが良い。
+    //
+    // 参考動画 : https://www.youtube.com/watch?v=8nwJcKH0x0c
+
+    auto their_king = rootPos.king_square(~us);
+    auto our_piece  = rootPos.attackers_to(their_king) & rootPos.pieces(us);
+    // 敵玉に利いている自駒があるなら、それを移動させて勝ち。
+    if (our_piece)
+    {
+        Square from = our_piece.pop();
+        Square to   = their_king;
+        Move16 m16  = make_move16(from, to);
+        Move   m    = rootPos.to_move(m16);
+
+        // 玉を取る指し手はcapturesで生成されていない可能性がある。
+        // 仕方がないので、rootMoves[0]を書き換えることにする。
+
+        // 玉で玉を取る手はrootMovesに含まれないので、場合によっては、それしか指し手がない場合に、
+        // rootMoves.size() == 0だけど、玉で玉を取る指し手だけがあることは起こり得る。
+        // (この理由から、玉を取る判定は、合法手がない判定より先にしなければならない)
+
+        if (rootMoves.size() == 0)
+            rootMoves.emplace_back(m);
+        else
+            rootMoves[0].pv[0] = m;
+
+        rootMoves[0].score = rootMoves[0].usiScore = mate_in(1);
+
+        goto SKIP_SEARCH;
+    }
+    #endif
+
+    // ✋ 独自追加ここまで。
+
+    // ---------------------
+    // 合法手がないならここで投了
+    // ---------------------
 
     if (rootMoves.empty())
     {
         // rootで指し手がない = (将棋だと)詰みの局面である
 
-		rootMoves.emplace_back(Move::none());
+        // 💡 投了の指し手と評価値をrootMoves[0]に積んでおけばUSI::pv()が良きに計らってくれる。
+        //     読み筋にresignと出力されるが、将棋所、ShogiGUIともにバグらないのでこれで良しとする。
+        rootMoves.emplace_back(Move::none());
+
         //main_manager()->updates.onUpdateNoMoves(
         //  {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
-		// 💡 チェスだと王手されていないなら引き分けだが、将棋だとつねに負け。
-		main_manager()->updates.onUpdateNoMoves({0, -VALUE_MATE });
-    }
-    else
-    {
-        threads.start_searching();  // start non-main threads
-		// 📝 main以外のすべてのthreadを開始する。
-		//    main以外のthreadがstart_searching()を開始する。
-		//    start_searching()の先頭には、main thread以外であれば即座に
-		//    iterative_deepning()を呼び出すようになっているので、これにより並列探索が開始できる。
+        // 💡 チェスだと王手されていないなら引き分けだが、将棋だとつねに負け。
+        main_manager()->updates.onUpdateNoMoves({0, -VALUE_MATE});
 
-		iterative_deepening();      // main thread start searching
-		// 💡 main threadも並列探索に加わる。
+    // TODO : あとで考える。
+    #if 0
+		// 📌 やねうら王独自
+		// 評価値を用いないなら代入しなくて良いのだが(Stockfishはそうなっている)、
+        // このあと、↓USI::pv()を呼び出したいので、scoreをきちんと設定しておいてやる。
+        rootMoves[0].score = rootMoves[0].usiScore = mated_in(0);
+    #endif
+
+        goto SKIP_SEARCH;
     }
+
+    // ---------------------
+    //     定跡の選択部
+    // ---------------------
+
+    if (engine.book.probe(rootMoves, limits))
+        goto SKIP_SEARCH;
+
+    // ---------------------
+    //    宣言勝ち判定
+    // ---------------------
+
+    {
+        // 宣言勝ちならその指し手を選択。
+        // 王手がかかっていても、回避しながらトライすることもあるので王手がかかっていようが
+        // Position::DeclarationWin()で判定して良い。
+        // 1手詰めは、ここでは判定しない。
+        // (MultiPVのときに1手詰めを見つけたからと言って探索を終了したくないから。)
+
+        auto bestMove = rootPos.DeclarationWin();
+        if (bestMove != Move::none())
+        {
+            // root movesの集合に突っ込んであるはず。
+            // このときMultiPVが利かないが、ここ真面目にMultiPVして指し手を返すのは
+            // プログラムがくちゃくちゃになるのでいまはこれは仕様としておく。
+
+            // トライルールのとき、その指し手がgoコマンドで指定された指し手集合に含まれることを
+            // 保証しないといけないのでrootMovesのなかにこの指し手が見つからないなら指すわけにはいかない。
+
+            // 入玉宣言の条件を満たしているときは、
+            // goコマンドを処理したあとのthreads.cppでMove::win()は追加されているはず。
+
+            auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
+            if (it_move != rootMoves.end())
+            {
+                std::swap(rootMoves[0], *it_move);
+
+                // 1手詰めのときのスコアにしておく。
+                rootMoves[0].score = rootMoves[0].usiScore = mate_in(1);
+                ;
+
+                goto SKIP_SEARCH;
+            }
+        }
+    }
+
+    // ---------------------
+    //    通常の思考処理
+    // ---------------------
+
+    threads.start_searching();  // start non-main threads
+    // 📝 main以外のすべてのthreadを開始する。
+    //    main以外のthreadがstart_searching()を開始する。
+    //    start_searching()の先頭には、main thread以外であれば即座に
+    //    iterative_deepning()を呼び出すようになっているので、これにより並列探索が開始できる。
+
+    iterative_deepening();  // main thread start searching
+    // 💡 main threadも並列探索に加わる。
 
     // When we reach the maximum depth, we can arrive here without a raise of
     // threads.stop. However, if we are pondering or in an infinite search,
@@ -689,62 +812,144 @@ void Search::YaneuraOuWorker::start_searching() {
     // GUI sends a "stop" or "ponderhit" command. We therefore simply wait here
     // until the GUI sends one of those commands.
 
-	// 最大深さに到達したとき、threads.stop が発生せずにここに到達することがある。
+    // 最大深さに到達したとき、threads.stop が発生せずにここに到達することがある。
     // しかし、ポンダリング中や無限探索中の場合、UCIプロトコルでは
     // GUI が "stop" または "ponderhit" コマンドを送るまで
     // best move を出力すべきではないとされている。
     // したがって、ここでは単純に GUI からこれらのコマンドが送られてくるのを待つ。
 
-	while (!threads.stop && (main_manager()->ponder || limits.infinite))
-    {}  // Busy wait for a stop or a ponder reset
-		// stop か ponder reset を待つ間のビジーウェイト
+    // 📝 最大depth深さに到達したときに、ここまで実行が到達するが、
+    //     まだthreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
+    //     USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
+    //     それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
+    //     "stop"が送られてきたらThreads.stop == trueになる。
+    //     "ponderhit"が送られてきたらThreads.ponder == falseになるので、それを待つ。(stopOnPonderhitは用いない)
+    //      "go infinite"に対してはstopが送られてくるまで待つ。
+    //      ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
+    //     やねうら王のほうは、かなり早くからこの構造で書いていた。後にStockfishがこの書き方に追随した。
+
+    while (!threads.stop && (main_manager()->ponder || limits.infinite))
+    {
+        // Busy wait for a stop or a ponder reset
+        // stop か ponder reset を待つ間のビジーウェイト
+
+        //	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
+        // (思考のためには計算資源を使っていないので。)
+        Tools::sleep(1);
+        // ⚠ Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
+
+    // TODO : あとで
+    #if 0
+		// === やねうら王独自改良 ===
+
+		// 最終的なPVを出力する。
+		// ponder中/go infinite中であっても、ここに抜けてきている以上、全探索スレッドの停止が確認できた時点でPVは出力すべき。
+		// "go infinite"の場合、詰みを発見してもそれがponderフラグの解除を待ってからだと、PVを返すのが遅れる。("stop"が来るまで返せない)
+		// Stockfishもこうなっている。この作り、良くないように思うので、改良した。
+
+		// 　ここですべての探索スレッドが停止しているならば最終PVを出力してやる。
+        if (!output_final_pv_done
+            && Threads.search_finished() /* 全探索スレッドが探索を完了している */)
+            output_final_pv();
+    #endif
+    }
 
     // Stop the threads if not already stopped (also raise the stop if
     // "ponderhit" just reset threads.ponder)
     // まだ停止していなければスレッドを停止する（"ponderhit" により threads.ponder が
     // リセットされた場合も stop を発生させる）
-	threads.stop = true;
+    threads.stop = true;
 
     // Wait until all threads have finished
     // すべてのスレッドが終了するのを待つ
+    // 💡 開始していなければいないで構わない。
+
     threads.wait_for_search_finished();
 
-	// 💡 やねうら王では、npmsecをサポートしない。
-	#if 0
+    // 💡 やねうら王では、npmsecをサポートしない。
+    #if 0
     // When playing in 'nodes as time' mode, subtract the searched nodes from
     // the available ones before exiting.
     // 'nodes as time' モードでプレイしている場合、終了する前に
     // 使用可能なノード数から探索済みノード数を差し引く。
+
+	// 📝 'nodes as time'モードとは、時間としてnodesを用いるモード
+	//     時間切れの場合、負の数になりうる。
+	// ⚠ 将棋の場合、秒読みがあるので秒読みも考慮しないといけない。
+	//     Time.availableNodes += Limits.inc[us] + Limits.byoyomi[us] - Threads.nodes_searched();
+	//     みたいな処理が必要か？将棋と相性が良くないのでこの機能、無効化する。
+
     if (limits.npmsec)
         main_manager()->tm.advance_nodes_time(threads.nodes_searched()
                                               - limits.inc[rootPos.side_to_move()]);
-	#endif
+    #endif
 
+    // 普通に探索したのでskipしたかのフラグをfalseにする。
+    // 💡やねうら王独自
+    search_skipped = false;
+
+SKIP_SEARCH:;
+    // TODO あとで検討する。
+    //output_final_pv();
+
+    // 📌 指し手をGUIに返す 📌
+
+    // Lazy SMPの結果を取り出す
+
+	// 並列探索したうちのbestな結果を保持しているthread
+	// まずthisを入れておいて、定跡を返す時などはthisのままにするコードを適用する。
     YaneuraOuWorker* bestThread = this;
-    //Skill   skill =
-    //  Skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
 
-    if (int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate /* && !skill.enabled() */
-        && rootMoves[0].pv[0] != Move::none())
+	Skill   skill =
+    //  Skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
+		Skill(/*(int)Options["SkillLevel"]*/ 20, 0);
+	// TODO : Skillの導入はあとで検討する。
+	//  🤔  それにしてもオプションが3つも増えるの嫌だな…。
+
+    if (int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate && !skill.enabled()
+        && rootMoves[0].pv[0] != Move::none() && !search_skipped
+		// ⚠ "&& !search_skipped"は、やねうら王独自追加。
+		//     これを追加しておかないと、定跡にhitしたりして、main threadのrootMovesに積んだりしても、
+		//     bestThreadがmain threadではないものを指してしまい、期待した指し手がbestmoveとして出力されなくなる。
+		)
         //bestThread = threads.get_best_thread()->worker.get();
-		// 💡 やねうら王では、get_best_thread()は、ThreadPoolからこのclassに移動させた。
+        // 💡 やねうら王では、get_best_thread()は、ThreadPoolからこのclassに移動させた。
         bestThread = get_best_thread();
 
+    // 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
     main_manager()->bestPreviousScore        = bestThread->rootMoves[0].score;
     main_manager()->bestPreviousAverageScore = bestThread->rootMoves[0].averageScore;
 
+    // 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。(やねうら王独自拡張)
+    // ただし定跡の指し手にhitした場合などはrootMoves[0].score == -VALUE_INFINITEになっているのでそれは除外。
+    auto resign_value = (int) options["ResignValue"];
+    if (bestThread->rootMoves[0].score != -VALUE_INFINITE
+        && USIEngine::to_cp(bestThread->rootMoves[0].score) <= -resign_value)
+        bestThread->rootMoves[0].pv[0] = Move::resign();
+
+	#if 0
     // Send again PV info if we have a new best thread
+	// 新しいベストスレッドがあれば、再度PV情報を送信する
     if (bestThread != this)
         main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
+	#endif
+    // 💡 ↑こんなにPV出力するの好きじゃないので省略。
 
-    std::string ponder;
+    // サイレントモードでないならbestな指し手を出力
+    // 📌 サイレントモードは、やねうら王独自拡張
+    if (!global_options.silent)
+    {
+        std::string ponder;
 
-    if (bestThread->rootMoves[0].pv.size() > 1
-        || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos, Move::none() /* TODO あとで*/))
-        ponder = USIEngine::move(bestThread->rootMoves[0].pv[1] /*, rootPos.is_chess960()*/);
+        // 🌈 extract_ponder_from_tt()にponder_candidateを渡すのは、やねうら王独自拡張。
+        if (bestThread->rootMoves[0].pv.size() > 1
+            || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos,
+                                                               main_manager()->ponder_candidate))
+            ponder = USIEngine::move(bestThread->rootMoves[0].pv[1] /*, rootPos.is_chess960()*/);
 
-    auto bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0] /*, rootPos.is_chess960()*/);
-    main_manager()->updates.onBestmove(bestmove, ponder);
+        auto bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0] /*, rootPos.is_chess960()*/);
+        main_manager()->updates.onBestmove(bestmove, ponder);
+    }
 }
 
 // Main iterative deepening loop. It calls search()
@@ -1136,11 +1341,18 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
         // We make sure not to pick an unproven mated-in score,
         // in case this thread prematurely stopped search (aborted-search).
+
+		// このスレッドが探索を早期に停止した（中断探索）場合に備えて、
+		// 証明されていない詰みスコアを選ばないように注意している。
+
         if (threads.abortedSearch && rootMoves[0].score != -VALUE_INFINITE
             && is_loss(rootMoves[0].score))
         {
             // Bring the last best move to the front for best thread selection.
-            Utility::move_to_front(rootMoves, [&lastBestPV = std::as_const(lastBestPV)](
+			// 最後に得られた最善手を先頭に移動し、最適なスレッド選択のために備える。
+			// 💡 move_to_front()は、見つけたものを先頭に移動させ、元の先頭からそこまでは1つ後方にずらす。
+
+			Utility::move_to_front(rootMoves, [&lastBestPV = std::as_const(lastBestPV)](
                                                 const auto& rm) { return rm == lastBestPV[0]; });
             rootMoves[0].pv    = lastBestPV;
             rootMoves[0].score = rootMoves[0].usiScore = lastBestScore;
@@ -1165,17 +1377,23 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             threads.stop = true;
 
         // If the skill level is enabled and time is up, pick a sub-optimal best move
-        if (skill.enabled() && skill.time_to_pick(rootDepth))
+		// スキルレベルが有効で、かつ時間切れの場合、最適でないベストムーブを選ぶ。
+
+		if (skill.enabled() && skill.time_to_pick(rootDepth))
             skill.pick_best(rootMoves, multiPV);
 
         // Use part of the gained time from a previous stable move for the current move
-        for (auto&& th : threads)
+		// 直前の安定した手で得た時間の一部を現在の手に使う。
+
+		for (auto&& th : threads)
         {
-            totBestMoveChanges += th->worker->bestMoveChanges;
-            th->worker->bestMoveChanges = 0;
+            auto yw = toYaneuraOuWorker(th->worker);
+            totBestMoveChanges += yw->bestMoveChanges;
+            yw->bestMoveChanges = 0;
         }
 
         // Do we have time for the next iteration? Can we stop searching now?
+		// 次の反復を行う時間はあるか？今すぐ探索を止められるか？
         if (limits.use_time_management() && !threads.stop && !mainThread->stopOnPonderhit)
         {
             uint64_t nodesEffort =
@@ -1238,8 +1456,15 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                              skill.best ? skill.best : skill.pick_best(rootMoves, multiPV)));
 }
 
+// 🚧 工事中 🚧
 
-
+// 探索本体
+// 💡 最初、iterative_deepening()のなかから呼び出される。
+template<NodeType nodeType>
+Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode)
+{
+    return VALUE_NONE;
+}
 
 void SearchManager::pv(Search::Worker&           worker,
                        const ThreadPool&         threads,
@@ -1296,6 +1521,54 @@ bool Search::RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
     pos.undo_move(pv[0]);
     return pv.size() > 1;
 }
+
+
+#if 0
+// When playing with strength handicap, choose the best move among a set of
+// RootMoves using a statistical rule dependent on 'level'. Idea by Heinz van Saanen.
+
+// 手加減が有効であるなら、best moveを'level'に依存する統計ルールに基づくRootMovesの集合から選ぶ。
+// Heinz van Saanenのアイデア。
+Move Skill::pick_best(const RootMoves& rootMoves, size_t multiPV) {
+    static PRNG rng(now());  // PRNG sequence should be non-deterministic
+							 // 乱数ジェネレーターは非決定的であるべき。
+
+    // RootMoves are already sorted by score in descending order
+	// RootMovesはすでにscoreで降順にソートされている。
+
+	Value  topScore = rootMoves[0].score;
+    int    delta    = std::min(topScore - rootMoves[multiPV - 1].score, int(PawnValue));
+    int    maxScore = -VALUE_INFINITE;
+    double weakness = 120 - 2 * level;
+
+    // Choose best move. For each move score we add two terms, both dependent on
+    // weakness. One is deterministic and bigger for weaker levels, and one is
+    // random. Then we choose the move with the resulting highest score.
+
+	// best moveを選ぶ。それぞれの指し手に対して弱さに依存する2つのterm(用語)を追加する。
+	// 1つは、決定的で、弱いレベルでは大きくなるもので、1つはランダムである。
+	// 次に得点がもっとも高い指し手を選択する。
+
+	for (size_t i = 0; i < multiPV; ++i)
+    {
+        // This is our magic formula
+		// これが魔法の公式
+
+		int push = int(weakness * int(topScore - rootMoves[i].score)
+                       + delta * (rng.rand<unsigned>() % int(weakness)))
+                 / 128;
+
+        if (rootMoves[i].score + push >= maxScore)
+        {
+            maxScore = rootMoves[i].score + push;
+            best     = rootMoves[i].pv[0];
+        }
+    }
+
+    return best;
+}
+#endif
+
 
 }  // namespace YaneuraOu
 

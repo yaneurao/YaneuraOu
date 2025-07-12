@@ -127,7 +127,7 @@ struct Skill {
     // 常にfalseを返す。つまり、手加減の無効化。
     bool enabled() { return false; }
     bool time_to_pick(Depth) const { return true; }
-    Move pick_best(size_t) { return Move::none(); }
+    Move pick_best(const RootMoves&, size_t multiPV) { return Move::none(); }
     Move best = Move::none();
 };
 
@@ -186,12 +186,18 @@ class SearchManager {
 
     size_t id;
 
+    const UpdateContext& updates;
+
+	// 📌 やねうら王独自 📌
+
 	// 前回のPV出力した時刻。PVが詰まるのを抑制するためのもの。
 	// 💡 startTimeからの経過時間。
-	// 📌 やねうら王独自
 	TimePoint lastPvInfoTime;
 
-    const UpdateContext& updates;
+	// ponder用の指し手
+    // 📝 やねうら王では、ponderの指し手がないとき、一つ前のiterationのときのPV上の(相手の)指し手を用いるという独自仕様。
+    //     Stockfish本家もこうするべきだと思う。
+    Move ponder_candidate;
 };
 }
 
@@ -280,6 +286,11 @@ public:
 	// MultiPVの時の現在探索中のPVのindexと、PVの末尾
 	size_t pvIdx, pvLast;
 
+	// nodes           : 探索node数これはWorker classのほうにある。
+	// tbHits          : tablebaseにhitした回数。将棋では使わない。
+	// bestMoveChanges : bestMoveが反復深化のなかで変化した回数
+    std::atomic<uint64_t> /* nodes, tbHits,*/ bestMoveChanges;
+
 	// selDepth : 選択探索の深さ。
 	// 💡depthとPV lineに対するUSI infoで出力するselDepth。
 	int    selDepth, nmpMinPly;
@@ -287,6 +298,12 @@ public:
 	// aspiration searchで使う。
 	Depth rootDepth, completedDepth;
     Value rootDelta;
+
+	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
+	// 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。
+    YaneuraOuWorker* toYaneuraOuWorker(std::unique_ptr<Worker>& worker) {
+        return dynamic_cast<YaneuraOuWorker*>(worker.get());
+    }
 
 	// 📌 コンストラクタでもらったやつ 📌
 

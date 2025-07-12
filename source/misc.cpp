@@ -769,7 +769,9 @@ TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(now() - start
 TimePoint Timer::now() const { return /* Search::Limits.npmsec ? now() : YaneuraOu::now(); */ YaneuraOu::now(); }
 // 📝 npmsec、思考時間を秒単位に切り上げ処理をしているのと相性が悪いので、やねうら王では採用しないことにした。
 
-// =====   以下は、やねうら王の独自追加   =====
+
+
+// 📌 以下は、やねうら王の独自追加 📌
 
 
 // --------------------

@@ -741,7 +741,8 @@ ExtMove* make_move_check(const Position& pos, Piece pc, Square from, Square ksq,
 	case HORSE     : GEN_MOVE_HD_CHECK(HORSE, horseEffect); break;
 	case DRAGON    : GEN_MOVE_HD_CHECK(DRAGON, dragonEffect); break;
 
-	default:UNREACHABLE;
+	default:
+		UNREACHABLE;
 	}
 	return mlist;
 }

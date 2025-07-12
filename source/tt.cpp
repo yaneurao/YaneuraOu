@@ -425,7 +425,7 @@ uint8_t TranspositionTable::generation() const { return generation8; }
 // エントリの置き換え値は、その深さから相対的なエイジの8倍を引いたものとして計算されます。
 // TTEntry t1は、t2の置き換え値より大きい場合、t2よりも価値があると見なされます。
 
-// やねうら王独自拡張
+// 🌈 やねうら王独自拡張
 //    probe()してhitしたときに ttData.moveは Move16のままなので ttData.move32(pos)を用いて取得する必要がある。
 //    そこで、probe()の第2引数にPositionを渡すようにして、Move16ではなくMoveに変換されたTTDataを返すことにする。
 
