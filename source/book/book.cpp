@@ -1083,6 +1083,7 @@ namespace Book
 		return Path::Combine( std::string(options["BookDir"]), std::string(options["BookFile"]));
 	}
 
+
 	// 与えられたmで進めて定跡のpv文字列を生成する。
 	std::string BookMoveSelector::pv_builder(Position& pos, Move16 m16 , int rest_ply)
 	{
@@ -1456,7 +1457,7 @@ namespace Book
 				// cp_to_value()はscale downするから⇓変換後、このclampの範囲外に出ないことは保証される。scale upする場合は、注意。
 				value = std::clamp(value , VALUE_MATED_IN_MAX_PLY , VALUE_MATE_IN_MAX_PLY);
 #if defined(USE_PIECE_VALUE)
-				r.previousScore = r.usiScore = r.score = USIEngine::cp_to_value(value);
+				r.previousScore = r.uciScore = r.score = USIEngine::cp_to_value(value);
 #endif
 				// ⇨　定跡の評価値0になってる方が、嬉しい意味もあるか…。
 

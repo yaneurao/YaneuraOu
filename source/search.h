@@ -126,7 +126,9 @@ struct RootMove
 	Value meanSquaredScore = - VALUE_INFINITE * VALUE_INFINITE;
 
 	// USIに出力する用のscore
-	Value usiScore		   = -VALUE_INFINITE;
+	// 🤔 (usiScoreではなく)Stockfishの変数名のままuciScoreにしておくことで
+	//     ソースコードの差分を減らすことにする。
+	Value uciScore		   = -VALUE_INFINITE;
 
 	// usiScoreはlowerboundになっているのか。
 	bool scoreLowerbound   = false;
@@ -326,6 +328,7 @@ struct SharedState {
 	const OptionsMap& options;
 	ThreadPool& threads;
 	TranspositionTable& tt;
+
 	//const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
 	// ⇨  やねうら王では、評価関数をさらに抽象化する。
 	//	📝 直接NNUEのclass名を指定するのは避けたい考え。
