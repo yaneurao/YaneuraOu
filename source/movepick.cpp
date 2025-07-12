@@ -616,7 +616,7 @@ bool MovePicker::can_move_king_or_pawn() const {
 
     for (const ExtMove* m = moves; m < endGenerated; ++m)
 	{
-		PieceType movedPieceType = type_of(pos.moved_piece_after(*m));
+		PieceType movedPieceType = type_of(pos.moved_piece(*m));
 		if ((movedPieceType == PAWN || movedPieceType == KING) && pos.legal(*m))
 			return true;
 	}

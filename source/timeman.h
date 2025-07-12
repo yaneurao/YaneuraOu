@@ -31,11 +31,15 @@ namespace YaneuraOu {
             TimePoint maximum() const;
             TimePoint minimum() const;  // 📌 やねうら王独自追加。
 
-            // template<typename FUNC>
-            // TimePoint elapsed(FUNC nodes) const {
-            //   return useNodesTime ? TimePoint(nodes()) : elapsed_time();
-            // }
-            // 💡 やねうら王ではNodesTimeを使わない。
+			// "go"からの経過時間を返す。
+            template<typename FUNC>
+            TimePoint elapsed(FUNC nodes) const {
+#if 0
+				return useNodesTime ? TimePoint(nodes()) : elapsed_time();
+#endif
+                // 📝 やねうら王ではNodesTimeを使わないのでelapsed()はそのままelapsed_Time()に委譲しておく。
+                return elapsed_time();
+            }
 
             // startTimeからの経過時間。
             // 💡 startTimeは、init()した時にLimitsType::startTimeがコピーされる。そこからの経過時間。

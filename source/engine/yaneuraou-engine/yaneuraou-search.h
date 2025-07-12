@@ -15,6 +15,8 @@ namespace YaneuraOu {
 
 namespace Search {
 
+class YaneuraOuWorker;
+
 // PVの短いやつ
 struct InfoShort {
     int   depth;
@@ -154,10 +156,13 @@ class SearchManager {
         UpdateBestmove onBestmove;
     };
 
-    SearchManager(const UpdateContext& updateContext) :
-        updates(updateContext) {}
+    //SearchManager(const UpdateContext& updateContext) :
+    //    updates(updateContext) {}
+	// 🤔 Stockfishは、Engine側からUpdateContextを渡すのだが、
+	//     Engine側が持っている必要はないと思う。
 
-    void check_time(Search::Worker& worker) {}
+	// 指し手をGUIに返す時刻になったかをチェックする。
+    void check_time(Search::YaneuraOuWorker& worker);
 
 	// 現在のPVをUpdateContext::onUpdateFull()で登録する。
     void pv(Search::Worker&           worker,
@@ -185,7 +190,9 @@ class SearchManager {
 
     size_t id;
 
-    const UpdateContext& updates;
+    //const UpdateContext& updates;
+	// 🤔 Stockfishの実装では、ここ、参照で持っているがEngine側で持たせる必要はないと思う。
+    const UpdateContext updates;
 
 	// 📌 やねうら王独自 📌
 
@@ -317,15 +324,17 @@ class YaneuraOuWorker: public Worker {
     Value rootDelta;
 
 	// LMRのreductionの値を計算する。
-	// i     : improving
-	// d     : depth
-	// mn    : moveCount
-	// delta : delta
-	Depth reduction(bool i, Depth d, int mn, int delta) const;
+    // ⚠ この関数は、Stockfish 17(2024.11)で、1024倍して返すことになった。
+    //   i     : improving , 評価値が2手前から上がっているかのフラグ。
+    //                       上がっていないなら悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
+    //   d     : depth
+    //   mn    : move_count
+    //   delta : staticEvalとchildのeval(value)の差。これが低い時にreduction量を増やしたい。
+    Depth reduction(bool i, Depth d, int mn, int delta) const;
 
     // Reductions lookup table initialized at startup
     // 起動時に初期化されるreductionsの参照表
-    // 💡 reductionとは、残り探索深さを減らすこと。
+    // 💡 reductionとは、LMRで残り探索深さを減らすこと。
     std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
 
     // 📌 以下、やねうら王独自追加 📌
@@ -343,6 +352,9 @@ class YaneuraOuWorker: public Worker {
     // 並列探索において一番良い思考をしたthreadの選出。
     // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
     YaneuraOuWorker* get_best_thread() const;
+
+	// 評価関数
+	Value evaluate(const Position& pos);
 
     // 📌 コンストラクタでもらったやつ 📌
 

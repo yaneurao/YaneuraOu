@@ -344,6 +344,13 @@ public:
 		return m.moved_after_piece();
 	}
 
+	// 指し手mで移動させた駒(成りの指し手である場合は、成った後の駒)
+    // 💡 Stockfishの探索部で用いているので、それと互換性を保つために用意。
+    // 📝 Stockfishでは移動させた駒(moved_piece_before())を期待しているが、
+	//     moved_piece_after()にしたほうが強いっぽいので、やねうら王では
+	//     moved_piece()は、moved_piece_after()のaliasとする。
+	Piece moved_piece(Move m) const { return moved_piece_after(m); }
+
 	// 定跡DBや置換表から取り出したMove16(16bit型の指し手)を32bit化する。
 	// is_ok(m) == false ならば、mをそのまま返す。
 	// 例 : MOVE_WINやMOVE_NULLに対してはそれがそのまま返ってくる。つまり、この時、上位16bitは0(NO_PIECE)である。
@@ -723,7 +730,6 @@ public:
 	// mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
 	// 32bit Moveが返る。
 	Move DeclarationWin() const;
-
 
 	// -- sfen化ヘルパ
 #if defined(USE_SFEN_PACKER)

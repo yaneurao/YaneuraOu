@@ -1478,6 +1478,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 totalTime = std::min(500.0, totalTime);
 				// TODO : やねうら王ではここ0で良いような？
 
+			// 📝 やねうら王では、Timer classのほうから経過時間をもらう。
             auto elapsedTime = time.elapsed();
 
             if (completedDepth >= 10 && nodesEffort >= 97056 && elapsedTime > totalTime * 0.6540
@@ -4039,7 +4040,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
 			// 💡 ここらかStockfishの元のコード
 
-            unadjustedStaticEval = Eval::evaluate(pos);
+            unadjustedStaticEval = evaluate(pos);
 
             ss->staticEval = bestValue =
               //to_corrected_static_eval(unadjustedStaticEval, correctionValue);
@@ -4407,33 +4408,88 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     return bestValue;
 }
 
-
-// 🚧 工事中 🚧
-
+// LMRのreductionの値を計算する。
 Depth Search::YaneuraOuWorker::reduction(bool i, Depth d, int mn, int delta) const {
     int reductionScale = reductions[d] * reductions[mn];
     return reductionScale - delta * 794 / rootDelta + !i * reductionScale * 205 / 512 + 1086;
 }
 
+// 📝 やねうら王では、下記のelapsed(), elapsed_time()は用いない。
+//     やねうら王はTimer classを持っているので、そちらを用いる。
+#if 0
+// elapsed() returns the time elapsed since the search started. If the
+// 'nodestime' option is enabled, it will return the count of nodes searched
+// instead. This function is called to check whether the search should be
+// stopped based on predefined thresholds like time limits or nodes searched.
 
-void SearchManager::pv(Search::Worker&           worker,
-                       const ThreadPool&         threads,
-                       const TranspositionTable& tt,
-                       Depth                     depth) {}
+// elapsed() は探索開始から経過した時間を返す。ただし、'nodestime' オプションが有効な場合、
+// 探索したノード数を代わりに返す。この関数は、時間制限や探索ノード数などの
+// 事前に定めた閾値に基づいて探索を停止すべきかを確認するために呼び出される。
 
+// elapsed_time() returns the actual time elapsed since the start of the search.
+// This function is intended for use only when printing PV outputs, and not used
+// for making decisions within the search algorithm itself.
+
+// elapsed_time() は探索開始から実際に経過した時間を返す。
+// この関数はPV出力の表示時のみ使用され、探索アルゴリズム内の意思決定には使用されない。
+
+TimePoint Search::Worker::elapsed() const {
+    return main_manager()->tm.elapsed([this]() { return threads.nodes_searched(); });
+}
+
+TimePoint Search::Worker::elapsed_time() const { return main_manager()->tm.elapsed_time(); }
+#endif
+
+Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
+    //return Eval::evaluate(networks[numaAccessToken], pos, accumulatorStack, refreshTable,
+    //                      optimism[pos.side_to_move()]);
+
+	// TODO : あとでNNUE実装が使えるように修正する。
+
+    return Eval::evaluate(pos);
+}
 
 namespace {
 
 // Adjusts a mate or TB score from "plies to mate from the root" to
 // "plies to mate from the current position". Standard scores are unchanged.
 // The function is called before storing a value in the transposition table.
+
+// メイトスコアまたはTB（テーブルベース）スコアを
+// 「ルートからメイトまでの手数」から「現在の局面からメイトまでの手数」に調整する。
+// 通常のスコアは変更しない。
+// この関数は、トランスポジションテーブルに値を保存する前に呼び出される。
+
+/*
+	📓 詰みのスコアは置換表上は、このnodeからあと何手で詰むかというスコアを格納する。
+	    しかし、search()の返し値は、rootからあと何手で詰むかというスコアを使っている。
+	   (こうしておかないと、do_move(),undo_move()するごとに詰みのスコアをインクリメントしたりデクリメントしたり
+	    しないといけなくなってとても面倒くさいからである。)
+
+		なので置換表に格納する前に、この変換をしなければならない。
+	    詰みにまつわるスコアでないなら関係がないので何の変換も行わない。
+
+		ply : root node からの手数。
+*/
+
 Value value_to_tt(Value v, int ply) { return is_win(v) ? v + ply : is_loss(v) ? v - ply : v; }
+// 🤔 これ足した結果がabs(x) < VALUE_INFINITEであることを確認すべきだと思う。
 
 // Inverse of value_to_tt(): it adjusts a mate or TB score from the transposition
 // table (which refers to the plies to mate/be mated from current position) to
 // "plies to mate/be mated (TB win/loss) from the root". However, to avoid
 // potentially false mate or TB scores related to the 50 moves rule and the
 // graph history interaction, we return the highest non-TB score instead.
+
+// value_to_tt() の逆の処理：トランスポジションテーブルから取得した
+// メイトスコアまたはTB（テーブルベース）スコア（現在の局面からメイト/敗北までの手数を示す）を
+// 「ルートからメイト/敗北（TB勝利/敗北）までの手数」に調整する。
+// ただし、50手ルールやグラフ履歴との相互作用に関連する誤ったメイト/TBスコアを避けるため、
+// 代わりに最大の非TBスコアを返す。
+
+// 📓 value_to_tt()の逆関数
+//     ply : root node からの手数。
+
 Value value_from_tt(Value v, int ply /*, int r50c */) {
 
     if (!is_valid(v))
@@ -4442,13 +4498,16 @@ Value value_from_tt(Value v, int ply /*, int r50c */) {
     // handle TB win or better
     if (is_win(v))
     {
+		// 📌 将棋ではTablebase関係ないのでコメントアウト
+#if 0
         // Downgrade a potentially false mate score
         if (v >= VALUE_MATE_IN_MAX_PLY && VALUE_MATE - v > 100 /* - r50c */)
             return VALUE_TB_WIN_IN_MAX_PLY - 1;
 
         // Downgrade a potentially false TB score.
-        if (VALUE_TB - v > 100 /* - r50c * /)
+        if (VALUE_TB - v > 100 /* - r50c */)
             return VALUE_TB_WIN_IN_MAX_PLY - 1;
+#endif
 
         return v - ply;
     }
@@ -4456,6 +4515,9 @@ Value value_from_tt(Value v, int ply /*, int r50c */) {
     // handle TB loss or worse
     if (is_loss(v))
     {
+		// 📌 将棋ではTablebase関係ないのでコメントアウト
+
+#if 0
         // Downgrade a potentially false mate score.
         if (v <= VALUE_MATED_IN_MAX_PLY && VALUE_MATE + v > 100 /* - r50c */)
             return VALUE_TB_LOSS_IN_MAX_PLY + 1;
@@ -4463,7 +4525,7 @@ Value value_from_tt(Value v, int ply /*, int r50c */) {
         // Downgrade a potentially false TB score.
         if (VALUE_TB + v > 100 /* - r50c */)
             return VALUE_TB_LOSS_IN_MAX_PLY + 1;
-
+#endif
         return v + ply;
     }
 
@@ -4471,6 +4533,14 @@ Value value_from_tt(Value v, int ply /*, int r50c */) {
 }
 
 // Adds current move and appends child pv[]
+// 現在の指し手を追加し、子pv[] を連結する。
+
+/*
+	📓 PV lineをコピーする。
+        pv に move(1手 現在の指し手) + childPv(複数手,末尾Move::none())をコピーする。
+	    番兵として末尾はMove::none()にすることになっている。
+*/
+
 void update_pv(Move* pv, Move move, const Move* childPv) {
 
     for (*pv++ = move; childPv && *childPv != Move::none();)
@@ -4478,7 +4548,20 @@ void update_pv(Move* pv, Move move, const Move* childPv) {
     *pv = Move::none();
 }
 
+// -----------------------
+//     Statsのupdate
+// -----------------------
+
 // Updates stats at the end of search() when a bestMove is found
+// update_all_stats()は、bestmoveが見つかったときにそのnodeの探索の終端で呼び出される。
+
+/*
+	統計情報一式を更新する。
+	prevSq           : 直前の指し手の駒の移動先。直前の指し手がMove::none()の時はSQ_NONE
+	quietsSearched   : このnodeで生成したquietな指し手、良い順
+	capturesSearched : このnodeで生成したcaptureの指し手、良い順
+*/
+
 void update_all_stats(const Position&          pos,
                       Stack*                   ss,
                       Search::YaneuraOuWorker& workerThread,
@@ -4491,36 +4574,61 @@ void update_all_stats(const Position&          pos,
                       int                      moveCount) {
 
     CapturePieceToHistory& captureHistory = workerThread.captureHistory;
-    Piece                  movedPiece     = pos.moved_piece_after(bestMove);
+    Piece                  movedPiece     = pos.moved_piece(bestMove);
     PieceType              capturedPiece;
 
     int bonus = std::min(143 * depth - 89, 1496) + 302 * (bestMove == ttMove);
     int malus = std::min(737 * depth - 179, 3141) - 30 * moveCount;
+
+	/*
+		📓 Stockfish 14ではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
+			Stockfish 16では、capture()からcapture_stage()に変更された。[2023/10/15]
+	*/ 
 
     if (!pos.capture_stage(bestMove))
     {
         update_quiet_histories(pos, ss, workerThread, bestMove, bonus * 1059 / 1024);
 
         // Decrease stats for all non-best quiet moves
-        for (Move move : quietsSearched)
+        // 最善でないquietの指し手すべての統計を減少させる
+
+		for (Move move : quietsSearched)
             update_quiet_histories(pos, ss, workerThread, move, -malus * 1310 / 1024);
     }
     else
     {
         // Increase stats for the best move in case it was a capture move
+        // 最善手が捕獲する指し手だった場合、その統計を増加させる
+
         capturedPiece = type_of(pos.piece_on(bestMove.to_sq()));
         captureHistory[movedPiece][bestMove.to_sq()][capturedPiece] << bonus * 1213 / 1024;
     }
 
     // Extra penalty for a quiet early move that was not a TT move in
     // previous ply when it gets refuted.
-    if (prevSq != SQ_NONE && ((ss - 1)->moveCount == 1 + (ss - 1)->ttHit) && !pos.captured_piece())
+
+	// quietな初期の手が、前の手でトランスポジションテーブル（TT）の手ではなく、
+    // かつ反証された場合に追加のペナルティを与えます。
+
+    // 📝 (ss-1)->ttHit : 一つ前のnodeで置換表にhitしたか
+    // 💡 Move::null()の場合、Stockfishでは65(移動後の升がSQ_NONEであることを保証している。やねうら王もそう変更した。)
+
+	if (prevSq != SQ_NONE && ((ss - 1)->moveCount == 1 + (ss - 1)->ttHit) && !pos.captured_piece())
         update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -malus * 580 / 1024);
 
     // Decrease stats for all non-best capture moves
+    // 最善の捕獲する指し手以外のすべての手の統計を減少させます
+
     for (Move move : capturesSearched)
     {
-        movedPiece    = pos.moved_piece_after(move);
+        /*
+		   🤔 ここ、moved_piece_before() で、捕獲前の駒の価値で考えたほうがいいか？
+
+		       → MovePickerでcaptureHistoryを用いる時に
+			      moved_piece_afterの方で表引きしてるので、それに倣う必要がある。
+		*/
+
+        movedPiece    = pos.moved_piece(move);
         capturedPiece = type_of(pos.piece_on(move.to_sq()));
         captureHistory[movedPiece][move.to_sq()][capturedPiece] << -malus * 1388 / 1024;
     }
@@ -4529,6 +4637,17 @@ void update_all_stats(const Position&          pos,
 
 // Updates histories of the move pairs formed by moves
 // at ply -1, -2, -3, -4, and -6 with current move.
+
+// update_continuation_histories() は、形成された手のペアの履歴を更新します。
+// 1,2,4,6手前の指し手と現在の指し手との指し手ペアによってcontinuationHistoryを更新する。
+
+/*
+	📓 1手前に対する現在の指し手 ≒ counterMove  (応手)
+		2手前に対する現在の指し手 ≒ followupMove (継続手)
+		4手前に対する現在の指し手 ≒ followupMove (継続手)
+		⇨　Stockfish 10で6手前も見るようになった。
+		⇨　Stockfish 16で3手前も見るようになった。
+*/
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
     static constexpr std::array<ConthistBonus, 6> conthist_bonuses = {
       {{1, 1092}, {2, 631}, {3, 294}, {4, 517}, {5, 126}, {6, 445}}};
@@ -4536,7 +4655,9 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
     for (const auto [i, weight] : conthist_bonuses)
     {
         // Only update the first 2 continuation histories if we are in check
-        if (ss->inCheck && i > 2)
+        // 王手がかかっている場合のみ、最初の2つのcontinuation historiesを更新する
+
+		if (ss->inCheck && i > 2)
             break;
         if (((ss - i)->currentMove).is_ok())
             (*(ss - i)->continuationHistory)[pc][to] << bonus * weight / 1024;
@@ -4544,21 +4665,28 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
 }
 
 // Updates move sorting heuristics
+// 手のソートのヒューリスティックを更新します
+
+// 💡 新しいbest moveが見つかったときに指し手の並べ替えheuristicsを更新する。
+//     具体的には駒を取らない指し手のstat tables等を更新する。
+
+// 📝  move      : これが良かった指し手
 
 void update_quiet_histories(
   const Position& pos, Stack* ss, Search::YaneuraOuWorker& workerThread, Move move, int bonus) {
 
     Color us = pos.side_to_move();
     workerThread.mainHistory[us][move.from_to()] << bonus;  // Untuned to prevent duplicate effort
+	                                                        // 重複した処理を防ぐためにチューニングされていない
 
     if (ss->ply < LOW_PLY_HISTORY_SIZE)
         workerThread.lowPlyHistory[ss->ply][move.from_to()] << bonus * 792 / 1024;
 
-    update_continuation_histories(ss, pos.moved_piece_after(move), move.to_sq(),
+    update_continuation_histories(ss, pos.moved_piece(move), move.to_sq(),
                                   bonus * (bonus > 0 ? 1082 : 784) / 1024);
 
     // TODO : pawnHistory必要か？
-#if 0
+#if defined(ENABLE_PAWN_HISTORY)
     int pIndex = pawn_structure_index(pos);
     workerThread.pawnHistory[pIndex][pos.moved_piece_after(move)][move.to_sq()]
       << bonus * (bonus > 0 ? 705 : 450) / 1024;
@@ -4567,6 +4695,7 @@ void update_quiet_histories(
 
 } // namespace
 
+// 📌 Skill class、やねうら王ではサポートしない。
 #if 0
 // When playing with strength handicap, choose the best move among a set of
 // RootMoves using a statistical rule dependent on 'level'. Idea by Heinz van Saanen.
@@ -4612,6 +4741,257 @@ Move Skill::pick_best(const RootMoves& rootMoves, size_t multiPV) {
     return best;
 }
 #endif
+
+
+// Used to print debug info and, more importantly, to detect
+// when we are out of available time and thus stop the search.
+void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
+    if (--callsCnt > 0)
+        return;
+
+    // When using nodes, ensure checking rate is not lower than 0.1% of nodes
+    callsCnt = worker.limits.nodes ? std::min(512, int(worker.limits.nodes / 1024)) : 512;
+
+    static TimePoint lastInfoTime = now();
+
+    TimePoint elapsed = tm.elapsed([&worker]() { return worker.threads.nodes_searched(); });
+    TimePoint tick    = worker.limits.startTime + elapsed;
+
+    if (tick - lastInfoTime >= 1000)
+    {
+        lastInfoTime = tick;
+        dbg_print();
+    }
+
+    // We should not stop pondering until told so by the GUI
+    if (ponder)
+        return;
+
+    if (
+      // Later we rely on the fact that we can at least use the mainthread previous
+      // root-search score and PV in a multithreaded environment to prove mated-in scores.
+      worker.completedDepth >= 1
+      && ((worker.limits.use_time_management() && (elapsed > tm.maximum() || stopOnPonderhit))
+          || (worker.limits.movetime && elapsed >= worker.limits.movetime)
+          || (worker.limits.nodes && worker.threads.nodes_searched() >= worker.limits.nodes)))
+        worker.threads.stop = worker.threads.abortedSearch = true;
+}
+
+// 📌 Tablebase関係の処理。将棋では用いないのでコメントアウト。
+#if 0
+// Used to correct and extend PVs for moves that have a TB (but not a mate) score.
+// Keeps the search based PV for as long as it is verified to maintain the game
+// outcome, truncates afterwards. Finally, extends to mate the PV, providing a
+// possible continuation (but not a proven mating line).
+void syzygy_extend_pv(const OptionsMap&         options,
+                      const Search::LimitsType& limits,
+                      Position&                 pos,
+                      RootMove&                 rootMove,
+                      Value&                    v) {
+
+    auto t_start      = std::chrono::steady_clock::now();
+    int  moveOverhead = int(options["Move Overhead"]);
+    bool rule50       = bool(options["Syzygy50MoveRule"]);
+
+    // Do not use more than moveOverhead / 2 time, if time management is active
+    auto time_abort = [&t_start, &moveOverhead, &limits]() -> bool {
+        auto t_end = std::chrono::steady_clock::now();
+        return limits.use_time_management()
+            && 2 * std::chrono::duration<double, std::milli>(t_end - t_start).count()
+                 > moveOverhead;
+    };
+
+    std::list<StateInfo> sts;
+
+    // Step 0, do the rootMove, no correction allowed, as needed for MultiPV in TB.
+    auto& stRoot = sts.emplace_back();
+    pos.do_move(rootMove.pv[0], stRoot);
+    int ply = 1;
+
+    // Step 1, walk the PV to the last position in TB with correct decisive score
+    while (size_t(ply) < rootMove.pv.size())
+    {
+        Move& pvMove = rootMove.pv[ply];
+
+        RootMoves legalMoves;
+        for (const auto& m : MoveList<LEGAL>(pos))
+            legalMoves.emplace_back(m);
+
+        Tablebases::Config config = Tablebases::rank_root_moves(options, pos, legalMoves);
+        RootMove&          rm     = *std::find(legalMoves.begin(), legalMoves.end(), pvMove);
+
+        if (legalMoves[0].tbRank != rm.tbRank)
+            break;
+
+        ply++;
+
+        auto& st = sts.emplace_back();
+        pos.do_move(pvMove, st);
+
+        // Do not allow for repetitions or drawing moves along the PV in TB regime
+        if (config.rootInTB && ((rule50 && pos.is_draw(ply)) || pos.is_repetition(ply)))
+        {
+            pos.undo_move(pvMove);
+            ply--;
+            break;
+        }
+
+        // Full PV shown will thus be validated and end in TB.
+        // If we cannot validate the full PV in time, we do not show it.
+        if (config.rootInTB && time_abort())
+            break;
+    }
+
+    // Resize the PV to the correct part
+    rootMove.pv.resize(ply);
+
+    // Step 2, now extend the PV to mate, as if the user explored syzygy-tables.info
+    // using top ranked moves (minimal DTZ), which gives optimal mates only for simple
+    // endgames e.g. KRvK.
+    while (!(rule50 && pos.is_draw(0)))
+    {
+        if (time_abort())
+            break;
+
+        RootMoves legalMoves;
+        for (const auto& m : MoveList<LEGAL>(pos))
+        {
+            auto&     rm = legalMoves.emplace_back(m);
+            StateInfo tmpSI;
+            pos.do_move(m, tmpSI);
+            // Give a score of each move to break DTZ ties restricting opponent mobility,
+            // but not giving the opponent a capture.
+            for (const auto& mOpp : MoveList<LEGAL>(pos))
+                rm.tbRank -= pos.capture(mOpp) ? 100 : 1;
+            pos.undo_move(m);
+        }
+
+        // Mate found
+        if (legalMoves.size() == 0)
+            break;
+
+        // Sort moves according to their above assigned rank.
+        // This will break ties for moves with equal DTZ in rank_root_moves.
+        std::stable_sort(
+          legalMoves.begin(), legalMoves.end(),
+          [](const Search::RootMove& a, const Search::RootMove& b) { return a.tbRank > b.tbRank; });
+
+        // The winning side tries to minimize DTZ, the losing side maximizes it
+        Tablebases::Config config = Tablebases::rank_root_moves(options, pos, legalMoves, true);
+
+        // If DTZ is not available we might not find a mate, so we bail out
+        if (!config.rootInTB || config.cardinality > 0)
+            break;
+
+        ply++;
+
+        Move& pvMove = legalMoves[0].pv[0];
+        rootMove.pv.push_back(pvMove);
+        auto& st = sts.emplace_back();
+        pos.do_move(pvMove, st);
+    }
+
+    // Finding a draw in this function is an exceptional case, that cannot happen when rule50 is false or
+    // during engine game play, since we have a winning score, and play correctly
+    // with TB support. However, it can be that a position is draw due to the 50 move
+    // rule if it has been been reached on the board with a non-optimal 50 move counter
+    // (e.g. 8/8/6k1/3B4/3K4/4N3/8/8 w - - 54 106 ) which TB with dtz counter rounding
+    // cannot always correctly rank. See also
+    // https://github.com/official-stockfish/Stockfish/issues/5175#issuecomment-2058893495
+    // We adjust the score to match the found PV. Note that a TB loss score can be
+    // displayed if the engine did not find a drawing move yet, but eventually search
+    // will figure it out (e.g. 1kq5/q2r4/5K2/8/8/8/8/7Q w - - 96 1 )
+    if (pos.is_draw(0))
+        v = VALUE_DRAW;
+
+    // Undo the PV moves
+    for (auto it = rootMove.pv.rbegin(); it != rootMove.pv.rend(); ++it)
+        pos.undo_move(*it);
+
+    // Inform if we couldn't get a full extension in time
+    if (time_abort())
+        sync_cout
+          << "info string Syzygy based PV extension requires more time, increase Move Overhead as needed."
+          << sync_endl;
+}
+#endif
+
+void SearchManager::pv(Search::Worker&           worker,
+                       const ThreadPool&         threads,
+                       const TranspositionTable& tt,
+                       Depth                     depth) {
+
+// TODO : 🚧 工事中 🚧
+
+#if 0
+    const auto nodes     = threads.nodes_searched();
+    auto&      rootMoves = worker.rootMoves;
+    auto&      pos       = worker.rootPos;
+    size_t     pvIdx     = worker.pvIdx;
+    size_t     multiPV   = std::min(size_t(worker.options["MultiPV"]), rootMoves.size());
+    uint64_t   tbHits    = threads.tb_hits() + (worker.tbConfig.rootInTB ? rootMoves.size() : 0);
+
+    for (size_t i = 0; i < multiPV; ++i)
+    {
+        bool updated = rootMoves[i].score != -VALUE_INFINITE;
+
+        if (depth == 1 && !updated && i > 0)
+            continue;
+
+        Depth d = updated ? depth : std::max(1, depth - 1);
+        Value v = updated ? rootMoves[i].uciScore : rootMoves[i].previousScore;
+
+        if (v == -VALUE_INFINITE)
+            v = VALUE_ZERO;
+
+        bool tb = worker.tbConfig.rootInTB && std::abs(v) <= VALUE_TB;
+        v       = tb ? rootMoves[i].tbScore : v;
+
+        bool isExact = i != pvIdx || tb || !updated;  // tablebase- and previous-scores are exact
+
+        // Potentially correct and extend the PV, and in exceptional cases v
+        if (is_decisive(v) && std::abs(v) < VALUE_MATE_IN_MAX_PLY
+            && ((!rootMoves[i].scoreLowerbound && !rootMoves[i].scoreUpperbound) || isExact))
+            syzygy_extend_pv(worker.options, worker.limits, pos, rootMoves[i], v);
+
+        std::string pv;
+        for (Move m : rootMoves[i].pv)
+            pv += UCIEngine::move(m, pos.is_chess960()) + " ";
+
+        // Remove last whitespace
+        if (!pv.empty())
+            pv.pop_back();
+
+        auto wdl   = worker.options["UCI_ShowWDL"] ? UCIEngine::wdl(v, pos) : "";
+        auto bound = rootMoves[i].scoreLowerbound
+                     ? "lowerbound"
+                     : (rootMoves[i].scoreUpperbound ? "upperbound" : "");
+
+        InfoFull info;
+
+        info.depth    = d;
+        info.selDepth = rootMoves[i].selDepth;
+        info.multiPV  = i + 1;
+        info.score    = {v, pos};
+        info.wdl      = wdl;
+
+        if (!isExact)
+            info.bound = bound;
+
+        TimePoint time = std::max(TimePoint(1), tm.elapsed_time());
+        info.timeMs    = time;
+        info.nodes     = nodes;
+        info.nps       = nodes * 1000 / time;
+        info.tbHits    = tbHits;
+        info.pv        = pv;
+        info.hashfull  = tt.hashfull();
+
+        updates.onUpdateFull(info);
+    }
+
+#endif
+
+}
 
 // Called in case we have no ponder move before exiting the search,
 // for instance, in case we stop the search during a fail high at root.
@@ -4662,7 +5042,26 @@ bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
     return pv.size() > 1;
 }
 
-
 }  // namespace YaneuraOu
+
+using namespace YaneuraOu;
+namespace {
+
+// 自作のエンジンのentry point
+void engine_main() {
+    // ここで作ったエンジン
+    YaneuraOuEngine engine;
+
+    // USIコマンドの応答部
+    USIEngine usi;
+    usi.set_engine(engine);  // エンジン実装を差し替える。
+
+    // USIコマンドの応答のためのループ
+    usi.loop();
+}
+
+// このentry pointを登録しておく。
+static EngineFuncRegister r(engine_main, "YaneuraOuEngine", 0);
+}
 
 #endif // YANEURAOU_ENGINE
