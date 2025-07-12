@@ -316,6 +316,13 @@ class YaneuraOuWorker: public Worker {
     Depth rootDepth, completedDepth;
     Value rootDelta;
 
+	// LMRのreductionの値を計算する。
+	// i     : improving
+	// d     : depth
+	// mn    : moveCount
+	// delta : delta
+	Depth reduction(bool i, Depth d, int mn, int delta) const;
+
     // Reductions lookup table initialized at startup
     // 起動時に初期化されるreductionsの参照表
     // 💡 reductionとは、残り探索深さを減らすこと。
