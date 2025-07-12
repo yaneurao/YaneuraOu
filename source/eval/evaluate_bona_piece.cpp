@@ -180,4 +180,3 @@ namespace Eval {
 
 } // namespace Eval
 } // namespace YaneuraOu {
-

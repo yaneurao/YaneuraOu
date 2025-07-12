@@ -193,4 +193,3 @@ namespace Eval::dlshogi {
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 #endif // ndef __DLSHOGI_EVALUATE_H_INCLUDED__
-

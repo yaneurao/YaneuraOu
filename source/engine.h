@@ -412,4 +412,3 @@ struct EngineFuncRegister {
 } // namespace YaneuraOu
 
 #endif // #ifndef ENGINE_H_INCLUDED
-

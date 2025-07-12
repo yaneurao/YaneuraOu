@@ -157,9 +157,7 @@ class SearchManager {
     SearchManager(const UpdateContext& updateContext) :
         updates(updateContext) {}
 
-    //void check_time(Search::Worker& worker) override;
-
-	#endif
+    void check_time(Search::Worker& worker) {}
 
 	// 現在のPVをUpdateContext::onUpdateFull()で登録する。
     void pv(Search::Worker&           worker,
@@ -180,6 +178,7 @@ class SearchManager {
 	// 💡 timeReductionは読み筋が安定しているときに時間を短縮するための係数。
 	//     ここで保存しているのは、前回の反復深化のiterationの時のtimeReductionの値。
     double               previousTimeReduction;
+
     Value                bestPreviousScore;
     Value                bestPreviousAverageScore;
     bool                 stopOnPonderhit;
@@ -229,57 +228,58 @@ namespace Search {
 // やねうら王の探索Worker
 // 📌 Stockfishから拡張して、やねうら王はエンジンを自由に差し替えられるようになっているので、
 //     自分のWorkerを定義するには、Search::Worker classから派生させる。
-class YaneuraOuWorker : public Worker
-{
-public:
-	// 💡 コンストラクタでWorkerのコンストラクタを初期化しないといけないので、
-	//     少なくともWorkerのコンストラクタと同じ引数が必要。
-	YaneuraOuWorker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken,
-		// 追加でYaneuraOuEngineからもらいたいもの
-		TranspositionTable& tt,
-		YaneuraOuEngine& engine
-	);
+class YaneuraOuWorker: public Worker {
+   public:
+    // 💡 コンストラクタでWorkerのコンストラクタを初期化しないといけないので、
+    //     少なくともWorkerのコンストラクタと同じ引数が必要。
+    YaneuraOuWorker(OptionsMap&               options,
+                    ThreadPool&               threads,
+                    size_t                    threadIdx,
+                    NumaReplicatedAccessToken numaAccessToken,
+                    // 追加でYaneuraOuEngineからもらいたいもの
+                    TranspositionTable& tt,
+                    YaneuraOuEngine&    engine);
 
-	// 評価関数のパラメーターが各NUMAにコピーされているようにする。
-	virtual void ensure_network_replicated() override;
+    // 評価関数のパラメーターが各NUMAにコピーされているようにする。
+    virtual void ensure_network_replicated() override;
 
-	// "go"コマンドでの探索の開始時にmain threadから呼び出される。
-	virtual void start_searching() override;
+    // "go"コマンドでの探索の開始時にmain threadから呼び出される。
+    virtual void start_searching() override;
 
-	// "usinewgame"に対して呼び出される。対局前の初期化。
-	virtual void clear() override;
+    // "usinewgame"に対して呼び出される。対局前の初期化。
+    virtual void clear() override;
 
-	// 反復深化
-	// 💡 並列探索のentry point。
-	//     start_searching()から呼び出される。
-	void iterative_deepening();
+    // 反復深化
+    // 💡 並列探索のentry point。
+    //     start_searching()から呼び出される。
+    void iterative_deepening();
 
-	// 探索本体
-	// 💡 最初、iterative_deepening()のなかから呼び出される。
-	template<NodeType nodeType>
+    // 探索本体
+    // 💡 最初、iterative_deepening()のなかから呼び出される。
+    template<NodeType nodeType>
     Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
 
-	// 静止探索
-	// 💡 search()から、残りdepthが小さくなった時に呼び出される。
-	template<NodeType nodeType>
-	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
+    // 静止探索
+    // 💡 search()から、残りdepthが小さくなった時に呼び出される。
+    template<NodeType nodeType>
+    Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta) {}
 
-	// 📌 do_move～undo_move
-	// 💡 do_moveするときにWorker::nodesをインクリメントする。
+    // 📌 do_move～undo_move
+    // 💡 do_moveするときにWorker::nodesをインクリメントする。
 
-	void do_move(Position& pos, const Move move, StateInfo& st);
+    void do_move(Position& pos, const Move move, StateInfo& st);
     void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
     void do_null_move(Position& pos, StateInfo& st);
     void undo_move(Position& pos, const Move move);
     void undo_null_move(Position& pos);
 
-	// 📌 Stockfishのsearch.hで定義されているWorkerが持っているメンバ変数 📌
+    // 📌 Stockfishのsearch.hで定義されているWorkerが持っているメンバ変数 📌
 
-	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
-    ButterflyHistory      mainHistory;
-    LowPlyHistory         lowPlyHistory;
+    // 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
+    ButterflyHistory mainHistory;
+    LowPlyHistory    lowPlyHistory;
 
-	CapturePieceToHistory captureHistory;
+    CapturePieceToHistory captureHistory;
 
     // コア数が多いか、長い持ち時間においては、ContinuationHistoryもスレッドごとに確保したほうが良いらしい。
     // cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
@@ -287,43 +287,43 @@ public:
     // →　この改造、レーティングがほぼ上がっていない。悪い改造のような気がする。
     ContinuationHistory continuationHistory[2][2];
 
-	// TODO : あとで
-	#if 0
+// TODO : あとで
+#if 0
     PawnHistory           pawnHistory;
 
 	CorrectionHistory<Pawn>         pawnCorrectionHistory;
     CorrectionHistory<Minor>        minorPieceCorrectionHistory;
     CorrectionHistory<NonPawn>      nonPawnCorrectionHistory;
     CorrectionHistory<Continuation> continuationCorrectionHistory;
-	#endif
+#endif
 
     TTMoveHistory ttMoveHistory;
 
-	// MultiPVの時の現在探索中のPVのindexと、PVの末尾
-	size_t pvIdx, pvLast;
+    // MultiPVの時の現在探索中のPVのindexと、PVの末尾
+    size_t pvIdx, pvLast;
 
-	// nodes           : 探索node数これはWorker classのほうにある。
-	// tbHits          : tablebaseにhitした回数。将棋では使わない。
-	// bestMoveChanges : bestMoveが反復深化のなかで変化した回数
+    // nodes           : 探索node数これはWorker classのほうにある。
+    // tbHits          : tablebaseにhitした回数。将棋では使わない。
+    // bestMoveChanges : bestMoveが反復深化のなかで変化した回数
     std::atomic<uint64_t> /* nodes, tbHits,*/ bestMoveChanges;
 
-	// selDepth : 選択探索の深さ。
-	// 💡depthとPV lineに対するUSI infoで出力するselDepth。
-	int    selDepth, nmpMinPly;
+    // selDepth : 選択探索の深さ。
+    // 💡depthとPV lineに対するUSI infoで出力するselDepth。
+    int selDepth, nmpMinPly;
 
-	// aspiration searchで使う。
-	Depth rootDepth, completedDepth;
+    // aspiration searchで使う。
+    Depth rootDepth, completedDepth;
     Value rootDelta;
 
     // Reductions lookup table initialized at startup
     // 起動時に初期化されるreductionsの参照表
-	// 💡 reductionとは、残り探索深さを減らすこと。
+    // 💡 reductionとは、残り探索深さを減らすこと。
     std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
 
-	// 📌 以下、やねうら王独自追加 📌
+    // 📌 以下、やねうら王独自追加 📌
 
-	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
-	// 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。
+    // WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
+    // 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。
     YaneuraOuWorker* toYaneuraOuWorker(std::unique_ptr<Worker>& worker) {
         return dynamic_cast<YaneuraOuWorker*>(worker.get());
     }
@@ -332,26 +332,25 @@ public:
     // 💡 Stockfishとの互換性のために用意。
     SearchManager* main_manager() { return &manager; }
 
-	// 並列探索において一番良い思考をしたthreadの選出。
+    // 並列探索において一番良い思考をしたthreadの選出。
     // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
     YaneuraOuWorker* get_best_thread() const;
 
-	// 📌 コンストラクタでもらったやつ 📌
+    // 📌 コンストラクタでもらったやつ 📌
 
-	// 置換表
-	TranspositionTable& tt;
+    // 置換表
+    TranspositionTable& tt;
 
-	// Engine本体
-	YaneuraOuEngine& engine;
+    // Engine本体
+    YaneuraOuEngine& engine;
 
-	// SearchManager
-	SearchManager& manager;
-
+    // SearchManager
+    SearchManager& manager;
 };
 
 } // namespace Search
 
 } // namespace YaneuraOu
 
-
+#endif // defined(YANEURAOU_ENGINE)
 #endif // YANEURAOU_SEARCH_H_INCLUDED

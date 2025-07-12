@@ -48,23 +48,33 @@ namespace YaneuraOu {
             //void advance_nodes_time(std::int64_t nodes);
             // 💡 やねうら王ではNodesTimeを使わない。
 
+            // 📌 以下、やねうら王独自追加。
+
+            // 探索終了の時間(startTime + search_end >= now()になったら停止)
+            TimePoint search_end;
+
+			// 秒単位で切り上げる。ただし、NetworkDelayの値などを考慮する。
+			TimePoint round_up(TimePoint t);
+
            private:
-            TimePoint startTime;  // 💡 探索開始時刻。LimitsType startTimeの値。
+            TimePoint startTime;    // 💡 探索開始時刻。LimitsType startTimeの値。
+            TimePoint minimumTime;  // 📌 やねうら王独自追加。
             TimePoint optimumTime;
             TimePoint maximumTime;
-            TimePoint minimumTime;  // 📌 やねうら王独自追加。
 
             //std::int64_t availableNodes = -1;     // When in 'nodes as time' mode
             //bool         useNodesTime   = false;  // True if we are in 'nodes as time' mode
             // 💡 やねうら王ではNodesTimeを使わない。
 
-            // 📌　やねうら王独自追加。
-
-            // 探索終了の時間(startTime + search_end >= now()になったら停止)
-            TimePoint search_end;
+            // 📌 以下、やねうら王独自追加。
 
             // init()の内部実装。
             void init_(Search::LimitsType& limits, Color us, int ply, const OptionsMap& options);
+
+			// optionsのそれぞれの値
+			TimePoint minimum_thinking_time;
+            TimePoint network_delay;
+            TimePoint remain_time;
 
             // 前回のinit()の値
             Search::LimitsType* lastcall_Limits;

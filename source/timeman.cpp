@@ -88,20 +88,20 @@ void TimeManagement::init_(Search::LimitsType& limits,
 
 	// ネットワークのDelayを考慮して少し減らすべき。
 	// かつ、minimumとmaximumは端数をなくすべき
-    TimePoint network_delay = (int) options["NetworkDelay"];
+    network_delay = (TimePoint) options["NetworkDelay"];
 
 	// 探索終了予定時刻。このタイミングで初期化しておく。
     search_end = 0;
 
 	// 今回の最大残り時間(これを超えてはならない)
 	// byoyomiとincの指定は残り時間にこの時点で加算して考える。
-    TimePoint remain_time =
+    remain_time =
       limits.time[us] + limits.byoyomi[us] + limits.inc[us] - (TimePoint) options["NetworkDelay2"];
 	// ここを0にすると時間切れのあと自爆するのでとりあえず100にしておく。
     remain_time = std::max(remain_time, (TimePoint) 100);
 
 	// 最小思考時間
-    TimePoint minimum_thinking_time = (int) options["MinimumThinkingTime"];
+    minimum_thinking_time = (TimePoint) options["MinimumThinkingTime"];
 
 	// 序盤重視率
 	// 　これはこんなパラメーターとして手で調整するべきではなく、探索パラメーターの一種として
@@ -241,31 +241,30 @@ void TimeManagement::init_(Search::LimitsType& limits,
 			minimumTime = optimumTime = maximumTime = limits.byoyomi[us] + limits.time[us];
 	}
 
-	// 1秒単位で繰り上げてdelayを引く。
-    // ただし、remain_timeよりは小さくなるように制限する。
-    auto round_up = [&](TimePoint t0) {
-        // 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
-        auto t = std::max(((t0 + 999) / 1000) * 1000, minimum_thinking_time);
-
-        // そこから、Options["NetworkDelay"]の値を引く
-        t = t - network_delay;
-
-        // これが元の値より小さいなら、もう1秒使わないともったいない。
-        if (t < t0)
-            t += 1000;
-
-        // remain_timeを上回ってはならない。
-        t = std::min(t, remain_time);
-        return t;
-    };
-
-
 	// 残り時間 - network_delay2よりは短くしないと切れ負けになる可能性が出てくる。
 	minimumTime = std::min(round_up(minimumTime), remain_time);
 	optimumTime = std::min(         optimumTime , remain_time);
 	maximumTime = std::min(round_up(maximumTime), remain_time);
-
 }
+
+	// 1秒単位で繰り上げてdelayを引く。
+// ただし、remain_timeよりは小さくなるように制限する。
+TimePoint TimeManagement::round_up(TimePoint t0) {
+    // 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
+    auto t = std::max(((t0 + 999) / 1000) * 1000, minimum_thinking_time);
+
+    // そこから、Options["NetworkDelay"]の値を引く
+    t = t - network_delay;
+
+    // これが元の値より小さいなら、もう1秒使わないともったいない。
+    if (t < t0)
+        t += 1000;
+
+    // remain_timeを上回ってはならない。
+    t = std::min(t, remain_time);
+    return t;
+};
+
 
 TimePoint TimeManagement::minimum() const { return minimumTime; }
 TimePoint TimeManagement::optimum() const { return optimumTime; }
