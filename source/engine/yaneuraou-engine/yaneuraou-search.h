@@ -263,7 +263,7 @@ class YaneuraOuWorker: public Worker {
     // 静止探索
     // 💡 search()から、残りdepthが小さくなった時に呼び出される。
     template<NodeType nodeType>
-    Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta) {}
+    Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
 
     // 📌 do_move～undo_move
     // 💡 do_moveするときにWorker::nodesをインクリメントする。
