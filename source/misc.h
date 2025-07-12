@@ -80,15 +80,16 @@ void dbg_print();
 // --------------------
 
 // ms単位での時間計測しか必要ないのでこれをTimePoint型のように扱う。
-typedef std::chrono::milliseconds::rep TimePoint;
-static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
+// TimePointの定義。💡 やねうら王では、types.hに移動。
+//using TimePoint = std::chrono::milliseconds::rep;  // A value in milliseconds
+//static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
 
 // ms単位で現在時刻を返す
 static TimePoint now() {
 	return std::chrono::duration_cast<std::chrono::milliseconds>
 		(std::chrono::steady_clock::now().time_since_epoch()).count();
 		//(std::chrono::steady_clock::now().time_since_epoch()).count() * 10;
-		// 10倍早く時間が経過するようにして、持ち時間制御のテストなどを行う。
+		// 💡 10倍早く時間が経過するようにして、持ち時間制御のテストなどを行う時は↑このように10をかけ算する。
 }
 
 
@@ -372,14 +373,15 @@ void move_to_front(std::vector<T>& vec, Predicate pred) {
     #define sf_assume(cond)
 #endif
 
+// ========================================
+// 📌 ここ以下は、やねうら王の独自追加 📌
+// ========================================
+
 // -----------------------
 //  探索のときに使う時間管理用
 // -----------------------
 
-namespace Search { struct LimitsType; }
-
-// 時間計測用。
-// Search::Limits.npmsec が trueのときは、Limits.nodesFunc()を呼び出して経過時間の代わりとする。
+// 📌 時間計測用
 struct Timer
 {
     Timer() {}
@@ -405,7 +407,6 @@ struct Timer
 	TimePoint elapsed_from_start_to_ponderhit() const { return (TimePoint)(startTimeFromPonderhit - startTime); }
 
 	// 現在時刻が返る。
-	// Search::Limits.npmsec が trueのときは、Limits.nodesFunc()を呼び出して現在時刻の代わりとする。
 	TimePoint now() const;
 
 private:

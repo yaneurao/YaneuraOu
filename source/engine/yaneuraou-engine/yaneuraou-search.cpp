@@ -35,57 +35,57 @@ namespace YaneuraOu {
 
 using namespace Search;
 
-    // -------------------
-    // やねうら王独自追加
-    // -------------------
+// -------------------
+// やねうら王独自追加
+// -------------------
 
-    // パラメーターの調整を行うのか
-    #if defined(TUNING_SEARCH_PARAMETERS)
-        // ハイパーパラメーターを調整するときは終了時にその時のパラメーターを書き出す。
-        #define ENABLE_OUTPUT_GAME_RESULT
+// パラメーターの調整を行うのか
+#if defined(TUNING_SEARCH_PARAMETERS)
+    // ハイパーパラメーターを調整するときは終了時にその時のパラメーターを書き出す。
+    #define ENABLE_OUTPUT_GAME_RESULT
 
-        // パラメーターをランダムに少し変化させる。
-        // 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
-        // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
-        #define USE_RANDOM_PARAMETERS
+    // パラメーターをランダムに少し変化させる。
+    // 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
+    // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
+    #define USE_RANDOM_PARAMETERS
 
-        #define PARAM_DEFINE int
-        #include "yaneuraou-param.h"
-    #else
-        // 変更しないとき
-        #define PARAM_DEFINE constexpr int
-        #include "yaneuraou-param.h"
+    #define PARAM_DEFINE int
+    #include "yaneuraou-param.h"
+#else
+    // 変更しないとき
+    #define PARAM_DEFINE constexpr int
+    #include "yaneuraou-param.h"
 
-    #endif
+#endif
 
-    // 実行時に読み込むパラメーターファイルを配置するフォルダとその名前
-    #define PARAM_FILE "param/yaneuraou-param.h"
+// 実行時に読み込むパラメーターファイルを配置するフォルダとその名前
+#define PARAM_FILE "param/yaneuraou-param.h"
 
-    #if defined(ENABLE_OUTPUT_GAME_RESULT)
+#if defined(ENABLE_OUTPUT_GAME_RESULT)
 // 変更したパラメーター一覧と、リザルト(勝敗)を書き出すためのファイルハンドル
 static std::fstream result_log;
-    #endif
+#endif
 
 
-    // 探索パラメーターの自動調整のためのフレームワーク。
-    // これ、今後使うかどうかわからないので、いったんコメントアウト。
-    // TODO : あとで
-    #if 0
+// 探索パラメーターの自動調整のためのフレームワーク。
+// これ、今後使うかどうかわからないので、いったんコメントアウト。
+// TODO : あとで
+#if 0
 
 // パラメーターのランダム化のときには、
 // USIの"gameover"コマンドに対して、それをログに書き出す。
 void gameover_handler([[maybe_unused]] const std::string& cmd)
 {
-        #if defined(ENABLE_OUTPUT_GAME_RESULT)
+#if defined(ENABLE_OUTPUT_GAME_RESULT)
 	result_log << cmd << std::endl << std::flush;
-        #endif
+#endif
 }
 
-        #if defined(YANEURAOU_ENGINE_NNUE)
+#if defined(YANEURAOU_ENGINE_NNUE)
 void init_fv_scale() {
 	Eval::NNUE::FV_SCALE = (int)Options["FV_SCALE"];
 }
-        #endif
+#endif
 
 // 探索パラメーターを動的に読み込む機能。
 void init_param()
@@ -163,7 +163,7 @@ void init_param()
 						// 見つかった
 						founds[i] = true;
 
-            #if defined(USE_RANDOM_PARAMETERS)
+#if defined(USE_RANDOM_PARAMETERS)
 						// PARAM_DEFINEの一つ前の行には次のように書いてあるはずなので、
 						// USE_RANDOM_PARAMETERSのときは、このstepをプラスかマイナス方向に加算してやる。
 						// ただし、fixedと書いてあるパラメーターに関しては除外する。
@@ -211,7 +211,7 @@ void init_param()
 						else {
 							*param_vars[i] = a[rand.rand(a.size())];
 						}
-            #endif
+#endif
 
 						//            cout << param_names[i] << " = " << *param_vars[i] << endl;
 						goto NEXT;
@@ -234,7 +234,7 @@ void init_param()
 					std::cout << "Error : param not found in " << path << " -> " << param_names[i] << std::endl;
 		}
 
-            #if defined(ENABLE_OUTPUT_GAME_RESULT)
+#if defined(ENABLE_OUTPUT_GAME_RESULT)
 		{
 			if (!result_log.is_open())
 				result_log.open(Options["PARAMETERS_LOG_FILE_PATH"], std::ios::app);
@@ -248,7 +248,7 @@ void init_param()
 			}
 			result_log << std::endl << std::flush;
 		}
-            #endif
+#endif
 
 		// Evalのパラメーター初期化
 		// 上のコードでパラメーターが変更された可能性があるのでこのタイミングで再度呼び出す。
@@ -256,9 +256,9 @@ void init_param()
 
 	}
 
-        #endif
+#endif
 }
-    #endif
+#endif
 
 // 思考エンジンの追加オプションを設定する。
 // 💡 Stockfishでは、Engine::Engine()で行っている。
@@ -673,7 +673,7 @@ void Search::YaneuraOuWorker::start_searching() {
     main_manager()->ponder_candidate = Move::none();
 
 
-    #if defined(SHOGI24)
+#if defined(SHOGI24)
     // ---------------------
     //    将棋倶楽部24対策
     // ---------------------
@@ -716,7 +716,7 @@ void Search::YaneuraOuWorker::start_searching() {
 
         goto SKIP_SEARCH;
     }
-    #endif
+#endif
 
     // ✋ 独自追加ここまで。
 
@@ -737,13 +737,13 @@ void Search::YaneuraOuWorker::start_searching() {
         // 💡 チェスだと王手されていないなら引き分けだが、将棋だとつねに負け。
         main_manager()->updates.onUpdateNoMoves({0, -VALUE_MATE});
 
-    // TODO : あとで考える。
-    #if 0
+// TODO : あとで考える。
+#if 0
 		// 📌 やねうら王独自
 		// 評価値を用いないなら代入しなくて良いのだが(Stockfishはそうなっている)、
         // このあと、↓USI::pv()を呼び出したいので、scoreをきちんと設定しておいてやる。
         rootMoves[0].score = rootMoves[0].usiScore = mated_in(0);
-    #endif
+#endif
 
         goto SKIP_SEARCH;
     }
@@ -838,8 +838,8 @@ void Search::YaneuraOuWorker::start_searching() {
         Tools::sleep(1);
         // ⚠ Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
 
-    // TODO : あとで
-    #if 0
+// TODO : あとで
+#if 0
 		// === やねうら王独自改良 ===
 
 		// 最終的なPVを出力する。
@@ -851,7 +851,7 @@ void Search::YaneuraOuWorker::start_searching() {
         if (!output_final_pv_done
             && Threads.search_finished() /* 全探索スレッドが探索を完了している */)
             output_final_pv();
-    #endif
+#endif
     }
 
     // Stop the threads if not already stopped (also raise the stop if
@@ -866,8 +866,8 @@ void Search::YaneuraOuWorker::start_searching() {
 
     threads.wait_for_search_finished();
 
-    // 💡 やねうら王では、npmsecをサポートしない。
-    #if 0
+// 💡 やねうら王では、npmsecをサポートしない。
+#if 0
     // When playing in 'nodes as time' mode, subtract the searched nodes from
     // the available ones before exiting.
     // 'nodes as time' モードでプレイしている場合、終了する前に
@@ -882,7 +882,7 @@ void Search::YaneuraOuWorker::start_searching() {
     if (limits.npmsec)
         main_manager()->tm.advance_nodes_time(threads.nodes_searched()
                                               - limits.inc[rootPos.side_to_move()]);
-    #endif
+#endif
 
     // 普通に探索したのでskipしたかのフラグをfalseにする。
     // 💡やねうら王独自
@@ -896,22 +896,23 @@ SKIP_SEARCH:;
 
     // Lazy SMPの結果を取り出す
 
-	// 並列探索したうちのbestな結果を保持しているthread
-	// まずthisを入れておいて、定跡を返す時などはthisのままにするコードを適用する。
+    // 並列探索したうちのbestな結果を保持しているthread
+    // まずthisを入れておいて、定跡を返す時などはthisのままにするコードを適用する。
     YaneuraOuWorker* bestThread = this;
 
-	Skill   skill =
-    //  Skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
-		Skill(/*(int)Options["SkillLevel"]*/ 20, 0);
-	// TODO : Skillの導入はあとで検討する。
-	//  🤔  それにしてもオプションが3つも増えるの嫌だな…。
+    Skill skill =
+      //  Skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
+      Skill(/*(int)Options["SkillLevel"]*/ 20, 0);
+    // TODO : Skillの導入はあとで検討する。
+    //  🤔  それにしてもオプションが3つも増えるの嫌だな…。
 
-    if (int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate && !skill.enabled()
-        && rootMoves[0].pv[0] != Move::none() && !search_skipped
-		// ⚠ "&& !search_skipped"は、やねうら王独自追加。
-		//     これを追加しておかないと、定跡にhitしたりして、main threadのrootMovesに積んだりしても、
-		//     bestThreadがmain threadではないものを指してしまい、期待した指し手がbestmoveとして出力されなくなる。
-		)
+    if (
+      int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate && !skill.enabled()
+      && rootMoves[0].pv[0] != Move::none() && !search_skipped
+      // ⚠ "&& !search_skipped"は、やねうら王独自追加。
+      //     これを追加しておかないと、定跡にhitしたりして、main threadのrootMovesに積んだりしても、
+      //     bestThreadがmain threadではないものを指してしまい、期待した指し手がbestmoveとして出力されなくなる。
+    )
         //bestThread = threads.get_best_thread()->worker.get();
         // 💡 やねうら王では、get_best_thread()は、ThreadPoolからこのclassに移動させた。
         bestThread = get_best_thread();
@@ -927,12 +928,12 @@ SKIP_SEARCH:;
         && USIEngine::to_cp(bestThread->rootMoves[0].score) <= -resign_value)
         bestThread->rootMoves[0].pv[0] = Move::resign();
 
-	#if 0
+#if 0
     // Send again PV info if we have a new best thread
 	// 新しいベストスレッドがあれば、再度PV情報を送信する
     if (bestThread != this)
         main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
-	#endif
+#endif
     // 💡 ↑こんなにPV出力するの好きじゃないので省略。
 
     // サイレントモードでないならbestな指し手を出力
@@ -965,30 +966,30 @@ SKIP_SEARCH:;
 
 void Search::YaneuraOuWorker::iterative_deepening() {
 
-	// もし自分がメインスレッドであるならmainThreadにmain_managerのポインタを代入。
+    // もし自分がメインスレッドであるならmainThreadにmain_managerのポインタを代入。
     // 自分がサブスレッドのときは、これはnullptrになる。
     SearchManager* mainThread = (is_mainthread() ? main_manager() : nullptr);
 
     Move pv[MAX_PLY + 1];
 
-	// 探索の安定性を評価するために前回のiteration時のbest PVを記録しておく。
+    // 探索の安定性を評価するために前回のiteration時のbest PVを記録しておく。
     Depth lastBestMoveDepth = 0;
     Value lastBestScore     = -VALUE_INFINITE;
     auto  lastBestPV        = std::vector{Move::none()};
 
-	// alpha,beta         : aspiration searchの窓の範囲(alpha,beta)
+    // alpha,beta         : aspiration searchの窓の範囲(alpha,beta)
     // delta              : apritation searchで窓を動かす大きさdelta
     // us                 : この局面の手番側
-	// timeReduction      : 読み筋が安定しているときに時間を短縮するための係数。
-	// totBestMoveChanges : 直近でbestMoveが変化した回数の統計。読み筋の安定度の目安にする。
+    // timeReduction      : 読み筋が安定しているときに時間を短縮するための係数。
+    // totBestMoveChanges : 直近でbestMoveが変化した回数の統計。読み筋の安定度の目安にする。
     // iterIdx            : 反復深化の時に1回ごとのbest valueを保存するための配列へのindex。0から3までの値をとる。
-	Value  alpha, beta;
+    Value  alpha, beta;
     Value  bestValue     = -VALUE_INFINITE;
     Color  us            = rootPos.side_to_move();
     double timeReduction = 1, totBestMoveChanges = 0;
     int    delta, iterIdx                        = 0;
 
-	// 📝 Stockfish 14の頃は、反復深化のiterationが浅いうちはaspiration searchを使わず
+    // 📝 Stockfish 14の頃は、反復深化のiterationが浅いうちはaspiration searchを使わず
     //     探索窓を (-VALUE_INFINITE , +VALUE_INFINITE)としていたが、Stockfish 16では、
     //     浅いうちからaspiration searchを使うようになったので、alpha,betaの初期化はここでやらなくなった。
 
@@ -996,7 +997,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     // (ss - 7) is needed for update_continuation_histories(ss - 1) which accesses (ss - 6),
     // (ss + 2) is needed for initialization of cutOffCnt.
 
-	// (ss-7)から(ss+2)へのアクセスを許可するために、追加のサイズでスタックを割り当てます
+    // (ss-7)から(ss+2)へのアクセスを許可するために、追加のサイズでスタックを割り当てます
     // (ss-7)はupdate_continuation_histories(ss-1, ...)のために必要であり、これは(ss-6)にアクセスします
     // (ss+2)はstatScoreとkillersの初期化のために必要です
 
@@ -1006,24 +1007,24 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     //     そのあとはsearch()の先頭でss+1,ss+2を適宜初期化していく。
     //     RootNodeはss->ply == 0がその条件。(ss->plyはsearch_thread_initで初期化されている)
 
-	Stack  stack[MAX_PLY + 10] = {};
+    Stack  stack[MAX_PLY + 10] = {};
     Stack* ss                  = stack + 7;
 
-	// counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
+    // counterMovesをnullptrに初期化するのではなくNO_PIECEのときの値を番兵として用いる。
     for (int i = 7; i > 0; --i)
     {
         (ss - i)->continuationHistory =
           &this->continuationHistory[0][0][NO_PIECE][0];  // Use as a sentinel
-		// TODO : あとで
+                                                          // TODO : あとで
         //(ss - i)->continuationCorrectionHistory = &this->continuationCorrectionHistory[NO_PIECE][0];
-        (ss - i)->staticEval                    = VALUE_NONE;
+        (ss - i)->staticEval = VALUE_NONE;
     }
 
-	// Stack(探索用の構造体)上のply(手数)は事前に初期化しておけば探索時に代入する必要がない。
+    // Stack(探索用の構造体)上のply(手数)は事前に初期化しておけば探索時に代入する必要がない。
     for (int i = 0; i <= MAX_PLY + 2; ++i)
         (ss + i)->ply = i;
 
-	// 最善応手列(Principal Variation)
+    // 最善応手列(Principal Variation)
     ss->pv = pv;
 
     if (mainThread)
@@ -1034,38 +1035,38 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             mainThread->iterValue.fill(mainThread->bestPreviousScore);
     }
 
-	// MultiPV
+    // MultiPV
     // 💡 bestmoveとしてしこの局面の上位N個を探索する機能
 
-	size_t multiPV = size_t(options["MultiPV"]);
+    size_t multiPV = size_t(options["MultiPV"]);
 
-	//Skill skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
-	// 🤔 ↑これでエンジンオプション2つも増えるのやだな…。気が向いたらサポートすることにする。
+    //Skill skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
+    // 🤔 ↑これでエンジンオプション2つも増えるのやだな…。気が向いたらサポートすることにする。
     Skill skill = Skill(/*(int)Options["SkillLevel"]*/ 20, 0);
 
     // When playing with strength handicap enable MultiPV search that we will
     // use behind-the-scenes to retrieve a set of possible moves.
 
-	// 強さハンディキャップ付きでプレイするときは、MultiPV探索を有効にする。
+    // 強さハンディキャップ付きでプレイするときは、MultiPV探索を有効にする。
     // これにより、裏側で複数の候補手を取得できるようにする。
 
-	// 📝 SkillLevelが有効(設定された値が20未満)のときは、MultiPV = 4で探索。
+    // 📝 SkillLevelが有効(設定された値が20未満)のときは、MultiPV = 4で探索。
 
-	if (skill.enabled())
+    if (skill.enabled())
         multiPV = std::max(multiPV, size_t(4));
 
-	// 💡 multiPVの値は、この局面での合法手の数を上回ってはならない。
-	multiPV = std::min(multiPV, rootMoves.size());
+    // 💡 multiPVの値は、この局面での合法手の数を上回ってはならない。
+    multiPV = std::min(multiPV, rootMoves.size());
 
-	// ---------------------
+    // ---------------------
     //   反復深化のループ
     // ---------------------
 
-	// PV出力用のtimer
-	// 📌 やねうら王独自
-	Timer time(limits.startTime);
+    // PV出力用のtimer
+    // 📌 やねうら王独自
+    Timer time(limits.startTime);
 
-	// 反復深化の探索深さが深くなって行っているかのチェック用のカウンター
+    // 反復深化の探索深さが深くなって行っているかのチェック用のカウンター
     // これが増えていない時、同じ深さを再度探索していることになる。(fail highし続けている)
     // 💡 あまり同じ深さでつっかえている時は、aspiration windowの幅を大きくしてやるなどして回避する必要がある。
     int searchAgainCounter = 0;
@@ -1075,12 +1076,12 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     // Iterative deepening loop until requested to stop or the target depth is reached
     // 要求があるか、または目標深度に達するまで反復深化ループを実行します
 
-	// 📝 rootDepthはこのthreadの反復深化での探索中の深さ。
+    // 📝 rootDepthはこのthreadの反復深化での探索中の深さ。
     //     limits.depth("go"コマンドの時に"depth"として指定された探索深さ)が指定されている時は、
-	//     main threadのrootDepthがそれを超えた時点でこのループを抜ける。
-	//     (main threadが抜けるとthreads.stop == trueになるのでそのあとsub threadは勝手にこのループを抜ける)
+    //     main threadのrootDepthがそれを超えた時点でこのループを抜ける。
+    //     (main threadが抜けるとthreads.stop == trueになるのでそのあとsub threadは勝手にこのループを抜ける)
 
-	while (++rootDepth < MAX_PLY && !threads.stop
+    while (++rootDepth < MAX_PLY && !threads.stop
            && !(limits.depth && mainThread && rootDepth > limits.depth))
     {
         /*
@@ -1097,49 +1098,49 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 			コード自体は入れたほうがいいかも知れない。
 		*/
 
-		// ------------------------
+        // ------------------------
         // Lazy SMPのための初期化
         // ------------------------
 
         // Age out PV variability metric
-		// PV変動メトリックを古く(期限切れに)する
+        // PV変動メトリックを古く(期限切れに)する
 
-		// 📝 bestMoveが変化した回数を記録しているが、反復深化の世代が一つ進むので、
+        // 📝 bestMoveが変化した回数を記録しているが、反復深化の世代が一つ進むので、
         //     古い世代の情報として重みを低くしていく。
 
-		if (mainThread)
+        if (mainThread)
             totBestMoveChanges /= 2;
 
         // Save the last iteration's scores before the first PV line is searched and
         // all the move scores except the (new) PV are set to -VALUE_INFINITE.
 
-		// 最初のPVラインを探索する前に前回イテレーションのスコアを保存し、
+        // 最初のPVラインを探索する前に前回イテレーションのスコアを保存し、
         // （新しい）PV 以外のすべての手のスコアを -VALUE_INFINITE に設定する。
 
-		// 💡 aspiration window searchのために反復深化の前回のiterationのスコアをコピーしておく
+        // 💡 aspiration window searchのために反復深化の前回のiterationのスコアをコピーしておく
 
         for (RootMove& rm : rootMoves)
             rm.previousScore = rm.score;
 
-		// 🤔 将棋ではこれ使わなくていいような？
+        // 🤔 将棋ではこれ使わなくていいような？
 
         //size_t pvFirst = 0;
         //pvLast         = 0;
 
-		// 💡 探索深さを増やすかのフラグがfalseなら、同じ深さを探索したことになるので、
+        // 💡 探索深さを増やすかのフラグがfalseなら、同じ深さを探索したことになるので、
         //     searchAgainCounterカウンターを1増やす
-		if (!threads.increaseDepth)
+        if (!threads.increaseDepth)
             searchAgainCounter++;
 
         // MultiPV loop. We perform a full root search for each PV line
-		// MultiPVのloop。MultiPVのためにこの局面の候補手をN個選出する。
+        // MultiPVのloop。MultiPVのためにこの局面の候補手をN個選出する。
         for (pvIdx = 0; pvIdx < multiPV; ++pvIdx)
         {
             // 📝 chessではtbRankの処理が必要らしい。将棋では関係なさげなのでコメントアウト。
             //     tbRankが同じ値のところまでしかsortしなくて良いらしい。
             //     (そこ以降は、明らかに悪い指し手なので)
 
-			#if 0
+#if 0
             if (pvIdx == pvLast)
             {
                 pvFirst = pvLast;
@@ -1147,13 +1148,13 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                     if (rootMoves[pvLast].tbRank != rootMoves[pvFirst].tbRank)
                         break;
             }
-			#endif
+#endif
 
             // Reset UCI info selDepth for each depth and each PV line
             // それぞれのdepthとPV lineに対するUSI infoで出力するselDepth
             selDepth = 0;
 
-			// ------------------------
+            // ------------------------
             // Aspiration window search
             // ------------------------
 
@@ -1181,45 +1182,45 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
 				💡 将棋ではStockfishより少し高めが良さそう。
 			*/
-            
+
             // Reset aspiration window starting size
-			// aspiration windowの開始サイズをリセットする。
-            delta     = PARAM_ASPIRATION_SEARCH1 + std::abs(rootMoves[pvIdx].meanSquaredScore) / 11134;
+            // aspiration windowの開始サイズをリセットする。
+            delta = PARAM_ASPIRATION_SEARCH1 + std::abs(rootMoves[pvIdx].meanSquaredScore) / 11134;
             Value avg = rootMoves[pvIdx].averageScore;
             alpha     = std::max(avg - delta, -VALUE_INFINITE);
-            beta      = std::min(avg + delta,  VALUE_INFINITE);
+            beta      = std::min(avg + delta, VALUE_INFINITE);
 
-			#if 0
+#if 0
             // Adjust optimism based on root move's averageScore
             // ルート手の averageScore に基づいて楽観度を調整する
             //optimism[ us]  = 137 * avg / (std::abs(avg) + 91);
             //optimism[~us] = -optimism[us];
-			#endif
+#endif
             // 🤔 このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
-			//     TODO : あとで検討する。
+            //     TODO : あとで検討する。
 
             // Start with a small aspiration window and, in the case of a fail
             // high/low, re-search with a bigger window until we don't fail
             // high/low anymore.
 
-			// 小さなaspiration windowで開始して、fail high/lowのときに、fail high/lowにならないようになるまで
+            // 小さなaspiration windowで開始して、fail high/lowのときに、fail high/lowにならないようになるまで
             // 大きなwindowで再探索する。
 
-			// fail highした回数
+            // fail highした回数
             // 💡 fail highした回数分だけ探索depthを下げてやるほうが強いらしい。
             int failedHighCnt = 0;
 
-			while (true)
+            while (true)
             {
                 // Adjust the effective depth searched, but ensure at least one
                 // effective increment for every four searchAgain steps (see issue #2717).
 
-				// 実際に探索した深さを調整するが、
+                // 実際に探索した深さを調整するが、
                 // searchAgain ステップ4回ごとに少なくとも1回は有効な増分があるようにする
                 // （issue #2717 を参照）。
 
-				// fail highするごとにdepthを下げていく処理
-				Depth adjustedDepth =
+                // fail highするごとにdepthを下げていく処理
+                Depth adjustedDepth =
                   std::max(1, rootDepth - failedHighCnt - 3 * (searchAgainCounter + 1) / 4);
                 rootDelta = beta - alpha;
                 bestValue = search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
@@ -1231,14 +1232,14 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 // new PV that goes to the front. Note that in the case of MultiPV
                 // search the already searched PV lines are preserved.
 
-				// 最善手を先頭に持ってくる。これは非常に重要であり、
+                // 最善手を先頭に持ってくる。これは非常に重要であり、
                 // 安定ソートアルゴリズムを使う必要がある。
                 // なぜなら、最初の手および新しい最善手以外のすべての値は
                 // -VALUE_INFINITE に設定されるため、
                 // 新しいPVが先頭に来る以外は、すべての手の順序を維持したいからである。
                 // MultiPV探索の場合、すでに探索済みのPVラインは保持される点に注意。
 
-				// 📝 それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
+                // 📝 それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
                 //    一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
                 //    用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
 
@@ -1248,7 +1249,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 // safe because RootMoves is still valid, although it refers to
                 // the previous iteration.
 
-				// 探索が停止されている場合は直ちに break する。
+                // 探索が停止されている場合は直ちに break する。
                 // RootMoves は前回のイテレーションを参照しているが依然として有効なので、
                 // ソートは安全である。
 
@@ -1259,27 +1260,28 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 // excessive output that could hang GUIs like Fritz 19, only start
                 // at nodes > 10M (rather than depth N, which can be reached quickly)
 
-				// fail high / lowの時には、再探索前に何らかの情報を出力する。
+                // fail high / lowの時には、再探索前に何らかの情報を出力する。
                 // ただし、Fritz 19 などの GUI がフリーズするのを避けるため、
                 // 深さ N ではなく、10M ノードを超えてから出力を始める。
 
-				// 💡 将棋所のコンソールが詰まるのを予防するために出力を少し抑制する。
+                // 💡 将棋所のコンソールが詰まるのを予防するために出力を少し抑制する。
                 //    また、go infiniteのときは、検討モードから使用しているわけで、PVは必ず出力する。
 
-				if (mainThread && multiPV == 1 && (bestValue <= alpha || bestValue >= beta)
-                    && nodes > 10000000
+                if (
+                  mainThread && multiPV == 1 && (bestValue <= alpha || bestValue >= beta)
+                  && nodes > 10000000
 
-					// 🚧 作業中 🚧
+                  // 🚧 作業中 🚧
 
-					// 📌 以下やねうら王独自拡張
-					&& (rootDepth < 3
-						|| mainThread->lastPvInfoTime + global_options.pv_interval <= time.elapsed())
-					// silent modeや検討モードなら出力を抑制する。
-					&& !global_options.silent
-					// ただし、outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
-					&& global_options.outout_fail_lh_pv
+                  // 📌 以下やねうら王独自拡張
+                  && (rootDepth < 3
+                      || mainThread->lastPvInfoTime + global_options.pv_interval <= time.elapsed())
+                  // silent modeや検討モードなら出力を抑制する。
+                  && !global_options.silent
+                  // ただし、outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
+                  && global_options.outout_fail_lh_pv
 
-					)
+                )
                     main_manager()->pv(*this, threads, tt, rootDepth);
 
                 // In case of failing low/high increase aspiration window and re-search,
@@ -1309,10 +1311,10 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             // Sort the PV lines searched so far and update the GUI
             // これまでに探索したPVラインをソートし、GUIを更新する
 
-			// 💡 MultiPVの候補手をスコア順に再度並び替えておく。
+            // 💡 MultiPVの候補手をスコア順に再度並び替えておく。
             //    (二番目だと思っていたほうの指し手のほうが評価値が良い可能性があるので…)
 
-			std::stable_sort(rootMoves.begin() /* + pvFirst */, rootMoves.begin() + pvIdx + 1);
+            std::stable_sort(rootMoves.begin() /* + pvFirst */, rootMoves.begin() + pvIdx + 1);
 
             if (mainThread
                 && (threads.stop || pvIdx + 1 == multiPV || nodes > 10000000)
@@ -1322,15 +1324,15 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 // we suppress this output and below pick a proven score/PV for this
                 // thread (from the previous iteration).
 
-				// 探索を中断したスレッドは、詰み直前のPVやTB損失のPVおよび
-				// 信頼できないスコアを持つ可能性がある。
-				// つまり、他のルートムーブを完全に探索する時間があれば、
-				// 遅延したり反証されたりするかもしれない。
-				// したがって、この出力を抑制し、以下でこのスレッドに対して
-				// （前回の反復から）証明済みのスコア／PVを選択する。
+                // 探索を中断したスレッドは、詰み直前のPVやTB損失のPVおよび
+                // 信頼できないスコアを持つ可能性がある。
+                // つまり、他のルートムーブを完全に探索する時間があれば、
+                // 遅延したり反証されたりするかもしれない。
+                // したがって、この出力を抑制し、以下でこのスレッドに対して
+                // （前回の反復から）証明済みのスコア／PVを選択する。
 
                 && !(threads.abortedSearch && is_loss(rootMoves[0].usiScore)))
-	                main_manager()->pv(*this, threads, tt, rootDepth);
+                main_manager()->pv(*this, threads, tt, rootDepth);
 
             if (threads.stop)
                 break;
@@ -1342,17 +1344,17 @@ void Search::YaneuraOuWorker::iterative_deepening() {
         // We make sure not to pick an unproven mated-in score,
         // in case this thread prematurely stopped search (aborted-search).
 
-		// このスレッドが探索を早期に停止した（中断探索）場合に備えて、
-		// 証明されていない詰みスコアを選ばないように注意している。
+        // このスレッドが探索を早期に停止した（中断探索）場合に備えて、
+        // 証明されていない詰みスコアを選ばないように注意している。
 
         if (threads.abortedSearch && rootMoves[0].score != -VALUE_INFINITE
             && is_loss(rootMoves[0].score))
         {
             // Bring the last best move to the front for best thread selection.
-			// 最後に得られた最善手を先頭に移動し、最適なスレッド選択のために備える。
-			// 💡 move_to_front()は、見つけたものを先頭に移動させ、元の先頭からそこまでは1つ後方にずらす。
+            // 最後に得られた最善手を先頭に移動し、最適なスレッド選択のために備える。
+            // 💡 move_to_front()は、見つけたものを先頭に移動させ、元の先頭からそこまでは1つ後方にずらす。
 
-			Utility::move_to_front(rootMoves, [&lastBestPV = std::as_const(lastBestPV)](
+            Utility::move_to_front(rootMoves, [&lastBestPV = std::as_const(lastBestPV)](
                                                 const auto& rm) { return rm == lastBestPV[0]; });
             rootMoves[0].pv    = lastBestPV;
             rootMoves[0].score = rootMoves[0].usiScore = lastBestScore;
@@ -1377,15 +1379,15 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             threads.stop = true;
 
         // If the skill level is enabled and time is up, pick a sub-optimal best move
-		// スキルレベルが有効で、かつ時間切れの場合、最適でないベストムーブを選ぶ。
+        // スキルレベルが有効で、かつ時間切れの場合、最適でないベストムーブを選ぶ。
 
-		if (skill.enabled() && skill.time_to_pick(rootDepth))
+        if (skill.enabled() && skill.time_to_pick(rootDepth))
             skill.pick_best(rootMoves, multiPV);
 
         // Use part of the gained time from a previous stable move for the current move
-		// 直前の安定した手で得た時間の一部を現在の手に使う。
+        // 直前の安定した手で得た時間の一部を現在の手に使う。
 
-		for (auto&& th : threads)
+        for (auto&& th : threads)
         {
             auto yw = toYaneuraOuWorker(th->worker);
             totBestMoveChanges += yw->bestMoveChanges;
@@ -1393,7 +1395,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
         }
 
         // Do we have time for the next iteration? Can we stop searching now?
-		// 次の反復を行う時間はあるか？今すぐ探索を止められるか？
+        // 次の反復を行う時間はあるか？今すぐ探索を止められるか？
         if (limits.use_time_management() && !threads.stop && !mainThread->stopOnPonderhit)
         {
             uint64_t nodesEffort =
@@ -1456,10 +1458,101 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                              skill.best ? skill.best : skill.pick_best(rootMoves, multiPV)));
 }
 
+
+void YaneuraOuWorker::do_move(Position& pos, const Move move, StateInfo& st) {
+    do_move(pos, move, st, pos.gives_check(move));
+}
+
+void YaneuraOuWorker::do_move(Position&  pos,
+                              const Move move,
+                              StateInfo& st,
+                              const bool givesCheck) {
+
+#if defined(USE_ACCUMULATOR_STACK)
+
+    // accumulatorStackを用いる実装。
+
+    DirtyPiece dp = pos.do_move(move, st, givesCheck /*, &tt */);
+    // 📝　やねうら王では、TTのprefetchをしないので、ttを渡す必要がない。
+    nodes.fetch_add(1, std::memory_order_relaxed);
+    accumulatorStack.push(dp);
+
+#else
+
+    pos.do_move(move, st, givesCheck);
+    nodes.fetch_add(1, std::memory_order_relaxed);
+
+#endif
+}
+
+void YaneuraOuWorker::do_null_move(Position& pos, StateInfo& st) {
+    pos.do_null_move(st /*, tt*/);
+    // 📝　やねうら王では、TTのprefetchをしないので、ttを渡す必要がない。
+}
+
+void YaneuraOuWorker::undo_move(Position& pos, const Move move) {
+    pos.undo_move(move);
+
+#if defined(USE_ACCUMULATOR_STACK)
+    //accumulatorStack.pop();
+#endif
+}
+
+void YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
+
+
+// Reset histories, usually before a new game
+// 履歴をリセットする。通常は新しいゲームの前に実行される。
+void YaneuraOuWorker::clear() {
+	// TODO : あとで
+
+    mainHistory.fill(67);
+    captureHistory.fill(-688);
+#if 0
+    pawnHistory.fill(-1287);
+    pawnCorrectionHistory.fill(5);
+    minorPieceCorrectionHistory.fill(0);
+    nonPawnCorrectionHistory.fill(0);
+#endif
+    ttMoveHistory = 0;
+
+#if 0
+    for (auto& to : continuationCorrectionHistory)
+        for (auto& h : to)
+            h.fill(8);
+#endif
+
+	// 📝 ここは、未初期化のときに[NO_PIECE][SQ_ZERO]を指すので、ここを-1で初期化しておくことによって、
+    //     history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
+
+    //     ほとんどの履歴エントリがいずれにせよ後で負になるため、
+    //     開始値を「正しい」方向に少しシフトさせるため、負の数で埋めている。
+    //     この効果は、深度が深くなるほど薄れるので、長時間思考させる時には
+    //     あまり意味がないが、無駄ではないらしい。
+    //     cf. Tweak history initialization : https://github.com/official-stockfish/Stockfish/commit/7d44b43b3ceb2eebc756709432a0e291f885a1d2
+
+	for (bool inCheck : {false, true})
+        for (StatsType c : {NoCaptures, Captures})
+            for (auto& to : continuationHistory[inCheck][c])
+                for (auto& h : to)
+                    h.fill(-473);
+
+	// reductions tableの初期化
+
+    for (size_t i = 1; i < reductions.size(); ++i)
+        reductions[i] = int(2796 / 128.0 * std::log(i));
+
+#if 0
+    refreshTable.clear(networks[numaAccessToken]);
+#endif
+}
+
+
 // 🚧 工事中 🚧
 
 // 探索本体
 // 💡 最初、iterative_deepening()のなかから呼び出される。
+//     これは仮想関数にはなっていないので、仮想関数呼び出しのoverheadはない。
 template<NodeType nodeType>
 Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode)
 {

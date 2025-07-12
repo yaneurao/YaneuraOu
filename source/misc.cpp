@@ -610,153 +610,7 @@ void prefetch([[maybe_unused]] const void* addr) {
 
 #endif
 
-// --------------------
-//  全プロセッサを使う
-// --------------------
-
-namespace WinProcGroup {
-
-#if !defined ( _WIN32 )
-
-	void bindThisThread(size_t) {}
-
-#else
-
-
-	/// best_node() retrieves logical processor information using Windows-specific
-	/// API and returns the best node id for the thread with index idx. Original
-	/// code from Texel by Peter Österlund.
-
-	static int best_node(size_t idx) {
-
-		// スレッド番号idx(0 ～ 論理コア数-1)に対して
-		// 適切なNUMA NODEとCPU番号を設定する。
-		// 非対称プロセッサのことは考慮していない
-
-		// 論理コアの数
-		int threads = 0;
-
-		// NUMA NODEの数
-		int nodes = 0;
-
-		// 物理コア数
-		int cores = 0;
-
-		DWORD returnLength = 0;
-		DWORD byteOffset = 0;
-
-		// Early exit if the needed API is not available at runtime
-		HMODULE k32 = GetModuleHandle(TEXT("Kernel32.dll"));
-		auto fun1 = (fun1_t)(void(*)())GetProcAddress(k32, "GetLogicalProcessorInformationEx");
-		if (!fun1)
-			return -1;
-
-		// First call to GetLogicalProcessorInformationEx() to get returnLength.
-		// We expect the call to fail due to null buffer.
-		if (fun1(RelationAll, nullptr, &returnLength))
-			return -1;
-
-		// Once we know returnLength, allocate the buffer
-		SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *buffer, *ptr;
-		ptr = buffer = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)malloc(returnLength);
-
-		// Second call, now we expect to succeed
-		if (!fun1(RelationAll, buffer, &returnLength))
-		{
-			free(buffer);
-			return -1;
-		}
-
-		while (byteOffset < returnLength)
-		{
-			// NUMA NODEの数
-			if (ptr->Relationship == RelationNumaNode)
-				nodes++;
-
-			else if (ptr->Relationship == RelationProcessorCore)
-			{
-				// 物理コアの数
-				cores++;
-
-				// 論理コア数の加算。HT対応なら2を足す。HT非対応なら1を足す。
-				threads += (ptr->Processor.Flags == LTP_PC_SMT) ? 2 : 1;
-			}
-
-			ASSERT_LV3(ptr->Size);
-			byteOffset += ptr->Size;
-			ptr = (SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*)(((char*)ptr) + ptr->Size);
-		}
-
-		free(buffer);
-
-		vector<int> groups;
-
-		// Run as many threads as possible on the same node until core limit is
-		// reached, then move on filling the next node.
-		for (int n = 0; n < nodes; n++)
-			for (int i = 0; i < cores / nodes; i++)
-				groups.push_back(n);
-
-		// In case a core has more than one logical processor (we assume 2) and we
-		// still have threads to allocate, spread them evenly across available nodes.
-
-		// 論理プロセッサー数を上回ってスレッドを割り当てたいならば、あとは均等に
-		// 各NUMA NODEに割り当てていくしかない。
-
-		for (int t = 0; t < threads - cores; t++)
-			groups.push_back(t % nodes);
-
-		// If we still have more threads than the total number of logical processors
-		// then return -1 and let the OS to decide what to do.
-		return idx < groups.size() ? groups[idx] : -1;
-
-		// NUMA NODEごとにプロセッサグループは分かれているだろうという想定なので
-		// NUMAが2(Dual CPU)であり、片側のCPUが40論理プロセッサであるなら、この関数は、
-		// idx = 0..39なら 0 , idx = 40..79なら1を返す。
-	}
-
-	/// bindThisThread() set the group affinity of the current thread
-
-	void bindThisThread(size_t idx) {
-
-		// Use only local variables to be thread-safe
-
-		// 使うべきプロセッサグループ番号が返ってくる。
-		int node = best_node(idx);
-
-		if (node == -1)
-			return;
-
-		// Early exit if the needed API are not available at runtime
-		HMODULE k32 = GetModuleHandle(TEXT("Kernel32.dll"));
-		auto fun2 = (fun2_t)((void(*)())GetProcAddress(k32, "GetNumaNodeProcessorMaskEx"));
-		auto fun3 = (fun3_t)((void(*)())GetProcAddress(k32, "SetThreadGroupAffinity"));
-		auto fun4 = (fun4_t)((void(*)())GetProcAddress(k32, "GetNumaNodeProcessorMask2"));
-
-		if (!fun2 || !fun3)
-			return;
-
-		if (!fun4) {
-			GROUP_AFFINITY affinity;
-			if (fun2(node, &affinity))
-				fun3(GetCurrentThread(), &affinity, nullptr);
-		} else {
-			// If a numa node has more than one processor group, we assume they are
-			// sized equal and we spread threads evenly across the groups.
-			USHORT elements, returnedElements;
-			elements = GetMaximumProcessorGroupCount();
-			GROUP_AFFINITY *affinity = (GROUP_AFFINITY*)malloc(
-				elements * sizeof(GROUP_AFFINITY));
-			if (fun4(node, affinity, elements, &returnedElements))
-				fun3(GetCurrentThread(), &affinity[idx % returnedElements], nullptr);
-			free(affinity);
-		}
-	}
-
-#endif
-
-} // namespace WinProcGroup
-
+// 📌 ここ以下は、やねうら王の独自追加 📌
 
 // --------------------
 //  Timer
@@ -766,13 +620,8 @@ void Timer::reset() { startTime = startTimeFromPonderhit = now(); }
 void Timer::reset_for_ponderhit() { startTimeFromPonderhit = now(); }
 TimePoint Timer::elapsed() const { return TimePoint(now() - startTime); }
 TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(now() - startTimeFromPonderhit); }
-TimePoint Timer::now() const { return /* Search::Limits.npmsec ? now() : YaneuraOu::now(); */ YaneuraOu::now(); }
+TimePoint Timer::now() const { return YaneuraOu::now(); }
 // 📝 npmsec、思考時間を秒単位に切り上げ処理をしているのと相性が悪いので、やねうら王では採用しないことにした。
-
-
-
-// 📌 以下は、やねうら王の独自追加 📌
-
 
 // --------------------
 //  ツール類

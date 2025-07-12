@@ -17,7 +17,9 @@
 
 namespace YaneuraOu {
 
-// --------------------
+namespace Search { struct LimitsType; }
+
+  // --------------------
 //     局面の情報
 // --------------------
 

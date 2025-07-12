@@ -241,6 +241,8 @@ public:
 	Worker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken);
 
 	// 📌 このworkerの初期化は(派生classで)ここに書く。
+	// 💡 これは、"usinewgame"に対して呼び出されることが保証されている。(つまり各対局の最初に呼び出される。)
+	//     "usinewgame" ⇨ ThreadPool::resize_threads() ⇨ ThreadPool.clear() ⇨  各Threadに所属するWorker.clear()
 	virtual void clear(){}
 
 	// 📌 探索の処理を(派生classで)ここに書く。
@@ -262,11 +264,15 @@ public:
 	virtual void ensure_network_replicated(){}
 
 protected:
+	// ⚠ do_move～undo_null_moveは、派生class側でのみ定義する。
+	//     これを仮想関数にしてしまうと、呼び出しのoverheadが気になる。
+	#if 0
 	void do_move(Position& pos, const Move move, StateInfo& st);
 	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
 	void do_null_move(Position& pos, StateInfo& st);
 	void undo_move(Position& pos, const Move move);
 	void undo_null_move(Position& pos);
+	#endif
 
 	// nodes           : 探索したnode数。do_move()で(自分で)カウントする。
     // tbHits          : tablebaseにhitした回数。将棋では使わない。

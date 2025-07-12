@@ -211,9 +211,11 @@ public:
 	size_t num_threads() const;
 
 	// set()で生成したスレッドの初期化
+	// 💡 各ThreadのWorkerに対してclear()が呼び出される。
 	void   clear();
 
 	// requested_threadsの数になるように、スレッド数を変更する。
+    // 💡 各ThreadのWorkerに対してclear()が呼び出される。
 	void   set(size_t requested_threads, const NumaConfig& numaConfig,
 		const OptionsMap& options, const Search::WorkerFactory& worker_factory);
 	// 💡 Stockfishでは、

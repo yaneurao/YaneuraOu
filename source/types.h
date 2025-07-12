@@ -1258,7 +1258,9 @@ namespace Eval
 //   GlobalOptions
 // --------------------
 
+// TimePointの定義。💡Stockfishではmisc.hにある。
 typedef std::chrono::milliseconds::rep TimePoint;
+static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
 
 // エンジン設定(グローバル)
 struct GlobalOptions

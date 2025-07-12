@@ -246,6 +246,9 @@ public:
 	// "go"コマンドでの探索の開始時にmain threadから呼び出される。
 	virtual void start_searching() override;
 
+	// "usinewgame"に対して呼び出される。対局前の初期化。
+	virtual void clear() override;
+
 	// 反復深化
 	// 💡 並列探索のentry point。
 	//     start_searching()から呼び出される。
@@ -261,27 +264,40 @@ public:
 	template<NodeType nodeType>
 	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
 
+	// 📌 do_move～undo_move
+	// 💡 do_moveするときにWorker::nodesをインクリメントする。
 
-	// 並列探索において一番良い思考をしたthreadの選出。
-    // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
-    YaneuraOuWorker* get_best_thread() const;
-
-	// SearchManager*を取得する。
-	// 💡 Stockfishとの互換性のために用意。
-	SearchManager* main_manager() { return &manager; }
+	void do_move(Position& pos, const Move move, StateInfo& st);
+    void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
+    void do_null_move(Position& pos, StateInfo& st);
+    void undo_move(Position& pos, const Move move);
+    void undo_null_move(Position& pos);
 
 	// 📌 Stockfishのsearch.hで定義されているWorkerが持っているメンバ変数 📌
 
 	// 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
     ButterflyHistory      mainHistory;
     LowPlyHistory         lowPlyHistory;
-    CapturePieceToHistory captureHistory;
+
+	CapturePieceToHistory captureHistory;
 
     // コア数が多いか、長い持ち時間においては、ContinuationHistoryもスレッドごとに確保したほうが良いらしい。
     // cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
     // 添字の[2][2]は、[inCheck(王手がかかっているか)][capture_stage]
     // →　この改造、レーティングがほぼ上がっていない。悪い改造のような気がする。
     ContinuationHistory continuationHistory[2][2];
+
+	// TODO : あとで
+	#if 0
+    PawnHistory           pawnHistory;
+
+	CorrectionHistory<Pawn>         pawnCorrectionHistory;
+    CorrectionHistory<Minor>        minorPieceCorrectionHistory;
+    CorrectionHistory<NonPawn>      nonPawnCorrectionHistory;
+    CorrectionHistory<Continuation> continuationCorrectionHistory;
+	#endif
+
+    TTMoveHistory ttMoveHistory;
 
 	// MultiPVの時の現在探索中のPVのindexと、PVの末尾
 	size_t pvIdx, pvLast;
@@ -299,11 +315,26 @@ public:
 	Depth rootDepth, completedDepth;
     Value rootDelta;
 
+    // Reductions lookup table initialized at startup
+    // 起動時に初期化されるreductionsの参照表
+	// 💡 reductionとは、残り探索深さを減らすこと。
+    std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
+
+	// 📌 以下、やねうら王独自追加 📌
+
 	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
 	// 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。
     YaneuraOuWorker* toYaneuraOuWorker(std::unique_ptr<Worker>& worker) {
         return dynamic_cast<YaneuraOuWorker*>(worker.get());
     }
+
+    // SearchManager*を取得する。
+    // 💡 Stockfishとの互換性のために用意。
+    SearchManager* main_manager() { return &manager; }
+
+	// 並列探索において一番良い思考をしたthreadの選出。
+    // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
+    YaneuraOuWorker* get_best_thread() const;
 
 	// 📌 コンストラクタでもらったやつ 📌
 
@@ -315,6 +346,7 @@ public:
 
 	// SearchManager
 	SearchManager& manager;
+
 };
 
 } // namespace Search

@@ -27,7 +27,7 @@ ColumnLimit: 100
 ContinuationIndentWidth: 2
 Cpp11BracedListStyle: true
 IndentGotoLabels: false
-IndentPPDirectives: BeforeHash
+IndentPPDirectives: None
 IndentWidth: 4
 MaxEmptyLinesToKeep: 2
 NamespaceIndentation: None
