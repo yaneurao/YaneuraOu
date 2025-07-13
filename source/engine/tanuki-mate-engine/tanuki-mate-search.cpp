@@ -1041,6 +1041,10 @@ class TanukiMateEngine : public Engine
 public:
 	TanukiMateEngine() : mateClass(threads, options) {}
 
+	// エンジン名と作者
+    virtual std::string get_engine_name() const override { return "tanuki- mate solver"; }
+    virtual std::string get_engine_author() const override { return "tanuki-"; }
+
 	// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行う。
 	virtual void isready() override
 	{

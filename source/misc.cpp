@@ -227,29 +227,33 @@ std::string engine_version_info() {
 #endif
 
 
-std::string engine_info(bool to_usi) {
+std::string engine_info(const std::string& engine_name,
+                        const std::string& engine_author,
+						const std::string& engine_version,
+                        const std::string& eval_name)
+{
 	//return engine_version_info()
 	//	+ (to_usi ? "\nid author " : " by ")
 	//	+ "the YaneuraOu developers (see AUTHORS file)";
 
 	stringstream ss;
-	string engine_name, author;
+	string engine_name_, engine_author_;
 
 	// カレントフォルダに"engine_name.txt"があればその1行目をエンジン名とする機能
 	ifstream ifs("engine_name.txt");
 	if (!ifs.fail())
 	{
 		// 1行目が読み込めなかったときのためにデフォルト値を設定しておく。
-		engine_name = "default engine";
-		Tools::getline(ifs, engine_name);
+        engine_name_ = "default engine";
+        Tools::getline(ifs, engine_name_);
 
 		// 2行目が読み込めなかったときのためにデフォルト値を設定しておく。
-		author = "default author";
-		Tools::getline(ifs, author);
+        engine_author_ = "default author";
+        Tools::getline(ifs, engine_author_);
 	}
 	else
 	{
-		engine_name =
+		engine_name_ =
 			// Makefileのほうでエンジン表示名が指定されているならそれに従う。
 #if defined(ENGINE_NAME_FROM_MAKEFILE)
 			// マクロの内容の文字列化
@@ -260,11 +264,10 @@ std::string engine_info(bool to_usi) {
 #undef STRINGIFY
 #undef TOSTRING
 #else
-			string(ENGINE_NAME)
+			engine_name
 #endif
-			+ ' '
-			+ (std::string(EVAL_TYPE_NAME).empty() ? "" : std::string(" ") + EVAL_TYPE_NAME)
-			+ ENGINE_VERSION
+            + ' ' + (eval_name.empty() ? "" : std::string(" ") + eval_name)
+			+ engine_version
 			+ (Is64Bit ? " 64" : " 32")
 			+ TARGET_CPU
 #if defined(FOR_TOURNAMENT)
@@ -275,16 +278,12 @@ std::string engine_info(bool to_usi) {
 			+" EVAL_LEARN"
 #endif
 			;
-#if !defined(YANEURAOU_ENGINE_DEEP)
-			author = "yaneurao";
-#else
-			author = "Tadao Yamaoka , yaneurao";
-#endif
+			engine_author_ = engine_author;
+                // やねうら王 "yaneurao";
+                // ふかうら王 "Tadao Yamaoka , yaneurao";
 	}
 
-	return engine_name
-		+ (to_usi ? "\nid author " : " by ")
-		+ author;
+	return engine_name_ + "\n" + "id author " + engine_author_; 
 }
 
 // 使用したコンパイラについての文字列を返す。

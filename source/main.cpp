@@ -35,8 +35,12 @@ int main(int argc, char* argv[])
 	// CommandLineにはglobal objectがあるので、これに設定しておく。
 	CommandLine::g.set_arg(argc, argv);
 
-	// Stockfishに倣い、起動直後にソフト名と作者の出力。
-	std::cout << engine_info() << std::endl;
+	#if 0
+	// 起動直後にソフト名と作者の出力。
+    //std::cout << engine_info() << std::endl;
+	#endif
+	// 📌 やねうら王ではMultiEngineを採用しており、
+	//     このタイミングではエンジン名が確定しないから出力できない。
 
 	// 起動時に説明書きを出力。(やねうら王独自拡張)
 	print_file("startup_info.txt");

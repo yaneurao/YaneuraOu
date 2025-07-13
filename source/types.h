@@ -946,7 +946,6 @@ struct ExtMove : public Move {
 	// 意図しない暗黙のMoveへの変換を防ぎ、あいまいさによってコンパイルエラーを引き起こします。
 
 	// cf. Fix involuntary conversions of ExtMove to Move : https://github.com/official-stockfish/Stockfish/commit/d482e3a8905ee194bda3f67a21dda5132c21f30b
-
 	operator float() const = delete;
 };
 
@@ -1237,21 +1236,56 @@ static Value draw_value(RepetitionState rs, Color c) { /* ASSERT_LV3(is_ok(rs));
 //      評価関数
 // --------------------
 
+class OptionsMap;
+
 namespace Eval
 {
-	// BonanzaでKKP/KPPと言うときのP(Piece)を表現する型。
-	// AVX2を用いて評価関数を最適化するときに32bitでないと困る。
-	// AVX2より前のCPUではこれは16bitでも構わないのだが、
-	// 　1) 16bitだと32bitだと思いこんでいてオーバーフローさせてしまうコードを書いてしまうことが多々あり、保守が困難。
-	// 　2) ここが32bitであってもそんなに速度低下しないし、それはSSE4.2以前に限るから許容範囲。
-	// という2つの理由から、32bitに固定する。
-	enum BonaPiece : int32_t;
 
-	// 評価関数本体。
-	// 戻り値は、
-	//  abs(value) < =VALUE_MAX_EVAL
-	// を満たす。
-	Value evaluate(const Position& pos);
+// BonanzaでKKP/KPPと言うときのP(Piece)を表現する型。
+/*
+    📓 AVX2を用いて評価関数を最適化するときに32bitでないと困る。
+		AVX2より前のCPUではこれは16bitでも構わないのだが、
+ 　		1) 16bitだと32bitだと思いこんでいてオーバーフローさせてしまうコードを書いてしまうことが多々あり、保守が困難。
+	 　	2) ここが32bitであってもそんなに速度低下しないし、それはSSE4.2以前に限るから許容範囲。
+		という2つの理由から、32bitに固定する。
+*/
+enum BonaPiece : int32_t;
+
+// 評価関数interface
+// 各評価関数は、このclassから派生させる。
+class IEvaluator {
+   public:
+    // 評価関数の名前を返す。これは"usi"コマンドに対して表示する時に使われる。
+    virtual std::string eval_name() const { return "IEvaluator"; }
+
+    // Optionを生やす。これはEngine側から初期化タイミングで呼び出される。
+    virtual void add_options(OptionsMap& options) {};
+
+    // TODO : あとでよく考える。
+    // 評価関数パラメーターの読み込み。
+    // path : 読み込むフォルダ(ファイル名は固定)
+    virtual void load(const std::string& dir_name){}
+
+    // 評価関数パラメーターの書き出し。
+    // path : 書き出すフォルダ(ファイル名は固定)
+    virtual void save(const std::string& dir_name){}
+
+    // 評価関数本体。
+    // 戻り値は、
+    //  abs(value) <= VALUE_MAX_EVAL
+    // を満たす。
+    virtual Value evaluate(const Position& pos) = 0;
+
+	virtual ~IEvaluator() {}
+};
+
+// 何もしないEvaluator
+// 評価関数を使わない時に用いる。
+class NullEvaluator : public IEvaluator {
+    virtual std::string eval_name() const override { return ""; }
+    virtual Value       evaluate(const Position& pos) override { return VALUE_ZERO; }
+};
+
 }
 
 // --------------------

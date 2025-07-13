@@ -131,6 +131,9 @@ namespace Search {
 
 class YaneuraOuMateEngine : public Engine
 {
+	// エンジン名
+    virtual std::string get_engine_name() const override { return "YaneuraOuMateEngine"; }
+
 	// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行う。
 	virtual void isready() override
 	{

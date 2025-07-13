@@ -30,9 +30,21 @@ class Engine;
 //std::string engine_version_info();
 
 // "USI"コマンドに応答するために表示する。
+//
 //  to_usi : これがtrueのときは、"usi"コマンドに対する応答として呼び出されたという意味。
 //           これがfalseのときは、起動直後の出力用。
-std::string engine_info(bool to_usi = false);
+//        	 ⚠ やねうら王ではMultiEngineを採用しており、
+//			 起動直後ではエンジン名が確定しないから出力できない。
+// 
+// 🤔 やねうら王では、以下のように変更する。
+// engine_name    : エンジン名
+// engine_author  : エンジンの作者名
+// engine_version : エンジンのバージョン
+// eval_name      : 評価関数名
+std::string engine_info(const std::string& engine_name,
+						const std::string& engine_author,
+                        const std::string& engine_version,
+                        const std::string& eval_name);
 
 // 使用したコンパイラについての文字列を返す。
 std::string compiler_info();
@@ -91,7 +103,6 @@ static TimePoint now() {
 		//(std::chrono::steady_clock::now().time_since_epoch()).count() * 10;
 		// 💡 10倍早く時間が経過するようにして、持ち時間制御のテストなどを行う時は↑このように10をかけ算する。
 }
-
 
 // --------------------
 //  sync_out/sync_endl

@@ -146,6 +146,10 @@ public:
 
 	// 📌 USIコマンドのhandler(同名のUSIコマンドが送られてきた時のhandler)
 
+	// "usi"コマンド。`id`(エンジン名)と`author`(エンジン作者)を出力する。
+	// 💡 出力のされ方を丸ごとカスタマイズしたければ、これをoverrideする。
+    virtual void usi() = 0;
+
 	// "isready"コマンド。時間のかかる初期化処理はここで行うこと。
 	virtual void isready() = 0;
 
@@ -177,6 +181,16 @@ public:
 	// "user"コマンド。ユーザー(エンジン実装者)の実験用。
 	virtual void user(std::istringstream& is) = 0;
 
+	// 評価関数をset/getする。
+	virtual void set_evaluator(std::shared_ptr<Eval::IEvaluator> evaluator) = 0;
+	virtual std::shared_ptr<Eval::IEvaluator> get_evaluator()               = 0;
+
+	// "usi"コマンドに対して表示するengineのprofile
+
+	virtual std::string get_engine_name() const    = 0;
+    virtual std::string get_engine_version() const = 0;
+    virtual std::string get_engine_author() const = 0;
+
 	// 💡 interfaceなので仮想デストラクタが必要
 	virtual ~IEngine() {}
 };
@@ -201,7 +215,8 @@ public:
 	virtual OptionsMap& get_options() override { return options; }
 	virtual std::string sfen() const override { return pos.sfen(); }
 	virtual std::string Engine::visualize() const override;
-	virtual void isready() override;
+    virtual void usi() override;
+    virtual void isready() override;
 	virtual void usinewgame() override {};
 	virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override;
 	virtual void go(Search::LimitsType& limits) override;
@@ -209,8 +224,13 @@ public:
 	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override;
 	virtual void trace_eval() const override {}
 	virtual void user(std::istringstream& is) override {};
+	virtual void set_evaluator(std::shared_ptr<Eval::IEvaluator> evaluator) override { this->evaluator = evaluator; }
+    virtual std::shared_ptr<Eval::IEvaluator> get_evaluator() override { return evaluator; }
+    virtual std::string get_engine_name() const override { return "Engine"; }
+    virtual std::string get_engine_version() const override { return ENGINE_VERSION; }
+    virtual std::string get_engine_author() const override { return "yaneurao"; }
 
-protected:
+    protected:
 
 	// 📌 エンジンを実装するために必要な最低限のコンポーネント
 
@@ -229,6 +249,9 @@ protected:
 
 	// Numaの管理用(どのNumaを使うかというIDみたいなもの)
 	NumaReplicationContext numaContext;
+
+	// 評価関数
+	std::shared_ptr<Eval::IEvaluator> evaluator;
 
 	// 📌 エンジンで用いるヘルパー関数
 
@@ -261,6 +284,7 @@ public:
 	virtual OptionsMap& get_options() override { return engine->get_options(); }
 	virtual std::string sfen() const override { return engine->sfen(); }
 	virtual std::string visualize() const override { return engine->visualize(); }
+    virtual void usi() override { engine->usi(); }
 	virtual void isready() override { engine->isready(); }
 	virtual void usinewgame() override { engine->usinewgame(); }
 	virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override { engine->set_position(sfen, moves); }
@@ -269,8 +293,13 @@ public:
 	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override { return engine->perft(fen, depth); }
 	virtual void trace_eval() const override { engine->trace_eval(); }
 	virtual void user(std::istringstream& is) override { engine->user(is); }
+    virtual void set_evaluator(std::shared_ptr<Eval::IEvaluator> evaluator) override { engine->set_evaluator(evaluator); };
+    virtual std::shared_ptr<Eval::IEvaluator> get_evaluator() override { return engine->get_evaluator(); }
+    virtual std::string get_engine_name() const override { return engine->get_engine_name(); }
+    virtual std::string get_engine_version() const override { return engine->get_engine_version(); }
+    virtual std::string get_engine_author() const override { return engine->get_engine_author(); }
 
-private:
+   private:
 	IEngine* engine;
 };
 

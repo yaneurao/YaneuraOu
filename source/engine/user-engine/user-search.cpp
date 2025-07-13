@@ -57,6 +57,18 @@ namespace Search {
 
 class UserEngine : public Engine
 {
+    // "usi"コマンドに対して出力するエンジン名と作者。
+    virtual std::string get_engine_name() const override { return "my engine"; }
+    virtual std::string get_engine_author() const override { return "myself"; }
+
+	// 💡 ↓のように"usi"出力を丸ごとカスタマイズもできる。
+	#if 0
+	virtual void usi() override {
+        sync_cout << "id user-engine\n"
+                  << "author a user" << sync_endl;
+	}
+	#endif
+
 	// "isready"のタイミングのcallback。時間のかかる初期化処理はここで行う。
 	virtual void isready() override
 	{

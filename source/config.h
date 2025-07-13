@@ -405,10 +405,7 @@ constexpr int MAX_PLY_NUM = 246;
 
 #if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_MATERIAL)
 
-	#define ENGINE_NAME "YaneuraOu"
-
-	// 通常のやねうら王探索部(Stockfishっぽいやつ)を用いる。
-	#define YANEURAOU_ENGINE
+// 通常のやねうら王探索部(Stockfishっぽいやつ)を用いる。
 
 	#define USE_PIECE_VALUE
 	#define USE_SEE
@@ -507,7 +504,6 @@ constexpr int MAX_PLY_NUM = 246;
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 
-	#define ENGINE_NAME "FukauraOu"
 	#define EVAL_DEEP "dlshogi-denryu2021"
 	#define USE_EVAL
 	#define USE_TIME_MANAGEMENT
@@ -532,7 +528,6 @@ constexpr int MAX_PLY_NUM = 246;
 // --- tanuki-詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(TANUKI_MATE_ENGINE)
-	#define ENGINE_NAME "tanuki- mate solver"
 	#define KEEP_LAST_MOVE
 	#undef  MAX_PLY_NUM
 	#define MAX_PLY_NUM 2000
@@ -544,7 +539,6 @@ constexpr int MAX_PLY_NUM = 246;
 // --- やねうら王詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(YANEURAOU_MATE_ENGINE)
-	#define ENGINE_NAME "YaneuraOu mate solver"
 	#undef  MAX_PLY_NUM
 	#define MAX_PLY_NUM 2000
 	#define USE_MATE_1PLY
@@ -559,7 +553,6 @@ constexpr int MAX_PLY_NUM = 246;
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(USER_ENGINE)
-	#define ENGINE_NAME "YaneuraOu user engine"
 	#define USE_SEE
 	#define USE_EVAL
 	#define EVAL_MATERIAL

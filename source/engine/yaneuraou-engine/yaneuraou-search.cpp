@@ -459,8 +459,8 @@ YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
 
 //namespace YaneuraOu /*Stockfish*/ {
 
-    // 💡 将棋では、Tablebasesは用いないのでコメントアウト。
-    #if 0
+// 💡 将棋では、Tablebasesは用いないのでコメントアウト。
+#if 0
 namespace TB = Tablebases;
 
 void syzygy_extend_pv(const OptionsMap& options,
@@ -468,7 +468,7 @@ void syzygy_extend_pv(const OptionsMap& options,
 	Stockfish::Position& pos,
 	Stockfish::Search::RootMove& rootMove,
 	Value& v);
-    #endif
+#endif
 
 //using namespace Search;
 // 💡 冒頭で書いたのでコメントアウト。
@@ -4916,20 +4916,18 @@ void syzygy_extend_pv(const OptionsMap&         options,
 }
 #endif
 
-void SearchManager::pv(Search::Worker&           worker,
+
+void SearchManager::pv(Search::YaneuraOuWorker&           worker,
                        const ThreadPool&         threads,
                        const TranspositionTable& tt,
                        Depth                     depth) {
 
-// TODO : 🚧 工事中 🚧
-
-#if 0
     const auto nodes     = threads.nodes_searched();
     auto&      rootMoves = worker.rootMoves;
     auto&      pos       = worker.rootPos;
     size_t     pvIdx     = worker.pvIdx;
     size_t     multiPV   = std::min(size_t(worker.options["MultiPV"]), rootMoves.size());
-    uint64_t   tbHits    = threads.tb_hits() + (worker.tbConfig.rootInTB ? rootMoves.size() : 0);
+    //uint64_t   tbHits    = threads.tb_hits() + (worker.tbConfig.rootInTB ? rootMoves.size() : 0);
 
     for (size_t i = 0; i < multiPV; ++i)
     {
@@ -4944,25 +4942,28 @@ void SearchManager::pv(Search::Worker&           worker,
         if (v == -VALUE_INFINITE)
             v = VALUE_ZERO;
 
-        bool tb = worker.tbConfig.rootInTB && std::abs(v) <= VALUE_TB;
-        v       = tb ? rootMoves[i].tbScore : v;
+        //bool tb = worker.tbConfig.rootInTB && std::abs(v) <= VALUE_TB;
+        //v       = tb ? rootMoves[i].tbScore : v;
 
-        bool isExact = i != pvIdx || tb || !updated;  // tablebase- and previous-scores are exact
+        bool isExact =
+          i != pvIdx /* || tb */ || !updated;  // tablebase- and previous-scores are exact
 
+		#if 0
         // Potentially correct and extend the PV, and in exceptional cases v
         if (is_decisive(v) && std::abs(v) < VALUE_MATE_IN_MAX_PLY
             && ((!rootMoves[i].scoreLowerbound && !rootMoves[i].scoreUpperbound) || isExact))
             syzygy_extend_pv(worker.options, worker.limits, pos, rootMoves[i], v);
+		#endif
 
         std::string pv;
         for (Move m : rootMoves[i].pv)
-            pv += UCIEngine::move(m, pos.is_chess960()) + " ";
+            pv += USIEngine::move(m /*, pos.is_chess960()*/) + " ";
 
         // Remove last whitespace
         if (!pv.empty())
             pv.pop_back();
 
-        auto wdl   = worker.options["UCI_ShowWDL"] ? UCIEngine::wdl(v, pos) : "";
+        //auto wdl   = worker.options["UCI_ShowWDL"] ? UCIEngine::wdl(v, pos) : "";
         auto bound = rootMoves[i].scoreLowerbound
                      ? "lowerbound"
                      : (rootMoves[i].scoreUpperbound ? "upperbound" : "");
@@ -4972,8 +4973,9 @@ void SearchManager::pv(Search::Worker&           worker,
         info.depth    = d;
         info.selDepth = rootMoves[i].selDepth;
         info.multiPV  = i + 1;
-        info.score    = {v, pos};
-        info.wdl      = wdl;
+        //info.score    = {v, pos}; // 📝 StockfishではValue,Position&からScore型に変換する。
+        info.score    = v;
+        //info.wdl      = wdl;
 
         if (!isExact)
             info.bound = bound;
@@ -4982,15 +4984,12 @@ void SearchManager::pv(Search::Worker&           worker,
         info.timeMs    = time;
         info.nodes     = nodes;
         info.nps       = nodes * 1000 / time;
-        info.tbHits    = tbHits;
+        //info.tbHits    = tbHits;
         info.pv        = pv;
         info.hashfull  = tt.hashfull();
 
         updates.onUpdateFull(info);
     }
-
-#endif
-
 }
 
 // Called in case we have no ponder move before exiting the search,

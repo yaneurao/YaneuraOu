@@ -39,8 +39,6 @@ public:
 	// USI関係の記法変換部
 	// --------------------
 
-#if defined(USE_PIECE_VALUE)
-
 	// 詰みやそれに類似した特別なスコアの処理なしに、Valueを整数のセントポーン数に変換する。
 
 	//static int         to_cp(Value v, const Position& pos);
@@ -57,7 +55,6 @@ public:
 	// 📌　やねうら王独自
 	static std::string value(Value v);
 
-#endif
 
 	//static std::string format_score(const Score& s);
 	// 📌 やねうら王では使わない

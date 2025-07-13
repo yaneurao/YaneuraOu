@@ -156,21 +156,20 @@ class SearchManager {
         UpdateBestmove onBestmove;
     };
 
-    //SearchManager(const UpdateContext& updateContext) :
-    //    updates(updateContext) {}
-	// 🤔 Stockfishは、Engine側からUpdateContextを渡すのだが、
-	//     Engine側が持っている必要はないと思う。
+    SearchManager(const UpdateContext& updateContext) :
+        updates(updateContext) {}
 
 	// 指し手をGUIに返す時刻になったかをチェックする。
     void check_time(Search::YaneuraOuWorker& worker);
 
-	// 現在のPVをUpdateContext::onUpdateFull()で登録する。
-    void pv(Search::Worker&           worker,
+	// 現在のPV(読み筋)をUpdateContext::onUpdateFull()で登録する。
+    // tt      : このスレッドに属する置換表
+    // depth   : 反復深化のiteration深さ。
+	void pv(Search::YaneuraOuWorker&  worker,
             const ThreadPool&         threads,
             const TranspositionTable& tt,
             Depth                     depth);
 
-	//Stockfish::TimeManagement tm;
     // 持ち時間管理
     TimeManagement            tm;
 
@@ -190,9 +189,7 @@ class SearchManager {
 
     size_t id;
 
-    //const UpdateContext& updates;
-	// 🤔 Stockfishの実装では、ここ、参照で持っているがEngine側で持たせる必要はないと思う。
-    const UpdateContext updates;
+    const UpdateContext& updates;
 
 	// 📌 やねうら王独自 📌
 
@@ -213,21 +210,58 @@ class SearchManager {
 class YaneuraOuEngine : public Engine
 {
 public:
+	// 📌 StockfishのEngine classに合わせる 📌
 
-	// 思考エンジンの追加オプションを設定する。
-	virtual void add_options() override;
+	using InfoShort = Search::InfoShort;
+	using InfoFull  = Search::InfoFull;
+	using InfoIter  = Search::InfoIteration;
 
-	// "isready"のタイミングでの初期化処理。
-	virtual void isready() override;
+    YaneuraOuEngine(/* std::optional<std::string> path = std::nullopt */):
+            manager(updateContext) {}
+
+	// 📝 やねうら王では、CommandLine::gから取得できるので使わない。
+    // const std::string binaryDirectory;
+
+	// TODO : あとで整理する
+
+	//NumaReplicationContext numaContext;
+
+	// 📝 やねうら王では、base classであるEngine classが持っている。
+#if 0
+    Position     pos;
+    StateListPtr states;
+
+	OptionsMap options;
+    ThreadPool threads;
+#endif
 
 	// 置換表
 	TranspositionTable tt;
 
-	// 探索manager
-    Search::SearchManager manager;
+	// TODO : あとで
+    //LazyNumaReplicated<Eval::NNUE::Networks> networks;
+
+
+	// UpdateContext
+    Search::SearchManager::UpdateContext updateContext;
+
+	// TODO : あとで
+    //std::function<void(std::string_view)> onVerifyNetworks;
+
+	// 📌 やねうら王独自 📌
+
+	// 思考エンジンの追加オプションを設定する。
+    virtual void add_options() override;
+
+    // "isready"のタイミングでの初期化処理。
+    virtual void isready() override;
 
 	// 定跡の指し手を選択するモジュール
-	Book::BookMoveSelector book;
+    Book::BookMoveSelector book;
+
+	// 探索manager
+    // 📝 やねうら王では、Engine派生classがSearchMangerを持っている。
+    Search::SearchManager manager;
 };
 
 namespace Search {
@@ -262,26 +296,39 @@ class YaneuraOuWorker: public Worker {
     //     start_searching()から呼び出される。
     void iterative_deepening();
 
-    // 探索本体
-    // 💡 最初、iterative_deepening()のなかから呼び出される。
+	// 探索本体
+    // This is the main search function, for both PV and non-PV nodes
+    // これは PV ノードおよび非 PV ノードの両方に対応するメインの探索関数
+	// 💡 最初、iterative_deepening()のなかから呼び出される。
     template<NodeType nodeType>
     Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
 
     // 静止探索
+    // Quiescence search function, which is called by the main search
+	// メイン探索から呼ばれる静止探索関数
     // 💡 search()から、残りdepthが小さくなった時に呼び出される。
     template<NodeType nodeType>
     Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
 
     // 📌 do_move～undo_move
-    // 💡 do_moveするときにWorker::nodesをインクリメントする。
+    // 📝 do_moveするときにWorker::nodesをインクリメントする。
+    // 💡 givesCheckはこの指し手moveで王手になるか。
+	//     これが事前にわかっているなら、後者を呼び出したほうが速くて良い。
 
     void do_move(Position& pos, const Move move, StateInfo& st);
     void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
-    void do_null_move(Position& pos, StateInfo& st);
     void undo_move(Position& pos, const Move move);
+    
+	// null moveで1手進める
+    // 📝 nodesはインクリメントされない。
+
+	void do_null_move(Position& pos, StateInfo& st);
     void undo_null_move(Position& pos);
 
     // 📌 Stockfishのsearch.hで定義されているWorkerが持っているメンバ変数 📌
+
+	// Public because they need to be updatable by the stats
+    // stats によって更新可能である必要があるため、public
 
     // 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
     ButterflyHistory mainHistory;
@@ -345,9 +392,10 @@ class YaneuraOuWorker: public Worker {
         return dynamic_cast<YaneuraOuWorker*>(worker.get());
     }
 
-    // SearchManager*を取得する。
+	// Pointer to the search manager, only allowed to be called by the main thread
+    // 検索マネージャへのポインタ。メインスレッドからのみ呼び出すことが許可されています。
     // 💡 Stockfishとの互換性のために用意。
-    SearchManager* main_manager() { return &manager; }
+    SearchManager* main_manager() const { return &manager; }
 
     // 並列探索において一番良い思考をしたthreadの選出。
     // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。

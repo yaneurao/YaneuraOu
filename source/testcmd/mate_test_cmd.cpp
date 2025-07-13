@@ -580,7 +580,6 @@ namespace {
 
 		// ベンチの計測用タイマー
 		Timer time;
-		time.reset();
 
 		for (const char* sfen : TestMateEngineSfen) {
 			Position pos;
@@ -590,7 +589,7 @@ namespace {
 			sync_cout << "\nPosition: " << sfen << sync_endl;
 
 			// 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
-			Time.reset();
+			time.reset();
 
 			StateListPtr states(new std::deque<StateInfo>(1));
 

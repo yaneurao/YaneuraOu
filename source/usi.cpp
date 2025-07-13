@@ -513,8 +513,7 @@ bool USIEngine::usi_cmdexec(const std::string& cmd)
 
 	// 起動時いきなりこれが飛んでくるので速攻応答しないとタイムアウトになる。
 	else if (token == "usi")
-		sync_cout << "id name " << engine_info(true) << "\n"
-			      << engine.get_options() << sync_endl;
+        engine.usi();
 
 	// オプションを設定する
 	else if (token == "setoption")
@@ -1042,8 +1041,6 @@ std::uint64_t USIEngine::perft(const Search::LimitsType& limits) {
 	return nodes;
 }
 
-
-
 // ----------------------------------
 //      USI拡張コマンド "test"
 // ----------------------------------
@@ -1471,9 +1468,6 @@ void USIEngine::enqueue_command_from_file(std::istringstream& is)
 
 
 
-
-#if defined(USE_PIECE_VALUE)
-
 // → やねうら王の場合、PawnValue = 90なので Value = 90なら 100として出力する必要がある。
 // Stockfish 16ではこの値は328になっている。
 constexpr int NormalizeToPawnValue = Eval::PawnValue;
@@ -1526,9 +1520,6 @@ std::string USIEngine::value(Value v)
 
 	return ss.str();
 }
-
-#endif
-
 
 // namespace USI内のUnitTest。
 void USIEngine::UnitTest(Test::UnitTester& tester, IEngine& engine)

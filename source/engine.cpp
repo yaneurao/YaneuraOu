@@ -23,6 +23,15 @@ Engine::Engine() :
 	//     派生class側のresize_threads()が呼び出されない。
 	//     そこで仕方がないのでadd_options()のタイミングでresize_threads()を呼び出すことにする。
 
+	evaluator = std::shared_ptr<Eval::IEvaluator>(new Eval::NullEvaluator());
+}
+
+void Engine::usi()
+{
+    sync_cout << "id name "
+              << engine_info(get_engine_name(), get_engine_author(),
+                             get_engine_version(), get_evaluator()->eval_name())
+              << get_options() << sync_endl;
 }
 
 void Engine::add_options()
@@ -190,7 +199,6 @@ void Engine::resize_threads() {
 	// スレッドの用いる評価関数パラメーターが正しいNUMAに属するようにする
 	threads.ensure_network_replicated();
 }
-
 
 #if 0
 

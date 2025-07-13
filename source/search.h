@@ -242,26 +242,57 @@ public:
 
 	Worker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken);
 
-	// 📌 このworkerの初期化は(派生classで)ここに書く。
+#if 0
+	// Called at instantiation to initialize reductions tables.
+    // Reset histories, usually before a new game.
+	// インスタンス化時に呼び出され、リダクションテーブルを初期化する。
+    // 通常、新しい対局の前に履歴をリセットする。
+#endif
+    // 📌 やねうら王では、このworkerの初期化は(派生classで)ここに書く。
 	// 💡 これは、"usinewgame"に対して呼び出されることが保証されている。(つまり各対局の最初に呼び出される。)
 	//     "usinewgame" ⇨ ThreadPool::resize_threads() ⇨ ThreadPool.clear() ⇨  各Threadに所属するWorker.clear()
-	virtual void clear(){}
+    virtual void clear() {}
 
+#if 0
+	// Called when the program receives the UCI 'go' command.
+    // It searches from the root position and outputs the "bestmove".
+    // プログラムが UCI の 'go' コマンドを受け取ったときに呼び出される。
+    // ルート局面から探索を行い、"bestmove" を出力する。
+#endif
 	// 📌 探索の処理を(派生classで)ここに書く。
 	// 📝 このメソッドはmain threadから呼び出される。
 	//    そのあと、sub threadの探索を開始するには、このメソッドのなかから
-	//    ThreadPool.start_searching()を呼び出す。
+	//    threads.start_searching()を呼び出す。
 	//    そうすると、sub threadから、このstart_searching()が呼び出される。
 	//    並列探索の具体例としては、YaneuraOuWorker::start_searching()を見ること。
 	virtual void start_searching(){}
 
+	// メインスレッドであるならtrueを返す。
 	bool is_mainthread() const { return threadIdx == 0; }
 
-	Position  rootPos;
-	StateInfo rootState;
-	RootMoves rootMoves;
-	size_t    threadIdx;                       // 📑コンストラクタで渡されたもの
-	LimitsType limits;
+	// 探索開始局面
+    Position rootPos;
+
+    // rootPosに対するStateInfo
+    StateInfo rootState;
+
+    // Rootの指し手
+    RootMoves rootMoves;
+
+    // 探索した深さ
+	// 🤔 これは派生class側で持つべき。
+    //Depth rootDepth, completedDepth;
+
+    // aspiration searchのroot delta
+    // 🤔 これは派生class側で持つべき。
+    //Value rootDelta;
+
+	// threadのindex(0からの連番), 0がmain thread
+    // 📑コンストラクタで渡されたもの
+    size_t threadIdx;
+
+    // 今回の"go"コマンドで渡された思考条件
+    LimitsType limits;
 
 	virtual void ensure_network_replicated(){}
 
@@ -281,31 +312,28 @@ protected:
     // bestMoveChanges : bestMoveが反復深化のなかで変化した回数。これは、Worker派生classのほうで必要なら用意する。
     std::atomic<uint64_t> nodes /*, tbHits, bestMoveChanges*/;
 
-	const OptionsMap& options;                 // 📑コンストラクタで渡されたもの
-	ThreadPool& threads;                       // 📑コンストラクタで渡されたもの 
-	NumaReplicatedAccessToken numaAccessToken; // 📑コンストラクタで渡されたもの
+	// エンジンOption管理
+    // 💡コンストラクタで渡されたもの
+    const OptionsMap& options;
+
+    // thread管理
+    // 💡コンストラクタで渡されたもの
+	ThreadPool& threads;
+
+	// このWorker threadに対応るNumaのtoken
+    // 💡コンストラクタで渡されたもの
+    NumaReplicatedAccessToken numaAccessToken;
 
 	friend class YaneuraOu::ThreadPool;
 	friend class SearchManager;
 };
 
+// 📌 やねうら王では、SharedStateを用いない。
+// 
+//     EngineとWorkerと評価関数とを自由に組み合わせられるようにするには、
+//     このStockfishの設計だと難しい。
+
 #if 0
-
-// 探索部の初期化。
-void init();
-
-// 探索部のclear。
-// 置換表のクリアなど時間のかかる探索の初期化処理をここでやる。isreadyに対して呼び出される。
-void clear();
-
-// pv(読み筋)をUSIプロトコルに基いて出力する。
-// pos   : 局面
-// tt    : このスレッドに属する置換表
-// depth : 反復深化のiteration深さ。
-std::string pv(const Position& pos, const TranspositionTable& tt, Depth depth);
-
-
-
 // The UCI stores the uci options, thread pool, and transposition table.
 // This struct is used to easily forward data to the Search::Worker class.
 
@@ -329,277 +357,8 @@ struct SharedState {
 	ThreadPool& threads;
 	TranspositionTable& tt;
 
-	//const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
-	// ⇨  やねうら王では、評価関数をさらに抽象化する。
-	//	📝 直接NNUEのclass名を指定するのは避けたい考え。
-	const LazyNumaReplicated<Eval::Evaluator>& networks;
+	const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
 };
-
-
-class Worker;
-
-// Null Object Pattern, implement a common interface for the SearchManagers.
-// A Null Object will be given to non-mainthread workers.
-
-// Nullオブジェクトパターン：SearchManagerの共通インターフェースを実装する。
-// メインスレッドでないワーカーにはNullオブジェクトが与えられる。
-
-class ISearchManager {
-public:
-	virtual ~ISearchManager() {}
-	virtual void check_time(Search::Worker&) = 0;
-};
-
-// Engineが持つべき読み筋の情報(簡単版)
-struct InfoShort {
-	int   depth;
-	Value score;
-};
-
-// Engineが持つべき読み筋の情報(完全版)
-struct InfoFull : InfoShort {
-	int              selDepth;
-	size_t           multiPV;
-	std::string_view wdl;
-	std::string_view bound;
-	size_t           timeMs;
-	size_t           nodes;
-	size_t           nps;
-	size_t           tbHits;
-	std::string_view pv;
-	int              hashfull;
-};
-
-// Engineが持つべき反復深化の情報
-struct InfoIteration {
-	int              depth;
-	std::string_view currmove;
-	size_t           currmovenumber;
-};
-
-
-// SearchManager manages the search from the main thread. It is responsible for
-// keeping track of the time, and storing data strictly related to the main thread.
-class SearchManager : public ISearchManager {
-public:
-	using UpdateShort = std::function<void(const InfoShort&)>;
-	using UpdateFull = std::function<void(const InfoFull&)>;
-	using UpdateIter = std::function<void(const InfoIteration&)>;
-	using UpdateBestmove = std::function<void(std::string_view, std::string_view)>;
-
-	struct UpdateContext {
-		UpdateShort    onUpdateNoMoves;
-		UpdateFull     onUpdateFull;
-		UpdateIter     onIter;
-		UpdateBestmove onBestmove;
-	};
-
-
-	SearchManager(const UpdateContext& updateContext) :
-		updates(updateContext) {
-	}
-
-	void check_time(Search::Worker& worker) override;
-
-	void pv(Search::Worker& worker,
-		const ThreadPool& threads,
-		const TranspositionTable& tt,
-		Depth                     depth);
-
-	YaneuraOu::TimeManagement tm;
-
-	double                    originalTimeAdjust;
-	int                       callsCnt;
-	std::atomic_bool          ponder;
-
-	std::array<Value, 4> iterValue;
-	double               previousTimeReduction;
-	Value                bestPreviousScore;
-	Value                bestPreviousAverageScore;
-	bool                 stopOnPonderhit;
-
-	size_t id;
-
-	const UpdateContext& updates;
-};
-
-class NullSearchManager : public ISearchManager {
-public:
-	void check_time(Search::Worker&) override {}
-};
-
-#if defined(YANEURAOU_ENGINE)
-
-// Search::Worker is the class that does the actual search.
-// It is instantiated once per thread, and it is responsible for keeping track
-// of the search history, and storing data required for the search.
-
-// Search::Worker は、実際の探索処理を行うクラスです。
-// このクラスはスレッドごとに1つインスタンス化され、
-// 探索履歴の管理や、探索に必要なデータの保持を担当します。
-
-class Worker {
-public:
-	Worker(SharedState& sharedState, std::unique_ptr<ISearchManager> searchManager, size_t, NumaReplicatedAccessToken numa);
-
-	// Called at instantiation to initialize reductions tables.
-	// Reset histories, usually before a new game.
-	// インスタンス化時に呼び出され、リダクションテーブルを初期化する。
-	// 通常、新しい対局の前に履歴をリセットする。
-	// 📝 "usinewgame"のタイミングで各スレッドに対して呼び出される。
-	void clear();
-
-	// Called when the program receives the UCI 'go' command.
-	// It searches from the root position and outputs the "bestmove".
-	// プログラムが UCI の 'go' コマンドを受け取ったときに呼び出される。
-	// ルート局面から探索を行い、"bestmove" を出力する。
-	// 📝 "go"コマンドが来た時にメインスレッドに対して呼び出される。
-	//     そのあと並列探索したいなら、この関数のなかで
-	//     threads.start_searching()を呼び出して、メインスレッド以外の探索も開始する。
-	void start_searching();
-
-	// メインスレッドであるならtrueを返す。
-	bool is_mainthread() const { return threadIdx == 0; }
-
-	void ensure_network_replicated();
-
-	// Public because they need to be updatable by the stats
-	ButterflyHistory mainHistory;
-	LowPlyHistory    lowPlyHistory;
-
-	CapturePieceToHistory captureHistory;
-	ContinuationHistory   continuationHistory[2][2];
-	//PawnHistory           pawnHistory;
-
-	//CorrectionHistory<Pawn>         pawnCorrectionHistory;
-	//CorrectionHistory<Minor>        minorPieceCorrectionHistory;
-	//CorrectionHistory<NonPawn>      nonPawnCorrectionHistory;
-	//CorrectionHistory<Continuation> continuationCorrectionHistory;
-
-	TTMoveHistory ttMoveHistory;
-
-private:
-	void iterative_deepening();
-
-	// 1手進める
-	// 📝 nodesは自動的にインクリメントされる。
-	// 💡 givesCheckはこの指し手moveで王手になるか。これが事前にわかっているなら、後者を呼び出したほうが速くて良い。
-	void do_move(Position& pos, const Move move, StateInfo& st);
-	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
-
-	// null moveで1手進める
-	// 📝 nodesはインクリメントされない。
-	void do_null_move(Position& pos, StateInfo& st);
-
-	// moveで進めたものを1手戻す
-	void undo_move(Position& pos, const Move move);
-
-	// null moveで進めたものを1手戻す
-	void undo_null_move(Position& pos);
-
-	// This is the main search function, for both PV and non-PV nodes
-	template<NodeType nodeType>
-	Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
-
-	// Quiescence search function, which is called by the main search
-	template<NodeType nodeType>
-	Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
-
-	Depth reduction(bool i, Depth d, int mn, int delta) const;
-
-	// Pointer to the search manager, only allowed to be called by the main thread
-	// 検索マネージャへのポインタ。メインスレッドからのみ呼び出すことが許可されています。
-
-	SearchManager* main_manager() const {
-		assert(threadIdx == 0);
-		return static_cast<SearchManager*>(manager.get());
-	}
-
-	TimePoint elapsed() const;
-	TimePoint elapsed_time() const;
-
-	Value evaluate(const Position&);
-
-	// 今回の"go"コマンドで渡された思考条件
-	LimitsType limits;
-
-	size_t                pvIdx, pvLast;
-
-	// nodes           : 探索ノード数(Position::do_move()するときに自分でこれをインクリメントする)
-	// tbHits          : tablebase(終盤データベース)にhitした回数。将棋では使わない。
-	// bestMoveChanges : 探索中にrootのbestmoveが変化した回数
-	std::atomic<uint64_t> nodes, /* tbHits,*/ bestMoveChanges;
-	int                   selDepth, nmpMinPly;
-
-	Value optimism[COLOR_NB];
-
-	// 探索開始局面
-	Position  rootPos;
-
-	// rootPosに対するStateInfo
-	StateInfo rootState;
-
-	// Rootの指し手
-	RootMoves rootMoves;
-
-	// 探索した深さ
-	Depth     rootDepth, completedDepth;
-
-	// aspiration searchのroot delta
-	Value     rootDelta;
-
-	// スレッドの通し番号。0ならばmain thread。
-	size_t                    threadIdx;
-
-	// このWorker threadに対応るNumaのtoken
-	NumaReplicatedAccessToken numaAccessToken;
-
-	// Reductions lookup table initialized at startup
-	std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
-
-	// The main thread has a SearchManager, the others have a NullSearchManager
-	std::unique_ptr<ISearchManager> manager;
-
-	//Tablebases::Config tbConfig;
-	// 📌 Tablebasesは将棋では用いない。
-
-	// エンジンOption管理
-	const OptionsMap& options;
-
-	// thread管理
-	ThreadPool& threads;
-
-	// 置換表
-	TranspositionTable& tt;
-
-	// 評価関数
-	//const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
-	// ⇨  やねうら王では、評価関数をさらに抽象化する。
-	const LazyNumaReplicated<Eval::Evaluator>& networks;
-
-	// 💡 なぜLazyNumaPeplicatedでくるむ必要があるかについては、
-	//     LazyNumaReplicatedの定義のところに書いてある解説を読むこと。
-
-	// Used by NNUE
-	//Eval::NNUE::AccumulatorStack  accumulatorStack;
-	//Eval::NNUE::AccumulatorCaches refreshTable;
-
-	friend class YaneuraOu::ThreadPool;
-	friend class SearchManager;
-};
-
-
-// Continuation Historyに対するBonus値の配列の型
-struct ConthistBonus {
-	int index;
-	int weight;
-};
-
-#else
-
-#endif
-
-
 #endif
 
 } // namespace Search
