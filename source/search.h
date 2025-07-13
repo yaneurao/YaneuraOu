@@ -223,11 +223,23 @@ struct LimitsType {
 	TimePoint rtime;
 };
 
+
+// Search::Worker is the class that does the actual search.
+// It is instantiated once per thread, and it is responsible for keeping track
+// of the search history, and storing data required for the search.
+
+// Search::Worker は実際の探索を行うクラスです。
+// このクラスはスレッドごとに1つインスタンス化され、探索履歴を管理し、
+// 探索に必要なデータを保持する役割を担います。
+
 /*
 	📌  すべてのWorkerの基底classに相当する最小限のWorker 📌
 
-	💡  それぞれの変数・メソッドの意味については、
-         やねうら王探索部のWorker(YaneuraOuWorker)のコメントを確認すること。
+	💡  やねうら王では、Search::Workerは最小限にして、このclassを派生して
+	     それぞれの思考エンジンを実装するように変更している。
+
+		 それぞれの変数・メソッドの意味については、
+         やねうら王探索部のWorker(YaneuraOuWorker)のコメントも確認すること。
 
 	📝  エンジンを自作する時は、このclassを派生させて、このclassのfactoryをThreadPoolに渡す。
 		例として、USER_ENGINE である、user-engine.cpp のソースコードを見ると良い。
@@ -270,6 +282,86 @@ public:
 	// メインスレッドであるならtrueを返す。
 	bool is_mainthread() const { return threadIdx == 0; }
 
+	// 評価関数パラメーターが各Numaにコピーされるようにする。
+	virtual void ensure_network_replicated() {}
+
+	// 📝 やねうら王では、派生class(YaneuraOuWorker)側で実装する。
+	#if 0
+    // Public because they need to be updatable by the stats
+    ButterflyHistory mainHistory;
+    LowPlyHistory    lowPlyHistory;
+
+    CapturePieceToHistory captureHistory;
+    ContinuationHistory   continuationHistory[2][2];
+    PawnHistory           pawnHistory;
+
+    CorrectionHistory<Pawn>         pawnCorrectionHistory;
+    CorrectionHistory<Minor>        minorPieceCorrectionHistory;
+    CorrectionHistory<NonPawn>      nonPawnCorrectionHistory;
+    CorrectionHistory<Continuation> continuationCorrectionHistory;
+
+    TTMoveHistory ttMoveHistory;
+	#endif
+
+protected:
+
+	// 📝 やねうら王では、派生class(YaneuraOuWorker)側で実装する。
+	// ⚠ do_move～undo_null_moveは、派生class側でのみ定義する。
+	//     これを仮想関数にしてしまうと、呼び出しのoverheadが気になる。
+
+#if 0
+    //void iterative_deepening();
+
+	void do_move(Position& pos, const Move move, StateInfo& st);
+	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
+	void do_null_move(Position& pos, StateInfo& st);
+	void undo_move(Position& pos, const Move move);
+	void undo_null_move(Position& pos);
+
+    // This is the main search function, for both PV and non-PV nodes
+    template<NodeType nodeType>
+    Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
+
+    // Quiescence search function, which is called by the main search
+    template<NodeType nodeType>
+    Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
+
+    Depth reduction(bool i, Depth d, int mn, int delta) const;
+
+    // Pointer to the search manager, only allowed to be called by the main thread
+    SearchManager* main_manager() const {
+        assert(threadIdx == 0);
+        return static_cast<SearchManager*>(manager.get());
+    }
+
+    TimePoint elapsed() const;
+    TimePoint elapsed_time() const;
+
+    Value evaluate(const Position&);
+#endif
+
+    // 今回の"go"コマンドで渡された思考条件
+	LimitsType limits;
+
+	// 📝 派生class側で
+    // size_t pvIdx, pvLast;
+
+	// nodes           : 探索したnode数。do_move()で(自分で)カウントする。
+    // tbHits          : tablebaseにhitした回数。将棋では使わない。
+    // bestMoveChanges : bestMoveが反復深化のなかで変化した回数。📝 派生classのほうで。
+    std::atomic<uint64_t> nodes /*, tbHits, bestMoveChanges*/;
+
+	// 📝 派生class側で。
+#if 0
+    int selDepth, nmpMinPly;
+
+    Value optimism[COLOR_NB];
+#endif
+
+	// 🤔 外部からrootMovesにアクセスしたいことがあるので、やねうら王では
+    //     このへんはpublicにしておく。
+public:
+
 	// 探索開始局面
     Position rootPos;
 
@@ -279,53 +371,58 @@ public:
     // Rootの指し手
     RootMoves rootMoves;
 
-    // 探索した深さ
-	// 🤔 これは派生class側で持つべき。
+protected:
+
+	// 📝 派生class側で
+#if 0
+    // 探索した深さ。
     //Depth rootDepth, completedDepth;
 
     // aspiration searchのroot delta
-    // 🤔 これは派生class側で持つべき。
     //Value rootDelta;
+#endif
 
 	// threadのindex(0からの連番), 0がmain thread
     // 📑コンストラクタで渡されたもの
     size_t threadIdx;
 
-    // 今回の"go"コマンドで渡された思考条件
-    LimitsType limits;
+	// このWorker threadに対応るNumaのtoken
+    // 💡 コンストラクタで渡されたもの
+    NumaReplicatedAccessToken numaAccessToken;
 
-	virtual void ensure_network_replicated(){}
+	// 📝 派生class側で
+    //// The main thread has a SearchManager, the others have a NullSearchManager
+    //std::unique_ptr<ISearchManager> manager;
 
-protected:
-	// ⚠ do_move～undo_null_moveは、派生class側でのみ定義する。
-	//     これを仮想関数にしてしまうと、呼び出しのoverheadが気になる。
-	#if 0
-	void do_move(Position& pos, const Move move, StateInfo& st);
-	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
-	void do_null_move(Position& pos, StateInfo& st);
-	void undo_move(Position& pos, const Move move);
-	void undo_null_move(Position& pos);
-	#endif
-
-	// nodes           : 探索したnode数。do_move()で(自分で)カウントする。
-    // tbHits          : tablebaseにhitした回数。将棋では使わない。
-    // bestMoveChanges : bestMoveが反復深化のなかで変化した回数。これは、Worker派生classのほうで必要なら用意する。
-    std::atomic<uint64_t> nodes /*, tbHits, bestMoveChanges*/;
+	// 📝 tablebaseは将棋では使わない。
+    //Tablebases::Config tbConfig;
 
 	// エンジンOption管理
-    // 💡コンストラクタで渡されたもの
+    // 💡 コンストラクタで渡されたもの
     const OptionsMap& options;
 
     // thread管理
-    // 💡コンストラクタで渡されたもの
+    // 💡 コンストラクタで渡されたもの
 	ThreadPool& threads;
 
-	// このWorker threadに対応るNumaのtoken
-    // 💡コンストラクタで渡されたもの
-    NumaReplicatedAccessToken numaAccessToken;
+	// 置換表
+	// 📝 派生class側で。
+	// 🤔 エンジン種別ごとに異なる置換表実装を行う余地を残すため、
+	//     やねうら王ではWorker classは置換表を持たせない。
+    //TranspositionTable& tt;
+
+	// 📝 やねうら王では、評価関数はEval::IEvaluatorとして抽象化する。
+#if 0
+    const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
+
+    // Used by NNUE
+    Eval::NNUE::AccumulatorStack  accumulatorStack;
+    Eval::NNUE::AccumulatorCaches refreshTable;
+#endif
+    std::shared_ptr<Eval::IEvaluator> evaluator;
 
 	friend class YaneuraOu::ThreadPool;
-	friend class SearchManager;
+	//friend class SearchManager;
 };
 
 // 📌 やねうら王では、SharedStateを用いない。

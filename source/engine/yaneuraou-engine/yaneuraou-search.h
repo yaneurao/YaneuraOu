@@ -282,48 +282,17 @@ class YaneuraOuWorker: public Worker {
                     TranspositionTable& tt,
                     YaneuraOuEngine&    engine);
 
-    // 評価関数のパラメーターが各NUMAにコピーされているようにする。
-    virtual void ensure_network_replicated() override;
+    // "usinewgame"に対して呼び出される。対局前の初期化。
+    virtual void clear() override;
 
     // "go"コマンドでの探索の開始時にmain threadから呼び出される。
     virtual void start_searching() override;
 
-    // "usinewgame"に対して呼び出される。対局前の初期化。
-    virtual void clear() override;
+	// 📝 これは、やねうら王ではbase classで定義されている。
+    //bool is_mainthread() const { return threadIdx == 0; }
 
-    // 反復深化
-    // 💡 並列探索のentry point。
-    //     start_searching()から呼び出される。
-    void iterative_deepening();
-
-	// 探索本体
-    // This is the main search function, for both PV and non-PV nodes
-    // これは PV ノードおよび非 PV ノードの両方に対応するメインの探索関数
-	// 💡 最初、iterative_deepening()のなかから呼び出される。
-    template<NodeType nodeType>
-    Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
-
-    // 静止探索
-    // Quiescence search function, which is called by the main search
-	// メイン探索から呼ばれる静止探索関数
-    // 💡 search()から、残りdepthが小さくなった時に呼び出される。
-    template<NodeType nodeType>
-    Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
-
-    // 📌 do_move～undo_move
-    // 📝 do_moveするときにWorker::nodesをインクリメントする。
-    // 💡 givesCheckはこの指し手moveで王手になるか。
-	//     これが事前にわかっているなら、後者を呼び出したほうが速くて良い。
-
-    void do_move(Position& pos, const Move move, StateInfo& st);
-    void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
-    void undo_move(Position& pos, const Move move);
-    
-	// null moveで1手進める
-    // 📝 nodesはインクリメントされない。
-
-	void do_null_move(Position& pos, StateInfo& st);
-    void undo_null_move(Position& pos);
+    // 評価関数のパラメーターが各NUMAにコピーされているようにする。
+    virtual void ensure_network_replicated() override;
 
     // 📌 Stockfishのsearch.hで定義されているWorkerが持っているメンバ変数 📌
 
@@ -352,23 +321,40 @@ class YaneuraOuWorker: public Worker {
     CorrectionHistory<Continuation> continuationCorrectionHistory;
 #endif
 
-    TTMoveHistory ttMoveHistory;
+	TTMoveHistory ttMoveHistory;
 
-    // MultiPVの時の現在探索中のPVのindexと、PVの末尾
-    size_t pvIdx, pvLast;
+   private:
+    // 反復深化
+    // 💡 並列探索のentry point。
+    //     start_searching()から呼び出される。
+    void iterative_deepening();
 
-    // nodes           : 探索node数これはWorker classのほうにある。
-    // tbHits          : tablebaseにhitした回数。将棋では使わない。
-    // bestMoveChanges : bestMoveが反復深化のなかで変化した回数
-    std::atomic<uint64_t> /* nodes, tbHits,*/ bestMoveChanges;
+    // 📌 do_move～undo_move
+    // 📝 do_move()は、Worker::nodesをインクリメントする。
+    //     do_null_move()は、nodesはインクリメントしない。
+    // 💡 givesCheckはこの指し手moveで王手になるか。
+    //     これが事前にわかっているなら、do_move(move,st,givesCheck)を呼び出したほうが速い。
 
-    // selDepth : 選択探索の深さ。
-    // 💡depthとPV lineに対するUSI infoで出力するselDepth。
-    int selDepth, nmpMinPly;
+    void do_move(Position& pos, const Move move, StateInfo& st);
+    void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
+    void do_null_move(Position& pos, StateInfo& st);
 
-    // aspiration searchで使う。
-    Depth rootDepth, completedDepth;
-    Value rootDelta;
+	void undo_move(Position& pos, const Move move);
+    void undo_null_move(Position& pos);
+
+	// 探索本体
+    // This is the main search function, for both PV and non-PV nodes
+    // これは PV ノードおよび非 PV ノードの両方に対応するメインの探索関数
+    // 💡 最初、iterative_deepening()のなかから呼び出される。
+    template<NodeType nodeType>
+    Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
+
+    // 静止探索
+    // Quiescence search function, which is called by the main search
+    // メイン探索から呼ばれる静止探索関数
+    // 💡 search()から、残りdepthが小さくなった時に呼び出される。
+    template<NodeType nodeType>
+    Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
 
 	// LMRのreductionの値を計算する。
     // ⚠ この関数は、Stockfish 17(2024.11)で、1024倍して返すことになった。
@@ -379,10 +365,99 @@ class YaneuraOuWorker: public Worker {
     //   delta : staticEvalとchildのeval(value)の差。これが低い時にreduction量を増やしたい。
     Depth reduction(bool i, Depth d, int mn, int delta) const;
 
+	// Pointer to the search manager, only allowed to be called by the main thread
+    // 検索マネージャへのポインタ。メインスレッドからのみ呼び出すことが許可されています。
+    // 💡 Stockfishとの互換性のために用意。
+    SearchManager* main_manager() const { return &manager; }
+
+	// 時間経過。
+	// 💡 やねうら王では、SearchManagerがTimeManagement tmを持っていて、
+	//     このclassがelapsed()を持っているのでそちらを用いる。
+#if 0
+    TimePoint elapsed() const;
+    TimePoint elapsed_time() const;
+#endif
+
+	// 評価関数
+    Value evaluate(const Position& pos);
+
+	// "go"で渡された探索条件。
+	// 💡 やねうら王ではbase classが持っている。
+    //LimitsType limits;
+
+    // MultiPVの時の現在探索中のPVのindexと、PVの末尾
+    size_t pvIdx, pvLast;
+
+    // nodes           : 探索node数これはbase classのほうにある。
+    // tbHits          : tablebaseにhitした回数。将棋では使わない。
+    // bestMoveChanges : bestMoveが反復深化のなかで変化した回数
+    std::atomic<uint64_t> /* nodes, tbHits,*/ bestMoveChanges;
+
+    // selDepth : 選択探索の深さ。
+    // 💡depthとPV lineに対するUSI infoで出力するselDepth。
+    int selDepth, nmpMinPly;
+
+	// 探索時に評価値に楽観的バイアスを与えるために用いるパラメーター。
+	Value optimism[COLOR_NB];
+
+#if 0
+	// 探索開始局面とrootでのStateInfo
+	// 💡 やねうら王では、base classが持っている。
+    Position  rootPos;
+    StateInfo rootState;
+
+	// rootでの指し手
+	// 💡 やねうら王では、base classが持っている。
+    RootMoves rootMoves;
+#endif
+
+    // aspiration searchで使う。
+    Depth rootDepth, completedDepth;
+    Value rootDelta;
+
+#if 0
+	// 💡 やねうら王では、base classが持っている。
+
+	size_t                    threadIdx;
+    NumaReplicatedAccessToken numaAccessToken;
+#endif
+
     // Reductions lookup table initialized at startup
     // 起動時に初期化されるreductionsの参照表
     // 💡 reductionとは、LMRで残り探索深さを減らすこと。
     std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
+
+    // The main thread has a SearchManager, the others have a NullSearchManager
+    // メインスレッドは SearchManager を持ち、他のスレッドは NullSearchManager を持つ。
+    // 💡 やねうら王では、NullObject patternをやめて、単に参照で持つ。
+    // 🤔 Stockfishも、main threadからしか呼び出さないのだから、これでいいと思うのだが…。
+    SearchManager& manager;
+
+	// 📝 tablebaseは将棋では使わない。
+    //Tablebases::Config tbConfig;
+
+    //const OptionsMap&                               options;
+    //ThreadPool&                                     threads;
+
+	// 置換表
+	// 📝 やねうら王ではコンストラクタで受け取っている。
+    TranspositionTable&                             tt;
+
+	// NNUEの評価関数の計算用
+    // 📝 やねうら王では評価関数は、IEvaluatorで抽象化されているので、不要。
+
+#if 0
+	// NNUE評価関数のパラメーターがNumaごとにコピーされるようにする。
+	const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
+
+	// Used by NNUE
+	// NNUEで使う
+
+	// NNUE評価関数のnetworkのL1層を保持しているstack
+    Eval::NNUE::AccumulatorStack  accumulatorStack;
+	// NNUE評価関数の差分計算用
+    Eval::NNUE::AccumulatorCaches refreshTable;
+#endif
 
     // 📌 以下、やねうら王独自追加 📌
 
@@ -392,28 +467,19 @@ class YaneuraOuWorker: public Worker {
         return dynamic_cast<YaneuraOuWorker*>(worker.get());
     }
 
-	// Pointer to the search manager, only allowed to be called by the main thread
-    // 検索マネージャへのポインタ。メインスレッドからのみ呼び出すことが許可されています。
-    // 💡 Stockfishとの互換性のために用意。
-    SearchManager* main_manager() const { return &manager; }
-
     // 並列探索において一番良い思考をしたthreadの選出。
     // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
     YaneuraOuWorker* get_best_thread() const;
 
-	// 評価関数
-	Value evaluate(const Position& pos);
-
-    // 📌 コンストラクタでもらったやつ 📌
-
-    // 置換表
-    TranspositionTable& tt;
-
     // Engine本体
+	// 📝 コンストラクタで受け取ったもの。
     YaneuraOuEngine& engine;
 
-    // SearchManager
-    SearchManager& manager;
+	// 📝 こちらは、StockfishではThreadPool::get_best_thread()の実装のために必要。
+	//     やねうら王では、YaneuraOuWorkerでget_best_thread()を実装しているのでこのfriendは不要。
+    //friend class Stockfish::ThreadPool;
+
+    friend class SearchManager;
 };
 
 struct ConthistBonus {
