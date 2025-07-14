@@ -212,7 +212,7 @@ namespace Book
 	static std::unique_ptr<AperyBook> apery_book;
 	static const constexpr char* kAperyBookName = "book.bin";
 
-	void MemoryBook::Init(OptionsMap& options)
+	void MemoryBook::set_options(OptionsMap& options)
 	{
 		this->options.set_ref(options);
 	}
@@ -987,22 +987,30 @@ namespace Book
 	//			BookMoveSelector
 	// ----------------------------------
 
-	void BookMoveSelector::init(OptionsMap & o)
+	void BookMoveSelector::set_options(OptionsMap& o) {
+        options.set_ref(o);
+        // memory_bookのほうにもセットしておく。
+        memory_book.set_options(o);
+    }
+
+	void BookMoveSelector::add_options(OptionsMap& o)
 	{
-#if 0
+        // あとで使いたいから参照をコピーしておく。
+        set_options(o);
+
 		// エンジン側の定跡を有効化するか
 		// USI原案にこのオプションがあり、ShogiGUI、ShogiDroidで対応しているらしいので
 		// このオプションを追加。[2020/3/9]
-		o["USI_OwnBook"] << Option(true);
+		options.add("USI_OwnBook", Option(true));
 
 		// 実現確率の低い狭い定跡を選択しない
-		o["NarrowBook"] << Option(false);
+        options.add("NarrowBook", Option(false));
 
 		// 定跡の指し手を何手目まで用いるか
-		o["BookMoves"] << Option(16, 0, 10000);
+        options.add("BookMoves", Option(16, 0, 10000));
 
 		// 一定の確率で定跡を無視して自力で思考させる
-		o["BookIgnoreRate"] << Option(0, 0, 100);
+        options.add("BookIgnoreRate", Option(0, 0, 100));
 
 		// 定跡ファイル名
 
@@ -1022,17 +1030,17 @@ namespace Book
 			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 
 #if !defined(__EMSCRIPTEN__)
-		o["BookFile"] << Option(book_list, book_list[1]);
+		options.add("BookFile", Option(book_list, book_list[1]));
 #else
 		// WASM では no_book をデフォルトにする
-		o["BookFile"] << Option(book_list, book_list[0]);
+        options.add("BookFile", Option(book_list, book_list[0]));
 #endif
 
 #if !defined(__EMSCRIPTEN__)
-		o["BookDir"] << Option("book");
+        options.add("BookDir", Option("book"));
 #else
 		// WASM
-		o["BookDir"] << Option(".");
+        options.add("BookDir", Option("."));
 #endif
 
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
@@ -1041,33 +1049,27 @@ namespace Book
 		//  BookEvalWhiteLimit : 同じく後手の下限。
 		//  BookDepthLimit : 定跡に登録されている指し手のdepthがこれを下回るなら採用しない。0を指定するとdepth無視。
 
-		o["BookEvalDiff"] << Option(30, 0, 99999);
-		o["BookEvalBlackLimit"] << Option(0, -99999, 99999);
-		o["BookEvalWhiteLimit"] << Option(-140, -99999, 99999);
-		o["BookDepthLimit"] << Option(16, 0, 99999);
+		options.add("BookEvalDiff", Option(30, 0, 99999));
+        options.add("BookEvalBlackLimit", Option(0, -99999, 99999));
+        options.add("BookEvalWhiteLimit", Option(-140, -99999, 99999));
+        options.add("BookDepthLimit", Option(16, 0, 99999));
 
 		// 定跡をメモリに丸読みしないオプション。(default = false)
-		o["BookOnTheFly"] << Option(false);
+        options.add("BookOnTheFly", Option(false));
 
 		// 定跡データベースの採択率に比例して指し手を選択するオプション
-		o["ConsiderBookMoveCount"] << Option(false);
+        options.add("ConsiderBookMoveCount", Option(false));
 
 		// 定跡にヒットしたときにPVを何手目まで表示するか。あまり長いと時間がかかりうる。
-		o["BookPvMoves"] << Option(8, 1, MAX_PLY);
+        options.add("BookPvMoves", Option(8, 1, MAX_PLY));
 
 		// 定跡データベース上のply(開始局面からの手数)を無視するオプション。
 		// 例) 局面図が同じなら、DBの36手目の局面に40手目でもヒットする。
 		// これ変更したときに定跡ファイルの読み直しが必要になるのだが…(´ω｀)
-		o["IgnoreBookPly"] << Option(false);
+        options.add("IgnoreBookPly", Option(false));
 
 		// 反転させた局面が定跡DBに登録されていたら、それにヒットするようになるオプション。
-		o["FlippedBook"] << Option(true);
-
-#endif
-		// あとで使いたいから参照をコピーしておく。
-		options.set_ref(o);
-		// memory_bookのほうにもセットしておく。
-		memory_book.Init(o);
+        options.add("FlippedBook", Option(true));
 	}
 
 	// 定跡ファイルの読み込み。

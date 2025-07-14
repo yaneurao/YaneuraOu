@@ -144,7 +144,7 @@
 // #define EVAL_PPET      // ×  技巧型 2駒+利き+手番(実装予定なし)
 // #define EVAL_KKPPT     // ○  KKPP型 4駒関係 手番あり。(55将棋、56将棋でも使えそう)※3
 // #define EVAL_KKPP_KKPT // ○  KKPP型 4駒関係 手番はKK,KKPTにのみあり。※3
-// #define EVAL_DL        //     Deep Learning系の評価関数。dlshogiを参考に。※5
+// #define EVAL_SFNN      //     2025年夏にStockfishから逆輸入されたStockfish NNUE評価関数
 
 // ※1 : KPP_PPTは、差分計算が面倒で割に合わないことが判明したのでこれを使うぐらいならKPP_KKPTで十分だという結論。
 // ※2 : 実装したけどいまひとつだったので差分計算実装せず。そのため遅すぎて、実質使い物にならない。ソースコードの参考用。
@@ -154,7 +154,10 @@
 //       #define MATERIAL_LEVEL 1 なら、駒得のみの評価関数
 //       #define MATERIAL_LEVEL 2 なら…
 //       → eval/material/evaluate_material.cppに定義があるのでそちらを見ること。
-// ※5 : // あとで
+
+// CLASSIC_EVAL(Material,KPPT,KPP_KKPT,CLASSIC NNUE)を使う時には、これをdefineすること。
+// EVAL_SFNNを使うときはdefineしてはならない。
+// #define USE_CLASSIC_EVAL
 
 // 駒の価値のテーブルを使うか。(Apery WCSC26の定義)
 // Eval::PieceValueなどが使えるようになる。
@@ -188,10 +191,6 @@
 // エンジンオプションをコンパイル時に指定したい時に用いる。
 // ";"で区切って複数指定できる。
 // #define ENGINE_OPTIONS "FV_SCALE=24;BookFile=no_book"
-
-// NNUE評価関数で、推論時のオーバーフローを防ぐ。
-// これオンにすると0.5%ぐらいnpsが低下する。オフで運用できるならオフでいいと思う。
-// #define NNUE_FIX_OVERFLOW
 
 // ---------------------
 //  置換表絡みの設定
@@ -386,16 +385,6 @@
 // NNUE評価関数の実行ファイルへの埋め込み(incbinを用いる)
 // #define NNUE_EMBEDDING
 
-// CLASSIC_EVAL(Material,KPPT,KPP_KKPT,CLASSIC NNUE)を使う時には、これをdefineすること。
-// #define USE_CLASSIC_EVAL
-
-// 2025年夏にStockfishから逆輸入されたStockfish NNUE評価関数
-// #define EVAL_SFNN
-
-// NNUE評価関数のAccumulatorStackを用いるのか？
-// 💡 SFNN評価関数であれば、これを定義する必要がある。
-//#define USE_ACCUMULATOR_STACK
-
 // ===============================================================
 // ここ以降では、↑↑↑で設定した内容に基づき必要なdefineを行う。
 // ===============================================================
@@ -417,6 +406,8 @@ constexpr int MAX_PLY_NUM = 246;
 #if defined(YANEURAOU_ENGINE_SFNN)
 
 	#define YANEURAOU_ENGINE
+	#define EVAL_SFNN
+
 	#define USE_MATE_1PLY
 	#define USE_TIME_MANAGEMENT
 	#define USE_MOVE_PICKER
@@ -498,7 +489,6 @@ constexpr int MAX_PLY_NUM = 246;
 
 	#if defined(YANEURAOU_ENGINE_NNUE)
 		#define EVAL_NNUE
-		#define NNUE_FIX_OVERFLOW
 
 		// 学習のためにOpenBLASを使う
 		// "../openblas/lib/libopenblas.dll.a"をlibとして追加すること。
@@ -590,7 +580,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#undef ENABLE_TEST_CMD
 	#undef USE_GLOBAL_OPTIONS
 	#undef KEEP_LAST_MOVE
-	#undef NNUE_FIX_OVERFLOW
 
 	// 千日手検出を簡略化する
 	#define ENABLE_QUICK_DRAW

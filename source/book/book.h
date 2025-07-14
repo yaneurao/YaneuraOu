@@ -149,9 +149,9 @@ namespace Book
 	// ・on the flyが指定されているときは実際はメモリ上にはないがこれを透過的に扱う。
 	struct MemoryBook
 	{
-		// 初期化としてOptionsMapを渡してやる必要がある。
-		void Init(OptionsMap& options);
-		
+        // このclassの初期化としてOptionsMapを渡してやる必要がある。
+        void set_options(OptionsMap& o);
+
 		// [ASYNC] 定跡として登録されているかを調べて返す。
 		// ・見つからなかった場合、nullptrが返る。
 		// ・read_book()のときにon_the_flyが指定されていれば実際にはメモリ上には定跡データが存在しないので
@@ -263,8 +263,11 @@ namespace Book
 	// 思考エンジンにおいて定跡の指し手の選択をする部分を切り出したもの。
 	struct BookMoveSelector
 	{
-		// extra_option()で呼び出すと、定跡関係のオプション項目をオプション(OptionMap)に追加する。
-		void init(OptionsMap& o);
+        // このprobe()の時に使うエンジンオプションを追加する。
+		void add_options(OptionsMap& o);
+
+        // 💡 add_options()を呼び出す場合はこのmethodの呼び出しは不要。
+        void set_options(OptionsMap& options);
 
 		// 定跡ファイルの読み込み。
 		// ・Search::clear()からこの関数を呼び出す。

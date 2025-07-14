@@ -109,7 +109,7 @@ public:
 
 	// options["USI_Hash"]などの置換表サイズに対して、それが変更された時に呼び出されるhandler。
 	// 置換表的なものを使用するときは、これをoverrideすると便利。
-	virtual void set_tt_size() = 0;
+    virtual void set_tt_size(size_t mb) = 0;
 
 	// blocking call to wait for search to finish
 	// 探索が完了するのを待機する。(完了したらリターンする)
@@ -202,7 +202,7 @@ public:
 
 	virtual void add_options() override;
 	virtual void resize_threads() override;
-	virtual void set_tt_size() override {}
+	virtual void set_tt_size(size_t mb) override {}
 	virtual void wait_for_search_finished() override;
 	virtual void verify_networks() override {}
 	virtual void save_network(const std::string& path) override {}
@@ -267,7 +267,7 @@ public:
 
 	virtual void add_options() override { engine->add_options(); }
 	virtual void resize_threads() override { engine->resize_threads(); }
-	virtual void set_tt_size() override { engine->set_tt_size(); }
+    virtual void set_tt_size(size_t mb) override { engine->set_tt_size(mb); }
 	virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
 	virtual void verify_networks() override { engine->verify_networks(); }
 	virtual void save_network(const std::string& path) override { engine->save_network(path); }

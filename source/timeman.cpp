@@ -11,14 +11,48 @@ namespace YaneuraOu {
 
 namespace {
 
-	// これぐらい自分が指すと終局すると考えて計画を練る。
-	// 近年、将棋ソフトは終局までの平均手数が伸びているので160に設定しておく。
-	const int MoveHorizon = 160;
+// これぐらい自分が指すと終局すると考えて計画を練る。
+// 近年、将棋ソフトは終局までの平均手数が伸びているので160に設定しておく。
+const int MoveHorizon = 160;
 
-	// 思考時間のrtimeが指定されたときに用いる乱数
-	PRNG prng;
+// 思考時間のrtimeが指定されたときに用いる乱数
+PRNG prng;
 
 } // namespace
+
+// 起動時に呼び出す。
+// このclassが使用するengine optionを追加する。
+void TimeManagement::add_options(OptionsMap& options) {
+
+		// 指し手がGUIに届くまでの時間。
+#if defined(YANEURAOU_ENGINE_DEEP)
+    // GPUからの結果を待っている時間も込みなのでdefault値を少し上げておく。
+    int time_margin = 400;
+#else
+    int time_margin = 120;
+#endif
+
+    // ネットワークの平均遅延時間[ms]
+    // この時間だけ早めに指せばだいたい間に合う。
+    // 切れ負けの瞬間は、NetworkDelayのほうなので大丈夫。
+    options.add("NetworkDelay", Option(time_margin, 0, 10000));
+
+    // ネットワークの最大遅延時間[ms]
+    // 切れ負けの瞬間だけはこの時間だけ早めに指す。
+    // 1.2秒ほど早く指さないとfloodgateで切れ負けしかねない。
+    options.add("NetworkDelay2", Option(time_margin + 1000, 0, 10000));
+
+    // 最小思考時間[ms]
+    options.add("MinimumThinkingTime", Option(2000, 1000, 100000));
+
+    // 切れ負けのときの思考時間を調整する。序盤重視率。百分率になっている。
+    // 例えば200を指定すると本来の最適時間の200%(2倍)思考するようになる。
+    // 対人のときに短めに設定して強制的に早指しにすることが出来る。
+    options.add("SlowMover", Option(100, 1, 1000));
+
+    // 引き分けまでの最大手数。256手ルールのときに256を設定すると良い。0なら無制限。
+    options.add("MaxMovesToDraw", Option(0, 0, 100000));
+}
 
 void TimeManagement::init(Search::LimitsType& limits,
                           Color               us,

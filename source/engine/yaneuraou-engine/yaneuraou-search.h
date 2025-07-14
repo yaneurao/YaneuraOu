@@ -253,6 +253,12 @@ public:
 	// 思考エンジンの追加オプションを設定する。
     virtual void add_options() override;
 
+	// Threadのresizeするときのevent。
+	virtual void resize_threads() override;
+
+	// 置換表のresize event。
+	virtual void set_tt_size(size_t mb) override;
+
     // "isready"のタイミングでの初期化処理。
     virtual void isready() override;
 

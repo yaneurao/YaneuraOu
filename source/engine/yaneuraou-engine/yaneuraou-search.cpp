@@ -262,9 +262,35 @@ void init_param()
 // 思考エンジンの追加オプションを設定する。
 // 💡 Stockfishでは、Engine::Engine()で行っている。
 void YaneuraOuEngine::add_options() {
-    // 📌　定跡設定
 
-    book.init(options);
+	// 📌 基本設定(base classのadd_options()を呼び出してやる)
+
+	Engine::add_options();
+
+    options.add(  //
+          "USI_Hash", Option(16, 1, MaxHashMB, [this](const Option& o) {
+              set_tt_size(o);
+              return std::nullopt;
+          }));
+
+	// その局面での上位N個の候補手を調べる機能
+    // ⇨　これMAX_MOVESで十分。
+    options.add("MultiPV", Option(1, 1, MAX_MOVES));
+
+#if 0
+        // 探索深さ制限。0なら無制限。
+        o["DepthLimit"] << Option(0, 0, int_max);
+
+        // 探索ノード制限。0なら無制限。
+        o["NodesLimit"] << Option(0, 0, int64_max);
+#endif
+
+	// 📌 TimeManagementが用いるオプションの追加
+    manager.tm.add_options(options);
+
+	// 📌 定跡オプションの追加
+
+    book.add_options(options);
 
     // 💡  以下の設定のうち、"isready"のタイミングでoptionsから値を取得するものに関しては
     //      event handlerは設定しない。
@@ -378,6 +404,45 @@ void YaneuraOuEngine::isready() {
     // fail low/highのときにPVを出力するかどうか。
     global_options.outout_fail_lh_pv  = options["OutputFailLHPV"];
 
+	// 📌 基本設定(base classのisready()を呼び出してやる)
+
+	Engine::isready();
+}
+
+// スレッド数を反映させる関数
+void YaneuraOuEngine::resize_threads() {
+    // 💡 Engine::resize_threads()を参考に書く。
+
+    // 📌 探索の終了を待つ
+    threads.wait_for_search_finished();
+
+    // 📌 スレッド数のリサイズ
+
+    auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken) {
+        return std::make_unique<Search::YaneuraOuWorker>(
+
+			// Worker基底classが渡して欲しいもの。
+			options, threads, threadIdx, numaAccessToken,
+
+			// 追加でYaneuraOuEngineからもらいたいもの
+			tt, *this);
+    };
+
+    threads.set(options["Threads"], numaContext.get_numa_config(), options, worker_factory);
+
+	// 置換表の割り当て
+	set_tt_size(options["USI_Hash"]);
+ 
+    // 📌 NUMAの設定
+
+    // スレッドの用いる評価関数パラメーターが正しいNUMAに属するようにする
+    threads.ensure_network_replicated();
+}
+
+// 置換表の割り当て
+void YaneuraOuEngine::set_tt_size(size_t mb){
+	wait_for_search_finished();
+	tt.resize(mb, threads);
 }
 
 // 並列探索において一番良い思考をしたthreadの選出。
@@ -622,8 +687,11 @@ void Search::YaneuraOuWorker::ensure_network_replicated() {
 
 void Search::YaneuraOuWorker::start_searching() {
 
-    // TODO : あとで
-    //accumulatorStack.reset();
+#if defined(USE_SFNN)
+	// 探索の初回evaluate()では局面の差分更新ができないので
+	// accumulatorの初回フラグをセットする。
+	accumulatorStack.reset();
+#endif
 
     // Non-main threads go directly to iterative_deepening()
     // メインスレッド以外は直接 iterative_deepening() へ進む

@@ -65,10 +65,20 @@ void Engine::add_options()
 			return std::nullopt;
 		}));
 
+	// ponderの有無
+	// 📝 TimeManagementがこのoptionを持っていることを仮定している。
+	// 🤔 思考Engineである以上はUSI_Ponderをサポートすべきだと思う。
+    options.add("USI_Ponder", Option(false));
+
 	// このタイミングで"Threads"の設定を仮に反映させる。
 	// 📝 Threadsを1以上にしておかないと、このあと置換表のクリアなど、
 	//     複数スレッドを用いて行うことができなくなるため。
-	resize_threads();
+	// ⚠ ここで、派生class側のresize_threads()ではなく、
+	//	   このclassのresize_threads()を呼び出すことに注意。
+	//     派生class側のresize_threads()は、"USI_Hash"を参照して
+	//     置換表を初期化するコードが書かれているかもしれないが、
+	//     いま時点では、"USI_Hash"のoptionをaddしていないのでエラーとなる。
+	Engine::resize_threads();
 }
 
 // NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
@@ -189,9 +199,7 @@ void Engine::resize_threads() {
 	// Reallocate the hash with the new threadpool size
 	// 新しいスレッドプールのサイズに合わせてハッシュを再割り当てする
 	//set_tt_size(options["USI_Hash"]);
-
 	//  ⇨  EngineがTTを持っているとは限らないので、この部分を分離したい。
-	//     やねうら王ではここでやるのをやめて、resize_tt()のほうで行うようにする。
 
 	// 📌 NUMAの設定
 
@@ -265,50 +273,10 @@ YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 	// Stockfishには、探索部を初期化するエンジンオプションがあるが使わないので未サポートとする。
 	//o["Clear Hash"]            << Option(on_clear_hash);
 
-	// ponderの有無
-	o["USI_Ponder"] << Option(false);
-
 	// 確率的ponder , defaultでfalseにしとかないと、読み筋の表示がおかしくなって、初心者混乱する。
 	o["Stochastic_Ponder"] << USI::Option(false);
 
-	// その局面での上位N個の候補手を調べる機能
-	// ⇨　これMAX_MOVESで十分。
-	o["MultiPV"] << Option(1, 1, MAX_MOVES);
 
-	// 指し手がGUIに届くまでの時間。
-#if defined(YANEURAOU_ENGINE_DEEP)
-		// GPUからの結果を待っている時間も込みなので少し上げておく。
-	int time_margin = 400;
-#else
-	int time_margin = 120;
-#endif
-
-	// ネットワークの平均遅延時間[ms]
-	// この時間だけ早めに指せばだいたい間に合う。
-	// 切れ負けの瞬間は、NetworkDelayのほうなので大丈夫。
-	o["NetworkDelay"] << Option(time_margin, 0, 10000);
-
-	// ネットワークの最大遅延時間[ms]
-	// 切れ負けの瞬間だけはこの時間だけ早めに指す。
-	// 1.2秒ほど早く指さないとfloodgateで切れ負けしかねない。
-	o["NetworkDelay2"] << Option(time_margin + 1000, 0, 10000);
-
-	// 最小思考時間[ms]
-	o["MinimumThinkingTime"] << Option(2000, 1000, 100000);
-
-	// 切れ負けのときの思考時間を調整する。序盤重視率。百分率になっている。
-	// 例えば200を指定すると本来の最適時間の200%(2倍)思考するようになる。
-	// 対人のときに短めに設定して強制的に早指しにすることが出来る。
-	o["SlowMover"] << Option(100, 1, 1000);
-
-	// 引き分けまでの最大手数。256手ルールのときに256を設定すると良い。0なら無制限。
-	o["MaxMovesToDraw"] << Option(0, 0, 100000);
-
-	// 探索深さ制限。0なら無制限。
-	o["DepthLimit"] << Option(0, 0, int_max);
-
-	// 探索ノード制限。0なら無制限。
-	o["NodesLimit"] << Option(0, 0, int64_max);
 
 #if defined(__EMSCRIPTEN__) && defined(EVAL_NNUE)
 	// WASM NNUE
