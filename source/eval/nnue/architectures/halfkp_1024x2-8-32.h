@@ -1,7 +1,7 @@
 ﻿// Definition of input features and network structure used in NNUE evaluation function
 // NNUE評価関数で用いる入力特徴量とネットワーク構造の定義
-#ifndef OLD_NNUE_HALFKP_1024X2_8_32_H_INCLUDED
-#define OLD_NNUE_HALFKP_1024X2_8_32_H_INCLUDED
+#ifndef CLASSIC_NNUE_HALFKP_1024X2_8_32_H_INCLUDED
+#define CLASSIC_NNUE_HALFKP_1024X2_8_32_H_INCLUDED
 
 #include "../features/feature_set.h"
 #include "../features/half_kp.h"

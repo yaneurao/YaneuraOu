@@ -1,8 +1,8 @@
 ﻿// Constants used in NNUE evaluation function
 // NNUE評価関数で用いる定数など
 
-#ifndef OLD_NNUE_COMMON_H_INCLUDED
-#define OLD_NNUE_COMMON_H_INCLUDED
+#ifndef CLASSIC_NNUE_COMMON_H_INCLUDED
+#define CLASSIC_NNUE_COMMON_H_INCLUDED
 
 #include <cstring>		// std::memcpy()
 

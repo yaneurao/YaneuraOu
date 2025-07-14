@@ -1,4 +1,4 @@
-/*
+﻿/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2025 The Stockfish developers (see AUTHORS file)
 
@@ -21,19 +21,21 @@
 #ifndef NNUE_FEATURE_TRANSFORMER_H_INCLUDED
 #define NNUE_FEATURE_TRANSFORMER_H_INCLUDED
 
+#if defined(EVAL_SFNN)
+
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <iosfwd>
 
-#include "../position.h"
-#include "../types.h"
+#include "../../position.h"
+#include "../../types.h"
 #include "nnue_accumulator.h"
 #include "nnue_architecture.h"
 #include "nnue_common.h"
 #include "simd.h"
 
-namespace Stockfish::Eval::NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
 // Returns the inverse of a permutation
 template<std::size_t Len>
@@ -307,6 +309,8 @@ class FeatureTransformer {
     alignas(CacheLineSize) PSQTWeightType psqtWeights[InputDimensions * PSQTBuckets];
 };
 
-}  // namespace Stockfish::Eval::NNUE
+}  // namespace YaneuraOu::Eval::NNUE
+
+#endif // defined(EVAL_SFNN)
 
 #endif  // #ifndef NNUE_FEATURE_TRANSFORMER_H_INCLUDED

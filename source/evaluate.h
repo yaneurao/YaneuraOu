@@ -23,6 +23,7 @@ struct StateInfo;
 
 namespace Eval {
 
+#if defined(USE_CLASSIC_EVAL)
 	// init()は評価関数の初期化。
 	// これは起動直後に1度だけ呼び出される。
 	// ただし、(探索部に対して) TUNING_SEARCH_PARAMETERS が defineされている時は、
@@ -31,26 +32,26 @@ namespace Eval {
 
 	// 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
 	// あるいは差分計算が不可能なときに呼び出される。
-	//Value compute_eval(const Position& pos);
+	Value compute_eval(const Position& pos);
 
 	// 評価関数本体
 	// このあとのdo_move()のあとのevaluate()で差分計算ができるように、
 	// 現在の前局面から差分計算ができるときだけ計算しておく。
 	// 評価値自体は返さない。
 	// 備考) 差分計算型の評価関数ではないときは、この関数は何もしなくて良い。
-	//void evaluate_with_no_return(const Position& pos);
+	void evaluate_with_no_return(const Position& pos);
 
 	// 評価値の内訳表示(デバッグ用)
 	void print_eval_stat(Position& pos);
 
 	// 評価関数ファイルを読み込む。
 	// 時間のかかる評価関数の初期化処理はここに書くこと。
-	// これは、"isready"コマンドの応答時に1度だけ呼び出される。2度呼び出すことは想定していない。
+	// これは、"is_ready"コマンドの応答時に1度だけ呼び出される。2度呼び出すことは想定していない。
 	// (ただし、EvalDir(評価関数フォルダ)が変更になったあと、isreadyが再度送られてきたら読みなおす。)
 	void load_eval();
 
 	// 評価関数本体
-	//Value evaluate(const Position& pos);
+	Value evaluate(const Position& pos);
 
 	// 駒割りを計算する。Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
 	Value material(const Position& pos);
@@ -66,6 +67,8 @@ namespace Eval {
 	static u64 calc_check_sum() { return 0; }
 	static void print_softname([[maybe_unused]] u64 check_sum) {}
 #endif
+
+#endif // CLASSIC_EVAL
 
 #if defined (USE_PIECE_VALUE)
 
@@ -111,11 +114,6 @@ namespace Eval {
 	// ※  後手の駒に対してもプラスの値が返るので注意。
 	Value CapturePieceValuePlusPromote(const Position& pos, Move move);
 
-#else
-	// cpに変換するときに使うのでこれだけ定義しておく。
-	enum {
-		PawnValue = 90
-	};
 #endif
 
 

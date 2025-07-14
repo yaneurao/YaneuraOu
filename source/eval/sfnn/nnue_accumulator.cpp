@@ -25,15 +25,15 @@
 #include <initializer_list>
 #include <type_traits>
 
-#include "../bitboard.h"
-#include "../misc.h"
-#include "../position.h"
-#include "../types.h"
+#include "../../bitboard.h"
+#include "../../misc.h"
+#include "../../position.h"
+#include "../../types.h"
 #include "nnue_architecture.h"
 #include "nnue_feature_transformer.h"  // IWYU pragma: keep
 #include "simd.h"
 
-namespace Stockfish::Eval::NNUE {
+namespace YaneuraOu::Eval::SFNN {
 
 using namespace SIMD;
 
@@ -61,6 +61,7 @@ void update_accumulator_refresh_cache(const FeatureTransformer<Dimensions>& feat
 
 }
 
+// DirtyPieceをセットして、かつ、計算済みフラグ(computed)をfalseにする。
 void AccumulatorState::reset(const DirtyPiece& dp) noexcept {
     dirtyPiece = dp;
     accumulatorBig.computed.fill(false);
@@ -87,15 +88,20 @@ void AccumulatorStack::pop() noexcept {
     size--;
 }
 
+// 評価関数
 template<IndexType Dimensions>
 void AccumulatorStack::evaluate(const Position&                       pos,
                                 const FeatureTransformer<Dimensions>& featureTransformer,
                                 AccumulatorCaches::Cache<Dimensions>& cache) noexcept {
 
-    evaluate_side<WHITE>(pos, featureTransformer, cache);
+	// 片側の玉から見た評価値を求める。
+
+	evaluate_side<WHITE>(pos, featureTransformer, cache);
     evaluate_side<BLACK>(pos, featureTransformer, cache);
 }
 
+// 評価関数の下請け。片側の玉から見た評価値を求める。
+// 評価関数の値 = evaluate_side<BLACK>() + evlauate_side<WHITE>
 template<Color Perspective, IndexType Dimensions>
 void AccumulatorStack::evaluate_side(const Position&                       pos,
                                      const FeatureTransformer<Dimensions>& featureTransformer,
@@ -103,12 +109,18 @@ void AccumulatorStack::evaluate_side(const Position&                       pos,
 
     const auto last_usable_accum = find_last_usable_accumulator<Perspective, Dimensions>();
 
+	// accumulatorsが計算済みであるか？
     if ((accumulators[last_usable_accum].template acc<Dimensions>()).computed[Perspective])
+
+		// 差分計算
         forward_update_incremental<Perspective>(pos, featureTransformer, last_usable_accum);
 
     else
     {
+		// accumulatorの値を全計算する。
         update_accumulator_refresh_cache<Perspective>(featureTransformer, pos, mut_latest(), cache);
+
+		// 全計算したものに基づいて計算する。
         backward_update_incremental<Perspective>(pos, featureTransformer, last_usable_accum);
     }
 }
@@ -528,8 +540,8 @@ void update_accumulator_refresh_cache(const FeatureTransformer<Dimensions>& feat
         entry.byTypeBB[pt] = pos.pieces(pt);
 }
 
-}
+} // namespace
 
-}
+} // namespace YaneuraOu::Eval::SFNN
 
 #endif  // #if defined(EVAL_SFNN)

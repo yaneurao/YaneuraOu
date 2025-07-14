@@ -181,15 +181,12 @@ public:
 	// "user"コマンド。ユーザー(エンジン実装者)の実験用。
 	virtual void user(std::istringstream& is) = 0;
 
-	// 評価関数をset/getする。
-	virtual void set_evaluator(std::shared_ptr<Eval::IEvaluator> evaluator) = 0;
-	virtual std::shared_ptr<Eval::IEvaluator> get_evaluator()               = 0;
-
 	// "usi"コマンドに対して表示するengineのprofile
 
 	virtual std::string get_engine_name() const    = 0;
+    virtual std::string get_engine_author() const  = 0;
     virtual std::string get_engine_version() const = 0;
-    virtual std::string get_engine_author() const = 0;
+    virtual std::string get_eval_name() const      = 0;
 
 	// 💡 interfaceなので仮想デストラクタが必要
 	virtual ~IEngine() {}
@@ -224,11 +221,10 @@ public:
 	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override;
 	virtual void trace_eval() const override {}
 	virtual void user(std::istringstream& is) override {};
-	virtual void set_evaluator(std::shared_ptr<Eval::IEvaluator> evaluator) override { this->evaluator = evaluator; }
-    virtual std::shared_ptr<Eval::IEvaluator> get_evaluator() override { return evaluator; }
-    virtual std::string get_engine_name() const override { return "Engine"; }
-    virtual std::string get_engine_version() const override { return ENGINE_VERSION; }
+    virtual std::string get_engine_name() const override { return "YaneuraOu"; }
     virtual std::string get_engine_author() const override { return "yaneurao"; }
+    virtual std::string get_engine_version() const override { return ENGINE_VERSION; }
+    virtual std::string get_eval_name() const { return EVAL_TYPE_NAME; }
 
     protected:
 
@@ -249,9 +245,6 @@ public:
 
 	// Numaの管理用(どのNumaを使うかというIDみたいなもの)
 	NumaReplicationContext numaContext;
-
-	// 評価関数
-	std::shared_ptr<Eval::IEvaluator> evaluator;
 
 	// 📌 エンジンで用いるヘルパー関数
 
@@ -293,11 +286,10 @@ public:
 	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override { return engine->perft(fen, depth); }
 	virtual void trace_eval() const override { engine->trace_eval(); }
 	virtual void user(std::istringstream& is) override { engine->user(is); }
-    virtual void set_evaluator(std::shared_ptr<Eval::IEvaluator> evaluator) override { engine->set_evaluator(evaluator); };
-    virtual std::shared_ptr<Eval::IEvaluator> get_evaluator() override { return engine->get_evaluator(); }
     virtual std::string get_engine_name() const override { return engine->get_engine_name(); }
-    virtual std::string get_engine_version() const override { return engine->get_engine_version(); }
     virtual std::string get_engine_author() const override { return engine->get_engine_author(); }
+	virtual std::string get_engine_version() const override { return engine->get_engine_version(); }
+    virtual std::string get_eval_name() const override { return engine->get_eval_name(); }
 
    private:
 	IEngine* engine;

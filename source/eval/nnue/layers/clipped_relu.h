@@ -1,8 +1,8 @@
 ﻿// Definition of layer ClippedReLU of NNUE evaluation function
 // NNUE評価関数の層ClippedReLUの定義
 
-#ifndef OLD_NNUE_LAYERS_CLIPPED_RELU_H_INCLUDED
-#define OLD_NNUE_LAYERS_CLIPPED_RELU_H_INCLUDED
+#ifndef CLASSIC_NNUE_LAYERS_CLIPPED_RELU_H_INCLUDED
+#define CLASSIC_NNUE_LAYERS_CLIPPED_RELU_H_INCLUDED
 
 #include "../../../config.h"
 

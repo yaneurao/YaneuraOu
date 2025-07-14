@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の学習クラステンプレートのInputSlice用特殊化
 
-#ifndef OLD_NNUE_TRAINER_INPUT_SLICE_H
-#define OLD_NNUE_TRAINER_INPUT_SLICE_H
+#ifndef CLASSIC_NNUE_TRAINER_INPUT_SLICE_H
+#define CLASSIC_NNUE_TRAINER_INPUT_SLICE_H
 
 #include "../../../config.h"
 

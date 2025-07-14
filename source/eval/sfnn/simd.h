@@ -1,4 +1,4 @@
-/*
+﻿/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2025 The Stockfish developers (see AUTHORS file)
 
@@ -19,6 +19,9 @@
 #ifndef NNUE_SIMD_H_INCLUDED
 #define NNUE_SIMD_H_INCLUDED
 
+#include "../../config.h"
+#if defined(EVAL_SFNN)
+
 #if defined(USE_AVX2)
     #include <immintrin.h>
 
@@ -35,10 +38,10 @@
     #include <arm_neon.h>
 #endif
 
-#include "../types.h"
+#include "../../types.h"
 #include "nnue_common.h"
 
-namespace Stockfish::Eval::NNUE::SIMD {
+namespace YaneuraOu::Eval::NNUE::SIMD {
 
 // If vector instructions are enabled, we update and refresh the
 // accumulator tile by tile such that each tile fits in the CPU's
@@ -402,5 +405,7 @@ class SIMDTiling {
 #endif
 };
 }
+
+#endif // defined(EVAL_SFNN)
 
 #endif

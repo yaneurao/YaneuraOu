@@ -4441,11 +4441,18 @@ TimePoint Search::Worker::elapsed_time() const { return main_manager()->tm.elaps
 #endif
 
 Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
-    //return Eval::evaluate(networks[numaAccessToken], pos, accumulatorStack, refreshTable,
-    //                      optimism[pos.side_to_move()]);
 
-	// TODO : あとでNNUE実装が使えるように修正する。
-	return evaluator->evaluate(pos);
+#if defined(USE_CLASSIC_EVAL)
+    return Eval::evaluate(pos);
+
+#elif defined(EVAL_SFNN)
+
+	return Eval::evaluate(networks[numaAccessToken], pos, accumulatorStack, refreshTable,
+                          optimism[pos.side_to_move()]);
+#else
+	// どうしたいのかわからない。
+    return VALUE_NONE;
+#endif
 }
 
 namespace {
@@ -5051,12 +5058,6 @@ void engine_main() {
 	// ここで作ったエンジン
     YaneuraOuEngine engine;
 
-	// 評価関数
-    auto eval = std::make_shared<Eval::NullEvaluator>();
-
-	// 評価関数をエンジンにセットする。
-    engine.set_evaluator(eval);
-	
     // USIコマンドの応答部
     USIEngine usi;
     usi.set_engine(engine);  // エンジン実装を差し替える。

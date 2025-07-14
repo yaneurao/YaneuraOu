@@ -739,6 +739,10 @@
     <ClCompile Include="eval\nnue\features\p.cpp" />
     <ClCompile Include="eval\nnue\features\pe9.cpp" />
     <ClCompile Include="eval\nnue\nnue_test_command.cpp" />
+    <ClCompile Include="eval\sfnn\features\half_ka_v2_hm.cpp" />
+    <ClCompile Include="eval\sfnn\network.cpp" />
+    <ClCompile Include="eval\sfnn\nnue_accumulator.cpp" />
+    <ClCompile Include="eval\sfnn\nnue_misc.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\sfen_packer.cpp" />

@@ -1,4 +1,4 @@
-/*
+﻿/*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
   Copyright (C) 2004-2025 The Stockfish developers (see AUTHORS file)
 
@@ -21,6 +21,9 @@
 #ifndef NNUE_ARCHITECTURE_H_INCLUDED
 #define NNUE_ARCHITECTURE_H_INCLUDED
 
+#include "../../config.h"
+#if defined(EVAL_SFNN)
+
 #include <cstdint>
 #include <cstring>
 #include <iosfwd>
@@ -32,7 +35,7 @@
 #include "layers/sqr_clipped_relu.h"
 #include "nnue_common.h"
 
-namespace Stockfish::Eval::NNUE {
+namespace YaneuraOu::Eval::SFNN {
 
 // Input features used in evaluation function
 using FeatureSet = Features::HalfKAv2_hm;
@@ -138,6 +141,8 @@ struct NetworkArchitecture {
     }
 };
 
-}  // namespace Stockfish::Eval::NNUE
+}  // namespace YaneuraOu::Eval::SFNN
+
+#endif // defined(EVAL_SFNN)
 
 #endif  // #ifndef NNUE_ARCHITECTURE_H_INCLUDED

@@ -322,8 +322,9 @@ Position& Position::set(const std::string& sfen , StateInfo* si)
 	st->materialValue = Eval::material(*this);
 #endif
 
-	// TODO : あとで考える。
-	//Eval::compute_eval(*this);
+#if defined(USE_CLASSIC_EVAL)
+	Eval::compute_eval(*this);
+#endif
 
 	// --- 入玉の駒点の設定
 

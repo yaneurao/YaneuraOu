@@ -31,19 +31,19 @@
 #include <tuple>
 #include <utility>
 
-#include "../memory.h"
-#include "../types.h"
+#include "../../memory.h"
+#include "../../types.h"
 #include "nnue_accumulator.h"
 #include "nnue_architecture.h"
 #include "nnue_common.h"
 #include "nnue_feature_transformer.h"
 #include "nnue_misc.h"
 
-namespace Stockfish {
+namespace YaneuraOu {
 class Position;
 }
 
-namespace Stockfish::Eval::NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
 enum class EmbeddedNNUEType {
     BIG,
@@ -70,6 +70,7 @@ class Network {
     void load(const std::string& rootDirectory, std::string evalfilePath);
     bool save(const std::optional<std::string>& filename) const;
 
+	// 評価関数 本体
     NetworkOutput evaluate(const Position&                         pos,
                            AccumulatorStack&                       accumulatorStack,
                            AccumulatorCaches::Cache<FTDimensions>* cache) const;
@@ -135,7 +136,7 @@ struct Networks {
 };
 
 
-}  // namespace Stockfish
+}  // namespace YaneuraOu
 
 #endif  // #if defined(EVAL_SFNN)
 

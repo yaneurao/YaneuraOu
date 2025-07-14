@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の学習クラステンプレートのFeatureTransformer用特殊化
 
-#ifndef OLD_NNUE_TRAINER_FEATURE_TRANSFORMER_H
-#define OLD_NNUE_TRAINER_FEATURE_TRANSFORMER_H
+#ifndef CLASSIC_NNUE_TRAINER_FEATURE_TRANSFORMER_H
+#define CLASSIC_NNUE_TRAINER_FEATURE_TRANSFORMER_H
 
 #include "../../../config.h"
 

@@ -1,8 +1,8 @@
 ﻿// A class that converts the input features of the NNUE evaluation function
 // NNUE評価関数の入力特徴量の変換を行うクラス
 
-#ifndef OLD_NNUE_FEATURE_TRANSFORMER_H_INCLUDED
-#define OLD_NNUE_FEATURE_TRANSFORMER_H_INCLUDED
+#ifndef CLASSIC_NNUE_FEATURE_TRANSFORMER_H_INCLUDED
+#define CLASSIC_NNUE_FEATURE_TRANSFORMER_H_INCLUDED
 
 #include "../../config.h"
 

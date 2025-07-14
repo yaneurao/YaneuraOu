@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の層Sumの定義
 
-#ifndef OLD_NNUE_LAYERS_SUM_H
-#define OLD_NNUE_LAYERS_SUM_H
+#ifndef CLASSIC_NNUE_LAYERS_SUM_H
+#define CLASSIC_NNUE_LAYERS_SUM_H
 
 #include "../../../config.h"
 

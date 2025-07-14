@@ -75,6 +75,9 @@
 //  探索に関する設定
 // ---------------------
 
+// やねうら王の基本探索部(Stockfishを参考に書いたもの)を用いる。
+// #define YANEURAOU_ENGINE
+
 
 // Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
 // #define USE_SEE
@@ -383,8 +386,11 @@
 // NNUE評価関数の実行ファイルへの埋め込み(incbinを用いる)
 // #define NNUE_EMBEDDING
 
+// CLASSIC_EVAL(Material,KPPT,KPP_KKPT,CLASSIC NNUE)を使う時には、これをdefineすること。
+// #define USE_CLASSIC_EVAL
+
 // 2025年夏にStockfishから逆輸入されたStockfish NNUE評価関数
-//#define EVAL_SFNN
+// #define EVAL_SFNN
 
 // NNUE評価関数のAccumulatorStackを用いるのか？
 // 💡 SFNN評価関数であれば、これを定義する必要がある。
@@ -404,13 +410,23 @@ constexpr int MAX_PLY_NUM = 246;
 // release configurations
 // --------------------
 
+
+
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
-#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_MATERIAL)
+#if defined(YANEURAOU_ENGINE_SFNN)
 
-// 通常のやねうら王探索部(Stockfishっぽいやつ)を用いる。
 	#define YANEURAOU_ENGINE
+	#define USE_MATE_1PLY
+	#define USE_TIME_MANAGEMENT
+	#define USE_MOVE_PICKER
+	#define USE_EVAL
+	#define USE_ENTERING_KING_WIN
 
+#elif defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_MATERIAL)
+
+	#define YANEURAOU_ENGINE
+	#define USE_CLASSIC_EVAL
 	#define USE_PIECE_VALUE
 	#define USE_SEE
 	#define USE_EVAL_LIST

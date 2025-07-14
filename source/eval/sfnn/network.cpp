@@ -209,7 +209,7 @@ bool Network<Arch, Transformer>::save(const std::optional<std::string>& filename
     return saved;
 }
 
-
+// 評価関数 本体
 template<typename Arch, typename Transformer>
 NetworkOutput
 Network<Arch, Transformer>::evaluate(const Position&                         pos,

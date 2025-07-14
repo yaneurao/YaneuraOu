@@ -385,9 +385,6 @@
     <ClInclude Include="score.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="eval\material\evaluate_material.h">
-      <Filter>リソース ファイル\eval\material</Filter>
-    </ClInclude>
     <ClInclude Include="eval\sfnn\network.h">
       <Filter>リソース ファイル\eval\sfnn</Filter>
     </ClInclude>

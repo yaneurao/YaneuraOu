@@ -412,14 +412,13 @@ protected:
     //TranspositionTable& tt;
 
 	// 📝 やねうら王では、評価関数はEval::IEvaluatorとして抽象化する。
-#if 0
+#if defined(EVAL_SFNN)
     const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
 
     // Used by NNUE
     Eval::NNUE::AccumulatorStack  accumulatorStack;
     Eval::NNUE::AccumulatorCaches refreshTable;
 #endif
-    std::shared_ptr<Eval::IEvaluator> evaluator;
 
 	friend class YaneuraOu::ThreadPool;
 	//friend class SearchManager;

@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の入力特徴量Kの定義
 
-#ifndef OLD_NNUE_FEATURES_K_H
-#define OLD_NNUE_FEATURES_K_H
+#ifndef CLASSIC_NNUE_FEATURES_K_H
+#define CLASSIC_NNUE_FEATURES_K_H
 
 #include "../../../config.h"
 

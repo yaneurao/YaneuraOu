@@ -131,6 +131,7 @@ struct StateInfo {
 	Hand hand;
 
 	// --- evaluate
+#if defined(USE_CLASSIC_EVAL)
 
 #if defined (USE_PIECE_VALUE)
 	// この局面での評価関数の駒割
@@ -154,7 +155,6 @@ struct StateInfo {
 	Eval::DirtyPiece dirtyPiece;
 #endif
 
-
 #if defined(KEEP_LAST_MOVE)
 	// 直前の指し手。デバッグ時などにおいてその局面までの手順を表示出来ると便利なことがあるのでそのための機能
 	Move lastMove;
@@ -163,6 +163,7 @@ struct StateInfo {
 	PieceType lastMovedPieceType;
 #endif
 
+#endif
 };
 
 // --------------------

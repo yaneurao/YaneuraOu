@@ -51,9 +51,12 @@ template<IndexType Size>
 struct alignas(CacheLineSize) Accumulator {
     std::int16_t               accumulation[COLOR_NB][Size];
     std::int32_t               psqtAccumulation[COLOR_NB][PSQTBuckets];
+
+	// 📓 comuptedとは
+	//     上の2つの配列が初期化済みであるかのフラグ。
+	//     (Position::set()で探索が開始される時には)最初falseで初期化。
     std::array<bool, COLOR_NB> computed;
 };
-
 
 // AccumulatorCaches struct provides per-thread accumulator caches, where each
 // cache contains multiple entries for each of the possible king squares.
@@ -61,6 +64,14 @@ struct alignas(CacheLineSize) Accumulator {
 // efficiently update the accumulator, instead of rebuilding it from scratch.
 // This idea, was first described by Luecx (author of Koivisto) and
 // is commonly referred to as "Finny Tables".
+
+// AccumulatorCaches構造体は、スレッドごとのアキュムレータキャッシュを提供します。
+// 各キャッシュは、可能なすべてのキングの位置ごとに複数のエントリを含みます。
+// アキュムレータをリフレッシュする必要があるとき、キャッシュされたエントリを使うことで、
+// 最初から再構築する代わりに効率的にアキュムレータを更新します。
+// このアイデアはLuecx（Koivistoの作者）によって最初に提案され、
+// 一般に「Finny Tables」と呼ばれています。
+
 struct AccumulatorCaches {
 
     template<typename Networks>
@@ -109,12 +120,25 @@ struct AccumulatorCaches {
     Cache<TransformedFeatureDimensionsSmall> small;
 };
 
+/*
+	📓 AccumulatorStateとは
 
+		各Worker(各スレッド)がPosition::do_move()で一手進める時に
+		移動させた駒の情報(DirtyPiece)などを保持したい。
+
+		この1回分のdo_move()の情報を保持しておく構造体が、
+		AccumulatorStateである。
+*/
 struct AccumulatorState {
     Accumulator<TransformedFeatureDimensionsBig>   accumulatorBig;
     Accumulator<TransformedFeatureDimensionsSmall> accumulatorSmall;
+
+	// Position::do_move()で移動させた駒の情報を格納している構造体。
     DirtyPiece                                     dirtyPiece;
 
+	// accumulatorを取得する。
+	// Size : TransformedFeatureDimensionsBigかTransformedFeatureDimensionsSmallを指定して、
+	//        どちらのAccumulatorを取得するかを選ぶ。
     template<IndexType Size>
     auto& acc() noexcept {
         static_assert(Size == TransformedFeatureDimensionsBig
@@ -127,6 +151,7 @@ struct AccumulatorState {
             return accumulatorSmall;
     }
 
+	// acc()のconst版
     template<IndexType Size>
     const auto& acc() const noexcept {
         static_assert(Size == TransformedFeatureDimensionsBig
@@ -139,30 +164,70 @@ struct AccumulatorState {
             return accumulatorSmall;
     }
 
+	// DirtyPieceをセットして、かつ、計算済みフラグ(computed)をfalseにする。
     void reset(const DirtyPiece& dp) noexcept;
 };
 
+/*
+	📓 AccumulatorStackとは
 
+		各Worker(各スレッド)がPosition::do_move()で一手進める時に
+		移動させた駒(DirtyPiece)を保持したい。
+
+		従来、StateInfo構造体に格納していたが、それだとエンジンごとに
+		StateInfo構造体に手を入れることになり、いい設計とは言いがたい。
+
+		また、StateInfo構造体は、StartSFEN(平手の開始局面)からの情報を持っているが、
+		評価関数をroot(探索開始局面)を遡って呼び出すことはないので、そういう意味でも
+		StateInfo構造体に持たせるのは無駄でもある。
+
+		そこで、この情報を保持するstackが必要となるが、最大でもMAX_PLYまでしか
+		do_move()しないことは保証されているので、その分だけ事前にstd::vectorで
+		確保してしまい、std::stackのような操作ができるようにしたclassが、この
+		AccumulatorStackである。
+
+		この1回のdo_move()で格納する分が
+		AccumulatorState(StackでなくState)構造体である。
+*/
 class AccumulatorStack {
    public:
     AccumulatorStack() :
+		// 💡 stackは事前にMAX_PLY + 1個用意しておけば十分。
         accumulators(MAX_PLY + 1),
+		// 事前に1個だけ確保して、計算済みフラグをfalseにしておく。
+		// 📝 AccumulatorState.computedが計算済みフラグ。
         size{1} {}
 
+	// 最後にpush()で積んだAccumulatorStateを取得する。std::stack.top()に相当する。
+	// 📝 popと違い、要素は取り除かない。
+	//     要素を使わないが要素を取り除く目的でpop()を呼び出すことはあるが、
+	//     std::stack.top()をして要素を使わないことはありえないので(取り除く機能がないので)
+	//     nodiscard属性をつけてある。
     [[nodiscard]] const AccumulatorState& latest() const noexcept;
 
+	// このclassをstackとみなして初期状態に戻す
+	// size = 1に戻り、かつ、その1つのAccumulatorState.computed = falseとなる。
     void reset() noexcept;
-    void push(const DirtyPiece& dirtyPiece) noexcept;
-    void pop() noexcept;
 
+	// このclassをstackとみなしてDirtyPieceを積む。
+    void push(const DirtyPiece& dirtyPiece) noexcept;
+
+	// このclassをstackとみなして最後に積んだDirtyPieceを一つ取り除く。
+	void pop() noexcept;
+
+	// 評価関数 本体
     template<IndexType Dimensions>
     void evaluate(const Position&                       pos,
                   const FeatureTransformer<Dimensions>& featureTransformer,
                   AccumulatorCaches::Cache<Dimensions>& cache) noexcept;
 
    private:
+	// latest()と同じだが、mut(mutable : 変更可能)の意味。
+	// 最後にpush()した要素の内容を変更したい時に、内部的に用いる。
     [[nodiscard]] AccumulatorState& mut_latest() noexcept;
 
+	// 評価関数の下請け。片側の玉から見た評価値を求める。
+	// 評価関数の値 = evaluate_side<BLACK>() + evlauate_side<WHITE>
     template<Color Perspective, IndexType Dimensions>
     void evaluate_side(const Position&                       pos,
                        const FeatureTransformer<Dimensions>& featureTransformer,
@@ -181,7 +246,10 @@ class AccumulatorStack {
                                      const FeatureTransformer<Dimensions>& featureTransformer,
                                      const std::size_t                     end) noexcept;
 
-    std::vector<AccumulatorState> accumulators;
+	// size : AccumulatorStateを何個accumulatorsに格納しているかの個数。
+	//        💡格納するにはこのclassのpush()を用いる。
+
+	std::vector<AccumulatorState> accumulators;
     std::size_t                   size;
 };
 

@@ -25,10 +25,10 @@
 #include <cstddef>
 #include <string>
 
-#include "../types.h"
+#include "../../types.h"
 #include "nnue_architecture.h"
 
-namespace Stockfish {
+namespace YaneuraOu {
 
 class Position;
 
@@ -58,8 +58,8 @@ struct AccumulatorCaches;
 
 std::string trace(Position& pos, const Networks& networks, AccumulatorCaches& caches);
 
-}  // namespace Stockfish::Eval::NNUE
-}  // namespace Stockfish
+}  // namespace YaneuraOu::Eval::NNUE
+}  // namespace YaneuraOu
 
 #endif  // #if defined(EVAL_SFNN)
 #endif  // #ifndef NNUE_MISC_H_INCLUDED
