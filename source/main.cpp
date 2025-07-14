@@ -50,6 +50,12 @@ int main(int argc, char* argv[])
 	Bitboards::init();
 	Position::init();
 
+	// 📝 旧評価関数は、起動解きにEval::init()が呼び出されることを期待するコードになっているので
+    //     呼び出して初期化してやる。
+#if defined(USE_CLASSIC_EVAL)
+        Eval::init();
+#endif
+
 	// 自作Engineのentry point(これはEngineFuncRegisterを用いて登録されている。)
 	YaneuraOu::run_engine_entry();
 

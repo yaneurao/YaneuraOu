@@ -27,10 +27,17 @@ Engine::Engine() :
 
 void Engine::usi()
 {
+#if STOCKFISH
+    sync_cout << "id name " << engine_info(true) << "\n" << engine.get_options() << sync_endl;
+    sync_cout << "uciok" << sync_endl;
+#else
     sync_cout << "id name "
-              << engine_info(get_engine_name(), get_engine_author(),
-                             get_engine_version(), get_eval_name())
+              << engine_info(get_engine_name(), get_engine_author(), get_engine_version(),
+                             get_eval_name())
               << get_options() << sync_endl;
+
+    sync_cout << "usiok" << sync_endl;
+#endif
 }
 
 void Engine::add_options()
@@ -69,6 +76,17 @@ void Engine::add_options()
 	// 📝 TimeManagementがこのoptionを持っていることを仮定している。
 	// 🤔 思考Engineである以上はUSI_Ponderをサポートすべきだと思う。
     options.add("USI_Ponder", Option(false));
+
+	// 🤔 思考エンジンである以上、limits.depth, nodesには従うはずで、
+	//     これを固定で制限する思考エンジンオプションはdefaultで生えてていいと思うんだよなー。
+
+	// 探索深さ制限。0なら無制限。
+	// 📝 "go"コマンドで、このオプションが指定されていたら、limits.depthのdefault値をこれに変更する。
+    options.add("DepthLimit", Option(0, 0, int_max));
+
+    // 探索ノード制限。0なら無制限。
+    // 📝 "go"コマンドで、このオプションが指定されていたら、limits.nodesのdefault値をこれに変更する。
+    options.add("NodesLimit", Option(0, 0, int64_max));
 
 	// このタイミングで"Threads"の設定を仮に反映させる。
 	// 📝 Threadsを1以上にしておかないと、このあと置換表のクリアなど、

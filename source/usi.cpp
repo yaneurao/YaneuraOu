@@ -140,41 +140,152 @@ void USIEngine::loop()
 }
 
 // コマンドラインを解析して、Search::LimitsTypeに反映させて返す。
+#if STOCKFISH
 Search::LimitsType USIEngine::parse_limits(std::istream& is) {
+#else
+Search::LimitsType USIEngine::parse_limits(std::istream& is, OptionsMap& options) {
+#endif
 	Search::LimitsType limits;
 	std::string        token;
 
-	limits.startTime = now();  // The search starts as early as possible
+	// 📝 "go"が呼び出された時にこの関数が呼び出される。
+	//     なるべく早くに探索開始時刻をlimits.startTimeに格納しておかないと
+	//     サーバー時刻との差が生じてしまうから、早めに格納する。
+
+    limits.startTime = now();  // The search starts as early as possible
+							   // 探索はできるだけ早く開始される
+
+    // エンジンオプションによる探索制限(0なら無制限)
+    // このあと、depthもしくはnodesが指定されていたら、その値で上書きされる。(この値は無視される)
+
+    limits.depth = options.count("DepthLimit") ? (int) options["DepthLimit"] : 0;
+    limits.nodes = options.count("NodesLimit") ? (u64) options["NodesLimit"] : 0;
 
 	while (is >> token)
+
+		/* 📓 searchmovesとは？
+		
+			探索すべき指し手。(探索開始局面から特定の初手だけ探索させるとき)
+
+			これ、Stockfishのコードでこうなっているからそのままにしてあるが、
+			これを指定しても定跡の指し手としてはこれ以外を指したりする問題はある。
+			またふかうら王ではこのオプションをサポートしていない。
+			ゆえに、非対応扱いで考えて欲しい。
+		*/
+
 		if (token == "searchmoves")  // Needs to be the last command on the line
+			                         // この行の最後のコマンドである必要がある
+			// 残りの指し手すべてをsearchMovesに突っ込む。
 			while (is >> token)
 				limits.searchmoves.push_back(to_lower(token));
 
-		else if (token == "wtime")
+		// 先手、後手の残り時間。[ms]
+        else if (token == "wtime")
 			is >> limits.time[WHITE];
 		else if (token == "btime")
 			is >> limits.time[BLACK];
-		else if (token == "winc")
+
+		// フィッシャールール時における時間
+        else if (token == "winc")
 			is >> limits.inc[WHITE];
 		else if (token == "binc")
 			is >> limits.inc[BLACK];
-		//else if (token == "movestogo")
-		//	is >> limits.movestogo;
-		else if (token == "depth")
+
+#if STOCKFISH
+		// あと何手で引き分けとなるか。
+		// 🤔 やねうら王ではサポートしない。GUIが対応していないし…。
+		else if (token == "movestogo")
+			is >> limits.movestogo;
+#else
+        // 秒読み設定。
+        // 📝 USIでは"byoyomi"として指定できる。
+        else if (token == "byoyomi")
+        {
+            TimePoint t = 0;
+            is >> t;
+
+            // USIプロトコルで送られてきた秒読み時間より少なめに思考する設定
+            // ※　通信ラグがあるときに、ここで少なめに思考しないとタイムアップになる可能性があるので。
+
+            // t = std::max(t - Options["ByoyomiMinus"], Time::point(0));
+
+            // USIプロトコルでは、これが先手後手同じ値だと解釈する。
+            limits.byoyomi[BLACK] = limits.byoyomi[WHITE] = t;
+        }
+
+        // ランダム時間の思考を行う、"rtime"。
+        // 例) "go rtime 100"だと100～300[ms]思考する。
+		// 📌 やねうら王独自
+		else if (token == "rtime")
+            is >> limits.rtime;
+
+#endif
+        // この探索深さで探索を打ち切る
+        else if (token == "depth")
 			is >> limits.depth;
+
+		// この探索ノード数で探索を打ち切る
 		else if (token == "nodes")
 			is >> limits.nodes;
+
+		// 持ち時間固定(将棋だと対応しているGUIが無いが..)
 		else if (token == "movetime")
 			is >> limits.movetime;
+
+        // 詰み探索。
+		// 📝 UCIではこのあとには手数が入っており、その手数以内に詰むかどうかを判定するが、
+        //     USIでは、ここは探索のための時間制限に変更となっている。
+#if STOCKFISH
 		else if (token == "mate")
 			is >> limits.mate;
+#else
+        else if (token == "mate")
+        {
+            is >> token;
+			// 💡 USIでは"infinite"が指定されることがある。
+            if (token == "infinite")
+                limits.mate = INT32_MAX;
+            else
+                // 📝 USIプロトコルでは、UCIと異なり、ここは手数ではなく、
+				//     探索に使う時間[ms]が指定されている。
+                limits.mate = stoi(token);
+        }
+#endif
+
+		/* 📓 perftとは？
+		       パフォーマンステストの略。
+               合法手N手で到達できる局面の数を求める。
+		*/
 		else if (token == "perft")
 			is >> limits.perft;
+
+		// 時間無制限。
 		else if (token == "infinite")
 			limits.infinite = 1;
-		else if (token == "ponder")
+
+		// ponderモードでの思考。
+        else if (token == "ponder")
+#if STOCKFISH
 			limits.ponderMode = true;
+#else
+        {
+            limits.ponderMode = true;
+
+			// TODO : あとで
+
+            //if (Options["Stochastic_Ponder"] && main_thread->moves_from_game_root.size() >= 1)
+            //{
+            //    // 1手前の局面(相手番)に戻して、ponderとして思考する。
+            //    // Threads.main()->moves_from_game_root に保存されているので大丈夫。
+
+            //    auto m = main_thread->moves_from_game_root.back();
+            //    main_thread->moves_from_game_root.pop_back();
+            //    const_cast<Position*>(&pos)->undo_move(m);
+            //    states->pop_back();
+            //    main_thread->position_is_dirty = true;
+            //}
+        }
+#endif
 
 	return limits;
 }
@@ -188,7 +299,11 @@ Search::LimitsType USIEngine::parse_limits(std::istream& is) {
 // ignore_ponder : これがtrueなら、"ponder"という文字を無視する。
 void USIEngine::go(std::istringstream& is)
 {
-	Search::LimitsType limits = parse_limits(is);
+#if STOCKFISH
+    Search::LimitsType limits = parse_limits(is);
+#else
+	Search::LimitsType limits = parse_limits(is, engine.get_options());
+#endif
 
 	if (limits.perft)
 		perft(limits);

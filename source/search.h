@@ -193,7 +193,7 @@ struct LimitsType {
 	//             TimeManagement::reset()かreset_for_ponderhit()が呼び出された時刻。
     TimePoint time[COLOR_NB], inc[COLOR_NB] /*, npmsec*/, movetime, startTime, startTimeFromPonderhit;
 
-	// movestogo: この手数で引き分け。
+	// movestogo: あと何手で引き分けとなるか。
 	//			📌 USIプロトコルではサポートしない。エンジンオプションで設定すべき。
 	// depth    : 探索深さ固定(0以外を指定してあるなら)
 	// mate     : 詰み専用探索(USIの'go mate'コマンドを使ったとき)

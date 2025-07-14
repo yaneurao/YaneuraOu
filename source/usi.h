@@ -67,7 +67,11 @@ public:
     static Move to_move(const Position& pos, std::string str);
 
 	// コマンドラインを解析して、Search::LimitsTypeに反映させて返す。
+#if STOCKFISH
     static Search::LimitsType parse_limits(std::istream& is);
+#else
+	static Search::LimitsType parse_limits(std::istream& is, OptionsMap& options);
+#endif
 
 	// 📌　やねうら王独自  📌
 
