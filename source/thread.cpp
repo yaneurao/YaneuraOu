@@ -27,10 +27,16 @@ Thread::Thread(
 {
 
 #if !defined(__EMSCRIPTEN__)
+
 	run_custom_job([this, &binder /* ,&sharedState, &sm*/ , worker_factory, thread_id]() {
+
 		// Use the binder to [maybe] bind the threads to a NUMA node before doing
 		// the Worker allocation. Ideally we would also allocate the SearchManager
 		// here, but that's minor.
+
+		// スレッドを Worker 割り当ての前に NUMA ノードに（必要なら）バインドするために binder を使う。
+        // 理想的にはここで SearchManager も割り当てたいが、それは些細なことだ。
+
 		this->numaAccessToken = binder();
 		this->worker =
 			//std::make_unique<Search::Worker>(/* sharedState, std::move(sm),*/ thread_id, this->numaAccessToken);
@@ -39,6 +45,7 @@ Thread::Thread(
 
 	// スレッドはsearching == trueで開始するので、このままworkerのほう待機状態にさせておく
 	wait_for_search_finished();
+
 #else
 	// yaneuraou.wasm
 	// wait_for_search_finished すると、ブラウザのメインスレッドをブロックしデッドロックが発生するため、コメントアウト。
@@ -221,6 +228,7 @@ void ThreadPool::set(
 		{
 			const size_t    threadId = threads.size();
 			const NumaIndex numaId = doBindThreads ? boundThreadToNumaNode[threadId] : 0;
+
 			//auto            manager = threadId == 0 ? std::unique_ptr<Search::ISearchManager>(
 			//	std::make_unique<Search::SearchManager>(updateContext))
 			//	: std::make_unique<Search::NullSearchManager>();
@@ -263,6 +271,12 @@ void ThreadPool::set(
 
 
 // Sets threadPool data to initial values
+// threadPool のデータを初期値に設定する
+
+// 📝 このmethodは、resize_threads()に対して呼び出される。
+//     resize_threads()は、"isready"コマンドに対して呼び出されるので、
+//     つまりは、このmethodは対局ごとに対局開始時に必ず呼び出される。
+
 void ThreadPool::clear() {
 	if (threads.size() == 0)
 		return;
@@ -273,7 +287,8 @@ void ThreadPool::clear() {
 	for (auto&& th : threads)
 		th->wait_for_search_finished();
 
-	// あとで
+	// 🤔 これはEngine派生class側で行うべき。
+	//     ここにあったコードは、YaneuraOuWorker::clear()に移動させた。
 #if 0
 	// These two affect the time taken on the first move of a game:
 	main_manager()->bestPreviousAverageScore = VALUE_INFINITE;
@@ -301,6 +316,10 @@ size_t ThreadPool::num_threads() const { return threads.size(); }
 
 // Wakes up main thread waiting in idle_loop() and returns immediately.
 // Main thread will wake up other threads and start the search.
+
+// idle_loop() で待機しているメインスレッドを起こし、すぐにリターンする。
+// メインスレッドは他のスレッドを起こして探索を開始する。
+
 void ThreadPool::start_thinking(const OptionsMap& options,
 	Position& pos,
 	StateListPtr& states,
@@ -308,12 +327,15 @@ void ThreadPool::start_thinking(const OptionsMap& options,
 
 	main_thread()->wait_for_search_finished();
 
-	// TODO あとで
+	// 📝 increaseDepthはmain_managerに移動させた。
+	//     ここのある初期化のうち、stopとabortedSearch以外は、
+	//     Engine派生classのstart_thinkingで行うべき。
 #if 0
 	main_manager()->stopOnPonderhit = stop = abortedSearch = false;
 	main_manager()->ponder = limits.ponderMode;
-
 	increaseDepth = true;
+#else
+    stop = abortedSearch = false;
 #endif
 
 	Search::RootMoves rootMoves;
@@ -362,7 +384,8 @@ void ThreadPool::start_thinking(const OptionsMap& options,
 			th->worker->limits = limits;
 			th->worker->nodes = /* th->worker->tbHits = */ 0;
 
-// TODO : あとで
+			// 🤔 この初期化は、Worker派生classのstart_searching()で行うようにする。
+			//     やねうら王では、void Search::YaneuraOuWorker::iterative_deepening()で行っている。
 #if 0
 			th->worker->bestMoveChanges = 0;
 			th->worker->nmpMinPly = 0;
@@ -401,6 +424,9 @@ void ThreadPool::start_searching() {
 
 
 // Wait for non-main threads
+
+// メインスレッド以外のスレッドを待機する
+
 void ThreadPool::wait_for_search_finished() const {
 
 	for (auto&& th : threads)
@@ -431,6 +457,5 @@ void ThreadPool::ensure_network_replicated() {
 	for (auto&& th : threads)
 		th->ensure_network_replicated();
 }
-
 
 } // namespace YaneuraOu

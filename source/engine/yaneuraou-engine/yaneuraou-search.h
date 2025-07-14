@@ -148,6 +148,9 @@ class SearchManager {
 
 	// 📌 やねうら王独自 📌
 
+	// 📝 StockfishのThreadPoolにあったincreaseDepthをこちらに移動させた。
+	std::atomic<bool> increaseDepth;
+
 	// 前回のPV出力した時刻。PVが詰まるのを抑制するためのもの。
 	// 💡 startTimeからの経過時間。
 	TimePoint lastPvInfoTime;
@@ -167,12 +170,12 @@ class YaneuraOuEngine : public Engine
 public:
 	// 📌 StockfishのEngine classに合わせる 📌
 
-#if 0
+	// 📝 やねうら王では、namespace Searchに書いてあるので不要。
+#if STOCKFISH
 	using InfoShort = Search::InfoShort;
 	using InfoFull  = Search::InfoFull;
 	using InfoIter  = Search::InfoIteration;
 #endif
-	// 📝 やねうら王では、namespace Searchに書いてあるので不要。
 
     YaneuraOuEngine(/* std::optional<std::string> path = std::nullopt */):
             manager(updateContext) {}
@@ -185,7 +188,7 @@ public:
 	//NumaReplicationContext numaContext;
 
 	// 📝 やねうら王では、base classであるEngine classが持っている。
-#if 0
+#if STOCKFISH
     Position     pos;
     StateListPtr states;
 
@@ -337,7 +340,7 @@ class YaneuraOuWorker: public Worker {
 	// 時間経過。
 	// 💡 やねうら王では、SearchManagerがTimeManagement tmを持っていて、
 	//     このclassがelapsed()を持っているのでそちらを用いる。
-#if 0
+#if STOCKFISH
     TimePoint elapsed() const;
     TimePoint elapsed_time() const;
 #endif
@@ -364,14 +367,14 @@ class YaneuraOuWorker: public Worker {
 	// 探索時に評価値に楽観的バイアスを与えるために用いるパラメーター。
 	Value optimism[COLOR_NB];
 
-#if 0
+#if STOCKFISH
 	// 探索開始局面とrootでのStateInfo
-	// 💡 やねうら王では、base classが持っている。
+	// 📝 やねうら王では、base classが持っている。
     Position  rootPos;
     StateInfo rootState;
 
 	// rootでの指し手
-	// 💡 やねうら王では、base classが持っている。
+	// 📝 やねうら王では、base classが持っている。
     RootMoves rootMoves;
 #endif
 
@@ -379,8 +382,8 @@ class YaneuraOuWorker: public Worker {
     Depth rootDepth, completedDepth;
     Value rootDelta;
 
-#if 0
-	// 💡 やねうら王では、base classが持っている。
+#if STOCKFISH
+	// 📝 やねうら王では、base classが持っている。
 
 	size_t                    threadIdx;
     NumaReplicatedAccessToken numaAccessToken;
@@ -408,9 +411,8 @@ class YaneuraOuWorker: public Worker {
     TranspositionTable&                             tt;
 
 	// NNUEの評価関数の計算用
-    // 📝 やねうら王では評価関数は、IEvaluatorで抽象化されているので、不要。
 
-#if 0
+#if defined(EVAL_SFNN)
 	// NNUE評価関数のパラメーターがNumaごとにコピーされるようにする。
 	const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
 
@@ -446,6 +448,7 @@ class YaneuraOuWorker: public Worker {
     friend class SearchManager;
 };
 
+// ContinuationHistoryに対するbonusの係数
 struct ConthistBonus {
     int index;
     int weight;

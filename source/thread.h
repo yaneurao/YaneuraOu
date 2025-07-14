@@ -256,7 +256,13 @@ public:
 
 	void ensure_network_replicated();
 
-	std::atomic_bool stop, abortedSearch, increaseDepth;
+	// stop          : 探索の停止フラグ
+	// abortedSearch : 探索自体を破棄するためのフラグ
+	//		           🤔 このフラグ、必要なのか？
+	// increaseDepth : aspiration searchでdepthが増えていっているかのフラグ
+	//                 🤔 このフラグはSearchManagerに移動
+
+	std::atomic_bool stop, abortedSearch /*, increaseDepth */;
 
 	auto cbegin() const noexcept { return threads.cbegin(); }
 	auto begin() noexcept { return threads.begin(); }
