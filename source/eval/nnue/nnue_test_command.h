@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数に関するUSI拡張コマンドのインターフェイス
 
-#ifndef _NNUE_TEST_COMMAND_H_
-#define _NNUE_TEST_COMMAND_H_
+#ifndef OLD_NNUE_TEST_COMMAND_H
+#define OLD_NNUE_TEST_COMMAND_H
 
 #include "../../config.h"
 

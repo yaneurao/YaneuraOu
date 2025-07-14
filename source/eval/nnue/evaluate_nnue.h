@@ -1,8 +1,8 @@
 ﻿// header used in NNUE evaluation function
 // NNUE評価関数で用いるheader
 
-#ifndef NNUE_EVALUATE_NNUE_H_INCLUDED
-#define NNUE_EVALUATE_NNUE_H_INCLUDED
+#ifndef OLD_NNUE_EVALUATE_NNUE_H_INCLUDED
+#define OLD_NNUE_EVALUATE_NNUE_H_INCLUDED
 
 #include "../../config.h"
 

@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の学習クラステンプレートのSum用特殊化
 
-#ifndef _NNUE_TRAINER_SUM_H_
-#define _NNUE_TRAINER_SUM_H_
+#ifndef OLD_NNUE_TRAINER_SUM_H
+#define OLD_NNUE_TRAINER_SUM_H
 
 #include "../../../config.h"
 

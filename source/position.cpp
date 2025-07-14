@@ -322,7 +322,8 @@ Position& Position::set(const std::string& sfen , StateInfo* si)
 	st->materialValue = Eval::material(*this);
 #endif
 
-	Eval::compute_eval(*this);
+	// TODO : あとで考える。
+	//Eval::compute_eval(*this);
 
 	// --- 入玉の駒点の設定
 
@@ -2615,6 +2616,8 @@ bool Position::pos_is_ok() const
 	for (Piece pt = PIECE_ZERO; pt < KING; ++pt)
 		if (ptc[pt] != ptc0[pt])
 			return false;
+
+
 #endif
 	// 3) st->handは手番側の駒でなければならない。
 	if (st->hand != hand[sideToMove])

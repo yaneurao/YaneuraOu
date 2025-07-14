@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の学習クラステンプレートのAffineTransform用特殊化
 
-#ifndef _NNUE_TRAINER_AFFINE_TRANSFORM_H_
-#define _NNUE_TRAINER_AFFINE_TRANSFORM_H_
+#ifndef OLD_NNUE_TRAINER_AFFINE_TRANSFORM_H
+#define OLD_NNUE_TRAINER_AFFINE_TRANSFORM_H
 
 #include "../../../config.h"
 

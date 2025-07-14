@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の入力特徴量HalfKP_vmの定義
 
-#ifndef _NNUE_FEATURES_HALF_KP_VM_H_
-#define _NNUE_FEATURES_HALF_KP_VM_H_
+#ifndef OLD_NNUE_FEATURES_HALF_KP_VM_H
+#define OLD_NNUE_FEATURES_HALF_KP_VM_H
 
 #include "../../../config.h"
 

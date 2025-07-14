@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の特徴量変換クラステンプレート
 
-#ifndef _NNUE_TRAINER_FEATURES_FACTORIZER_H_
-#define _NNUE_TRAINER_FEATURES_FACTORIZER_H_
+#ifndef OLD_NNUE_TRAINER_FEATURES_FACTORIZER_H
+#define OLD_NNUE_TRAINER_FEATURES_FACTORIZER_H
 
 #include "../../../../config.h"
 

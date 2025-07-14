@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数で用いる入力特徴量とネットワーク構造の定義
 
-#ifndef NNUE_HALFKPE9_256X2_32_32_H_INCLUDED
-#define NNUE_HALFKPE9_256X2_32_32_H_INCLUDED
+#ifndef OLD_NNUE_HALFKPE9_256X2_32_32_H_INCLUDED
+#define OLD_NNUE_HALFKPE9_256X2_32_32_H_INCLUDED
 
 #include "../features/feature_set.h"
 #include "../features/half_kpe9.h"

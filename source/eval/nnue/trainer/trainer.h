@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の学習用クラステンプレートの共通ヘッダ
 
-#ifndef _NNUE_TRAINER_H_
-#define _NNUE_TRAINER_H_
+#ifndef OLD_NNUE_TRAINER_H
+#define OLD_NNUE_TRAINER_H
 
 #include "../../../config.h"
 

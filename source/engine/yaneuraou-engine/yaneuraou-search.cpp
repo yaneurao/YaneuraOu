@@ -2371,7 +2371,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
 		unadjustedStaticEval = ttData.eval;
         if (!is_valid(unadjustedStaticEval))
-            unadjustedStaticEval = Eval::evaluate(pos);
+            unadjustedStaticEval = evaluate(pos);
 
 		// TODO : あとで correction history
         ss->staticEval = eval =
@@ -2396,7 +2396,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     }
     else
     {
-        unadjustedStaticEval = Eval::evaluate(pos);
+        unadjustedStaticEval = evaluate(pos);
 
 		// TODO : あとでなおす correction history
         ss->staticEval = eval =
@@ -3979,7 +3979,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
             unadjustedStaticEval = ttData.eval;
             if (!is_valid(unadjustedStaticEval))
-                unadjustedStaticEval = Eval::evaluate(pos);
+                unadjustedStaticEval = evaluate(pos);
             ss->staticEval = bestValue
 				= unadjustedStaticEval; // TODO : あとで修正する
             //  to_corrected_static_eval(unadjustedStaticEval, correctionValue);
@@ -4445,8 +4445,7 @@ Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
     //                      optimism[pos.side_to_move()]);
 
 	// TODO : あとでNNUE実装が使えるように修正する。
-
-    return Eval::evaluate(pos);
+	return evaluator->evaluate(pos);
 }
 
 namespace {
@@ -5048,9 +5047,16 @@ namespace {
 
 // 自作のエンジンのentry point
 void engine_main() {
-    // ここで作ったエンジン
+
+	// ここで作ったエンジン
     YaneuraOuEngine engine;
 
+	// 評価関数
+    auto eval = std::make_shared<Eval::NullEvaluator>();
+
+	// 評価関数をエンジンにセットする。
+    engine.set_evaluator(eval);
+	
     // USIコマンドの応答部
     USIEngine usi;
     usi.set_engine(engine);  // エンジン実装を差し替える。

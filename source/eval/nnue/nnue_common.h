@@ -1,8 +1,8 @@
 ﻿// Constants used in NNUE evaluation function
 // NNUE評価関数で用いる定数など
 
-#ifndef NNUE_COMMON_H_INCLUDED
-#define NNUE_COMMON_H_INCLUDED
+#ifndef OLD_NNUE_COMMON_H_INCLUDED
+#define OLD_NNUE_COMMON_H_INCLUDED
 
 #include <cstring>		// std::memcpy()
 
@@ -47,8 +47,6 @@ namespace YaneuraOu {
 #endif
 
 namespace Eval::NNUE {
-
-
 
   // Version of the evaluation file
   // 評価関数ファイルのバージョンを表す定数

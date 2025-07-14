@@ -1,5 +1,5 @@
-#ifndef SIMD_H_INCLUDED
-#define SIMD_H_INCLUDED
+#ifndef OLD_SIMD_H_INCLUDED
+#define OLD_SIMD_H_INCLUDED
 
 #if defined(USE_AVX2)
     #include <immintrin.h>

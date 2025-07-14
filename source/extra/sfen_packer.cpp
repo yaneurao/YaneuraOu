@@ -585,7 +585,9 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 	// --- evaluate
 
 	st->materialValue = Eval::material(*this);
-	Eval::compute_eval(*this);
+
+	// TODO : あとで考える。
+	//Eval::compute_eval(*this);
 
 	// --- 入玉の駒点の設定
 

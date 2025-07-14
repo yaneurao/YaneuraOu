@@ -383,6 +383,9 @@
 // NNUE評価関数の実行ファイルへの埋め込み(incbinを用いる)
 // #define NNUE_EMBEDDING
 
+// 2025年夏にStockfishから逆輸入されたStockfish NNUE評価関数
+//#define EVAL_SFNN
+
 // NNUE評価関数のAccumulatorStackを用いるのか？
 // 💡 SFNN評価関数であれば、これを定義する必要がある。
 //#define USE_ACCUMULATOR_STACK

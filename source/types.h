@@ -1255,7 +1255,10 @@ enum BonaPiece : int32_t;
 // 各評価関数は、このclassから派生させる。
 class IEvaluator {
    public:
-    // 評価関数の名前を返す。これは"usi"コマンドに対して表示する時に使われる。
+    // 💡 初回"isready"に対して呼び出される。
+    virtual void init() {}
+
+	// 評価関数の名前を返す。これは"usi"コマンドに対して表示する時に使われる。
     virtual std::string eval_name() const { return "IEvaluator"; }
 
     // Optionを生やす。これはEngine側から初期化タイミングで呼び出される。
@@ -1264,17 +1267,25 @@ class IEvaluator {
     // TODO : あとでよく考える。
     // 評価関数パラメーターの読み込み。
     // path : 読み込むフォルダ(ファイル名は固定)
-    virtual void load(const std::string& dir_name){}
+    // 💡 "isready"に対して毎回呼び出される。
+    virtual void load(const std::string& dir_name) {}
 
     // 評価関数パラメーターの書き出し。
     // path : 書き出すフォルダ(ファイル名は固定)
     virtual void save(const std::string& dir_name){}
+
+	// 駒割り以外の全計算して、その合計を返す。
+	// 探索の開始時、"go"コマンドのタイミングで一度だけ呼び出される。
+    //virtual void compute_eval(const Position& pos) = 0;
 
     // 評価関数本体。
     // 戻り値は、
     //  abs(value) <= VALUE_MAX_EVAL
     // を満たす。
     virtual Value evaluate(const Position& pos) = 0;
+
+	// 評価関数内部の差分計算だけを促す。返し値は返さない。
+	virtual void evaluate_diff(const Position& pos) {}
 
 	virtual ~IEvaluator() {}
 };

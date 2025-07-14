@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の学習で用いるインターフェイス
 
-#ifndef _EVALUATE_NNUE_LEARNER_H_
-#define _EVALUATE_NNUE_LEARNER_H_
+#ifndef OLD_EVALUATE_NNUE_LEARNER_H_
+#define OLD_EVALUATE_NNUE_LEARNER_H_
 
 #include "../../config.h"
 

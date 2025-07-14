@@ -1,8 +1,8 @@
 ﻿// NNUE evaluation function layer InputSlice definition
 // NNUE評価関数の層InputSliceの定義
 
-#ifndef NNUE_LAYERS_INPUT_SLICE_H_INCLUDED
-#define NNUE_LAYERS_INPUT_SLICE_H_INCLUDED
+#ifndef OLD_NNUE_LAYERS_INPUT_SLICE_H_INCLUDED
+#define OLD_NNUE_LAYERS_INPUT_SLICE_H_INCLUDED
 
 #include "../../../config.h"
 

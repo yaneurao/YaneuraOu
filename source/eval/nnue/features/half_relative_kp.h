@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の入力特徴量HalfRelativeKPの定義
 
-#ifndef _NNUE_FEATURES_HALF_RELATIVE_KP_H_
-#define _NNUE_FEATURES_HALF_RELATIVE_KP_H_
+#ifndef OLD_NNUE_FEATURES_HALF_RELATIVE_KP_H
+#define OLD_NNUE_FEATURES_HALF_RELATIVE_KP_H
 
 #include "../../../config.h"
 

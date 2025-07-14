@@ -1,8 +1,8 @@
 ﻿// Definition of index list of input features
 // 入力特徴量のインデックスリストの定義
 
-#ifndef NNUE_FEATURES_INDEX_LIST_H_INCLUDED
-#define NNUE_FEATURES_INDEX_LIST_H_INCLUDED
+#ifndef OLD_NNUE_FEATURES_INDEX_LIST_H_INCLUDED
+#define OLD_NNUE_FEATURES_INDEX_LIST_H_INCLUDED
 
 #include "../../../config.h"
 

@@ -31,14 +31,14 @@ namespace Eval {
 
 	// 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
 	// あるいは差分計算が不可能なときに呼び出される。
-	Value compute_eval(const Position& pos);
+	//Value compute_eval(const Position& pos);
 
 	// 評価関数本体
 	// このあとのdo_move()のあとのevaluate()で差分計算ができるように、
 	// 現在の前局面から差分計算ができるときだけ計算しておく。
 	// 評価値自体は返さない。
 	// 備考) 差分計算型の評価関数ではないときは、この関数は何もしなくて良い。
-	void evaluate_with_no_return(const Position& pos);
+	//void evaluate_with_no_return(const Position& pos);
 
 	// 評価値の内訳表示(デバッグ用)
 	void print_eval_stat(Position& pos);
@@ -50,7 +50,7 @@ namespace Eval {
 	void load_eval();
 
 	// 評価関数本体
-	Value evaluate(const Position& pos);
+	//Value evaluate(const Position& pos);
 
 	// 駒割りを計算する。Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
 	Value material(const Position& pos);
@@ -403,47 +403,6 @@ namespace Eval {
 
 	// EvalHashのクリア
 	void EvalHash_Clear();
-#endif
-
-// 評価関数のalias。
-// 📝 USIEngine, Engineで用いる。
-
-#if defined(YANEURAOU_ENGINE_NNUE)
-
-// NNUE系では、Eval::NNUE::Networksを使う。
-//using Evaluator = Eval::NNUE::Networks;
-// ⇨  これ、ここで使えるようにしようと思うと、大量のNNUEのheaderを読み込む必要が出てくる。
-#define Evaluator Eval::NNUE::Networks;
-
-#elif defined(USER_ENGINE)
-
-// 評価関数 (Eval::NNUE::Networksのようなメソッドを追加すること)
-class Networks
-{
-public:
-	void load(const std::string& evalfilePath);
-	bool save(const std::string& evalfilePath) const;
-	void verify(std::string evalfilePath, const std::function<void(std::string_view)>&) const;
-};
-
-using Evaluator = Eval::Networks;
-
-
-#else
-// パラメーター読み込みの必要な評価関数を使わない場合。
-
-class Networks
-{
-public:
-	// 📌 パラメーターの読み書きは不要。
-
-	void load(const std::string& evalfilePath) {}
-	bool save(const std::string& evalfilePath) const { return false; }
-	void verify(std::string evalfilePath, const std::function<void(std::string_view)>&) const {}
-};
-
-using Evaluator = Eval::Networks;
-
 #endif
 
 
