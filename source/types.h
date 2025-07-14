@@ -1272,7 +1272,7 @@ struct GlobalOptions
 		enteringKingPoint[BLACK] = 28; // Position::set()でupdate_entering_point()が呼び出されて設定される。
 		enteringKingPoint[WHITE] = 27; // Position::set()でupdate_entering_point()が呼び出されて設定される。
 
-		silent = consideration_mode = outout_fail_lh_pv = false;
+		consideration_mode = outout_fail_lh_pv = false;
 		pv_interval = 0;
 		generate_all_legal_moves = true;
 	}
@@ -1304,10 +1304,6 @@ struct GlobalOptions
 	// 例) 27点法の2枚落ちならば、↓の[BLACK(下手 = 後手)]には 27 , ↓の[WHITE(上手 = 先手)]には 28-10 = 18 が代入されている。
 	// 📝 Position::update_entering_point()で、enteringKingRuleに基づいて↓を求めている。
 	int enteringKingPoint[COLOR_NB];
-
-	// 画面に出力しないサイレントモード(プロセス内での連続自己対戦のとき用)
-	// このときPVを出力しない。
-	bool silent;
 
 	// 検討モード用のPVを出力するのか
 	// ※ やねうら王のみ , ふかうら王は未対応。

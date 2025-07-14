@@ -241,11 +241,12 @@ struct InfoShort {
 };
 
 // PVの長いやつ
+// 📝 MultiPVの場合、MultiPVのある1つの候補手を出力する。
 struct InfoFull: InfoShort {
     // 選択的な探索深さ
     int selDepth;
 
-    // MultiPVの設定数
+    // "multipv"の値。
     size_t multiPV;
 
     // 💡勝率はやねうら王では使わない
@@ -284,21 +285,25 @@ struct InfoIteration {
 };
 
 // 📌 読み筋を出力する時に呼び出すlistener
-// 📝 StockfishではSearchManagerで定義されているが、
+// 🤔 StockfishではSearchManagerで定義されているが、
 //     やねうら王ではnamespace Searchで定義しておく。
+// 📝 UpdateInfoは、"info string ..."にそのまま出力する。
+//    やねうら王独自拡張。
 
 // Infoを更新した時のcallback。このcallbackを行うと標準出力に出力する。
 using UpdateShort    = std::function<void(const InfoShort&)>;
 using UpdateFull     = std::function<void(const InfoFull&)>;
 using UpdateIter     = std::function<void(const InfoIteration&)>;
 using UpdateBestmove = std::function<void(std::string_view, std::string_view)>;
+using UpdateInfo     = std::function<void(std::string_view&)>;
 
 // 読み筋を出力するための関数を呼び出すlistener
 struct UpdateContext {
-    UpdateShort    onUpdateNoMoves;  // root局面で指し手がない時のhandler
-    UpdateFull     onUpdateFull;
-    UpdateIter     onIter;
-    UpdateBestmove onBestmove;
+    UpdateShort    onUpdateNoMoves;  // root局面で指し手がない時に用いる。
+    UpdateFull     onUpdateFull;     // PVを出力する時に用いる。
+    UpdateIter     onIter;           // 反復深化で現在探索中の指し手。
+    UpdateBestmove onBestmove;       // bestmoveを出力する時に用いる。
+    UpdateInfo     onUpdateString;   // "info string "でそのまま出力する。
 };
 
 // Search::Worker is the class that does the actual search.

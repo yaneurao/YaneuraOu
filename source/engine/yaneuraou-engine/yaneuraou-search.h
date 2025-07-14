@@ -200,8 +200,8 @@ public:
     //LazyNumaReplicated<Eval::NNUE::Networks> networks;
 
 
-	// UpdateContext
-    Search::UpdateContext updateContext;
+	// 📝 Engine classにある
+    // Search::UpdateContext updateContext;
 
 	// TODO : あとで
     //std::function<void(std::string_view)> onVerifyNetworks;

@@ -91,9 +91,9 @@ public:
 
 	// 📌 読み筋の表現 📌
 
-    using InfoShort = Search::InfoShort;
-	using InfoFull  = Search::InfoFull;
-	using InfoIter  = Search::InfoIteration;
+    using InfoShort  = Search::InfoShort;
+	using InfoFull   = Search::InfoFull;
+	using InfoIter   = Search::InfoIteration;
 
 	// エンジンに追加オプションを設定したいときは、この関数をoverrideする。
 	// この関数は、Engineのコンストラクタから呼び出される。
@@ -123,6 +123,7 @@ public:
     virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) {}
     virtual void set_on_iter(std::function<void(const InfoIter&)>&&) {}
     virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) {}
+    virtual void set_on_update_string(std::function<void(std::string_view)>&&) {}
     virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) {}
 
 	// blocking call to wait for search to finish
@@ -217,10 +218,11 @@ public:
 	virtual void add_options() override;
 	virtual void resize_threads() override;
 	virtual void set_tt_size(size_t mb) override {}
-    virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&&) override;
-    virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) override;
-    virtual void set_on_iter(std::function<void(const InfoIter&)>&&) override;
-    virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) override;
+    virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&&) override final;
+    virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) override final;
+    virtual void set_on_iter(std::function<void(const InfoIter&)>&&) override final;
+    virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) override final;
+    virtual void set_on_update_string(std::function<void(std::string_view)>&&) override final;
     virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) override;
     virtual void wait_for_search_finished() override;
 	virtual void verify_networks() override {}
@@ -303,7 +305,13 @@ public:
 	virtual void add_options() override { engine->add_options(); }
 	virtual void resize_threads() override { engine->resize_threads(); }
     virtual void set_tt_size(size_t mb) override { engine->set_tt_size(mb); }
-	virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
+    virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&& f) override final { engine->set_on_update_no_moves(std::move(f));}
+    virtual void set_on_update_full(std::function<void(const InfoFull&)>&& f) override final { engine->set_on_update_full(std::move(f)); }
+    virtual void set_on_iter(std::function<void(const InfoIter&)>&& f) override final { engine->set_on_iter(std::move(f));}
+    virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&& f) override final { engine->set_on_bestmove(std::move(f)); }
+    virtual void set_on_update_string(std::function<void(std::string_view)>&& f) override final { engine->set_on_update_string(std::move(f)); }
+    virtual void set_on_verify_networks(std::function<void(std::string_view)>&& f) override { engine->set_on_verify_networks(std::move(f)); }
+    virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
 	virtual void verify_networks() override { engine->verify_networks(); }
 	virtual void save_network(const std::string& path) override { engine->save_network(path); }
 	virtual ThreadPool& get_threads() override { return engine->get_threads(); }

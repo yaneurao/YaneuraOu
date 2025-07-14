@@ -1087,7 +1087,10 @@ namespace Book
 
 
 	// 与えられたmで進めて定跡のpv文字列を生成する。
-	std::string BookMoveSelector::pv_builder(Position& pos, Move16 m16 , int rest_ply)
+    std::string BookMoveSelector::pv_builder(Position&                            pos,
+                                                const Search::UpdateContext&         updates,
+												Move16                               m16,
+                                                int                                  rest_ply)
 	{
 		ASSERT_LV3(rest_ply > 0);
 
@@ -1116,7 +1119,7 @@ namespace Book
 				// さらに指し手を進める
 				Move16 bestMove16, ponderMove16;
 				Value value;
-				if (probe_impl(pos, true, bestMove16, ponderMove16, value, true /* 強制的にhitさせる */))
+				if (probe_impl(pos, updates, bestMove16, ponderMove16, value, true /* 強制的にhitさせる */))
 				{
 					// hitした
 
@@ -1124,7 +1127,7 @@ namespace Book
 					if (rest_ply >= 1)
 					{
 						// まだ表示すべき手数が残っているので再帰的にさらにbestMoveで指し手を進める。
-						result2 = pv_builder(pos, bestMove16 , rest_ply);
+						result2 = pv_builder(pos, updates, bestMove16 , rest_ply);
 
 						// resultの文字がないならそこでPVの末尾なのでponderがあればそれを出力。
 						if (result2.empty())
@@ -1151,7 +1154,7 @@ namespace Book
 	}
 
 	// probe()の下請け
-	bool BookMoveSelector::probe_impl(Position& rootPos, bool silent , Move16& bestMove , Move16& ponderMove , Value& value, bool forceHit)
+	bool BookMoveSelector::probe_impl(Position& rootPos, const Search::UpdateContext& updates , Move16& bestMove , Move16& ponderMove , Value& value, bool forceHit)
 	{
 		if (!forceHit)
 		{
@@ -1195,7 +1198,7 @@ namespace Book
 				bool legal =  rootPos.pseudo_legal_s<true>(move) && rootPos.legal(move);
 
 				// moveが非合法手ならば、エラーメッセージを出力しておいてやる。
-				if (!silent && !legal)
+				if (!legal)
 				{
 					sync_cout << "info string Error! : Illegal Move In Book DB : move = " << move
 							  << " , sfen = " << rootPos.sfen() << sync_endl;
@@ -1222,35 +1225,32 @@ namespace Book
 		u64 move_count_total = std::accumulate(move_list.begin(), move_list.end(), (u64)0, [](u64 acc, BookMove& b) { return acc + b.move_count; });
 		move_count_total = std::max(move_count_total, (u64)1); // ゼロ除算対策
 
-		if (!silent)
+		// PVとして出力する長さ(手数)
+		int pv_moves = (int)options["BookPvMoves"];
+
+		for (size_t i = 0; i < move_list.size() ; ++ i)
 		{
-			// PVとして出力する長さ(手数)
-			int pv_moves = (int)options["BookPvMoves"];
+			// PVを構築する。pv_movesで指定された手数分だけ表示する。
+			// bestMoveを指した局面でさらに定跡のprobeを行なって…。
+			auto& it = move_list[i];
 
-			for (size_t i = 0; i < move_list.size() ; ++ i)
-			{
-				// PVを構築する。pv_movesで指定された手数分だけ表示する。
-				// bestMoveを指した局面でさらに定跡のprobeを行なって…。
-				auto& it = move_list[i];
+			// USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
+			// 複数出力するときに"multipv"は連番なのでこれが先頭に来ているほうが見やすいと思うので先頭に"multipv"を出力する。
 
-				// USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
-				// 複数出力するときに"multipv"は連番なのでこれが先頭に来ているほうが見やすいと思うので先頭に"multipv"を出力する。
-
-				sync_cout << "info"
+			sync_cout << "info"
 #if !defined(NICONICO)
-					<< " multipv " << (i + 1)
+				<< " multipv " << (i + 1)
 #endif
-					<< " score cp " << it.value << " depth " << it.depth
-					<< " pv" << pv_builder(rootPos, it.move, pv_moves)
-					<< " (" << std::fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << ")" // 採択確率
-					<< sync_endl;
+				<< " score cp " << it.value << " depth " << it.depth
+				<< " pv" << pv_builder(rootPos, updates, it.move, pv_moves)
+				<< " (" << std::fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << ")" // 採択確率
+				<< sync_endl;
 
-				// 電王盤はMultiPV非対応なので1番目の読み筋だけを"multipv"をつけずに送信する。
-				// ("multipv"を出力してはならない)
+			// 電王盤はMultiPV非対応なので1番目の読み筋だけを"multipv"をつけずに送信する。
+			// ("multipv"を出力してはならない)
 #if defined(NICONICO)
-				break;
+			break;
 #endif
-			}
 		}
 
 		// このなかの一つをランダムに選択
@@ -1284,8 +1284,10 @@ namespace Book
 				move_list.erase(it_end, move_list.end());
 
 				// 1手でも取り除いたなら、定跡から取り除いたことをGUIに出力
-				if (!silent && (n != move_list.size()))
-					sync_cout << "info string NarrowBook : " << n << " moves to " << move_list.size() << " moves." << sync_endl;
+                if (n != move_list.size())
+                    updates.onUpdateString(
+                        std::string_view("NarrowBook : " + std::to_string(n) + " moves to "
+                        + std::to_string(move_list.size()) + " moves."));
 			}
 
 			if (move_list.size() == 0)
@@ -1305,8 +1307,8 @@ namespace Book
 				//|| move_list[0].depth == 999 /* 千日手になるなら無視 */
 				)
 			{
-				if (!silent)
-					sync_cout << "info string BookDepthLimit is lower than the depth of this node." << sync_endl;
+                updates.onUpdateString(std::string_view(
+                    "info string BookDepthLimit is lower than the depth of this node."));
 				move_list.clear();
 			}
 			else {
@@ -1330,9 +1332,10 @@ namespace Book
 				// →　対応してもらえるらしい。[2019/06/22]
 
 				// 候補手が1手でも減ったなら減った理由を出力
-				if (!silent && n != move_list.size())
-					sync_cout << "info string BookEvalDiff = " << eval_diff << " , " << stm_string << " = " << value_limit2
-					<< " , " << n << " moves to " << move_list.size() << " moves." << sync_endl;
+				if (n != move_list.size())
+                    updates.onUpdateString(std::string_view("BookEvalDiff = " + std::to_string(eval_diff)
+						+ " , " + stm_string + " = " + std::to_string(value_limit2)
+						+ " , " + std::to_string(n) + " moves to " + std::to_string(move_list.size()) + " moves."));
 			}
 		}
 		if (move_list.size() == 0)
@@ -1401,12 +1404,11 @@ namespace Book
 		return false;
 	}
 
-	Move BookMoveSelector::probe(Position& pos)
+	Move BookMoveSelector::probe(Position& pos, const Search::UpdateContext& updates)
 	{
-		const bool silent = true;
 		Move16 bestMove16, ponderMove16;
 		Value value;
-		if (!probe_impl(pos, silent, bestMove16, ponderMove16, value))
+		if (!probe_impl(pos, updates, bestMove16, ponderMove16, value))
 			return Move::none();
 
 		Move bestMove = pos.to_move(bestMove16);
@@ -1418,7 +1420,8 @@ namespace Book
 	}
 
 	// 定跡の指し手の選択
-	bool BookMoveSelector::probe(Search::RootMoves& rootMoves, Search::LimitsType& Limits)
+    bool BookMoveSelector::probe(Search::RootMoves&           rootMoves,
+                                 const Search::UpdateContext& updates)
 	{
 		// エンジン側の定跡を有効化されていないなら、probe()に失敗する。
 		if (!options["USI_OwnBook"])
@@ -1428,7 +1431,7 @@ namespace Book
 
 		Move16 bestMove16, ponderMove16;
 		Value value;
-		if (probe_impl(pos , global_options.silent, bestMove16, ponderMove16, value))
+		if (probe_impl(pos, updates, bestMove16, ponderMove16, value))
 		{
 			// bestMoveは16bit Moveなので32bit化する必要がある。
 			Move bestMove = pos.to_move(bestMove16);

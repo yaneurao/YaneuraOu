@@ -829,7 +829,7 @@ void Search::YaneuraOuWorker::start_searching() {
     //     定跡の選択部
     // ---------------------
 
-    if (engine.book.probe(rootMoves, limits))
+    if (engine.book.probe(rootMoves, main_manager()->updates))
         goto SKIP_SEARCH;
 
     // ---------------------
@@ -1013,21 +1013,18 @@ SKIP_SEARCH:;
 #endif
     // 💡 ↑こんなにPV出力するの好きじゃないので省略。
 
-    // サイレントモードでないならbestな指し手を出力
-    // 📌 サイレントモードは、やねうら王独自拡張
-    if (!global_options.silent)
-    {
-        std::string ponder;
+    std::string ponder;
 
-        // 🌈 extract_ponder_from_tt()にponder_candidateを渡すのは、やねうら王独自拡張。
-        if (bestThread->rootMoves[0].pv.size() > 1
-            || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos,
-                                                               main_manager()->ponder_candidate))
-            ponder = USIEngine::move(bestThread->rootMoves[0].pv[1] /*, rootPos.is_chess960()*/);
+    // 🌈 extract_ponder_from_tt()に
+	//     ponder_candidateを渡すのは、やねうら王独自拡張。
 
-        auto bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0] /*, rootPos.is_chess960()*/);
-        main_manager()->updates.onBestmove(bestmove, ponder);
-    }
+	if (bestThread->rootMoves[0].pv.size() > 1
+        || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos,
+                                                            main_manager()->ponder_candidate))
+        ponder = USIEngine::move(bestThread->rootMoves[0].pv[1] /*, rootPos.is_chess960()*/);
+
+    auto bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0] /*, rootPos.is_chess960()*/);
+    main_manager()->updates.onBestmove(bestmove, ponder);
 }
 
 // Main iterative deepening loop. It calls search()
@@ -1363,9 +1360,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                   // 📌 以下やねうら王独自拡張
                   && (rootDepth < 3
                       || mainThread->lastPvInfoTime + global_options.pv_interval <= time.elapsed())
-                  // silent modeや検討モードなら出力を抑制する。
-                  && !global_options.silent
-                  // ただし、outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
+                  // outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
                   && global_options.outout_fail_lh_pv
 
                 )

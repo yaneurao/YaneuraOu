@@ -194,6 +194,10 @@ void Engine::set_on_bestmove(std::function<void(std::string_view, std::string_vi
     updateContext.onBestmove = std::move(f);
 }
 
+void Engine::set_on_update_string(std::function<void(std::string_view)>&& f) {
+    updateContext.onUpdateString = std::move(f);
+}
+
 void Engine::set_on_verify_networks(std::function<void(std::string_view)>&& f) {
     //onVerifyNetworks = std::move(f);
 	// TODO : あとで
@@ -440,15 +444,6 @@ YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 
 	//load_networks();
 	resize_threads();
-}
-
-
-void Engine::set_on_update_no_moves(std::function<void(const Engine::InfoShort&)>&& f) {
-	updateContext.onUpdateNoMoves = std::move(f);
-}
-
-void Engine::set_on_update_full(std::function<void(const Engine::InfoFull&)>&& f) {
-	updateContext.onUpdateFull = std::move(f);
 }
 
 // かきかけ

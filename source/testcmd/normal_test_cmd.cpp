@@ -116,7 +116,8 @@ namespace {
 		auto start = now();
 
 		// 読み筋の出力の抑制
-		global_options.silent = true;
+		//global_options.silent = true;
+		// TODO : あとで調整する。
 
 		//lm.movetime = movetime; // これで時間固定の思考となる。
 		// →　毎回同じ指し手になると嫌だから、自分で乱数を加えてばらつかせる

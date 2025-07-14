@@ -283,13 +283,13 @@ namespace Book
 		// ・定跡の指し手の選択は、思考エンジンのオプション設定に従う。
 		// ・定跡のなかにPonderの指し手(bestmoveの次の指し手)がもしあればそれはrootMoves[0].pv[1]に返る。
 		// ・ただしrootMoves[0].pv[1]が合法手である保証はない。合法手でなければGUI側が弾くと思う。
-		// ・limit.silent == falseのときには画面に何故その指し手が選ばれたのか理由を出力する。
 		// ・この関数自体はthread safeなのでread_book()したあとは非同期に呼び出して問題ない。
 		// 　ただし、on_the_flyのときは、ディスクアクセスが必要で、その部分がthread safeではないので
 		//   on_the_fly == falseでなければ、非同期にこの関数を呼び出してはならない。
 		// ・Options["USI_OwnBook"]==trueにすることでエンジン側の定跡を有効化されていないなら、
 		// 　probe()には常に失敗する。(falseが返る)
-		bool probe(Search::RootMoves& rootMoves , Search::LimitsType& limit);
+        bool probe(Search::RootMoves&           rootMoves,
+                   const Search::UpdateContext& updates);
 
 		// 現在の局面が定跡に登録されているかを調べる。
 		// ・pos.RootMovesを持っていないときに、現在の局面が定跡にhitするか調べてhitしたらその指し手を返す。
@@ -299,7 +299,7 @@ namespace Book
 		// ・この関数自体はthread safeなのでread_book()したあとは非同期に呼び出して問題ない。
 		// 　ただし、on_the_flyのときは、ディスクアクセスが必要で、その部分がthread safeではないので
 		//   on_the_fly == falseでなければ、非同期にこの関数を呼び出してはならない。
-		Move probe(Position& pos);
+        Move probe(Position& pos, const Search::UpdateContext& updates);
 
 	protected:
 		// メモリに読み込んだ定跡ファイル
@@ -323,12 +323,17 @@ namespace Book
 		// bestMove   : 今回選択された指し手
 		// ponderMove : bestMoveの次の定跡の指し手 
 		// value      : bestMoveの評価値。
-		bool probe_impl(Position& rootPos, bool silent, Move16& bestMove, Move16& ponderMove , Value& value , bool forceHit = false);
+        bool probe_impl(Position&                    rootPos,
+                        const Search::UpdateContext& updates,
+                        Move16&                      bestMove,
+                        Move16&                      ponderMove,
+                        Value&                       value,
+                        bool                         forceHit = false);
 
 		// 定跡のpv文字列を生成して返す。
 		// m        : 局面posをこの指し手で進める
 		// rest_ply : 残り出力するPVの手数
-		std::string pv_builder(Position& pos, Move16 m , int rest_ply);
+        std::string pv_builder(Position& pos, const Search::UpdateContext& updates, Move16 m, int rest_ply);
 
 		AsyncPRNG prng;
 

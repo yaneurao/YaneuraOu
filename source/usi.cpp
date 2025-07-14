@@ -83,7 +83,9 @@ USIEngine::USIEngine(/*int argc, char** argv*/)
 	//     やねうら王では、この機能、サポートしない。
 
 	// すべての読み筋出力listenerを初期化する。
-    init_search_update_listeners();
+    //init_search_update_listeners();
+	// 📝 やねうら王では、外部からEngine派生classをset_engine()でセットするので、
+	//     そのタイミングで呼び出さないと駄目。
 }
 
 // すべての読み筋出力listenerを初期化する。
@@ -91,8 +93,9 @@ void USIEngine::init_search_update_listeners() {
     engine.set_on_iter([](const auto& i) { on_iter(i); });
     engine.set_on_update_no_moves([](const auto& i) { on_update_no_moves(i); });
     engine.set_on_update_full(
-      [this](const auto& i) { on_update_full(i, engine.get_options()["UCI_ShowWDL"]); });
+      [this](const auto& i) { on_update_full(i /*, engine.get_options()["UCI_ShowWDL"] */); });
     engine.set_on_bestmove([](const auto& bm, const auto& p) { on_bestmove(bm, p); });
+    engine.set_on_update_string([](const auto& i) { on_update_string(i); });
     engine.set_on_verify_networks([](const auto& s) { print_info_string(s); });
 }
 
@@ -101,8 +104,13 @@ void USIEngine::set_engine(IEngine& _engine)
 	engine.set_engine(_engine);
 
 	// ⚠ やねうら王では、Engineのコンストラクタではoptionを生やさない設計に変更した。
-	//     よって、add_options()をここで明示的に呼び出してoptionを生やす必要がある。
+	//     よって、派生classのadd_options()をここで明示的に呼び出してoptionを生やす必要がある。
 	engine.add_options();
+
+	// 📝 セットされたEngineに対してlisterを設定する必要がある。
+	//     Stockfishは、USIEngineのコンストラクタで行っているが、
+	//     やねうら王ではEngineの差し替えができるのでこのタイミング。
+	init_search_update_listeners();
 }
 
 
@@ -1630,7 +1638,7 @@ void USIEngine::on_update_no_moves(const Engine::InfoShort& info) {
     sync_cout << "info depth " << info.depth << " score " << format_score(info.score) << sync_endl;
 }
 
-void USIEngine::on_update_full(const Engine::InfoFull& info, bool showWDL) {
+void USIEngine::on_update_full(const Engine::InfoFull& info /*, bool showWDL */) {
     std::stringstream ss;
 
     ss << "info";
@@ -1673,5 +1681,8 @@ void USIEngine::on_bestmove(std::string_view bestmove, std::string_view ponder) 
     std::cout << sync_endl;
 }
 
+void USIEngine::on_update_string(std::string_view info) {
+    sync_cout << "info string " << info << sync_endl;
+}
 
 } // namespace YaneuraOu

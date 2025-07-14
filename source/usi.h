@@ -156,11 +156,13 @@ private:
 	// 読み筋を出力するevent handler
 	// 📝 Engine class(およびその派生class)から、読み筋を出力したいタイミングで
 	//     updateContext経由で呼び出される。
+	// 📌 on_update_info_string()はやねうら王独自拡張。
 
 	static void on_update_no_moves(const Engine::InfoShort& info);
-	static void on_update_full(const Engine::InfoFull& info, bool showWDL);
+    static void on_update_full(const Engine::InfoFull& info /*, bool showWDL*/);
 	static void on_iter(const Engine::InfoIter& info);
 	static void on_bestmove(std::string_view bestmove, std::string_view ponder);
+    static void on_update_string(std::string_view info);
 
     // すべての読み筋出力listenerを初期化する。
 	// 📝 set_engine()のタイミングでEngine側のset_on_XXXを呼び出して
