@@ -543,6 +543,9 @@ constexpr int MAX_PLY_NUM = 246;
 // --- tanuki-詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(TANUKI_MATE_ENGINE)
+	// 🤔 CLASSIC EVALは用いないが、KEEP_LAST_MOVEのようなStateInfo上の
+	//     追加メンバー変数を用いるには、USE_CLASSIC_EVALを定義する必要がある。
+	#define USE_CLASSIC_EVAL
 	#define KEEP_LAST_MOVE
 	#undef  MAX_PLY_NUM
 	#define MAX_PLY_NUM 2000
@@ -554,7 +557,10 @@ constexpr int MAX_PLY_NUM = 246;
 // --- やねうら王詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(YANEURAOU_MATE_ENGINE)
-	#undef  MAX_PLY_NUM
+	// 🤔 CLASSIC EVALは用いないが、Position::materialのような
+	//     追加メンバー変数を用いるには、USE_CLASSIC_EVALを定義する必要がある。
+	#define USE_CLASSIC_EVAL
+	#undef MAX_PLY_NUM
 	#define MAX_PLY_NUM 2000
 	#define USE_MATE_1PLY
 	//#define LONG_EFFECT_LIBRARY
@@ -568,10 +574,10 @@ constexpr int MAX_PLY_NUM = 246;
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(USER_ENGINE)
-	#define USE_SEE
-	#define USE_EVAL
-	#define EVAL_MATERIAL
-	#define USE_PIECE_VALUE
+	//#define USE_SEE
+	//#define USE_EVAL
+	//#define EVAL_MATERIAL
+	//#define USE_PIECE_VALUE
 #endif
 
 // --------------------

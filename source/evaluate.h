@@ -114,6 +114,13 @@ namespace Eval {
 	// ※  後手の駒に対してもプラスの値が返るので注意。
 	Value CapturePieceValuePlusPromote(const Position& pos, Move move);
 
+#else
+
+	// 📝 cpに変換する時に必要なのでPawnValueだけは定義しておく。
+	enum {
+		PawnValue = 90
+	};
+
 #endif
 
 
