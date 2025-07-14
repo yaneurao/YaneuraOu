@@ -12,7 +12,7 @@
 //#include "nnue/nnue_accumulator.h"
 #include "numa.h"
 #include "position.h"
-//#include "score.h"
+#include "score.h"
 //#include "syzygy/tbprobe.h"
 //#include "timeman.h"
 #include "timeman.h"
@@ -223,6 +223,83 @@ struct LimitsType {
 	TimePoint rtime;
 };
 
+/*
+	📌  読み筋を表現する構造体  📌
+
+	読み筋の出力は、USIEngineに実装されている。(on_update_no_movesなど)
+	UpdateContextがそのlistenerになっていて、読み筋を出力したい時は、UpdateContext経由で
+	読み筋出力を呼び出す。
+
+	UpdateContextのlistenerを変更することでEngine側は、読み筋の出力の抑制などができる。
+	(benchmarkや教師生成の時は抑制したいので…)	
+*/
+
+// PVの短いやつ
+struct InfoShort {
+    int   depth;
+    Score score;
+};
+
+// PVの長いやつ
+struct InfoFull: InfoShort {
+    // 選択的な探索深さ
+    int selDepth;
+
+    // MultiPVの設定数
+    size_t multiPV;
+
+    // 💡勝率はやねうら王では使わない
+    //std::string_view wdl;
+
+    // boundを文字列化したもの
+    std::string_view bound;
+
+    // 経過時間
+    size_t timeMs;
+
+    // 探索したnode数
+    size_t nodes;
+
+    // NPS
+    size_t nps;
+
+    // 💡tbHitsもやねうら王では使わない。(tb = tablebases)
+    //size_t           tbHits;
+
+    // PVを文字列化したもの
+    std::string_view pv;
+
+    // hashfullを文字列化したもの
+    int hashfull;
+};
+
+// 反復深化のIteration中のPV出力
+struct InfoIteration {
+    // 探索深さ
+    int depth;
+    // 現在探索中の指し手を文字列化したもの
+    std::string_view currmove;
+    // 現在探索中の指し手のナンバー
+    size_t currmovenumber;
+};
+
+// 📌 読み筋を出力する時に呼び出すlistener
+// 📝 StockfishではSearchManagerで定義されているが、
+//     やねうら王ではnamespace Searchで定義しておく。
+
+// Infoを更新した時のcallback。このcallbackを行うと標準出力に出力する。
+using UpdateShort    = std::function<void(const InfoShort&)>;
+using UpdateFull     = std::function<void(const InfoFull&)>;
+using UpdateIter     = std::function<void(const InfoIteration&)>;
+using UpdateBestmove = std::function<void(std::string_view, std::string_view)>;
+
+// 読み筋を出力するための関数を呼び出すlistener
+struct UpdateContext {
+    UpdateShort    onUpdateNoMoves;  // root局面で指し手がない時のhandler
+    UpdateFull     onUpdateFull;
+    UpdateIter     onIter;
+    UpdateBestmove onBestmove;
+};
 
 // Search::Worker is the class that does the actual search.
 // It is instantiated once per thread, and it is responsible for keeping track

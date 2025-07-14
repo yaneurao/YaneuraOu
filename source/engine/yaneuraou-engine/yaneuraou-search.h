@@ -17,54 +17,6 @@ namespace Search {
 
 class YaneuraOuWorker;
 
-// PVの短いやつ
-struct InfoShort {
-    int   depth;
-    Score score;
-};
-
-// PVの長いやつ
-struct InfoFull: InfoShort {
-	// 選択的な探索深さ
-	int              selDepth;
-
-	// MultiPVの設定数
-    size_t           multiPV;
-
-	// 💡勝率はやねうら王では使わない
-    //std::string_view wdl;
-
-	// boundを文字列化したもの
-	std::string_view bound;
-
-	// 経過時間
-    size_t           timeMs;
-
-	// 探索したnode数
-    size_t           nodes;
-
-	// NPS
-    size_t           nps;
-
-	// 💡tbHitsもやねうら王では使わない。(tb = tablebases)
-    //size_t           tbHits;
-
-	// PVを文字列化したもの
-	std::string_view pv;
-
-	// hashfullを文字列化したもの
-    int              hashfull;
-};
-
-// 反復深化のIteration中のPV出力
-struct InfoIteration {
-	// 探索深さ
-    int              depth;
-	// 現在探索中の指し手を文字列化したもの
-    std::string_view currmove;
-	// 現在探索中の指し手のナンバー
-    size_t           currmovenumber;
-};
 
 // 📌 Skill .. 手加減のための仕組み 📌
 //    やねうら王では実装しない。
@@ -142,19 +94,22 @@ struct Skill {
 //     やねうら王では、YaneuraOuEngineのメンバーとして持たせることにする。
 class SearchManager {
    public:
+	// 📝 やねうら王では、これはnamespace Searchで定義しておく。
+#if 0
 	// Infoを更新した時のcallback。このcallbackを行うと標準出力に出力する。
     using UpdateShort    = std::function<void(const InfoShort&)>;
     using UpdateFull     = std::function<void(const InfoFull&)>;
     using UpdateIter     = std::function<void(const InfoIteration&)>;
     using UpdateBestmove = std::function<void(std::string_view, std::string_view)>;
 
-	// PVを設定した時にupdateするためのcallback集。
+	// PVを設定した時に出力するためのlistener
 	struct UpdateContext {
         UpdateShort    onUpdateNoMoves; // root局面で指し手がない時のhandler
         UpdateFull     onUpdateFull;
         UpdateIter     onIter;
         UpdateBestmove onBestmove;
     };
+#endif
 
     SearchManager(const UpdateContext& updateContext) :
         updates(updateContext) {}
@@ -212,9 +167,12 @@ class YaneuraOuEngine : public Engine
 public:
 	// 📌 StockfishのEngine classに合わせる 📌
 
+#if 0
 	using InfoShort = Search::InfoShort;
 	using InfoFull  = Search::InfoFull;
 	using InfoIter  = Search::InfoIteration;
+#endif
+	// 📝 やねうら王では、namespace Searchに書いてあるので不要。
 
     YaneuraOuEngine(/* std::optional<std::string> path = std::nullopt */):
             manager(updateContext) {}
@@ -243,7 +201,7 @@ public:
 
 
 	// UpdateContext
-    Search::SearchManager::UpdateContext updateContext;
+    Search::UpdateContext updateContext;
 
 	// TODO : あとで
     //std::function<void(std::string_view)> onVerifyNetworks;

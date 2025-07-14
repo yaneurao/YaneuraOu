@@ -75,15 +75,25 @@ USIEngine::USIEngine(/*int argc, char** argv*/)
 	// 📌  やねうら王では、CommandLine::gが持つようになったのでこのclassには持たせない。
 {
 
-#if 0 // TODO : あとで
-	engine.get_options().add_info_listener([](const std::optional<std::string>& str) {
-		if (str.has_value())
-			print_info_string(*str);
-		});
+	//engine.get_options().add_info_listener([](const std::optional<std::string>& str) {
+	//	if (str.has_value())
+	//		print_info_string(*str);
+	//	});
+	// 📝 Stockfishでは"uci"が来る前に"info string"でオプション内容を出力している。
+	//     やねうら王では、この機能、サポートしない。
 
-	init_search_update_listeners();
-#endif
+	// すべての読み筋出力listenerを初期化する。
+    init_search_update_listeners();
+}
 
+// すべての読み筋出力listenerを初期化する。
+void USIEngine::init_search_update_listeners() {
+    engine.set_on_iter([](const auto& i) { on_iter(i); });
+    engine.set_on_update_no_moves([](const auto& i) { on_update_no_moves(i); });
+    engine.set_on_update_full(
+      [this](const auto& i) { on_update_full(i, engine.get_options()["UCI_ShowWDL"]); });
+    engine.set_on_bestmove([](const auto& bm, const auto& p) { on_bestmove(bm, p); });
+    engine.set_on_verify_networks([](const auto& s) { print_info_string(s); });
 }
 
 void USIEngine::set_engine(IEngine& _engine)
@@ -1466,6 +1476,24 @@ void USIEngine::enqueue_command_from_file(std::istringstream& is)
 	}
 }
 
+// Score構造体の内容をUSI形式のscoreとして出力する。
+std::string USIEngine::format_score(const Score& s) {
+    constexpr int TB_CP = 20000;
+    const auto    format =
+      overload{[](Score::Mate mate) -> std::string {
+                   auto m = (mate.plies > 0 ? (mate.plies + 1) : mate.plies) / 2;
+                   return std::string("mate ") + std::to_string(m);
+               },
+               //[](Score::Tablebase tb) -> std::string {
+               //    return std::string("cp ")
+               //         + std::to_string((tb.win ? TB_CP - tb.plies : -TB_CP - tb.plies));
+               //},
+               [](Score::InternalUnits units) -> std::string {
+                   return std::string("cp ") + std::to_string(units.value);
+               }};
+
+    return s.visit(format);
+}
 
 
 // → やねうら王の場合、PawnValue = 90なので Value = 90なら 100として出力する必要がある。
@@ -1597,5 +1625,53 @@ EMSCRIPTEN_KEEPALIVE extern "C" int usi_command(const char *c_cmd) {
 	return 0;
 }
 #endif
+
+void USIEngine::on_update_no_moves(const Engine::InfoShort& info) {
+    sync_cout << "info depth " << info.depth << " score " << format_score(info.score) << sync_endl;
+}
+
+void USIEngine::on_update_full(const Engine::InfoFull& info, bool showWDL) {
+    std::stringstream ss;
+
+    ss << "info";
+    ss << " depth " << info.depth                 //
+       << " seldepth " << info.selDepth           //
+       << " multipv " << info.multiPV             //
+       << " score " << format_score(info.score);  //
+
+    //if (showWDL)
+    //    ss << " wdl " << info.wdl;
+
+    if (!info.bound.empty())
+        ss << " " << info.bound;
+
+    ss << " nodes " << info.nodes        //
+       << " nps " << info.nps            //
+       << " hashfull " << info.hashfull  //
+       //<< " tbhits " << info.tbHits      //
+       << " time " << info.timeMs        //
+       << " pv " << info.pv;             //
+
+    sync_cout << ss.str() << sync_endl;
+}
+
+void USIEngine::on_iter(const Engine::InfoIter& info) {
+    std::stringstream ss;
+
+    ss << "info";
+    ss << " depth " << info.depth                     //
+       << " currmove " << info.currmove               //
+       << " currmovenumber " << info.currmovenumber;  //
+
+    sync_cout << ss.str() << sync_endl;
+}
+
+void USIEngine::on_bestmove(std::string_view bestmove, std::string_view ponder) {
+    sync_cout << "bestmove " << bestmove;
+    if (!ponder.empty())
+        std::cout << " ponder " << ponder;
+    std::cout << sync_endl;
+}
+
 
 } // namespace YaneuraOu

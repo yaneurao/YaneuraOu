@@ -42,81 +42,81 @@ public:
 	// 詰みやそれに類似した特別なスコアの処理なしに、Valueを整数のセントポーン数に変換する。
 
 	//static int         to_cp(Value v, const Position& pos);
+	// 📝 やねうら王では、Position&は不要。
 	static int   to_cp(Value v);
 
-	// cpからValueへ。⇑の逆変換。
-	// 📌　やねうら王独自
+    // USIプロトコルで用いるscoreにScore構造体の内容を変換する。
+    static std::string format_score(const Score& s);
+
+	// USIプロトコルで使うマス目文字列に変換する。
+    static std::string square(Square s);
+
+    // USIプロトコルで使う指し手文字列に変換する。
+    static std::string move(Move m /*, bool chess960*/);
+
+    // 勝率文字列に変換する。
+    // 📌 将棋では評価値をcpで出力するので不要。
+    // static std::string wdl(Value v, const Position& pos);
+
+	// string全体を小文字化して返す。
+    static std::string to_lower(std::string str);
+
+    // USIの指し手文字列をMove型の変換する。
+    // 合法手でなければMove::noneを返すようになっている。
+    // 💡 合法でない指し手の場合、エラーである旨を出力する。
+    static Move to_move(const Position& pos, std::string str);
+
+	// コマンドラインを解析して、Search::LimitsTypeに反映させて返す。
+    static Search::LimitsType parse_limits(std::istream& is);
+
+	// 📌　やねうら王独自  📌
+
+	// cpからValueへ。to_cpの逆変換。
 	static Value cp_to_value(int v);
 
 	// スコアを歩の価値を100として正規化して出力する。
 	//   MATEではないスコアなら"cp x"のように出力する。
 	//   MATEのスコアなら、"mate x"のように出力する。
 	// ⚠ USE_PIECE_VALUEが定義されていない時は正規化しようがないのでこの関数は呼び出せない。
-	// 📌　やねうら王独自
 	static std::string value(Value v);
 
-
-	//static std::string format_score(const Score& s);
-	// 📌 やねうら王では使わない
-
-	// USIプロトコルで使うマス目文字列に変換する。
-	static std::string square(Square s);
-
-	// USIプロトコルで使う指し手文字列に変換する。
-	static std::string move(Move m  /*, bool chess960*/);
-
-	// 勝率文字列に変換する。
-	// 📌 将棋では評価値をcpで出力するので不要。
-	// static std::string wdl(Value v, const Position& pos);
-
-	// string全体を小文字化して返す。
-	static std::string to_lower(std::string str);
-
-	// USIの指し手文字列をMove型の変換する。
-	// 合法手でなければMove::noneを返すようになっている。
-	// 💡 合法でない指し手の場合、エラーである旨を出力する。
-	static Move        to_move(const Position& pos, std::string str);
-
 	// USI形式から指し手への変換。本来この関数は要らないのだが、
-	// 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
-	// 📌 やねうら王、独自
-	static Move16      to_move16(const std::string& str);
+    // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
+    // 📌 やねうら王、独自
+    static Move16 to_move16(const std::string& str);
 
-	// コマンドラインを解析して、Search::LimitsTypeに反映させて返す。
-	static Search::LimitsType parse_limits(std::istream& is);
+    // USIの指し手文字列などに使われている盤上の升を表す文字列をSquare型に変換する
+    // 変換できなかった場合はSQ_NBが返る。高速化のために用意した。
+    // 📌　やねうら王独自
+    static Square usi_to_sq(char f, char r);
 
-	// USIの指し手文字列などに使われている盤上の升を表す文字列をSquare型に変換する
-	// 変換できなかった場合はSQ_NBが返る。高速化のために用意した。
-	// 📌　やねうら王独自
-	static Square      usi_to_sq(char f, char r);
+    // USIプロトコルのマス目文字列をSquare型に変換する。
+    // 変換できない文字である場合、SQ_NBを返す。
+    // 📌　やねうら王独自
+    static Square to_square(const std::string& str);
 
-	// USIプロトコルのマス目文字列をSquare型に変換する。
-	// 変換できない文字である場合、SQ_NBを返す。
-	// 📌　やねうら王独自
-	static Square      to_square(const std::string& str);
+    // Move16をUSIプロトコルで使う文字列に変換する。
+    // 📌　やねうら王独自
+    static std::string move(Move16 m /*, bool chess960*/);
 
-	// Move16をUSIプロトコルで使う文字列に変換する。
-	// 📌　やねうら王独自
-	static std::string move(Move16 m/*, bool chess960*/);
+    // vector<Move>をUSIプロトコルで使う文字列に変換する。
+    // 📌　やねうら王独自
+    static std::string move(const std::vector<Move>& moves);
 
-	// vector<Move>をUSIプロトコルで使う文字列に変換する。
-	// 📌　やねうら王独自
-	static std::string move(const std::vector<Move>& moves);
+	// --------------------
+    //    Properties
+    // --------------------
+
+    // エンジンオプション設定を取得する
+    OptionsMap& engine_options() { return engine.get_options(); }
+
+	// 📌　やねうら王独自  📌
 
 	// USIコマンドを積むことができる標準入力
 	// 💡 ここにUSIコマンドを積むとそれが実行される。
-	// 📌 やねうら王独自
 	StandardInput std_input;
 
-	// --------------------
-	//    Properties
-	// --------------------
-
-	// エンジンオプション設定を取得する
-	OptionsMap& engine_options() { return engine.get_options(); }
-
 	// このclassのUnitTest。
-	// 📌 やねうら王独自
 	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 
 private:
@@ -153,14 +153,21 @@ private:
 	void          isready();
 	void          moves();
 
-	// event handlerが成功した時に呼び出されるhandler
+	// 読み筋を出力するevent handler
+	// 📝 Engine class(およびその派生class)から、読み筋を出力したいタイミングで
+	//     updateContext経由で呼び出される。
 
-	//static void on_update_no_moves(const Engine::InfoShort& info);
-	//static void on_update_full(const Engine::InfoFull& info, bool showWDL);
-	//static void on_iter(const Engine::InfoIter& info);
-	//static void on_bestmove(std::string_view bestmove, std::string_view ponder);
+	static void on_update_no_moves(const Engine::InfoShort& info);
+	static void on_update_full(const Engine::InfoFull& info, bool showWDL);
+	static void on_iter(const Engine::InfoIter& info);
+	static void on_bestmove(std::string_view bestmove, std::string_view ponder);
 
-	//void init_search_update_listeners();
+    // すべての読み筋出力listenerを初期化する。
+	// 📝 set_engine()のタイミングでEngine側のset_on_XXXを呼び出して
+	//     上記のhandlerを登録してやる。
+	//     engine側は、読み筋の出力を抑制したい時やカスタマイズしたい時に
+	//     このlistenerを変更して対応する。
+    void init_search_update_listeners();
 
 	// --- やねうら王独自拡張
 
@@ -176,7 +183,6 @@ private:
 	// USIコマンドを1行実行する。
 	// "quit"が来たら、trueを返す。
 	bool usi_cmdexec(const std::string& cmd);
-
 };
 
 } // namespace YaneuraOu

@@ -89,6 +89,12 @@ public:
 
 	*/
 
+	// 📌 読み筋の表現 📌
+
+    using InfoShort = Search::InfoShort;
+	using InfoFull  = Search::InfoFull;
+	using InfoIter  = Search::InfoIteration;
+
 	// エンジンに追加オプションを設定したいときは、この関数をoverrideする。
 	// この関数は、Engineのコンストラクタから呼び出される。
 	// 📝 GetOptions()->add()を用いて、Optionを追加する。
@@ -110,6 +116,14 @@ public:
 	// options["USI_Hash"]などの置換表サイズに対して、それが変更された時に呼び出されるhandler。
 	// 置換表的なものを使用するときは、これをoverrideすると便利。
     virtual void set_tt_size(size_t mb) = 0;
+
+	// 📌 読み筋の出力など、event handlerのsetter
+
+    virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&&) {}
+    virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) {}
+    virtual void set_on_iter(std::function<void(const InfoIter&)>&&) {}
+    virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) {}
+    virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) {}
 
 	// blocking call to wait for search to finish
 	// 探索が完了するのを待機する。(完了したらリターンする)
@@ -203,7 +217,12 @@ public:
 	virtual void add_options() override;
 	virtual void resize_threads() override;
 	virtual void set_tt_size(size_t mb) override {}
-	virtual void wait_for_search_finished() override;
+    virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&&) override;
+    virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) override;
+    virtual void set_on_iter(std::function<void(const InfoIter&)>&&) override;
+    virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) override;
+    virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) override;
+    virtual void wait_for_search_finished() override;
 	virtual void verify_networks() override {}
 	virtual void save_network(const std::string& path) override {}
 	virtual ThreadPool& get_threads() override { return threads; }
@@ -226,9 +245,15 @@ public:
     virtual std::string get_engine_version() const override { return ENGINE_VERSION; }
     virtual std::string get_eval_name() const { return EVAL_TYPE_NAME; }
 
-    protected:
+protected:
 
 	// 📌 エンジンを実装するために必要な最低限のコンポーネント
+
+    //const std::string binaryDirectory;
+	// 📝 やねうら王では、CommandLine::gから取得できるので不要。
+
+	// Numaの管理用(どのNumaを使うかというIDみたいなもの)
+	NumaReplicationContext numaContext;
 
 	// 探索開始局面(root)を格納するPositionクラス
 	// "position"コマンドで設定された局面が格納されている。
@@ -241,10 +266,20 @@ public:
 	OptionsMap         options;
 
 	// スレッドプール(探索用スレッド)
-	ThreadPool         threads;
+	ThreadPool threads;
 
-	// Numaの管理用(どのNumaを使うかというIDみたいなもの)
-	NumaReplicationContext numaContext;
+    //TranspositionTable tt;
+	// 📝 やねうら王ではEngine基底classはTTを持たない。
+	//     (Engineが必ずStockfishのTTを必要とするわけではないので)
+
+    //LazyNumaReplicated<Eval::NNUE::Networks> networks;
+	// TODO : あとで検討する
+
+	// 読み筋を出力するためのlistener
+    Search::UpdateContext updateContext;
+
+	// TODO : あとで検討する
+    std::function<void(std::string_view)> onVerifyNetworks;
 
 	// 📌 エンジンで用いるヘルパー関数
 
@@ -291,7 +326,7 @@ public:
 	virtual std::string get_engine_version() const override { return engine->get_engine_version(); }
     virtual std::string get_eval_name() const override { return engine->get_eval_name(); }
 
-   private:
+private:
 	IEngine* engine;
 };
 

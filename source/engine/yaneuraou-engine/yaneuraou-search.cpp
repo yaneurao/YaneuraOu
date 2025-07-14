@@ -1226,6 +1226,15 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                     if (rootMoves[pvLast].tbRank != rootMoves[pvFirst].tbRank)
                         break;
             }
+#else
+
+			// 🤔 将棋だとtbRankは常に同じとみなせるので、
+			//     pvLastはrootMoves.size()になるまで
+			//     インクリメントされるから、次のように単純化できる。
+
+			size_t pvFirst = pvIdx;
+            pvLast  = rootMoves.size();
+
 #endif
 
             // Reset UCI info selDepth for each depth and each PV line
