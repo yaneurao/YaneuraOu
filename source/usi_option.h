@@ -123,7 +123,7 @@ public:
 	// 保持しているOptionのなかで、このoption_nameを持つものの数。
 	std::size_t count(const std::string& option_name) const;
 
-	// -- やねうら王独自拡張
+	// 📌 やねうら王独自拡張 📌
 
 	// カレントフォルダにfilename(例えば"engine_options.txt")が
 	// あればそれをオプションとしてOptions[]の値をオーバーライドする機能。
@@ -131,7 +131,7 @@ public:
 
 	// option名を指定して、その値を出力した文字列を構成する。
 	// option名が省略された時は、すべてのオプションの値を出力した文字列を構成する。
-	std::string OptionsMap::get_option(const std::string& option_name);
+	std::string get_option(const std::string& option_name);
 
 	// option名とvalueを指定して、そのoption名があるなら、そのoptionの値を変更する。
 	// 返し値) 値を変更したとき、変更できなかったときいずれも、出力するメッセージを返す。
@@ -139,7 +139,7 @@ public:
 
 	// idxを指定して、それに対応するOptionを取得する。
 	// ⚠ 値が存在しないidxを指定すると落ちる。
-	std::pair<const std::string,const Option&> get_option_by_idx(int idx) const;
+        std::pair<const std::string, const Option&> get_option_by_idx(size_t idx) const;
 
 private:
 	friend class Engine;
@@ -167,7 +167,7 @@ private:
 	// "option name USI_Hash type spin default 256"
 	// のような文字列が引数として渡される。
 	// このとき、Optionのhandlerとidxは書き換えない。
-	void OptionsMap::build_option(const std::string& line);
+	void build_option(const std::string& line);
 
 };
 

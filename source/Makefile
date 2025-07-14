@@ -339,6 +339,7 @@ SOURCES  = \
 	memory.cpp                                                                 \
 	engine.cpp                                                                 \
 	search.cpp                                                                 \
+	score.cpp                                                                  \
 	benchmark.cpp                                                              \
 	book/book.cpp                                                              \
 	book/apery_book.cpp                                                        \

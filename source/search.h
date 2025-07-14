@@ -295,7 +295,7 @@ using UpdateShort    = std::function<void(const InfoShort&)>;
 using UpdateFull     = std::function<void(const InfoFull&)>;
 using UpdateIter     = std::function<void(const InfoIteration&)>;
 using UpdateBestmove = std::function<void(std::string_view, std::string_view)>;
-using UpdateInfo     = std::function<void(std::string_view&)>;
+using UpdateInfo     = std::function<void(std::string_view)>;
 
 // 読み筋を出力するための関数を呼び出すlistener
 struct UpdateContext {

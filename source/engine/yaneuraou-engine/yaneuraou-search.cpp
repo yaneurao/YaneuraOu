@@ -464,7 +464,8 @@ YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
     // Vote according to score and depth, and select the best thread
     auto thread_voting_value = [minScore](Thread* th) {
         // Workerから派生させているのでdynamic_castしてしまう。
-        auto worker = dynamic_cast<Search::YaneuraOuWorker*>(th->worker.get());
+		// ⚠ RTTIを有効化していないので単にstatic_castにする。
+        auto worker = static_cast<Search::YaneuraOuWorker*>(th->worker.get());
         return (th->worker->rootMoves[0].score - minScore + 14) * int(worker->completedDepth);
     };
 
@@ -515,7 +516,9 @@ YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
     }
 
     // Threadに対してworkerが得られるから、これはYaneuraOuWorker*なのでdynamic_castして返す。
-    return dynamic_cast<YaneuraOuWorker*>(bestThread->worker.get());
+    // ⚠ RTTIを有効化していないので単にstatic_castにする。
+    //return dynamic_cast<YaneuraOuWorker*>(bestThread->worker.get());
+    return static_cast<YaneuraOuWorker*>(bestThread->worker.get());
 }
 
 // -----------------------------------------------------------

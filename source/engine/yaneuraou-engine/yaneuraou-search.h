@@ -430,7 +430,11 @@ class YaneuraOuWorker: public Worker {
     // WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
     // 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。
     YaneuraOuWorker* toYaneuraOuWorker(std::unique_ptr<Worker>& worker) {
-        return dynamic_cast<YaneuraOuWorker*>(worker.get());
+        //return dynamic_cast<YaneuraOuWorker*>(worker.get());
+		// ⚠  RTTIが無効(コンパイル時に-frttiを指定している)ので
+		//     dytnamic_castは使えない。
+		//     このupcastができることはわかっているのでstatic_castを行う。
+        return static_cast<YaneuraOuWorker*>(worker.get());
     }
 
     // 並列探索において一番良い思考をしたthreadの選出。

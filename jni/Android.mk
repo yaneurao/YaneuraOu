@@ -175,6 +175,7 @@ LOCAL_SRC_FILES := \
   ../source/memory.cpp                                                 \
   ../source/engine.cpp                                                 \
   ../source/search.cpp                                                 \
+  ../source/score.cpp                                                  \
   ../source/benchmark.cpp                                              \
   ../source/book/apery_book.cpp                                        \
   ../source/book/book.cpp                                              \

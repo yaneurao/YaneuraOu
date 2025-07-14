@@ -11,9 +11,8 @@
 #include "../search.h"
 #include "../thread.h"
 #include "../learn/multi_think.h"
-#include "../tt.h"
 #include "../usi.h"
-
+#include "../search.h"
 
 namespace YaneuraOu {
 namespace Book

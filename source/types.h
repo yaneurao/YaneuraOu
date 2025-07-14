@@ -21,7 +21,7 @@
 #include <algorithm>    // std::max()を使うので仕方ない
 #include <limits>		// std::numeric_limitsを使うので仕方ない
 #include <chrono>       // std::chrono
-#include <cassert>
+#include <cassert>      // assert
 
 #if defined(_MSC_VER)
 // Disable some silly and noisy warnings from MSVC compiler

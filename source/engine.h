@@ -228,11 +228,11 @@ public:
 	virtual void verify_networks() override {}
 	virtual void save_network(const std::string& path) override {}
 	virtual ThreadPool& get_threads() override { return threads; }
-	virtual const ThreadPool& get_threads() const { return threads; }
+	virtual const ThreadPool& get_threads() const override { return threads; }
 	virtual Position& get_position() override { return pos; }
 	virtual OptionsMap& get_options() override { return options; }
 	virtual std::string sfen() const override { return pos.sfen(); }
-	virtual std::string Engine::visualize() const override;
+	virtual std::string visualize() const override;
     virtual void usi() override;
     virtual void isready() override;
 	virtual void usinewgame() override {};
@@ -245,7 +245,7 @@ public:
     virtual std::string get_engine_name() const override { return "YaneuraOu"; }
     virtual std::string get_engine_author() const override { return "yaneurao"; }
     virtual std::string get_engine_version() const override { return ENGINE_VERSION; }
-    virtual std::string get_eval_name() const { return EVAL_TYPE_NAME; }
+    virtual std::string get_eval_name() const override { return EVAL_TYPE_NAME; }
 
 protected:
 
@@ -315,7 +315,7 @@ public:
 	virtual void verify_networks() override { engine->verify_networks(); }
 	virtual void save_network(const std::string& path) override { engine->save_network(path); }
 	virtual ThreadPool& get_threads() override { return engine->get_threads(); }
-	virtual const ThreadPool& get_threads() const { return engine->get_threads(); }
+	virtual const ThreadPool& get_threads() const override { return engine->get_threads(); }
 	virtual Position& get_position() override { return engine->get_position(); }
 	virtual OptionsMap& get_options() override { return engine->get_options(); }
 	virtual std::string sfen() const override { return engine->sfen(); }

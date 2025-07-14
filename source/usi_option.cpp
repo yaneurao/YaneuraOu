@@ -458,7 +458,7 @@ std::string OptionsMap::set_option_if_exists(const std::string& option_name, con
 }
 
 // idxを指定して、それに対応するOptionを取得する。
-std::pair<const std::string, const Option&> OptionsMap::get_option_by_idx(int idx) const
+std::pair<const std::string, const Option&> OptionsMap::get_option_by_idx(size_t idx) const
 {
 	for (const auto& o : options_map)
 		if (o.second.idx == idx)
@@ -484,7 +484,7 @@ std::string OptionsMap::get_option(const std::string& option_name)
 	}
 
 	std::string result;
-	for (int idx = 0; idx < options_map.size(); ++idx)
+	for (size_t idx = 0; idx < options_map.size(); ++idx)
 	{
 		auto it = get_option_by_idx(idx);
 
