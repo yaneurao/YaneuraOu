@@ -146,7 +146,7 @@ class SearchManager {
 
     const UpdateContext& updates;
 
-	// 📌 やねうら王独自 📌
+	// 🌈 やねうら王独自 🌈
 
 	// 📝 StockfishのThreadPoolにあったincreaseDepthをこちらに移動させた。
 	std::atomic<bool> increaseDepth;
@@ -162,9 +162,15 @@ class SearchManager {
 };
 }
 
-// やねうら王 Engine
-// 📌 Stockfishから拡張して、やねうら王はエンジンを自由に差し替えられるようになっているので、
-//     自分のEngineを定義するには、Engine classから派生させる。
+/*
+   やねうら王 Engine(やねうら王の通常探索部)
+
+   📓 Stockfishから拡張して、やねうら王はエンジンを自由に差し替えられるようになっているので、
+      自分のEngineを定義するには、Engine classから派生させる。
+
+      このclassがStockfishのEngine classに相当する。
+      エンジン共通で必要なものは、IEngine/Engine(これが、それぞれエンジンのinterfaceとエンジン基底class)に移動させた。
+*/
 class YaneuraOuEngine : public Engine
 {
 public:
@@ -209,7 +215,7 @@ public:
 	// TODO : あとで
     //std::function<void(std::string_view)> onVerifyNetworks;
 
-	// 📌 やねうら王独自 📌
+	// 🌈 やねうら王独自 🌈
 
 	// 思考エンジンの追加オプションを設定する。
     virtual void add_options() override;
@@ -425,7 +431,7 @@ class YaneuraOuWorker: public Worker {
     Eval::NNUE::AccumulatorCaches refreshTable;
 #endif
 
-    // 📌 以下、やねうら王独自追加 📌
+    // 🌈 以下、やねうら王独自追加 🌈
 
     // WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
     // 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。

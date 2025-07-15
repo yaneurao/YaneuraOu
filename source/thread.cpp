@@ -163,10 +163,10 @@ uint64_t ThreadPool::nodes_searched() const { return accumulate(&Search::Worker:
 // リサイズ時には、必要に応じてスレッドのバインディングを可能にするために再作成されます。
 
 void ThreadPool::set(
-	size_t                       requested_threads,
 	const NumaConfig&            numaConfig,
-	const OptionsMap&            options,
-	const Search::WorkerFactory& worker_factory
+    const OptionsMap&            options,
+    size_t                       requested_threads,
+    const Search::WorkerFactory& worker_factory
 	//Search::SharedState                         sharedState,
 	//const Search::SearchManager::UpdateContext& updateContext
 	)

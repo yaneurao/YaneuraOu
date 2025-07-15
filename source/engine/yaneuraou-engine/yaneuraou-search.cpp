@@ -36,7 +36,7 @@ namespace YaneuraOu {
 using namespace Search;
 
 // -------------------
-// やねうら王独自追加
+// 🌈 やねうら王独自追加
 // -------------------
 
 // パラメーターの調整を行うのか
@@ -396,7 +396,7 @@ void YaneuraOuEngine::add_options() {
 // "isready"のタイミングでの初期化処理。
 void YaneuraOuEngine::isready() {
 
-	// 📌 やねうら王独自オプションの内容を設定などに反映させる。
+	// 🌈 やねうら王独自オプションの内容を設定などに反映させる。
 
 	// 検討モード用のPVを出力するのか。
     global_options.consideration_mode = options["ConsiderationMode"];
@@ -428,7 +428,7 @@ void YaneuraOuEngine::resize_threads() {
 			tt, *this);
     };
 
-    threads.set(options["Threads"], numaContext.get_numa_config(), options, worker_factory);
+    threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
 
 	// 置換表の割り当て
 	set_tt_size(options["USI_Hash"]);
@@ -828,7 +828,7 @@ void Search::YaneuraOuWorker::start_searching() {
 
 // TODO : あとで考える。
 #if 0
-		// 📌 やねうら王独自
+		// 🌈 やねうら王独自
 		// 評価値を用いないなら代入しなくて良いのだが(Stockfishはそうなっている)、
         // このあと、↓USI::pv()を呼び出したいので、scoreをきちんと設定しておいてやる。
         rootMoves[0].score = rootMoves[0].usiScore = mated_in(0);
@@ -1155,7 +1155,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     // ---------------------
 
     // PV出力用のtimer
-    // 📌 やねうら王独自
+    // 🌈 やねうら王独自
     Timer time(limits.startTime);
 
     // 反復深化の探索深さが深くなって行っているかのチェック用のカウンター
@@ -1379,7 +1379,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
 				// TODO : あとで考える。
 
-                  // 📌 以下やねうら王独自拡張
+                  // 🌈 以下やねうら王独自拡張
                   && (rootDepth < 3
                       || mainThread->lastPvInfoTime + global_options.pv_interval <= time.elapsed())
                   // outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
@@ -2310,7 +2310,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 	// これは将棋にはないが、将棋には代わりに宣言勝ちというのがある。
     // 宣言勝ちと1手詰めだと1手詰めの方が圧倒的に多いので、まず1手詰め判定を行う。
 
-    // 📌 以下は、やねうら王独自のコード 📌
+    // 🌈 以下は、やねうら王独自のコード 🌈
 
     // -----------------------
     //    1手詰みか？
@@ -4004,7 +4004,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 	// ⚠ Stockfishはis_draw()で千日手判定をしているが、
 	//     やねうら王では劣等局面の判定があるので is_repetition()で判定しなくてはならない。
 
-	// 📌 やねうら王独自改良 📌
+	// 🌈 やねうら王独自改良 🌈
 
 	// 現局面の手番側のColor
     Color us = pos.side_to_move();
@@ -5170,7 +5170,7 @@ bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
             pv.push_back(m);
     }
     // 置換表にもなかったので以前のiteration時のpv[1]をほじくり返す。
-    // 🌠 やねうら王独自改良
+    // 🌈 やねうら王独自改良
     else if (ponder_candidate)
     {
         Move m = ponder_candidate;

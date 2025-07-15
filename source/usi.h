@@ -73,38 +73,34 @@ public:
 	static Search::LimitsType parse_limits(std::istream& is, OptionsMap& options);
 #endif
 
-	// 📌　やねうら王独自  📌
+	// 🌈　やねうら王独自  🌈
 
 	// cpからValueへ。to_cpの逆変換。
 	static Value cp_to_value(int v);
 
 	// スコアを歩の価値を100として正規化して出力する。
-	//   MATEではないスコアなら"cp x"のように出力する。
-	//   MATEのスコアなら、"mate x"のように出力する。
+	// MATEではないスコアなら"cp x"のように出力する。
+	// MATEのスコアなら、"mate x"のように出力する。
+	// 
 	// ⚠ USE_PIECE_VALUEが定義されていない時は正規化しようがないのでこの関数は呼び出せない。
 	static std::string value(Value v);
 
 	// USI形式から指し手への変換。本来この関数は要らないのだが、
     // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
-    // 📌 やねうら王、独自
     static Move16 to_move16(const std::string& str);
 
     // USIの指し手文字列などに使われている盤上の升を表す文字列をSquare型に変換する
     // 変換できなかった場合はSQ_NBが返る。高速化のために用意した。
-    // 📌　やねうら王独自
     static Square usi_to_sq(char f, char r);
 
     // USIプロトコルのマス目文字列をSquare型に変換する。
     // 変換できない文字である場合、SQ_NBを返す。
-    // 📌　やねうら王独自
     static Square to_square(const std::string& str);
 
     // Move16をUSIプロトコルで使う文字列に変換する。
-    // 📌　やねうら王独自
     static std::string move(Move16 m /*, bool chess960*/);
 
     // vector<Move>をUSIプロトコルで使う文字列に変換する。
-    // 📌　やねうら王独自
     static std::string move(const std::vector<Move>& moves);
 
 	// --------------------
@@ -114,7 +110,7 @@ public:
     // エンジンオプション設定を取得する
     OptionsMap& engine_options() { return engine.get_options(); }
 
-	// 📌　やねうら王独自  📌
+	// 🌈　やねうら王独自  🌈
 
 	// USIコマンドを積むことができる標準入力
 	// 💡 ここにUSIコマンドを積むとそれが実行される。
@@ -125,13 +121,16 @@ public:
 
 private:
 	// 内包している思考エンジン
-	//Engine	    engine;
-	// 📌 やねうら王ではengineを切り替えられるようにIEngineをくるんだEngineWrapperというclassを用いる。
+#if STOCKFISH
+	Engine	    engine;
+#else
+	// 🌈 やねうら王ではengineを切り替えられるようにIEngineをくるんだEngineWrapperというclassを用いる。
 	EngineWrapper engine;
+#endif
 
 	// main関数にコマンドラインから渡された引数
 	//CommandLine cli;
-	// 📌 やねうら王では、CommandLine::gを用いるから、このclassが保持する必要がない。
+	// 🌈 やねうら王では、CommandLine::gを用いるから、このclassが保持する必要がない。
 
 	// string_viewを"\n"で複数行に分割して、それを"info string .."の形で出力する。
 	static void print_info_string(std::string_view str);
@@ -150,7 +149,7 @@ private:
 	void          setoption(std::istringstream& is);
 	std::uint64_t perft(const Search::LimitsType&);
 
-	// -- やねうら王独自拡張
+	// 🌈 やねうら王独自拡張 🌈
 
 	void          unittest(std::istringstream& is);
 	void          getoption(std::istringstream& is);
@@ -160,7 +159,7 @@ private:
 	// 読み筋を出力するevent handler
 	// 📝 Engine class(およびその派生class)から、読み筋を出力したいタイミングで
 	//     updateContext経由で呼び出される。
-	// 📌 on_update_info_string()はやねうら王独自拡張。
+	// 🌈 on_update_info_string()はやねうら王独自拡張。
 
 	static void on_update_no_moves(const Engine::InfoShort& info);
     static void on_update_full(const Engine::InfoFull& info /*, bool showWDL*/);
@@ -175,7 +174,7 @@ private:
 	//     このlistenerを変更して対応する。
     void init_search_update_listeners();
 
-	// --- やねうら王独自拡張
+	// 🌈 やねうら王独自拡張 🌈
 
 	// コマンドラインと"startup.txt"に書かれているUSIコマンドをstd_inputに積む。
 	void enqueue_startup_command();

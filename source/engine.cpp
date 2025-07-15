@@ -236,7 +236,7 @@ void Engine::resize_threads() {
 
 	auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
 		{ return std::make_unique<Search::Worker>(options, threads, threadIdx, numaAccessToken); };
-	threads.set(options["Threads"], numaContext.get_numa_config(), options, worker_factory);
+        threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
 
 	// 📌 置換表の再割り当て。
 
