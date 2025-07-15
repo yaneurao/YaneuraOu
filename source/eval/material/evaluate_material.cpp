@@ -28,7 +28,7 @@ namespace Eval {
 	// これでも3990XだとR2300ぐらいある。
 	// (序盤を定跡などでうまく乗り切れれば)
 
-	void init() {}
+	void add_options(OptionsMap&, ThreadPool&) {}
 	Value compute_eval(const Position& pos) {
 		auto score = pos.state()->materialValue;
 		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
@@ -42,7 +42,8 @@ namespace Eval {
 	// 盤上の駒は、その価値の1/10ほど減点してやる評価関数。
 	// これだけで+R50ぐらいになる。
 
-	void init() {}
+	void add_options(OptionsMap&, ThreadPool&) {}
+
 	Value compute_eval(const Position& pos) {
 		auto score = pos.state()->materialValue;
 
@@ -80,7 +81,7 @@ namespace Eval {
 	int our_effect_value[9];
 	int their_effect_value[9];
 
-	void init() {
+	void add_options(OptionsMap&, ThreadPool&) {
 		for (int i = 0; i < 9; ++i)
 		{
 			// 利きには、王様からの距離に反比例する価値がある。(と現段階では考えられる)
@@ -139,7 +140,7 @@ namespace Eval {
 	//   6365 - pow(0.8525,m-1)*5341 　みたいな感じ？
 	int multi_effect_value[11];
 
-	void init() {
+	void add_options(OptionsMap&, ThreadPool&) {
 
 		for (int d = 0; d < 9; ++d)
 		{
@@ -202,7 +203,7 @@ namespace Eval {
 	// 81*81*81*11*11*size_of(int16_t) = 128MB
 	int16_t effect_table[SQ_NB][SQ_NB][SQ_NB][11][11];
 
-	void init() {
+	void add_options(OptionsMap&, ThreadPool&) {
 
 		// 王様からの距離に応じたある升の利きの価値。
 
@@ -292,7 +293,7 @@ namespace Eval {
 	// 1つの升にある利きは、2つ以上の利きは同一視。
 	int16_t KKPEE[SQ_NB][SQ_NB][SQ_NB][3][3][PIECE_NB];
 
-	void init() {
+	void add_options(OptionsMap&, ThreadPool&) {
 
 		// 王様からの距離に応じたある升の利きの価値。
 
@@ -389,7 +390,7 @@ namespace Eval {
 	// ↑のテーブルに格納されている値の倍率
 	constexpr int FV_SCALE = 32;
 
-	void init() {
+	void add_options(OptionsMap&, ThreadPool&) {
 
 		// 王様からの距離に応じたある升の利きの価値。
 
@@ -523,7 +524,7 @@ namespace Eval {
 	// ↑のテーブルに格納されている値の倍率
 	constexpr int FV_SCALE = 32;
 
-	void init() {
+	void add_options(OptionsMap&, ThreadPool&) {
 
 		// 王様からの距離に応じたある升の利きの価値。
 
@@ -739,7 +740,7 @@ namespace Eval {
 		return -1;
 	}
 
-	void init() {
+	void add_options(OptionsMap&, ThreadPool&) {
 
 		// 王様からの距離に応じたある升の利きの価値。
 

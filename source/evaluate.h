@@ -24,11 +24,10 @@ struct StateInfo;
 namespace Eval {
 
 #if defined(USE_CLASSIC_EVAL)
-	// init()は評価関数の初期化。
-	// これは起動直後に1度だけ呼び出される。
-	// ただし、(探索部に対して) TUNING_SEARCH_PARAMETERS が defineされている時は、
-	// "isready"タイミングで毎回(探索部から)呼び出される。
-	void init();
+	// 評価関数の初期化。これは起動直後に1度だけ呼び出される。
+	// 💡 引数で受け取ったoptionsを用いて、
+	//     評価関数に必要なエンジンオプションを追加することができる。
+	void add_options(OptionsMap& options, ThreadPool& threads);
 
 	// 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
 	// あるいは差分計算が不可能なときに呼び出される。

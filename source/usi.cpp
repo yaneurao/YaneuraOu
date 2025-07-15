@@ -107,6 +107,14 @@ void USIEngine::set_engine(IEngine& _engine)
 	//     よって、派生classのadd_options()をここで明示的に呼び出してoptionを生やす必要がある。
 	engine.add_options();
 
+	// 📝 旧評価関数は、起動時にEval::add_options()が呼び出されることを
+    //     期待するコードになっているので呼び出して初期化してやる。
+	//     また、その時にエンジンオプションを追加する。
+
+#if defined(USE_CLASSIC_EVAL)
+        Eval::add_options(engine.get_options(), engine.get_threads());
+#endif
+
 	// 📝 セットされたEngineに対してlisterを設定する必要がある。
 	//     Stockfishは、USIEngineのコンストラクタで行っているが、
 	//     やねうら王ではEngineの差し替えができるのでこのタイミング。

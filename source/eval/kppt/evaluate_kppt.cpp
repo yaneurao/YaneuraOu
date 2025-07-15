@@ -41,6 +41,32 @@ using namespace YaneuraOu::EvalLearningTools;
 #endif
 
 using namespace std;
+
+#if defined(USE_CLASSIC_EVAL)
+// 📌 この評価関数で追加したいエンジンオプションはここで追加する。
+void add_options_(YaneuraOu::OptionsMap & options, YaneuraOu::ThreadPool & threads) {
+
+}
+
+// ============================================================
+// 📌 旧Options、旧Threadsとの互換性のための共通のマクロ 📌
+// ============================================================
+namespace {
+YaneuraOu::OptionsMap* options_ptr;
+YaneuraOu::ThreadPool* threads_ptr;
+}
+#define Options (*options_ptr)
+#define Threads (*threads_ptr)
+namespace YaneuraOu::Eval {
+void add_options(OptionsMap& options, ThreadPool& threads) {
+    options_ptr = &options;
+    threads_ptr = &threads;
+    add_options_(options, threads);
+}
+}
+// ============================================================
+#endif
+
 namespace YaneuraOu {
 namespace Eval {
 
@@ -154,8 +180,6 @@ namespace Eval {
 
 		return sum;
 	}
-
-	void init(){}
 
 	// 与えられたsize_of_evalサイズの連続したalign 32されているメモリに、kk_,kkp_,kpp_を割り当てる。
 	void eval_assign(void* ptr)
@@ -543,8 +567,8 @@ namespace Eval {
 	struct EvaluateHashTable : HashTable<EvalSum> {};
 	EvaluateHashTable g_evalTable;
 
-	void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(mbSize); }
-	void EvalHash_Clear() { g_evalTable.clear(); };
+	void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(Threads, mbSize); }
+	void EvalHash_Clear() { g_evalTable.clear(Threads); };
 
 	// prefetchする関数も用意しておく。
 	void prefetch_evalhash(const Key key)

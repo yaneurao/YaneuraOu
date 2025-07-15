@@ -9,6 +9,7 @@
 #define INCBIN_SILENCE_BITCODE_WARNING
 #include "../../incbin/incbin.h"
 
+#include "../../types.h"
 #include "../../evaluate.h"
 #include "../../position.h"
 #include "../../memory.h"
@@ -19,6 +20,33 @@
 #endif
 
 #include "evaluate_nnue.h"
+
+// 旧評価関数なので
+#if defined(USE_CLASSIC_EVAL)
+// 📌 この評価関数で追加したいエンジンオプションはここで追加する。
+void add_options_(YaneuraOu::OptionsMap& options, YaneuraOu::ThreadPool& threads) {
+
+}
+
+// ============================================================
+// 📌 旧Options、旧Threadsとの互換性のための共通のマクロ 📌
+// ============================================================
+namespace {
+YaneuraOu::OptionsMap* options_ptr;
+YaneuraOu::ThreadPool* threads_ptr;
+}
+#define Options (*options_ptr)
+#define Threads (*threads_ptr)
+namespace YaneuraOu::Eval {
+void add_options(OptionsMap& options, ThreadPool& threads) {
+    options_ptr = &options;
+    threads_ptr = &threads;
+    add_options_(options, threads);
+}
+}
+// ============================================================
+#endif
+
 
 // Macro to embed the default efficiently updatable neural network (NNUE) file
 // data in the engine binary (using incbin.h, by Dale Weiler).
@@ -360,8 +388,6 @@ void load_eval(OptionsMap& options) {
     }
 }
 
-// 初期化
-void init() {}
 
 // 評価関数。差分計算ではなく全計算する。
 // Position::set()で一度だけ呼び出される。(以降は差分計算)

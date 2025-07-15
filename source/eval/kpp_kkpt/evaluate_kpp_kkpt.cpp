@@ -34,6 +34,31 @@ using namespace YaneuraOu::EvalLearningTools;
 
 using namespace std;
 
+
+#if defined(USE_CLASSIC_EVAL)
+// 📌 この評価関数で追加したいエンジンオプションはここで追加する。
+void add_options_(YaneuraOu::OptionsMap& options, YaneuraOu::ThreadPool& threads) {}
+
+// ============================================================
+// 📌 旧Options、旧Threadsとの互換性のための共通のマクロ 📌
+// ============================================================
+namespace {
+YaneuraOu::OptionsMap* options_ptr;
+YaneuraOu::ThreadPool* threads_ptr;
+}
+#define Options (*options_ptr)
+#define Threads (*threads_ptr)
+namespace YaneuraOu::Eval {
+void add_options(OptionsMap& options, ThreadPool& threads) {
+    options_ptr = &options;
+    threads_ptr = &threads;
+    add_options_(options, threads);
+}
+}
+// ============================================================
+#endif
+
+
 namespace YaneuraOu {
 namespace Eval {
 
