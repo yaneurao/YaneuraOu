@@ -321,13 +321,13 @@ public:
 // エンジンの基底クラス
 // 📝 これを派生させて、自作のエンジンを作成する。
 //     USIEngine::set_engine()でその派生クラスを渡して使う。
-class Engine : public IEngine
-{
-public:
+class Engine: public IEngine {
+   public:
     Engine();
 
-	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override;
-	virtual void go(Search::LimitsType& limits) override;
+    virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override;
+
+    virtual void go(Search::LimitsType& limits) override;
     virtual void stop() override;
     virtual void wait_for_search_finished() override;
     virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override;
@@ -341,70 +341,76 @@ public:
     virtual void set_on_update_string(std::function<void(std::string_view)>&&) override final;
     virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) override;
 
-	virtual void verify_networks() const override {}
+    virtual void verify_networks() const override {}
     virtual void save_network(const std::string& path) override {}
 
     virtual void              trace_eval() const override {}
-    virtual const OptionsMap& get_options() const { return options; }
-    virtual OptionsMap&       get_options()       { return options; }
+    virtual const OptionsMap& get_options() const override { return options; }
+    virtual OptionsMap&       get_options() override { return options; }
     virtual std::string       sfen() const override { return pos.sfen(); }
     virtual std::string       visualize() const override;
 
-	virtual void add_options() override;
-	virtual ThreadPool& get_threads() override { return threads; }
-	virtual const ThreadPool& get_threads() const override { return threads; }
-	virtual Position& get_position() override { return pos; }
+    virtual void              add_options() override;
+    virtual ThreadPool&       get_threads() override { return threads; }
+    virtual const ThreadPool& get_threads() const override { return threads; }
+    virtual Position&         get_position() override { return pos; }
 
     virtual void usi() override;
     virtual void isready() override;
-	virtual void usinewgame() override {};
-	virtual void user(std::istringstream& is) override {};
+    virtual void usinewgame() override {};
+    virtual void user(std::istringstream& is) override {};
+
     virtual std::string get_engine_name() const override { return "YaneuraOu"; }
     virtual std::string get_engine_author() const override { return "yaneurao"; }
     virtual std::string get_engine_version() const override { return ENGINE_VERSION; }
     virtual std::string get_eval_name() const override { return EVAL_TYPE_NAME; }
 
-protected:
-
-	// 📌 エンジンを実装するために必要な最低限のコンポーネント
+   protected:
+    // 📌 エンジンを実装するために必要な最低限のコンポーネント
 
     //const std::string binaryDirectory;
-	// 📝 やねうら王では、CommandLine::gから取得できるので不要。
+    // 📝 やねうら王では、CommandLine::gから取得できるので不要。
 
-	// Numaの管理用(どのNumaを使うかというIDみたいなもの)
-	NumaReplicationContext numaContext;
+    // Numaの管理用(どのNumaを使うかというIDみたいなもの)
+    NumaReplicationContext numaContext;
 
-	// 探索開始局面(root)を格納するPositionクラス
-	// "position"コマンドで設定された局面が格納されている。
-	Position           pos;
+    // 探索開始局面(root)を格納するPositionクラス
+    // "position"コマンドで設定された局面が格納されている。
+    Position pos;
 
-	// ここまでの局面に対するStateInfoのlist
-	StateListPtr       states;
+    // ここまでの局面に対するStateInfoのlist
+    StateListPtr states;
 
-	// 思考エンジンオプション
-	OptionsMap         options;
+    // 思考エンジンオプション
+    OptionsMap options;
 
-	// スレッドプール(探索用スレッド)
-	ThreadPool         threads;
+    // スレッドプール(探索用スレッド)
+    ThreadPool threads;
 
     //TranspositionTable tt;
-	// 📝 やねうら王ではEngine基底classはTTを持たない。
-	//     (Engineが必ずStockfishのTTを必要とするわけではないので)
+    // 📝 やねうら王ではEngine基底classはTTを持たない。
+    //     (Engineが必ずStockfishのTTを必要とするわけではないので)
 
     //LazyNumaReplicated<Eval::NNUE::Networks> networks;
-	// TODO : あとで検討する
+    // TODO : あとで検討する
 
-	// 読み筋を出力するためのlistener
+    // 読み筋を出力するためのlistener
     Search::UpdateContext updateContext;
 
-	// TODO : あとで検討する
+    // TODO : あとで検討する
     std::function<void(std::string_view)> onVerifyNetworks;
 
-	// 📌 エンジンで用いるヘルパー関数
+    // 📌 エンジンで用いるヘルパー関数
 
-	// NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
-	void set_numa_config_from_option(const std::string& o);
+    // NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
+    void set_numa_config_from_option(const std::string& o);
 
+    // 🌈 実行に時間がかかるjobを実行する。
+    // job : 実行するjob
+    //
+    // 📝 実行中にkeep aliveのために定期的に改行を標準出力に出力する。
+    //     USIで"isready"に対して時間のかかる処理を実行したい時に用いる。
+    void run_heavy_job(std::function<void()> job);
 };
 
 // IEngine派生classを入れておいて、使うためのwrapper

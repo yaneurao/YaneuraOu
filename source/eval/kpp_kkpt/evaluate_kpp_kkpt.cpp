@@ -34,20 +34,23 @@ using namespace YaneuraOu::EvalLearningTools;
 
 using namespace std;
 
+// ============================================================
+//              旧評価関数のためのヘルパー
+// ============================================================
 
 #if defined(USE_CLASSIC_EVAL)
-// 📌 この評価関数で追加したいエンジンオプションはここで追加する。
-void add_options_(YaneuraOu::OptionsMap& options, YaneuraOu::ThreadPool& threads) {}
+using namespace YaneuraOu;
+void add_options_(OptionsMap& options, ThreadPool& threads);
 
-// ============================================================
-// 📌 旧Options、旧Threadsとの互換性のための共通のマクロ 📌
-// ============================================================
 namespace {
 YaneuraOu::OptionsMap* options_ptr;
 YaneuraOu::ThreadPool* threads_ptr;
 }
+
+// 📌 旧Options、旧Threadsとの互換性のための共通のマクロ 📌
 #define Options (*options_ptr)
 #define Threads (*threads_ptr)
+
 namespace YaneuraOu::Eval {
 void add_options(OptionsMap& options, ThreadPool& threads) {
     options_ptr = &options;
@@ -56,6 +59,37 @@ void add_options(OptionsMap& options, ThreadPool& threads) {
 }
 }
 // ============================================================
+
+// 評価関数を読み込み済みであるか
+bool        eval_loaded   = false;
+std::string last_eval_dir = "None";
+
+// 📌 この評価関数で追加したいエンジンオプションはここで追加する。
+void add_options_(OptionsMap& options, ThreadPool& threads) {
+
+#if defined(EVAL_LEARN)
+    // isreadyタイミングで評価関数を読み込まれると、新しい評価関数の変換のために
+    // test evalconvertコマンドを叩きたいのに、その新しい評価関数がないがために
+    // このコマンドの実行前に異常終了してしまう。
+    // そこでこの隠しオプションでisready時の評価関数の読み込みを抑制して、
+    // test evalconvertコマンドを叩く。
+    Options("SkipLoadingEval", Option(false));
+#endif
+
+    const char* default_eval_dir = "eval";
+    Options.add("EvalDir", Option(default_eval_dir, [](const Option& o) {
+                    std::string eval_dir = std::string(o);
+                    if (last_eval_dir != eval_dir)
+                    {
+                        // 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
+                        last_eval_dir = eval_dir;
+                        eval_loaded   = false;
+                    }
+                    return std::nullopt;
+                }));
+
+    Options.add("EvalShare", Option(true));
+}
 #endif
 
 
@@ -265,6 +299,11 @@ namespace Eval {
 	// load_eval_impl()を呼び出すだけで良い。
 	void load_eval()
 	{
+        if (eval_loaded)
+            return;
+        eval_loaded = true;  // 📌 読み込みに失敗したらプロセスが終了するだろうから..
+
+
 		eval_malloc();
 		load_eval_impl();
 	}
@@ -518,8 +557,8 @@ namespace Eval {
 	struct EvaluateHashTable : HashTable<EvalSum> {};
 	EvaluateHashTable g_evalTable;
 
-	void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(mbSize); }
-	void EvalHash_Clear() { g_evalTable.clear(); };
+	void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(Threads, mbSize); }
+	void EvalHash_Clear() { g_evalTable.clear(Threads); };
 
 	// prefetchする関数も用意しておく。
 	void prefetch_evalhash(const Key key)

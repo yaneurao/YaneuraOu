@@ -407,6 +407,20 @@ void YaneuraOuEngine::isready() {
 	// 📌 基本設定(base classのisready()を呼び出してやる)
 
 	Engine::isready();
+
+#if defined(USE_CLASSIC_EVAL)
+	// 📌 旧評価関数は、isreadyに対して呼び出す。
+	//     評価関数パラメーターの読み込み処理が必要。
+    Engine::run_heavy_job([] {
+        Eval::load_eval();
+	});
+
+	// 初期化タイミングがなかったので、
+	// このタイミングで平手の局面に初期化しておく。
+	// 💡 これをしておかないとデバッグの時に、"isready"のあと
+	//     "position"コマンドを送信しないと局面が不正で落ちて面倒。
+    pos.set(StartSFEN, &states->back());
+#endif
 }
 
 // スレッド数を反映させる関数

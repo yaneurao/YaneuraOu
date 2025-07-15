@@ -20,11 +20,6 @@
 
 namespace YaneuraOu {
 
-// NNUE以外のエンジンであるなら、空のNetworksを定義しておく。
-#if !defined(YANEURAOU_ENGINE_NNUE)
-namespace Eval::NNUE { struct Networks{}; }
-#endif
-
 // -----------------------
 //      探索用の定数
 // -----------------------

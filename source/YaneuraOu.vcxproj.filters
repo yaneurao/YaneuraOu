@@ -677,6 +677,7 @@
     <None Include="..\script\bench.py">
       <Filter>script</Filter>
     </None>
+    <None Include=".clang-format" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="eval\deep\unpack.cu">
