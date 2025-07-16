@@ -43,7 +43,7 @@ namespace Search {
 			{
 				threads.start_searching();  // start non-main threads
 
-				Sleep(1000);
+				Tools::sleep(1000);
 
 				// bestmoveとして投了する。
 				sync_cout << "bestmove resign" << sync_endl;

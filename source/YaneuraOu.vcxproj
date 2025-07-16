@@ -600,7 +600,6 @@
     <ClInclude Include="engine\dlshogi-engine\PrintInfo.h" />
     <ClInclude Include="engine\dlshogi-engine\PvMateSearch.h" />
     <ClInclude Include="engine\dlshogi-engine\UctSearch.h" />
-    <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-search.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\deep\nn_types.h" />
@@ -792,6 +791,7 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-TensorRT|x64'">"$(CUDA_PATH_V12_8)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64)" -std=c++17 -x cu -G --keep-dir ..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -DUNICODE -DYANEURAOU_ENGINE_DEEP -DTENSOR_RT -Xcompiler "/EHsc /W3 /nologo /Od /Fd..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\vc143.pdb /FS /Zi /RTC1 /MTd" -o "..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-TensorRT|x64'">..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\%(Filename)%(Extension).obj</Outputs>
     </CustomBuild>
+    <None Include=".clang-format" />
     <None Include="Makefile" />
     <None Include="packages.config" />
     <ClInclude Include="eval\deep\unpack.cuh">

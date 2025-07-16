@@ -262,9 +262,6 @@
     <ClInclude Include="movepick.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="engine\yaneuraou-engine\yaneuraou-param.h">
-      <Filter>リソース ファイル\engine\yaneuraou-engine</Filter>
-    </ClInclude>
     <ClInclude Include="eval\evalhash.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>

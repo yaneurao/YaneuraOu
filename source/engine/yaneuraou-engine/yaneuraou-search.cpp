@@ -39,226 +39,6 @@ using namespace Search;
 // 🌈 やねうら王独自追加
 // -------------------
 
-// パラメーターの調整を行うのか
-#if defined(TUNING_SEARCH_PARAMETERS)
-    // ハイパーパラメーターを調整するときは終了時にその時のパラメーターを書き出す。
-    #define ENABLE_OUTPUT_GAME_RESULT
-
-    // パラメーターをランダムに少し変化させる。
-    // 探索パラメーターにstep分のランダム値を加えて対戦させるとき用。
-    // 試合が終わったときに勝敗と、そのときに用いたパラメーター一覧をファイルに出力する。
-    #define USE_RANDOM_PARAMETERS
-
-    #define PARAM_DEFINE int
-    #include "yaneuraou-param.h"
-#else
-    // 変更しないとき
-    #define PARAM_DEFINE constexpr int
-    #include "yaneuraou-param.h"
-
-#endif
-
-// 実行時に読み込むパラメーターファイルを配置するフォルダとその名前
-#define PARAM_FILE "param/yaneuraou-param.h"
-
-#if defined(ENABLE_OUTPUT_GAME_RESULT)
-// 変更したパラメーター一覧と、リザルト(勝敗)を書き出すためのファイルハンドル
-static std::fstream result_log;
-#endif
-
-
-// 探索パラメーターの自動調整のためのフレームワーク。
-// これ、今後使うかどうかわからないので、いったんコメントアウト。
-// TODO : あとで
-#if 0
-
-// パラメーターのランダム化のときには、
-// USIの"gameover"コマンドに対して、それをログに書き出す。
-void gameover_handler([[maybe_unused]] const std::string& cmd)
-{
-#if defined(ENABLE_OUTPUT_GAME_RESULT)
-	result_log << cmd << std::endl << std::flush;
-#endif
-}
-
-#if defined(YANEURAOU_ENGINE_NNUE)
-void init_fv_scale() {
-	Eval::NNUE::FV_SCALE = (int)Options["FV_SCALE"];
-}
-#endif
-
-// 探索パラメーターを動的に読み込む機能。
-void init_param()
-{
-	// -----------------------
-	//   parameters.hの動的な読み込み
-	// -----------------------
-
-        #if defined(TUNING_SEARCH_PARAMETERS)
-	{
-		std::vector<std::string> param_names = {
-			// このheader fileは、yaneuraou-param.hからparam_conv.pyによって自動生成される。
-            #include "param/yaneuraou-param-string.h"
-		};
-
-		std::vector<int*> param_vars = {
-			// このheader fileは、yaneuraou-param.hからparam_conv.pyによって自動生成される。
-            #include "param/yaneuraou-param-array.h"
-		};
-
-		std::fstream fs;
-
-		std::string path = Path::Combine(Directory::GetCurrentFolder(), PARAM_FILE);
-
-		fs.open(path.c_str(), std::ios::in);
-		if (fs.fail())
-		{
-			std::cout << "info string Error! : can't read " << path << std::endl;
-			return;
-		}
-
-		size_t count = 0;
-		std::string line, last_line;
-
-		// bufのなかにある部分文字列strの右側にある数値を読む。
-		auto get_num = [](const std::string& buf, const std::string& str)
-			{
-				auto pos = buf.find(str);
-				ASSERT_LV3(pos != std::string::npos);
-
-				auto s = buf.substr(pos + str.size());
-				if (s.empty() || !(('0' <= s[0] && s[0] <= '9') || s[0] == '-' || s[0] == ' '))
-				{
-					std::cout << "Error : Parse Error " << buf << "   ==>   " << s << std::endl;
-					return 0;
-				}
-
-				return stoi(s);
-				// ここで落ちてたら、paramファイルとして、変な文をparseしている。
-			};
-
-		std::vector<bool> founds(param_vars.size());
-
-		while (!fs.eof())
-		{
-			getline(fs, line);
-			if (line.find("PARAM_DEFINE") != std::string::npos)
-			{
-				for (size_t i = 0; i < param_names.size(); ++i)
-				{
-					auto pos = line.find(param_names[i]);
-					if (pos != std::string::npos)
-					{
-						char c = line[pos + param_names[i].size()];
-						// ここ、パラメーター名のあと、スペースか"="か来るのを確認しておかないと
-						// "PARAM_T1" が "PARAM_T10" に誤爆する。
-						if (!(c == '\t' || c == ' ' || c == '='))
-							continue;
-
-						count++;
-
-						// "="の右側にある数値を読む。
-						*param_vars[i] = get_num(line, "=");
-
-						// 見つかった
-						founds[i] = true;
-
-#if defined(USE_RANDOM_PARAMETERS)
-						// PARAM_DEFINEの一つ前の行には次のように書いてあるはずなので、
-						// USE_RANDOM_PARAMETERSのときは、このstepをプラスかマイナス方向に加算してやる。
-						// ただし、fixedと書いてあるパラメーターに関しては除外する。
-						// interval = 2だと、-2*step,-step,+0,+step,2*stepの5つを試す。
-
-						// [PARAM] min:100,max:240,step:3,interval:1,time_rate:1,fixed
-
-						// "fixed"と書かれているパラメーターはないものとして扱う。
-						if (last_line.find("fixed") != std::string::npos)
-						{
-							param_names[i] = "FIXED";
-							goto NEXT;
-						}
-
-						static PRNG rand;
-						int param_step = get_num(last_line, "step:");
-						int param_min = get_num(last_line, "min:");
-						int param_max = get_num(last_line, "max:");
-						int param_interval = get_num(last_line, "interval:");
-
-						// 現在の値
-						int v = *param_vars[i];
-
-						// とりうる値の候補
-						std::vector<int> a;
-
-						for (int j = 0; j <= param_interval; ++j)
-						{
-							// j==0のときは同じ値であり、これはのちに除外される。
-							a.push_back(std::max(v - param_step * j, param_min));
-							a.push_back(std::min(v + param_step * j, param_max));
-						}
-
-						// 重複除去。
-						// 1) std::unique()は隣接要素しか削除しないので事前にソートしている。
-						// 2) std::unique()では末尾にゴミが残るのでそれをerase()で消している。
-						std::sort(a.begin(), a.end());
-						a.erase(std::unique(a.begin(), a.end()), a.end());
-
-						// 残ったものから1つをランダムに選択
-						if (a.size() == 0)
-						{
-							std::cout << "Error : param is out of range -> " << line << std::endl;
-						}
-						else {
-							*param_vars[i] = a[rand.rand(a.size())];
-						}
-#endif
-
-						//            cout << param_names[i] << " = " << *param_vars[i] << endl;
-						goto NEXT;
-					}
-				}
-				std::cout << "Error : param not found! in yaneuraou-param.h -> " << line << std::endl;
-
-			NEXT:;
-			}
-			last_line = line; // 1つ前の行を記憶しておく。
-		}
-		fs.close();
-
-		// 読み込んだパラメーターの数が合致しないといけない。
-		// 見つかっていなかったパラメーターを表示させる。
-		if (count != param_names.size())
-		{
-			for (size_t i = 0; i < founds.size(); ++i)
-				if (!founds[i])
-					std::cout << "Error : param not found in " << path << " -> " << param_names[i] << std::endl;
-		}
-
-#if defined(ENABLE_OUTPUT_GAME_RESULT)
-		{
-			if (!result_log.is_open())
-				result_log.open(Options["PARAMETERS_LOG_FILE_PATH"], std::ios::app);
-			// 今回のパラメーターをログファイルに書き出す。
-			for (size_t i = 0; i < param_names.size(); ++i)
-			{
-				if (param_names[i] == "FIXED")
-					continue;
-
-				result_log << param_names[i] << ":" << *param_vars[i] << ",";
-			}
-			result_log << std::endl << std::flush;
-		}
-#endif
-
-		// Evalのパラメーター初期化
-		// 上のコードでパラメーターが変更された可能性があるのでこのタイミングで再度呼び出す。
-		Eval::init();
-	}
-
-#endif
-}
-#endif
-
 // 思考エンジンの追加オプションを設定する。
 // 💡 Stockfishでは、Engine::Engine()で行っている。
 void YaneuraOuEngine::add_options() {
@@ -1305,7 +1085,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
             // Reset aspiration window starting size
             // aspiration windowの開始サイズをリセットする。
-            delta = PARAM_ASPIRATION_SEARCH1 + std::abs(rootMoves[pvIdx].meanSquaredScore) / 11134;
+            delta = 5 + std::abs(rootMoves[pvIdx].meanSquaredScore) / 11134;
             Value avg = rootMoves[pvIdx].averageScore;
             alpha     = std::max(avg - delta, -VALUE_INFINITE);
             beta      = std::min(avg + delta, VALUE_INFINITE);
@@ -2361,7 +2141,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 #endif
     )
     {
-        if (PARAM_SEARCH_MATE1 && !ss->inCheck)
+        if (!ss->inCheck)
         {
             move = Mate::mate_1ply(pos);
 
@@ -2774,7 +2554,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // 直前の手を（ほぼ）安全に枝刈りできます。
 
 	// probCutに使うbeta値。
-    probCutBeta = beta + PARAM_PROBCUT_MARGIN1 - PARAM_PROBCUT_MARGIN2A * improving;
+    probCutBeta = beta + 201 - 58 * improving;
 
 	if (depth >= 3
         && !is_decisive(beta)
@@ -3047,7 +2827,7 @@ moves_loop:  // When in check, search starts here
                 // 駒取りや王手に対するSEE（静的交換評価）に基づく枝刈り
 
                 int seeHist = std::clamp(captHist / 31, -137 * depth, 125 * depth);
-                if (!pos.see_ge(move, -PARAM_LMR_SEE_MARGIN1 * depth - seeHist))
+                if (!pos.see_ge(move, -158 * depth - seeHist))
                 {
 #if STOCKFISH
                     bool mayStalemateTrap =
@@ -3108,11 +2888,9 @@ moves_loop:  // When in check, search starts here
                 // 🤔 パラメーター調整の係数を調整したほうが良いのかも知れないが、
                 // 　  ここ、そんなに大きなEloを持っていないので、調整しても…。
 
-                if (!ss->inCheck && lmrDepth < PARAM_FUTILITY_AT_PARENT_NODE_DEPTH
-                    && futilityValue <= alpha)
+                if (!ss->inCheck && lmrDepth < 12 && futilityValue <= alpha)
                 {
-                    if (bestValue <= futilityValue && !is_decisive(bestValue)
-                        && !is_win(futilityValue))
+                    if (bestValue <= futilityValue && !is_decisive(bestValue) && !is_win(futilityValue))
                         bestValue = futilityValue;
                     continue;
                 }
@@ -3130,7 +2908,7 @@ moves_loop:  // When in check, search starts here
                 // 負のSEEを持つ指し手を枝刈りする
                 // 💡 lmrDepthの2乗に比例するのでこのパラメーターの影響はすごく大きい。
 
-                if (!pos.see_ge(move, -PARAM_FUTILITY_AT_PARENT_NODE_GAMMA1 * lmrDepth * lmrDepth))
+                if (!pos.see_ge(move, -27 * lmrDepth * lmrDepth))
                     continue;
             }
         }
@@ -4152,7 +3930,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
             // 📌 この処理は、やねうら王独自
 
 			ASSERT_LV3(!ss->inCheck && !ss->ttHit);
-            if (PARAM_QSEARCH_MATE1)
+            if (true)
             {
                 // ■ 備考
                 //
@@ -4225,7 +4003,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 		// 💡 futilityの基準となる値をbestValueにmargin値を加算したものとして、
         //     これを下回るようであれば枝刈りする。
 
-		futilityBase = ss->staticEval + PARAM_FUTILITY_MARGIN_QUIET;
+		futilityBase = ss->staticEval + 376;
 
     }
 
@@ -4386,7 +4164,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 					 captureの時の歩損は、歩で取る、同角、同角みたいな局面なのでそこにはあまり意味なさげ。
 			*/
 
-			if (!pos.see_ge(move, -PARAM_BAD_ENOUGH_SEE_VALUE))
+			if (!pos.see_ge(move, -74))
                 continue;
         }
 

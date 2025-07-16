@@ -8,10 +8,6 @@
 
 #include "bitboard.h"
 #include "position.h"
-#include "search.h" // Search::Limits.generate_all_legal_movesによって生成される指し手を変えたいので…。
-
-// パラメーターの自動調整フレームワークからパラメーターの値を読み込む
-#include "engine/yaneuraou-engine/yaneuraou-param-common.h"
 
 namespace YaneuraOu {
 namespace {
