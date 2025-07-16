@@ -39,6 +39,14 @@ using namespace Search;
 // 🌈 やねうら王独自追加
 // -------------------
 
+void Search::SearchManager::pre_start_searching(YaneuraOuWorker& worker) {
+    // 🤔 StockfishのThreadPool::start_thinking()にあった以下の初期化をこちらに移動させた。
+
+    stopOnPonderhit /* = stop = abortedSearch */ = false;
+    ponder                                       = worker.limits.ponderMode;
+    increaseDepth                                = true;
+}
+
 // 思考エンジンの追加オプションを設定する。
 // 💡 Stockfishでは、Engine::Engine()で行っている。
 void YaneuraOuEngine::add_options() {
@@ -46,6 +54,8 @@ void YaneuraOuEngine::add_options() {
 	// 📌 基本設定(base classのadd_options()を呼び出してやる)
 
 	Engine::add_options();
+
+	// 📌 この探索部が用いるオプションの追加。
 
     options.add(  //
           "USI_Hash", Option(16, 1, MaxHashMB, [this](const Option& o) {
@@ -57,18 +67,33 @@ void YaneuraOuEngine::add_options() {
     // ⇨　これMAX_MOVESで十分。
     options.add("MultiPV", Option(1, 1, MAX_MOVES));
 
-#if 0
-        // 探索深さ制限。0なら無制限。
-        o["DepthLimit"] << Option(0, 0, int_max);
+    options.add("DrawValueBlack", Option(-2, -30000, 30000));
+    options.add("DrawValueWhite", Option(-2, -30000, 30000));
 
-        // 探索ノード制限。0なら無制限。
-        o["NodesLimit"] << Option(0, 0, int64_max);
+    //  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
+    options.add("PvInterval", Option(300, 0, 100000000));
+
+    // 投了スコア
+    options.add("ResignValue", Option(99999, 0, 99999));
+
+    // 検討モード用のPVを出力するモード
+    options.add("ConsiderationMode", Option(true));
+
+    // fail low/highのときにPVを出力するかどうか。
+    options.add("OutputFailLHPV", Option(true));
+
+#if defined(EVAL_LEARN)
+    // 評価関数の学習を行なうときは、評価関数の保存先のフォルダを変更できる。
+    // デフォルトではevalsave。このフォルダは事前に用意されているものとする。
+    // このフォルダ配下にフォルダを"0/","1/",…のように自動的に掘り、そこに評価関数ファイルを保存する。
+    options.add("EvalSaveDir", Option("evalsave"));
 #endif
 
 	// 📌 TimeManagementが用いるオプションの追加
+
     manager.tm.add_options(options);
 
-	// 📌 定跡オプションの追加
+	// 📌 定跡が用いるオプションの追加
 
     book.add_options(options);
 
@@ -86,54 +111,9 @@ void YaneuraOuEngine::add_options() {
     // Stockfishでは"Contempt"というエンジンオプションであったが、先後の区別がつけられないし、
     // 分かりづらいので変更した。
 
-    options.add("DrawValueBlack", Option(-2, -30000, 30000));
-    options.add("DrawValueWhite", Option(-2, -30000, 30000));
 
-    //  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
-    options.add("PvInterval", Option(300, 0, 100000000));
-
-    // 投了スコア
-    options.add("ResignValue", Option(99999, 0, 99999));
-
-    //
-    //   パラメーターの外部からの自動調整
-    //
-
-    #if defined(EVAL_LEARN)
-    // 評価関数の学習を行なうときは、評価関数の保存先のフォルダを変更できる。
-    // デフォルトではevalsave。このフォルダは事前に用意されているものとする。
-    // このフォルダ配下にフォルダを"0/","1/",…のように自動的に掘り、そこに評価関数ファイルを保存する。
-    options.add("EvalSaveDir", Option("evalsave"));
-    #endif
-
-    #if defined(ENABLE_OUTPUT_GAME_RESULT)
-
-        #if defined(TUNING_SEARCH_PARAMETERS)
-    sync_cout << "info string warning!! TUNING_SEARCH_PARAMETERS." << sync_endl;
-        #elif defined(USE_RANDOM_PARAMETERS)
-    sync_cout << "info string warning!! USE_RANDOM_PARAMETERS." << sync_endl;
-        #else
-    sync_cout << "info string warning!! ENABLE_OUTPUT_GAME_RESULT." << sync_endl;
-        #endif
-
-    // パラメーターのログの保存先のfile path
-        options.add("PARAMETERS_LOG_FILE_PATH"] , Option("param_log.txt"));
-    #endif
-
-        // 検討モード用のPVを出力するモード
-        options.add("ConsiderationMode", Option(true));
-
-        // fail low/highのときにPVを出力するかどうか。
-        options.add("OutputFailLHPV", Option(true));
-
-    #if defined(YANEURAOU_ENGINE_NNUE)
-        // NNUEのFV_SCALEの値
-        options.add("FV_SCALE", Option(16, 1, 128));
-    #endif
-
-
-        // 📌 Stockfishにはあるが、やねうら王ではサポートしないオプション
-    #if 0
+    // 📌 Stockfishにはあるが、やねうら王ではサポートしないオプション
+#if STOCKFISH
 	// 弱くするために調整する。20なら手加減なし。0が最弱。
 	options.add("Skill Level", Option(20, 0, 20));
 
@@ -170,7 +150,7 @@ void YaneuraOuEngine::add_options() {
 	options.add("Syzygy50MoveRule", Option(true));
 
 	options.add("SyzygyProbeLimit", Option(7, 0, 7));
-    #endif
+#endif
 }
 
 // "isready"のタイミングでの初期化処理。
@@ -482,6 +462,8 @@ void Search::YaneuraOuWorker::ensure_network_replicated() {
 	#endif
 }
 
+void Search::YaneuraOuWorker::pre_start_searching() { main_manager()->pre_start_searching(*this); }
+
 void Search::YaneuraOuWorker::start_searching() {
 
 #if defined(USE_SFNN)
@@ -501,12 +483,6 @@ void Search::YaneuraOuWorker::start_searching() {
 
 	// 📌 ここ以下のコードは、main threadで"go"に対して実行される。
 	//     "go"のごとに初期化しないといけないものはここで行う。
-
-	// 🤔 StockfishのThreadPool::start_thinking()にあった以下の初期化をこちらに移動させた。
-
-	main_manager()->stopOnPonderhit /* = stop = abortedSearch */ = false;
-    main_manager()->ponder                                       = limits.ponderMode;
-    main_manager()->increaseDepth                                = true;
 
     // 📌 今回の思考時間の設定。
     //     これは、ponderhitした時にponderhitにパラメーターが付随していれば
@@ -1334,10 +1310,9 @@ void Search::YaneuraOuWorker::iterative_deepening() {
         // 次の反復を行う時間はあるか？今すぐ探索を止められるか？
         if (limits.use_time_management() && !threads.stop && !mainThread->stopOnPonderhit)
         {
-			// TODO : あとで。
-			//        やねうら王では、このへん仕組みが異なる。
-			//         Time.search_endまで持ち時間を使い切りたい。
-			//         !Threads.stop && Time.search_end == 0
+            // ⚠ やねうら王では、このへん仕組みが異なる。
+            //         Time.search_endまで持ち時間を使い切りたい。
+            //         !Threads.stop && Time.search_end == 0
 
             uint64_t nodesEffort =
               rootMoves[0].effort * 100000 / std::max(size_t(1), size_t(nodes));
@@ -1349,6 +1324,8 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             fallingEval = std::clamp(fallingEval, 0.5786, 1.6752);
 
             // If the bestMove is stable over several iterations, reduce time accordingly
+			// bestMove が複数回のイテレーションで安定している場合、それに応じて時間を短縮する
+
             double k      = 0.527;
             double center = lastBestMoveDepth + 11;
             timeReduction = 0.8 + 0.84 / (1.077 + std::exp(-k * (completedDepth - center)));
@@ -4671,11 +4648,17 @@ Move Skill::pick_best(const RootMoves& rootMoves, size_t multiPV) {
 
 // Used to print debug info and, more importantly, to detect
 // when we are out of available time and thus stop the search.
+
+// デバッグ情報の出力、そしてより重要なのは、
+// 利用可能な時間を使い切ったことを検出し、探索を停止するために使われる。
+
 void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
     if (--callsCnt > 0)
         return;
 
     // When using nodes, ensure checking rate is not lower than 0.1% of nodes
+	// ノード数を基準にする場合、チェック頻度がノード数の0.1%未満にならないようにする
+
     callsCnt = worker.limits.nodes ? std::min(512, int(worker.limits.nodes / 1024)) : 512;
 
     static TimePoint lastInfoTime = now();
@@ -4690,17 +4673,27 @@ void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
     }
 
     // We should not stop pondering until told so by the GUI
+    // GUIから指示があるまで、ポンダリングを停止すべきではない
+	// 💡 ponderフラグが立っていたら、"go ponder"の最中なので
+	//     "stop"か"ponderhit"が来るまでは停止する必要がない。
+
     if (ponder)
         return;
 
     if (
       // Later we rely on the fact that we can at least use the mainthread previous
       // root-search score and PV in a multithreaded environment to prove mated-in scores.
+
+	  // 後で、少なくともメインスレッドの直前の
+      // ルート探索のスコアとPVをマルチスレッド環境で利用して、
+      // 詰みのスコアを証明できるという事実に依存している。
+
       worker.completedDepth >= 1
       && ((worker.limits.use_time_management() && (elapsed > tm.maximum() || stopOnPonderhit))
           || (worker.limits.movetime && elapsed >= worker.limits.movetime)
           || (worker.limits.nodes && worker.threads.nodes_searched() >= worker.limits.nodes)))
         worker.threads.stop = worker.threads.abortedSearch = true;
+
 }
 
 // 📌 Tablebase関係の処理。将棋では用いないのでコメントアウト。

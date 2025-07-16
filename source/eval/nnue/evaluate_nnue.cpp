@@ -75,6 +75,8 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
         return std::nullopt;
     }));
 
+	// NNUEのFV_SCALEの値
+    Options.add("FV_SCALE", Option(16, 1, 128));
 }
 #endif
 

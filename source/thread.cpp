@@ -328,14 +328,15 @@ void ThreadPool::start_thinking(const OptionsMap& options,
 	main_thread()->wait_for_search_finished();
 
 	// 📝 increaseDepthはmain_managerに移動させた。
-	//     ここのある初期化のうち、stopとabortedSearch以外は、
-	//     Engine派生classのstart_thinkingで行うべき。
-#if 0
+	//     ここのある初期化のうち、stopとabortedSearch以外は、Worker派生classで処理すべき。
+    // 🌈 SearchManager::pre_start_searching()に移動させた。
+#if STOCKFISH
 	main_manager()->stopOnPonderhit = stop = abortedSearch = false;
 	main_manager()->ponder = limits.ponderMode;
 	increaseDepth = true;
 #else
     stop = abortedSearch = false;
+    main_thread()->worker->pre_start_searching();
 #endif
 
 	Search::RootMoves rootMoves;

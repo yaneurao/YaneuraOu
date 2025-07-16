@@ -206,7 +206,9 @@ struct LimitsType {
 	// goコマンドで"nodes"が指定されていない場合は、"エンジンオプションの"NodesLimit"の値。
 	uint64_t                 nodes;
 
-	// ponderが有効なのか？
+	// "go"コマンドに"ponder"が付随していたかのフラグ。
+	// 💡 ponder探索中であるかのフラグは、別途SearchManager::ponderが持っている。
+	//     そちらは、"stop"か"ponderhit"が来るとfalseになるが、こちらは、変化しない。
 	bool                     ponderMode;
 
 	// -- やねうら王が将棋用に追加したメンバー
@@ -244,8 +246,10 @@ struct InfoFull: InfoShort {
     // "multipv"の値。
     size_t multiPV;
 
+#if STOCKFISH
     // 💡勝率はやねうら王では使わない
-    //std::string_view wdl;
+    std::string_view wdl;
+#endif
 
     // boundを文字列化したもの
     std::string_view bound;
@@ -331,24 +335,22 @@ public:
 
 	Worker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken);
 
-#if 0
 	// Called at instantiation to initialize reductions tables.
     // Reset histories, usually before a new game.
 	// インスタンス化時に呼び出され、リダクションテーブルを初期化する。
     // 通常、新しい対局の前に履歴をリセットする。
-#endif
-    // 📌 やねうら王では、このworkerの初期化は(派生classで)ここに書く。
+
+	// 📌 やねうら王では、このworkerの初期化は(派生classで)ここに書く。
 	// 💡 これは、"usinewgame"に対して呼び出されることが保証されている。(つまり各対局の最初に呼び出される。)
 	//     "usinewgame" ⇨ ThreadPool::resize_threads() ⇨ ThreadPool.clear() ⇨  各Threadに所属するWorker.clear()
     virtual void clear() {}
 
-#if 0
 	// Called when the program receives the UCI 'go' command.
     // It searches from the root position and outputs the "bestmove".
     // プログラムが UCI の 'go' コマンドを受け取ったときに呼び出される。
     // ルート局面から探索を行い、"bestmove" を出力する。
-#endif
-	// 📌 探索の処理を(派生classで)ここに書く。
+
+	// 📌 やねうら王では、探索の処理を(派生classで)ここに書く。
 	// 📝 このメソッドはmain threadから呼び出される。
 	//    そのあと、sub threadの探索を開始するには、このメソッドのなかから
 	//    threads.start_searching()を呼び出す。
@@ -356,14 +358,24 @@ public:
 	//    並列探索の具体例としては、YaneuraOuWorker::start_searching()を見ること。
 	virtual void start_searching(){}
 
+	// 🌈 start_searching()より前にUI threadから呼び出される。
+    /* 📓 start_searching() のなかでmain threadがlimits.ponderを初期化しようにも、
+	       start_searching()が呼び出された時にはUI threadは、次のUSIコマンドを受け取りのUSI loopに
+	       復帰していてstart_searching()内でlimits.ponderを初期化するより前に"ponderhit"を
+	       受信してしまう可能性がある。
+	       よって、start_searching()より前のタイミングで、UI threadからblock呼び出しで
+	       呼び出されるようなevent handlerが必要となり、それが、このpre_start_searching()である。
+	*/
+	virtual void pre_start_searching() {}
+
 	// メインスレッドであるならtrueを返す。
 	bool is_mainthread() const { return threadIdx == 0; }
 
 	// 評価関数パラメーターが各Numaにコピーされるようにする。
 	virtual void ensure_network_replicated() {}
 
-	// 📝 やねうら王では、派生class(YaneuraOuWorker)側で実装する。
-	#if 0
+	// 📝 やねうら王では、以下は、派生class(YaneuraOuWorker)側で実装する。
+#if STOCKFISH
     // Public because they need to be updatable by the stats
     ButterflyHistory mainHistory;
     LowPlyHistory    lowPlyHistory;
@@ -378,7 +390,7 @@ public:
     CorrectionHistory<Continuation> continuationCorrectionHistory;
 
     TTMoveHistory ttMoveHistory;
-	#endif
+#endif
 
 protected:
 
@@ -386,7 +398,7 @@ protected:
 	// ⚠ do_move～undo_null_moveは、派生class側でのみ定義する。
 	//     これを仮想関数にしてしまうと、呼び出しのoverheadが気になる。
 
-#if 0
+#if STOCKFISH
     //void iterative_deepening();
 
 	void do_move(Position& pos, const Move move, StateInfo& st);
@@ -429,7 +441,7 @@ protected:
     std::atomic<uint64_t> nodes /*, tbHits, bestMoveChanges*/;
 
 	// 📝 派生class側で。
-#if 0
+#if STOCKFISH
     int selDepth, nmpMinPly;
 
     Value optimism[COLOR_NB];
@@ -451,7 +463,7 @@ public:
 protected:
 
 	// 📝 派生class側で
-#if 0
+#if STOCKFISH
     // 探索した深さ。
     //Depth rootDepth, completedDepth;
 
@@ -486,9 +498,10 @@ protected:
 	// 📝 派生class側で。
 	// 🤔 エンジン種別ごとに異なる置換表実装を行う余地を残すため、
 	//     やねうら王ではWorker classは置換表を持たせない。
-    //TranspositionTable& tt;
+#if STOCKFISH
+    TranspositionTable& tt;
+#endif
 
-	// 📝 やねうら王では、評価関数はEval::IEvaluatorとして抽象化する。
 #if defined(EVAL_SFNN)
     const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
 
@@ -498,7 +511,9 @@ protected:
 #endif
 
 	friend class YaneuraOu::ThreadPool;
-	//friend class SearchManager;
+#if STOCKFISH
+    friend class SearchManager;
+#endif
 };
 
 // 📌 やねうら王では、SharedStateを用いない。
@@ -506,7 +521,7 @@ protected:
 //     EngineとWorkerと評価関数とを自由に組み合わせられるようにするには、
 //     このStockfishの設計だと難しい。
 
-#if 0
+#if STOCKFISH
 // The UCI stores the uci options, thread pool, and transposition table.
 // This struct is used to easily forward data to the Search::Worker class.
 

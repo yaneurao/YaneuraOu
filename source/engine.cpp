@@ -319,12 +319,6 @@ void Engine::run_heavy_job(std::function<void()> job)
 
 #if 0
 
-// 開始局面
-//constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-// 📌 やねうら王では、StartSFENを type.h で宣言している。
-
-
-
 YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 	//binaryDirectory(path ? CommandLine::get_binary_directory(*path) : ""),
 	numaContext(NumaConfig::from_system()),
@@ -633,7 +627,6 @@ void Engine::save_network(/*const std::pair<std::optional<std::string>, std::str
 		networks_.save(filename);
 		});
 }
-
 
 std::vector<std::pair<size_t, size_t>> Engine::get_bound_thread_count_by_numa_node() const {
 	auto                                   counts = threads.get_bound_thread_count_by_numa_node();

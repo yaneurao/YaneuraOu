@@ -112,7 +112,7 @@ void USIEngine::set_engine(IEngine& _engine)
 	//     また、その時にエンジンオプションを追加する。
 
 #if defined(USE_CLASSIC_EVAL)
-        Eval::add_options(engine.get_options(), engine.get_threads());
+    Eval::add_options(engine.get_options(), engine.get_threads());
 #endif
 
 	// 📝 セットされたEngineに対してlisterを設定する必要がある。

@@ -115,7 +115,7 @@ class SearchManager {
         updates(updateContext) {}
 
 	// 指し手をGUIに返す時刻になったかをチェックする。
-    void check_time(Search::YaneuraOuWorker& worker);
+    void check_time(YaneuraOuWorker& worker);
 
 	// 現在のPV(読み筋)をUpdateContext::onUpdateFull()で登録する。
     // tt      : このスレッドに属する置換表
@@ -125,11 +125,20 @@ class SearchManager {
             const TranspositionTable& tt,
             Depth                     depth);
 
+	// 🌈 start_searching()より前にUI threadから
+	//		Worker::pre_start_searching()が呼び出され、virtualなので派生classの
+	//      YaneuraOuWorker::pre_start_searching()が呼び出され、そこから委譲される。
+	//     ponderフラグなどの初期化はここで行う。
+	void pre_start_searching(YaneuraOuWorker& worker);
+
     // 持ち時間管理
     TimeManagement            tm;
 
 	double                    originalTimeAdjust;
     int                       callsCnt;
+
+	// "go ponder"実行中であるかのフラグ
+	// "stop"か"ponderhit"が来るとfalseになる。
     std::atomic_bool          ponder;
 
     std::array<Value, 4> iterValue;
@@ -140,6 +149,9 @@ class SearchManager {
 
     Value                bestPreviousScore;
     Value                bestPreviousAverageScore;
+
+	// ("go ponder"で思考を開始していて)次に"ponderhit"を受信したら
+	// 探索を即座に終了させていいところまで探索が進んでいるフラグ。
     bool                 stopOnPonderhit;
 
     size_t id;
@@ -400,25 +412,34 @@ class YaneuraOuWorker: public Worker {
     // 💡 reductionとは、LMRで残り探索深さを減らすこと。
     std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
 
+#if STOCKFISH
     // The main thread has a SearchManager, the others have a NullSearchManager
     // メインスレッドは SearchManager を持ち、他のスレッドは NullSearchManager を持つ。
-    // 💡 やねうら王では、NullObject patternをやめて、単に参照で持つ。
+    std::unique_ptr<ISearchManager> manager;
+
+    // 📝 tablebaseは将棋では使わない。
+    Tablebases::Config tbConfig;
+
+    const OptionsMap&                               options;
+    ThreadPool&                                     threads;
+    TranspositionTable&                             tt;
+#else
+	// 💡 やねうら王では、SearchManagerは、NullObject patternをやめて、単に参照で持つ。
     // 🤔 Stockfishも、main threadからしか呼び出さないのだから、これでいいと思うのだが…。
     SearchManager& manager;
 
-	// 📝 tablebaseは将棋では使わない。
-    //Tablebases::Config tbConfig;
-
-    //const OptionsMap&                               options;
-    //ThreadPool&                                     threads;
+	// start_searching()より前にUI threadから呼び出される。
+    // 📝 より詳しい説明は、Worker::pre_start_searching()のコメントを読むこと。
+    virtual void pre_start_searching() override;
 
 	// 置換表
 	// 📝 やねうら王ではコンストラクタで受け取っている。
     TranspositionTable&                             tt;
+#endif
 
 	// NNUEの評価関数の計算用
 
-#if defined(EVAL_SFNN)
+#if STOCKFISH || defined(EVAL_SFNN)
 	// NNUE評価関数のパラメーターがNumaごとにコピーされるようにする。
 	const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
 
@@ -431,9 +452,18 @@ class YaneuraOuWorker: public Worker {
     Eval::NNUE::AccumulatorCaches refreshTable;
 #endif
 
-    // 🌈 以下、やねうら王独自追加 🌈
+#if STOCKFISH
+    // 📝 こちらは、StockfishではThreadPool::get_best_thread()の実装のために必要。
+    //     やねうら王では、YaneuraOuWorkerでget_best_thread()を実装しているのでこのfriendは不要。
+    friend class Stockfish::ThreadPool;
+#else
+	// 🌈 以下、やねうら王独自追加 🌈
 
-    // WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
+    // 並列探索において一番良い思考をしたthreadの選出。
+    // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
+    YaneuraOuWorker* get_best_thread() const;
+
+	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
     // 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。
     YaneuraOuWorker* toYaneuraOuWorker(std::unique_ptr<Worker>& worker) {
         //return dynamic_cast<YaneuraOuWorker*>(worker.get());
@@ -443,19 +473,12 @@ class YaneuraOuWorker: public Worker {
         return static_cast<YaneuraOuWorker*>(worker.get());
     }
 
-    // 並列探索において一番良い思考をしたthreadの選出。
-    // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
-    YaneuraOuWorker* get_best_thread() const;
-
     // Engine本体
 	// 📝 コンストラクタで受け取ったもの。
     YaneuraOuEngine& engine;
+#endif
 
-	// 📝 こちらは、StockfishではThreadPool::get_best_thread()の実装のために必要。
-	//     やねうら王では、YaneuraOuWorkerでget_best_thread()を実装しているのでこのfriendは不要。
-    //friend class Stockfish::ThreadPool;
-
-    friend class SearchManager;
+	friend class SearchManager;
 };
 
 // ContinuationHistoryに対するbonusの係数

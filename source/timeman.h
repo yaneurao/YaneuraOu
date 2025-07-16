@@ -41,11 +41,12 @@ public:
 	// "go"からの経過時間を返す。
     template<typename FUNC>
     TimePoint elapsed(FUNC nodes) const {
-#if 0
+#if STOCKFISH
 		return useNodesTime ? TimePoint(nodes()) : elapsed_time();
-#endif
+#else
         // 📝 やねうら王ではNodesTimeを使わないのでelapsed()はそのままelapsed_Time()に委譲しておく。
         return elapsed_time();
+#endif
     }
 
     // startTimeからの経過時間。
