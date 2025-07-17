@@ -499,9 +499,11 @@ Search::LimitsType USIEngine::parse_limits(std::istream& is) {
 #else
         else if (token == "mate")
         {
+            token.clear();
             is >> token;
 			// 💡 USIでは"infinite"が指定されることがある。
-            if (token == "infinite")
+			//     あるいは何も書かれていなければ"infinite"扱い。
+            if (token == "infinite" || token == "")
                 limits.mate = INT32_MAX;
             else
                 // 📝 USIプロトコルでは、UCIと異なり、ここは手数ではなく、

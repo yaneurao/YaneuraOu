@@ -36,7 +36,7 @@ class YaneuraOuMateWorker: public Worker {
     // このworker(探索用の1つのスレッド)の初期化
     // 📝 これは、"usinewgame"のタイミングで、すべての探索スレッド(エンジンオプションの"Threads"で決まる)に対して呼び出される。
     virtual void clear() override {}
-
+	
     // Workerによる探索の開始
     // 📝　メインスレッドに対して呼び出される。
     //     そのあと非メインスレッドに対してstart_searching()を呼び出すのは、threads.start_searching()を呼び出すと良い。
@@ -47,6 +47,15 @@ class YaneuraOuMateWorker: public Worker {
 
         // 探索ノード数制限
         u64 nodes_limit = options["NodesLimit"];
+
+		// 探索深さ制限
+        int depth_limit = int(options["DepthLimit"]);
+        if (depth_limit == 0)
+			// 探索深さの制限なし。
+            solver.set_max_game_ply(0);
+        else
+			// 探索深さは現在のgame_ply + DepthLimit - 1の値
+			solver.set_max_game_ply(rootPos.game_ply() + depth_limit - 1);
 
         // 詰将棋の探索用スレッド
         auto thread = std::thread([&]() { move = solver.mate_dfpn(rootPos, nodes_limit); });
@@ -160,6 +169,12 @@ class YaneuraOuMateEngine: public Engine {
         options.add("PvInterval", Option(1000, 0, 100000));
 
         options.add("SolverType", Option(solver_list, solver_list[0]));
+
+		// 詰みの手数制限。0を指定すると手数制限なし。
+		// 💡 UCIだと"go mate [手数]"だが、USIでは"go mate [秒数]"なので
+		//    手数は別途オプションを設定しないといけない。
+        //options.add("DepthLimit", Option(0, 0, 100000));
+		// 📝 Engine classですでに追加されている。
 
         // 探索ノード制限。0なら無制限。
         //options.add("NodesLimit", Option(0, 0, INT64_MAX));

@@ -561,9 +561,6 @@ namespace {
 		limits.nodes = 0;
 		limits.mate = 100000; // 100秒
 
-		// Optionsの影響を受けると嫌なので、その他の条件を固定しておく。
-		global_options.enteringKingRule = EKR_NONE;
-
 		// 評価関数の読み込み等
 		engine.isready();
 

@@ -97,7 +97,7 @@ void SearchOptions::add_options(OptionsMap& options) {
 
     // 入玉ルール
     options.add("EnteringKingRule",
-                Option(ERK_RULE_STRINGS, ERK_RULE_STRINGS[EKR_27_POINT], [&](const Option& o) {
+                Option(EKR_STRINGS, EKR_STRINGS[EKR_27_POINT], [&](const Option& o) {
                     enteringKingRule = to_entering_king_rule(o);
                     return std::nullopt;
                 }));

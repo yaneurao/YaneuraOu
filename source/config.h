@@ -596,13 +596,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_GLOBAL_OPTIONS
 #endif
 
-// パラメーター自動調整を行う時は、結果をファイルに書き出す必要があるので
-// USIの"gameover"に対してそれに対して応答するハンドラを設定してやる必要がある。
-
-#if defined(TUNING_SEARCH_PARAMETERS) && !defined(USE_GAMEOVER_HANDLER)
-	#define USE_GAMEOVER_HANDLER
-#endif
-
 // --------------------
 //      configure
 // --------------------
