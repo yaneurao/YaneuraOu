@@ -315,7 +315,7 @@ namespace {
 		u64 nodes_searched;
 
 		auto bench = [&](function<Move()> solver, string test_name) {
-			Timer timer;
+			ElapsedTimer timer;
 			timer.reset();
 
 			cout << "===== " << test_name << " =====" << endl
@@ -470,7 +470,7 @@ namespace {
 
 		dfpn.alloc(mem);
 
-		Timer time;
+		ElapsedTimer time;
 		cout << "start mate." << endl;
 		time.reset();
 		Move m = dfpn.mate_dfpn(pos, (u32)nodes);
@@ -579,7 +579,7 @@ namespace {
 		int64_t nodes_main = 0;
 
 		// ベンチの計測用タイマー
-		Timer time;
+		ElapsedTimer time;
 
 		for (const char* sfen : TestMateEngineSfen) {
 			Position pos;

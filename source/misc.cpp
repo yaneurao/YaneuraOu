@@ -612,21 +612,24 @@ void prefetch([[maybe_unused]] const void* addr) {
 // 📌 ここ以下は、やねうら王の独自追加 📌
 
 // --------------------
-//  Timer
+//   ElapsedTimer
 // --------------------
 
-void Timer::reset() { startTime = startTimeFromPonderhit = now(); }
-void Timer::reset_for_ponderhit() { startTimeFromPonderhit = now(); }
-TimePoint Timer::elapsed() const { return TimePoint(now() - startTime); }
-TimePoint Timer::elapsed_from_ponderhit() const { return TimePoint(now() - startTimeFromPonderhit); }
-TimePoint Timer::now() const { return YaneuraOu::now(); }
-// 📝 npmsec、思考時間を秒単位に切り上げ処理をしているのと相性が悪いので、やねうら王では採用しないことにした。
+ElapsedTimer::ElapsedTimer() :
+    startTime(0) {}
+ElapsedTimer::ElapsedTimer(TimePoint s) :
+    startTime(s) {}
+
+void ElapsedTimer::reset() { reset(now()); }
+void ElapsedTimer::reset(TimePoint s) { startTime = s; }
+
+TimePoint ElapsedTimer::elapsed() const { return TimePoint(now() - startTime); }
 
 // --------------------
 //  ツール類
 // --------------------
-namespace Tools
-{
+namespace Tools {
+
 	// memclear
 
 	// 進捗を表示しながら並列化してゼロクリア

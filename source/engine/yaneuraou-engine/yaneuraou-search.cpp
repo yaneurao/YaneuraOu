@@ -39,7 +39,7 @@ using namespace Search;
 // 🌈 やねうら王独自追加
 // -------------------
 
-void Search::SearchManager::pre_start_searching(YaneuraOuWorker& worker) {
+void SearchManager::pre_start_searching(YaneuraOuWorker& worker) {
     // 🤔 StockfishのThreadPool::start_thinking()にあった以下の初期化をこちらに移動させた。
 
     stopOnPonderhit /* = stop = abortedSearch */ = false;
@@ -183,6 +183,18 @@ void YaneuraOuEngine::isready() {
 #endif
 }
 
+// 🌈 "ponderhit"に対する処理。
+void YaneuraOuEngine::set_ponderhit(bool b) {
+
+	// 📝 ponderhitしたので、やねうら王では、
+    //     現在時刻をtimer classに保存しておく必要がある。
+	// 💡 ponderフラグを変更する前にこちらを先に実行しないと
+	//     ponderフラグを見てponderhitTimeを参照して間違った計算をしてしまう。
+    manager.tm.ponderhitTime = now();
+
+	manager.ponder           = b;
+}
+
 // スレッド数を反映させる関数
 void YaneuraOuEngine::resize_threads() {
     // 💡 Engine::resize_threads()を参考に書く。
@@ -218,6 +230,7 @@ void YaneuraOuEngine::set_tt_size(size_t mb){
 	wait_for_search_finished();
 	tt.resize(mb, threads);
 }
+
 
 // 並列探索において一番良い思考をしたthreadの選出。
 // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
@@ -296,13 +309,15 @@ YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
 }
 
 // -----------------------------------------------------------
-// 📌 ここからStockfishのsearch.cppを参考にしながら書く。 📌
+// 📌 ここ以降はStockfishのsearch.cppを参考にしながら書く。 📌
 // -----------------------------------------------------------
 
-//namespace YaneuraOu /*Stockfish*/ {
 
-// 💡 将棋では、Tablebasesは用いないのでコメントアウト。
 #if STOCKFISH
+namespace Stockfish {
+// 💡 このファイルの冒頭でnamespace YaneuraOu { と書いているのでコメントアウト。
+
+// 将棋では、Tablebasesは用いない。
 namespace TB = Tablebases;
 
 void syzygy_extend_pv(const OptionsMap& options,
@@ -310,10 +325,10 @@ void syzygy_extend_pv(const OptionsMap& options,
 	Stockfish::Position& pos,
 	Stockfish::Search::RootMove& rootMove,
 	Value& v);
-#endif
 
-//using namespace Search;
+using namespace Search;
 // 💡 冒頭で書いたのでコメントアウト。
+#endif
 
 namespace {
 
@@ -327,7 +342,7 @@ using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
 
 // TODO : correction historyについては、のちほど導入を検討する。
-    #if 0
+#if 0
 // (*Scalers):
 // The values with Scaler asterisks have proven non-linear scaling.
 // They are optimized to time controls of 180 + 1.8 and longer,
@@ -376,7 +391,7 @@ using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 			<< bonus * 141 / 128;
 	}
 }
-    #endif
+#endif
 
 // Add a small random component to draw evaluations to avoid 3-fold blindness
 // 3回同一局面になる盲点（3-fold blindness）を回避するため、評価を引き分け方向に誘導する小さなランダム成分を追加する
@@ -489,8 +504,12 @@ void Search::YaneuraOuWorker::start_searching() {
     //     再計算するする必要性があるので、いずれにせよ呼び出しておく必要がある。
     // 💡 やねうら王では、originalTimeAdjustは用いない。
 
+#if STOCKFISH
     main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options
-                            /*  , main_manager()->originalTimeAdjust */);
+                            , main_manager()->originalTimeAdjust);
+#else
+    main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options);
+#endif
 
     // 📌 置換表のTTEntryの世代を進める。
     // 📝 sub threadが動く前であるこのタイミングで置換表の世代を進めるべきである。
@@ -681,10 +700,12 @@ void Search::YaneuraOuWorker::start_searching() {
     //     まだthreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
     //     USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
     //     それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
-    //     "stop"が送られてきたらThreads.stop == trueになる。
-    //     "ponderhit"が送られてきたらThreads.ponder == falseになるので、それを待つ。(stopOnPonderhitは用いない)
-    //      "go infinite"に対してはstopが送られてくるまで待つ。
-    //      ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
+	//     
+	//     1. "stop"が送られてきたらThreads.stop == trueになる。
+    //     2. "ponderhit"が送られてきたらThreads.ponder == falseになる
+	//       ので、それを待つ。
+	// 
+    //     ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
     //     やねうら王のほうは、かなり早くからこの構造で書いていた。後にStockfishがこの書き方に追随した。
 
     while (!threads.stop && (main_manager()->ponder || limits.infinite))
@@ -793,6 +814,12 @@ SKIP_SEARCH:;
 	// 新しいベストスレッドがあれば、再度PV情報を送信する
     if (bestThread != this)
         main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
+#else
+	// デバッグ用に、経過時間を出力してみる。
+    auto& tm = main_manager()->tm;
+    sync_cout << "info string elapsed time           = " << tm.elapsed_time() << "\n"
+              << "info string elapsed_from_ponderhit = " << now() - tm.ponderhitTime << sync_endl;
+
 #endif
 
     std::string ponder;
@@ -923,10 +950,6 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     // ---------------------
     //   反復深化のループ
     // ---------------------
-
-    // PV出力用のtimer
-    // 🌈 やねうら王独自
-    Timer time(limits.startTime);
 
     // 反復深化の探索深さが深くなって行っているかのチェック用のカウンター
     // これが増えていない時、同じ深さを再度探索していることになる。(fail highし続けている)
@@ -1151,7 +1174,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
                   // 🌈 以下やねうら王独自拡張
                   && (rootDepth < 3
-                      || mainThread->lastPvInfoTime + global_options.pv_interval <= time.elapsed())
+                      || mainThread->lastPvInfoTime + global_options.pv_interval <= mainThread->tm.elapsed_time())
                   // outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
                   && global_options.outout_fail_lh_pv
 
@@ -1308,12 +1331,14 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
         // Do we have time for the next iteration? Can we stop searching now?
         // 次の反復を行う時間はあるか？今すぐ探索を止められるか？
+#if STOCKFISH
         if (limits.use_time_management() && !threads.stop && !mainThread->stopOnPonderhit)
+#else
+		// 📝 やねうら王の場合、search_endが設定されている時はもう終了が確定しているので
+		//     この終了チェックを行うのは無駄である。
+        if (limits.use_time_management() && !threads.stop && !mainThread->stopOnPonderhit && !mainThread->tm.search_end)
+#endif
         {
-            // ⚠ やねうら王では、このへん仕組みが異なる。
-            //         Time.search_endまで持ち時間を使い切りたい。
-            //         !Threads.stop && Time.search_end == 0
-
             uint64_t nodesEffort =
               rootMoves[0].effort * 100000 / std::max(size_t(1), size_t(nodes));
 
@@ -1341,18 +1366,30 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
 			if (rootMoves.size() == 1)
                 totalTime = std::min(500.0, totalTime);
-				// TODO : やねうら王ではここ0で良いような？
+				// TODO : やねうら王ではここ0でも良いような…？
 
-			// 📝 やねうら王では、Timer classのほうから経過時間をもらう。
-            auto elapsedTime = time.elapsed();
+#if STOCKFISH
+            auto elapsedTime = elapsed();
+#else
+            // 📝 やねうら王では、MainManagerのTimer classのほうから経過時間をもらう。
+            auto elapsedTime = mainThread->tm.elapsed_time();
+#endif
 
-            if (completedDepth >= 10 && nodesEffort >= 97056 && elapsedTime > totalTime * 0.6540
-                && !mainThread->ponder)
+            // ⚠ やねうら王では、このへん仕組みが異なる。
+			//     秒単位で切り上げたいので、tm.search_endまで
+            //     持ち時間を使い切りたい。
+
+			if (completedDepth >= 10 && nodesEffort >= 97056 && elapsedTime > totalTime * 0.6540 && !mainThread->ponder)
+#if STOCKFISH
                 threads.stop = true;
+#else
+                mainThread->tm.set_search_end(elapsedTime);
+#endif
 
             // Stop the search if we have exceeded the totalTime or maximum
-			// totalTime または maximum を超えた場合、探索を停止する
+            // totalTime または maximum を超えた場合、探索を停止する
 
+#if STOCKFISH
 			if (elapsedTime > std::min(totalTime, double(mainThread->tm.maximum())))
             {
                 // 停止条件を満たした
@@ -1364,26 +1401,25 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 				// If we are allowed to ponder do not stop the search now but
                 // keep pondering until the GUI sends "ponderhit" or "stop".
 
-#if STOCKFISH
 				if (mainThread->ponder)
                     mainThread->stopOnPonderhit = true;
                 else
                     threads.stop = true;
-#else
 
-				auto& tm = mainThread->tm;
-                if (mainThread->ponder)
-					// ponder中なら、終了時刻はponderhit後から計算して、Time.minimum()。
-					tm.search_end = tm.minimum();
-                else
-                    tm.search_end = std::max(tm.round_up(time.elapsed_from_ponderhit()), tm.minimum());
-#endif
-            }
+			}
             else
-
-#if STOCKFISH
                 threads.increaseDepth = mainThread->ponder || elapsedTime <= totalTime * 0.5138;
+
 #else
+			if (elapsedTime > std::min(totalTime, double(mainThread->tm.maximum())))
+			{
+                if (mainThread->ponder)
+                    mainThread->stopOnPonderhit = true;
+                else
+					// 停止条件を満たしてはいるのだが、秒の切り上げは行う。
+                    mainThread->tm.set_search_end(elapsedTime);
+			}
+			else
                 main_manager()->increaseDepth =
                   mainThread->ponder || elapsedTime <= totalTime * 0.5138;
 #endif
@@ -1405,7 +1441,6 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                              skill.best ? skill.best : skill.pick_best(rootMoves, multiPV)));
 }
 
-
 void YaneuraOuWorker::do_move(Position& pos, const Move move, StateInfo& st) {
     do_move(pos, move, st, pos.gives_check(move));
 }
@@ -1415,7 +1450,7 @@ void YaneuraOuWorker::do_move(Position&  pos,
                               StateInfo& st,
                               const bool givesCheck) {
 
-#if defined(USE_ACCUMULATOR_STACK)
+#if defined(EVAL_SFNN)
 
     // accumulatorStackを用いる実装。
 
@@ -1440,7 +1475,7 @@ void YaneuraOuWorker::do_null_move(Position& pos, StateInfo& st) {
 void YaneuraOuWorker::undo_move(Position& pos, const Move move) {
     pos.undo_move(move);
 
-#if defined(USE_ACCUMULATOR_STACK)
+#if defined(EVAL_SFNN)
     //accumulatorStack.pop();
 #endif
 }
@@ -1508,7 +1543,9 @@ void YaneuraOuWorker::clear() {
 
     main_manager()->callsCnt           = 0;
     main_manager()->bestPreviousScore  = VALUE_INFINITE;
+#if STOCKFISH
     main_manager()->originalTimeAdjust = -1;
+#endif
     main_manager()->tm.clear();
 }
 
@@ -4657,7 +4694,7 @@ void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
         return;
 
     // When using nodes, ensure checking rate is not lower than 0.1% of nodes
-	// ノード数を基準にする場合、チェック頻度がノード数の0.1%未満にならないようにする
+    // ノード数を基準にする場合、チェック頻度がノード数の0.1%未満にならないようにする
 
     callsCnt = worker.limits.nodes ? std::min(512, int(worker.limits.nodes / 1024)) : 512;
 
@@ -4674,26 +4711,67 @@ void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
 
     // We should not stop pondering until told so by the GUI
     // GUIから指示があるまで、ポンダリングを停止すべきではない
-	// 💡 ponderフラグが立っていたら、"go ponder"の最中なので
-	//     "stop"か"ponderhit"が来るまでは停止する必要がない。
+    // 💡 ponderフラグが立っていたら、"go ponder"の最中なので
+    //     "stop"か"ponderhit"が来るまでは停止する必要がない。
 
     if (ponder)
         return;
 
-    if (
-      // Later we rely on the fact that we can at least use the mainthread previous
-      // root-search score and PV in a multithreaded environment to prove mated-in scores.
+	if (
+    // Later we rely on the fact that we can at least use the mainthread previous
+    // root-search score and PV in a multithreaded environment to prove mated-in scores.
 
-	  // 後で、少なくともメインスレッドの直前の
-      // ルート探索のスコアとPVをマルチスレッド環境で利用して、
-      // 詰みのスコアを証明できるという事実に依存している。
+    // 後で、少なくともメインスレッドの直前の
+    // ルート探索のスコアとPVをマルチスレッド環境で利用して、
+    // 詰みのスコアを証明できるという事実に依存している。
 
+    /*
+				📓 time managementを行う時に、
+
+					1. 今回使える最大時間(tm.maximum())を超過
+					2. stopOnPonderhitがtrue
+					3. movetimeを超過
+					4. nodesが指定されていてそれを超過
+					5. 🌈 終了時刻(tm.search_end)がTimeManagementによって設定されていてそれを超過
+
+					しているなら探索を即座に停止させる。
+
+				やねうら王の場合、3,4,5 は即座に停止させていいと思う。
+				1. は、ponderhitしている場合、"go"からtm.maximum()を超過しているならば思考終了させて良いが、
+				   そのとき、秒ぎりぎりまで思考したほうが得。(つまり、即座に停止させるのは少し損。)
+				2.のケースも、秒ぎりぎりまでは思考したほうが得。
+
+				🤔 ponderhitした時刻から計算して、秒単位で切り上げた時刻まで思考させたい。
+			*/
+
+#if STOCKFISH
       worker.completedDepth >= 1
-      && ((worker.limits.use_time_management() && (elapsed > tm.maximum() || stopOnPonderhit))
-          || (worker.limits.movetime && elapsed >= worker.limits.movetime)
+      && ((worker.limits.use_time_management() && (elapsed > tm.maximum() || stopOnPonderhit)) || (worker.limits.movetime && elapsed >= worker.limits.movetime)
           || (worker.limits.nodes && worker.threads.nodes_searched() >= worker.limits.nodes)))
         worker.threads.stop = worker.threads.abortedSearch = true;
+#else
+      worker.completedDepth >= 1)
+    {
+        if (
+          // 3.
+          (worker.limits.movetime && elapsed >= worker.limits.movetime)
+          // 4.
+          || (worker.limits.nodes && worker.threads.nodes_searched() >= worker.limits.nodes)
+          // 5.
+          || (tm.search_end && tm.search_end <= elapsed))
 
+            worker.threads.stop = worker.threads.abortedSearch = true;
+
+        else if (!tm.search_end && worker.limits.use_time_management() &&
+				 // 1.
+				 (elapsed > tm.maximum()
+				 // 2
+				  || stopOnPonderhit))
+            tm.set_search_end(elapsed);
+    }
+
+
+#endif
 }
 
 // 📌 Tablebase関係の処理。将棋では用いないのでコメントアウト。

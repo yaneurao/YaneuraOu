@@ -51,7 +51,7 @@ class YaneuraOuMateWorker: public Worker {
         // 詰将棋の探索用スレッド
         auto thread = std::thread([&]() { move = solver.mate_dfpn(rootPos, nodes_limit); });
 
-        Timer time;
+        ElapsedTimer time;
         time.reset();                                    // 探索開始からの経過時間を記録しておく。
         TimePoint lastPvOutput = 0;                      // 前回のPV出力時刻
         TimePoint pvInterval   = options["PvInterval"];  // PV出力間隔

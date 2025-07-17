@@ -148,76 +148,83 @@ using RootMoves = std::vector<RootMove>;
 // "ponder"のフラグはここに含まれず、Threads.ponderにあるので注意。
 struct LimitsType {
 
-	// Init explicitly due to broken value-initialization of non POD in MSVC
-	// PODでない型をmemsetでゼロクリアすると破壊してしまうので明示的に初期化する。
-	LimitsType() {
+    // Init explicitly due to broken value-initialization of non POD in MSVC
+    // PODでない型をmemsetでゼロクリアすると破壊してしまうので明示的に初期化する。
+    LimitsType() {
 
-		time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] /* = npmsec */ = movetime = TimePoint(0);
-		/* movestogo =*/ depth = mate = perft = infinite = 0;
-		nodes                                            = 0;
-		ponderMode                                       = false;
+        time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] /* = npmsec */ = movetime = TimePoint(0);
+        /* movestogo =*/depth = mate = perft = infinite = 0;
+        nodes                                           = 0;
+        ponderMode                                      = false;
 
-		// --- やねうら王で、将棋用に追加したメンバーの初期化。
+        // --- やねうら王で、将棋用に追加したメンバーの初期化。
 
-		byoyomi[WHITE] = byoyomi[BLACK] = TimePoint(0);
-		rtime = 0;
-	}
+        byoyomi[WHITE] = byoyomi[BLACK] = TimePoint(0);
+        rtime                           = 0;
+    }
 
-	// 時間制御を行うのか。
-	// 詰み専用探索、思考時間0、探索深さが指定されている、探索ノードが指定されている、思考時間無制限
-	// であるときは、時間制御に意味がないのでやらない。
-	bool use_time_management() const {
-		//return time[WHITE] || time[BLACK];
-		// →　将棋だと秒読みの処理があるので両方のtime[c]が0であっても持ち時間制御が不要とは言えない。
-		return !(mate | movetime | depth | nodes | perft | infinite);
-	}
+    // 時間制御を行うのか。
+    // 詰み専用探索、思考時間0、探索深さが指定されている、探索ノードが指定されている、思考時間無制限
+    // であるときは、時間制御に意味がないのでやらない。
+    bool use_time_management() const {
+        //return time[WHITE] || time[BLACK];
+        // →　将棋だと秒読みの処理があるので両方のtime[c]が0であっても持ち時間制御が不要とは言えない。
+        return !(mate | movetime | depth | nodes | perft | infinite);
+    }
 
-	// root(探索開始局面)で、探索する指し手集合。特定の指し手を除外したいときにここから省く
-	std::vector<std::string> searchmoves;
+    // root(探索開始局面)で、探索する指し手集合。特定の指し手を除外したいときにここから省く
+    std::vector<std::string> searchmoves;
 
-	// time[]    : 残り時間(ms換算で)
-	// inc[]     : 1手ごとに増加する時間(フィッシャールール)
-	// npmsec    : 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
-	// 　　→　将棋と相性がよくないのでこの機能をサポートしないことにする。
-	// movetime  : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
-	// startTime : 探索開始時刻。"go"コマンドを受け取った時のnow()。なるべく早くに格納しておき、時差をなくす。
-	//             💡 この時刻は、USIEngineの"go"のhandlerで設定される。
-    // startTimeFromPonderhit
-	//           : 📌 やねうら王独自追加。
-	//             ponderhitからの経過時間。
-	//             TimeManagement::reset()かreset_for_ponderhit()が呼び出された時刻。
-    TimePoint time[COLOR_NB], inc[COLOR_NB] /*, npmsec*/, movetime, startTime, startTimeFromPonderhit;
+    // time[]    : 残り時間(ms換算で)
+    // inc[]     : 1手ごとに増加する時間(フィッシャールール)
+    // npmsec    : 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
+    // 　　→　将棋と相性がよくないのでこの機能をサポートしないことにする。
+    // movetime  : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
+    // startTime : 探索開始時刻。"go"コマンドを受け取った時のnow()。なるべく早くに格納しておき、時差をなくす。
+    //             💡 この時刻は、USIEngineの"go"のhandlerで設定される。
+#if STOCKFISH
+    TimePoint time[COLOR_NB], inc[COLOR_NB], npmsec, movetime, startTime;
+#else
+    TimePoint time[COLOR_NB], inc[COLOR_NB] /*, npmsec*/, movetime, startTime;
+#endif
 
-	// movestogo: あと何手で引き分けとなるか。
-	//			📌 USIプロトコルではサポートしない。エンジンオプションで設定すべき。
-	// depth    : 探索深さ固定(0以外を指定してあるなら)
-	// mate     : 詰み専用探索(USIの'go mate'コマンドを使ったとき)
-	//		詰み探索モードのときは、ここに詰みの手数が指定されている。
-	//		その手数以内の詰みが見つかったら探索を終了する。
-	//		※　Stockfishの場合、この変数は先後分として将棋の場合の半分の手数が格納されているので注意。
-	//		USIプロトコルでは、この値に詰将棋探索に使う時間[ms]を指定することになっている。
-	//		時間制限なしであれば、INT32_MAXが入っている。
-	// perft    : perft(performance test)中であるかのフラグ。非0なら、perft時の深さが入る。
-	// infinite : 思考時間無制限かどうかのフラグ。非0なら無制限。
-	int                      /* movestogo,*/ depth, mate, perft, infinite;
+    // movestogo: あと何手で引き分けとなるか。
+    //			📌 USIプロトコルではサポートしない。エンジンオプションで設定すべき。
+    // depth    : 探索深さ固定(0以外を指定してあるなら)
+    // mate     : 詰み専用探索(USIの'go mate'コマンドを使ったとき)
+    //		詰み探索モードのときは、ここに詰みの手数が指定されている。
+    //		その手数以内の詰みが見つかったら探索を終了する。
+    //		※　Stockfishの場合、この変数は先後分として将棋の場合の半分の手数が格納されているので注意。
+    //		USIプロトコルでは、この値に詰将棋探索に使う時間[ms]を指定することになっている。
+    //		時間制限なしであれば、INT32_MAXが入っている。
+    // perft    : perft(performance test)中であるかのフラグ。非0なら、perft時の深さが入る。
+    // infinite : 思考時間無制限かどうかのフラグ。非0なら無制限。
+#if STOCKFISH
+    int movestogo, depth, mate, perft, infinite;
+#else
+    int /* movestogo,*/ depth, mate, perft, infinite;
+#endif
 
-	// 今回のgoコマンドでの指定されていた"nodes"(探索ノード数)の値。
-	// これは、USIプロトコルで規定されているものの将棋所では送ってこない。ShogiGUIはたぶん送ってくる。
-	// goコマンドで"nodes"が指定されていない場合は、"エンジンオプションの"NodesLimit"の値。
-	uint64_t                 nodes;
+    // 今回のgoコマンドでの指定されていた"nodes"(探索ノード数)の値。
+    // これは、USIプロトコルで規定されているものの将棋所では送ってこない。ShogiGUIはたぶん送ってくる。
+    // goコマンドで"nodes"が指定されていない場合は、"エンジンオプションの"NodesLimit"の値。
+    uint64_t nodes;
 
-	// "go"コマンドに"ponder"が付随していたかのフラグ。
-	// 💡 ponder探索中であるかのフラグは、別途SearchManager::ponderが持っている。
-	//     そちらは、"stop"か"ponderhit"が来るとfalseになるが、こちらは、変化しない。
-	bool                     ponderMode;
+    // "go"コマンドに"ponder"が付随していたかのフラグ。
+    // 💡 ponder探索中であるかのフラグは、別途SearchManager::ponderが持っている。
+    //     そちらは、"stop"か"ponderhit"が来るとfalseになるが、こちらは、変化しない。
+    bool ponderMode;
 
-	// -- やねうら王が将棋用に追加したメンバー
+#if STOCKFISH
+#else
+    // 🌈 やねうら王が将棋用に追加したメンバー
 
-	// 秒読み(ms換算で)
-	TimePoint byoyomi[COLOR_NB];
+    // 秒読み(ms換算で)
+    TimePoint byoyomi[COLOR_NB];
 
-	// "go rtime 100"とすると100～300msぐらい考える。
-	TimePoint rtime;
+    // "go rtime 100"とすると100～300msぐらい考える。
+    TimePoint rtime;
+#endif
 };
 
 /*

@@ -91,18 +91,45 @@ void dbg_print();
 //  Time[ms] wrapper
 // --------------------
 
+#if STOCKFISH
 // ms単位での時間計測しか必要ないのでこれをTimePoint型のように扱う。
 // TimePointの定義。💡 やねうら王では、types.hに移動。
 //using TimePoint = std::chrono::milliseconds::rep;  // A value in milliseconds
 //static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
+#endif
+
 
 // ms単位で現在時刻を返す
 static TimePoint now() {
-	return std::chrono::duration_cast<std::chrono::milliseconds>
-		(std::chrono::steady_clock::now().time_since_epoch()).count();
-		//(std::chrono::steady_clock::now().time_since_epoch()).count() * 10;
-		// 💡 10倍早く時間が経過するようにして、持ち時間制御のテストなどを行う時は↑このように10をかけ算する。
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    //(std::chrono::steady_clock::now().time_since_epoch()).count() * 10;
+    // 💡 10倍早く時間が経過するようにして、持ち時間制御のテストなどを行う時は↑このように10をかけ算する。
 }
+
+#if STOCKFISH
+
+#else
+// 🌈 時間計測用。経過時間を計測する。
+struct ElapsedTimer {
+    ElapsedTimer();
+
+    // startTimeを引数sで初期化する。
+    ElapsedTimer(TimePoint s);
+
+    // タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
+    void reset();
+    // TimePointを指定して初期化する。この時刻からの経過時間が求められるようになる。
+    void reset(TimePoint s);
+
+    // resetしてからの経過時間。
+    TimePoint elapsed() const;
+
+   private:
+    // reset()された時刻。
+    TimePoint startTime;
+};
+
+#endif
 
 // --------------------
 //  sync_out/sync_endl
@@ -384,54 +411,8 @@ void move_to_front(std::vector<T>& vec, Predicate pred) {
     #define sf_assume(cond)
 #endif
 
-// ========================================
-// 📌 ここ以下は、やねうら王の独自追加 📌
-// ========================================
-
-// -----------------------
-//  探索のときに使う時間管理用
-// -----------------------
-
-// 📌 時間計測用
-struct Timer
-{
-    Timer() {}
-
-	// startTimeを引数sで初期化する。
-    Timer(TimePoint s) : startTime(s) {}
-
-	// タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
-	void reset();
-
-	// "ponderhit"からの時刻を計測する用
-	// "ponderhit"のタイミングでこの関数を呼び出す。
-	void reset_for_ponderhit();
-
-	// 探索開始からの経過時間。
-	TimePoint elapsed() const;
-
-	// reset_for_ponderhit()からの経過時間。その関数は"ponderhit"したときに呼び出される。
-	// reset_for_ponderhit()が呼び出されていないときは、reset()からの経過時間。その関数は"go"コマンドでの探索開始時に呼び出される。
-	TimePoint elapsed_from_ponderhit() const;
-
-	// reset()されてからreset_for_ponderhit()までの時間
-	TimePoint elapsed_from_start_to_ponderhit() const { return (TimePoint)(startTimeFromPonderhit - startTime); }
-
-	// 現在時刻が返る。
-	TimePoint now() const;
-
-private:
-	// 探索開始時刻。
-	TimePoint startTime;
-
-	// reset()かreset_for_ponderhit()が呼び出された時刻。
-	TimePoint startTimeFromPonderhit;
-};
-
-// =====   以下は、やねうら王の独自追加   =====
-
 // --------------------
-//  ツール類
+//    ツール類
 // --------------------
 
 class ThreadPool;

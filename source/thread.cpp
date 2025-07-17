@@ -336,7 +336,6 @@ void ThreadPool::start_thinking(const OptionsMap& options,
 	increaseDepth = true;
 #else
     stop = abortedSearch = false;
-    main_thread()->worker->pre_start_searching();
 #endif
 
 	Search::RootMoves rootMoves;
@@ -401,6 +400,18 @@ void ThreadPool::start_thinking(const OptionsMap& options,
 
 	for (auto&& th : threads)
 		th->wait_for_search_finished();
+
+#if STOCKFISH
+#else
+    /*
+		📓 やねうら王では、start_searching() の前に、
+	        UI threadからpre_start_searching()をblock callする。
+
+			start_searching()はnon blocking callなのでUI threadがUSI loopに戻ってしまい、
+			"ponderhit"などを受信してしまうため。
+	*/
+    main_thread()->worker->pre_start_searching();
+#endif
 
 	main_thread()->start_searching();
 }

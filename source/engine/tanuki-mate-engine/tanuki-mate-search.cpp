@@ -331,7 +331,7 @@ public:
 				// キャッシュの世代を進める
 		transposition_table.NewSearch();
 
-		auto start = std::chrono::system_clock::now();
+		auto start = now();
 
 		bool timeup = false;
 		Color root_color = r.side_to_move();
@@ -381,12 +381,10 @@ public:
 			SearchMatePvFast(true, root_color, r, moves, visited);
 		}
 
-		auto end = std::chrono::system_clock::now();
+		auto end = now();
 		if (!moves.empty()) {
-			// millisecondsは、最低でも45bitを持つ符号付き整数型であることしか保証されていないので、
-			// VC++だとlong long、clangだとlongであったりする。そこでmax()などを呼ぶとき、注意が必要である。
-			auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-			time_ms = std::max(time_ms, decltype(time_ms)(1));
+			auto time_ms = end - start;
+			time_ms = std::max(time_ms, TimePoint(1));
 			int64_t nps = nodes_searched * 1000LL / time_ms;
 			sync_cout << "info  time " << time_ms << " nodes " << nodes_searched << " nps "
 				<< nps << " hashfull " << transposition_table.hashfull() << sync_endl;
@@ -424,7 +422,7 @@ public:
 
 	// TODO(tanuki-): ネガマックス法的な書き方に変更する
 	void DFPNwithTCA(Position& n, uint32_t thpn, uint32_t thdn, bool inc_flag, bool or_node, uint16_t depth,
-		Color root_color, const std::chrono::system_clock::time_point& start_time, bool& timeup) {
+		Color root_color, TimePoint start_time, bool& timeup) {
 
 		if (threads.stop.load(std::memory_order_relaxed)) {
 			return;
@@ -437,9 +435,8 @@ public:
 			// このタイミングで置換表の世代を進める
 			//++transposition_table.now_time;
 
-			auto current_time = std::chrono::system_clock::now();
-			auto time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-				current_time - start_time).count();
+			auto current_time = now();
+			auto time_ms = current_time - start_time;
 			time_ms = std::max(time_ms, decltype(time_ms)(1));
 			int64_t nps = nodes_searched * 1000LL / time_ms;
 

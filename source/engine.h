@@ -168,10 +168,14 @@ public:
     // 置換表的なものを使用するときは、これをoverrideすると便利。
 	virtual void set_tt_size(size_t mb) = 0;
 
-#if STOCKFISH
-	// ponderhit
-    virtual void set_ponderhit(bool) = 0;
+	// USIの"ponderhit"に対するhandler。
+	// 💡 "ponderhit"に対して set_ponderhit(false)として呼び出される。
+    // 📓 Engine派生classを"ponderhit"に対応させるには、これをEngine派生class側でoverrideして、
+    //    "ponderhit"に対してmain_manager()->ponder = false;にするなどの処理が必要である。
+    // 🤔 このbool、どう見ても不要なのだが…。
+    virtual void set_ponderhit(bool b) = 0;
 
+#if STOCKFISH
 	// "usinewgame"に対してWorkerを初期化する。
     void search_clear();
 #endif
@@ -333,6 +337,7 @@ class Engine: public IEngine {
     virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override;
     virtual void resize_threads() override;
     virtual void set_tt_size(size_t mb) override {}
+    virtual void set_ponderhit(bool b) override {}
 
     virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&&) override final;
     virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) override final;
@@ -416,57 +421,59 @@ class Engine: public IEngine {
 // IEngine派生classを入れておいて、使うためのwrapper
 // 📝 これを用意せずにIEngine*を直接用いてもいいのだが
 //    そうすると engine-> のように参照型を使う必要があって、
-class EngineWrapper : public IEngine
-{
-public:
-	// 🌈 Engine派生classをセットする。
-	void set_engine(IEngine& _engine) { engine = &_engine; }
+class EngineWrapper: public IEngine {
+   public:
+    // 🌈 Engine派生classをセットする。
+    void set_engine(IEngine& _engine) { engine = &_engine; }
 
-	// Engineのoverride
-	// 📌 すべてset_engine()で渡されたengineに委譲する。
+    // Engineのoverride
+    // 📌 すべてset_engine()で渡されたengineに委譲する。
 
-	virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override { return engine->perft(fen, depth); }
-	virtual void go(Search::LimitsType& limits) override { engine->go(limits); }
+    virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override { return engine->perft(fen, depth); }
+
+    virtual void go(Search::LimitsType& limits) override { engine->go(limits); }
     virtual void stop() override { engine->stop(); }
     virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
     virtual void resize_threads() override { engine->resize_threads(); }
     virtual void set_tt_size(size_t mb) override { engine->set_tt_size(mb); }
+    virtual void set_ponderhit(bool b) override { engine->set_ponderhit(b); }
 
-    virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&& f) override final { engine->set_on_update_no_moves(std::move(f));}
+    virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&& f) override final { engine->set_on_update_no_moves(std::move(f)); }
     virtual void set_on_update_full(std::function<void(const InfoFull&)>&& f) override final { engine->set_on_update_full(std::move(f)); }
-    virtual void set_on_iter(std::function<void(const InfoIter&)>&& f) override final { engine->set_on_iter(std::move(f));}
+    virtual void set_on_iter(std::function<void(const InfoIter&)>&& f) override final { engine->set_on_iter(std::move(f)); }
     virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&& f) override final { engine->set_on_bestmove(std::move(f)); }
     virtual void set_on_update_string(std::function<void(std::string_view)>&& f) override final { engine->set_on_update_string(std::move(f)); }
     virtual void set_on_verify_networks(std::function<void(std::string_view)>&& f) override { engine->set_on_verify_networks(std::move(f)); }
 
-	virtual void verify_networks() const override { engine->verify_networks(); }
-	virtual void save_network(const std::string& path) override { engine->save_network(path); }
+    virtual void verify_networks() const override { engine->verify_networks(); }
+    virtual void save_network(const std::string& path) override { engine->save_network(path); }
 
-	virtual void trace_eval() const override { engine->trace_eval(); }
+    virtual void trace_eval() const override { engine->trace_eval(); }
 
-	virtual const OptionsMap& get_options() const override { return engine->get_options(); }
+    virtual const OptionsMap& get_options() const override { return engine->get_options(); }
     virtual OptionsMap&       get_options() override { return engine->get_options(); }
 
-	virtual std::string       sfen() const override { return engine->sfen(); }
-    virtual std::string       visualize() const override { return engine->visualize(); }
+    virtual std::string sfen() const override { return engine->sfen(); }
+    virtual std::string visualize() const override { return engine->visualize(); }
 
-	virtual void add_options() override { return engine->add_options(); }
-	virtual ThreadPool& get_threads() override { return engine->get_threads(); }
-	virtual const ThreadPool& get_threads() const override { return engine->get_threads(); }
-	virtual Position& get_position() override { return engine->get_position(); }
+    virtual void              add_options() override { return engine->add_options(); }
+    virtual ThreadPool&       get_threads() override { return engine->get_threads(); }
+    virtual const ThreadPool& get_threads() const override { return engine->get_threads(); }
+    virtual Position&         get_position() override { return engine->get_position(); }
 
-	virtual void usi() override { engine->usi(); }
-	virtual void isready() override { engine->isready(); }
-	virtual void usinewgame() override { engine->usinewgame(); }
-	virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override { engine->set_position(sfen, moves); }
-	virtual void user(std::istringstream& is) override { engine->user(is); }
+    virtual void usi() override { engine->usi(); }
+    virtual void isready() override { engine->isready(); }
+    virtual void usinewgame() override { engine->usinewgame(); }
+    virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override { engine->set_position(sfen, moves); }
+    virtual void user(std::istringstream& is) override { engine->user(is); }
+
     virtual std::string get_engine_name() const override { return engine->get_engine_name(); }
     virtual std::string get_engine_author() const override { return engine->get_engine_author(); }
-	virtual std::string get_engine_version() const override { return engine->get_engine_version(); }
+    virtual std::string get_engine_version() const override { return engine->get_engine_version(); }
     virtual std::string get_eval_name() const override { return engine->get_eval_name(); }
 
-private:
-	IEngine* engine;
+   private:
+    IEngine* engine;
 };
 
 

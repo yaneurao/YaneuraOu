@@ -94,7 +94,7 @@ struct Skill {
 //     やねうら王では、YaneuraOuEngineのメンバーとして持たせることにする。
 class SearchManager {
    public:
-	// 📝 やねうら王では、これはnamespace Searchで定義しておく。
+    // 📝 やねうら王では、これはnamespace Searchで定義しておく。
 #if 0
 	// Infoを更新した時のcallback。このcallbackを行うと標準出力に出力する。
     using UpdateShort    = std::function<void(const InfoShort&)>;
@@ -114,60 +114,69 @@ class SearchManager {
     SearchManager(const UpdateContext& updateContext) :
         updates(updateContext) {}
 
-	// 指し手をGUIに返す時刻になったかをチェックする。
+    // 指し手をGUIに返す時刻になったかをチェックする。
     void check_time(YaneuraOuWorker& worker);
 
-	// 現在のPV(読み筋)をUpdateContext::onUpdateFull()で登録する。
+    // 現在のPV(読み筋)をUpdateContext::onUpdateFull()で登録する。
     // tt      : このスレッドに属する置換表
     // depth   : 反復深化のiteration深さ。
-	void pv(Search::YaneuraOuWorker&  worker,
-            const ThreadPool&         threads,
-            const TranspositionTable& tt,
-            Depth                     depth);
+    void pv(Search::YaneuraOuWorker& worker, const ThreadPool& threads, const TranspositionTable& tt, Depth depth);
 
-	// 🌈 start_searching()より前にUI threadから
-	//		Worker::pre_start_searching()が呼び出され、virtualなので派生classの
-	//      YaneuraOuWorker::pre_start_searching()が呼び出され、そこから委譲される。
-	//     ponderフラグなどの初期化はここで行う。
-	void pre_start_searching(YaneuraOuWorker& worker);
+    // 🌈 start_searching()より前にUI threadから
+    //		Worker::pre_start_searching()が呼び出され、virtualなので派生classの
+    //      YaneuraOuWorker::pre_start_searching()が呼び出され、そこから委譲される。
+    //     ponderフラグなどの初期化はここで行う。
+    void pre_start_searching(YaneuraOuWorker& worker);
 
-    // 持ち時間管理
-    TimeManagement            tm;
+    /*
+		📓 持ち時間管理
 
-	double                    originalTimeAdjust;
-    int                       callsCnt;
+		tm                 :     持ち時間制御用。
+		originalTimeAdjust :     持ち時間制御のためのパラメーター。やねうら王では使用しない。
+		callsCnt           :     main threadが一定のnode数を探索するごとにcheck_time()を呼び出したいので、そのためのカウンター。
+	*/
+    TimeManagement tm;
+#if STOCKFISH
+    double originalTimeAdjust;
+#endif
+    int callsCnt;
 
-	// "go ponder"実行中であるかのフラグ
-	// "stop"か"ponderhit"が来るとfalseになる。
-    std::atomic_bool          ponder;
+    // "go ponder"実行中であるかのフラグ
+    // 💡 "ponderhit"が来るとfalseになる。
+    // 📓 "ponderhit"をUI threadが受信 → Engine::set_ponderhit() → YaneuraOuEngine::set_ponderhit()
+    //     という流れでこのフラグが変更される。
+    std::atomic_bool ponder;
 
     std::array<Value, 4> iterValue;
 
-	// 💡 timeReductionは読み筋が安定しているときに時間を短縮するための係数。
-	//     ここで保存しているのは、前回の反復深化のiterationの時のtimeReductionの値。
-    double               previousTimeReduction;
+    // 💡 timeReductionは読み筋が安定しているときに時間を短縮するための係数。
+    //     ここで保存しているのは、前回の反復深化のiterationの時のtimeReductionの値。
+    double previousTimeReduction;
 
-    Value                bestPreviousScore;
-    Value                bestPreviousAverageScore;
+    Value bestPreviousScore;
+    Value bestPreviousAverageScore;
 
-	// ("go ponder"で思考を開始していて)次に"ponderhit"を受信したら
-	// 探索を即座に終了させていいところまで探索が進んでいるフラグ。
-    bool                 stopOnPonderhit;
+    // ("go ponder"で思考を開始していて)次に"ponderhit"を受信したら
+    // 探索を即座に終了させていいところまで探索が進んでいるフラグ。
+    bool stopOnPonderhit;
 
     size_t id;
 
     const UpdateContext& updates;
 
-	// 🌈 やねうら王独自 🌈
+    // 🌈 やねうら王独自 🌈
 
-	// 📝 StockfishのThreadPoolにあったincreaseDepthをこちらに移動させた。
-	std::atomic<bool> increaseDepth;
+    /*
+		 📓 やねうら王ではThread, ThreadPoolを完全に抽象化しているため、
+			 ThreadPoolはincreaseDepthを持たず、このMainManagerが持っている。
+	*/
+    std::atomic<bool> increaseDepth;
 
-	// 前回のPV出力した時刻。PVが詰まるのを抑制するためのもの。
-	// 💡 startTimeからの経過時間。
-	TimePoint lastPvInfoTime;
+    // 前回のPV出力した時刻。PVが詰まるのを抑制するためのもの。
+    // 💡 startTimeからの経過時間。
+    TimePoint lastPvInfoTime;
 
-	// ponder用の指し手
+    // ponder用の指し手
     // 📝 やねうら王では、ponderの指し手がないとき、一つ前のiterationのときのPV上の(相手の)指し手を用いるという独自仕様。
     //     Stockfish本家もこうするべきだと思う。
     Move ponder_candidate;
@@ -232,14 +241,18 @@ public:
 	// 思考エンジンの追加オプションを設定する。
     virtual void add_options() override;
 
+    // "isready"のタイミングでの初期化処理。
+    virtual void isready() override;
+
+    // "ponderhit"に対するhandler。
+    virtual void set_ponderhit(bool b) override;
+
 	// Threadのresizeするときのevent。
 	virtual void resize_threads() override;
 
 	// 置換表のresize event。
 	virtual void set_tt_size(size_t mb) override;
 
-    // "isready"のタイミングでの初期化処理。
-    virtual void isready() override;
 
 	// 定跡の指し手を選択するモジュール
     Book::BookMoveSelector book;

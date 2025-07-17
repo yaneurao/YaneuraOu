@@ -80,7 +80,8 @@ void TimeManagement::init_(Search::LimitsType& limits,
                            Color               us,
                            int                 ply,
                            const OptionsMap&   options) {
-	#if 0 
+
+#if STOCKFISH
 	TimePoint npmsec = TimePoint(options["nodestime"]);
 	// nodes as timeモード。やねうら王では用いない。
 
@@ -118,14 +119,16 @@ void TimeManagement::init_(Search::LimitsType& limits,
 		// NetworkDelay , MinimumThinkingTimeなどもすべてnpmsecを掛け算しないといけないな…。
 		// 1000で繰り上げる必要もあるしなー。これtime managementと極めて相性が悪いのでは。
 	}
-	#endif
+#endif
 
 	// ネットワークのDelayを考慮して少し減らすべき。
 	// かつ、minimumとmaximumは端数をなくすべき
     network_delay = (TimePoint) options["NetworkDelay"];
 
-	// 探索終了予定時刻。このタイミングで初期化しておく。
-    search_end = 0;
+	// 探索開始時刻と終了予定時刻。このタイミングで初期化しておく。
+	// 終了時刻は0ならば未確定という意味である。
+    startTime = ponderhitTime = limits.startTime;
+    search_end                = 0;
 
 	// 今回の最大残り時間(これを超えてはならない)
 	// byoyomiとincの指定は残り時間にこの時点で加算して考える。
@@ -299,6 +302,34 @@ TimePoint TimeManagement::round_up(TimePoint t0) {
     return t;
 };
 
+// 探索を終了させることが確定しているが、秒単位で切り上げて、search_endにそれを設定したい時に呼び出す。
+void TimeManagement::set_search_end(TimePoint e) {
+    /*
+		🤔 現在時刻から、ponderhitした時刻から計算して、秒単位で切り上げた時刻まで思考させたい。
+
+		📓
+		    1. 使用した時間の計測はponderhitした時刻からの経過時間としてなされるために、
+			   ponderhitからの経過時間を秒単位で切り上げしたい。
+		       そのためには、round_up(elapsed_from_ponderhit())のようにround upする必要がある。
+
+			2. 一方、"go"した時刻から計算して、tm.minimum()の分は思考することを守らせたい。
+			   しかし、ponderhitからの経過時間で切り上げはしたい。
+
+	*/
+
+    // 1. ponderhitからの経過時間。(go ponder～ponderhitしていない場合は、単にgoからの経過時間)
+    TimePoint t1 = e + startTime - ponderhitTime;
+
+	// 2. "go"した時間からminimum()を足して、ponderhitからの経過時間に変換したもの。
+    TimePoint t2 = startTime + minimum() - ponderhitTime;
+
+	// TODO : ここ、秒読みで毎回5秒使いたいときに、ponderhitから数えないと計算が合わないのだが…。
+	//        チェスだとinctimeなのでこの問題がないようなのだが…。
+
+	// t1,t2の大きいほうを秒単位で切り上げて、それをstartTimeからの経過時間に換算したもの。
+    // 💡 search_endの値は、startTimeからの経過時間なので。
+    search_end = round_up(std::max(t1, t2)) + ponderhitTime - startTime;
+}
 
 TimePoint TimeManagement::minimum() const { return minimumTime; }
 TimePoint TimeManagement::optimum() const { return optimumTime; }

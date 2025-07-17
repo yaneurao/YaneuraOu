@@ -520,6 +520,20 @@ bool USIEngine::usi_cmdexec(const std::string& cmd)
 		if (token == "quit")
 			return true;
 	}
+    // The GUI sends 'ponderhit' to tell that the user has played the expected move.
+    // So, 'ponderhit' is sent if pondering was done on the same move that the user
+    // has played. The search should continue, but should also switch from pondering
+    // to the normal search.
+
+	// GUIは「ponderhit」を送信して、ユーザーが予想通りの手を指したことを通知する。
+    // つまり、ユーザーが実際に指した手と同じ手についてポンダリング（先読み）が
+	// 行われていた場合、「ponderhit」が送られる。
+    // 探索は継続すべきだが、ポンダリングから通常の探索に切り替える必要がある。
+
+    else if (token == "ponderhit")
+        engine.set_ponderhit(false);
+
+	// TODO : あとで
 #if 0
 	else if (token == "ponderhit")
 	{
