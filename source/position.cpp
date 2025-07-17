@@ -326,10 +326,6 @@ Position& Position::set(const std::string& sfen , StateInfo* si)
 	Eval::compute_eval(*this);
 #endif
 
-	// --- 入玉の駒点の設定
-
-	update_entering_point();
-
 	// --- validation
 
 #if ASSERT_LV >= 3
@@ -2382,13 +2378,12 @@ RepetitionState Position::is_repetition(int ply, int& found_ply) const
 //      入玉判定
 // ----------------------------------
 
-// 現在の盤面から、入玉に必要な駒点を計算し、Search::Limits::enteringKingPointに設定する。
-void Position::update_entering_point()
-{
-	auto rule = global_options.enteringKingRule;
+// 現在の盤面から、入玉に必要な駒点を計算し、enteringKingPointに設定する。
+void Position::update_entering_point() {
+
 	int points[COLOR_NB];
 
-	switch (rule)
+	switch (ekr)
 	{
 	case EKR_24_POINT:   // 24点法(31点以上で宣言勝ち)
 	case EKR_24_POINT_H: // 24点法 , 駒落ち対応
@@ -2400,6 +2395,12 @@ void Position::update_entering_point()
 		points[BLACK] = 28;
 		points[WHITE] = 27;
 		break;
+
+    case EKR_NULL :
+		// set_erk()を呼び出すのを忘れている。
+        sync_cout << "ekr == EKR_NULL in update_entering_point()" << sync_endl;
+        Tools::exit();
+        return;
 
 	default:
 		// それ以外では入玉の駒点を用いないので無視できる。
@@ -2427,7 +2428,7 @@ void Position::update_entering_point()
 	}
 	// すべての駒があるなら、p == 56になるはず。
 	// (先手、小駒9*2段(=18枚*1点=18点) + 大駒2枚(=2枚*5点=10点) = 28点。後手も同様で、全体ではこの倍 = 56点)
-	if (p != 56 && (rule == EKR_24_POINT_H || rule == EKR_27_POINT_H))
+        if (p != 56 && (ekr == EKR_24_POINT_H || ekr == EKR_27_POINT_H))
 	{
 		// 56から足りない分だけ後手が駒落ちにしていると考えられる。
 		// 駒落ち対応入玉ルールであるなら、この分を引き算して考える。
@@ -2442,15 +2443,13 @@ void Position::update_entering_point()
 		points[WHITE] -= 56 - p;
 	}
 
-	global_options.enteringKingPoint[BLACK] = points[BLACK];
-	global_options.enteringKingPoint[WHITE] = points[WHITE];
+	enteringKingPoint[BLACK] = points[BLACK];
+	enteringKingPoint[WHITE] = points[WHITE];
 }
 
 Move Position::DeclarationWin() const
 {
-	auto rule = global_options.enteringKingRule;
-
-	switch (rule)
+    switch (ekr)
 	{
 		// 入玉ルールなし
 	case EKR_NONE: return Move::none();
@@ -2527,7 +2526,7 @@ Move Position::DeclarationWin() const
 
 		// ↓ 駒落ち対応などを考慮して、enteringKingPoint[]を参照することにした。
 
-		if (score < global_options.enteringKingPoint[us])
+		if (score < enteringKingPoint[us])
 			return Move::none();
 
 		// 評価関数でそのまま使いたいので駒点を返しておくのもアリか…。
@@ -2671,82 +2670,81 @@ namespace {
 	};
 }
 
-void Position::UnitTest(Test::UnitTester& tester, IEngine& engine)
-{
-	auto section1 = tester.section("Position");
+void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
+    auto section1 = tester.section("Position");
 
-	Position pos;
-	StateInfo si;
+    Position  pos;
+    StateInfo si;
 
-	// 任意局面での初期化。
-	auto pos_init = [&](const std::string& sfen_) { pos.set(sfen_, &si); };
+    // 任意局面での初期化。
+    auto pos_init = [&](const std::string& sfen_) { pos.set(sfen_, &si); };
 
-	// 平手初期化
-	auto hirate_init  = [&] { pos.set_hirate(&si); };
-	// 2枚落ち初期化
-	auto handi2_sfen  = "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
-	auto handi2_init  = [&] { pos.set(handi2_sfen , &si); };
+    // 平手初期化
+    auto hirate_init = [&] { pos.set_hirate(&si); };
+    // 2枚落ち初期化
+    auto handi2_sfen = "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
+    auto handi2_init = [&] { pos.set(handi2_sfen, &si); };
 
-	// 4枚落ち初期化
-	auto handi4_sfen  = "1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
-	auto handi4_init  = [&] { pos.set(handi4_sfen, &si); };
+    // 4枚落ち初期化
+    auto handi4_sfen = "1nsgkgsn1/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1";
+    auto handi4_init = [&] { pos.set(handi4_sfen, &si); };
 
-	// 指し手生成祭りの局面
-	auto matsuri_sfen = "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1";
-	auto matsuri_init = [&] { pos.set(matsuri_sfen, &si); };
+    // 指し手生成祭りの局面
+    auto matsuri_sfen = "l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1";
+    auto matsuri_init = [&] { pos.set(matsuri_sfen, &si); };
 
-	Move16 m16;
-	Move m;
+    Move16 m16;
+    Move   m;
 
-	// いまから、global_optionsを書き換えるので、あとで元に戻す必要がある。
-	auto options_backup = global_options;
-	SCOPE_EXIT({ global_options = options_backup; });
+    // to_move() のテスト
+    {
+        auto section2 = tester.section("to_move()");
 
-	// to_move() のテスト
-	{
-		auto section2 = tester.section("to_move()");
+        // 平手初期化
+        hirate_init();
 
-		// 平手初期化
-		hirate_init();
+        // is_ok(m) == falseな指し手に対して、to_move()がその指し手をそのまま返すことを保証する。
+        tester.test("MOVE_NONE", pos.to_move(Move16::none()) == Move::none());
+        tester.test("MOVE_WIN", pos.to_move(Move16::win()) == Move::win());
+        tester.test("MOVE_NULL", pos.to_move(Move16::null()) == Move::null());
 
-		// is_ok(m) == falseな指し手に対して、to_move()がその指し手をそのまま返すことを保証する。
-		tester.test("MOVE_NONE", pos.to_move(Move16::none()) == Move::none());
-		tester.test("MOVE_WIN" , pos.to_move(Move16::win() ) == Move::win() );
-		tester.test("MOVE_NULL", pos.to_move(Move16::null()) == Move::null());
+        // 88の角を22に不成で移動。(非合法手) 移動後の駒は先手の角。
+        m16 = make_move16(SQ_88, SQ_22);
+        tester.test("make_move16(SQ_88, SQ_22)",
+                    pos.to_move(m16) == (Move) ((u32) m16.to_u16() + (u32) (B_BISHOP << 16)));
 
-		// 88の角を22に不成で移動。(非合法手) 移動後の駒は先手の角。
-		m16 = make_move16(SQ_88, SQ_22);
-		tester.test("make_move16(SQ_88, SQ_22)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(B_BISHOP << 16)));
+        // 88の角を22に成る移動。(非合法手) 移動後の駒は先手の馬。
+        m16 = make_move_promote16(SQ_88, SQ_22);
+        tester.test("make_move_promote16(SQ_88, SQ_22)",
+                    pos.to_move(m16) == (Move) ((u32) m16.to_u16() + (u32) (B_HORSE << 16)));
 
-		// 88の角を22に成る移動。(非合法手) 移動後の駒は先手の馬。
-		m16 = make_move_promote16(SQ_88, SQ_22);
-		tester.test("make_move_promote16(SQ_88, SQ_22)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(B_HORSE << 16)));
+        // 22の角を88に不成で移動。(非合法手) 移動後の駒は後手の角。
+        m16 = make_move16(SQ_22, SQ_88);
+        tester.test("make_move16(SQ_22, SQ_88)", pos.to_move(m16) == Move::none());
 
-		// 22の角を88に不成で移動。(非合法手) 移動後の駒は後手の角。
-		m16 = make_move16(SQ_22, SQ_88);
-		tester.test("make_move16(SQ_22, SQ_88)", pos.to_move(m16) == Move::none());
+        // 22の角を88に成る移動。(非合法手) 移動後の駒は後手の馬。
+        m16 = make_move_promote16(SQ_22, SQ_88);
+        tester.test("make_move_promote16(SQ_22, SQ_88)", pos.to_move(m16) == Move::none());
 
-		// 22の角を88に成る移動。(非合法手) 移動後の駒は後手の馬。
-		m16 = make_move_promote16(SQ_22, SQ_88);
-		tester.test("make_move_promote16(SQ_22, SQ_88)", pos.to_move(m16) == Move::none());
+        matsuri_init();
+        m16 = make_move_drop16(GOLD, SQ_55);
+        tester.test("make_move_drop(SQ_55,GOLD)",
+                    pos.to_move(m16) == (Move) ((u32) m16.to_u16() + (u32) (W_GOLD << 16)));
+    }
 
-		matsuri_init();
-		m16 = make_move_drop16(GOLD,SQ_55);
-		tester.test("make_move_drop(SQ_55,GOLD)", pos.to_move(m16) == (Move)((u32)m16.to_u16() + (u32)(W_GOLD << 16)));
-	}
+    // pseudo_legal() , legal() のテスト
+    {
+        auto section2 = tester.section("legality");
 
-	// pseudo_legal() , legal() のテスト
-	{
-		auto section2 = tester.section("legality");
+        // 平手初期化
+        hirate_init();
 
-		// 平手初期化
-		hirate_init();
-
-		// 77の歩を76に移動。(合法手)
-		// これはpseudo_legalではある。
-		m16 = make_move16(SQ_77, SQ_76);
-		m = pos.to_move(m16);
-		tester.test("make_move(SQ_77, SQ_76) is pseudo_legal == true", pos.pseudo_legal(m, true) == true);
+        // 77の歩を76に移動。(合法手)
+        // これはpseudo_legalではある。
+        m16 = make_move16(SQ_77, SQ_76);
+        m   = pos.to_move(m16);
+        tester.test("make_move(SQ_77, SQ_76) is pseudo_legal == true",
+                    pos.pseudo_legal(m, true) == true);
 
 #if 0
 		// 後手の駒の場合、現在の手番の駒ではないので、pseudo_legalではない。(pseudo_legalは手番側の駒であることを保証する)
@@ -2756,519 +2754,516 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		tester.test("make_move(SQ_83, SQ_84) is pseudo_legal == false", pos.pseudo_legal(m) == false);
 #endif
 
-		// 88の先手の角を22に移動。これは途中に駒があって移動できないのでpseudo_legalではない。
-		// (pseudo_legalは、その駒が移動できる(移動先の升にその駒の利きがある)ことを保証する)
-		m16 = make_move16(SQ_88, SQ_22);
-		m = pos.to_move(m16);
-                tester.test("make_move(SQ_88, SQ_22) is pseudo_legal == false",
-                            pos.pseudo_legal(m, true) == false);
-	}
+        // 88の先手の角を22に移動。これは途中に駒があって移動できないのでpseudo_legalではない。
+        // (pseudo_legalは、その駒が移動できる(移動先の升にその駒の利きがある)ことを保証する)
+        m16 = make_move16(SQ_88, SQ_22);
+        m   = pos.to_move(m16);
+        tester.test("make_move(SQ_88, SQ_22) is pseudo_legal == false",
+                    pos.pseudo_legal(m, true) == false);
+    }
 
-	// attacks_bb() のテスト
-	{
-		auto section2 = tester.section("attacks_bb");
-		hirate_init();
-		tester.test("attacks_by<BLACK,PAWN>"  , pos.attacks_by<BLACK,PAWN>() == BB_Table::RANK6_BB);
-		tester.test("attacks_by<WHITE,PAWN>"  , pos.attacks_by<WHITE,PAWN>() == BB_Table::RANK4_BB);
-		tester.test("attacks_by<BLACK,KNIGHT>", pos.attacks_by<BLACK,KNIGHT>() ==
-			(Bitboard(SQ_97) | Bitboard(SQ_77) | Bitboard(SQ_37) | Bitboard(SQ_17))
-		);
-		tester.test("attacks_by<BLACK,GOLDS>", pos.attacks_by<BLACK,GOLDS>() ==
-			(goldEffect<BLACK>(SQ_69) | goldEffect<BLACK>(SQ_49))
-		);
-		tester.test("attacks_by<WHITE,GOLDS>", pos.attacks_by<WHITE,GOLDS>() ==
-			(goldEffect<WHITE>(SQ_61) | goldEffect<WHITE>(SQ_41))
-		);
+    // attacks_bb() のテスト
+    {
+        auto section2 = tester.section("attacks_bb");
+        hirate_init();
+        tester.test("attacks_by<BLACK,PAWN>", pos.attacks_by<BLACK, PAWN>() == BB_Table::RANK6_BB);
+        tester.test("attacks_by<WHITE,PAWN>", pos.attacks_by<WHITE, PAWN>() == BB_Table::RANK4_BB);
+        tester.test("attacks_by<BLACK,KNIGHT>",
+                    pos.attacks_by<BLACK, KNIGHT>()
+                      == (Bitboard(SQ_97) | Bitboard(SQ_77) | Bitboard(SQ_37) | Bitboard(SQ_17)));
+        tester.test("attacks_by<BLACK,GOLDS>",
+                    pos.attacks_by<BLACK, GOLDS>()
+                      == (goldEffect<BLACK>(SQ_69) | goldEffect<BLACK>(SQ_49)));
+        tester.test("attacks_by<WHITE,GOLDS>",
+                    pos.attacks_by<WHITE, GOLDS>()
+                      == (goldEffect<WHITE>(SQ_61) | goldEffect<WHITE>(SQ_41)));
+    }
 
-	}
+    // 千日手検出のテスト
+    {
+        auto section2 = tester.section("is_repetition");
 
-	// 千日手検出のテスト
-	{
-		auto section2 = tester.section("is_repetition");
+        std::deque<StateInfo> sis;
 
-		std::deque<StateInfo> sis;
+        // 4手前の局面に戻っているパターン
+        BookTools::feed_position_string(pos, "startpos moves 5i5h 5a5b 5h5i 5b5a", sis);
 
-		// 4手前の局面に戻っているパターン
-		BookTools::feed_position_string(pos, "startpos moves 5i5h 5a5b 5h5i 5b5a", sis);
+        int  found_ply;
+        auto rep = pos.is_repetition(16, found_ply);
 
-		int found_ply;
-		auto rep = pos.is_repetition(16, found_ply);
+        tester.test("REPETITION_DRAW", rep == REPETITION_DRAW && found_ply == 4);
 
-		tester.test("REPETITION_DRAW", rep == REPETITION_DRAW && found_ply == 4);
+        StateInfo s[512];
+        // 初期局面から先手の飛車が46,後手玉が54に移動している局面。
+        // ここから56飛(46)→44玉(54)→46飛(56)→54玉(44)で先手の反則負け
+        pos_init("lnsg1gsnl/1r5b1/ppppppppp/4k4/9/5R3/PPPPPPPPP/1B7/LNSGKGSNL b - 1");
 
-		StateInfo s[512];
-		// 初期局面から先手の飛車が46,後手玉が54に移動している局面。
-		// ここから56飛(46)→44玉(54)→46飛(56)→54玉(44)で先手の反則負け
-		pos_init("lnsg1gsnl/1r5b1/ppppppppp/4k4/9/5R3/PPPPPPPPP/1B7/LNSGKGSNL b - 1");
+        m = pos.to_move(make_move16(SQ_46, SQ_56));
+        pos.do_move(m, s[0]);
+        m = pos.to_move(make_move16(SQ_54, SQ_44));
+        pos.do_move(m, s[1]);
+        m = pos.to_move(make_move16(SQ_56, SQ_46));
+        pos.do_move(m, s[2]);
+        m = pos.to_move(make_move16(SQ_44, SQ_54));
+        pos.do_move(m, s[3]);
 
-		m = pos.to_move(make_move16(SQ_46,SQ_56));
-		pos.do_move(m,s[0]);
-		m = pos.to_move(make_move16(SQ_54,SQ_44));
-		pos.do_move(m,s[1]);
-		m = pos.to_move(make_move16(SQ_56,SQ_46));
-		pos.do_move(m,s[2]);
-		m = pos.to_move(make_move16(SQ_44,SQ_54));
-		pos.do_move(m,s[3]);
+        // いま先手番であり、先手の反則負けが確定しているはず。
+        auto draw_value = pos.is_repetition();
+        tester.test("REPETITION_LOSE", draw_value == REPETITION_LOSE);
 
-		// いま先手番であり、先手の反則負けが確定しているはず。
-		auto draw_value = pos.is_repetition();
-		tester.test("REPETITION_LOSE", draw_value == REPETITION_LOSE);
+        // 初期局面から先手の飛車が56,後手玉が54に移動している局面。(王手がかかっていて後手番)
+        // ここから44玉(54)→46飛(56)→54玉(44)→56飛(46)で(後手番において)先手の反則負け
+        pos_init("lnsg1gsnl/1r5b1/ppppppppp/4k4/9/4R4/PPPPPPPPP/1B7/LNSGKGSNL w - 1");
 
-		// 初期局面から先手の飛車が56,後手玉が54に移動している局面。(王手がかかっていて後手番)
-		// ここから44玉(54)→46飛(56)→54玉(44)→56飛(46)で(後手番において)先手の反則負け
-		pos_init("lnsg1gsnl/1r5b1/ppppppppp/4k4/9/4R4/PPPPPPPPP/1B7/LNSGKGSNL w - 1");
+        m = pos.to_move(make_move16(SQ_54, SQ_44));
+        pos.do_move(m, s[0]);
+        m = pos.to_move(make_move16(SQ_56, SQ_46));
+        pos.do_move(m, s[1]);
+        m = pos.to_move(make_move16(SQ_44, SQ_54));
+        pos.do_move(m, s[2]);
+        m = pos.to_move(make_move16(SQ_46, SQ_56));
+        pos.do_move(m, s[3]);
 
-		m = pos.to_move(make_move16(SQ_54,SQ_44));
-		pos.do_move(m,s[0]);
-		m = pos.to_move(make_move16(SQ_56,SQ_46));
-		pos.do_move(m,s[1]);
-		m = pos.to_move(make_move16(SQ_44,SQ_54));
-		pos.do_move(m,s[2]);
-		m = pos.to_move(make_move16(SQ_46,SQ_56));
-		pos.do_move(m,s[3]);
+        draw_value = pos.is_repetition();
+        tester.test("REPETITION_WIN", draw_value == REPETITION_WIN);
+    }
 
-		draw_value = pos.is_repetition();
-		tester.test("REPETITION_WIN", draw_value == REPETITION_WIN);
-	}
+    // 入玉のテスト
+    {
+        auto section2 = tester.section("EnteringKing");
 
-	// 入玉のテスト
-	{
-		auto section2 = tester.section("EnteringKing");
-		
-		{
-			// 27点法の入玉可能点数 平手 : 先手=28,後手=27
-			auto section3 = tester.section("EKR_27_POINT");
+        {
+            // 27点法の入玉可能点数 平手 : 先手=28,後手=27
+            auto section3 = tester.section("EKR_27_POINT");
 
-			global_options.enteringKingRule = EKR_27_POINT;
-			hirate_init();
-			
-			tester.test("hirate", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 27);
+            hirate_init();
+            pos.set_ekr(EKR_27_POINT);
 
-			// 2枚落ち初期化 , 駒落ち対応でないなら、この時も 先手=28,後手=27
-			handi2_init();
-			tester.test("handi2", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 27);
-		}
+            tester.test("hirate",
+                        pos.enteringKingPoint[BLACK] == 28 && pos.enteringKingPoint[WHITE] == 27);
 
-		{
-			// 24点法の入玉可能点数 平手 : 先手=31,後手=31
-			auto section3 = tester.section("EKR_24_POINT");
+            // 2枚落ち初期化 , 駒落ち対応でないなら、この時も 先手=28,後手=27
+            handi2_init();
+            pos.set_ekr(EKR_27_POINT);
 
-			global_options.enteringKingRule = EKR_24_POINT;
-			hirate_init();
+            tester.test("handi2",
+                        pos.enteringKingPoint[BLACK] == 28 && pos.enteringKingPoint[WHITE] == 27);
+        }
 
-			tester.test("hirate", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 31);
+        {
+            // 24点法の入玉可能点数 平手 : 先手=31,後手=31
+            auto section3 = tester.section("EKR_24_POINT");
 
-			// 2枚落ち初期化 , 駒落ち対応でないなら、この時も 先手=31,後手=31
-			handi2_init();
-			tester.test("handi2", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 31);
-		}
+            hirate_init();
+            pos.set_ekr(EKR_24_POINT);
 
-		{
-			// 27点法の入玉可能点数 平手 : 先手=28,後手=27
-			auto section3 = tester.section("EKR_27_POINT_H");
+            tester.test("hirate",
+                        pos.enteringKingPoint[BLACK] == 31 && pos.enteringKingPoint[WHITE] == 31);
 
-			global_options.enteringKingRule = EKR_27_POINT_H;
-			hirate_init();
+            // 2枚落ち初期化 , 駒落ち対応でないなら、この時も 先手=31,後手=31
+            handi2_init();
+            tester.test("handi2",
+                        pos.enteringKingPoint[BLACK] == 31 && pos.enteringKingPoint[WHITE] == 31);
+        }
 
-			tester.test("hirate", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 27);
+        {
+            // 27点法の入玉可能点数 平手 : 先手=28,後手=27
+            auto section3 = tester.section("EKR_27_POINT_H");
 
-			// 2枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=17,下手(BLACK)=28
-			handi2_init();
-			tester.test("handi2", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 17);
+            pos.set_ekr(EKR_27_POINT_H);
+            hirate_init();
 
-			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=15,下手(BLACK)=28
-			handi4_init();
-			tester.test("handi4", global_options.enteringKingPoint[BLACK] == 28 && global_options.enteringKingPoint[WHITE] == 15);
-		}
+            tester.test("hirate",
+                        pos.enteringKingPoint[BLACK] == 28 && pos.enteringKingPoint[WHITE] == 27);
 
-		{
-			// 24点法の入玉可能点数 平手 : 先手=31,後手=31
-			auto section3 = tester.section("EKR_24_POINT_H");
+            // 2枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=17,下手(BLACK)=28
+            handi2_init();
+            tester.test("handi2",
+                        pos.enteringKingPoint[BLACK] == 28 && pos.enteringKingPoint[WHITE] == 17);
 
-			global_options.enteringKingRule = EKR_24_POINT_H;
-			hirate_init();
+            // 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=15,下手(BLACK)=28
+            handi4_init();
+            tester.test("handi4",
+                        pos.enteringKingPoint[BLACK] == 28 && pos.enteringKingPoint[WHITE] == 15);
+        }
 
-			tester.test("hirate", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 31);
+        {
+            // 24点法の入玉可能点数 平手 : 先手=31,後手=31
+            auto section3 = tester.section("EKR_24_POINT_H");
 
-			// 2枚落ち初期化 , 駒落ち対応なのでこの時 上手(WHITE)=21,下手(BLACK)=31
-			handi2_init();
-			tester.test("handi2", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 21);
+            hirate_init();
+            pos.set_ekr(EKR_24_POINT_H);
 
-			// 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=19,下手(BLACK)=31
-			handi4_init();
-			tester.test("handi4", global_options.enteringKingPoint[BLACK] == 31 && global_options.enteringKingPoint[WHITE] == 19);
-		}
-	}
+            tester.test("hirate",
+                        pos.enteringKingPoint[BLACK] == 31 && pos.enteringKingPoint[WHITE] == 31);
 
-	{
-		// 指し手生成のテスト
-		auto section2 = tester.section("GenMove");
+            // 2枚落ち初期化 , 駒落ち対応なのでこの時 上手(WHITE)=21,下手(BLACK)=31
+            handi2_init();
+            tester.test("handi2",
+                        pos.enteringKingPoint[BLACK] == 31 && pos.enteringKingPoint[WHITE] == 21);
 
-		{
-			// 23歩不成ができ、かつ、23歩不成では駒の捕獲にはならない局面。
-			pos_init("lnsgk1snl/1r4g2/p1ppppb1p/6pP1/7R1/2P6/P2PPPP1P/1SG6/LN2KGSNL b BP2p 21");
-			Move move1 = make_move        (SQ_24, SQ_23,B_PAWN);
-			Move move2 = make_move_promote(SQ_24, SQ_23,B_PAWN);
+            // 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=19,下手(BLACK)=31
+            handi4_init();
+            tester.test("handi4",
+                        pos.enteringKingPoint[BLACK] == 31 && pos.enteringKingPoint[WHITE] == 19);
+        }
+    }
 
-			ExtMove move_buf[MAX_MOVES] , *move_last;
-			// move_bufからmove_lastのなかにmoveがあるかを探す。あればtrueを返す。
-			auto find_move = [&](Move m) {
-				for (ExtMove* em = &move_buf[0]; em != move_last; ++em)
-					if (Move(*em) == m)
-						return true;
-				return false;
-			};
+    {
+        // 指し手生成のテスト
+        auto section2 = tester.section("GenMove");
 
-			bool all = true;
+        {
+            // 23歩不成ができ、かつ、23歩不成では駒の捕獲にはならない局面。
+            pos_init("lnsgk1snl/1r4g2/p1ppppb1p/6pP1/7R1/2P6/P2PPPP1P/1SG6/LN2KGSNL b BP2p 21");
+            Move move1 = make_move(SQ_24, SQ_23, B_PAWN);
+            Move move2 = make_move_promote(SQ_24, SQ_23, B_PAWN);
 
-			move_last = generateMoves<NON_CAPTURES>(pos, move_buf);
-			all &= !find_move(move1);
-			all &=  find_move(move2);
+            ExtMove move_buf[MAX_MOVES], *move_last;
+            // move_bufからmove_lastのなかにmoveがあるかを探す。あればtrueを返す。
+            auto find_move = [&](Move m) {
+                for (ExtMove* em = &move_buf[0]; em != move_last; ++em)
+                    if (Move(*em) == m)
+                        return true;
+                return false;
+            };
 
-			move_last = generateMoves<CAPTURES>(pos, move_buf);
-			all &= !find_move(move1);
-			all &= !find_move(move2);
+            bool all = true;
 
-			move_last = generateMoves<NON_EVASIONS>(pos, move_buf);
-			all &= !find_move(move1);
-			all &=  find_move(move2);
+            move_last = generateMoves<NON_CAPTURES>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= find_move(move2);
 
-			move_last = generateMoves<NON_EVASIONS_ALL>(pos, move_buf);
-			all &=  find_move(move1);
-			all &=  find_move(move2);
+            move_last = generateMoves<CAPTURES>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= !find_move(move2);
 
-			move_last = generateMoves<CAPTURES>(pos, move_buf);
-			all &= !find_move(move1);
-			all &= !find_move(move2);
+            move_last = generateMoves<NON_EVASIONS>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= find_move(move2);
 
-			move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
-			all &= !find_move(move1);
-			all &=  find_move(move2);
+            move_last = generateMoves<NON_EVASIONS_ALL>(pos, move_buf);
+            all &= find_move(move1);
+            all &= find_move(move2);
 
-			move_last = generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, move_buf);
-			all &=  find_move(move1); // 歩の不成はこちらに含めることになった。(movegenの実装の修正が難しいので)
-			all &=  find_move(move2);
+            move_last = generateMoves<CAPTURES>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= !find_move(move2);
 
-			move_last = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, move_buf);
-			all &= !find_move(move1);
-			all &= !find_move(move2);
+            move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= find_move(move2);
 
-			move_last = generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(pos, move_buf);
-			all &= !find_move(move1); // 歩の不成はこちらには含まれていないので注意。
-			all &= !find_move(move2);
+            move_last = generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, move_buf);
+            all &= find_move(
+              move1);  // 歩の不成はこちらに含めることになった。(movegenの実装の修正が難しいので)
+            all &= find_move(move2);
 
-			tester.test("pawn's unpromoted move", all);
+            move_last = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= !find_move(move2);
 
-			// 23角不成で5手詰め
-			// https://github.com/yaneurao/YaneuraOu/issues/257
-			pos_init("5B1n1/8k/6Rpp/9/9/9/1+p7/9/K8 b rb4g4s3n4l15p 1");
-			// 23角不成(41)と23角成(41)
-			move1 = make_move        (SQ_41, SQ_23, B_BISHOP);
-			move2 = make_move_promote(SQ_41, SQ_23, B_BISHOP);
-			all = true;
+            move_last = generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(pos, move_buf);
+            all &= !find_move(move1);  // 歩の不成はこちらには含まれていないので注意。
+            all &= !find_move(move2);
 
-			move_last = generateMoves<LEGAL_ALL>(pos, move_buf);
-			all &=  find_move(move1);
-			all &=  find_move(move2);
+            tester.test("pawn's unpromoted move", all);
 
-			move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
-			all &= !find_move(move1);
-			all &=  find_move(move2);
+            // 23角不成で5手詰め
+            // https://github.com/yaneurao/YaneuraOu/issues/257
+            pos_init("5B1n1/8k/6Rpp/9/9/9/1+p7/9/K8 b rb4g4s3n4l15p 1");
+            // 23角不成(41)と23角成(41)
+            move1 = make_move(SQ_41, SQ_23, B_BISHOP);
+            move2 = make_move_promote(SQ_41, SQ_23, B_BISHOP);
+            all   = true;
 
-			move_last = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, move_buf);
-			all &= !find_move(move1);
-			all &= !find_move(move2);
+            move_last = generateMoves<LEGAL_ALL>(pos, move_buf);
+            all &= find_move(move1);
+            all &= find_move(move2);
 
-			move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
-			all &= !find_move(move1);
-			all &=  find_move(move2);
+            move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= find_move(move2);
 
-			move_last = generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(pos, move_buf);
-			all &= !find_move(move1);
-			all &= !find_move(move2);
+            move_last = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= !find_move(move2);
 
-			move_last = generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, move_buf);
-			all &=  find_move(move1);
-			all &=  find_move(move2);
+            move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= find_move(move2);
 
-			tester.test("bishop's unpromoted move",all);
-		}
-	}
-#if defined (USE_SEE)
-	{
-		// see_ge()のテスト
-		auto section = tester.section("see_ge");
-		StateInfo s[512];
+            move_last = generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(pos, move_buf);
+            all &= !find_move(move1);
+            all &= !find_move(move2);
 
-		// 平手初期化
-		hirate_init();
+            move_last = generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, move_buf);
+            all &= find_move(move1);
+            all &= find_move(move2);
 
-		// see_geのしきい値がv以下の時だけtrueが返ってくるかをテストする。
-		// つまりはsee値がvであるかをテストする関数。
-		auto see_ge_th = [&](int v)
-			{
-				Value th = Value(v);
-				bool all_ok = true;
-				all_ok &=  pos.see_ge(m,th    );   // see_ge(m, th) == true
-				all_ok &= !pos.see_ge(m,th + 1);   // see_ge(m,  1) == false
-				all_ok &=  pos.see_ge(m,th - 1);   // see_ge(m, -1) == true
-				return all_ok;
-			};
+            tester.test("bishop's unpromoted move", all);
+        }
+    }
+#if defined(USE_SEE)
+    {
+        // see_ge()のテスト
+        auto      section = tester.section("see_ge");
+        StateInfo s[512];
 
-		// 76歩、34歩の局面を作る。
-		m = pos.to_move(make_move16(SQ_77, SQ_76));
-		pos.do_move(m, s[0]);
-		m = pos.to_move(make_move16(SQ_33, SQ_34));
-		pos.do_move(m, s[1]);
-		// 22角成りの指し手について
-		m = pos.to_move(make_move_promote16(SQ_88, SQ_22));
-		// 角を取るが、see値は、同銀と取り返されて、駒の損得なし。
+        // 平手初期化
+        hirate_init();
 
-		tester.test("pos1move", see_ge_th(0));
+        // see_geのしきい値がv以下の時だけtrueが返ってくるかをテストする。
+        // つまりはsee値がvであるかをテストする関数。
+        auto see_ge_th = [&](int v) {
+            Value th     = Value(v);
+            bool  all_ok = true;
+            all_ok &= pos.see_ge(m, th);       // see_ge(m, th) == true
+            all_ok &= !pos.see_ge(m, th + 1);  // see_ge(m,  1) == false
+            all_ok &= pos.see_ge(m, th - 1);   // see_ge(m, -1) == true
+            return all_ok;
+        };
 
-		pos.do_move(m, s[2]);
-		// 馬を取り返さずにあえて84歩
-		m = pos.to_move(make_move16(SQ_83, SQ_24));
-		pos.do_move(m, s[3]);
+        // 76歩、34歩の局面を作る。
+        m = pos.to_move(make_move16(SQ_77, SQ_76));
+        pos.do_move(m, s[0]);
+        m = pos.to_move(make_move16(SQ_33, SQ_34));
+        pos.do_move(m, s[1]);
+        // 22角成りの指し手について
+        m = pos.to_move(make_move_promote16(SQ_88, SQ_22));
+        // 角を取るが、see値は、同銀と取り返されて、駒の損得なし。
 
-		// この局面で31馬は、同金とされて、(see値は)馬、銀の交換 = 馬を損して銀を得する
-		m = pos.to_move(make_move16(SQ_22, SQ_31));
-		tester.test("pos2move", see_ge_th( - Eval::HorseValue + Eval::SilverValue ));
+        tester.test("pos1move", see_ge_th(0));
 
-		// この局面で33角打ちは、同桂で同馬。(see値は)角損 + 桂得。
-		m = pos.to_move(make_move_drop16(BISHOP, SQ_33));
-		tester.test("pos2drop", see_ge_th( - Eval::BishopValue + Eval::KnightValue ));
+        pos.do_move(m, s[2]);
+        // 馬を取り返さずにあえて84歩
+        m = pos.to_move(make_move16(SQ_83, SQ_24));
+        pos.do_move(m, s[3]);
 
-		// この局面で33馬は、同桂でタダ。(see値は)馬損。
-		m = pos.to_move(make_move16(SQ_22, SQ_33));
-		tester.test("pos2move", see_ge_th(- Eval::HorseValue ));
-	}
+        // この局面で31馬は、同金とされて、(see値は)馬、銀の交換 = 馬を損して銀を得する
+        m = pos.to_move(make_move16(SQ_22, SQ_31));
+        tester.test("pos2move", see_ge_th(-Eval::HorseValue + Eval::SilverValue));
+
+        // この局面で33角打ちは、同桂で同馬。(see値は)角損 + 桂得。
+        m = pos.to_move(make_move_drop16(BISHOP, SQ_33));
+        tester.test("pos2drop", see_ge_th(-Eval::BishopValue + Eval::KnightValue));
+
+        // この局面で33馬は、同桂でタダ。(see値は)馬損。
+        m = pos.to_move(make_move16(SQ_22, SQ_33));
+        tester.test("pos2move", see_ge_th(-Eval::HorseValue));
+    }
 #endif
 
-	{
-		// null moveのテスト
-		auto section = tester.section("nullmove");
-		matsuri_init();
-		StateInfo s[512];
+    {
+        // null moveのテスト
+        auto section = tester.section("nullmove");
+        matsuri_init();
+        StateInfo s[512];
 
-		// null moveして、局面情報がおかしくならないかのテスト。
-		pos.do_null_move(s[0]);
-		tester.test("pos_is_ok()",pos.pos_is_ok());
-	}
+        // null moveして、局面情報がおかしくならないかのテスト。
+        pos.do_null_move(s[0]);
+        tester.test("pos_is_ok()", pos.pos_is_ok());
+    }
 
 #if defined(USE_SFEN_PACKER)
-	{
-		// packed sfenのテスト
-		auto section = tester.section("PackedSfen");
+    {
+        // packed sfenのテスト
+        auto section = tester.section("PackedSfen");
 
-		vector<string> test_sfens = {
-			"lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w -",
-			"lns1kgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w -",
-			"lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGK4 w -",
-			"lnsgk4/9/ppppppppp/9/9/9/PPPPPPPPP/9/LNSGK4 w GBRgbr",
-		};
+        vector<string> test_sfens = {
+          "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w -",
+          "lns1kgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w -",
+          "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGK4 w -",
+          "lnsgk4/9/ppppppppp/9/9/9/PPPPPPPPP/9/LNSGK4 w GBRgbr",
+        };
 
-		// packed by cshogi
-		/*
+        // packed by cshogi
+        /*
 			board = cshogi.Board()
 			psfen = np.zeros(32, dtype=np.uint8)
 			board.set_sfen(sfen)
 			board.to_psfen(psfen)
 			print(np.array2string(psfen, separator=', '))
 		*/
-		vector<PackedSfen> packed_sfens =
-		{
-			{
-				89, 164,  81,  34,  12, 171,  68, 252,  44, 167,  68,  56,  94, 137, 240,
-				72, 132,  87,  34,  60, 167,  68,  56,  86, 137, 248,  88,  70, 137,  48,
-				188, 126
-			},
-			{
-				89, 164,  81,  34,  12, 171,  68, 252,  44, 167,  68,  56,  94, 137, 240,
-				72,   4,  18, 225,  57,  37, 194, 177,  74, 196, 199,  50,  74, 132,  97,
-				191, 126
-			},
-			{
-				89, 164,  81,  34,  88,  37, 226, 199,  41,  17, 188,  18, 129,  68, 120,
-				37, 194, 115,  74, 132,  99, 149, 136, 143, 101, 148,   8,  67, 106, 107,
-				191, 126
-			},
-			{
-				89,  36,  18,   1, 137, 128,  68,  64,  34, 144,   8, 175,  68, 120,  78,
-				137, 112, 172,  18,  97,  25,  37, 194, 112,  30, 159, 251, 252, 166, 212,
-				218,  90
-			}
-		};
+        vector<PackedSfen> packed_sfens = {
+          {89,  164, 81, 34, 12,  171, 68, 252, 44,  167, 68, 56, 94,  137, 240, 72,
+           132, 87,  34, 60, 167, 68,  56, 86,  137, 248, 88, 70, 137, 48,  188, 126},
+          {89, 164, 81,  34, 12, 171, 68,  252, 44,  167, 68, 56, 94,  137, 240, 72,
+           4,  18,  225, 57, 37, 194, 177, 74,  196, 199, 50, 74, 132, 97,  191, 126},
+          {89,  164, 81, 34,  88, 37,  226, 199, 41,  17,  188, 18, 129, 68,  120, 37,
+           194, 115, 74, 132, 99, 149, 136, 143, 101, 148, 8,   67, 106, 107, 191, 126},
+          {89,  36,  18, 1,  137, 128, 68,  64,  34, 144, 8,   175, 68,  120, 78,  137,
+           112, 172, 18, 97, 25,  37,  194, 112, 30, 159, 251, 252, 166, 212, 218, 90}};
 
-		bool success = true;
-		for(size_t i = 0 ; i < test_sfens.size() ; ++i)
-		{
-			auto sfen = test_sfens[i];
-			auto &packed_sfen = packed_sfens[i];
+        bool success = true;
+        for (size_t i = 0; i < test_sfens.size(); ++i)
+        {
+            auto  sfen        = test_sfens[i];
+            auto& packed_sfen = packed_sfens[i];
 
-			StateInfo si;
-			pos.set(sfen, &si);
+            StateInfo si;
+            pos.set(sfen, &si);
 
-			PackedSfen ps;
-			pos.sfen_pack(ps);
+            PackedSfen ps;
+            pos.sfen_pack(ps);
 
-			// バイナリ列として一致するか。
-			success &= ps == packed_sfen;
+            // バイナリ列として一致するか。
+            success &= ps == packed_sfen;
 
-			// decodeで元のsfenになることは、このあとのランダムプレイヤーのテストで散々やっているから
-			// ここでやる必要なし。
-		}
-		tester.test("handicapped sfen",success);
-	}
+            // decodeで元のsfenになることは、このあとのランダムプレイヤーのテストで散々やっているから
+            // ここでやる必要なし。
+        }
+        tester.test("handicapped sfen", success);
+    }
 #endif
 
-	{
-		// それ以外のテスト
-		auto section = tester.section("misc");
-		{
-			// 盤面の反転
+    {
+        // それ以外のテスト
+        auto section = tester.section("misc");
+        {
+            // 盤面の反転
 
-			// 23歩不成ができ、かつ、23歩不成では駒の捕獲にはならない局面。
-			pos_init("lnsgk1snl/1r4g2/p1ppppb1p/6pP1/7R1/2P6/P2PPPP1P/1SG6/LN2KGSNL b BP2p 21");
-			auto flipped = pos.flipped_sfen();
-			tester.test("flip sfen", flipped=="lnsgk2nl/6gs1/p1pppp2p/6p2/1r7/1pP6/P1BPPPP1P/2G4R1/LNS1KGSNL w 2Pbp 21");
-		}
-	}
+            // 23歩不成ができ、かつ、23歩不成では駒の捕獲にはならない局面。
+            pos_init("lnsgk1snl/1r4g2/p1ppppb1p/6pP1/7R1/2P6/P2PPPP1P/1SG6/LN2KGSNL b BP2p 21");
+            auto flipped = pos.flipped_sfen();
+            tester.test(
+              "flip sfen",
+              flipped == "lnsgk2nl/6gs1/p1pppp2p/6p2/1r7/1pP6/P1BPPPP1P/2G4R1/LNS1KGSNL w 2Pbp 21");
+        }
+    }
 
-	{
-		// 深いdepthのperftのテストが通っていれば、利きの計算、指し手生成はおおよそ間違っていないと言える。
+    {
+        // 深いdepthのperftのテストが通っていれば、利きの計算、指し手生成はおおよそ間違っていないと言える。
 
-		auto section2 = tester.section("Perft");
+        auto section2 = tester.section("Perft");
 
-		{
-			auto section3 = tester.section("hirate");
-			hirate_init();
-			const s64 p_nodes[] = { 0 , 30 , 900, 25470, 719731, 19861490, 547581517 };
+        {
+            auto section3 = tester.section("hirate");
+            hirate_init();
+            const s64 p_nodes[] = {0, 30, 900, 25470, 719731, 19861490, 547581517};
 
-			for (Depth d = 1; d <= 6; ++d)
-			{
-				u64 nodes = perft(pos, d);
-				u64 pn = p_nodes[d];
-				tester.test("depth " + to_string(d) + " = " + to_string(pn), nodes == pn && pos.pos_is_ok());
-			}
-		}
+            for (Depth d = 1; d <= 6; ++d)
+            {
+                u64 nodes = perft(pos, d);
+                u64 pn    = p_nodes[d];
+                tester.test("depth " + to_string(d) + " = " + to_string(pn),
+                            nodes == pn && pos.pos_is_ok());
+            }
+        }
 
-		{
-			auto section3 = tester.section("matsuri");
-			matsuri_init();
+        {
+            auto section3 = tester.section("matsuri");
+            matsuri_init();
 
-			const s64 p_nodes[] = { 0 , 207 , 28684, 4809015, 516925165};
+            const s64 p_nodes[] = {0, 207, 28684, 4809015, 516925165};
 
-			for (Depth d = 1; d <= 4; ++d)
-			{
-				u64 nodes = perft(pos, d);
-				u64 pn = p_nodes[d];
-				tester.test("depth " + to_string(d) + " = " + to_string(nodes), nodes == pn && pos.pos_is_ok());
-			}
-		}
-	}
+            for (Depth d = 1; d <= 4; ++d)
+            {
+                u64 nodes = perft(pos, d);
+                u64 pn    = p_nodes[d];
+                tester.test("depth " + to_string(d) + " = " + to_string(nodes),
+                            nodes == pn && pos.pos_is_ok());
+            }
+        }
+    }
 
-	// ランダムプレイヤーでの対局によるテスト
+    // ランダムプレイヤーでの対局によるテスト
 
-	// packed sfenのtest
-	auto extra_test1 = [&](Position& pos)
-	{
+    // packed sfenのtest
+    auto extra_test1 = [&](Position& pos) {
 #if defined(USE_SFEN_PACKER)
-			PackedSfen ps;
-			StateInfo si;
-			string sfen = pos.sfen();
-			int game_ply = pos.game_ply();
-			pos.sfen_pack(ps);
+        PackedSfen ps;
+        StateInfo  si;
+        string     sfen     = pos.sfen();
+        int        game_ply = pos.game_ply();
+        pos.sfen_pack(ps);
 
-			Position pos2;
-			pos2.set_from_packed_sfen(ps, &si);
-			string sfen2 = pos2.sfen(game_ply);
+        Position pos2;
+        pos2.set_from_packed_sfen(ps, &si);
+        string sfen2 = pos2.sfen(game_ply);
 
-			return sfen == sfen2;
+        return sfen == sfen2;
 #else
-			return true;
+        return true;
 #endif
-	};
+    };
 
-	// 駒落ちのpacked sfenのテスト
-	auto extra_test2 = [&](Position& pos)
-	{
+    // 駒落ちのpacked sfenのテスト
+    auto extra_test2 = [&](Position& pos) {
 #if defined(USE_SFEN_PACKER)
-			PackedSfen ps;
-			StateInfo si;
-			string sfen = pos.sfen();
-			int game_ply = pos.game_ply();
-			pos.sfen_pack(ps);
+        PackedSfen ps;
+        StateInfo  si;
+        string     sfen     = pos.sfen();
+        int        game_ply = pos.game_ply();
+        pos.sfen_pack(ps);
 
-			Position pos2;
-			pos2.set_from_packed_sfen(ps, &si);
-			// ここから駒を5枚ほど落とす。
-			int count = 0;
-			for(auto sq : SQ)
-			{
-				auto pc = pos2.piece_on(sq);
-				if (pc != NO_PIECE && type_of(pc) != KING)
-				{
-					pos2.board[sq] = NO_PIECE; // 自分のclass内なので直接書き換えてしまう。
-					if (++count >= 5)
-						break;
-				}
-			}
-			string sfen2 = pos2.sfen(game_ply);
-			pos2.sfen_pack(ps); // 駒落ちのpacked sfenができた。
+        Position pos2;
+        pos2.set_from_packed_sfen(ps, &si);
+        // ここから駒を5枚ほど落とす。
+        int count = 0;
+        for (auto sq : SQ)
+        {
+            auto pc = pos2.piece_on(sq);
+            if (pc != NO_PIECE && type_of(pc) != KING)
+            {
+                pos2.board[sq] = NO_PIECE;  // 自分のclass内なので直接書き換えてしまう。
+                if (++count >= 5)
+                    break;
+            }
+        }
+        string sfen2 = pos2.sfen(game_ply);
+        pos2.sfen_pack(ps);  // 駒落ちのpacked sfenができた。
 
-			Position pos3;
-			pos3.set_from_packed_sfen(ps, &si);
+        Position pos3;
+        pos3.set_from_packed_sfen(ps, &si);
 
-			string sfen3 = pos3.sfen(game_ply);
+        string sfen3 = pos3.sfen(game_ply);
 
-			return sfen2 == sfen3;
+        return sfen2 == sfen3;
 #else
-			return true;
+        return true;
 #endif
-	};
+    };
 
-	{
-		// 対局回数→0ならskip
-		s64 random_player_loop = tester.options["random_player_loop"];
-		if (random_player_loop)
-		{
-			auto section2 = tester.section("GamesOfRandomPlayer");
+    {
+        // 対局回数→0ならskip
+        s64 random_player_loop = tester.options["random_player_loop"];
+        if (random_player_loop)
+        {
+            auto section2 = tester.section("GamesOfRandomPlayer");
 
-			// seed固定乱数(再現性ある乱数)
-			PRNG my_rand(114514);
-			StateInfo s[512];
+            // seed固定乱数(再現性ある乱数)
+            PRNG      my_rand(114514);
+            StateInfo s[512];
 
-			for (s64 i = 0; i < random_player_loop; ++i)
-			{
-				// 平手初期化
-				hirate_init();
-				bool fail = false;
+            for (s64 i = 0; i < random_player_loop; ++i)
+            {
+                // 平手初期化
+                hirate_init();
+                bool fail = false;
 
-				// 512手目まで
-				for (int ply = 0; ply < 512; ++ply)
-				{
-					MoveList<LEGAL_ALL> ml(pos);
+                // 512手目まで
+                for (int ply = 0; ply < 512; ++ply)
+                {
+                    MoveList<LEGAL_ALL> ml(pos);
 
-					// 指し手がない == 負け == 終了
-					if (ml.size() == 0)
-						break;
+                    // 指し手がない == 負け == 終了
+                    if (ml.size() == 0)
+                        break;
 
-					Move m = Move(ml.at(size_t(my_rand.rand(ml.size()))));
+                    Move m = Move(ml.at(size_t(my_rand.rand(ml.size()))));
 
-					pos.do_move(m,s[ply]);
+                    pos.do_move(m, s[ply]);
 
-					if (!pos.pos_is_ok() || !extra_test1(pos) || !extra_test2(pos))
-						fail = true;
+                    if (!pos.pos_is_ok() || !extra_test1(pos) || !extra_test2(pos))
+                        fail = true;
+                }
 
-				}
-
-				// 今回のゲームのなかでおかしいものがなかったか
-				tester.test(string("game ")+to_string(i+1),!fail);
-			}
-		}
-	}
-
+                // 今回のゲームのなかでおかしいものがなかったか
+                tester.test(string("game ") + to_string(i + 1), !fail);
+            }
+        }
+    }
 }
 
 

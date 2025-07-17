@@ -94,6 +94,13 @@ void SearchOptions::add_options(OptionsMap& options) {
                     generate_all_legal_moves = o;
                     return std::nullopt;
                 }));
+
+    // 入玉ルール
+    options.add("EnteringKingRule",
+                Option(ERK_RULE_STRINGS, ERK_RULE_STRINGS[EKR_27_POINT], [&](const Option& o) {
+                    enteringKingRule = to_entering_king_rule(o);
+                    return std::nullopt;
+                }));
 }
 
 
@@ -129,9 +136,6 @@ void YaneuraOuEngine::add_options() {
 
     // 投了スコア
     options.add("ResignValue", Option(99999, 0, 99999));
-
-    // 入玉ルール
-    options.add("EnteringKingRule", Option(ekr_rules, ekr_rules[EKR_27_POINT]));
 
 	// 📌 SearchOptionsが用いるオプションの追加
 
@@ -212,10 +216,6 @@ void YaneuraOuEngine::add_options() {
 void YaneuraOuEngine::isready() {
 
 	// 🌈 やねうら王独自オプションの内容を設定などに反映させる。
-
-    // 入玉ルール
-    global_options.enteringKingRule = to_entering_king_rule(options["EnteringKingRule"]);
-
 
 #if defined(USE_CLASSIC_EVAL)
     // 📌 旧評価関数は、isreadyに対して呼び出す。
@@ -936,6 +936,9 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 #else
 	// やねうら王では探索オプションは、main_managerが持っている。
     SearchOptions& search_options = main_manager()->search_options;
+
+	// 各WorkerのPosition::set_erk_rule()を呼び出して入玉ルールを反映させる必要がある。
+    rootPos.set_ekr(search_options.enteringKingRule);
 #endif
 
     Move pv[MAX_PLY + 1];

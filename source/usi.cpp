@@ -1286,10 +1286,6 @@ void USIEngine::UnitTest(Test::UnitTester& tester, IEngine& engine) {
     // SFEN文字列でのPosition初期化
     auto sfen_init = [&](const std::string& sfen) { pos.set(sfen, &si); };
 
-    // いまから、global_optionsを書き換えるので、あとで元に戻す必要がある。
-    auto options_backup = global_options;
-    SCOPE_EXIT({ global_options = options_backup; });
-
     {
         auto section2 = tester.section("to_move()");
         {

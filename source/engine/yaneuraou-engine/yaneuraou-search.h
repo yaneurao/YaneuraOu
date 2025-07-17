@@ -25,9 +25,12 @@ struct SearchOptions
         max_moves_to_draw        = 100000;
         pv_interval              = 300;
         consideration_mode       = true;
-        lastPvInfoTime           = 0;
-        computed_pv_interval     = 0;
+        outout_fail_lh_pv        = true;
         generate_all_legal_moves = false;
+        enteringKingRule         = EKR_27_POINT;
+
+        lastPvInfoTime       = 0;
+        computed_pv_interval = 0;
     }
 
 	// この構造体メンバーに対応するエンジンオプションを生やす
@@ -54,6 +57,9 @@ struct SearchOptions
 	// 📝 options["GenerateAllLegalMoves"]の設定値。
     bool generate_all_legal_moves;
 
+    // 入玉ルール設定
+	// 📝 options["EnteringKingRule"]の値。
+    EnteringKingRule enteringKingRule;
 
 	// 📌 ここ以降は、SearchManagerで用いるメンバ変数 📌
 

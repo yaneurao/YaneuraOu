@@ -1207,12 +1207,13 @@ enum EnteringKingRule
 	EKR_27_POINT,        // 27点法 = CSAルール(先手28点、後手27点)
 	EKR_27_POINT_H,      // 27点法 , 駒落ち対応
 	EKR_TRY_RULE,        // トライルール
+	EKR_NULL,            // 未設定
 };
 
 // エンジンオプションの入玉ルールに関する文字列
-extern std::vector<std::string> ekr_rules;
+extern std::vector<std::string> EKR_STRINGS;
 
-// 入玉ルール文字列をEnteringKingRule型に変換する。
+// ekr_rulesで定義されている入玉ルール文字列をEnteringKingRule型に変換する。
 extern EnteringKingRule to_entering_king_rule(const std::string& rule);
 
 
@@ -1268,29 +1269,6 @@ enum BonaPiece : int32_t;
 // TimePointの定義。💡Stockfishではmisc.hにある。
 typedef std::chrono::milliseconds::rep TimePoint;
 static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
-
-// エンジン設定(グローバル)
-struct GlobalOptions
-{
-	GlobalOptions()
-	{
-		// 入玉に関して
-		enteringKingRule = EKR_NONE;
-		enteringKingPoint[BLACK] = 28; // Position::set()でupdate_entering_point()が呼び出されて設定される。
-		enteringKingPoint[WHITE] = 27; // Position::set()でupdate_entering_point()が呼び出されて設定される。
-	}
-
-	// 入玉ルール設定
-	EnteringKingRule enteringKingRule;
-
-	// 駒落ち対応入玉ルーの時に、この点数以上であれば入玉宣言可能。
-	// 例) 27点法の2枚落ちならば、↓の[BLACK(下手 = 後手)]には 27 , ↓の[WHITE(上手 = 先手)]には 28-10 = 18 が代入されている。
-	// 📝 Position::update_entering_point()で、enteringKingRuleに基づいて↓を求めている。
-	int enteringKingPoint[COLOR_NB];
-
-};
-
-extern GlobalOptions global_options;
 
 // --------------------
 //      UnitTest
