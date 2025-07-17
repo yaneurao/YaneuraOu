@@ -17,11 +17,51 @@ namespace Search {
 
 class YaneuraOuWorker;
 
+// 🌈 やねうら王 探索部の設定
+//     エンジンオプションで設定した設定値
+struct SearchOptions
+{
+    SearchOptions() {
+        max_moves_to_draw    = 100000;
+        pv_interval          = 300;
+        consideration_mode   = true;
+        lastPvInfoTime       = 0;
+        computed_pv_interval = 0;
+    }
+
+	// この構造体メンバーに対応するエンジンオプションを生やす
+	void add_options(OptionsMap& options);
+
+	// この手数で引き分けとなる。256なら256手目を指したあとに引き分け。
+	// 📝 options["MaxMovesToDraw"]の設定値。
+    int max_moves_to_draw;
+
+    // PVの出力の抑制のために前回出力時間からの間隔を指定できる。単位は[ms]
+	// 📝 options["PvInterval"]の設定値。
+    TimePoint pv_interval;
+
+	// 検討モード用のPVを出力するのか
+	// 📝 options["ConsiderationMode"]の設定値。
+    bool consideration_mode;
+
+	// fail low/highの時にPVを出力するか。
+	// 📝 options["OutputFailLHPV"]の設定値。
+	bool outout_fail_lh_pv;
+
+	// 📌 ここ以降は、SearchManagerで用いるメンバ変数 📌
+
+    // 前回のPV出力した時刻。PVが詰まるのを抑制するためのもの。
+    // lastPvInfoTime       : 出力した時のnow()の値。
+    // computed_pv_interval : 実際のPVの出力間隔[ms]。
+	//                      📝 options["PvInterval"]とoptions["ConsiderationMode"]から決定したもの。
+    TimePoint lastPvInfoTime;
+    TimePoint computed_pv_interval;
+};
 
 // 📌 Skill .. 手加減のための仕組み 📌
 //    やねうら王では実装しない。
 
-#if 0
+#if STOCKFISH
 // Skill structure is used to implement strength limit. If we have a UCI_Elo,
 // we convert it to an appropriate skill level, anchored to the Stash engine.
 // This method is based on a fit of the Elo results for games played between
@@ -172,9 +212,8 @@ class SearchManager {
 	*/
     std::atomic<bool> increaseDepth;
 
-    // 前回のPV出力した時刻。PVが詰まるのを抑制するためのもの。
-    // 💡 startTimeからの経過時間。
-    TimePoint lastPvInfoTime;
+	// やねうら王探索部で用いるオプション一覧
+	SearchOptions search_options;
 
     // ponder用の指し手
     // 📝 やねうら王では、ponderの指し手がないとき、一つ前のiterationのときのPV上の(相手の)指し手を用いるという独自仕様。

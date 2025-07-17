@@ -29,8 +29,12 @@ class TimeManagement {
     // 今回の思考時間を決定する。
     // optimum(),maximum(),minimum()に反映する。
     void init(Search::LimitsType& limits, Color us, int ply, const OptionsMap& options
-              /* , double& originalTimeAdjust */
-              // 💡 やねうら王では使わないことにする。
+#if STOCKFISH
+			  , double& originalTimeAdjust
+    // 💡 やねうら王では使わないことにする。
+#else
+			  , int max_moves_to_draw
+#endif
     );
 
     TimePoint optimum() const;
@@ -130,7 +134,8 @@ class TimeManagement {
     // 📌 以下、やねうら王独自追加。
 
     // init()の内部実装。
-    void init_(Search::LimitsType& limits, Color us, int ply, const OptionsMap& options);
+    void init_(
+      Search::LimitsType& limits, Color us, int ply, const OptionsMap& options, int max_moves_to_draw);
 
     // optionsのそれぞれの値
     TimePoint minimum_thinking_time;
@@ -143,6 +148,7 @@ class TimeManagement {
     Color               lastcall_Us;
     int                 lastcall_Ply;
     OptionsMap*         lastcall_Opt;
+
 #endif
 };
 

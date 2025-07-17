@@ -726,7 +726,7 @@ public:
 	}
 
 	// 入玉時の宣言勝ち
-	// Search::Limits.enteringKingRuleに基いて、宣言勝ちを行なう。
+	// GlobalOptions.enteringKingRuleに基いて、宣言勝ちを行なう。
 	// 条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。さもなくば、MOVE_NONEが返る。
 	// mate1ply()から内部的に呼び出す。(そうするとついでに処理出来て良い)
 	// 32bit Moveが返る。
@@ -822,7 +822,7 @@ private:
 	// undo_move()の先後分けたもの。内部的に呼び出される。
 	template <Color Us> void undo_move_impl(Move m);
 
-	// 現在の盤面から、入玉に必要な駒点を計算し、Search::Limits::enteringKingPointに設定する。
+	// 現在の盤面から、入玉に必要な駒点を計算し、GlobalOptions::enteringKingPointに設定する。
 	void update_entering_point();
 
 	// --- Bitboards

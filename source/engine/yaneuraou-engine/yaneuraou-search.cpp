@@ -39,6 +39,58 @@ using namespace Search;
 // 🌈 やねうら王独自追加
 // -------------------
 
+	// この構造体メンバーに対応するエンジンオプションを生やす
+void SearchOptions::add_options(OptionsMap& options) {
+    // 引き分けまでの最大手数。256手ルールのときに256を設定すると良い。0なら無制限。
+    /*
+		📓 0が設定されていたら、引き分けなしだから100000が代入されることになっている。
+		    (残り手数を計算する時に桁あふれすると良くないのでint_maxにはしていない)
+
+			初手(76歩とか)が1手目である。
+			1手目を指す前の局面はPosition::game_ply() == 1である。
+
+			そして256手指された時点(257手目の局面で指す権利があること。
+			サーバーから257手目の局面はやってこないものとする)で引き分けだとしたら
+			257手目(を指す前の局面)は、game_ply() == 257である。
+			これが、引き分け扱いということになる。
+
+			pos.game_ply() > max_moves_to_draw
+		　	で(かつ、詰みでなければ)引き分けということになる。
+
+			この引き分けの扱いについては、以下の記事が詳しい。
+			多くの将棋ソフトで256手ルールの実装がバグっている件
+			https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
+
+	*/
+    options.add("MaxMovesToDraw", Option(0, 0, 100000, [&](const Option& o) {
+                    // これ0の時、何らか設定しておかないと探索部でこの手数を超えた時に
+                    // 引き分け扱いにしてしまうので、無限大みたいな定数の設定が必要。
+                    max_moves_to_draw = int(o);
+                    if (max_moves_to_draw == 0)
+                        max_moves_to_draw = 100000;
+                    return std::nullopt;
+                }));
+
+    //  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
+    options.add("PvInterval", Option(300, 0, 100000000, [&](const Option& o) {
+                    pv_interval = s64(o);
+                    return std::nullopt;
+                }));
+
+    // 検討モード用のPVを出力するモード
+    options.add("ConsiderationMode", Option(true, [&](const Option& o) {
+                    consideration_mode = o;
+                    return std::nullopt;
+                }));
+
+    // fail low/highのときにPVを出力するかどうか。
+    options.add("OutputFailLHPV", Option(true, [&](const Option& o) {
+                    outout_fail_lh_pv = o;
+                    return std::nullopt;
+                }));
+}
+
+
 void SearchManager::pre_start_searching(YaneuraOuWorker& worker) {
     // 🤔 StockfishのThreadPool::start_thinking()にあった以下の初期化をこちらに移動させた。
 
@@ -69,23 +121,18 @@ void YaneuraOuEngine::add_options() {
     options.add("DrawValueBlack", Option(-2, -30000, 30000));
     options.add("DrawValueWhite", Option(-2, -30000, 30000));
 
-    //  PVの出力の抑制のために前回出力時間からの間隔を指定できる。
-    options.add("PvInterval", Option(300, 0, 100000000));
-
     // 投了スコア
     options.add("ResignValue", Option(99999, 0, 99999));
-
-    // 検討モード用のPVを出力するモード
-    options.add("ConsiderationMode", Option(true));
-
-    // fail low/highのときにPVを出力するかどうか。
-    options.add("OutputFailLHPV", Option(true));
 
     // 入玉ルール
     options.add("EnteringKingRule", Option(ekr_rules, ekr_rules[EKR_27_POINT]));
 
     // すべての合法手を生成するのか
     options.add("GenerateAllLegalMoves", Option(false));
+
+	// 📌 SearchOptionsが用いるオプションの追加
+
+	manager.search_options.add_options(options);
 
 #if defined(EVAL_LEARN)
     // 評価関数の学習を行なうときは、評価関数の保存先のフォルダを変更できる。
@@ -162,22 +209,6 @@ void YaneuraOuEngine::add_options() {
 void YaneuraOuEngine::isready() {
 
 	// 🌈 やねうら王独自オプションの内容を設定などに反映させる。
-
-	// 検討モード用のPVを出力するのか。
-    global_options.consideration_mode = options["ConsiderationMode"];
-
-    // fail low/highのときにPVを出力するかどうか。
-    global_options.outout_fail_lh_pv  = options["OutputFailLHPV"];
-
-	// 終局(引き分け)になるまでの手数
-    // 引き分けになるまでの手数。(Options["MaxMovesToDraw"]として与えられる。エンジンによってはこのオプションを持たないこともある。)
-    // 0のときは制限なしだが、これをint_maxにすると残り手数を計算するときに桁があふれかねないので100000を設定。
-	// 💡 MaxMovesToDrawは、TimeManagement.add_options()で自動的に追加されている。
-
-    int max_game_ply = int(options["MaxMovesToDraw"]);
-
-    // これ0の時、何らか設定しておかないと探索部でこの手数を超えた時に引き分け扱いにしてしまうので、無限大みたいな定数の設定が必要。
-    global_options.max_game_ply = (max_game_ply == 0) ? 100000 : max_game_ply;
 
     // 入玉ルール
     global_options.enteringKingRule = to_entering_king_rule(options["EnteringKingRule"]);
@@ -536,7 +567,10 @@ void Search::YaneuraOuWorker::start_searching() {
     main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options
                             , main_manager()->originalTimeAdjust);
 #else
-    main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options);
+    auto& mainManager = *main_manager();
+
+    mainManager.tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options,
+                        mainManager.search_options.max_moves_to_draw);
 #endif
 
     // 📌 置換表のTTEntryの世代を進める。
@@ -546,16 +580,20 @@ void Search::YaneuraOuWorker::start_searching() {
     // 置換表の世代カウンターを進める(クリアではない)
     tt.new_search();
 
-    // 🌈 やねうら王固有の初期化 🌈
+#if STOCKFISH
+#else
+	// 🌈 やねうら王固有の初期化 🌈
 
-    // PVが詰まるのを抑制するために、前回出力時刻を記録しておく。
-    main_manager()->lastPvInfoTime = 0;
+	auto& search_options = mainManager.search_options;
 
-    // PVの出力間隔[ms]
+	// PVが詰まるのを抑制するために、前回出力時刻を記録しておく。
+	search_options.lastPvInfoTime = now();
+
+	// PVの出力間隔[ms]
     // go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
     // この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
-    global_options.pv_interval =
-      (limits.infinite || global_options.consideration_mode) ? 0 : (int) options["PvInterval"];
+    search_options.computed_pv_interval =
+          (limits.infinite || search_options.consideration_mode) ? 0 : search_options.pv_interval;
 
     // 🌈 引き分けのスコア
 
@@ -573,10 +611,10 @@ void Search::YaneuraOuWorker::start_searching() {
     // このフラグがtrueなら(定跡にhitしたり1手詰めを発見したりしたので)探索をスキップした。
     bool search_skipped = true;
 
-    // ponder用の指し手の初期化
-    // やねうら王では、ponderの指し手がないとき、一つ前のiterationのときのPV上の(相手の)指し手を用いるという独自仕様。
-    // Stockfish本家もこうするべきだと思う。
-    main_manager()->ponder_candidate = Move::none();
+    // 🌈 ponder用の指し手の初期化
+    //    やねうら王では、ponderの指し手がないとき、一つ前のiterationのときのPV上の(相手の)指し手を用いるという独自仕様。
+    //     Stockfish本家もこうするべきだと思う。
+    mainManager.ponder_candidate = Move::none();
 
 
 #if defined(SHOGI24)
@@ -625,6 +663,7 @@ void Search::YaneuraOuWorker::start_searching() {
 #endif
 
     // ✋ 独自追加ここまで。
+#endif
 
     // ---------------------
     // 合法手がないならここで投了
@@ -638,10 +677,13 @@ void Search::YaneuraOuWorker::start_searching() {
         //     読み筋にresignと出力されるが、将棋所、ShogiGUIともにバグらないのでこれで良しとする。
         rootMoves.emplace_back(Move::none());
 
-        //main_manager()->updates.onUpdateNoMoves(
-        //  {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
+#if STOCKFISH
+        main_manager()->updates.onUpdateNoMoves(
+          {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
         // 💡 チェスだと王手されていないなら引き分けだが、将棋だとつねに負け。
-        main_manager()->updates.onUpdateNoMoves({0, -VALUE_MATE});
+#else
+        mainManager.updates.onUpdateNoMoves({0, -VALUE_MATE});
+#endif
 
 // TODO : あとで考える。
 #if 0
@@ -889,6 +931,12 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     // もし自分がメインスレッドであるならmainThreadにmain_managerのポインタを代入。
     // 自分がサブスレッドのときは、これはnullptrになる。
     SearchManager* mainThread = (is_mainthread() ? main_manager() : nullptr);
+
+#if STOCKFISH
+#else
+	// やねうら王では探索オプションは、main_managerが持っている。
+    SearchOptions& search_options = main_manager()->search_options;
+#endif
 
     Move pv[MAX_PLY + 1];
 
@@ -1197,20 +1245,27 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 // 💡 将棋所のコンソールが詰まるのを予防するために出力を少し抑制する。
                 //    また、go infiniteのときは、検討モードから使用しているわけで、PVは必ず出力する。
 
-                if (
-                  mainThread && multiPV == 1 && (bestValue <= alpha || bestValue >= beta)
-                  && nodes > 10000000
+                if (mainThread && multiPV == 1 && (bestValue <= alpha || bestValue >= beta)
+                    && nodes > 10000000
 
-				// TODO : あとで考える。
+                    // TODO : あとで考える。
 
-                  // 🌈 以下やねうら王独自拡張
-                  && (rootDepth < 3
-                      || mainThread->lastPvInfoTime + global_options.pv_interval <= mainThread->tm.elapsed_time())
-                  // outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
-                  && global_options.outout_fail_lh_pv
+                    // 🌈 以下やねうら王独自拡張
+                    && (rootDepth < 3
+                        || search_options.lastPvInfoTime + search_options.computed_pv_interval <= now())
+                    // outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
+                    && search_options.outout_fail_lh_pv
 
                 )
+#if STOCKFISH
                     main_manager()->pv(*this, threads, tt, rootDepth);
+#else
+                {
+                    main_manager()->pv(*this, threads, tt, rootDepth);
+					// 最後にPVを出力した時刻を格納しておく。
+                    search_options.lastPvInfoTime = now();
+                }
+#endif
 
                 // In case of failing low/high increase aspiration window and re-search,
                 // otherwise exit the loop.
@@ -1777,9 +1832,8 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 #else
 
 		// 📌 将棋では手数を超えたら無条件で引き分け扱い。
-		if (threads.stop.load(std::memory_order_relaxed)
-            || ss->ply >= MAX_PLY || pos.game_ply() > global_options.max_game_ply
-			)
+        if (threads.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY
+            || pos.game_ply() > main_manager()->search_options.max_moves_to_draw)
             return draw_value(REPETITION_DRAW, pos.side_to_move());
 #endif
 
@@ -3859,8 +3913,10 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         return draw_value(REPETITION_DRAW, us);
 	#endif
 
+	auto& search_options = main_manager()->search_options;
+
     // 最大手数の到達
-    if (ss->ply >= MAX_PLY || pos.game_ply() > global_options.max_game_ply)
+    if (ss->ply >= MAX_PLY || pos.game_ply() > search_options.max_moves_to_draw)
         return draw_value(REPETITION_DRAW, us);
 
 	ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);

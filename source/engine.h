@@ -343,12 +343,14 @@ class Engine: public IEngine {
    public:
     Engine();
 
-    virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override;
+    virtual std::uint64_t perft(const std::string& fen,
+                                Depth              depth /*, bool isChess960 */) override;
 
     virtual void go(Search::LimitsType& limits) override;
     virtual void stop() override;
     virtual void wait_for_search_finished() override;
-    virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override;
+    virtual void set_position(const std::string&              sfen,
+                              const std::vector<std::string>& moves) override;
     virtual void resize_threads() override;
     virtual void set_tt_size(size_t mb) override {}
     virtual void set_ponderhit(bool b) override {}
@@ -356,7 +358,8 @@ class Engine: public IEngine {
     virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&&) override final;
     virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) override final;
     virtual void set_on_iter(std::function<void(const InfoIter&)>&&) override final;
-    virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) override final;
+    virtual void
+    set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) override final;
     virtual void set_on_update_string(std::function<void(std::string_view)>&&) override final;
     virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) override;
 
@@ -443,7 +446,10 @@ class EngineWrapper: public IEngine {
     // Engineのoverride
     // 📌 すべてset_engine()で渡されたengineに委譲する。
 
-    virtual std::uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) override { return engine->perft(fen, depth); }
+    virtual std::uint64_t perft(const std::string& fen,
+                                Depth              depth /*, bool isChess960 */) override {
+        return engine->perft(fen, depth);
+    }
 
     virtual void go(Search::LimitsType& limits) override { engine->go(limits); }
     virtual void stop() override { engine->stop(); }
@@ -451,13 +457,26 @@ class EngineWrapper: public IEngine {
     virtual void resize_threads() override { engine->resize_threads(); }
     virtual void set_tt_size(size_t mb) override { engine->set_tt_size(mb); }
     virtual void set_ponderhit(bool b) override { engine->set_ponderhit(b); }
-    
-    virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&& f) override final { engine->set_on_update_no_moves(std::move(f)); }
-    virtual void set_on_update_full(std::function<void(const InfoFull&)>&& f) override final { engine->set_on_update_full(std::move(f)); }
-    virtual void set_on_iter(std::function<void(const InfoIter&)>&& f) override final { engine->set_on_iter(std::move(f)); }
-    virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&& f) override final { engine->set_on_bestmove(std::move(f)); }
-    virtual void set_on_update_string(std::function<void(std::string_view)>&& f) override final { engine->set_on_update_string(std::move(f)); }
-    virtual void set_on_verify_networks(std::function<void(std::string_view)>&& f) override { engine->set_on_verify_networks(std::move(f)); }
+
+    virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&& f) override final {
+        engine->set_on_update_no_moves(std::move(f));
+    }
+    virtual void set_on_update_full(std::function<void(const InfoFull&)>&& f) override final {
+        engine->set_on_update_full(std::move(f));
+    }
+    virtual void set_on_iter(std::function<void(const InfoIter&)>&& f) override final {
+        engine->set_on_iter(std::move(f));
+    }
+    virtual void
+    set_on_bestmove(std::function<void(std::string_view, std::string_view)>&& f) override final {
+        engine->set_on_bestmove(std::move(f));
+    }
+    virtual void set_on_update_string(std::function<void(std::string_view)>&& f) override final {
+        engine->set_on_update_string(std::move(f));
+    }
+    virtual void set_on_verify_networks(std::function<void(std::string_view)>&& f) override {
+        engine->set_on_verify_networks(std::move(f));
+    }
 
     virtual void verify_networks() const override { engine->verify_networks(); }
     virtual void save_network(const std::string& path) override { engine->save_network(path); }
@@ -478,7 +497,10 @@ class EngineWrapper: public IEngine {
     virtual void usi() override { engine->usi(); }
     virtual void isready() override { engine->isready(); }
     virtual void usinewgame() override { engine->usinewgame(); }
-    virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) override { engine->set_position(sfen, moves); }
+    virtual void set_position(const std::string&              sfen,
+                              const std::vector<std::string>& moves) override {
+        engine->set_position(sfen, moves);
+    }
     virtual void user(std::istringstream& is) override { engine->user(is); }
 
     virtual std::string get_engine_name() const override { return engine->get_engine_name(); }

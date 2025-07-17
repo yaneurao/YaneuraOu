@@ -49,18 +49,25 @@ void TimeManagement::add_options(OptionsMap& options) {
     // 例えば200を指定すると本来の最適時間の200%(2倍)思考するようになる。
     // 対人のときに短めに設定して強制的に早指しにすることが出来る。
     options.add("SlowMover", Option(100, 1, 1000));
-
-    // 引き分けまでの最大手数。256手ルールのときに256を設定すると良い。0なら無制限。
-    options.add("MaxMovesToDraw", Option(0, 0, 100000));
 }
 
 void TimeManagement::init(Search::LimitsType& limits,
                           Color               us,
                           int                 ply,
-                          const OptionsMap&   options) {
+                          const OptionsMap&   options
+#if STOCKFISH
+                          ,
+                          double& originalTimeAdjust
+// 💡 やねうら王では使わないことにする。
+#else
+                          ,
+                          int max_moves_to_draw
+#endif
 
-	// 📝 探索開始時刻をコピーしておく。
-	//     以降、elapsed_time()は、ここからの経過時間を返す。
+) {
+
+    // 📝 探索開始時刻をコピーしておく。
+    //     以降、elapsed_time()は、ここからの経過時間を返す。
     startTime = limits.startTime;
 
     // reinit()が呼び出された時のために呼び出し条件を保存しておく。
@@ -69,7 +76,7 @@ void TimeManagement::init(Search::LimitsType& limits,
     lastcall_Ply    = ply;
     lastcall_Opt    = const_cast<OptionsMap*>(&options);
 
-    init_(limits, us, ply, options);
+    init_(limits, us, ply, options, max_moves_to_draw);
 }
 
 // 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
@@ -79,7 +86,7 @@ void TimeManagement::init(Search::LimitsType& limits,
 void TimeManagement::init_(Search::LimitsType& limits,
                            Color               us,
                            int                 ply,
-                           const OptionsMap&   options) {
+                           const OptionsMap&   options, int max_moves_to_draw) {
 
 #if STOCKFISH
 	TimePoint npmsec = TimePoint(options["nodestime"]);
@@ -185,12 +192,6 @@ void TimeManagement::init_(Search::LimitsType& limits,
 		// + 20は調整項
 		move_horizon = MoveHorizon + 20 - std::min(ply , 80);
 
-	int max_moves_to_draw = int(options["MaxMovesToDraw"]);
-
-	// 値が0ならそれは制限なしを意味する。
-    if (max_moves_to_draw == 0)
-        max_moves_to_draw = 100000;
-
 	// 残りの自分の手番の回数
 	// ⇨　plyは平手の初期局面が1。256手ルールとして、max_game_ply == 256だから、256手目の局面においてply == 256
 	// 　その1手前の局面においてply == 255。ply == 255 or 256のときにMTGが1にならないといけない。だから2足しておくのが正解。
@@ -200,7 +201,9 @@ void TimeManagement::init_(Search::LimitsType& limits,
 	{
 		// 本来、終局までの最大手数が指定されているわけだから、この条件で呼び出されるはずはないのだが…。
 		sync_cout << "info string Error! : MaxMovesToDraw is too small." << sync_endl;
-		return;
+		// 事故防止のために何か設定はしておく。
+        minimumTime = optimumTime = maximumTime = 500;
+        return;
 	}
 	if (MTG == 1)
 	{
