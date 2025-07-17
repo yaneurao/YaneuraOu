@@ -329,7 +329,7 @@ void TimeManagement::set_search_end(TimePoint e) {
 
 	// 2. "go"した時刻からminimum()を足して、ponderhitからの経過時間に変換したもの。
 	//    ただし、finalpushであるなら、"ponderhit"した時刻から数える。
-    TimePoint t2 = isFinalPush ? minimum() : startTime + minimum() - ponderhitTime;
+    TimePoint t2 = isFinalPush ? minimum() : minimum() + startTime - ponderhitTime;
 
 	// t1,t2の大きいほうを秒単位で切り上げて、それをstartTimeからの経過時間に換算したもの。
     // 💡 search_endの値は、startTimeからの経過時間なので。

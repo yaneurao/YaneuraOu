@@ -177,7 +177,8 @@ public:
 
 #if STOCKFISH
 	// "usinewgame"に対してWorkerを初期化する。
-    void search_clear();
+	//	🤔 将棋だと"isready"に対するhandlerで処理したほうがいいと思う。
+	void search_clear();
 #endif
 
 	// 📌 読み筋の出力など、event handlerのsetter
@@ -303,6 +304,19 @@ public:
     virtual void usi() = 0;
 
 	// "isready"コマンド。時間のかかる初期化処理はここで行うこと。
+    /*
+		📓 将棋(USIプロトコル)では、"isready"と"usinewgame"との両方が
+		    対局ごとに送られてくることが保証されている。
+			このうち、"isready"は、"readyok"を返すまでGUIに待ってもらえる。
+			そこで、時間がかかる初期化も含め、すべての初期化は"isready"で行い、
+			"usinewgame"は単に無視をするのが簡単である。
+
+			一方、チェス(UCIプロトコル)では、"isready"は初回のみしか送られてこず(?)、
+			"ucinewgame"は対局ごとに毎回送られてくるので、"isready"は何もせずに
+			"ucinewgame"で初期化(search_clear呼び出し)を行っている。
+
+			やねうら王では、"usinewgame"を無視して、search_clear()を実装しない。
+	*/
 	virtual void isready() = 0;
 
 	// "usinewgame"コマンド。
@@ -437,7 +451,7 @@ class EngineWrapper: public IEngine {
     virtual void resize_threads() override { engine->resize_threads(); }
     virtual void set_tt_size(size_t mb) override { engine->set_tt_size(mb); }
     virtual void set_ponderhit(bool b) override { engine->set_ponderhit(b); }
-
+    
     virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&& f) override final { engine->set_on_update_no_moves(std::move(f)); }
     virtual void set_on_update_full(std::function<void(const InfoFull&)>&& f) override final { engine->set_on_update_full(std::move(f)); }
     virtual void set_on_iter(std::function<void(const InfoIter&)>&& f) override final { engine->set_on_iter(std::move(f)); }

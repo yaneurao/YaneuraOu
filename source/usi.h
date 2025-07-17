@@ -66,11 +66,16 @@ public:
     // 💡 合法でない指し手の場合、エラーである旨を出力する。
     static Move to_move(const Position& pos, std::string str);
 
-	// コマンドラインを解析して、Search::LimitsTypeに反映させて返す。
+	// "go"の後続文字列を解析して、それを反映させたSearch::LimitsTypeを返す。
+    /*
+	   📓 やねうら王のほうはoptions["DepthLimit"], options["NodesLimit"] を
+	       参照したいので、OptionsMap&が必要になり、これはUSIEngineが持っているので
+	       このmethodをstaticにできない。
+	*/
 #if STOCKFISH
     static Search::LimitsType parse_limits(std::istream& is);
 #else
-	static Search::LimitsType parse_limits(std::istream& is, OptionsMap& options);
+    Search::LimitsType parse_limits(std::istream& is);
 #endif
 
 	// 🌈　やねうら王独自  🌈

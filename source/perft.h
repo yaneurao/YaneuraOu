@@ -7,6 +7,7 @@
 #include "position.h"
 #include "types.h"
 #include "usi.h"
+#include "misc.h"
 
 namespace YaneuraOu::Benchmark {
 
@@ -40,17 +41,43 @@ uint64_t perft(Position& pos, Depth depth) {
             pos.undo_move(m);
         }
         if (Root)
-            sync_cout << USIEngine::move(m /*, pos.is_chess960()*/ ) << ": " << cnt << sync_endl;
+#if STOCKFISH
+            sync_cout << USIEngine::move(m, pos.is_chess960() ) << ": " << cnt << sync_endl;
+#else
+            sync_cout << USIEngine::move(m /*, pos.is_chess960() */) << ": " << cnt << sync_endl;
+#endif
     }
     return nodes;
 }
 
+#if STOCKFISH
+inline uint64_t perft(const std::string& fen, Depth depth , bool isChess960) {
+#else
 inline uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
-    StateListPtr states(new std::deque<StateInfo>(1));
-    Position     p;
-    p.set(fen, /* isChess960,*/ &states->back());
 
+	ElapsedTimer time;
+    time.reset();
+#endif
+
+	StateListPtr states(new std::deque<StateInfo>(1));
+    Position     p;
+
+#if STOCKFISH
+    p.set(fen, isChess960, &states->back());
     return perft<true>(p, depth);
+#else
+	p.set(fen, /* isChess960,*/ &states->back());
+
+	// 🌈 やねうら王では、NPS(leaf nodeの数/elapsed)と計測に要した時間も出力する。
+	auto nodes = perft<true>(p, depth);
+    auto elapsed = time.elapsed() + 1; // ゼロ割防止のために +1
+
+	sync_cout << "Elapsed Time = " << elapsed << " [ms]" << sync_endl;
+    sync_cout << 1000 * nodes / elapsed << " NPS" << sync_endl;
+
+	return nodes;
+#endif
+
 }
 }
 

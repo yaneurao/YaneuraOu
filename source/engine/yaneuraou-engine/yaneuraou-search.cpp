@@ -164,23 +164,29 @@ void YaneuraOuEngine::isready() {
     // fail low/highのときにPVを出力するかどうか。
     global_options.outout_fail_lh_pv  = options["OutputFailLHPV"];
 
-	// 📌 基本設定(base classのisready()を呼び出してやる)
-
-	Engine::isready();
-
 #if defined(USE_CLASSIC_EVAL)
-	// 📌 旧評価関数は、isreadyに対して呼び出す。
-	//     評価関数パラメーターの読み込み処理が必要。
-    Engine::run_heavy_job([] {
-        Eval::load_eval();
-	});
+    // 📌 旧評価関数は、isreadyに対して呼び出す。
+    //     評価関数パラメーターの読み込み処理が必要。
+    Engine::run_heavy_job([] { Eval::load_eval(); });
 
-	// 初期化タイミングがなかったので、
-	// このタイミングで平手の局面に初期化しておく。
-	// 💡 これをしておかないとデバッグの時に、"isready"のあと
-	//     "position"コマンドを送信しないと局面が不正で落ちて面倒。
+    // 初期化タイミングがなかったので、
+    // このタイミングで平手の局面に初期化しておく。
+    // 💡 これをしておかないとデバッグの時に、"isready"のあと
+    //     "position"コマンドを送信しないと局面が不正で落ちて面倒。
     pos.set(StartSFEN, &states->back());
 #endif
+
+	// 📌 基本設定(base classのisready()を呼び出してやる)
+	//Engine::isready();
+	// 🤔 ttのclearに先立ち、ThreadPoolがスレッドを用意してくれていないといけない。
+
+	// エンジン設定のスレッド数を反映させる。
+    resize_threads();
+
+	// 置換表のclear
+	tt.clear(threads);
+
+    sync_cout << "readyok" << sync_endl;
 }
 
 // 🌈 "ponderhit"に対する処理。
@@ -815,10 +821,13 @@ SKIP_SEARCH:;
     if (bestThread != this)
         main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
 #else
-	// デバッグ用に、経過時間を出力してみる。
+
+	// デバッグ用に(ギリギリまで思考できているかを確認するために)経過時間を出力してみる。
+    /*
     auto& tm = main_manager()->tm;
     sync_cout << "info string elapsed time           = " << tm.elapsed_time() << "\n"
               << "info string elapsed_from_ponderhit = " << now() - tm.ponderhitTime << sync_endl;
+	*/
 
 #endif
 
