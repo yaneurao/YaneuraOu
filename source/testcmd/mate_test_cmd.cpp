@@ -556,11 +556,6 @@ namespace {
 		//options["USI_Hash"] = ttSize;
 		options.set_option_if_exists("USI_Hash", ttSize);
 
-		// ConsiderationModeをオフにしておかないとPV出力の時に置換表を漁るのでその時にdo_move()をして
-		// 探索ノード数が加算されてしまい、depth固定のbenchなのに探索ノード数が変化することがある。
-		global_options.consideration_mode = false;
-		// →　ただし、探索部でこのオプションの値を上書きしていないものとする。
-
 		// 探索制限
 		Search::LimitsType limits;
 		limits.nodes = 0;

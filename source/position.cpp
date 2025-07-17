@@ -911,12 +911,10 @@ bool Position::legal_pawn_drop(const Color us, const Square to) const
 //
 // is_ok(m)==falseの時、すなわち、m == Move::win()やMove::none()のような時に
 // Position::to_move(m) == mは保証されており、この時、本関数pseudo_legal(m)がfalseを返すことは保証する。
-// 
-// Options["GenerateAllLegalMoves"]を反映させる。
-// ↑これがtrueならば、歩の不成も合法手扱い。
-bool Position::pseudo_legal(const Move m) const
-{
-	return global_options.generate_all_legal_moves ? pseudo_legal_s<true>(m) : pseudo_legal_s<false>(m);
+//
+// generate_all_legal_moves : これがtrueならば、歩の不成も合法手扱い。
+bool Position::pseudo_legal(const Move m, bool generate_all_legal_moves) const {
+	return generate_all_legal_moves ? pseudo_legal_s<true>(m) : pseudo_legal_s<false>(m);
 }
 
 // ※　mがこの局面においてpseudo_legalかどうかを判定するための関数。
@@ -2704,9 +2702,6 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine)
 	auto options_backup = global_options;
 	SCOPE_EXIT({ global_options = options_backup; });
 
-	// 歩の不成の指し手を生成しない状態でテストする。
-	global_options.generate_all_legal_moves = false;
-
 	// to_move() のテスト
 	{
 		auto section2 = tester.section("to_move()");
@@ -2751,7 +2746,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		// これはpseudo_legalではある。
 		m16 = make_move16(SQ_77, SQ_76);
 		m = pos.to_move(m16);
-		tester.test("make_move(SQ_77, SQ_76) is pseudo_legal == true", pos.pseudo_legal(m) == true);
+		tester.test("make_move(SQ_77, SQ_76) is pseudo_legal == true", pos.pseudo_legal(m, true) == true);
 
 #if 0
 		// 後手の駒の場合、現在の手番の駒ではないので、pseudo_legalではない。(pseudo_legalは手番側の駒であることを保証する)
@@ -2765,7 +2760,8 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		// (pseudo_legalは、その駒が移動できる(移動先の升にその駒の利きがある)ことを保証する)
 		m16 = make_move16(SQ_88, SQ_22);
 		m = pos.to_move(m16);
-		tester.test("make_move(SQ_88, SQ_22) is pseudo_legal == false", pos.pseudo_legal(m) == false);
+                tester.test("make_move(SQ_88, SQ_22) is pseudo_legal == false",
+                            pos.pseudo_legal(m, true) == false);
 	}
 
 	// attacks_bb() のテスト

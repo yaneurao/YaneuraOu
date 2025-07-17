@@ -541,24 +541,26 @@ public:
 	bool legal(Move m) const;
 
 	// mがpseudo_legalな指し手であるかを判定する。
-	// ※　pseudo_legalとは、擬似合法手(自殺手が含まれていて良い)
-	// 置換表の指し手でdo_move()して良いのかの事前判定のために使われる。
-	// 指し手生成ルーチンのテストなどにも使える。(指し手生成ルーチンはpseudo_legalな指し手を返すはずなので)
-	// killerのような兄弟局面の指し手がこの局面において合法かどうかにも使う。
-	// ※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
-	// 確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
-	//
-	// is_ok(m)==falseの時、すなわち、m == MOVE_WINやMOVE_NONEのような時に
-	// Position::to_move(m) == mは保証されており、この時、本関数pseudo_legal(m)がfalseを返すことは保証する。
-	// 
-	// また、
-	// Options["GenerateAllLegalMoves"]を反映させる。
-	// ↑これがtrueならば、歩の不成も合法手扱い。
-	// 
-	// 注意)
-	// ↑のオプションに依らず、常に歩の不成の指し手も合法手として扱いたいならば、
-	// この関数ではなく、pseudo_legal_s<true>()を用いること。
-	bool pseudo_legal(const Move m) const;
+    /*
+	    📓　pseudo_legalとは
+
+			pseudo_legalとは擬似合法手のこと。ここには、自殺手が含まれている。
+
+			置換表の指し手でdo_move()して良いのかの事前判定のために使われる。
+			指し手生成ルーチンのテストなどにも使える。(指し手生成ルーチンはpseudo_legalな指し手を返すはずなので)
+
+			killerのような兄弟局面の指し手がこの局面において合法かどうかにも使う。
+			※　置換表の検査だが、pseudo_legal()で擬似合法手かどうかを判定したあとlegal()で自殺手でないことを
+			確認しなくてはならない。このためpseudo_legal()とlegal()とで重複する自殺手チェックはしていない。
+
+			is_ok(m)==falseの時、すなわち、m == MOVE_WINやMOVE_NONEのような時に
+			Position::to_move(m) == mは保証されており、この時、本関数pseudo_legal(m)がfalseを返すことは保証する。
+			generate_all_legal_moves : これがtrueならば、歩の不成も合法手扱い。
+
+		⚠ 常に歩の不成の指し手も合法手として扱いたいならば、
+			この関数ではなく、pseudo_legal_s<true>()を用いること。
+	*/
+    bool pseudo_legal(const Move m, bool generate_all_legal_moves) const;
 
 	// All == false        : 歩や大駒の不成に対してはfalseを返すpseudo_legal()
 	template <bool All> bool pseudo_legal_s(const Move m) const;

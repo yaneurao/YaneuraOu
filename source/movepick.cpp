@@ -115,71 +115,94 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 // MovePickerクラスのコンストラクタ。引数として、どの種類の手を生成するかを決定するための情報、
 // どの手を優先的に（おそらく良い手を）ソートするか、そして現在のノードで手順の順序がどれほど重要かを渡します。
 
-MovePicker::MovePicker(
-		const Position&              p,
-		Move                         ttm,
-		Depth                        d,
-		const ButterflyHistory*      mh,
-		const LowPlyHistory*         lph,
-		const CapturePieceToHistory* cph,
-		const PieceToHistory**       ch,
+MovePicker::MovePicker(const Position&              p,
+                       Move                         ttm,
+                       Depth                        d,
+                       const ButterflyHistory*      mh,
+                       const LowPlyHistory*         lph,
+                       const CapturePieceToHistory* cph,
+                       const PieceToHistory**       ch,
 #if defined(ENABLE_PAWN_HISTORY)
-		const PawnHistory*           ph,
+                       const PawnHistory* ph,
 #endif
-		int                          pl) :
-	pos(p),
-	mainHistory(mh),
-	lowPlyHistory(lph),
-	captureHistory(cph),
-	continuationHistory(ch),
+                       int pl
+#if STOCKFISH
+#else
+                       ,
+                       bool generate_all_legal_moves
+#endif
+                       ) :
+    pos(p),
+    mainHistory(mh),
+    lowPlyHistory(lph),
+    captureHistory(cph),
+    continuationHistory(ch),
 #if defined(ENABLE_PAWN_HISTORY)
-	pawnHistory(ph),
+    pawnHistory(ph),
 #endif
-	ttMove(ttm),
-	depth(d),
-	ply(pl)
+    ttMove(ttm),
+    depth(d),
+    ply(pl)
+#if STOCKFISH
+#else
+    ,
+    generate_all_legal_moves(generate_all_legal_moves)
+#endif
 {
-	// 次の指し手生成の段階
-	// 王手がかかっているなら王手回避のフェーズへ。さもなくばQSEARCHのフェーズへ。
-#if 1
+    // 次の指し手生成の段階
+    // 王手がかかっているなら王手回避のフェーズへ。さもなくばQSEARCHのフェーズへ。
+
+#if STOCKFISH
 	if (pos.in_check())
-		// 王手がかかっているなら回避手
+        // 王手がかかっているなら回避手
 		stage = EVASION_TT + !(ttm && pos.pseudo_legal(ttm));
 
-	else
-		// 王手がかかっていないなら通常探索用/静止探索の指し手生成
-		// ⇨ 通常探索から呼び出されたのか、静止探索から呼び出されたのかについてはdepth > 0 によって判定できる。
-		stage = (depth > 0 ? MAIN_TT : QSEARCH_TT) + !(ttm && pos.pseudo_legal(ttm));
+    else
+        // 王手がかかっていないなら通常探索用/静止探索の指し手生成
+        // ⇨ 通常探索から呼び出されたのか、静止探索から呼び出されたのかについてはdepth > 0 によって判定できる。
+        stage = (depth > 0 ? MAIN_TT : QSEARCH_TT)
+              + !(ttm && pos.pseudo_legal(ttm));
+#else
+	// 🌈 やねうら王では、pos.pseudo_legal()にgenerate_all_legal_movesを渡してやる必要がある。
+
+    if (pos.in_check())
+        // 王手がかかっているなら回避手
+        stage = EVASION_TT + !(ttm && pos.pseudo_legal(ttm, generate_all_legal_moves));
+
+    else
+        // 王手がかかっていないなら通常探索用/静止探索の指し手生成
+        // ⇨ 通常探索から呼び出されたのか、静止探索から呼び出されたのかについてはdepth > 0 によって判定できる。
+        stage = (depth > 0 ? MAIN_TT : QSEARCH_TT)
+              + !(ttm && pos.pseudo_legal(ttm, generate_all_legal_moves));
 #endif
+
 	// ⇨ Stockfish 16のコード、ttm(置換表の指し手)は無条件でこのMovePickerが返す1番目の指し手としているが、これだと
-	//    TTの指し手だけで千日手になってしまうことがある。これは、将棋ではわりと起こりうる。
-	//    対策としては、qsearchで千日手チェックをしたり、SEEが悪いならskipするなど。
-	//  ※　ここでStockfish 14のころのように置換表の指し手に条件をつけるのは良くなさげ。(V7.74l3 と V7.74mとの比較)
-	//  →　ただし、その場合、qsearch()で千日手チェックが必要になる。
-	//    qsearchでの千日手チェックのコストが馬鹿にならないので、
-	//    ⇓このコードを有効にして、qsearch()での千日手チェックをやめた方が得。  
+    //    TTの指し手だけで千日手になってしまうことがある。これは、将棋ではわりと起こりうる。
+    //    対策としては、qsearchで千日手チェックをしたり、SEEが悪いならskipするなど。
+    //  ※　ここでStockfish 14のころのように置換表の指し手に条件をつけるのは良くなさげ。(V7.74l3 と V7.74mとの比較)
+    //  →　ただし、その場合、qsearch()で千日手チェックが必要になる。
+    //    qsearchでの千日手チェックのコストが馬鹿にならないので、
+    //    ⇓このコードを有効にして、qsearch()での千日手チェックをやめた方が得。
 
-	// recaptureの制約なくす。(ただし、やねうら王ではttmは何らかの制約を課す)
-	// →　この制約入れないと、TTの指し手だけで16手超えで循環されてしまうとqsearch()で
-	//    is_repetition()入れたところで永久ループになる。
+    // recaptureの制約なくす。(ただし、やねうら王ではttmは何らかの制約を課す)
+    // →　この制約入れないと、TTの指し手だけで16手超えで循環されてしまうとqsearch()で
+    //    is_repetition()入れたところで永久ループになる。
 
-	// 置換表の指し手を優遇するコード。
-	// depth > -5なら、TT優先。depth <= -5でもcaptureである制約。
-	// 単にcapture()にするより、この制約にしたほうが良さげ。(V775a7 vs V775a8)
+    // 置換表の指し手を優遇するコード。
+    // depth > -5なら、TT優先。depth <= -5でもcaptureである制約。
+    // 単にcapture()にするより、この制約にしたほうが良さげ。(V775a7 vs V775a8)
 
-	// ↓これ参考に変更したほうがよさげ？
+    // ↓これ参考に変更したほうがよさげ？
 
-/*
+    /*
 	stage = (pos.in_check() ? EVASION_TT : QSEARCH_TT) +
 		!(ttm
 			&& (pos.in_check() || depth > -5 || pos.capture(ttm))
 			&& pos.pseudo_legal(ttm));
 */
 
-	// 置換表の指し手があるならそれを最初に試す。ただしpseudo_legalでなければならない。
-	// 置換表の指し手がないなら、次のstageから開始する。
-
-
+    // 置換表の指し手があるならそれを最初に試す。ただしpseudo_legalでなければならない。
+    // 置換表の指し手がないなら、次のstageから開始する。
 }
 
 // MovePicker constructor for ProbCut: we generate captures with Static Exchange
@@ -190,32 +213,47 @@ MovePicker::MovePicker(
 // th = 枝刈りのしきい値
 // ⇨ SEEの値がth以上となるcaptureの指し手(歩の成りは含む)だけを生成する。
 
-MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceToHistory* cph) :
-	pos(p),
-	captureHistory(cph),
-	ttMove(ttm),
-	threshold(Value(th))
-{
+MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceToHistory* cph
+#if STOCKFISH
+#else
+    , bool generate_all_legal_moves
+#endif
 
-	// ProbCutから呼び出されているので王手はかかっていないはず。
-	ASSERT_LV3(!pos.in_check());
+                       ) :
+    pos(p),
+    captureHistory(cph),
+    ttMove(ttm),
+    threshold(Value(th))
+#if STOCKFISH
+#else
+    ,generate_all_legal_moves(generate_all_legal_moves)
+#endif
 
-	// ProbCutにおいて、SEEが与えられたthresholdの値以上の指し手のみ生成する。
-	// (置換表の指し手も、この条件を満たさなければならない)
-	// 置換表の指し手がないなら、次のstageから開始する。
+    {
 
-	stage = PROBCUT_TT
-		+ !(ttm 
-			// && pos.capture_stage(ttm)
-			&& pos.capture(ttm)
-			// 注意 : ⇑ ProbCutの指し手生成(PROBCUT_INIT)で、
-			// 歩の成りも生成するなら、ここはcapture_or_pawn_promotion()、しないならcapture()にすること。
-			// ただし、TTの指し手は優遇した方が良い可能性もある。
-			&& pos.pseudo_legal(ttm)
-			&& pos.see_ge(ttm, threshold));
-	// ⇨ qsearch()のTTと同様、置換表の指し手に関してはsee_geの条件、
-	// つけないほうがいい可能性があるが、やってみたら良くなかった。(V774v2 vs V774v3)
+    // ProbCutから呼び出されているので王手はかかっていないはず。
+    ASSERT_LV3(!pos.in_check());
 
+    // ProbCutにおいて、SEEが与えられたthresholdの値以上の指し手のみ生成する。
+    // (置換表の指し手も、この条件を満たさなければならない)
+    // 置換表の指し手がないなら、次のstageから開始する。
+
+    stage =
+      PROBCUT_TT
+      + !(
+        ttm
+        // && pos.capture_stage(ttm)
+        && pos.capture(ttm)
+        // 注意 : ⇑ ProbCutの指し手生成(PROBCUT_INIT)で、
+        // 歩の成りも生成するなら、ここはcapture_or_pawn_promotion()、しないならcapture()にすること。
+        // ただし、TTの指し手は優遇した方が良い可能性もある。
+#if STOCKFISH
+        && pos.pseudo_legal(ttm) && pos.see_ge(ttm, threshold));
+#else
+        && pos.pseudo_legal(ttm, generate_all_legal_moves) && pos.see_ge(ttm, threshold));
+#endif
+    // ⇨ qsearch()のTTと同様、置換表の指し手に関してはsee_geの条件、
+    // つけないほうがいい可能性があるが、やってみたら良くなかった。(V774v2 vs V774v3)
 }
 
 // Assigns a numerical value to each move in a list, used for sorting.
@@ -429,7 +467,7 @@ top:
 	case PROBCUT_INIT:
 	case QCAPTURE_INIT:
 		cur = endBadCaptures = moves;
-        endCur = endCaptures = global_options.generate_all_legal_moves
+        endCur = endCaptures = generate_all_legal_moves
                                 ? generateMoves<CAPTURES_ALL>(pos, cur)
                                 : generateMoves<CAPTURES>(pos, cur);
 
@@ -500,7 +538,7 @@ top:
 
 			*/
 
-            endCur = endGenerated = global_options.generate_all_legal_moves
+            endCur = endGenerated = generate_all_legal_moves
                         ? generateMoves<NON_CAPTURES_ALL>(pos, cur)
                         : generateMoves<NON_CAPTURES>(pos, cur);
 			// 注意 : ここ⇑、CAPTURE_INITで生成した指し手に歩の成りの指し手が含まれているなら、それを除外しなければならない。
@@ -569,7 +607,7 @@ top:
 		// 王手回避手の生成
 	case EVASION_INIT:
 		cur    = moves;
-        endCur = endGenerated = global_options.generate_all_legal_moves
+        endCur = endGenerated = generate_all_legal_moves
                                 ? generateMoves<EVASIONS_ALL>(pos, cur)
                                 : generateMoves<EVASIONS>(pos, cur);
 

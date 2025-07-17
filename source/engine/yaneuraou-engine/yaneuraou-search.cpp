@@ -88,6 +88,12 @@ void SearchOptions::add_options(OptionsMap& options) {
                     outout_fail_lh_pv = o;
                     return std::nullopt;
                 }));
+
+    // すべての合法手を生成するのか
+    options.add("GenerateAllLegalMoves", Option(false, [&](const Option& o) {
+                    generate_all_legal_moves = o;
+                    return std::nullopt;
+                }));
 }
 
 
@@ -126,9 +132,6 @@ void YaneuraOuEngine::add_options() {
 
     // 入玉ルール
     options.add("EnteringKingRule", Option(ekr_rules, ekr_rules[EKR_27_POINT]));
-
-    // すべての合法手を生成するのか
-    options.add("GenerateAllLegalMoves", Option(false));
 
 	// 📌 SearchOptionsが用いるオプションの追加
 
@@ -212,9 +215,6 @@ void YaneuraOuEngine::isready() {
 
     // 入玉ルール
     global_options.enteringKingRule = to_entering_king_rule(options["EnteringKingRule"]);
-
-    // すべての合法手を生成するのか
-    global_options.generate_all_legal_moves = options["GenerateAllLegalMoves"];
 
 
 #if defined(USE_CLASSIC_EVAL)
@@ -1779,6 +1779,12 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     //maxValue           =  VALUE_INFINITE;
     // 📝 将棋ではtable probe使っていないのでmaxValueは関係ない。
 
+#if STOCKFISH
+#else
+	// やねうら王探索で追加した思考エンジンオプション
+	auto& search_options = main_manager()->search_options;
+#endif
+
 	//     Timerの監視
 
     // Check for the available remaining time
@@ -1833,7 +1839,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
 		// 📌 将棋では手数を超えたら無条件で引き分け扱い。
         if (threads.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY
-            || pos.game_ply() > main_manager()->search_options.max_moves_to_draw)
+            || pos.game_ply() > search_options.max_moves_to_draw)
             return draw_value(REPETITION_DRAW, pos.side_to_move());
 #endif
 
@@ -2120,7 +2126,13 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
 		if (/* pos.rule50_count() < 90 */ true)
         {
-            if (depth >= 8 && ttData.move && pos.pseudo_legal(ttData.move) && pos.legal(ttData.move)
+            if (depth >= 8 && ttData.move
+#if STOCKFISH
+				&& pos.pseudo_legal(ttData.move)
+#else
+                && pos.pseudo_legal(ttData.move, search_options.generate_all_legal_moves)
+#endif
+				&& pos.legal(ttData.move)
                 && !is_decisive(ttData.value))
             {
                 do_move(pos, ttData.move, st);
@@ -2664,7 +2676,13 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     {
         ASSERT_LV3(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
 
+#if STOCKFISH
         MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &thisThread->captureHistory);
+#else
+        MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &thisThread->captureHistory,
+                      search_options.generate_all_legal_moves);
+#endif
+
         Depth      probCutDepth = std::max(depth - 5, 0);
 
 		// 💡 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
@@ -2673,7 +2691,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         while ((move = mp.next_move()) != Move::none())
         {
             ASSERT_LV3(move.is_ok());
-            ASSERT_LV5(pos.pseudo_legal(move) && pos.legal_promote(move));
+            ASSERT_LV5(pos.pseudo_legal_s<true>(move) && pos.legal_promote(move));
 
             if (move == excludedMove || !pos.legal(move))
                 continue;
@@ -2752,7 +2770,12 @@ moves_loop:  // When in check, search starts here
 #if defined(ENABLE_PAWN_HISTORY)
                   &thisThread->pawnHistory,
 #endif
-				  ss->ply);
+				  ss->ply
+#if STOCKFISH
+#else
+			, search_options.generate_all_legal_moves
+#endif
+	);
 
     value = bestValue;
 
@@ -2772,7 +2795,7 @@ moves_loop:  // When in check, search starts here
     while ((move = mp.next_move()) != Move::none())
     {
         ASSERT_LV3(move.is_ok());
-        ASSERT_LV5(pos.pseudo_legal(move) && pos.legal_promote(move));
+        ASSERT_LV5(pos.pseudo_legal_s<true>(move) && pos.legal_promote(move));
 
         if (move == excludedMove)
             continue;
@@ -3870,6 +3893,12 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     ss->inCheck        = pos.checkers();
     moveCount          = 0;
 
+#if STOCKFISH
+#else
+    // やねうら王探索で追加した思考エンジンオプション
+    auto& search_options = main_manager()->search_options;
+#endif
+
     // Used to send selDepth info to GUI (selDepth counts from 1, ply from 0)
     // selDepth情報をGUIに送信するために使用します（selDepthは1からカウントし、plyは0からカウントします）。
 
@@ -3912,8 +3941,6 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     if (depth <= -16)
         return draw_value(REPETITION_DRAW, us);
 	#endif
-
-	auto& search_options = main_manager()->search_options;
 
     // 最大手数の到達
     if (ss->ply >= MAX_PLY || pos.game_ply() > search_options.max_moves_to_draw)
@@ -4134,7 +4161,12 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 #if defined(ENABLE_PAWN_HISTORY)
                   &thisThread->pawnHistory,
 #endif
-				  ss->ply);
+				  ss->ply
+#if STOCKFISH
+#else
+				  , search_options.generate_all_legal_moves
+#endif
+	);
 
 	// -----------------------
     // Step 5. Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs.
@@ -4146,7 +4178,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         //assert(move.is_ok());
 
 		// 🤔 MovePickerで生成された指し手はpseudo_legalであるはず。
-        ASSERT_LV3(pos.pseudo_legal(move) && pos.legal_promote(move));
+        ASSERT_LV3(pos.pseudo_legal_s<true>(move) && pos.legal_promote(move));
 
 		/*
 			合法手かどうかのチェック

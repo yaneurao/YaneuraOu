@@ -946,7 +946,7 @@ ExtMove* generateMoves(const Position& pos, ExtMove* mlist, Square recapSq)
 		if (pos.in_check())
 			while (mlist != last)
 			{
-				if (!pos.pseudo_legal(*mlist))
+				if (!pos.pseudo_legal_s<All>(*mlist))
 					*mlist = *(--last);
 				else
 					++mlist;

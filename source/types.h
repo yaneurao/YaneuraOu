@@ -1278,8 +1278,6 @@ struct GlobalOptions
 		enteringKingRule = EKR_NONE;
 		enteringKingPoint[BLACK] = 28; // Position::set()でupdate_entering_point()が呼び出されて設定される。
 		enteringKingPoint[WHITE] = 27; // Position::set()でupdate_entering_point()が呼び出されて設定される。
-
-		generate_all_legal_moves = true;
 	}
 
 	// 入玉ルール設定
@@ -1290,12 +1288,6 @@ struct GlobalOptions
 	// 📝 Position::update_entering_point()で、enteringKingRuleに基づいて↓を求めている。
 	int enteringKingPoint[COLOR_NB];
 
-	// 合法手を生成する時に全合法手を生成するのか(歩の不成など)
-	// エンジンオプションのGenerateAllLegalMovesの値がこのフラグに反映される。
-	// 
-	// Position::pseudo_legal()も、このフラグに応じてどこまでをpseudo-legalとみなすかが変わる。
-	// (このフラグがfalseなら歩の不成は非合法手扱い)
-	bool generate_all_legal_moves;
 };
 
 extern GlobalOptions global_options;

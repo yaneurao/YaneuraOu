@@ -22,11 +22,12 @@ class YaneuraOuWorker;
 struct SearchOptions
 {
     SearchOptions() {
-        max_moves_to_draw    = 100000;
-        pv_interval          = 300;
-        consideration_mode   = true;
-        lastPvInfoTime       = 0;
-        computed_pv_interval = 0;
+        max_moves_to_draw        = 100000;
+        pv_interval              = 300;
+        consideration_mode       = true;
+        lastPvInfoTime           = 0;
+        computed_pv_interval     = 0;
+        generate_all_legal_moves = false;
     }
 
 	// この構造体メンバーに対応するエンジンオプションを生やす
@@ -47,6 +48,12 @@ struct SearchOptions
 	// fail low/highの時にPVを出力するか。
 	// 📝 options["OutputFailLHPV"]の設定値。
 	bool outout_fail_lh_pv;
+
+	// 合法手を生成する時に全合法手を生成するのか(歩の不成など)
+    // エンジンオプションのGenerateAllLegalMovesの値がこのフラグに反映される。
+	// 📝 options["GenerateAllLegalMoves"]の設定値。
+    bool generate_all_legal_moves;
+
 
 	// 📌 ここ以降は、SearchManagerで用いるメンバ変数 📌
 

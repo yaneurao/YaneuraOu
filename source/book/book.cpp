@@ -1208,11 +1208,15 @@ namespace Book
 					//
 					// "position"コマンドでも千日手局面は弾かないし、この仕様は仕方ない意味はある。
 				}
+#if 0
 				else {
 					// GenerateAllLegalMovesがfalseの時は歩の不成での移動は非合法手扱いで、この時点で除去してこのあとの抽選を行う。
 					// 不成の指し手が選択されて、このあとrootMovesに登録されていないので定跡にhitしなかった扱いになってしまうのはもったいない。
 					legal &= rootPos.pseudo_legal(move);
 				}
+				// 🤔 このためにoptions["GenerateAllLegalMoves"]の設定値を渡すの面倒だし、
+				//     定跡でhitしたら成らずの指し手も指していいのでは？
+#endif
 
 				// 非合法手の排除
 				return !legal;
