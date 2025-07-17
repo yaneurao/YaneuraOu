@@ -365,8 +365,16 @@ class YaneuraOuWorker: public Worker {
 
 	// Pointer to the search manager, only allowed to be called by the main thread
     // 検索マネージャへのポインタ。メインスレッドからのみ呼び出すことが許可されています。
+
+#if STOCKFISH
+    SearchManager* main_manager() const {
+        assert(threadIdx == 0);
+        return static_cast<SearchManager*>(manager.get());
+    }
+#else
     // 💡 Stockfishとの互換性のために用意。
     SearchManager* main_manager() const { return &manager; }
+#endif
 
 	// 時間経過。
 	// 💡 やねうら王では、SearchManagerがTimeManagement tmを持っていて、

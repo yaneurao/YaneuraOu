@@ -7,7 +7,6 @@
 #include "../../evaluate.h"
 
 // パラメーターの自動調整フレームワーク
-#include "../../engine//yaneuraou-engine/yaneuraou-param-common.h"
 #include <array>
 #include <cmath>
 #include <algorithm> // for std::min()

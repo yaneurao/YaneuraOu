@@ -134,7 +134,7 @@ void TimeManagement::init_(Search::LimitsType& limits,
 	// byoyomiとincの指定は残り時間にこの時点で加算して考える。
     remain_time =
       limits.time[us] + limits.byoyomi[us] + limits.inc[us] - (TimePoint) options["NetworkDelay2"];
-	// ここを0にすると時間切れのあと自爆するのでとりあえず100にしておく。
+	// ここを0にすると時間切れのあと自爆するのでとりあえず100はあることにしておく。
     remain_time = std::max(remain_time, (TimePoint) 100);
 
 	// 最小思考時間
@@ -270,12 +270,17 @@ void TimeManagement::init_(Search::LimitsType& limits,
 	}
 
 	// 秒読みモードでかつ、持ち時間がないなら、最小思考時間も最大思考時間もその時間にしたほうが得
+    isFinalPush = false;
 	if (limits.byoyomi[us])
 	{
 		// 持ち時間が少ないなら(秒読み時間の1.2倍未満なら)、思考時間を使いきったほうが得
 		// これには持ち時間がゼロのケースも含まれる。
-		if (limits.time[us] < (int)(limits.byoyomi[us] * 1.2))
-			minimumTime = optimumTime = maximumTime = limits.byoyomi[us] + limits.time[us];
+        if (limits.time[us] < (int) (limits.byoyomi[us] * 1.2))
+        {
+            minimumTime = optimumTime = maximumTime = limits.byoyomi[us] + limits.time[us];
+			// "ponderhit"の時刻から数えてminimumTime分は使って欲しい。
+            isFinalPush                             = true;
+        }
 	}
 
 	// 残り時間 - network_delay2よりは短くしないと切れ負けになる可能性が出てくる。
@@ -284,7 +289,7 @@ void TimeManagement::init_(Search::LimitsType& limits,
 	maximumTime = std::min(round_up(maximumTime), remain_time);
 }
 
-	// 1秒単位で繰り上げてdelayを引く。
+// 1秒単位で繰り上げてdelayを引く。
 // ただし、remain_timeよりは小さくなるように制限する。
 TimePoint TimeManagement::round_up(TimePoint t0) {
     // 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
@@ -315,16 +320,16 @@ void TimeManagement::set_search_end(TimePoint e) {
 			2. 一方、"go"した時刻から計算して、tm.minimum()の分は思考することを守らせたい。
 			   しかし、ponderhitからの経過時間で切り上げはしたい。
 
+			   しかし、秒読みで秒まで使い切りたいとき(isFinalPush)は、
+			   "ponderhit"から数えてtm.minimum()の分は思考しないともったいない。
 	*/
 
     // 1. ponderhitからの経過時間。(go ponder～ponderhitしていない場合は、単にgoからの経過時間)
     TimePoint t1 = e + startTime - ponderhitTime;
 
-	// 2. "go"した時間からminimum()を足して、ponderhitからの経過時間に変換したもの。
-    TimePoint t2 = startTime + minimum() - ponderhitTime;
-
-	// TODO : ここ、秒読みで毎回5秒使いたいときに、ponderhitから数えないと計算が合わないのだが…。
-	//        チェスだとinctimeなのでこの問題がないようなのだが…。
+	// 2. "go"した時刻からminimum()を足して、ponderhitからの経過時間に変換したもの。
+	//    ただし、finalpushであるなら、"ponderhit"した時刻から数える。
+    TimePoint t2 = isFinalPush ? minimum() : startTime + minimum() - ponderhitTime;
 
 	// t1,t2の大きいほうを秒単位で切り上げて、それをstartTimeからの経過時間に換算したもの。
     // 💡 search_endの値は、startTimeからの経過時間なので。
