@@ -185,16 +185,21 @@ void TimeManagement::init_(Search::LimitsType& limits,
 		// + 20は調整項
 		move_horizon = MoveHorizon + 20 - std::min(ply , 80);
 
+	int max_moves_to_draw = int(options["MaxMovesToDraw"]);
+
+	// 値が0ならそれは制限なしを意味する。
+    if (max_moves_to_draw == 0)
+        max_moves_to_draw = 100000;
 
 	// 残りの自分の手番の回数
 	// ⇨　plyは平手の初期局面が1。256手ルールとして、max_game_ply == 256だから、256手目の局面においてply == 256
 	// 　その1手前の局面においてply == 255。ply == 255 or 256のときにMTGが1にならないといけない。だから2足しておくのが正解。
-	const int MTG = std::min(global_options.max_game_ply - ply + 2, move_horizon ) / 2;
+    const int MTG = std::min(max_moves_to_draw - ply + 2, move_horizon) / 2;
 
 	if (MTG <= 0)
 	{
 		// 本来、終局までの最大手数が指定されているわけだから、この条件で呼び出されるはずはないのだが…。
-		sync_cout << "info string Error! : max_game_ply is too small." << sync_endl;
+		sync_cout << "info string Error! : MaxMovesToDraw is too small." << sync_endl;
 		return;
 	}
 	if (MTG == 1)

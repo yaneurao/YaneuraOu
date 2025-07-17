@@ -21,6 +21,7 @@
 #include <algorithm>    // std::max()を使うので仕方ない
 #include <limits>		// std::numeric_limitsを使うので仕方ない
 #include <chrono>       // std::chrono
+#include <vector>       // std::vector
 #include <cassert>      // assert
 
 #if defined(_MSC_VER)
@@ -1208,6 +1209,13 @@ enum EnteringKingRule
 	EKR_TRY_RULE,        // トライルール
 };
 
+// エンジンオプションの入玉ルールに関する文字列
+extern std::vector<std::string> ekr_rules;
+
+// 入玉ルール文字列をEnteringKingRule型に変換する。
+extern EnteringKingRule to_entering_king_rule(const std::string& rule);
+
+
 // 千日手の状態
 enum RepetitionState
 {
@@ -1300,6 +1308,7 @@ struct GlobalOptions
 
 	// 入玉ルール設定
 	EnteringKingRule enteringKingRule;
+
 	// 駒落ち対応入玉ルーの時に、この点数以上であれば入玉宣言可能。
 	// 例) 27点法の2枚落ちならば、↓の[BLACK(下手 = 後手)]には 27 , ↓の[WHITE(上手 = 先手)]には 28-10 = 18 が代入されている。
 	// 📝 Position::update_entering_point()で、enteringKingRuleに基づいて↓を求めている。

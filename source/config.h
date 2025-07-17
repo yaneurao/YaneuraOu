@@ -92,13 +92,6 @@
 // #define USE_MOVE_PICKER
 
 
-// 入玉時の宣言勝ち機能を用いるか
-// これをdefineすると、"EnteringKingRule"というオプションが自動追加される。
-// ※　Search::Limits.enteringKingRule に↑のオプションの値が反映される。
-//     Position::DeclarationWin()は、宣言勝ち判定を行うときに、それを見る。
-// #define USE_ENTERING_KING_WIN
-
-
 // PV(読み筋)を表示するときに置換表の指し手をかき集めてきて表示するか。
 // 自前でPVを管理してRootMoves::pvを更新するなら、この機能を使う必要はない。
 // これはPVの更新が不要なので実装が簡単だが、Ponderの指し手を返すためには
@@ -417,7 +410,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_TIME_MANAGEMENT
 	#define USE_MOVE_PICKER
 	#define USE_EVAL
-	#define USE_ENTERING_KING_WIN
 
 #elif defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_MATERIAL)
 
@@ -432,7 +424,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_TIME_MANAGEMENT
 	#define USE_MOVE_PICKER
 	#define USE_EVAL
-	#define USE_ENTERING_KING_WIN
 
 	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
 		// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。
@@ -522,7 +513,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define EVAL_DEEP "dlshogi-denryu2021"
 	#define USE_EVAL
 	#define USE_TIME_MANAGEMENT
-	#define USE_ENTERING_KING_WIN
 	#define USE_MATE_1PLY
 	#define USE_MATE_SOLVER
 	#define USE_MATE_DFPN

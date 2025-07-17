@@ -104,6 +104,20 @@ std::ostream& operator<<(std::ostream& os, RepetitionState rs)
 // 探索用のglobalな変数
 // ----------------------------------------
 
+// エンジンオプションの入玉ルールに関する文字列
+std::vector<std::string> ekr_rules = {"NoEnteringKing", "CSARule24", "CSARule24H", "CSARule27", "CSARule27H", "TryRule"};
+
+// 文字列に対応するEnteringKingRuleを取得する。
+EnteringKingRule to_entering_king_rule(const std::string& rule) {
+    for (size_t i = 0; i < ekr_rules.size(); ++i)
+        if (ekr_rules[i] == rule)
+            return (EnteringKingRule) i;
+
+    ASSERT(false);
+    return EnteringKingRule::EKR_NONE;
+}
+
+
 // 引き分け時のスコア(とそのdefault値)
 Value drawValueTable[REPETITION_NB][COLOR_NB] =
 {
@@ -118,5 +132,6 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
 Move16 Move::to_move16() const { return Move16(data); }
 
 GlobalOptions global_options;
+
 
 } // namespace YaneuraOu

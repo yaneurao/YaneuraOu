@@ -57,11 +57,10 @@ void YaneuraOuEngine::add_options() {
 
 	// 📌 この探索部が用いるオプションの追加。
 
-    options.add(  //
-          "USI_Hash", Option(16, 1, MaxHashMB, [this](const Option& o) {
-              set_tt_size(o);
-              return std::nullopt;
-          }));
+    options.add("USI_Hash", Option(16, 1, MaxHashMB, [this](const Option& o) {
+                        set_tt_size(o);
+                        return std::nullopt;
+                    }));
 
 	// その局面での上位N個の候補手を調べる機能
     // ⇨　これMAX_MOVESで十分。
@@ -81,6 +80,12 @@ void YaneuraOuEngine::add_options() {
 
     // fail low/highのときにPVを出力するかどうか。
     options.add("OutputFailLHPV", Option(true));
+
+    // 入玉ルール
+    options.add("EnteringKingRule", Option(ekr_rules, ekr_rules[EKR_27_POINT]));
+
+    // すべての合法手を生成するのか
+    options.add("GenerateAllLegalMoves", Option(false));
 
 #if defined(EVAL_LEARN)
     // 評価関数の学習を行なうときは、評価関数の保存先のフォルダを変更できる。
@@ -163,6 +168,23 @@ void YaneuraOuEngine::isready() {
 
     // fail low/highのときにPVを出力するかどうか。
     global_options.outout_fail_lh_pv  = options["OutputFailLHPV"];
+
+	// 終局(引き分け)になるまでの手数
+    // 引き分けになるまでの手数。(Options["MaxMovesToDraw"]として与えられる。エンジンによってはこのオプションを持たないこともある。)
+    // 0のときは制限なしだが、これをint_maxにすると残り手数を計算するときに桁があふれかねないので100000を設定。
+	// 💡 MaxMovesToDrawは、TimeManagement.add_options()で自動的に追加されている。
+
+    int max_game_ply = int(options["MaxMovesToDraw"]);
+
+    // これ0の時、何らか設定しておかないと探索部でこの手数を超えた時に引き分け扱いにしてしまうので、無限大みたいな定数の設定が必要。
+    global_options.max_game_ply = (max_game_ply == 0) ? 100000 : max_game_ply;
+
+    // 入玉ルール
+    global_options.enteringKingRule = to_entering_king_rule(options["EnteringKingRule"]);
+
+    // すべての合法手を生成するのか
+    global_options.generate_all_legal_moves = options["GenerateAllLegalMoves"];
+
 
 #if defined(USE_CLASSIC_EVAL)
     // 📌 旧評価関数は、isreadyに対して呼び出す。

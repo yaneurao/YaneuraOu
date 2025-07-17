@@ -22,14 +22,18 @@ namespace YaneuraOu {
 // 内包しているEngineに対して司令を送る。
 class USIEngine {
 public:
-	// 📝 やねうら王では、CommandLine::gを見れば良いので、argc,argvは引数として渡さないことにした。
-	USIEngine(/*int argc, char** argv */);
 
-	// USIEngine classから使うEngine。
-	// 📌 やねうら王独自。エンジンの実装を変更できるように、
-	//     IEngine(エンジン interface)を渡し、エンジンを動的に切り替えたり、
-	//     複数の異なるエンジンから成るUSIEngineを同時に使うことができるようにする。
-	void set_engine(IEngine& _engine);
+#if STOCKFISH
+	// 📝 やねうら王では、CommandLine::gを見れば良いので、argc,argvは引数として渡さないことにした。
+	//     また、ここでやっている初期化は不要になったのでコンストラクタ自体を削除。
+	USIEngine(int argc, char** argv);
+#else
+	 // USIEngine classから使うEngine。
+	 // 📌 やねうら王独自。エンジンの実装を変更できるように、
+	 //     IEngine(エンジン interface)を渡し、エンジンを動的に切り替えたり、
+	 //     複数の異なるエンジンから成るUSIEngineを同時に使うことができるようにする。
+	 void set_engine(IEngine& _engine);
+#endif
 
 	// main threadをUSIメッセージの受信のために待機させる。
 	// "quit"コマンドが送られてくるまでこのループは抜けない。
