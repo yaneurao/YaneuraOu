@@ -167,13 +167,21 @@ std::string pretty(Piece pc) {
 // sfen文字列で盤面を設定する
 Position& Position::set(const std::string& sfen , StateInfo* si)
 {
+#if STOCKFISH
+    std::memset(this, 0, sizeof(Position));
+    std::memset(si, 0, sizeof(StateInfo));
+#else	
+	
+	// 🌈 やねうら王ではPositionがPODでない(BitboardやHASH_KEYがPODでない)ので
+	//    コンパイル時にwarningが出るからvoid*にcastする。
 	std::memset(static_cast<void*>(this), 0, sizeof(Position));
-	// ⇨ やねうら王ではPositionがPODでない(BitboardやHASH_KEYがPODでない)のでコンパイル時にwarningが出るからvoid*にcastしている。
 
 	// 局面をrootより遡るためには、ここまでの局面情報が必要で、それは引数のsiとして渡されているという解釈。
 	// ThreadPool::start_thinking()では、
 	// ここをいったんゼロクリアしたのちに、呼び出し側で、そのsiを復元することにより、局面を遡る。
 	std::memset(static_cast<void*>(si), 0, sizeof(StateInfo));
+#endif
+
 	st = si;
 
 	// 変な入力をされることはあまり想定していない。
@@ -1225,6 +1233,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	st->pliesFromNull = prev->pliesFromNull + 1;
 
 	// 評価値の差分計算用の初期化
+#if defined(USE_CLASSIC_EVAL)
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	st->sum.p[0][0] = VALUE_NOT_EVALUATED;
@@ -1245,6 +1254,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #if defined(KEEP_LAST_MOVE)
 	st->lastMove = m;
 	st->lastMovedPieceType = m.is_drop() ? PieceType(m.from_sq()) : type_of(piece_on(m.from_sq()));
+#endif
+
 #endif
 
 	// ----------------------
@@ -1884,9 +1895,11 @@ void Position::do_null_move(StateInfo& newSt) {
 	newSt.previous = st;
 	st = &newSt;
 
+#if defined(USE_CLASSIC_EVAL)
 #if defined(EVAL_NNUE)
 	// NNUEの場合、KPPT型と違って、手番が違う場合、計算なしに済ますわけにはいかない。
 	st->accumulator.computed_score = false;
+#endif
 #endif
 
 	st->board_key_ ^= Zobrist::side;
@@ -1902,12 +1915,17 @@ void Position::do_null_move(StateInfo& newSt) {
 	// これは、さっきアクセスしたところのはずなので意味がない。
 	//  Eval::prefetch_evalhash(key);
 
+#if defined(USE_CLASSIC_EVAL)
+
 #if defined(EVAL_NNUE) && defined(USE_EVAL_HASH)
 	// NNUEのEvalHashの場合、手番が違うと異なるentry(のはず)
 	Eval::prefetch_evalhash(key);
 #endif
+#endif
 
-	//++st->rule50;
+#if STOCKFISH
+	++st->rule50;
+#endif
 
 	st->pliesFromNull = 0;
 
@@ -2862,7 +2880,9 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
 
             // 2枚落ち初期化 , 駒落ち対応でないなら、この時も 先手=31,後手=31
             handi2_init();
-            tester.test("handi2",
+            pos.set_ekr(EKR_24_POINT);
+
+			tester.test("handi2",
                         pos.enteringKingPoint[BLACK] == 31 && pos.enteringKingPoint[WHITE] == 31);
         }
 
@@ -2870,19 +2890,21 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
             // 27点法の入玉可能点数 平手 : 先手=28,後手=27
             auto section3 = tester.section("EKR_27_POINT_H");
 
-            pos.set_ekr(EKR_27_POINT_H);
             hirate_init();
+            pos.set_ekr(EKR_27_POINT_H);
 
             tester.test("hirate",
                         pos.enteringKingPoint[BLACK] == 28 && pos.enteringKingPoint[WHITE] == 27);
 
             // 2枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=17,下手(BLACK)=28
             handi2_init();
+            pos.set_ekr(EKR_27_POINT_H);
             tester.test("handi2",
                         pos.enteringKingPoint[BLACK] == 28 && pos.enteringKingPoint[WHITE] == 17);
 
             // 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=15,下手(BLACK)=28
             handi4_init();
+            pos.set_ekr(EKR_27_POINT_H);
             tester.test("handi4",
                         pos.enteringKingPoint[BLACK] == 28 && pos.enteringKingPoint[WHITE] == 15);
         }
@@ -2899,11 +2921,13 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
 
             // 2枚落ち初期化 , 駒落ち対応なのでこの時 上手(WHITE)=21,下手(BLACK)=31
             handi2_init();
+            pos.set_ekr(EKR_24_POINT_H);
             tester.test("handi2",
                         pos.enteringKingPoint[BLACK] == 31 && pos.enteringKingPoint[WHITE] == 21);
 
             // 4枚落ち初期化 , 駒落ち対応なので この時 上手(WHITE)=19,下手(BLACK)=31
             handi4_init();
+            pos.set_ekr(EKR_24_POINT_H);
             tester.test("handi4",
                         pos.enteringKingPoint[BLACK] == 31 && pos.enteringKingPoint[WHITE] == 19);
         }

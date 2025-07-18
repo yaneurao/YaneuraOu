@@ -17,8 +17,6 @@
 
 namespace YaneuraOu {
 
-namespace Search { struct LimitsType; }
-
   // --------------------
 //     局面の情報
 // --------------------
@@ -249,15 +247,16 @@ public:
 	// Positionで用いるZobristテーブルの初期化
 	static void init();
 
-	// 📌　やねうら王では、Position内部でSearch::LimitsTypeを使うので、これを事前に外部から渡してもらう。
-	void set_limits(Search::LimitsType& limits);
-
 	// sfen文字列で盤面を設定する
 	// ※　内部的にinit()は呼び出される。
 	// 局面を遡るために、rootまでの局面の情報が必要であるから、それを引数のsiで渡してやる。
 	// 遡る必要がない場合は、StateInfo si;に対して&siなどとして渡しておけば良い。
 	// 内部的にmemset(si,0,sizeof(StateInfo))として、この渡されたインスタンスをクリアしている。
-	Position& set(const std::string& sfenStr,/* bool isChess960,*/ StateInfo* si);
+#if STOCKFISH
+	Position& set(const std::string& sfenStr,bool isChess960, StateInfo* si);
+#else
+    Position& set(const std::string& sfenStr, StateInfo* si);
+#endif
 
 	// 局面のsfen文字列を取得する
 	// ※ USIプロトコルにおいては不要な機能ではあるが、デバッグのために局面を標準出力に出力して
