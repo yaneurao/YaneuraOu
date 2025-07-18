@@ -674,23 +674,15 @@ void Search::YaneuraOuWorker::start_searching() {
         // rootで指し手がない = (将棋だと)詰みの局面である
 
         // 💡 投了の指し手と評価値をrootMoves[0]に積んでおけばUSI::pv()が良きに計らってくれる。
-        //     読み筋にresignと出力されるが、将棋所、ShogiGUIともにバグらないのでこれで良しとする。
-        rootMoves.emplace_back(Move::none());
+        rootMoves.emplace_back(Move::resign());
 
 #if STOCKFISH
         main_manager()->updates.onUpdateNoMoves(
           {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
         // 💡 チェスだと王手されていないなら引き分けだが、将棋だとつねに負け。
 #else
+		// 指し手がないときのdepthと評価値のPVを出力。
         mainManager.updates.onUpdateNoMoves({0, -VALUE_MATE});
-#endif
-
-// TODO : あとで考える。
-#if 0
-		// 🌈 やねうら王独自
-		// 評価値を用いないなら代入しなくて良いのだが(Stockfishはそうなっている)、
-        // このあと、↓USI::pv()を呼び出したいので、scoreをきちんと設定しておいてやる。
-        rootMoves[0].score = rootMoves[0].usiScore = mated_in(0);
 #endif
 
         goto SKIP_SEARCH;
@@ -846,45 +838,57 @@ SKIP_SEARCH:;
 
     // Lazy SMPの結果を取り出す
 
+#if STOCKFISH
     // 並列探索したうちのbestな結果を保持しているthread
     // まずthisを入れておいて、定跡を返す時などはthisのままにするコードを適用する。
-    YaneuraOuWorker* bestThread = this;
+    Worker* bestThread = this;
 
-    Skill skill =
-      //  Skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
-      Skill(/*(int)Options["SkillLevel"]*/ 20, 0);
+	Skill   skill =
+      Skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
     // TODO : Skillの導入はあとで検討する。
     //  🤔  それにしてもオプションが3つも増えるの嫌だな…。
 
+#else
+    YaneuraOuWorker* bestThread = this;
+
+    Skill skill = Skill(20, 0);
+#endif
+
     if (
       int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate && !skill.enabled()
-      && rootMoves[0].pv[0] != Move::none() && !search_skipped
-      // ⚠ "&& !search_skipped"は、やねうら王独自追加。
-      //     これを追加しておかないと、定跡にhitしたりして、main threadのrootMovesに積んだりしても、
-      //     bestThreadがmain threadではないものを指してしまい、期待した指し手がbestmoveとして出力されなくなる。
+      && rootMoves[0].pv[0] != Move::none()
+#if STOCKFISH
+#else
+		&& !search_skipped
+    // ⚠ この条件を追加しておかないと、定跡にhitしたりして、main threadのrootMovesに積んだりしても、
+    //     bestThreadがmain threadではないものを指してしまい、期待した指し手がbestmoveとして出力されなくなる。
+#endif
     )
-        //bestThread = threads.get_best_thread()->worker.get();
+#if STOCKFISH
+		bestThread = threads.get_best_thread()->worker.get();
+#else
         // 💡 やねうら王では、get_best_thread()は、ThreadPoolからこのclassに移動させた。
         bestThread = get_best_thread();
+#endif
 
-    // 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
+	// 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
     main_manager()->bestPreviousScore        = bestThread->rootMoves[0].score;
     main_manager()->bestPreviousAverageScore = bestThread->rootMoves[0].averageScore;
 
-    // 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。(やねうら王独自拡張)
-    // ただし定跡の指し手にhitした場合などはrootMoves[0].score == -VALUE_INFINITEになっているのでそれは除外。
+#if STOCKFISH
+    // 🤔 こんなにPV出力するの好きじゃないので省略。
+    // Send again PV info if we have a new best thread
+    // 新しいベストスレッドがあれば、再度PV情報を送信する
+    if (bestThread != this)
+        main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
+#else
+	// 🌈 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。
+    //    ただし定跡の指し手にhitした場合などはrootMoves[0].score == -VALUE_INFINITEになっているのでそれは除外。
     auto resign_value = (int) options["ResignValue"];
     if (bestThread->rootMoves[0].score != -VALUE_INFINITE
         && USIEngine::to_cp(bestThread->rootMoves[0].score) <= -resign_value)
         bestThread->rootMoves[0].pv[0] = Move::resign();
-
-    // 🤔 こんなにPV出力するの好きじゃないので省略。
-#if STOCKFISH
-    // Send again PV info if we have a new best thread
-	// 新しいベストスレッドがあれば、再度PV情報を送信する
-    if (bestThread != this)
-        main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
-#else
+#endif
 
 	// デバッグ用に(ギリギリまで思考できているかを確認するために)経過時間を出力してみる。
     /*
@@ -892,8 +896,6 @@ SKIP_SEARCH:;
     sync_cout << "info string elapsed time           = " << tm.elapsed_time() << "\n"
               << "info string elapsed_from_ponderhit = " << now() - tm.ponderhitTime << sync_endl;
 	*/
-
-#endif
 
     std::string ponder;
 

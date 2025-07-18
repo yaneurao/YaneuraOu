@@ -21,6 +21,10 @@
 
 #include "evaluate_nnue.h"
 
+namespace YaneuraOu::Eval::NNUE {
+extern int FV_SCALE;
+}
+ 
 // ============================================================
 //              旧評価関数のためのヘルパー
 // ============================================================
@@ -64,19 +68,22 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
 #endif
 
     const char* default_eval_dir = "eval";
-    Options.add("EvalDir", Option(default_eval_dir, [](const Option& o){
-        std::string eval_dir = std::string(o);
-        if (last_eval_dir != eval_dir)
-        {
-            // 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
-            last_eval_dir = eval_dir;
-            eval_loaded   = false;
-        }
-        return std::nullopt;
-    }));
+    Options.add("EvalDir", Option(default_eval_dir, [](const Option& o) {
+                    std::string eval_dir = std::string(o);
+                    if (last_eval_dir != eval_dir)
+                    {
+                        // 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
+                        last_eval_dir = eval_dir;
+                        eval_loaded   = false;
+                    }
+                    return std::nullopt;
+                }));
 
-	// NNUEのFV_SCALEの値
-    Options.add("FV_SCALE", Option(16, 1, 128));
+    // NNUEのFV_SCALEの値
+    Options.add("FV_SCALE", Option(16, 1, 128, [&](const Option& o) {
+                    YaneuraOu::Eval::NNUE::FV_SCALE = int(o);
+                    return std::nullopt;
+                }));
 }
 #endif
 
