@@ -375,12 +375,18 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
 			    のように指定したとき、
 			> setoption name Threads value 1
 			    と等価なようにしておく。
+			また、
+			> threads = 1
+			のように、 = が入っている表記も可能とする。
 		*/
 
         if (!token.empty())
         {
             std::string value;
             is >> value;
+            if (value == "=") // skip '='
+                is >> value;
+
             sync_cout << engine.get_options().set_option_if_exists(token, value) << sync_endl;
         }
     }
@@ -1220,7 +1226,7 @@ void USIEngine::getoption(std::istringstream& is) {
     auto& options = engine_options();
 
     // getoption オプション名
-    std::string option_name = "";
+    std::string option_name;
     is >> option_name;
     sync_cout << options.get_option(option_name) << sync_endl;
 }

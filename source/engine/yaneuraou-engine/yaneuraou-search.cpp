@@ -877,11 +877,13 @@ SKIP_SEARCH:;
     main_manager()->bestPreviousAverageScore = bestThread->rootMoves[0].averageScore;
 
 #if STOCKFISH
-    // 🤔 こんなにPV出力するの好きじゃないので省略。
-    // Send again PV info if we have a new best thread
+	// Send again PV info if we have a new best thread
     // 新しいベストスレッドがあれば、再度PV情報を送信する
     if (bestThread != this)
         main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
+
+    // 🤔 こんなにPV出力するの好きじゃないので省略。
+
 #else
 	// 🌈 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。
     //    ただし定跡の指し手にhitした場合などはrootMoves[0].score == -VALUE_INFINITEになっているのでそれは除外。
@@ -5039,7 +5041,7 @@ void syzygy_extend_pv(const OptionsMap&         options,
 #endif
 
 
-void SearchManager::pv(Search::YaneuraOuWorker&           worker,
+void SearchManager::pv(Search::YaneuraOuWorker&  worker,
                        const ThreadPool&         threads,
                        const TranspositionTable& tt,
                        Depth                     depth) {
@@ -5049,7 +5051,9 @@ void SearchManager::pv(Search::YaneuraOuWorker&           worker,
     auto&      pos       = worker.rootPos;
     size_t     pvIdx     = worker.pvIdx;
     size_t     multiPV   = std::min(size_t(worker.options["MultiPV"]), rootMoves.size());
-    //uint64_t   tbHits    = threads.tb_hits() + (worker.tbConfig.rootInTB ? rootMoves.size() : 0);
+#if STOCKFISH
+    uint64_t tbHits = threads.tb_hits() + (worker.tbConfig.rootInTB ? rootMoves.size() : 0);
+#endif
 
     for (size_t i = 0; i < multiPV; ++i)
     {
@@ -5069,25 +5073,103 @@ void SearchManager::pv(Search::YaneuraOuWorker&           worker,
         v       = tb ? rootMoves[i].tbScore : v;
 #endif
 
-        bool isExact =
-          i != pvIdx /* || tb */ || !updated;  // tablebase- and previous-scores are exact
-
 #if STOCKFISH
+        bool isExact = i != pvIdx || tb || !updated;  // tablebase- and previous-scores are exact
+
         // Potentially correct and extend the PV, and in exceptional cases v
+        // 必要に応じてPVを修正・延長し、例外的な場合にはvも処理する
+
         if (is_decisive(v) && std::abs(v) < VALUE_MATE_IN_MAX_PLY
             && ((!rootMoves[i].scoreLowerbound && !rootMoves[i].scoreUpperbound) || isExact))
             syzygy_extend_pv(worker.options, worker.limits, pos, rootMoves[i], v);
+#else
+        bool isExact =
+          i != pvIdx /* || tb */ || !updated;  // tablebase- and previous-scores are exact
+                                               // tablebaseのスコアおよび以前のスコアは正確である
+
 #endif
 
         std::string pv;
+#if STOCKFISH
         for (Move m : rootMoves[i].pv)
-            pv += USIEngine::move(m /*, pos.is_chess960()*/) + " ";
+            pv += UCIEngine::move(m, pos.is_chess960()) + " ";
+#else
+		// 🌈 やねうら王では、consideration_modeのときは置換表からPVをかき集める。
+        if (worker.main_manager()->search_options.consideration_mode)
+        {
+            Move      moves[MAX_PLY + 1];
+            StateInfo si[MAX_PLY];
+            int       ply = 0;
+
+            while (ply < MAX_PLY)
+            {
+                // 千日手はそこで終了。ただし初手はPVを出力。
+                // 千日手がベストのとき、置換表を更新していないので
+                // 置換表上はMove::none()がベストの指し手になっている可能性があるので早めに検出する。
+                auto rep = pos.is_repetition(ply);
+                if (rep != REPETITION_NONE && ply >= 1)
+                {
+                    // 千日手でPVを打ち切るときはその旨を表示
+                    pv += to_usi_string(rep) + ' ';
+                    break;
+                }
+
+                Move m;
+
+                // まず、rootMoves.pvを辿れるところまで辿る。
+                // rootMoves[i].pv[0]は宣言勝ちの指し手(Move::win())の可能性があるので注意。
+                if (ply < int(rootMoves[i].pv.size()))
+                    m = rootMoves[i].pv[ply];
+                else
+                {
+                    // 次の手を置換表から拾う。
+                    auto [ttHit, ttData, ttWriter] = tt.probe(pos.key(), pos);
+                    // 置換表になかった
+                    if (!ttHit)
+                        break;
+
+                    m = ttData.move;
+
+                    // leaf nodeはわりと高い確率でMove::none()
+                    if (m == Move::none())
+                        break;
+
+                    // 置換表にはpseudo_legalではない指し手が含まれるのでそれを弾く。
+                    if (!(pos.pseudo_legal_s<true>(m) && pos.legal(m)))
+                        break;
+                }
+                // leaf node末尾にMove::resign()があることはないが、
+                // 詰み局面で呼び出されると1手先がmove resignなので、これでdo_move()するのは
+                // 非合法だから、do_move()せずにループを抜ける。
+                if (!m.is_ok())
+                {
+                    pv += USIEngine::move(m) + ' ';
+                    break;
+                }
+
+                moves[ply] = m;
+                pv += USIEngine::move(m) + ' ';
+
+                pos.do_move(m, si[ply]);
+                ++ply;
+            }
+            while (ply > 0)
+                pos.undo_move(moves[--ply]);
+		}
+        else
+            for (Move m : rootMoves[i].pv)
+                pv += USIEngine::move(m) + ' ';
+#endif
 
         // Remove last whitespace
+        // 最後の空白を削除する
+
         if (!pv.empty())
             pv.pop_back();
 
-        //auto wdl   = worker.options["UCI_ShowWDL"] ? UCIEngine::wdl(v, pos) : "";
+#if STOCKFISH
+        auto wdl = worker.options["UCI_ShowWDL"] ? UCIEngine::wdl(v, pos) : "";
+#endif
         auto bound = rootMoves[i].scoreLowerbound
                      ? "lowerbound"
                      : (rootMoves[i].scoreUpperbound ? "upperbound" : "");
@@ -5098,10 +5180,10 @@ void SearchManager::pv(Search::YaneuraOuWorker&           worker,
         info.selDepth = rootMoves[i].selDepth;
         info.multiPV  = i + 1;
 #if STOCKFISH
-		info.score    = {v, pos}; // 📝 StockfishではValue,Position&からScore型に変換する。
-        info.wdl      = wdl;
+        info.score = {v, pos};  // 📝 StockfishではValue,Position&からScore型に変換する。
+        info.wdl   = wdl;
 #else
-		info.score    = v;
+        info.score = v;
 #endif
 
         if (!isExact)
@@ -5112,10 +5194,10 @@ void SearchManager::pv(Search::YaneuraOuWorker&           worker,
         info.nodes     = nodes;
         info.nps       = nodes * 1000 / time;
 #if STOCKFISH
-		info.tbHits    = tbHits;
+        info.tbHits = tbHits;
 #endif
-        info.pv        = pv;
-        info.hashfull  = tt.hashfull();
+        info.pv       = pv;
+        info.hashfull = tt.hashfull();
 
         updates.onUpdateFull(info);
     }

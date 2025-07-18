@@ -500,7 +500,7 @@ std::string OptionsMap::get_option(const std::string& option_name)
 			result += "Options[" + it.first + "]"
 				// "=="のindentを揃えるための処理
 				+ std::string(max_key_length - it.first.length() + 1, ' ')
-				+ "== "
+				+ "= "
 				+ std::string(it.second) + "\n";
 
 			if (!all)
