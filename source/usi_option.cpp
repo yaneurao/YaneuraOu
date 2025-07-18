@@ -19,7 +19,9 @@ bool CaseInsensitiveLess::operator()(const std::string& s1, const std::string& s
 		[](char c1, char c2) { return std::tolower(c1) < std::tolower(c2); });
 }
 
-//void OptionsMap::add_info_listener(InfoListener&& message_func) { info = std::move(message_func); }
+// option項目が変更されてon_change() handlerが呼び出された時に
+// on_change()の返し値を引数にして呼び出されるhandlerを設定する。
+void OptionsMap::add_info_listener(InfoListener&& message_func) { info = std::move(message_func); }
 
 // USIのsetoptionコマンドのhandler
 void OptionsMap::setoption(std::istringstream& is) {
@@ -346,11 +348,15 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 
 // カレントフォルダに"engine_options.txt"(これは引数で指定されている)が
 // あればそれをオプションとしてOptions[]の値をオーバーライドする機能。
+// ここで設定した値は、そのあとfixedフラグが立ち、その後、
+// 通常の"setoption"では変更できない。
 void OptionsMap::read_engine_options(const std::string& filename)
 {
 	SystemIO::TextReader reader;
 	if (reader.Open(filename).is_not_ok())
 		return;
+
+	sync_cout << "info string read engine options, path = " << filename << sync_endl;
 
 	std::string line;
 	while (reader.ReadLine(line).is_ok())

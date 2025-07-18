@@ -99,76 +99,85 @@ private:
 // USIの1つのオプション設定が Option class。
 // これを std::map<option名, Option> で保持しているのがこのclass。
 class OptionsMap {
-public:
-	using InfoListener = std::function<void(std::optional<std::string>)>;
+   public:
+    using InfoListener = std::function<void(std::optional<std::string>)>;
 
-	OptionsMap() = default;
-	OptionsMap(const OptionsMap&) = delete;
-	OptionsMap(OptionsMap&&) = delete;
-	OptionsMap& operator=(const OptionsMap&) = delete;
-	OptionsMap& operator=(OptionsMap&&) = delete;
+    OptionsMap()                             = default;
+    OptionsMap(const OptionsMap&)            = delete;
+    OptionsMap(OptionsMap&&)                 = delete;
+    OptionsMap& operator=(const OptionsMap&) = delete;
+    OptionsMap& operator=(OptionsMap&&)      = delete;
 
-	void add_info_listener(InfoListener&&);
+	// option項目が変更されてon_change() handlerが呼び出された時に
+	// on_change()の返し値を引数にして呼び出されるhandlerを設定する。
+    void add_info_listener(InfoListener&&);
 
-	// USIのsetoptionコマンドのhandler
-	void setoption(std::istringstream&);
+    // USIのsetoptionコマンドのhandler
+    void setoption(std::istringstream&);
 
-	// あるoption名に対応するOptionオブジェクトを取得する。
-	// これはread onlyで、設定はここからしてはならない。
-	const Option& operator[](const std::string&) const;
+    // あるoption名に対応するOptionオブジェクトを取得する。
+    // これはread onlyで、設定はここからしてはならない。
+    const Option& operator[](const std::string&) const;
 
-	// Optionを一つ追加する。options_mapに追加される。
-	void add(const std::string& option_name, const Option& option);
+    // Optionを一つ追加する。options_mapに追加される。
+    void add(const std::string& option_name, const Option& option);
 
-	// 保持しているOptionのなかで、このoption_nameを持つものの数。
-	std::size_t count(const std::string& option_name) const;
+    // 保持しているOptionのなかで、このoption_nameを持つものの数。
+    // 💡 ある名前のoption項目を持っているかどうかを調べるのに使う。
+    std::size_t count(const std::string& option_name) const;
 
-	// 📌 やねうら王独自拡張 📌
+#if !STOCKFISH
 
-	// カレントフォルダにfilename(例えば"engine_options.txt")が
-	// あればそれをオプションとしてOptions[]の値をオーバーライドする機能。
-	void read_engine_options(const std::string& filename);
+    // 📌 やねうら王独自拡張 📌
 
-	// option名を指定して、その値を出力した文字列を構成する。
-	// option名が省略された時は、すべてのオプションの値を出力した文字列を構成する。
-	std::string get_option(const std::string& option_name);
+    // カレントフォルダにfilename(例えば"engine_options.txt")が
+    // あればそれをオプションとしてOptions[]の値をオーバーライドする機能。
+    // ここで設定した値は、そのあとfixedフラグが立ち、その後、
+    // 通常の"setoption"では変更できない。
+    void read_engine_options(const std::string& filename);
 
-	// option名とvalueを指定して、そのoption名があるなら、そのoptionの値を変更する。
-	// 返し値) 値を変更したとき、変更できなかったときいずれも、出力するメッセージを返す。
-	std::string set_option_if_exists(const std::string& option_name, const std::string& option_value);
+    // option名を指定して、その値を出力した文字列を構成する。
+    // option名が省略された時は、すべてのオプションの値を出力した文字列を構成する。
+    std::string get_option(const std::string& option_name);
 
-	// idxを指定して、それに対応するOptionを取得する。
-	// ⚠ 値が存在しないidxを指定すると落ちる。
-        std::pair<const std::string, const Option&> get_option_by_idx(size_t idx) const;
+    // option名とvalueを指定して、そのoption名があるなら、そのoptionの値を変更する。
+    // 返し値) 値を変更したとき、変更できなかったときいずれも、出力するメッセージを返す。
+    std::string set_option_if_exists(const std::string& option_name,
+                                     const std::string& option_value);
 
-private:
-	friend class Engine;
-	friend class Option;
+    // idxを指定して、それに対応するOptionを取得する。
+    // ⚠ 値が存在しないidxを指定すると落ちる。
+    std::pair<const std::string, const Option&> get_option_by_idx(size_t idx) const;
 
-	// OptionsMapの中身一覧を出力する。
-	// 💡 "usi"コマンドの応答に用いる。
-	friend std::ostream& operator<<(std::ostream&, const OptionsMap&);
+#endif
 
-	// The options container is defined as a std::map
-	// オプションのコンテナは std::map として定義されています
-	// 💡 これは思考エンジンのオプション名からOption(オプション設定 object)へのmap。
+   private:
+    friend class Engine;
+    friend class Option;
 
-	using OptionsStore = std::map<std::string, Option, CaseInsensitiveLess>;
+    // OptionsMapの中身一覧を出力する。
+    // 💡 "usi"コマンドの応答に用いる。
+    friend std::ostream& operator<<(std::ostream&, const OptionsMap&);
 
-	OptionsStore options_map;
-	InfoListener info;
+    // The options container is defined as a std::map
+    // オプションのコンテナは std::map として定義されています
+    // 💡 これは思考エンジンのオプション名からOption(オプション設定 object)へのmap。
 
-	// -- やねうら王独自拡張
+    using OptionsStore = std::map<std::string, Option, CaseInsensitiveLess>;
 
-	// 思考エンジンがGUIからの"usi"に対して返す"option ..."文字列から
-	// Optionオブジェクトを構築して、それを *this に突っ込む。
-	// "engine_options.txt"というファイルの各行からOptionオブジェクト構築して
-	// Optionの値を上書きするためにこの関数が必要。
-	// "option name USI_Hash type spin default 256"
-	// のような文字列が引数として渡される。
-	// このとき、Optionのhandlerとidxは書き換えない。
-	void build_option(const std::string& line);
+    OptionsStore options_map;
+    InfoListener info;
 
+#if !STOCKFISH
+    // 思考エンジンがGUIからの"usi"に対して返す"option ..."文字列から
+    // Optionオブジェクトを構築して、それを *this に突っ込む。
+    // "engine_options.txt"というファイルの各行からOptionオブジェクト構築して
+    // Optionの値を上書きするためにこの関数が必要。
+    // "option name USI_Hash type spin default 256"
+    // のような文字列が引数として渡される。
+    // このとき、Optionのhandlerとidxは書き換えない。
+    void build_option(const std::string& line);
+#endif
 };
 
 // OptionsMapを参照で使いたい時に使うproxy。(やねうら王独自拡張)

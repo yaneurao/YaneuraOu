@@ -44,10 +44,12 @@ public:
 	// --------------------
 
 	// 詰みやそれに類似した特別なスコアの処理なしに、Valueを整数のセントポーン数に変換する。
-
-	//static int         to_cp(Value v, const Position& pos);
-	// 📝 やねうら王では、Position&は不要。
+#if STOCKFISH
+	static int         to_cp(Value v, const Position& pos);
+    // 📝 やねうら王では、Position&は不要。
+#else
 	static int   to_cp(Value v);
+#endif
 
     // USIプロトコルで用いるscoreにScore構造体の内容を変換する。
     static std::string format_score(const Score& s);
@@ -58,9 +60,11 @@ public:
     // USIプロトコルで使う指し手文字列に変換する。
     static std::string move(Move m /*, bool chess960*/);
 
+#if STOCKFISH
     // 勝率文字列に変換する。
     // 📌 将棋では評価値をcpで出力するので不要。
-    // static std::string wdl(Value v, const Position& pos);
+    static std::string wdl(Value v, const Position& pos);
+#endif
 
 	// string全体を小文字化して返す。
     static std::string to_lower(std::string str);
@@ -69,6 +73,12 @@ public:
     // 合法手でなければMove::noneを返すようになっている。
     // 💡 合法でない指し手の場合、エラーである旨を出力する。
     static Move to_move(const Position& pos, std::string str);
+
+#if !STOCKFISH
+	// USI形式から指し手への変換。本来この関数は要らないのだが、
+    // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
+    static Move16 to_move16(const std::string& str);
+#endif
 
 	// "go"の後続文字列を解析して、それを反映させたSearch::LimitsTypeを返す。
     /*
@@ -82,7 +92,13 @@ public:
     Search::LimitsType parse_limits(std::istream& is);
 #endif
 
-	// 🌈　やねうら王独自  🌈
+    // エンジンオプション設定を取得する
+    OptionsMap& engine_options() { return engine.get_options(); }
+
+#if !STOCKFISH
+    // --------------------
+    // 🌈 やねうら王独自 🌈
+    // --------------------
 
 	// cpからValueへ。to_cpの逆変換。
 	static Value cp_to_value(int v);
@@ -93,10 +109,6 @@ public:
 	// 
 	// ⚠ USE_PIECE_VALUEが定義されていない時は正規化しようがないのでこの関数は呼び出せない。
 	static std::string value(Value v);
-
-	// USI形式から指し手への変換。本来この関数は要らないのだが、
-    // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
-    static Move16 to_move16(const std::string& str);
 
     // USIの指し手文字列などに使われている盤上の升を表す文字列をSquare型に変換する
     // 変換できなかった場合はSQ_NBが返る。高速化のために用意した。
@@ -112,34 +124,27 @@ public:
     // vector<Move>をUSIプロトコルで使う文字列に変換する。
     static std::string move(const std::vector<Move>& moves);
 
-	// --------------------
-    //    Properties
-    // --------------------
-
-    // エンジンオプション設定を取得する
-    OptionsMap& engine_options() { return engine.get_options(); }
-
-	// 🌈　やねうら王独自  🌈
-
 	// USIコマンドを積むことができる標準入力
 	// 💡 ここにUSIコマンドを積むとそれが実行される。
 	StandardInput std_input;
 
 	// このclassのUnitTest。
 	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
+#endif
 
 private:
 	// 内包している思考エンジン
 #if STOCKFISH
-	Engine	    engine;
+	// main関数にコマンドラインから渡された引数
+	Engine engine;
+
+	CommandLine cli;
+	// 🌈 やねうら王では、CommandLine::gを用いるから、このclassが保持する必要がない。
 #else
-	// 🌈 やねうら王ではengineを切り替えられるようにIEngineをくるんだEngineWrapperというclassを用いる。
+	// 🌈 やねうら王ではengineを切り替えられるようにIEngineをくるんだ
+	//     EngineWrapperというclassを用いる。
 	EngineWrapper engine;
 #endif
-
-	// main関数にコマンドラインから渡された引数
-	//CommandLine cli;
-	// 🌈 やねうら王では、CommandLine::gを用いるから、このclassが保持する必要がない。
 
 	// string_viewを"\n"で複数行に分割して、それを"info string .."の形で出力する。
 	static void print_info_string(std::string_view str);
@@ -158,12 +163,14 @@ private:
 	void          setoption(std::istringstream& is);
 	std::uint64_t perft(const Search::LimitsType&);
 
+#if !STOCKFISH
 	// 🌈 やねうら王独自拡張 🌈
 
-	void          unittest(std::istringstream& is);
-	void          getoption(std::istringstream& is);
-	void          isready();
-	void          moves();
+	void isready();
+    void moves();
+    void getoption(std::istringstream& is);
+    void unittest(std::istringstream& is);
+#endif
 
 	// 読み筋を出力するevent handler
 	// 📝 Engine class(およびその派生class)から、読み筋を出力したいタイミングで
@@ -174,7 +181,9 @@ private:
     static void on_update_full(const Engine::InfoFull& info /*, bool showWDL*/);
 	static void on_iter(const Engine::InfoIter& info);
 	static void on_bestmove(std::string_view bestmove, std::string_view ponder);
-    static void on_update_string(std::string_view info);
+#if !STOCKFISH
+	static void on_update_string(std::string_view info);
+#endif
 
     // すべての読み筋出力listenerを初期化する。
 	// 📝 set_engine()のタイミングでEngine側のset_on_XXXを呼び出して
@@ -183,6 +192,7 @@ private:
 	//     このlistenerを変更して対応する。
     void init_search_update_listeners();
 
+#if !STOCKFISH
 	// 🌈 やねうら王独自拡張 🌈
 
 	// コマンドラインと"startup.txt"に書かれているUSIコマンドをstd_inputに積む。
@@ -197,6 +207,7 @@ private:
 	// USIコマンドを1行実行する。
 	// "quit"が来たら、trueを返す。
 	bool usi_cmdexec(const std::string& cmd);
+#endif
 };
 
 } // namespace YaneuraOu

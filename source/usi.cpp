@@ -176,8 +176,8 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
 #if STOCKFISH
         if (token == "quit" || token == "stop")
 #else
-    if (token == "quit" || token == "stop" || token == "gameover")
-    /*
+        if (token == "quit" || token == "stop" || token == "gameover")
+        /*
 		📓 USIプロトコルにはUCIプロトコルから、
               gameover win | lose | draw
             が追加されているが、stopと同じ扱いをして良いと思う。
@@ -209,12 +209,13 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
         else if (token == "usi")
 #if STOCKFISH
         {
-            sync_cout << "id name " << engine_info(true) << "\n" << engine.get_options() << sync_endl;
+            sync_cout << "id name " << engine_info(true) << "\n"
+                      << engine.get_options() << sync_endl;
 
             sync_cout << "uciok" << sync_endl;
         }
 #else
-        engine.usi();
+            engine.usi();
 #endif
 
         // オプションを設定する
@@ -245,8 +246,8 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
         else if (token == "ucinewgame")
             engine.search_clear();
 #else
-    else if (token == "usinewgame")
-        engine.usinewgame();
+        else if (token == "usinewgame")
+            engine.usinewgame();
 #endif
 
         // 思考エンジンの準備が出来たかの確認
@@ -254,7 +255,7 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
 #if STOCKFISH
             sync_cout << "readyok" << sync_endl;
 #else
-        engine.isready();
+            isready();
 #endif
 
         // Add custom non-UCI commands, mainly for debugging purposes.
@@ -613,7 +614,7 @@ void USIEngine::bench(std::istream& args) {
 #else
         else if (token == "usinewgame")
         {
-            engine.isready();  // 🤔 将棋ではisreadyのhandlerを呼び出したほうがいいのでは..
+            //engine.search_clear();  // 🤔 将棋ではisreadyのhandlerを呼び出したほうがいいか？
             elapsed = now();
         }
 #endif
@@ -1174,7 +1175,36 @@ void USIEngine::on_bestmove(std::string_view bestmove, std::string_view ponder) 
 
 void USIEngine::on_update_string(std::string_view info) { sync_cout << "info string " << info << sync_endl; }
 
+
 // 🌈 以下、やねうら王独自 🌈
+
+// cpからValueへ。to_cp()の逆変換。
+Value USIEngine::cp_to_value(int v) {
+    return Value((std::abs(v) < VALUE_MATE_IN_MAX_PLY) ? (NormalizeToPawnValue * v / 100) : v);
+}
+
+
+// "isready"コマンドのhandler
+void USIEngine::isready() {
+
+	auto& options = engine.get_options();
+
+	// 🌈 カレントフォルダに"engine_options.txt"があれば
+    //    それをオプションとしてOptions[]の値をオーバーライドする機能。
+    options.read_engine_options("engine_options.txt");
+
+    // 🌈 EvalDirにある"eval_options.txt"も読み込みたい。
+
+	// "EvalDir"オプションが生えているなら..
+	if (options.count("EvalDir"))
+    {
+        auto eval_options_path = Path::Combine(options["EvalDir"], "eval_options.txt");
+        options.read_engine_options(eval_options_path);
+    }
+
+	// Engineの派生classのisready()を呼び出す。
+    engine.isready();
+}
 
 // "moves"コマンドのhandler
 void USIEngine::moves() {
@@ -1183,9 +1213,6 @@ void USIEngine::moves() {
         std::cout << Move(m) << ' ';
     std::cout << std::endl;
 }
-
-// "unittest"コマンドのhandler
-void USIEngine::unittest(std::istringstream& is) { Test::UnitTest(is, engine); }
 
 // "getoption"コマンドのhandler
 // オプションの値を取得する。
@@ -1198,9 +1225,9 @@ void USIEngine::getoption(std::istringstream& is) {
     sync_cout << options.get_option(option_name) << sync_endl;
 }
 
+// "unittest"コマンドのhandler
+void USIEngine::unittest(std::istringstream& is) { Test::UnitTest(is, engine); }
 
-// cpからValueへ。to_cp()の逆変換。
-Value USIEngine::cp_to_value(int v) { return Value((std::abs(v) < VALUE_MATE_IN_MAX_PLY) ? (NormalizeToPawnValue * v / 100) : v); }
 
 // コマンドラインと"startup.txt"に書かれているUSIコマンドをstd_inputに積む。
 void USIEngine::enqueue_startup_command() {
