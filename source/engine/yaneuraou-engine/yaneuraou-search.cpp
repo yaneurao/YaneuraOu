@@ -226,6 +226,7 @@ void YaneuraOuEngine::isready() {
     // このタイミングで平手の局面に初期化しておく。
     // 💡 これをしておかないとデバッグの時に、"isready"のあと
     //     "position"コマンドを送信しないと局面が不正で落ちて面倒。
+    states = StateListPtr(new std::deque<StateInfo>(1));
     pos.set(StartSFEN, &states->back());
 #endif
 
