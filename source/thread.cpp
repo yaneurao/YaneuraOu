@@ -320,92 +320,135 @@ size_t ThreadPool::num_threads() const { return threads.size(); }
 // idle_loop() で待機しているメインスレッドを起こし、すぐにリターンする。
 // メインスレッドは他のスレッドを起こして探索を開始する。
 
-void ThreadPool::start_thinking(const OptionsMap& options,
-	Position& pos,
-	StateListPtr& states,
-	Search::LimitsType limits) {
+void ThreadPool::start_thinking(const OptionsMap&  options,
+                                Position&          pos,
+                                StateListPtr&      states,
+                                Search::LimitsType limits) {
 
-	main_thread()->wait_for_search_finished();
+    main_thread()->wait_for_search_finished();
 
-	// 📝 increaseDepthはmain_managerに移動させた。
-	//     ここのある初期化のうち、stopとabortedSearch以外は、Worker派生classで処理すべき。
+    // 📝 increaseDepthはmain_managerに移動させた。
+    //     ここのある初期化のうち、stopとabortedSearch以外は、Worker派生classで処理すべき。
     // 🌈 SearchManager::pre_start_searching()に移動させた。
 #if STOCKFISH
-	main_manager()->stopOnPonderhit = stop = abortedSearch = false;
-	main_manager()->ponder = limits.ponderMode;
-	increaseDepth = true;
+    main_manager()->stopOnPonderhit = stop = abortedSearch = false;
+    main_manager()->ponder                                 = limits.ponderMode;
+    increaseDepth                                          = true;
 #else
     stop = abortedSearch = false;
 #endif
 
-	Search::RootMoves rootMoves;
-	const auto        legalmoves = MoveList<LEGAL_ALL>(pos);
+    Search::RootMoves rootMoves;
+#if STOCKFISH
+    const auto legalmoves = MoveList<LEGAL_ALL>(pos);
 
-	for (const auto& usiMove : limits.searchmoves)
-	{
-		auto move = USIEngine::to_move(pos, usiMove);
+    for (const auto& usiMove : limits.searchmoves)
+    {
+        auto move = USIEngine::to_move(pos, usiMove);
 
-		if (std::find(legalmoves.begin(), legalmoves.end(), move) != legalmoves.end())
-			rootMoves.emplace_back(move);
-	}
+        if (std::find(legalmoves.begin(), legalmoves.end(), move) != legalmoves.end())
+            rootMoves.emplace_back(move);
+    }
 
-	if (rootMoves.empty())
-		for (const auto& m : legalmoves)
-			rootMoves.emplace_back(m);
+#else
 
-	//Tablebases::Config tbConfig = Tablebases::rank_root_moves(options, pos, rootMoves);
-	// ⇨  Tablebasesは将棋では用いないのでコメントアウト
+    // 🌈  GenerateAllLegalMoves反映させないと..
+    bool generate_all_legal_moves =
+      options.count("GenerateAllLegalMoves") && options["GenerateAllLegalMoves"];
 
-	// After ownership transfer 'states' becomes empty, so if we stop the search
-	// and call 'go' again without setting a new position states.get() == nullptr.
+	// ⚠ MoveList<LEGAL_ALL>とMoveList<LEGAL>は異なる型なので1つの変数に代入できない。
+	//     std::variantを使うとまとめることはできるが…。
 
-	// 所有権の移動後、'states' は空になるため、検索を中断して
-	// 新しい局面を設定せずに再度 'go' を呼び出すと、states.get() == nullptr となる。
+    if (generate_all_legal_moves)
+    {
+        const auto legalmoves = MoveList<LEGAL_ALL>(pos);
 
-	assert(states.get() || setupStates.get());
+        for (const auto& usiMove : limits.searchmoves)
+        {
+            auto move = USIEngine::to_move(pos, usiMove);
 
-	if (states.get())
-		setupStates = std::move(states);  // Ownership transfer, states is now empty
+            if (std::find(legalmoves.begin(), legalmoves.end(), move) != legalmoves.end())
+                rootMoves.emplace_back(move);
+        }
+    }
+    else
+    {
+        const auto legalmoves = MoveList<LEGAL>(pos);
 
-	// We use Position::set() to set root position across threads. But there are
-	// some StateInfo fields (previous, pliesFromNull, capturedPiece) that cannot
-	// be deduced from a fen string, so set() clears them and they are set from
-	// setupStates->back() later. The rootState is per thread, earlier states are
-	// shared since they are read-only.
+        for (const auto& usiMove : limits.searchmoves)
+        {
+            auto move = USIEngine::to_move(pos, usiMove);
 
-	// 複数のスレッドでルート局面を設定するために Position::set() を使用します。
-	// しかし、StateInfo の一部のフィールド（previous、pliesFromNull、capturedPiece）は
-	// FEN 文字列からは推測できないため、set() はそれらをクリアし、後で setupStates->back() から設定されます。
-	// rootState はスレッドごとに個別ですが、それ以前の状態は読み取り専用のため共有されます。
+            if (std::find(legalmoves.begin(), legalmoves.end(), move) != legalmoves.end())
+                rootMoves.emplace_back(move);
+        }
+    }
 
-	for (auto&& th : threads)
-	{
-		th->run_custom_job([&]() {
-			th->worker->limits = limits;
-			th->worker->nodes = /* th->worker->tbHits = */ 0;
+    // 🌈  宣言勝ちできるなら、rootMovesに追加する。
+    if (pos.DeclarationWin() == Move::win())
+        rootMoves.emplace_back(Move::win());
 
-			// 🤔 この初期化は、Worker派生classのstart_searching()で行うようにする。
-			//     やねうら王では、void Search::YaneuraOuWorker::iterative_deepening()で行っている。
-#if 0
-			th->worker->bestMoveChanges = 0;
-			th->worker->nmpMinPly = 0;
-			th->worker->rootDepth = th->worker->completedDepth = 0;
+	// 🤔 searchmovesが指定されていて
+    //     そこに宣言勝ちがない時に宣言勝ちはできるのか…？
+    //     できないと不便な気は少しする。
+
 #endif
-			th->worker->rootMoves = rootMoves;
-			th->worker->rootPos.set(pos.sfen() /*, pos.is_chess960()*/, &th->worker->rootState);
-			th->worker->rootState = setupStates->back();
-			//th->worker->tbConfig = tbConfig;
-			});
-	}
 
-	for (auto&& th : threads)
-		th->wait_for_search_finished();
+    //Tablebases::Config tbConfig = Tablebases::rank_root_moves(options, pos, rootMoves);
+    // ⇨  Tablebasesは将棋では用いないのでコメントアウト
+
+    // After ownership transfer 'states' becomes empty, so if we stop the search
+    // and call 'go' again without setting a new position states.get() == nullptr.
+
+    // 所有権の移動後、'states' は空になるため、検索を中断して
+    // 新しい局面を設定せずに再度 'go' を呼び出すと、states.get() == nullptr となる。
+
+    assert(states.get() || setupStates.get());
+
+    if (states.get())
+        setupStates = std::move(states);  // Ownership transfer, states is now empty
+
+    // We use Position::set() to set root position across threads. But there are
+    // some StateInfo fields (previous, pliesFromNull, capturedPiece) that cannot
+    // be deduced from a fen string, so set() clears them and they are set from
+    // setupStates->back() later. The rootState is per thread, earlier states are
+    // shared since they are read-only.
+
+    // 複数のスレッドでルート局面を設定するために Position::set() を使用します。
+    // しかし、StateInfo の一部のフィールド（previous、pliesFromNull、capturedPiece）は
+    // FEN 文字列からは推測できないため、set() はそれらをクリアし、後で setupStates->back() から設定されます。
+    // rootState はスレッドごとに個別ですが、それ以前の状態は読み取り専用のため共有されます。
+
+    for (auto&& th : threads)
+    {
+        th->run_custom_job([&]() {
+            th->worker->limits = limits;
+            th->worker->nodes  = /* th->worker->tbHits = */ 0;
 
 #if STOCKFISH
-#else
+            th->worker->bestMoveChanges = 0;
+            th->worker->nmpMinPly       = 0;
+            th->worker->rootDepth = th->worker->completedDepth = 0;
+
+            // 🤔 この初期化は、Worker派生classのstart_searching()で行うようにする。
+            //     やねうら王では、void Search::YaneuraOuWorker::iterative_deepening()で行っている。
+#endif
+            th->worker->rootMoves = rootMoves;
+            th->worker->rootPos.set(pos.sfen() /*, pos.is_chess960()*/, &th->worker->rootState);
+            th->worker->rootState = setupStates->back();
+#if STOCKFISH
+            th->worker->tbConfig = tbConfig;
+#endif
+        });
+    }
+
+    for (auto&& th : threads)
+        th->wait_for_search_finished();
+
+#if !STOCKFISH
     /*
 		📓 やねうら王では、start_searching() の前に、
-	        UI threadからpre_start_searching()をblock callする。
+	        UI threadからpre_start_searching()をblocking callする。
 
 			start_searching()はnon blocking callなのでUI threadがUSI loopに戻ってしまい、
 			"ponderhit"などを受信してしまうため。
@@ -413,7 +456,7 @@ void ThreadPool::start_thinking(const OptionsMap& options,
     main_thread()->worker->pre_start_searching();
 #endif
 
-	main_thread()->start_searching();
+    main_thread()->start_searching();
 }
 
 // ⚠ このメソッドは、やねうら王の標準探索エンジンでしか使わないので、

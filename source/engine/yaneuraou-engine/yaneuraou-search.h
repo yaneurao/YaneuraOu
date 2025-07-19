@@ -483,6 +483,10 @@ class YaneuraOuWorker: public Worker {
     // Reductions lookup table initialized at startup
     // 起動時に初期化されるreductionsの参照表
     // 💡 reductionとは、LMRで残り探索深さを減らすこと。
+    /*
+		📓	このテーブル、各workerが同じものを持っている。
+		    頻繁に参照するテーブルなのでこのほうが良いのだと思われる。
+	*/ 
     std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
 
 #if STOCKFISH

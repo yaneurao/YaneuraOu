@@ -288,15 +288,12 @@ static_assert((sizeof(Cluster) % 32) == 0, "Unexpected Cluster size");
 // 各クラスターはClusterSize個のTTEntryで構成されます。
 
 void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
+#if STOCKFISH
+    aligned_large_pages_free(table);
 
-#if 0
-	// Optionのoverrideによってスレッド初期化前にハンドラが呼び出された。これは無視する。
-	if (Threads.size() == 0)
-		return;
+    clusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
 
-	// 探索が終わる前に次のresizeが来ると落ちるので探索の終了を待つ。
-	Threads.main()->wait_for_search_finished();
-#endif
+#else
 
 	// mbSizeの単位は[MB]なので、ここでは1MBの倍数単位のメモリが確保されるが、
 	// 仕様上は、1MBの倍数である必要はない。
@@ -319,6 +316,7 @@ void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
 	aligned_large_pages_free(table);
 
 	clusterCount = newClusterCount;
+#endif
 
 	// tableはCacheLineSizeでalignされたメモリに配置したいので、CacheLineSize-1だけ余分に確保する。
 	// callocではなくmallocにしないと初回の探索でTTにアクセスするとき、特に巨大なTTだと
@@ -335,11 +333,12 @@ void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
 		exit(EXIT_FAILURE);
 	}
 
-	//clear(/* threads */);
+#if STOCKFISH
+	clear(threads);
 
 	// →　Stockfish、ここでclear()呼び出しているが、Search::clear()からTT.clear()を呼び出すので
 	// 二重に初期化していることになると思う。
-
+#endif
 }
 
 // Initializes the entire transposition table to zero,

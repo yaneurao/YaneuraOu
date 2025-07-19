@@ -238,20 +238,22 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
     // (置換表の指し手も、この条件を満たさなければならない)
     // 置換表の指し手がないなら、次のstageから開始する。
 
-    stage =
-      PROBCUT_TT
+    stage = PROBCUT_TT
       + !(
         ttm
-        // && pos.capture_stage(ttm)
+#if STOCKFISH        
+        && pos.capture_stage(ttm)
+        && pos.pseudo_legal(ttm) 
+#else
         && pos.capture(ttm)
         // 注意 : ⇑ ProbCutの指し手生成(PROBCUT_INIT)で、
         // 歩の成りも生成するなら、ここはcapture_or_pawn_promotion()、しないならcapture()にすること。
         // ただし、TTの指し手は優遇した方が良い可能性もある。
-#if STOCKFISH
-        && pos.pseudo_legal(ttm) && pos.see_ge(ttm, threshold));
-#else
-        && pos.pseudo_legal(ttm, generate_all_legal_moves) && pos.see_ge(ttm, threshold));
+        && pos.pseudo_legal(ttm, generate_all_legal_moves) 
 #endif
+        
+	    && pos.see_ge(ttm, threshold)
+	    );
     // ⇨ qsearch()のTTと同様、置換表の指し手に関してはsee_geの条件、
     // つけないほうがいい可能性があるが、やってみたら良くなかった。(V774v2 vs V774v3)
 }
@@ -278,15 +280,16 @@ void MovePicker::score()
 
 	if constexpr (Type == QUIETS)
 	{
-#if 0
-		threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.attacks_by<PAWN>(~us);
-		threatByLesser[ROOK] =
-			pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatByLesser[KNIGHT];
-		threatByLesser[QUEEN] = pos.attacks_by<ROOK>(~us) | threatByLesser[ROOK];
-#endif
+#if STOCKFISH
+        threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.attacks_by<PAWN>(~us);
+        threatByLesser[ROOK] =
+          pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatByLesser[KNIGHT];
+        threatByLesser[QUEEN] = pos.attacks_by<ROOK>(~us) | threatByLesser[ROOK];
+
+#else
 
 #if 0
-		// →　Stockfishのコードを忠実に実装すると将棋ではたくさんの利きを計算しなくてはならないので
+		// 🌈　Stockfishのコードを忠実に実装すると将棋ではたくさんの利きを計算しなくてはならないので
 		//     非常に計算コストが高くなる。ここでは歩による当たりになっている駒だけ考える。
 
 		// 歩による脅威だけ。
@@ -297,13 +300,15 @@ void MovePicker::score()
 		threatened =  (pos.pieces(us,PAWN).andnot(pos.pieces(us))                 & threatenedByPawn );
 #endif
 		// →　やってみたが強くならないのでコメントアウトする。[2022/04/26]
+
+#endif
 	}
 
 	for (auto& m : *this)
 	{
 		const Square    from          = m.from_sq();
 		const Square    to            = m.to_sq();
-		const Piece     pc            = pos.moved_piece_after(m);
+		const Piece     pc            = pos.moved_piece(m);
 		const PieceType pt            = type_of(pc);
 		const Piece     capturedPiece = pos.piece_on(to);
 
@@ -354,10 +359,16 @@ void MovePicker::score()
 			m.value += (bool(pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 16384;
 			// これ、効果があるのか検証したほうが良さげ。
 
-			//	移動元の駒が安い駒で当たりになっている場合、移動させることでそれを回避できるなら価値を上げておく。
-#if 0
+#if STOCKFISH
 			// penalty for moving to a square threatened by a lesser piece
 			// or bonus for escaping an attack by a lesser piece.
+
+			// 格下の駒に脅かされているマスに移動する際のペナルティ  
+			// または格下の駒による攻撃から逃れる際のボーナス
+
+			//  📓 移動元の駒が安い駒で当たりになっている場合、
+			//      移動させることでそれを回避できるなら価値を上げておく。
+
 			if (KNIGHT <= pt && pt <= QUEEN)
 			{
 				static constexpr int bonus[QUEEN + 1] = { 0, 0, 144, 144, 256, 517 };
@@ -368,16 +379,6 @@ void MovePicker::score()
 			// → Stockfishのコードそのままは書けない。
 #endif
 
-#if 0
-					+     (threatened & from_sq(m) ?
-							 ((moved_piece == ROOK || moved_piece == BISHOP) && !threatenedByPawn.test(to_sq(m)) ? 50000
-						:                                                       !threatenedByPawn.test(to_sq(m)) ? 15000
-						:                                                                                          0)
-						:                                                                                          0);
-#endif
-				// →　強くならなかったのでコメントアウト。
-					;
-
 			// lowPlyHistoryも加算
 			if (ply < LOW_PLY_HISTORY_SIZE)
 				m.value += 8 * (*lowPlyHistory)[ply][m.from_to()] / (1 + ply);
@@ -386,26 +387,33 @@ void MovePicker::score()
 		else // Type == EVASIONS
 		{
 			// 王手回避の指し手をスコアリングする。
-
+#if STOCKFISH
+			if (pos.capture_stage(m))
+				m.value = PieceValue[capturedPiece] + (1 << 28);
+#else
 			if (pos.capture_or_promotion(m))
-				// 捕獲する指し手に関しては簡易SEE + MVV/LVA
-				// 被害が小さいように、LVA(価値の低い駒)を動かして取ることを優先されたほうが良いので駒に価値の低い順に番号をつける。そのためのテーブル。
-				// ※ LVA = Least Valuable Aggressor。cf.MVV-LVA
-
-				// ここ、moved_piece_before()を用いるのが正しい。
-				// そうしておかないと、同じto,fromである角成りと角成らずの2つの指し手がある時、
-				// moved_piece_after()だと、角成りの方は、取られた時の損失が多いとみなされてしまい、
-				// オーダリング上、後回しになってしまう。
-
-				//m.value = PieceValue[capturedPiece] + (1 << 28);
-
 				m.value = Eval::CapturePieceValuePlusPromote(pos, m)
                         + (1 << 28);
-                        // ⇑これは、captureの指し手のスコアがそうでない指し手のスコアより
-                        //   常に大きくなるようにするための下駄履き。
-						// ※　captureの指し手の方がそうでない指し手より稀なので、この下駄履きは、
-						//     captureの時にしておく。
-						
+#endif
+			/* 📓 捕獲する指し手に関しては簡易SEE + MVV/LVA
+				  
+				  被害が小さいように、LVA(価値の低い駒)を動かして取ることを
+				  優先されたほうが良いので駒に価値の低い順に番号をつける。
+				  そのためのテーブル。
+
+				  💡 LVA = Least Valuable Aggressor。cf.MVV-LVA
+
+				ここ、moved_piece_before()を用いるのが正しい。
+				そうしておかないと、同じto,fromである角成りと角成らずの2つの指し手がある時、
+				moved_piece_after()だと、角成りの方は、取られた時の損失が多いとみなされてしまい、
+				オーダリング上、後回しになってしまう。
+
+				⇑これは、captureの指し手のスコアがそうでない指し手のスコアより
+				常に大きくなるようにするための下駄履き。
+				
+				　captureの指し手の方がそうでない指し手より稀なので、この下駄履きは、captureの時にしておく。
+			*/
+
 			else
 			{
 				// それ以外の指し手に関してはhistoryの値の順番
@@ -467,9 +475,13 @@ top:
 	case PROBCUT_INIT:
 	case QCAPTURE_INIT:
 		cur = endBadCaptures = moves;
+#if STOCKFISH
+        endCur = endCaptures = generate<CAPTURES>(pos, cur);
+#else
         endCur = endCaptures = generate_all_legal_moves
                                 ? generateMoves<CAPTURES_ALL>(pos, cur)
                                 : generateMoves<CAPTURES>(pos, cur);
+#endif
 
 		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
 		score<CAPTURES>();
@@ -538,9 +550,13 @@ top:
 
 			*/
 
+#if STOCKFISH
+            endCur = endGenerated = generate<QUIETS>(pos, cur);
+#else
             endCur = endGenerated = generate_all_legal_moves
                         ? generateMoves<NON_CAPTURES_ALL>(pos, cur)
                         : generateMoves<NON_CAPTURES>(pos, cur);
+#endif						
 			// 注意 : ここ⇑、CAPTURE_INITで生成した指し手に歩の成りの指し手が含まれているなら、それを除外しなければならない。
 
 			// 駒を捕獲しない指し手に対してオーダリングのためのスコアをつける
@@ -576,7 +592,7 @@ top:
 
 		// Prepare the pointers to loop over the bad captures
 		// bad capturesの指し手を返すためにポインタを準備する。
-		// ※　bad capturesの先頭を指すようにする。これは指し手生成バッファの先頭からの領域を再利用している。
+		// 📝　bad capturesの先頭を指すようにする。これは指し手生成バッファの先頭からの領域を再利用している。
 
 		cur    = moves;
         endCur = endBadCaptures;
@@ -607,10 +623,13 @@ top:
 		// 王手回避手の生成
 	case EVASION_INIT:
 		cur    = moves;
+#if STOCKFISH		
+        endCur = endGenerated = generate<EVASIONS>(pos, cur);
+#else
         endCur = endGenerated = generate_all_legal_moves
                                 ? generateMoves<EVASIONS_ALL>(pos, cur)
                                 : generateMoves<EVASIONS>(pos, cur);
-
+#endif
 		// 王手を回避する指し手に対してオーダリングのためのスコアをつける
 		score<EVASIONS>();
 
@@ -644,8 +663,12 @@ void MovePicker::skip_quiet_moves() { skipQuiets = true; }
 
 
 // this function must be called after all quiet moves and captures have been generated
+// この関数は、すべての静かな手と捕獲手が生成された後に呼び出されなければならない
+// 📝 チェス固有の問題っぽいので、この関数は将棋では使わない。
 bool MovePicker::can_move_king_or_pawn() const {
 	// SEE negative captures shouldn't be returned in GOOD_CAPTURE stage
+	// SEEが負になる捕獲手はGOOD_CAPTURE段階では返されるべきではない
+
 	assert(stage > GOOD_CAPTURE && stage != EVASION_INIT);
 
     for (const ExtMove* m = moves; m < endGenerated; ++m)
