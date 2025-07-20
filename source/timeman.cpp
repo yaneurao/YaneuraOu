@@ -6,6 +6,7 @@
 #include "search.h"
 #include "thread.h"
 #include "usi.h"
+#include "timeman.h"
 
 namespace YaneuraOu {
 

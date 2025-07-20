@@ -1263,14 +1263,6 @@ enum BonaPiece : int32_t;
 }
 
 // --------------------
-//   GlobalOptions
-// --------------------
-
-// TimePointの定義。💡Stockfishではmisc.hにある。
-typedef std::chrono::milliseconds::rep TimePoint;
-static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
-
-// --------------------
 //      UnitTest
 // --------------------
 
@@ -1312,6 +1304,10 @@ struct std::hash<YaneuraOu::Move16> {
 };
 
 #include "extra/macros.h"
+
+// TimePointの定義。💡Stockfishではmisc.hにある。
+typedef std::chrono::milliseconds::rep TimePoint;
+static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
 
 // 自作エンジンのEntry Point。
 // 使い方は自作エンジンのサンプルであるUSER_ENGINEの user-engine/user-search.cpp を参考にすること。

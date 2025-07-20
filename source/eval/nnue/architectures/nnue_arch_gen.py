@@ -7,7 +7,7 @@ import argparse
 import os
 import textwrap
 
-print("NNUE architecture header generator by yaneurao V1.00 , 2024/06/25")
+print("NNUE architecture header generator by yaneurao V1.01 , 2025/07/20")
 
 parser = argparse.ArgumentParser(description="NNUEのarchitecture headerを生成する。")
 parser.add_argument('arch', type=str, nargs='?', default="halfkp_256x2-32-32", help="architectureを指定する。例) halfkp_1024x2-8-64, YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_16_32とか")
@@ -36,9 +36,10 @@ out_path = os.path.join(out_dir, filename)
 
 print(f"output file path  : {out_path}")
 
-if os.path.exists(out_path):
-    print("Warning : file already exists. stop.")
-    exit()
+# if os.path.exists(out_path):
+#     print("Warning : file already exists. stop.")
+#     exit()
+#  🤔 ファイルがすでに存在していても上書きしたほうがいいと思う。
 
 # 大文字化して、'-'を'_'に置換したアーキテクチャ名
 arch   = arch.replace('-','_')

@@ -350,47 +350,51 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
             rootMoves.emplace_back(move);
     }
 
+    // limits.searchmovesが指定されていないとき、rootMovesがemptyになる。
+    // このとき、すべての合法手でスタートする必要がある。
+    if (rootMoves.empty())
+        for (const auto& m : legalmoves)
+            rootMoves.emplace_back(m);
+
 #else
 
     // 🌈  GenerateAllLegalMoves反映させないと..
     bool generate_all_legal_moves =
       options.count("GenerateAllLegalMoves") && options["GenerateAllLegalMoves"];
 
-	// ⚠ MoveList<LEGAL_ALL>とMoveList<LEGAL>は異なる型なので1つの変数に代入できない。
-	//     std::variantを使うとまとめることはできるが…。
+    // ⚠ MoveList<LEGAL_ALL>とMoveList<LEGAL>は異なる型なので1つの変数に代入できない。
+    //     std::variantを使うよりは次のように書いたほうがすっきりする。
 
-    if (generate_all_legal_moves)
-    {
-        const auto legalmoves = MoveList<LEGAL_ALL>(pos);
-
+    auto setup_rootMoves = [&](auto& moveList) {
         for (const auto& usiMove : limits.searchmoves)
         {
             auto move = USIEngine::to_move(pos, usiMove);
 
-            if (std::find(legalmoves.begin(), legalmoves.end(), move) != legalmoves.end())
+            if (std::find(moveList.begin(), moveList.end(), move) != moveList.end())
                 rootMoves.emplace_back(move);
         }
-    }
-    else
-    {
-        const auto legalmoves = MoveList<LEGAL>(pos);
 
-        for (const auto& usiMove : limits.searchmoves)
-        {
-            auto move = USIEngine::to_move(pos, usiMove);
+        if (rootMoves.empty())
+            for (const auto& m : moveList)
+                rootMoves.emplace_back(m);
+    };
 
-            if (std::find(legalmoves.begin(), legalmoves.end(), move) != legalmoves.end())
-                rootMoves.emplace_back(move);
-        }
+    if (generate_all_legal_moves) {
+        auto legalmoves = MoveList<LEGAL_ALL>(pos);
+        setup_rootMoves(legalmoves);
+    } else {
+        auto legalmoves = MoveList<LEGAL>(pos);
+        setup_rootMoves(legalmoves);
     }
+
+    // 🤔 searchmovesが指定されていて
+    //     そこに宣言勝ちがない時に宣言勝ちはできるのか…？
+    //     できないと不便な気は少しするから、
+    //     宣言勝ちできるならばつねにMove::win()を追加しておく。
 
     // 🌈  宣言勝ちできるなら、rootMovesに追加する。
     if (pos.DeclarationWin() == Move::win())
         rootMoves.emplace_back(Move::win());
-
-	// 🤔 searchmovesが指定されていて
-    //     そこに宣言勝ちがない時に宣言勝ちはできるのか…？
-    //     できないと不便な気は少しする。
 
 #endif
 

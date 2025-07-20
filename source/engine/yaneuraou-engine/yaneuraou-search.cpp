@@ -1747,7 +1747,11 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
 	// posKey       : このnodeのhash key
 
-    Key   posKey;
+#if STOCKFISH
+	Key        posKey;
+#else
+    HASH_KEY   posKey;
+#endif
 
     // move			: MovePickerから1手ずつもらうときの一時変数
     // excludedMove	: singular extemsionのときに除外する指し手
@@ -2050,7 +2054,13 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 			そのどちらが得なのかということのようである。
 	*/
 
-	posKey                         = pos.key();
+#if STOCKFISH
+    posKey                         = pos.key();
+#else
+    // 🌈 やねうら王では、HASH_KEYのbit数は可変なのでこちらを呼び出す必要がある。
+    // ⚠ こちらを呼び出さないと、128bit hash keyのときに、TT.probe()と整合しないので注意。
+    posKey                         = pos.hash_key();
+#endif
     auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
 
     // Need further processing of the saved data
@@ -2192,8 +2202,12 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         // ⚠ 将棋では関係のないルールなので無視して良いが、pos.rule50_count < 90 が(チェスの)通常の状態なので、
         //     if成立時のreturnはしなければならない。
 
-		if (/* pos.rule50_count() < 90 */ true)
+#if STOCKFISH        
+		if (pos.rule50_count() < 90)
+#endif        
         {
+            // TODO : 将棋でもこの処理必要なのか？
+
             if (depth >= 8 && ttData.move
 #if STOCKFISH
 				&& pos.pseudo_legal(ttData.move)
@@ -2205,10 +2219,11 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
             {
 #if STOCKFISH
                 do_move(pos, ttData.move, st);
+                Key nextPosKey                             = pos.key();
 #else
                 do_move_(pos, ttData.move, st);
+                HASH_KEY nextPosKey                        = pos.hash_key();
 #endif
-                Key nextPosKey                             = pos.key();
                 auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey, pos);
                 undo_move(pos, ttData.move);
 
@@ -3934,7 +3949,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     StateInfo st;
 
     // この局面のhash key
+#if STOCKFISH
     Key posKey;
+#else
+    HASH_KEY posKey;
+#endif
 
     // move				: MovePickerからもらった現在の指し手
     // bestMove			: この局面でのベストな指し手
@@ -4047,7 +4066,12 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     // Step 3. 置換表のlookup
     // -----------------------
 
+#if STOCKFISH
     posKey                         = pos.key();
+#else
+    // 🌈 やねうら王では、HASH_KEYのbit数は可変なのでこちらを呼び出す。
+    posKey                         = pos.hash_key();
+#endif
     auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
 
     // Need further processing of the saved data
@@ -4056,7 +4080,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     ss->ttHit   = ttHit;
     ttData.move = ttHit ? ttData.move : Move::none();
     ttData.value =
-      ttHit ? value_from_tt(ttData.value, ss->ply /*, pos.rule50_count()*/) : VALUE_NONE;
+#if STOCKFISH
+      ttHit ? value_from_tt(ttData.value, ss->ply , pos.rule50_count()) : VALUE_NONE;
+#else
+      ttHit ? value_from_tt(ttData.value, ss->ply ) : VALUE_NONE;
+#endif      
     pvHit = ttHit && ttData.is_pv;
 
     // 📌 やねうら王では置換表に先後間違えて書き出すバグを生じうるので、このassert追加する。
@@ -4651,7 +4679,11 @@ Value value_to_tt(Value v, int ply) { return is_win(v) ? v + ply : is_loss(v) ? 
 // 📓 value_to_tt()の逆関数
 //     ply : root node からの手数。
 
-Value value_from_tt(Value v, int ply /*, int r50c */) {
+Value value_from_tt(Value v, int ply
+#if STOCKFISH
+    , int r50c
+#endif
+) {
 
     if (!is_valid(v))
         return VALUE_NONE;
