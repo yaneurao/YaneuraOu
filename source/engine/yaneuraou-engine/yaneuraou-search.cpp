@@ -78,7 +78,7 @@ void SearchOptions::add_options(OptionsMap& options) {
                 }));
 
     // 検討モード用のPVを出力するモード
-    options.add("ConsiderationMode", Option(true, [&](const Option& o) {
+    options.add("ConsiderationMode", Option(false, [&](const Option& o) {
                     consideration_mode = o;
                     return std::nullopt;
                 }));
@@ -1009,7 +1009,8 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     {
         (ss - i)->continuationHistory =
           &this->continuationHistory[0][0][NO_PIECE][0];  // Use as a sentinel
-                                                          // TODO : あとで
+
+        // TODO : あとで
         //(ss - i)->continuationCorrectionHistory = &this->continuationCorrectionHistory[NO_PIECE][0];
         (ss - i)->staticEval = VALUE_NONE;
     }
@@ -1034,9 +1035,12 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
     size_t multiPV = size_t(options["MultiPV"]);
 
-    //Skill skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
+#if STOCKFISH    
+    Skill skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
     // 🤔 ↑これでエンジンオプション2つも増えるのやだな…。気が向いたらサポートすることにする。
-    Skill skill = Skill(/*(int)Options["SkillLevel"]*/ 20, 0);
+#else    
+    Skill skill = Skill(20, 0);
+#endif
 
     // When playing with strength handicap enable MultiPV search that we will
     // use behind-the-scenes to retrieve a set of possible moves.
@@ -2202,9 +2206,10 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         // ⚠ 将棋では関係のないルールなので無視して良いが、pos.rule50_count < 90 が(チェスの)通常の状態なので、
         //     if成立時のreturnはしなければならない。
 
-#if STOCKFISH        
+        // 🤔 比較してみたが、これを有効にするとR10ぐらい弱くなるっぽい。
+        //     全体を調整してからまた考える。
+#if 0
 		if (pos.rule50_count() < 90)
-#endif        
         {
             // TODO : 将棋でもこの処理必要なのか？
 
@@ -2236,6 +2241,9 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
             else
                 return ttData.value;
         }
+#else
+        return ttData.value;
+#endif        
     }
 
 	// -----------------------
@@ -4152,6 +4160,14 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
             unadjustedStaticEval = ttData.eval;
             if (!is_valid(unadjustedStaticEval))
                 unadjustedStaticEval = evaluate(pos);
+#if defined(USE_CLASSIC_EVAL)
+			else if (PvNode) {
+				// 🌈 やねうら王独自
+				unadjustedStaticEval = evaluate(pos);
+				// ⇨ NNUEだとこれ入れたほうが強い可能性が…。
+			}
+#endif
+
 #if STOCKFISH
 			ss->staticEval = bestValue
 				to_corrected_static_eval(unadjustedStaticEval, correctionValue);
@@ -4213,7 +4229,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                 }
             }
 
-			// 💡 ここらかStockfishの元のコード
+			// 💡 ここからStockfishの元のコード
 
 #if STOCKFISH
             unadjustedStaticEval = evaluate(pos);
@@ -4222,6 +4238,13 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 				to_corrected_static_eval(unadjustedStaticEval, correctionValue);
 #else
             unadjustedStaticEval = evaluate(pos);
+
+#if 0       // 以前のコード
+            unadjustedStaticEval =
+              (ss - 1)->currentMove != Move::null()
+                ? evaluate(pos)
+                : -(ss - 1)->staticEval;
+#endif
 
             // TODO : あとで
             ss->staticEval = bestValue = unadjustedStaticEval;
@@ -4347,9 +4370,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
             // futility枝刈りとmove countに基づく枝刈り
 
             if (!givesCheck && move.to_sq() != prevSq && !is_loss(futilityBase)
-                // && move.type_of() != PROMOTION
+#if STOCKFISH            
+                && move.type_of() != PROMOTION
 				// 📝 この最後の条件、入れたほうがいいのか？
 				// 📊 入れない方が良さげ。(V7.74taya-t50 VS V7.74taya-t51)
+#endif                
 				)
             {
 				// 💡 MoveCountに基づく枝刈り
@@ -4363,10 +4388,12 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 					📊 【計測資料 14.】 futility pruningのときにpromoteを考慮するかどうか。
 				*/
 
-                Value futilityValue =
-                                  futilityBase + /* PieceValue[pos.piece_on(move.to_sq())]*/
-                                                      Eval::CapturePieceValuePlusPromote(pos, move)
-					;
+                Value futilityValue = futilityBase +
+#if STOCKFISH                                   
+                                    PieceValue[pos.piece_on(move.to_sq())];
+#else
+                                    Eval::CapturePieceValuePlusPromote(pos, move);
+#endif
                                 // ⚠　これ、加算した結果、s16に収まらない可能性があるが、
                                 //      計算はs32で行って、そのあと、この値を用いないからセーフ。
 
@@ -4411,11 +4438,15 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 			*/
 
             if (!capture
-                && (*contHist[0])[pos.moved_piece_after(move)][move.to_sq()]
-                       //+ thisThread->pawnHistory[pawn_structure_index(pos)][pos.moved_piece(move)]
-                       //                         [move.to_sq()]
+                && (*contHist[0])[pos.moved_piece(move)][move.to_sq()]
+#if STOCKFISH
+                       + thisThread->pawnHistory[pawn_structure_index(pos)][pos.moved_piece(move)]
+                                                [move.to_sq()]
 						// TODO : あとで pawn history
+#endif
                      <= 6218)
+                     // TODO : 📝 以前の値 5095。調整すべき。
+
                 continue;
 
             // Do not search moves with bad enough SEE values
@@ -4438,7 +4469,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         // Step 7. 指し手で進め探索する
         // -----------------------
 
-		Piece movedPiece = pos.moved_piece_after(move);
+		Piece movedPiece = pos.moved_piece(move);
 
 		// 📝 1手動かして、再帰的にqsearch()を呼ぶ
 
@@ -4529,11 +4560,15 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 	*/
 
 	if (ss->inCheck && bestValue == -VALUE_INFINITE)
+    // 🤔 ここ、bestValue == -VALUE_INFINITE より、moveCount == 0でいいと思うのだが。
     {
-        //assert(!MoveList<LEGAL>(pos).size());
-
-		// 合法手は存在しないはずだから指し手生成してもすぐに終わるはず。
+#if STOCKFISH        
+        assert(!MoveList<LEGAL>(pos).size());
+		// 💡 合法手は存在しないはずだから指し手生成してもすぐに終わるだろうから
+        //     このassertはそんなに遅くはない。
+#else
         ASSERT_LV5(!MoveList<LEGAL_ALL>(pos).size());
+#endif
 
 		return mated_in(ss->ply);  // Plies to mate from the root
                                    // rootから詰みまでの手数。
