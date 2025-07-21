@@ -1773,9 +1773,11 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // eval			: このnodeの静的評価値(の見積り)
     // maxValue     : table base probeに用いる。📌 将棋だと用いない。
     // probCutBeta  : prob cutする時のbetaの値。
-
-	Value bestValue, value, eval, /* maxValue,*/ probCutBeta;
-
+#if STOCKFISH
+	Value bestValue, value, eval, maxValue, probCutBeta;
+#else
+	Value bestValue, value, eval, probCutBeta;
+#endif
 	// givesCheck			: moveによって王手になるのか
 	// improving			: 直前のnodeから評価値が上がってきているのか
 	//   このフラグを各種枝刈りのmarginの決定に用いる
@@ -2460,7 +2462,6 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 	// TODO : あとで correction history
     const auto correctionValue = 0; // correction_value(*thisThread, pos, ss);
 
-	// TODO : ここ、あとで元のコード見ながらなおす。
 	if (ss->inCheck)
     {
         // Skip early pruning when in check
@@ -2492,9 +2493,40 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         if (!is_valid(unadjustedStaticEval))
             unadjustedStaticEval = evaluate(pos);
 
+#if STOCKFISH
+#else
+
+#if defined(YANEURAOU_ENGINE_NNUE)
+#if defined(USE_LAZY_EVALUATE)
+        // 🌈 これ書かないとR70ぐらい弱くなる。
+        else if (PvNode)
+        {
+			unadjustedStaticEval = evaluate(pos);
+
+			/*
+				 🤔 : ここでevaluate() が必須な理由がよくわからない。
+				       Stockfishには無いのに…。なぜなのか…。
+
+				lazy_evaluate()に変える                        ⇨ 弱い(V8.38dev-n7)
+				unadjustedStaticEvalに代入せずに単にevaluate() ⇨ 特に弱くはなさそう(V838dev_n8)
+				結論的には、NNUEのevaluate_with_no_return()とevaluate()の挙動が違うのが原因っぽい。
+				これはあきませんわ…。
+			*/
+        }
+#else
+        // lazy evalを使わないなら、この時点でどうにかしておく。
+        else
+			unadjustedStaticEval = evaluate(pos);
+#endif
+#endif
+#endif
+
+#if STOCKFISH
+        ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, correctionValue);
+#else
 		// TODO : あとで correction history
-        ss->staticEval = eval =
-          unadjustedStaticEval;  // to_corrected_static_eval(unadjustedStaticEval, correctionValue);
+        ss->staticEval = eval = unadjustedStaticEval;
+#endif
 
         // ttValue can be used as a better position evaluation
         // ttValue は、より良い局面評価として使用できる
@@ -4438,15 +4470,12 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 			*/
 
             if (!capture
-                && (*contHist[0])[pos.moved_piece(move)][move.to_sq()]
+                && (*contHist[0])[pos.moved_piece_after(move)][move.to_sq()]
 #if STOCKFISH
                        + thisThread->pawnHistory[pawn_structure_index(pos)][pos.moved_piece(move)]
                                                 [move.to_sq()]
-						// TODO : あとで pawn history
 #endif
                      <= 6218)
-                     // TODO : 📝 以前の値 5095。調整すべき。
-
                 continue;
 
             // Do not search moves with bad enough SEE values
@@ -4559,14 +4588,16 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 			 moveCountが再度導入されたからには、Stockfishもここは、↓の書き方に戻したほうが良いと思う。
 	*/
 
-	if (ss->inCheck && bestValue == -VALUE_INFINITE)
-    // 🤔 ここ、bestValue == -VALUE_INFINITE より、moveCount == 0でいいと思うのだが。
-    {
+
 #if STOCKFISH        
+	if (ss->inCheck && bestValue == -VALUE_INFINITE)
+    {
         assert(!MoveList<LEGAL>(pos).size());
+#else
+	if (ss->inCheck && moveCount == 0)
+    {
 		// 💡 合法手は存在しないはずだから指し手生成してもすぐに終わるだろうから
         //     このassertはそんなに遅くはない。
-#else
         ASSERT_LV5(!MoveList<LEGAL_ALL>(pos).size());
 #endif
 

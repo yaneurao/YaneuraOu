@@ -58,7 +58,7 @@ class TimeManagement {
 
 
 	// 初期化。
-    // ※　やねうら王では使わない。
+    // 🌈　やねうら王では使わない。Stockfishとの互換性のために用意。
     void clear() {}
 
 #if STOCKFISH
