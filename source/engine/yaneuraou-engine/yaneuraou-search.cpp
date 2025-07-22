@@ -1570,28 +1570,19 @@ void YaneuraOuWorker::do_move(Position&  pos,
 
     // accumulatorStackを用いる実装。
 
-    DirtyPiece dp = pos.do_move(move, st, givesCheck /*, &tt */);
-    // 📝　やねうら王では、TTのprefetchをしないので、ttを渡す必要がない。
+    DirtyPiece dp = pos.do_move(move, st, givesCheck , &tt);
     nodes.fetch_add(1, std::memory_order_relaxed);
     accumulatorStack.push(dp);
 
 #else
 
-	pos.do_move(move, st, givesCheck);
+	pos.do_move(move, st, givesCheck, &tt);
     nodes.fetch_add(1, std::memory_order_relaxed);
 
 #endif
 }
 
-void YaneuraOuWorker::do_null_move(Position& pos, StateInfo& st) {
-
-#if STOCKFISH
-    pos.do_null_move(st, tt);
-#else
-    pos.do_null_move(st);
-    // 📝　やねうら王では、TTのprefetchをしないので、ttを渡す必要がない。
-#endif
-}
+void YaneuraOuWorker::do_null_move(Position& pos, StateInfo& st) { pos.do_null_move(st, tt); }
 
 void YaneuraOuWorker::undo_move(Position& pos, const Move move) {
 
@@ -2372,7 +2363,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
                 if (!excludedMove)
                     ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT,
                                     std::min(MAX_PLY - 1, depth + 6), move, VALUE_NONE,
-                                    TT.generation());
+                                    tt.generation());
 
 				// ⚠ excludedMoveがあるときは置換表に書き出さないルールになっているので、
                 //     この↑の条件式が必要なので注意。

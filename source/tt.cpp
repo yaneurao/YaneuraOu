@@ -18,8 +18,6 @@
 
 namespace YaneuraOu {
 
-TranspositionTable TT; // global TT
-
 // ============================================================
 //                   置換表エントリー
 // ============================================================
@@ -78,41 +76,40 @@ TranspositionTable TT; // global TT
 
 struct TTEntry {
 
-	// Convert internal bitfields to external types
-	// 内部ビットフィールドを外部型に変換します
+    // Convert internal bitfields to external types
+    // 内部ビットフィールドを外部型に変換します
 
-	TTData read() const {
-		return TTData{ Move(u32(move16.to_u16())), Value(value16),
-					   Value(eval16),          Depth(depth8 + DEPTH_ENTRY_OFFSET),
-					   Bound(genBound8 & 0x3), bool(genBound8 & 0x4) };
-	}
+    TTData read() const {
+        return TTData{
+          Move(u32(move16.to_u16())),         Value(value16),         Value(eval16),
+          Depth(depth8 + DEPTH_ENTRY_OFFSET), Bound(genBound8 & 0x3), bool(genBound8 & 0x4)};
+    }
 
-	// このEntryが使われているか？
+    // このEntryが使われているか？
+    bool is_occupied() const;
 
-	bool is_occupied() const;
+#if STOCKFISH
+    void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+#else
+    void
+    save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+#endif
 
-	// 探索した情報をこの構造体に保存する。
+    // The returned age is a multiple of TranspositionTable::GENERATION_DELTA
+    // 返されるエイジは、TranspositionTable::GENERATION_DELTA の倍数です
+    // ⇨ 相対的なageに変換して返す。
 
-	void save(Key     k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k               , v, pv, b, d, m, ev, generation8); }
-	void save(Key128& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
-	void save(Key256& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
+    uint8_t relative_age(const uint8_t generation8) const;
 
-	// The returned age is a multiple of TranspositionTable::GENERATION_DELTA
-	// 返されるエイジは、TranspositionTable::GENERATION_DELTA の倍数です
-	// ⇨ 相対的なageに変換して返す。
+   private:
+    friend class TranspositionTable;
 
-	uint8_t relative_age(const uint8_t generation8) const;
-
-private:
-	friend class TranspositionTable;
-	void _save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
-
-	TTE_KEY_TYPE key;
-	uint8_t  depth8;
-	uint8_t  genBound8;
-	Move16   move16;
-	int16_t  value16;
-	int16_t  eval16;
+    TTE_KEY_TYPE key;
+    uint8_t      depth8;
+    uint8_t      genBound8;
+    Move16       move16;
+    int16_t      value16;
+    int16_t      eval16;
 };
 
 
@@ -173,7 +170,7 @@ bool TTEntry::is_occupied() const { return bool(depth8); }
 // 引数のgenは、Stockfishにはないが、やねうら王では学習時にスレッドごとに別の局面を探索させたいので
 // スレッドごとに異なるgenerationの値を指定したくてこのような作りになっている。
 
-void TTEntry::_save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
 
 	// Preserve the old ttmove if we don't have a new one
 	// 新しいttmoveがない場合、古いttmoveを保持します
@@ -240,9 +237,26 @@ uint8_t TTEntry::relative_age(const uint8_t generation8) const {
 TTWriter::TTWriter(TTEntry* tte) :
 	entry(tte) {}
 
-void TTWriter::write(Key    k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { entry->save(k, v, pv, b, d, m, ev, generation8);}
-void TTWriter::write(Key128 k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { entry->save(k, v, pv, b, d, m, ev, generation8); }
-void TTWriter::write(Key256 k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { entry->save(k, v, pv, b, d, m, ev, generation8); }
+#if STOCKFISH
+void TTWriter::write(
+  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+    entry->save(k, v, pv, b, d, m, ev, generation8);
+}
+#else
+
+void TTWriter::write(
+  const HASH_KEY& k_, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+
+#if HASH_KEY_BITS <= 64
+    const TTE_KEY_TYPE k = TTE_KEY_TYPE(k_);
+#else
+    const TTE_KEY_TYPE k = TTE_KEY_TYPE(k_.extract64<1>());
+#endif
+
+    entry->save(k, v, pv, b, d, m, ev, generation8);
+}
+#endif
+
 
 // A TranspositionTable is an array of Cluster, of size clusterCount. Each cluster consists of ClusterSize number
 // of TTEntry. Each non-empty TTEntry contains information on exactly one position. The size of a Cluster should
@@ -428,9 +442,15 @@ uint8_t TranspositionTable::generation() const { return generation8; }
 //    probe()してhitしたときに ttData.moveは Move16のままなので ttData.move32(pos)を用いて取得する必要がある。
 //    そこで、probe()の第2引数にPositionを渡すようにして、Move16ではなくMoveに変換されたTTDataを返すことにする。
 
-std::tuple<bool, TTData, TTWriter> TranspositionTable::_probe(const Key key_for_index, const TTE_KEY_TYPE key_for_ttentry, const Position& pos) const {
+std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const HASH_KEY& key, const Position& pos) const {
 
-	TTEntry* const tte = first_entry(key_for_index, pos.side_to_move());
+    TTEntry* const tte = first_entry(key, pos.side_to_move());
+
+#if HASH_KEY_BITS <= 64
+    const TTE_KEY_TYPE key_for_ttentry = TTE_KEY_TYPE(key);
+#else
+    const TTE_KEY_TYPE key_for_ttentry = TTE_KEY_TYPE(key.extract64<1>());
+#endif
 
 	// Use the low 16 bits as key inside the cluster
 	// クラスター内で下位16ビットをキーとして使用します
@@ -472,14 +492,10 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::_probe(const Key key_for_
 			TTWriter(replace) };
 }
 
-std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key     key, const Position& pos) const { return _probe(key               , (TTE_KEY_TYPE)(key               ), pos); }
-std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key128& key, const Position& pos) const { return _probe(key.extract64<0>(), (TTE_KEY_TYPE)(key.extract64<1>()), pos); }
-std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key256& key, const Position& pos) const { return _probe(key.extract64<0>(), (TTE_KEY_TYPE)(key.extract64<1>()), pos); }
-
 // keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
 // ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
 
-TTEntry* TranspositionTable::_first_entry(const Key key, Color side_to_move) const {
+TTEntry* TranspositionTable::first_entry(const HASH_KEY& key_, Color side_to_move) const {
 
 #if STOCKFISH
 
@@ -492,6 +508,13 @@ TTEntry* TranspositionTable::_first_entry(const Key key, Color side_to_move) con
 
 #else
 
+	const Key key =
+#if HASH_KEY_BITS <= 64
+      key_;
+#else
+      key_.extract64<0>();
+#endif
+
 	/*
 		📓
 
@@ -503,30 +526,15 @@ TTEntry* TranspositionTable::_first_entry(const Key key, Color side_to_move) con
 	*/
 	ASSERT_LV3((clusterCount & 1) == 0);
 
-	// indexのbit0は、side_to_moveが反映されなければならない。
-	// →　次のindexの計算ではbit0を潰して計算するためにkeyを2で割ってからmul_hi64()している。
+	// 💡 key * clusterCount / 2^64 をするので、indexは 0 ～ clusterCount-1 の範囲となる。
+	uint64_t index = mul_hi64((u64)key, clusterCount);
 
-	// (key/2) * clusterCount / 2^64 をするので、indexは 0 ～ (clusterCount/2)-1 の範囲となる。
-	uint64_t index = mul_hi64((u64)key >> 1, clusterCount);
-
-	// indexは0～(clusterCount/2)-1の範囲にあるのでこれを2倍すると、0～clusterCount-2の範囲。
-	// clusterCountは偶数で、ここにkeyのbit0がbit-orされるので0～clusterCount-1の範囲の値が得られる。
-	// ⚠ Colorの実体はuint8で0,1の値しか取らないものとする。
-	return &table[(index << 1) | side_to_move].entry[0];
+	// indexは0～ clusterCount -1の範囲にある。このbit 0を手番に変更する。
+	// ⚠ Colorの実体はuint8で、0,1の値しか取らないものとする。
+	return &table[(index & ~1) | side_to_move].entry[0];
 
 #endif
 }
-
-TTEntry* TranspositionTable::first_entry(const Key     key, Color side_to_move) const {
-    return _first_entry(key, side_to_move);
-}
-TTEntry* TranspositionTable::first_entry(const Key128& key, Color side_to_move) const {
-    return _first_entry(key.extract64<0>(), side_to_move);
-}
-TTEntry* TranspositionTable::first_entry(const Key256& key, Color side_to_move) const {
-    return _first_entry(key.extract64<0>(), side_to_move);
-}
-
 
 #if defined(EVAL_LEARN)
 // スレッド数が変更になった時にThread.set()から呼び出される。

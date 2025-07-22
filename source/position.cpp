@@ -1,14 +1,14 @@
-﻿#include "position.h"
+﻿#include <iostream>
+#include <sstream>
+#include <cstring> // std::memset()
+#include <stack>
+
+#include "position.h"
 #include "misc.h"
 #include "tt.h"
 #include "mate/mate.h"
 #include "book/book.h"
 #include "testcmd/unit_test.h"
-
-#include <iostream>
-#include <sstream>
-#include <cstring> // std::memset()
-#include <stack>
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 #include "eval/evaluate_common.h"
@@ -1232,8 +1232,8 @@ Move Position::to_move(Move16 m16) const
 // ----------------------------------
 
 // 指し手で盤面を1手進める。
-template <Color Us>
-void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck)
+template <Color Us, typename T>
+void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* tt)
 {
 	// Move::none()はもちろん、Move::null() , Move::resign()などお断り。
 	ASSERT_LV3(m.is_ok());
@@ -1384,11 +1384,11 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck)
 
 		// なるべく早い段階でのTTに対するprefetch
 		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
-		const HASH_KEY key = k + h;
-        prefetch(TT.first_entry(key, them));
-#if defined(USE_EVAL_HASH)
-		Eval::prefetch_evalhash(hash_key_to_key(key));
-#endif
+		if constexpr (std::is_same_v<T, TranspositionTable>)
+		{
+            const HASH_KEY key = k ^ h;
+            prefetch(tt->first_entry(key, them));
+		}
 
 		put_piece(to, pc);
 
@@ -1563,11 +1563,11 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck)
 #endif
 
 		// 駒打ちでないときはprefetchはこの時点まで延期される。
-		const HASH_KEY key = k + h;
-        prefetch(TT.first_entry(key, them));
-#if defined(USE_EVAL_HASH)
-		Eval::prefetch_evalhash(hash_key_to_key(key));
-#endif
+        if constexpr (std::is_same_v<T, TranspositionTable>)
+        {
+            const HASH_KEY key = k ^ h;
+            prefetch(tt->first_entry(key, them));
+        }
 
 		// put_piece()などを用いたのでupdateする。
 		// ROOK_DRAGONなどをこの直後で用いるのでここより後ろにやるわけにはいかない。
@@ -1779,8 +1779,8 @@ HASH_KEY Position::hash_key_after(Move m) const {
 		Piece pc = make_piece(Us, pr);
 
 		// Zobrist keyの更新
-		h -= Zobrist::hand[Us][pr];
-		k += Zobrist::psq [to][pc];
+        k ^= Zobrist::psq[to][pc];
+        h -= Zobrist::hand[Us][pr];
 	}
 	else
 	{
@@ -1946,12 +1946,13 @@ void Position::undo_move_impl(Move m)
 }
 
 // do_move()を先後分けたdo_move_impl<>()を呼び出す。
-void Position::do_move(Move m, StateInfo& newSt, bool givesCheck)
+template <typename T>
+void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt)
 {
-	if (sideToMove == BLACK)
-		do_move_impl<BLACK>(m, newSt, givesCheck);
-	else
-		do_move_impl<WHITE>(m, newSt, givesCheck);
+    if (sideToMove == BLACK)
+        do_move_impl<BLACK, T>(m, newSt, givesCheck, tt);
+    else
+        do_move_impl<WHITE, T>(m, newSt, givesCheck, tt);
 }
 
 // undo_move()を先後分けたdo_move_impl<>()を呼び出す。
@@ -1964,7 +1965,8 @@ void Position::undo_move(Move m)
 }
 
 // null move searchに使われる。手番だけ変更する。
-void Position::do_null_move(StateInfo& newSt) {
+template <typename T>
+void Position::do_null_move(StateInfo& newSt, const T& tt) {
 
 	ASSERT_LV3(!checkers());
 	ASSERT_LV3(&newSt != st);
@@ -1992,6 +1994,12 @@ void Position::do_null_move(StateInfo& newSt) {
 
     sideToMove = ~sideToMove;
 
+    set_check_info();
+
+    st->repetition = 0;
+
+    assert(pos_is_ok());
+
 #else
 
 #if defined(USE_CLASSIC_EVAL) && defined(EVAL_NNUE)
@@ -2004,10 +2012,18 @@ void Position::do_null_move(StateInfo& newSt) {
     // 　prefetchのスケジューラーが処理しきれない可能性が…。
     // CPUによっては有効なので一応やっておく。
 
+	// 📝 以下のprefetchのfirst_entry()でやねうら王は、この時の手番が必要なので
+    //     先に手番を変えておく。
     sideToMove = ~sideToMove;
 	st->board_key_ ^= Zobrist::side;
-    HASH_KEY key = st->hash_key();
-    prefetch(TT.first_entry(key, sideToMove));
+
+	// 🌈 やねうら王では、TTを引数に取らないこともできるように
+	//     template引数で実装している。
+	if constexpr (std::is_same_v<T, TranspositionTable>)
+    {
+        const HASH_KEY key = st->hash_key();
+        prefetch(tt.first_entry(key, sideToMove));
+    }
 
 	st->pliesFromNull = 0;
 
@@ -2023,16 +2039,6 @@ void Position::do_null_move(StateInfo& newSt) {
 	ASSERT_LV3(st->continuousCheck[sideToMove] == 0);
     st->continuousCheck[~sideToMove] = 0;
 
-#if defined(USE_CLASSIC_EVAL)
-
-#if defined(EVAL_NNUE) && defined(USE_EVAL_HASH)
-    // NNUEのEvalHashの場合、手番が違うと異なるentry(のはず)
-    Eval::prefetch_evalhash(key);
-#endif
-#endif
-
-#endif
-
 	set_check_info<true>();
 
 #if !defined(ENABLE_QUICK_DRAW)
@@ -2043,6 +2049,13 @@ void Position::do_null_move(StateInfo& newSt) {
 #endif
 
 	ASSERT_LV5(pos_is_ok());
+#endif
+}
+
+void Position::do_null_move(StateInfo& newSt) {
+    // Tの型としてTranspositionTable以外を渡すと
+    // 最適化によって消えるはず。
+    do_null_move<int>(newSt, 0);
 }
 
 void Position::undo_null_move()
@@ -3389,5 +3402,11 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
 // ----------------------------------
 template bool Position::pseudo_legal_s<false>(const Move m) const;
 template bool Position::pseudo_legal_s< true>(const Move m) const;
+
+template void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const TranspositionTable* tt);
+template void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const void* tt);
+
+template void Position::do_null_move(StateInfo& st, const TranspositionTable& tt);
+template void Position::do_null_move(StateInfo& st, const int& tt);
 
 } // namespace YaneuraOu

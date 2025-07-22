@@ -83,10 +83,13 @@ struct TTData {
 
 struct TTWriter {
 public:
+
+#if STOCKFISH
+    void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+#else
 	// TTのTTEntryに書き込む。
-	void write(Key    k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
-	void write(Key128 k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
-	void write(Key256 k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+	void write(const HASH_KEY& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+#endif
 
 private:
 	friend class TranspositionTable;
@@ -159,19 +162,12 @@ public:
 	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
 	//
 	// ⇨ このprobe()でTTの内部状態が変更されないことは保証されている。(されるようになった)
-	//
-	// ■ 備考
-	//
-	// Stockfishのprobe()を_probe()とrename。
-	// そして、以下の3つのprobe()を用意して、この_probe()を下請けとして呼び出すように変更。
 
 #if STOCKFISH
     std::tuple<bool, TTData, TTWriter> probe(
           const Key key) const;  // The main method, whose retvals separate local vs global objects
 #else
-	std::tuple<bool, TTData, TTWriter> probe(const Key     key, const Position& pos) const;
-	std::tuple<bool, TTData, TTWriter> probe(const Key128& key, const Position& pos) const;
-	std::tuple<bool, TTData, TTWriter> probe(const Key256& key, const Position& pos) const;
+	std::tuple<bool, TTData, TTWriter> probe(const HASH_KEY& key, const Position& pos) const;
 #endif
 
 	// This is the hash function; its only external use is memory prefetching.
@@ -189,19 +185,13 @@ public:
 		これは、将棋では駒の移動が上下対称ではないので、先手の指し手が(TT raceで)
 		後手番の局面でTT.probeで返ってくると、pseudo-legalの判定で余計なチェックが
 		必要になって嫌だからである。
-
-		📝 Stockfishのfirst_entry()を_first_entry()とrename。
-			そして、以下の3つのfirst_entry()を用意して、この_first_entry()を
-			下請けとして呼び出すように変更。
 	*/ 
 
 #if STOCKFISH
     TTEntry* first_entry(const Key key)
       const;  // This is the hash function; its only external use is memory prefetching.
 #else
-	TTEntry* first_entry(const Key     key, Color side_to_move) const;
-    TTEntry* first_entry(const Key128& key, Color side_to_move) const;
-    TTEntry* first_entry(const Key256& key, Color side_to_move) const;
+	TTEntry* first_entry(const HASH_KEY& key, Color side_to_move) const;
 #endif
 
 	static void UnitTest(Test::UnitTester& unittest, IEngine& engine);
@@ -224,17 +214,7 @@ private:
 	// サイズはTTEntry::genBound8を超えてはなりません。
 	// ⇨ 世代カウンター。new_search()のごとに8ずつ加算する。TTEntry::save()で用いる。
 	uint8_t generation8;
-
-#if !STOCKFISH
-	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
-    TTEntry* _first_entry(const Key key, Color side_to_move) const;
-
-	// probe()の内部実装用。
-	std::tuple<bool, TTData, TTWriter> _probe(const Key key, const TTE_KEY_TYPE key_for_ttentry, const Position& pos) const;
-#endif
 };
-
-extern TranspositionTable TT;
 
 } // namespace YaneuraOu
 

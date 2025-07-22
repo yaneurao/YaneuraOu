@@ -551,17 +551,36 @@ public:
 	// このバッファはこのdo_move()の呼び出し元の責任において確保されている必要がある。
 	// givesCheck = mの指し手によって王手になるかどうか。
 	// この呼出までにst.checkInfo.update(pos)が呼び出されている必要がある。
-	void do_move(Move m, StateInfo& newSt, bool givesCheck);
+    /*
+		📓 Stockfish 17.1からTTのprefetchのために引数でTranspositionTable*を
+			渡すようになったが、やねうら王では、このclassをPosition classと癒着したくない。
+			そこで、第四引数をtemplate T*にするが、ここに何も指定しないということもできてほしい。
+	*/
+#if STOCKFISH
+    void do_move(Move m, StateInfo& newSt, bool givesCheck, const TranspositionTable* tt);
+#else
+	template <typename T = void>
+    void do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt = nullptr);
+#endif
 
-	// do_move()の4パラメーター版のほうを呼び出すにはgivesCheckも渡さないといけないが、
-	// mで王手になるかどうかがわからないときはこちらの関数を用いる。
-	void do_move(Move m, StateInfo& newSt) { do_move(m, newSt, gives_check(m)); }
+	// 💡 上記のdo_move()にはgivesCheckも渡さないといけないが、
+	//     mで王手になるかどうかがわからないときはこちらの関数を用いる。
+    template<typename T = void>
+    void do_move(Move m, StateInfo& newSt, const T* tt = nullptr) {
+        do_move(m, newSt, gives_check(m), tt);
+    }
 
-	// 指し手で盤面を1手戻す
+	// do_move()で進めた局面を1手戻す。
 	void undo_move(Move m);
 
 	// null move用のdo_move()
+	// 📝 Tのところには、TranspositionTable ttを渡すことができる。
+
 	void do_null_move(StateInfo& st);
+
+	template<typename T>
+    void do_null_move(StateInfo& st, const T& tt);
+
 	// null move用のundo_move()
 	void undo_null_move();
 
@@ -870,10 +889,12 @@ private:
 	}
 
 	// do_move()の先後分けたもの。内部的に呼び出される。
-	template <Color Us> void do_move_impl(Move m, StateInfo& st, bool givesCheck);
+    template<Color Us, typename T>
+    void do_move_impl(Move m, StateInfo& st, bool givesCheck, const T* tt);
 
 	// undo_move()の先後分けたもの。内部的に呼び出される。
-	template <Color Us> void undo_move_impl(Move m);
+    template<Color Us>
+    void undo_move_impl(Move m);
 
 	// 📝 update_entering_point()は、現在の盤面から、事前にset_ekr_ruleで設定されたルールに基づき、
 	//     入玉に必要な駒点を計算し、enteringKingPoint[]に設定する。
