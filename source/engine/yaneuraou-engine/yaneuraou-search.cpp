@@ -598,13 +598,13 @@ void Search::YaneuraOuWorker::start_searching() {
     auto& search_options = mainManager.search_options;
 
     // PVが詰まるのを抑制するために、前回出力時刻を記録しておく。
-    search_options.lastPvInfoTime = now();
+    search_options.lastPvInfoTime = limits.startTime;
 
     // PVの出力間隔[ms]
     // go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
     // この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
     search_options.computed_pv_interval =
-      (limits.infinite || search_options.consideration_mode) ? 0 : search_options.pv_interval;
+		(limits.infinite || search_options.consideration_mode) ? 0 : search_options.pv_interval;
 
     // 🌈 引き分けのスコア
 
@@ -791,20 +791,21 @@ void Search::YaneuraOuWorker::start_searching() {
         Tools::sleep(1);
         // ⚠ Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
 
-// TODO : あとで
-#if 0
-		// === やねうら王独自改良 ===
 
-		// 最終的なPVを出力する。
-		// ponder中/go infinite中であっても、ここに抜けてきている以上、全探索スレッドの停止が確認できた時点でPVは出力すべき。
-		// "go infinite"の場合、詰みを発見してもそれがponderフラグの解除を待ってからだと、PVを返すのが遅れる。("stop"が来るまで返せない)
-		// Stockfishもこうなっている。この作り、良くないように思うので、改良した。
+		/*
+			📓 ここでPVを出力したほうがいいかも？
 
-		// 　ここですべての探索スレッドが停止しているならば最終PVを出力してやる。
-        if (!output_final_pv_done
-            && Threads.search_finished() /* 全探索スレッドが探索を完了している */)
-            output_final_pv();
-#endif
+				ponder中/go infinite中であっても、ここに抜けてきている以上、
+				全探索スレッドの停止が確認できた時点でPVは出力したほうが良いと思う。
+
+				"go infinite"の場合、詰みを発見してもそれがponderフラグの解除を待ってからだと、
+				PVを返すのが遅れる。("stop"が来るまで返せない)
+
+				// 　ここですべての探索スレッドが停止しているならば最終PVを出力してやる。
+				if (!output_final_pv_done
+					&& Threads.search_finished()) // 全探索スレッドが探索を完了している
+					output_final_pv();
+		*/
     }
 
     // Stop the threads if not already stopped (also raise the stop if
@@ -867,11 +868,10 @@ SKIP_SEARCH:;
 
     if (int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate && !skill.enabled()
         && rootMoves[0].pv[0] != Move::none()
-#if STOCKFISH
-#else
+#if !STOCKFISH
         && !search_skipped
-    // ⚠ この条件を追加しておかないと、定跡にhitしたりして、main threadのrootMovesに積んだりしても、
-    //     bestThreadがmain threadではないものを指してしまい、期待した指し手がbestmoveとして出力されなくなる。
+		// ⚠ この条件を追加しておかないと、定跡にhitしたりして、main threadのrootMovesに積んだりしても、
+		//     bestThreadがmain threadではないものを指してしまい、期待した指し手がbestmoveとして出力されなくなる。
 #endif
     )
 #if STOCKFISH
@@ -892,6 +892,7 @@ SKIP_SEARCH:;
         main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
 
     // 🤔 こんなにPV出力するの好きじゃないので省略。
+	//     ただし、一度もPVを出力していないなら、出力すべきだと思う。
 
 #else
     // 🌈 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。
@@ -900,6 +901,11 @@ SKIP_SEARCH:;
     if (bestThread->rootMoves[0].score != -VALUE_INFINITE
         && USIEngine::to_cp(bestThread->rootMoves[0].score) <= -resign_value)
         bestThread->rootMoves[0].pv[0] = Move::resign();
+
+	// この時点で一度もPVを出力していないなら出力する。
+	// 💡 一度も出力していない場合、lastPvInfoTimeは、"go"された時刻であるstartTimeになっている。
+	if (search_options.lastPvInfoTime == limits.startTime)
+        main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
 #endif
 
     // デバッグ用に(ギリギリまで思考できているかを確認するために)経過時間を出力してみる。
@@ -1278,14 +1284,13 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 if (mainThread && multiPV == 1 && (bestValue <= alpha || bestValue >= beta)
                     && nodes > 10000000
 
-                    // TODO : あとで考える。
-
+#if !SOTCKFISH
                     // 🌈 以下やねうら王独自拡張
                     && (rootDepth < 3
                         || search_options.lastPvInfoTime + search_options.computed_pv_interval <= now())
                     // outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
                     && search_options.outout_fail_lh_pv
-
+#endif
                 )
 #if STOCKFISH
                     main_manager()->pv(*this, threads, tt, rootDepth);
@@ -1344,9 +1349,21 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 // したがって、この出力を抑制し、以下でこのスレッドに対して
                 // （前回の反復から）証明済みのスコア／PVを選択する。
 
-                && !(threads.abortedSearch && is_loss(rootMoves[0].uciScore)))
+                && !(threads.abortedSearch && is_loss(rootMoves[0].uciScore))
+#if !STOCKFISH
+				// PVの出力間隔を超えている。
+                && search_options.lastPvInfoTime + search_options.computed_pv_interval <= now()
+#endif
+				)
+#if STOCKFISH
                 main_manager()->pv(*this, threads, tt, rootDepth);
-
+#else
+			{
+                main_manager()->pv(*this, threads, tt, rootDepth);
+                // 最後にPVを出力した時刻を格納しておく。
+				search_options.lastPvInfoTime = now();
+			}
+#endif
 
 
             if (threads.stop)

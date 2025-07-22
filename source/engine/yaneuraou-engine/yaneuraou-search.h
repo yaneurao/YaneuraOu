@@ -24,13 +24,12 @@ struct SearchOptions
     SearchOptions() {
         max_moves_to_draw        = 100000;
         pv_interval              = 300;
-        consideration_mode       = true;
+        consideration_mode       = false;
         outout_fail_lh_pv        = true;
         generate_all_legal_moves = false;
         enteringKingRule         = EKR_27_POINT;
-
-        lastPvInfoTime       = 0;
-        computed_pv_interval = 0;
+        lastPvInfoTime           = 0;
+        computed_pv_interval     = 0;
     }
 
 	// この構造体メンバーに対応するエンジンオプションを生やす
@@ -42,6 +41,7 @@ struct SearchOptions
 
     // PVの出力の抑制のために前回出力時間からの間隔を指定できる。単位は[ms]
 	// 📝 options["PvInterval"]の設定値。
+	// ⚠ 探索中は、こちらの値を使うのではなく、computed_pv_intervalを使う。
     TimePoint pv_interval;
 
 	// 検討モード用のPVを出力するのか
@@ -67,6 +67,7 @@ struct SearchOptions
     // lastPvInfoTime       : 出力した時のnow()の値。
     // computed_pv_interval : 実際のPVの出力間隔[ms]。
 	//                      📝 options["PvInterval"]とoptions["ConsiderationMode"]から決定したもの。
+	//                      ⚠ "go infinite"された時や、ConsiderationMode == trueなら、0 が設定される。
     TimePoint lastPvInfoTime;
     TimePoint computed_pv_interval;
 };
