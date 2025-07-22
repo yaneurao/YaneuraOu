@@ -165,43 +165,49 @@ public:
 	// Stockfishのprobe()を_probe()とrename。
 	// そして、以下の3つのprobe()を用意して、この_probe()を下請けとして呼び出すように変更。
 
+#if STOCKFISH
+    std::tuple<bool, TTData, TTWriter> probe(
+          const Key key) const;  // The main method, whose retvals separate local vs global objects
+#else
 	std::tuple<bool, TTData, TTWriter> probe(const Key     key, const Position& pos) const;
 	std::tuple<bool, TTData, TTWriter> probe(const Key128& key, const Position& pos) const;
 	std::tuple<bool, TTData, TTWriter> probe(const Key256& key, const Position& pos) const;
+#endif
 
 	// This is the hash function; its only external use is memory prefetching.
 	// これはハッシュ関数です。外部での唯一の使用目的はメモリのプリフェッチです。
 
-	// ⇨ keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。
-	// 　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
-	// 
-	// ■ 備考
-	//
-	// Stockfishのfirst_entry()を_first_entry()とrename。
-	// そして、以下の3つのfirst_entry()を用意して、この_first_entry()を下請けとして呼び出すように変更。
+	/*
+		📓 first_entry()とは？
 
+		keyを元にClusterのindexを求めて、その最初のTTEntry* を返す。
+
+		Stockfishとは違い、引数にこの局面の手番(side_to_move)を渡しているのは、
+		手番をCluster indexのbit 0に埋めることで、手番が異なれば、異なる
+		TT Clusterになることを保証するため。
+
+		これは、将棋では駒の移動が上下対称ではないので、先手の指し手が(TT raceで)
+		後手番の局面でTT.probeで返ってくると、pseudo-legalの判定で余計なチェックが
+		必要になって嫌だからである。
+
+		📝 Stockfishのfirst_entry()を_first_entry()とrename。
+			そして、以下の3つのfirst_entry()を用意して、この_first_entry()を
+			下請けとして呼び出すように変更。
+	*/ 
+
+#if STOCKFISH
+    TTEntry* first_entry(const Key key)
+      const;  // This is the hash function; its only external use is memory prefetching.
+#else
 	TTEntry* first_entry(const Key     key, Color side_to_move) const;
     TTEntry* first_entry(const Key128& key, Color side_to_move) const;
     TTEntry* first_entry(const Key256& key, Color side_to_move) const;
+#endif
 
 	static void UnitTest(Test::UnitTester& unittest, IEngine& engine);
 
 private:
 	friend struct TTEntry;
-
-	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
-    /*
-		📓 引数にside_to_moveがなぜ必要なのか？
-
-		side_to_moveをClusterIndexのbit 0に用いることで、
-		手番が異なるなら確実に異なるTTClusterにする処理が書かれている。
-
-		これは、将棋では駒の移動が上下対称ではないので、先手の指し手が(TT raceで)後手番の局面でTT.probeで返ってくると、
-		pseudo-legalの判定で余計なチェックが必要になって嫌だからである。
-	*/
-
-	TTEntry* _first_entry(const Key key, Color side_to_move) const;
-	std::tuple<bool, TTData, TTWriter> _probe(const Key key, const TTE_KEY_TYPE key_for_ttentry, const Position& pos) const;
 
 	// この置換表が保持しているクラスター数。
 	// Stockfishはresize()ごとに毎回新しく置換表を確保するが、やねうら王では
@@ -218,6 +224,14 @@ private:
 	// サイズはTTEntry::genBound8を超えてはなりません。
 	// ⇨ 世代カウンター。new_search()のごとに8ずつ加算する。TTEntry::save()で用いる。
 	uint8_t generation8;
+
+#if !STOCKFISH
+	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
+    TTEntry* _first_entry(const Key key, Color side_to_move) const;
+
+	// probe()の内部実装用。
+	std::tuple<bool, TTData, TTWriter> _probe(const Key key, const TTE_KEY_TYPE key_for_ttentry, const Position& pos) const;
+#endif
 };
 
 extern TranspositionTable TT;

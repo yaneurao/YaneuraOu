@@ -142,7 +142,7 @@ namespace Mate {
 		// 与えられたboard_keyを持つMateHashEntryの先頭アドレスを返す。
 		// (現状、1つしか該当するエントリーはない)
 		// 取得したあと、lock()～unlock()して用いること。
-		MateHashEntry* first_entry(const Key board_key) const;
+		MateHashEntry* first_entry(const Key board_key, Color side_to_move) const;
 
 		// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。MB単位。
 		// このあと呼び出し側でclear()を呼び出す必要がある。

@@ -753,7 +753,7 @@ namespace Mate::Dfpn32
 				if (WithHash && (node->dn == 0 || node->pn == 0) && !node->repeated)
 				{
 					auto key = pos.state()->board_key();
-					auto entry = hash_table->first_entry(key);
+					auto entry = hash_table->first_entry(key, pos.side_to_move());
 
 					// たぶん指し手mでこれを証明したはずなので、これを登録しておく。
 					bool is_mate = node->pn == 0; /* pn == 0はわかったから、その手数(== DNPN_INF - dn)を保存したい */
@@ -991,7 +991,7 @@ namespace Mate::Dfpn32
 				// 置換表に登録されていれば、その結論を用いる。
 
 				auto key = pos.state()->board_key();
-				auto entry = hash_table->first_entry(key);
+				auto entry = hash_table->first_entry(key, pos.side_to_move());
 
 				// 置換表の値で証明されたか？
 				bool proven = false;

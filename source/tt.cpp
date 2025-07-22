@@ -93,7 +93,7 @@ struct TTEntry {
 
 	// 探索した情報をこの構造体に保存する。
 
-	void save(Key     k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)(k >> 1)        , v, pv, b, d, m, ev, generation8); }
+	void save(Key     k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k               , v, pv, b, d, m, ev, generation8); }
 	void save(Key128& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
 	void save(Key256& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) { _save((TTE_KEY_TYPE)k.extract64<1>(), v, pv, b, d, m, ev, generation8); }
 
@@ -480,14 +480,17 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key256& key, 
 // ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
 
 TTEntry* TranspositionTable::_first_entry(const Key key, Color side_to_move) const {
-	// Stockfishのコード
-	// mul_hi64は、64bit * 64bitの掛け算をして下位64bitを取得する関数。
-	//return &table[mul_hi64(key, clusterCount)].entry[0];
+
+#if STOCKFISH
+
+    return &table[mul_hi64(key, clusterCount)].entry[0];
+	// 💡 mul_hi64は、64bit * 64bitの掛け算をして下位64bitを取得する関数。
 
 	// key(64bit) × clusterCount / 2^64 の値は 0 ～ clusterCount - 1 である。
-	// 掛け算が必要にはなるが、こうすることで custerCountを2^Nで確保しないといけないという制約が外れる。
-	// cf. Allow for general transposition table sizes. : https://github.com/official-stockfish/Stockfish/commit/2198cd0524574f0d9df8c0ec9aaf14ad8c94402b
+    // 掛け算が必要にはなるが、こうすることで custerCountを2^Nで確保しないといけないという制約が外れる。
+    // cf. Allow for general transposition table sizes. : https://github.com/official-stockfish/Stockfish/commit/2198cd0524574f0d9df8c0ec9aaf14ad8c94402b
 
+#else
 
 	/*
 		📓
@@ -510,6 +513,8 @@ TTEntry* TranspositionTable::_first_entry(const Key key, Color side_to_move) con
 	// clusterCountは偶数で、ここにkeyのbit0がbit-orされるので0～clusterCount-1の範囲の値が得られる。
 	// ⚠ Colorの実体はuint8で0,1の値しか取らないものとする。
 	return &table[(index << 1) | side_to_move].entry[0];
+
+#endif
 }
 
 TTEntry* TranspositionTable::first_entry(const Key     key, Color side_to_move) const {

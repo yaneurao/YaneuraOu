@@ -305,9 +305,9 @@ namespace Mate {
 
 	// 与えられたboard_keyを持つMateHashEntryの先頭アドレスを返す。
 	// (現状、1つしか該当するエントリーはない)
-	MateHashEntry* MateHashTable::first_entry(const Key board_key) const {
+	MateHashEntry* MateHashTable::first_entry(const Key board_key, Color side_to_move) const {
 		uint64_t index = mul_hi64((u64)board_key >> 1, entryCount);
-		return &table[(index << 1) | ((u64)board_key & 1)];
+		return &table[(index << 1) | side_to_move];
 	}
 
 	// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。MB単位。
