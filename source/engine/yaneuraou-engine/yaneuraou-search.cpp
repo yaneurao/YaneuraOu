@@ -2695,9 +2695,11 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 		&& eval >= beta
         //  🖊 evalがbetaを超えているので1手パスしてもbetaは超えそう。だからnull moveを試す
         && ss->staticEval >= beta - 19 * depth + 389 && !excludedMove
-		// && pos.non_pawn_material(us)
+#if STOCKFISH        
+		&& pos.non_pawn_material(us)
 		// 💡 盤上にpawn以外の駒がある ≒ pawnだけの終盤ではない。
 		// 🤔 将棋でもこれに相当する条件が必要かも。
+#endif        
         && ss->ply >= thisThread->nmpMinPly
 		&& !is_loss(beta)
         // 同じ手番側に連続してnull moveを適用しない
@@ -2713,10 +2715,12 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         ss->currentMove                   = Move::null();
         ss->continuationHistory           = &thisThread->continuationHistory[0][0][NO_PIECE][0];
 
+#if STOCKFISH        
 		// TODO : あとで correction history
-        //ss->continuationCorrectionHistory = &thisThread->continuationCorrectionHistory[NO_PIECE][0];
+        ss->continuationCorrectionHistory = &thisThread->continuationCorrectionHistory[NO_PIECE][0];
+#endif
 
-		// 💡  null moveなので、王手はかかっていなくて駒取りでもない。
+        // 💡  null moveなので、王手はかかっていなくて駒取りでもない。
         //     よって、continuationHistory[0(王手かかってない)][0(駒取りではない)][NO_PIECE][SQ_ZERO]
 		//
 		// 📃 王手がかかっている局面では ⇑の方にある goto moves_loop; によってそっちに行ってるので、
@@ -2780,6 +2784,29 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     if (!allNode && depth >= 6 && !ttData.move)
         depth--;
 
+#if OLD_CODE
+    // 🌈 以前のコードのほうが強い可能性がある。
+
+	if (    PvNode
+		&& !ttData.move)
+		depth -= 3;
+
+	// Use qsearch if depth <= 0
+	// (depthをreductionした結果、)もしdepth <= 0ならqsearchを用いる
+
+	if (depth <= 0)
+		return qsearch<PV>(pos, ss, alpha, beta);
+
+	// For cutNodes, if depth is high enough, decrease depth by 2 if there is no ttMove,
+	// or by 1 if there is a ttMove with an upper bound.
+
+	// カットノードの場合、深さが十分にある場合は、ttMoveがない場合に深さを2減らし、
+	// ttMoveが上限値を持つ場合は深さを1減らします。
+
+	if (cutNode && depth >= 7 && (!ttData.move || ttData.bound == BOUND_UPPER))
+		depth -= 1 + !ttData.move;
+#endif
+        
 	// -----------------------
     // Step 11. ProbCut
     // -----------------------
@@ -2956,13 +2983,13 @@ moves_loop:  // When in check, search starts here
 
         // 💡 root nodeでは、rootMoves()の集合に含まれていない指し手は探索をスキップする。
 
-        // 📌 Stockfishでは、2行目、
-        //        thisThread->rootMoves.begin() + thisThread->pvLast となっているが
-        //     将棋ではこの処理不要なのでやねうら王ではpvLastは使わない。
-
         if (rootNode
+#if STOCKFISH
+            && !std::count(thisThread->rootMoves.begin() + thisThread->pvLast,
+            // 📝 将棋ではこの処理不要なのでやねうら王ではpvLastは使わない。
+#else            
             && !std::count(thisThread->rootMoves.begin() + thisThread->pvIdx,
-                           //thisThread->rootMoves.begin() + thisThread->pvLast, move))
+#endif
                            thisThread->rootMoves.end(), move))
             continue;
 
@@ -2996,7 +3023,7 @@ moves_loop:  // When in check, search starts here
         capture = pos.capture_stage(move);
 
         // 今回移動させる駒(移動後の駒)
-        movedPiece = pos.moved_piece_after(move);
+        movedPiece = pos.moved_piece(move);
 
         // 今回の指し手で王手になるかどうか
         givesCheck = pos.gives_check(move);
@@ -3010,7 +3037,7 @@ moves_loop:  // When in check, search starts here
 
         int delta = beta - alpha;
 
-        // reduction()では、depthを1024倍した値が返ってきているので注意。
+        // ⚠ reduction()では、depthを1024倍した値が返ってきている。
         Depth r = reduction(improving, depth, moveCount, delta);
 
         // Increase reduction for ttPv nodes (*Scaler)

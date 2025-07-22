@@ -430,7 +430,7 @@ uint8_t TranspositionTable::generation() const { return generation8; }
 
 std::tuple<bool, TTData, TTWriter> TranspositionTable::_probe(const Key key_for_index, const TTE_KEY_TYPE key_for_ttentry, const Position& pos) const {
 
-	TTEntry* const tte = first_entry(key_for_index);
+	TTEntry* const tte = first_entry(key_for_index, pos.side_to_move());
 
 	// Use the low 16 bits as key inside the cluster
 	// クラスター内で下位16ビットをキーとして使用します
@@ -472,14 +472,14 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::_probe(const Key key_for_
 			TTWriter(replace) };
 }
 
-std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key     key, const Position& pos) const { return _probe(key               , (TTE_KEY_TYPE)(key >> 1          ), pos); }
+std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key     key, const Position& pos) const { return _probe(key               , (TTE_KEY_TYPE)(key               ), pos); }
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key128& key, const Position& pos) const { return _probe(key.extract64<0>(), (TTE_KEY_TYPE)(key.extract64<1>()), pos); }
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key256& key, const Position& pos) const { return _probe(key.extract64<0>(), (TTE_KEY_TYPE)(key.extract64<1>()), pos); }
 
 // keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
 // ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
 
-TTEntry* TranspositionTable::_first_entry(const Key key) const {
+TTEntry* TranspositionTable::_first_entry(const Key key, Color side_to_move) const {
 	// Stockfishのコード
 	// mul_hi64は、64bit * 64bitの掛け算をして下位64bitを取得する関数。
 	//return &table[mul_hi64(key, clusterCount)].entry[0];
@@ -488,15 +488,19 @@ TTEntry* TranspositionTable::_first_entry(const Key key) const {
 	// 掛け算が必要にはなるが、こうすることで custerCountを2^Nで確保しないといけないという制約が外れる。
 	// cf. Allow for general transposition table sizes. : https://github.com/official-stockfish/Stockfish/commit/2198cd0524574f0d9df8c0ec9aaf14ad8c94402b
 
-	// ※　以下、やねうら王独自拡張
 
-	// やねうら王では、keyのbit0(先後フラグ)がindexのbit0に反映される必要がある。
-	// このときclusterCountが奇数だと、(index & ~(u64)1) | (key & 1) のようにしたときに、
-	// (clusterCount - 1)が上限であるべきなのにclusterCountになりかねない。
-	// そこでclusterCountは偶数であるという制約を課す。
+	/*
+		📓
+
+		やねうら王では、cluster indexのbit0(先後フラグ) に手番が反映される必要がある。
+		このときclusterCountが奇数だと、(index & ~(u64)1) | side_to_move のようにしたときに、
+		(clusterCount - 1)が上限であるべきなのにclusterCountになりかねない。
+
+		そこでclusterCountは偶数であるという制約を課す。
+	*/
 	ASSERT_LV3((clusterCount & 1) == 0);
 
-	// indexのbit0は、keyのbit0(先後フラグ)が反映されなければならない。
+	// indexのbit0は、side_to_moveが反映されなければならない。
 	// →　次のindexの計算ではbit0を潰して計算するためにkeyを2で割ってからmul_hi64()している。
 
 	// (key/2) * clusterCount / 2^64 をするので、indexは 0 ～ (clusterCount/2)-1 の範囲となる。
@@ -504,13 +508,19 @@ TTEntry* TranspositionTable::_first_entry(const Key key) const {
 
 	// indexは0～(clusterCount/2)-1の範囲にあるのでこれを2倍すると、0～clusterCount-2の範囲。
 	// clusterCountは偶数で、ここにkeyのbit0がbit-orされるので0～clusterCount-1の範囲の値が得られる。
-	return &table[(index << 1) | ((u64)key & 1)].entry[0];
+	// ⚠ Colorの実体はuint8で0,1の値しか取らないものとする。
+	return &table[(index << 1) | side_to_move].entry[0];
 }
 
-TTEntry* TranspositionTable::first_entry(const Key     key) const { return _first_entry(key); }
-TTEntry* TranspositionTable::first_entry(const Key128& key) const { return _first_entry(key.extract64<0>()); }
-TTEntry* TranspositionTable::first_entry(const Key256& key) const { return _first_entry(key.extract64<0>()); }
-
+TTEntry* TranspositionTable::first_entry(const Key     key, Color side_to_move) const {
+    return _first_entry(key, side_to_move);
+}
+TTEntry* TranspositionTable::first_entry(const Key128& key, Color side_to_move) const {
+    return _first_entry(key.extract64<0>(), side_to_move);
+}
+TTEntry* TranspositionTable::first_entry(const Key256& key, Color side_to_move) const {
+    return _first_entry(key.extract64<0>(), side_to_move);
+}
 
 
 #if defined(EVAL_LEARN)

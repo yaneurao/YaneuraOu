@@ -17,32 +17,71 @@
 
 namespace YaneuraOu {
 
-  // --------------------
+// --------------------
 //     局面の情報
 // --------------------
 
-/// StateInfo struct stores information needed to restore a Position object to
-/// its previous state when we retract a move. Whenever a move is made on the
-/// board (by calling Position::do_move), a StateInfo object must be passed.
+// StateInfo struct stores information needed to restore a Position object to
+// its previous state when we retract a move. Whenever a move is made on the
+// board (by calling Position::do_move), a StateInfo object must be passed.
 
-// StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが面倒なものを詰め込んでおくための構造体。
-// do_move()のときは、ブロックコピーで済むのでそこそこ高速。
+// StateInfo構造体は、指し手を戻す際にPositionオブジェクトを
+// 以前の状態に復元するために必要な情報を格納する。
+// 盤上で指し手が行われるたびに（Position::do_moveを呼び出す際に）、
+// StateInfoオブジェクトを渡さなければならない。
+
+// 💡 StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが
+//     面倒なものを詰め込んでおくための構造体。
+//     do_move()のときは、ブロックコピーで済むのでそこそこ高速。
 
 struct StateInfo {
 
 	// Copied when making a move
-	// 指し手で局面を進めるときにコピーされる。
+    // 指し手で局面を進めるときにコピーされる。
+
+#if defined(USE_PARTIAL_KEY)
+	// 位置を無視した駒種と手番によるhash key
+    Key materialKey;
+
+	// 歩のhash key
+    Key pawnKey;
+
+	// 小駒(歩、香、桂、銀、金 とその成り駒)によるhash key
+    Key minorPieceKey;
+
+	// 大駒(角、飛 とその成り駒)によるhash key
+    Key nonPawnKey[COLOR_NB];
+#endif
+
+#if STOCKFISH
+	// 歩以外の駒割。
+	// 🤔 やねうら王では使っていない。使ったほうがいいか？
+    Value nonPawnMaterial[COLOR_NB];
+
+    int castlingRights;
+    int rule50;
+#endif
 
 	// 遡り可能な手数(previousポインタを用いて局面を遡るときに用いる)
 	int pliesFromNull;
 
+#if STOCKFISH
+    Square epSquare;
+#else
+    // 🌈 この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
+    int continuousCheck[COLOR_NB];
+#endif
+
 	// Not copied when making a move (will be recomputed anyhow)
 	// 指し手で局面を進めるときにコピーされない(なんにせよ再計算される)
 
-	//  Key        key;
-
+#if STOCKFISH
+	Key        key;
+#else
 	// 盤面(盤上の駒)と手駒に関するhash key
 	// 直接アクセスせずに、hand_key()、board_key(),key()を用いること。
+
+	// 💡 board_keyはZobrist::psqをxorしていく。hand_keyはZobrist::handを加算していく。key = board_key ^ hand_key。
 
 	HASH_KEY board_key_;
 	HASH_KEY hand_key_;
@@ -51,30 +90,27 @@ struct StateInfo {
 	// ※　次の局面にdo_move()で進むときに最終的な値が設定される
 	// board_key()は盤面のhash。hand_key()は手駒のhash。それぞれ加算したのがkey() 盤面のhash。
 	// board_key()のほうは、手番も込み。
-	
+    /*
+		📓 board_key()がなぜ必要なのか？
+
+		盤面が同じで手駒だけ損している局面(劣等局面)を検出するためには、
+		同一の盤面であるかを高速に調べる必要があり、それには盤面のhash keyが必要となる。
+		それがboard_key()である。
+	*/ 
+
 	Key key()                     const { return hash_key_to_key(hash_key());       }
 	Key board_key()               const { return hash_key_to_key(board_hash_key()); }
 	Key hand_key()                const { return hash_key_to_key(hand_hash_key());  }
 
 	// HASH_KEY_BITSが128のときはKey128が返るhash key,256のときはKey256
 
-	HASH_KEY hash_key()           const { return board_key_ + hand_key_; }
+	HASH_KEY hash_key()           const { return board_key_ ^ hand_key_; }
 	HASH_KEY board_hash_key()     const { return board_key_            ; }
 	HASH_KEY hand_hash_key()      const { return              hand_key_; }
-
-#if defined(ENABLE_PAWN_HISTORY)
-	// 歩の陣形に対するhash key
-	HASH_KEY pawnKey_;
-	Key      pawn_key()           const { return hash_key_to_key(pawn_hash_key()) >> 1;  }
-	HASH_KEY pawn_hash_key()      const { return pawnKey_;               }
 #endif
 
 	// 現局面で手番側に対して王手をしている駒のbitboard
 	Bitboard checkersBB;
-
-	// この局面で捕獲された駒。先後の区別あり。
-	// ※　次の局面にdo_move()で進むときにこの値が設定される
-	Piece capturedPiece;
 
 	// 一つ前の局面に遡るためのポインタ。
 	// この値としてnullptrが設定されているケースは、
@@ -105,28 +141,34 @@ struct StateInfo {
 	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
 	Bitboard checkSquares[PIECE_TYPE_NB];
 
+	// この局面で捕獲された駒。先後の区別あり。
+    // ※　次の局面にdo_move()で進むときにこの値が設定される
+    Piece capturedPiece;
+
 #if !defined(ENABLE_QUICK_DRAW)
-	//  循環局面であることを示す。
-	//   0    = 循環なし
-	//   ply  = ply前の局面と同じ局面であることを表す。(ply > 0) 3回目までの繰り返し。
-	//  -ply  = ply前の局面と同じ局面であることを示す。4回目の繰り返しに到達していることを示す。
-	int repetition;
+    //  循環局面であることを示す。
+    //   0    = 循環なし
+    //   ply  = ply前の局面と同じ局面であることを表す。(ply > 0) 3回目までの繰り返し。
+    //  -ply  = ply前の局面と同じ局面であることを示す。4回目の繰り返しに到達していることを示す。
+    int repetition;
 
-	// ※　以下の2つはやねうら王独自拡張。
+#if !STOCKFISH
+    //  繰り返された回数 - 1。
+    //  📝 repetition != 0の時に意味をなす。
+	//      将棋では同じ局面は連続4回目で千日手が成立するのでこのためのカウンター。
+    int repetition_times;
 
-	//  繰り返された回数 - 1。
-	//  ※ repetition != 0の時に意味をなす。
-	int repetition_times;
-
-	//  その時の繰り返しの種類
-	RepetitionState repetition_type;
+    //  その時の繰り返しの種類
+    RepetitionState repetition_type;
 #endif
 
-	// この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
-	int continuousCheck[COLOR_NB];
-  
+#endif
+
+
+#if !STOCKFISH
 	// この局面における手番側の持ち駒。優等局面の判定のために必要。
 	Hand hand;
+#endif
 
 	// --- evaluate
 #if defined(USE_CLASSIC_EVAL)
@@ -1082,9 +1124,6 @@ inline bool is_ok(Position& pos) { return pos.pos_is_ok(); }
 
 // 盤面を出力する。(USI形式ではない) デバッグ用。
 std::ostream& operator<<(std::ostream& os, const Position& pos);
-
-// depthに応じたZobrist Hashを得る。depthを含めてhash keyを求めたいときに用いる。
-HASH_KEY DepthHash(int depth);
 
 } // namespace YaneuraOu
 

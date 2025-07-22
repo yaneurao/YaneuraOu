@@ -23,16 +23,40 @@ using namespace Effect8;
 int Position::max_repetition_ply = 16;
 
 // 局面のhash keyを求めるときに用いるZobrist key
+// 💡 board_keyはZobrist::psqをxorしていく。hand_keyはZobrist::handを加算していく。key = board_key ^ hand_key。
 namespace Zobrist {
-	HASH_KEY zero;							// ゼロ(==0)
-	HASH_KEY side;							// 手番(==1)
-#if defined(ENABLE_PAWN_HISTORY)
-	HASH_KEY noPawns;                       // 歩の陣形に関して盤上に歩が一枚もない時のhash key
+
+#if STOCKFISH
+
+Key psq[PIECE_NB][SQUARE_NB];
+Key enpassant[FILE_NB];
+Key castling[CASTLING_RIGHT_NB];
+Key side, noPawns;
+
+#else
+
+// 💡 Stockfishでは、Keyはuint64_tなので zeroは単に 0と書けるが、
+//     やねうら王は、HASH_KEYは64,128,256bitに拡張しているので…。
+HASH_KEY zero;
+
+// 手番
+HASH_KEY side;
+
+// 駒pcが盤上sqに配置されているときのZobrist Key
+// 💡 玉などは盤上にない場合、SQ_NBになるのでSQ_NB_PLUS1で確保する。
+HASH_KEY psq[SQ_NB_PLUS1][PIECE_NB];
+
+// c側の手駒prが一枚増えるごとにこれを加算するZobristKey
+// 枚数ごとにhash keyのtableを用意するのは嫌なので、加算型にしてある。
+HASH_KEY hand[COLOR_NB][PIECE_HAND_NB];
+
+#if defined(USE_PARTIAL_KEY)
+// 歩の陣形に関して盤上に歩が一枚もない時のhash key
+HASH_KEY noPawns;
 #endif
-	HASH_KEY psq[SQ_NB_PLUS1][PIECE_NB];	// 駒pcが盤上sqに配置されているときのZobrist Key
-	HASH_KEY hand[COLOR_NB][PIECE_HAND_NB];	// c側の手駒prが一枚増えるごとにこれを加算するZobristKey
-	HASH_KEY depth[MAX_PLY];				// 深さも考慮に入れたHASH KEYを作りたいときに用いる(実験用)
-}
+
+#endif
+};
 
 // ----------------------------------
 //           CheckInfo
@@ -42,8 +66,8 @@ namespace Zobrist {
 template <bool doNullMove , Color Us>
 void Position::set_check_info() const {
 
-	// null moveのときは前の局面でこの情報は設定されているので更新する必要がない。
-	// ※　やねうら王独自の改良
+	// 🌈　やねうら王独自の改良
+    //      null moveのときは前の局面でこの情報は設定されているので更新する必要がない。
 	if (!doNullMove)
 	{
 		update_slider_blockers(WHITE);
@@ -92,9 +116,22 @@ void Position::set_check_info() const {
 void Position::init() {
 	PRNG rng(20151225); // 開発開始日 == 電王トーナメント2015,最終日
 
-	// 手番としてbit0を用いる。それ以外はbit0を使わない。これをxorではなく加算して行ってもbit0は汚されない。
-	SET_HASH(Zobrist::side, 1, 0, 0, 0);
+	// 乱数で初期化するコード
+	auto set_rand = [&](HASH_KEY& h) {
+        auto r1 = rng.rand<Key>();
+        auto r2 = rng.rand<Key>();
+        auto r3 = rng.rand<Key>();
+        auto r4 = rng.rand<Key>();
+        SET_HASH(h, r1, r2, r3, r4);
+    };
+
 	SET_HASH(Zobrist::zero, 0, 0, 0, 0);
+
+	set_rand(Zobrist::side);
+
+#if defined(USE_PARTIAL_KEY)
+    set_rand(Zobrist::noPawns);
+#endif
 
 	// 64bit hash keyは256bit hash keyの下位64bitという解釈をすることで、256bitと64bitのときとでhash keyの下位64bitは合致するようにしておく。
 	// これは定跡DBなどで使うときにこの性質が欲しいからである。
@@ -103,25 +140,15 @@ void Position::init() {
 	for (auto pc : Piece())
 		for (auto sq : SQ)
 			if (pc)
-				SET_HASH(Zobrist::psq[sq][pc], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
-
+                set_rand(Zobrist::psq[sq][pc]);
+	
 	// またpr==NO_PIECEのときは0であることを保証したいのでSET_HASHしない。
 	for (auto c : COLOR)
 		for (PieceType pr = NO_PIECE_TYPE; pr < PIECE_HAND_NB; ++pr)
 			if (pr)
-				SET_HASH(Zobrist::hand[c][pr], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
+                set_rand(Zobrist::hand[c][pr]);
 
-	for (int i = 0; i < MAX_PLY; ++i)
-		SET_HASH(Zobrist::depth[i], rng.rand<Key>() & ~1ULL, rng.rand<Key>(), rng.rand<Key>(), rng.rand<Key>());
-
-
-#if defined(ENABLE_PAWN_HISTORY)
-	Zobrist::noPawns = Zobrist::zero;
-#endif
 }
-
-// depthに応じたZobrist Hashを得る。depthを含めてhash keyを求めたいときに用いる。
-HASH_KEY DepthHash(int depth) { return Zobrist::depth[depth]; }
 
 // ----------------------------------
 //  Position::set()とその逆変換sfen()
@@ -518,26 +545,40 @@ const std::string Position::sfen_to_flipped_sfen(std::string sfen)
 }
 
 
+// Computes the hash keys of the position, and other
+// data that once computed is updated incrementally as moves are made.
+// The function is only used when a new position is set up
+
+// 局面のハッシュキーおよび、
+// 一度計算すればその後は指し手に応じてインクリメンタルに更新される
+// その他のデータを計算する。
+// この関数は新しい局面をセットアップするときだけ使われる。
+
 void Position::set_state() const {
 
-	// --- bitboard
-
-	// この局面で自玉に王手している敵駒
-	st->checkersBB = attackers_to(~sideToMove, king_square(sideToMove));
-
-	// 王手情報の初期化
-	set_check_info<false>();
-
-	// --- hash keyの計算
+#if STOCKFISH
+    st->key = st->materialKey = 0;
+#else
+	// 🌈 やねうら王では、st->keyはboard_keyとhand_keyに分かれる。
 	st->board_key_ = sideToMove == BLACK ? Zobrist::zero : Zobrist::side;
 	st->hand_key_  = Zobrist::zero;
-#if defined(ENABLE_PAWN_HISTORY)
-	st->pawnKey_   = Zobrist::noPawns;
+    //st->materialKey = Zobrist::zero;
 #endif
+
+#if defined(USE_PARTIAL_KEY)
+	//st->pawnKey     = Zobrist::noPawns;
+#endif
+
+    // この局面で自玉に王手している敵駒
+    st->checkersBB = attackers_to(~sideToMove, king_square(sideToMove));
+
+    // 王手情報の初期化
+    set_check_info<false>();
+
 	for (auto sq : pieces())
 	{
 		auto pc = piece_on(sq);
-		st->board_key_ += Zobrist::psq[sq][pc];
+		st->board_key_ ^= Zobrist::psq[sq][pc];
 
 #if defined(ENABLE_PAWN_HISTORY)
         if (type_of(pc) == PAWN)
@@ -1192,45 +1233,76 @@ Move Position::to_move(Move16 m16) const
 
 // 指し手で盤面を1手進める。
 template <Color Us>
-void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
+void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck)
 {
 	// Move::none()はもちろん、Move::null() , Move::resign()などお断り。
 	ASSERT_LV3(m.is_ok());
-
-	ASSERT_LV3(&new_st != st);
-
-	constexpr Color Them = ~Us;
-
-	//std::cout << *this << m << std::endl;
+    ASSERT_LV3(&newSt != st);
 
 	// ----------------------
 	//  StateInfoの更新
 	// ----------------------
 
-	// hash key
+	// 現在の局面のhash keyはこれで、これを更新していき、
+	// 次の局面のhash keyを求めてStateInfo::key_に格納。
+#if STOCKFISH
+    Key k = st->key ^ Zobrist::side;
+#else
+    HASH_KEY k = st->board_key_ ^ Zobrist::side;
 
-	// 現在の局面のhash keyはこれで、これを更新していき、次の局面のhash keyを求めてStateInfo::key_に格納。
-	HASH_KEY k = st->board_key_ ^ Zobrist::side;
-	HASH_KEY h = st->hand_key_;
+	// 🌈 将棋だと手駒がある。手駒用のhash keyを別途用意
+    HASH_KEY h = st->hand_key_;
+#endif
 
-	// StateInfoの構造体のメンバーの上からkeyのところまでは前のを丸ごとコピーしておく。
-	// undo_moveで戻すときにこの部分はundo処理が要らないので細かい更新処理が必要なものはここに載せておけばundoが速くなる。
+    // Copy some fields of the old state to our new StateInfo object except the
+    // ones which are going to be recalculated from scratch anyway and then switch
+    // our state pointer to point to the new (ready to be updated) state.
 
-	// std::memcpy(&new_st, st, offsetof(StateInfo, checkersBB));
-	// 将棋ではこの処理、要らないのでは…。
+	// 古い状態の一部のフィールドを新しいStateInfoオブジェクトにコピーする。
+    // ただし、どうせ最初から再計算されるフィールドは除外する。
+    // そして、stateポインタを新しい（これから更新される）状態を指すように切り替える。
 
-	// StateInfoを遡れるようにpreviousを設定しておいてやる。
-	StateInfo* prev;
-	new_st.previous = prev = st;
-	st = &new_st;
+	/* 📓 StateInfoのmemcpy()について
+
+		StateInfoの構造体のメンバーの上からkeyのところまでは前のを丸ごとコピーしておく。
+		こうしたほうが、in-placeで書き換えができるのでプログラムがすっきりする。
+
+		undo_moveで戻すときにStateInfoはundo処理が要らないので(stack上にあるので自動的に破棄される)
+		細かい更新処理が必要なものはここに載せておけばundoが速くなる。
+	*/
+
+#if STOCKFISH
+    std::memcpy(&newSt, st, offsetof(StateInfo, key));
+#else
+    std::memcpy(static_cast<void*>(& newSt), st, offsetof(StateInfo, board_key_));
+#endif
+	newSt.previous = st;
+    st             = &newSt;
 
 	// --- 手数がらみのカウンターのインクリメント
 
-	// 厳密には、これはrootからの手数ではなく、初期盤面からの手数ではあるが。
+    // Increment ply counters. In particular, rule50 will be reset to zero later on
+    // in case of a capture or a pawn move.
+
+	// 手数カウンタをインクリメントする。
+    // 特に、キャプチャやポーンの手の場合は、後でrule50が0にリセットされる。
+
 	++gamePly;
-	
-	// st->previousで遡り可能な手数カウンタ
-	st->pliesFromNull = prev->pliesFromNull + 1;
+
+#if STOCKFISH
+    ++st->rule50;
+#endif
+    ++st->pliesFromNull;
+
+#if STOCKFISH
+    Color us   = sideToMove;
+    Color them = ~us;
+#else
+	// 🌈 やねうら王では手番がtemplate引数になっている。
+    constexpr Color us   = Us;
+    constexpr Color them = ~Us;
+#endif
+
 
 	// 評価値の差分計算用の初期化
 #if defined(USE_CLASSIC_EVAL)
@@ -1262,10 +1334,23 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 	//    盤面の更新処理
 	// ----------------------
 
-	// 移動先の升
-	Square to = m.to_sq();
-	ASSERT_LV2(is_ok(to));
+#if STOCKFISH
+    Square from     = m.from_sq();
+    Square to       = m.to_sq();
+    Piece  pc       = piece_on(from);
+    Piece  captured = m.type_of() == EN_PASSANT ? make_piece(them, PAWN) : piece_on(to);
+#else
+	// 将棋だと手駒から打てるのでこの時点ではfromとpcは確定できない。
 
+	// 移動先の升
+    Square to = m.to_sq();
+    ASSERT_LV2(is_ok(to));
+
+	// 捕獲される駒
+    Piece  captured = piece_on(to);
+#endif
+
+#if defined(USE_CLASSIC_EVAL)
 #if defined (USE_PIECE_VALUE)
 	// 駒割りの差分計算用
 	int materialDiff;
@@ -1273,6 +1358,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 #if defined (USE_EVAL_LIST)
 	auto& dp = st->dirtyPiece;
+#endif
 #endif
 
 	if (m.is_drop())
@@ -1288,7 +1374,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// Zobrist keyの更新
 		h -= Zobrist::hand[Us][pr];
-		k += Zobrist::psq[to][pc];
+		k ^= Zobrist::psq[to][pc];
 
 #if defined(ENABLE_PAWN_HISTORY)
 		// 打ち歩なら、pawnKeyの更新が必要
@@ -1299,7 +1385,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		// なるべく早い段階でのTTに対するprefetch
 		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
 		const HASH_KEY key = k + h;
-		prefetch(TT.first_entry(key));
+        prefetch(TT.first_entry(key, them));
 #if defined(USE_EVAL_HASH)
 		Eval::prefetch_evalhash(hash_key_to_key(key));
 #endif
@@ -1327,11 +1413,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 		if (givesCheck)
 		{
 			st->checkersBB = Bitboard(to);
-			st->continuousCheck[Us] = prev->continuousCheck[Us] + 2;
-
-			// Stockfishのコードは、ここのコード、" += 2 "になっているが、
-			// やねうら王ではStateInfoのmemcpy()をしないことにしたので
-			// 前ノードの値に対して、" + 2 "しないといけない。
+			st->continuousCheck[Us] += 2;
 
 		} else {
 			st->checkersBB = Bitboard(ZERO);
@@ -1409,7 +1491,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			remove_piece(to);
 
 			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
-			k -= Zobrist::psq[to][to_pc];
+			k ^= Zobrist::psq[to][to_pc];
 			h += Zobrist::hand[Us][pr];
 
 #if defined(ENABLE_PAWN_HISTORY)
@@ -1465,8 +1547,8 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			kingSquare[Us] = to;
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
-		k -= Zobrist::psq[from][moved_pc];
-		k += Zobrist::psq[to][moved_after_pc];
+		k ^= Zobrist::psq[from][moved_pc];
+		k ^= Zobrist::psq[to][moved_after_pc];
 
 #if defined(ENABLE_PAWN_HISTORY)
 		// 歩の移動ならば移動元の歩を除去
@@ -1482,7 +1564,7 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 
 		// 駒打ちでないときはprefetchはこの時点まで延期される。
 		const HASH_KEY key = k + h;
-		prefetch(TT.first_entry(key));
+        prefetch(TT.first_entry(key, them));
 #if defined(USE_EVAL_HASH)
 		Eval::prefetch_evalhash(hash_key_to_key(key));
 #endif
@@ -1503,12 +1585,12 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			st->checkersBB = prevSt->checkSquares[type_of(moved_after_pc)] & to;
 
 			// 2) 開き王手になるのか
-			const Square ksq = king_square(Them);
+			const Square ksq = king_square(them);
 			// pos->discovered_check_candidates()で取得したいが、もうstを更新してしまっているので出来ないので
 			// prevSt->blockersForKing[~Us] & pieces(Us)と愚直に書く。
 			// また、pieces(Us)のうち今回移動させる駒は、実はすでに移動させてしまっているので、fromと書く。
 
-			if (discovered(from, to, ksq, prevSt->blockersForKing[Them] & from))
+			if (discovered(from, to, ksq, prevSt->blockersForKing[them] & from))
 			{
 				// fromと敵玉とは同じ筋にあり、かつfromから駒を移動させて空き王手になる。
 				// つまりfromから上下を見ると、敵玉と、自分の開き王手をしている遠方駒(飛車 or 香)があるはずなのでこれを追加する。
@@ -1529,12 +1611,13 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			}
 
 			// 差分更新したcheckersBBが正しく更新されているかをテストするためのassert
-			ASSERT_LV3(st->checkersBB == attackers_to<Us>(king_square(Them)));
+			ASSERT_LV3(st->checkersBB == attackers_to<Us>(king_square(them)));
 #else
 			// 差分更新しないとき用。(デバッグ等の目的で用いる)
 			st->checkersBB = attackers_to<Us>(king_square(Them));
 #endif
-			st->continuousCheck[Us] = prev->continuousCheck[Us] + 2;
+			// 手番側は2手前のものからの継続。
+			st->continuousCheck[Us] += 2;
 
 		} else {
 
@@ -1542,8 +1625,9 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 			st->continuousCheck[Us] = 0;
 		}
 	}
-	// 相手番のほうは関係ないので前ノードの値をそのまま受け継ぐ。
-	st->continuousCheck[Them] = prev->continuousCheck[Them];
+	// 非手番側のほうは関係ないので前ノードの値をそのまま受け継ぐ。
+	//st->continuousCheck[them] = prev->continuousCheck[them];
+	// 💡 memcpy()するので自動的にそうなっている。
 
 #if defined (USE_PIECE_VALUE)
 	st->materialValue = (Value)(st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
@@ -1551,13 +1635,13 @@ void Position::do_move_impl(Move m, StateInfo& new_st, bool givesCheck)
 #endif
 
 	// 相手番に変更する。
-	sideToMove = Them;
+	sideToMove = them;
 
 	// 更新されたhash keyをStateInfoに書き戻す。
 	st->board_key_ = k;
 	st->hand_key_  = h;
 
-	st->hand = hand[Them];
+	st->hand = hand[them];
 
 	// このタイミングで王手関係の情報を更新しておいてやる。
 	set_check_info<false>();
@@ -1719,16 +1803,16 @@ HASH_KEY Position::hash_key_after(Move m) const {
 			PieceType pr = raw_type_of(to_pc);
 
 			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
-			k -= Zobrist::psq [to][to_pc];
+			k ^= Zobrist::psq [to][to_pc];
 			h += Zobrist::hand[Us][pr   ];
 		}
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
-		k -= Zobrist::psq[from][moved_pc      ];
-		k += Zobrist::psq[to  ][moved_after_pc];
+		k ^= Zobrist::psq[from][moved_pc      ];
+		k ^= Zobrist::psq[to  ][moved_after_pc];
 	}
 
-	return k + h;
+	return k ^ h;
 }
 
 // 指し手で盤面を1手戻す。do_move()の逆変換。
@@ -1885,71 +1969,80 @@ void Position::do_null_move(StateInfo& newSt) {
 	ASSERT_LV3(!checkers());
 	ASSERT_LV3(&newSt != st);
 
-	// この場合、StateInfo自体は丸ごとコピーしておかないといけない。(他の初期化をしないので)
-	// よく考えると、StateInfo、新しく作る必要もないのだが…。まあ、CheckInfoがあるので仕方ないか…。
+#if STOCKFISH
+    std::memcpy(&newSt, st, sizeof(StateInfo));
+#else
 	std::memcpy(static_cast<void*>(& newSt), st, sizeof(StateInfo));
-
-	// TODO : NNUEの場合、accumulatorのコピー不要なのでは…？
-	//std::memcpy(&newSt, st, offsetof(StateInfo, accumulator));
+#endif
 
 	newSt.previous = st;
-	st = &newSt;
+    st             = &newSt;
 
-#if defined(USE_CLASSIC_EVAL)
-#if defined(EVAL_NNUE)
-	// NNUEの場合、KPPT型と違って、手番が違う場合、計算なしに済ますわけにはいかない。
-	st->accumulator.computed_score = false;
-#endif
-#endif
+#if STOCKFISH
+	if (st->epSquare != SQ_NONE)
+    {
+        st->key ^= Zobrist::enpassant[file_of(st->epSquare)];
+        st->epSquare = SQ_NONE;
+    }
 
-	st->board_key_ ^= Zobrist::side;
+    st->key ^= Zobrist::side;
+    prefetch(tt.first_entry(key()));
+
+	st->pliesFromNull = 0;
+
+    sideToMove = ~sideToMove;
+
+#else
+
+#if defined(USE_CLASSIC_EVAL) && defined(EVAL_NNUE)
+    // NNUEの場合、KPPT型と違って、手番が違う場合、計算なしに済ますわけにはいかない。
+    st->accumulator.computed_score = false;
+#endif
 
 	// このタイミングでアドレスが確定するのでprefetchしたほうが良い。(かも)
-	// →　将棋では評価関数の計算時のメモリ帯域がボトルネックになって、ここでprefetchしても
-	// 　prefetchのスケジューラーが処理しきれない可能性が…。
-	// CPUによっては有効なので一応やっておく。
+    // →　将棋では評価関数の計算時のメモリ帯域がボトルネックになって、ここでprefetchしても
+    // 　prefetchのスケジューラーが処理しきれない可能性が…。
+    // CPUによっては有効なので一応やっておく。
 
-	const HASH_KEY key = st->hash_key();
-	prefetch(TT.first_entry(key));
+    sideToMove = ~sideToMove;
+	st->board_key_ ^= Zobrist::side;
+    HASH_KEY key = st->hash_key();
+    prefetch(TT.first_entry(key, sideToMove));
 
-	// これは、さっきアクセスしたところのはずなので意味がない。
-	//  Eval::prefetch_evalhash(key);
+	st->pliesFromNull = 0;
+
+	// 手番が変わるので手番側の手駒情報であるst->handの更新が必要。
+    st->hand = hand[sideToMove];
+
+	// 現局面には王手はかかっていないので、直前には王手はされていない、
+	// すなわちこの関数が呼び出された時の非手番側(いまのsideToMove)である
+    //   st->continuousCheck[sideToMove] == 0
+    // が言える。連続王手の千日手の誤判定を防ぐためにこの関数が呼び出された時の手番側(~sideToMove)も
+    // 0にリセットする必要がある。
+
+	ASSERT_LV3(st->continuousCheck[sideToMove] == 0);
+    st->continuousCheck[~sideToMove] = 0;
 
 #if defined(USE_CLASSIC_EVAL)
 
 #if defined(EVAL_NNUE) && defined(USE_EVAL_HASH)
-	// NNUEのEvalHashの場合、手番が違うと異なるentry(のはず)
-	Eval::prefetch_evalhash(key);
+    // NNUEのEvalHashの場合、手番が違うと異なるentry(のはず)
+    Eval::prefetch_evalhash(key);
 #endif
 #endif
 
-#if STOCKFISH
-	++st->rule50;
 #endif
-
-	st->pliesFromNull = 0;
-
-	sideToMove = ~sideToMove;
 
 	set_check_info<true>();
 
-	// 手番が変わるので手番側の手駒情報であるst->handの更新が必要。
-	st->hand = hand[sideToMove];
-
-	// 現局面には王手はかかっていないので、直前には王手はされていない、すなわちこの関数が呼び出された時の
-	// 非手番側(いまのsideToMove)である
-	//   st->continuousCheck[sideToMove] == 0
-	// が言える。連続王手の千日手の誤判定を防ぐためにこの関数が呼び出された時の手番側(~sideToMove)も
-	// 0にリセットする必要がある。
-	ASSERT_LV3(st->continuousCheck[sideToMove] == 0);
-	st->continuousCheck[~sideToMove] = 0;
-
 #if !defined(ENABLE_QUICK_DRAW)
 	st->repetition       = 0;
+
+	// 🌈 やねうら王では繰り返し回数のカウントがある。
 	st->repetition_times = 0;
 #endif
 
-	//ASSERT(pos_is_ok());
+	ASSERT_LV5(pos_is_ok());
 }
 
 void Position::undo_null_move()

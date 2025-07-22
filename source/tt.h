@@ -180,9 +180,9 @@ public:
 	// Stockfishのfirst_entry()を_first_entry()とrename。
 	// そして、以下の3つのfirst_entry()を用意して、この_first_entry()を下請けとして呼び出すように変更。
 
-	TTEntry* first_entry(const Key     key) const;
-	TTEntry* first_entry(const Key128& key) const;
-	TTEntry* first_entry(const Key256& key) const;
+	TTEntry* first_entry(const Key     key, Color side_to_move) const;
+    TTEntry* first_entry(const Key128& key, Color side_to_move) const;
+    TTEntry* first_entry(const Key256& key, Color side_to_move) const;
 
 	static void UnitTest(Test::UnitTester& unittest, IEngine& engine);
 
@@ -190,9 +190,17 @@ private:
 	friend struct TTEntry;
 
 	// keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
-	// ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
+    /*
+		📓 引数にside_to_moveがなぜ必要なのか？
 
-	TTEntry* _first_entry(const Key    key) const;
+		side_to_moveをClusterIndexのbit 0に用いることで、
+		手番が異なるなら確実に異なるTTClusterにする処理が書かれている。
+
+		これは、将棋では駒の移動が上下対称ではないので、先手の指し手が(TT raceで)後手番の局面でTT.probeで返ってくると、
+		pseudo-legalの判定で余計なチェックが必要になって嫌だからである。
+	*/
+
+	TTEntry* _first_entry(const Key key, Color side_to_move) const;
 	std::tuple<bool, TTData, TTWriter> _probe(const Key key, const TTE_KEY_TYPE key_for_ttentry, const Position& pos) const;
 
 	// この置換表が保持しているクラスター数。
