@@ -53,15 +53,10 @@ class MovePicker {
                const LowPlyHistory*,
                const CapturePieceToHistory* cph,
                const PieceToHistory**       ch,
-#if defined(ENABLE_PAWN_HISTORY)
                const PawnHistory* ph,
-
-#endif
                int ply_
-#if STOCKFISH
-#else
-               ,
-               bool generate_all_legal_moves
+#if !STOCKFISH
+              ,bool generate_all_legal_moves
 #endif
     );
 

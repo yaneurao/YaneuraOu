@@ -39,34 +39,8 @@ class OptionsMap;
 // 探索関係
 namespace Search {
 
-// -----------------------
-//  探索のときに使うStack
-// -----------------------
-
-// Stack struct keeps track of the information we need to remember from nodes
-// shallower and deeper in the tree during the search. Each search thread has
-// its own array of Stack objects, indexed by the current ply.
-
-// Stack構造体は、検索中にツリーの浅いノードや深いノードから記憶する必要がある情報を管理します。
-// 各検索スレッドは、現在の深さ（ply）に基づいてインデックスされた、独自のStackオブジェクトの配列を持っています。
-
-struct Stack {
-	Move*           pv;					// PVへのポインター。RootMovesのvector<Move> pvを指している。
-	PieceToHistory* continuationHistory;// historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
-	int             ply;				// rootからの手数。rootならば0。
-	Move            currentMove;		// そのスレッドの探索においてこの局面で現在選択されている指し手
-	Move            excludedMove;		// singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
-	Value           staticEval;			// 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
-	int             statScore;			// 一度計算したhistoryの合計値をcacheしておくのに用いる。
-	int             moveCount;			// このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
-	bool            inCheck;			// この局面で王手がかかっていたかのフラグ
-	bool            ttPv;				// 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
-	bool            ttHit;				// 置換表にhitしたかのフラグ
-	int             cutoffCnt;			// cut off(betaを超えたので枝刈りとしてreturn)した回数。
-	int             reduction;          // このnodeでのreductionの量
-	bool            isPvNode;           // PV nodeであるかのフラグ。
-	int             quietMoveStreak;    // quietの指し手が親nodeからこのnodeまでに何連続したか。
-};
+// 💡 ここにあった"struct Stack"は、
+//     engine/yaneuraou-engine/yaneuraou-search.h に移動させた。
 
 
 // RootMove struct is used for moves at the root of the tree. For each root move
@@ -134,9 +108,11 @@ struct RootMove
 	// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
 	int selDepth           = 0;
 
+#if STOCKFISH
 	// 💡 チェスのtablebase絡みの変数。将棋では未使用。
-	// int tbRank          = 0;
-	// Value tbScore;
+	int tbRank          = 0;
+	Value tbScore;
+#endif
 
 	// この指し手で進めたときのpv
 	std::vector<Move> pv;

@@ -410,58 +410,54 @@ namespace {
 constexpr int SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
-
-// TODO : correction historyについては、のちほど導入を検討する。
-#if 0
 // (*Scalers):
 // The values with Scaler asterisks have proven non-linear scaling.
 // They are optimized to time controls of 180 + 1.8 and longer,
 // so changing them or adding conditions that are similar requires
 // tests at these types of time controls.
 
-	int correction_value(const Worker& w, const Position& pos, const Stack* const ss) {
-		const Color us = pos.side_to_move();
-		const auto  m = (ss - 1)->currentMove;
-		const auto  pcv = w.pawnCorrectionHistory[pawn_structure_index<Correction>(pos)][us];
-		const auto  micv = w.minorPieceCorrectionHistory[minor_piece_index(pos)][us];
-		const auto  wnpcv = w.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us];
-		const auto  bnpcv = w.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us];
-		const auto  cntcv =
-			m.is_ok() ? (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
-			: 0;
+int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack* const ss) {
+	const Color us = pos.side_to_move();
+	const auto  m = (ss - 1)->currentMove;
+	const auto  pcv = w.pawnCorrectionHistory[pawn_structure_index<Correction>(pos)][us];
+	const auto  micv = w.minorPieceCorrectionHistory[minor_piece_index(pos)][us];
+	const auto  wnpcv = w.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us];
+	const auto  bnpcv = w.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us];
+	const auto  cntcv =
+		m.is_ok() ? (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
+		: 0;
 
-		return 7696 * pcv + 7689 * micv + 9708 * (wnpcv + bnpcv) + 6978 * cntcv;
-	}
-
-	// Add correctionHistory value to raw staticEval and guarantee evaluation
-	// does not hit the tablebase range.
-	Value to_corrected_static_eval(const Value v, const int cv) {
-		return std::clamp(v + cv / 131072, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
-	}
-
-	void update_correction_history(const Position& pos,
-		Stack* const    ss,
-		Search::Worker& workerThread,
-		const int       bonus) {
-		const Move  m = (ss - 1)->currentMove;
-		const Color us = pos.side_to_move();
-
-		static constexpr int nonPawnWeight = 172;
-
-		workerThread.pawnCorrectionHistory[pawn_structure_index<Correction>(pos)][us]
-			<< bonus * 111 / 128;
-		workerThread.minorPieceCorrectionHistory[minor_piece_index(pos)][us] << bonus * 151 / 128;
-		workerThread.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us]
-			<< bonus * nonPawnWeight / 128;
-		workerThread.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us]
-			<< bonus * nonPawnWeight / 128;
-
-		if (m.is_ok())
-			(*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
-			<< bonus * 141 / 128;
-	}
+	return 7696 * pcv + 7689 * micv + 9708 * (wnpcv + bnpcv) + 6978 * cntcv;
 }
-#endif
+
+// Add correctionHistory value to raw staticEval and guarantee evaluation
+// does not hit the tablebase range.
+Value to_corrected_static_eval(const Value v, const int cv) {
+	return std::clamp(v + cv / 131072, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+}
+
+void update_correction_history(const Position&          pos,
+                               Stack* const             ss,
+                               Search::YaneuraOuWorker& workerThread,
+                               const int                bonus) {
+    const Move  m  = (ss - 1)->currentMove;
+    const Color us = pos.side_to_move();
+
+    static constexpr int nonPawnWeight = 172;
+
+    workerThread.pawnCorrectionHistory[pawn_structure_index<Correction>(pos)][us]
+      << bonus * 111 / 128;
+    workerThread.minorPieceCorrectionHistory[minor_piece_index(pos)][us] << bonus * 151 / 128;
+    workerThread.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us]
+      << bonus * nonPawnWeight / 128;
+    workerThread.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us]
+      << bonus * nonPawnWeight / 128;
+
+    if (m.is_ok())
+        (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
+          << bonus * 141 / 128;
+}
+
 
 // Add a small random component to draw evaluations to avoid 3-fold blindness
 // 3回同一局面になる盲点（3-fold blindness）を回避するため、評価を引き分け方向に誘導する小さなランダム成分を追加する
@@ -843,12 +839,10 @@ void Search::YaneuraOuWorker::start_searching() {
     search_skipped = false;
 
 SKIP_SEARCH:;
-// TODO あとで検討する。
-//output_final_pv();
 
-// 📌 指し手をGUIに返す 📌
+	// 📌 指し手をGUIに返す 📌
 
-// Lazy SMPの結果を取り出す
+	// Lazy SMPの結果を取り出す
 
 #if STOCKFISH
     // 並列探索したうちのbestな結果を保持しているthread
@@ -1016,8 +1010,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
         (ss - i)->continuationHistory =
           &this->continuationHistory[0][0][NO_PIECE][0];  // Use as a sentinel
 
-        // TODO : あとで
-        //(ss - i)->continuationCorrectionHistory = &this->continuationCorrectionHistory[NO_PIECE][0];
+        (ss - i)->continuationCorrectionHistory = &this->continuationCorrectionHistory[NO_PIECE][0];
         (ss - i)->staticEval = VALUE_NONE;
     }
 
@@ -1622,21 +1615,16 @@ void YaneuraOuWorker::clear() {
 
 	// 📝 lowPlyHistoryの初期化は、対局ごとではなく、局面ごと("go"のごと)に変更された。
 
-	// TODO あとで
-#if 0
     pawnHistory.fill(-1287);
     pawnCorrectionHistory.fill(5);
     minorPieceCorrectionHistory.fill(0);
     nonPawnCorrectionHistory.fill(0);
-#endif
 
 	ttMoveHistory = 0;
 
-#if 0
     for (auto& to : continuationCorrectionHistory)
         for (auto& h : to)
             h.fill(8);
-#endif
 
 	// 📝 ここは、未初期化のときに[NO_PIECE][SQ_ZERO]を指すので、ここを-1で初期化しておくことによって、
     //     history > 0 を条件にすれば自ずと未初期化のときは除外されるようになる。
@@ -2456,9 +2444,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // -----------------------
 
     Value      unadjustedStaticEval = VALUE_NONE;
-
-	// TODO : あとで correction history
-    const auto correctionValue = 0; // correction_value(*thisThread, pos, ss);
+    const auto correctionValue      = correction_value(*thisThread, pos, ss);
 
 	if (ss->inCheck)
     {
@@ -2519,12 +2505,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 #endif
 #endif
 
-#if STOCKFISH
         ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, correctionValue);
-#else
-		// TODO : あとで correction history
-        ss->staticEval = eval = unadjustedStaticEval;
-#endif
 
         // ttValue can be used as a better position evaluation
         // ttValue は、より良い局面評価として使用できる
@@ -2547,9 +2528,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     {
         unadjustedStaticEval = evaluate(pos);
 
-		// TODO : あとでなおす correction history
-        ss->staticEval = eval =
-          unadjustedStaticEval; // to_corrected_static_eval(unadjustedStaticEval, correctionValue);
+        ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, correctionValue);
 
         // Static evaluation is saved as it was before adjustment by correction history
         // 静的評価は、補正履歴による調整が行われる前の状態で保存される。
@@ -2712,11 +2691,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
         ss->currentMove                   = Move::null();
         ss->continuationHistory           = &thisThread->continuationHistory[0][0][NO_PIECE][0];
-
-#if STOCKFISH        
-		// TODO : あとで correction history
         ss->continuationCorrectionHistory = &thisThread->continuationCorrectionHistory[NO_PIECE][0];
-#endif
 
         // 💡  null moveなので、王手はかかっていなくて駒取りでもない。
         //     よって、continuationHistory[0(王手かかってない)][0(駒取りではない)][NO_PIECE][SQ_ZERO]
@@ -2864,8 +2839,8 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
             ss->currentMove = move;
             ss->continuationHistory =
               &this->continuationHistory[ss->inCheck][true][movedPiece][move.to_sq()];
-            //ss->continuationCorrectionHistory =
-            //  &this->continuationCorrectionHistory[movedPiece][move.to_sq()];
+            ss->continuationCorrectionHistory =
+              &this->continuationCorrectionHistory[movedPiece][move.to_sq()];
 
             // Perform a preliminary qsearch to verify that the move holds
             // この指し手がよさげであることを確認するための予備的なqsearch
@@ -2923,12 +2898,9 @@ moves_loop:  // When in check, search starts here
 
     MovePicker mp(pos, ttData.move, depth, &thisThread->mainHistory, &thisThread->lowPlyHistory,
                   &thisThread->captureHistory, contHist,
-#if defined(ENABLE_PAWN_HISTORY)
                   &thisThread->pawnHistory,
-#endif
 				  ss->ply
-#if STOCKFISH
-#else
+#if !STOCKFISH
 			, search_options.generate_all_legal_moves
 #endif
 	);
@@ -3135,10 +3107,7 @@ moves_loop:  // When in check, search starts here
                 int history =
                   (*contHist[0])[movedPiece][move.to_sq()]
                   + (*contHist[1])[movedPiece][move.to_sq()]
-#if defined(ENABLE_PAWN_HISTORY)
-                  + thisThread->pawnHistory[pawn_structure_index(pos)][movedPiece][move.to_sq()]
-#endif
-                  ;
+                  + thisThread->pawnHistory[pawn_structure_index(pos)][movedPiece][move.to_sq()];
 
                 // Continuation history based pruning
                 // Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip)
@@ -3368,10 +3337,8 @@ moves_loop:  // When in check, search starts here
 		ss->currentMove = move;
         ss->continuationHistory =
           &thisThread->continuationHistory[ss->inCheck][capture][movedPiece][move.to_sq()];
-
-		// TODO : あとでcorrection history
-		//ss->continuationCorrectionHistory =
-  //        &thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
+		ss->continuationCorrectionHistory =
+            &thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
         uint64_t nodeCount = rootNode ? uint64_t(nodes) : 0;
 
         // Decrease reduction for PvNodes (*Scaler)
@@ -3845,12 +3812,14 @@ moves_loop:  // When in check, search starts here
         thisThread->mainHistory[~us][((ss - 1)->currentMove).from_to()]
           << scaledBonus * 203 / 32768;
 
-		// TODO : あとで。pawn history。
-		#if 0
+#if STOCKFISH
         if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
+#else
+		// TODO : これで合ってるか？あとで検証する。
+        if (type_of(pos.piece_on(prevSq)) != PAWN && !(ss - 1)->currentMove.is_promote())
+#endif
             thisThread->pawnHistory[pawn_structure_index(pos)][pos.piece_on(prevSq)][prevSq]
               << scaledBonus * 1040 / 32768;
-		#endif
     }
 
     // Bonus for prior capture countermove that caused the fail low
@@ -3917,8 +3886,6 @@ moves_loop:  // When in check, search starts here
     // Adjust correction history
 	// correction historyの調整
 
-	// TODO : あとで。correction history
-	#if 0 
 	if (!ss->inCheck && !(bestMove && pos.capture(bestMove))
         && ((bestValue < ss->staticEval && bestValue < beta)  // negative correction & no fail high
             || (bestValue > ss->staticEval && bestMove)))     // positive correction & no fail low
@@ -3927,7 +3894,6 @@ moves_loop:  // When in check, search starts here
                                 -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
         update_correction_history(pos, ss, *thisThread, bonus);
     }
-	#endif
 
 	// 👉 qsearch()内の末尾にあるassertの文の説明を読むこと。
 	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
@@ -4193,10 +4159,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 	}
     else
     {
-#if STOCKFISH
-		// TODO : あとで correction history
-        // const auto correctionValue = correction_value(*thisThread, pos, ss);
-#endif
+        const auto correctionValue = correction_value(*thisThread, pos, ss);
 
 		if (ss->ttHit)
         {
@@ -4217,14 +4180,10 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 			}
 #endif
 
-#if STOCKFISH
-			ss->staticEval = bestValue
+			ss->staticEval = bestValue =
 				to_corrected_static_eval(unadjustedStaticEval, correctionValue);
-#else
-            // TODO : あとで修正する
-            ss->staticEval = bestValue = unadjustedStaticEval;
-#endif
-            // ttValue can be used as a better position evaluation
+
+			// ttValue can be used as a better position evaluation
             // ttValueは、より良い局面評価として使用できる
 
 			/*
@@ -4242,12 +4201,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         else
         {
             // -----------------------
-            //      一手詰め判定
+            //  🌈 一手詰め判定
             // -----------------------
 
             // 置換表にhitした場合は、すでに詰みを調べたはずなので
             // 置換表にhitしなかったときにのみ調べる。
-            // 📌 この処理は、やねうら王独自
 
 			ASSERT_LV3(!ss->inCheck && !ss->ttHit);
             if (true)
@@ -4278,15 +4236,12 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                 }
             }
 
-			// 💡 ここからStockfishの元のコード
+			// 📌 ここからStockfishの元のコード 📌
 
-#if STOCKFISH
             unadjustedStaticEval = evaluate(pos);
 
             ss->staticEval = bestValue =
 				to_corrected_static_eval(unadjustedStaticEval, correctionValue);
-#else
-            unadjustedStaticEval = evaluate(pos);
 
 #if 0       // 以前のコード
             unadjustedStaticEval =
@@ -4295,9 +4250,6 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                 : -(ss - 1)->staticEval;
 #endif
 
-            // TODO : あとで
-            ss->staticEval = bestValue = unadjustedStaticEval;
-#endif
         }
 
         // Stand pat. Return immediately if static value is at least beta
@@ -4362,12 +4314,9 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     MovePicker mp(pos, ttData.move, DEPTH_QS, &thisThread->mainHistory, &thisThread->lowPlyHistory,
                   &thisThread->captureHistory, contHist,
-#if defined(ENABLE_PAWN_HISTORY)
                   &thisThread->pawnHistory,
-#endif
 				  ss->ply
-#if STOCKFISH
-#else
+#if !STOCKFISH
 				  , search_options.generate_all_legal_moves
 #endif
 	);
@@ -4527,9 +4476,8 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         ss->currentMove = move;
         ss->continuationHistory =
           &thisThread->continuationHistory[ss->inCheck][capture][movedPiece][move.to_sq()];
-        //ss->continuationCorrectionHistory =
-        //  &thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
-		// TODO : あとで correction history
+        ss->continuationCorrectionHistory =
+          &thisThread->continuationCorrectionHistory[movedPiece][move.to_sq()];
 
         value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha);
         undo_move(pos, move);
@@ -4961,12 +4909,9 @@ void update_quiet_histories(
     update_continuation_histories(ss, pos.moved_piece(move), move.to_sq(),
                                   bonus * (bonus > 0 ? 1082 : 784) / 1024);
 
-    // TODO : pawnHistory必要か？
-#if defined(ENABLE_PAWN_HISTORY)
     int pIndex = pawn_structure_index(pos);
     workerThread.pawnHistory[pIndex][pos.moved_piece_after(move)][move.to_sq()]
       << bonus * (bonus > 0 ? 705 : 450) / 1024;
-#endif
 }
 
 } // namespace

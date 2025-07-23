@@ -41,6 +41,11 @@ struct StateInfo {
 
 #if defined(USE_PARTIAL_KEY)
 	// 位置を無視したPiece(手番考慮ありの駒)によるhash key
+    /*  📓
+			StockfishはZobrist::psq[pc][8 + 枚数] でxorしていく。
+			枚数にすると実装が面倒になるので、やねうら王は、
+			Zobrist::psq[pc][8]をaddしていく。
+	*/
     Key materialKey;
 
 	// 歩のhash key(盤上のみ)
@@ -72,6 +77,10 @@ struct StateInfo {
     // 🌈 この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
     int continuousCheck[COLOR_NB];
 #endif
+
+
+	// 📌 ここまではdo_move()のなかでmemcpy()でコピーされる 📌
+
 
 	// Not copied when making a move (will be recomputed anyhow)
 	// 指し手で局面を進めるときにコピーされない(なんにせよ再計算される)
@@ -443,6 +452,7 @@ public:
 	// マスsに駒がなければtrueが返る。
     bool empty(Square s) const;
 
+#if STOCKFISH
 	// 駒の枚数を返す。
     template<PieceType Pt>
     int count(Color c) const;
@@ -450,6 +460,7 @@ public:
 	// 駒の枚数を返す。(先後のPtの合計)
     template<PieceType Pt>
     int count() const;
+#endif
 
 	// c側のPtの場所(1枚しかない場合)を取得する。
     // ⚠ やねうら王では、Pt == KINGに対してしか使えないが、Stockfishも
@@ -1099,11 +1110,12 @@ private:
     // 盤上の先手/後手/両方の駒があるところが1であるBitboard
     Bitboard byColorBB[COLOR_NB];
 
-	// 各駒の数
+#if STOCKFISH
+    // 各駒の数
 	// 💡 手駒も含む。後手の手駒は、後手のPieceとみなしてカウントする。
     int pieceCount[PIECE_NB];
+	// ⇨  やねうら王では使わないことにした。
 
-#if STOCKFISH
     int      castlingRightsMask[SQUARE_NB];
     Square   castlingRookSquare[CASTLING_RIGHT_NB];
     Bitboard castlingPath[CASTLING_RIGHT_NB];
@@ -1181,6 +1193,7 @@ inline Bitboard Position::pieces(Color c, PieceTypes... pts) const {
     return pieces(c) & pieces(pts...);
 }
 
+#if STOCKFISH
 template<PieceType Pt>
 inline int Position::count(Color c) const {
     return pieceCount[make_piece(c, Pt)];
@@ -1191,7 +1204,6 @@ inline int Position::count() const {
     return count<Pt>(WHITE) + count<Pt>(BLACK);
 }
 
-#if STOCKFISH
 template<PieceType Pt>
 inline Square Position::square(Color c) const {
     assert(count<Pt>(c) == 1);
@@ -1296,9 +1308,11 @@ inline void Position::put_piece(Piece pc, Square s) {
 	// 先手・後手の駒のある場所を示すoccupied bitboardの更新
     byColorBB[color_of(pc)] |= s;
 
+#if STOCKFISH
 	// 駒のカウント
     pieceCount[pc]++;
     pieceCount[make_piece(color_of(pc), ALL_PIECES)]++;
+#endif
 }
 
 // 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
@@ -1309,8 +1323,10 @@ inline void Position::remove_piece(Square s) {
     byTypeBB[type_of(pc)] ^= s;
     byColorBB[color_of(pc)] ^= s;
     board[s] = NO_PIECE;
+#if STOCKFISH
     pieceCount[pc]--;
     pieceCount[make_piece(color_of(pc), ALL_PIECES)]--;
+#endif
 }
 
 #if !STOCKFISH
@@ -1319,16 +1335,16 @@ inline void Position::remove_piece(Square s) {
 inline void Position::put_hand_piece(Color c, PieceType pr)
 {
 	add_hand(hand[c], pr);
-    pieceCount[make_piece(c, pr)]++;
-    pieceCount[make_piece(c, ALL_PIECES)]++;
+    //pieceCount[make_piece(c, pr)]++;
+    //pieceCount[make_piece(c, ALL_PIECES)]++;
 }
 
 // remove_pieceの手駒版
 inline void Position::remove_hand_piece(Color c, PieceType pr)
 {
 	sub_hand(hand[c], pr);
-    pieceCount[make_piece(c, pr)]--;
-    pieceCount[make_piece(c, ALL_PIECES)]--;
+    //pieceCount[make_piece(c, pr)]--;
+    //pieceCount[make_piece(c, ALL_PIECES)]--;
 }
 
 inline bool is_ok(Position& pos) { return pos.pos_is_ok(); }

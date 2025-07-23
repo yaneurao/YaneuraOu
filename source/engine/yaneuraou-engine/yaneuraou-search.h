@@ -236,6 +236,44 @@ class SearchManager {
 };
 }
 
+// -----------------------
+//  探索のときに使うStack
+// -----------------------
+
+// 💡 このコードは、Stockfishの search.hにあったもの。
+
+// Stack struct keeps track of the information we need to remember from nodes
+// shallower and deeper in the tree during the search. Each search thread has
+// its own array of Stack objects, indexed by the current ply.
+
+// Stack構造体は、検索中にツリーの浅いノードや深いノードから記憶する必要がある情報を管理します。
+// 各検索スレッドは、現在の深さ（ply）に基づいてインデックスされた、独自のStackオブジェクトの配列を持っています。
+
+struct Stack {
+    Move* pv;  // PVへのポインター。RootMovesのvector<Move> pvを指している。
+    PieceToHistory*
+      continuationHistory;  // historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
+    CorrectionHistory<PieceTo>* continuationCorrectionHistory;
+    // [pc][to]のペアに対する correction history。
+    int  ply;          // rootからの手数。rootならば0。
+    Move currentMove;  // そのスレッドの探索においてこの局面で現在選択されている指し手
+    Move
+      excludedMove;  // singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
+    Value
+      staticEval;  // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+    int statScore;  // 一度計算したhistoryの合計値をcacheしておくのに用いる。
+    int
+      moveCount;  // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+    bool inCheck;          // この局面で王手がかかっていたかのフラグ
+    bool ttPv;             // 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
+    bool ttHit;            // 置換表にhitしたかのフラグ
+    int  cutoffCnt;        // cut off(betaを超えたので枝刈りとしてreturn)した回数。
+    int  reduction;        // このnodeでのreductionの量
+    bool isPvNode;         // PV nodeであるかのフラグ。
+    int  quietMoveStreak;  // quietの指し手が親nodeからこのnodeまでに何連続したか。
+};
+
+
 /*
    やねうら王 Engine(やねうら王の通常探索部)
 
@@ -362,15 +400,12 @@ class YaneuraOuWorker: public Worker {
     // →　この改造、レーティングがほぼ上がっていない。悪い改造のような気がする。
     ContinuationHistory continuationHistory[2][2];
 
-// TODO : あとで
-#if 0
-    PawnHistory           pawnHistory;
+    PawnHistory pawnHistory;
 
-	CorrectionHistory<Pawn>         pawnCorrectionHistory;
+    CorrectionHistory<Pawn>         pawnCorrectionHistory;
     CorrectionHistory<Minor>        minorPieceCorrectionHistory;
     CorrectionHistory<NonPawn>      nonPawnCorrectionHistory;
     CorrectionHistory<Continuation> continuationCorrectionHistory;
-#endif
 
 	TTMoveHistory ttMoveHistory;
 

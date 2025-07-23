@@ -122,14 +122,10 @@ MovePicker::MovePicker(const Position&              p,
                        const LowPlyHistory*         lph,
                        const CapturePieceToHistory* cph,
                        const PieceToHistory**       ch,
-#if defined(ENABLE_PAWN_HISTORY)
                        const PawnHistory* ph,
-#endif
                        int pl
-#if STOCKFISH
-#else
-                       ,
-                       bool generate_all_legal_moves
+#if !STOCKFISH
+                       ,bool generate_all_legal_moves
 #endif
                        ) :
     pos(p),
