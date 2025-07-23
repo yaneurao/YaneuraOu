@@ -1019,11 +1019,11 @@ constexpr u32 hand_exists(Hand hand, PieceType pr) { /* ASSERT_LV2(PIECE_HAND_ZE
 // 歩以外の手駒を持っているか
 constexpr u32 hand_except_pawn_exists(Hand hand) { return hand & (HAND_BIT_MASK ^ PIECE_BIT_MASK2[PAWN]); }
 
-// 手駒にpcをc枚加える
-constexpr void add_hand(Hand &hand, PieceType pr, int c = 1) { hand = (Hand)(hand + PIECE_TO_HAND[pr] * c); }
+// 手駒にpcを1枚加える。
+constexpr void add_hand(Hand &hand, PieceType pr) { hand = Hand(hand + PIECE_TO_HAND[pr]); }
 
-// 手駒からpcをc枚減ずる
-constexpr void sub_hand(Hand &hand, PieceType pr, int c = 1) { hand = (Hand)(hand - PIECE_TO_HAND[pr] * c); }
+// 手駒からpcを1枚減らす。
+constexpr void sub_hand(Hand &hand, PieceType pr) { hand = Hand(hand - PIECE_TO_HAND[pr]); }
 
 
 // 手駒h1のほうがh2より優れているか。(すべての種類の手駒がh2のそれ以上ある)

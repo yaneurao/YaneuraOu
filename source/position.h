@@ -805,6 +805,19 @@ public:
     void remove_piece(Square sq);
 
 #if !STOCKFISH
+	// put_pieceの手駒版
+    /*
+		📓 pieceCountについて。
+
+		盤面への駒の配置を put_piece(),remove_piece(),put_hand_piece(),remove_hand_piece()の
+		4つだけを用いれば、pieceCount[]は正しく更新される。
+	*/
+    void put_hand_piece(Color c, PieceType pt);
+
+	// remove_pieceの手駒版
+    // 💡 pieceCountもきちんと更新する。
+    void remove_hand_piece(Color c, PieceType pt);
+
     // put_piece(),remove_piece()を用いたあとに呼び出す必要がある。
     // 📝 やねうら王ではHDKのような駒が合成されたBitboardを用いるため。
     void update_bitboards();
@@ -1301,6 +1314,23 @@ inline void Position::remove_piece(Square s) {
 }
 
 #if !STOCKFISH
+
+// put_pieceの手駒版
+inline void Position::put_hand_piece(Color c, PieceType pr)
+{
+	add_hand(hand[c], pr);
+    pieceCount[make_piece(c, pr)]++;
+    pieceCount[make_piece(c, ALL_PIECES)]++;
+}
+
+// remove_pieceの手駒版
+inline void Position::remove_hand_piece(Color c, PieceType pr)
+{
+	sub_hand(hand[c], pr);
+    pieceCount[make_piece(c, pr)]--;
+    pieceCount[make_piece(c, ALL_PIECES)]--;
+}
+
 inline bool is_ok(Position& pos) { return pos.pos_is_ok(); }
 #endif
 

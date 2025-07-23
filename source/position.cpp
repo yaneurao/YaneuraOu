@@ -522,17 +522,19 @@ Position& Position::set(const std::string& sfen, StateInfo* si) {
         {
             // 個数が省略されていれば1という扱いをする。
             ct = max(ct, 1);
-            add_hand(hand[color_of(Piece(idx))], type_of(Piece(idx)), ct);
+            Piece pc = Piece(idx);
+            PieceType rpc = raw_type_of(Piece(idx));
 
             // FV38などではこの個数分だけpieceListに突っ込まないといけない。
             for (int i = 0; i < ct; ++i)
             {
-                PieceType rpc = raw_type_of(Piece(idx));
+				// 手駒を1枚増やす。
+                put_hand_piece(color_of(pc), rpc);
 
 #if defined(USE_EVAL_LIST)
                 PieceNumber piece_no = piece_no_count[rpc]++;
                 ASSERT_LV1(is_ok(piece_no));
-                evalList.put_piece(piece_no, color_of(Piece(idx)), rpc, i);
+                evalList.put_piece(piece_no, color_of(pc), rpc, i);
 #endif
             }
             ct = 0;
@@ -914,6 +916,11 @@ bool Position::attackers_to_exist(Square s, Bitboard occupied, Color c) const {
             & pieces(c));
 }
 #endif
+
+
+// 🚧
+
+
 
 // 盤面を先後反転させた時のsfen文字列を取得する。
 const std::string Position::flipped_sfen(int gamePly_) const
@@ -1556,9 +1563,9 @@ Move Position::to_move(Move16 m16) const
 // ----------------------------------
 
 // 指し手で盤面を1手進める。
-template <Color Us, typename T>
+// ⚠ m として Move::none()はもちろん、Move::null() , Move::resign()などお断り。
+template<Color Us, typename T>
 void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* tt) {
-    // Move::none()はもちろん、Move::null() , Move::resign()などお断り。
 
     ASSERT_LV3(m.is_ok());
     ASSERT_LV3(&newSt != st);
@@ -1690,20 +1697,20 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         // --- 駒打ち
 
         // 移動先の升は空のはず
-        ASSERT_LV2(piece_on(to) == NO_PIECE);
+        ASSERT_LV3(empty(to));
 
         Piece     pc = moved_piece_after(m);
         PieceType pr = raw_type_of(pc);
-        ASSERT_LV2(PAWN <= pr && pr < PIECE_HAND_NB);
+        ASSERT_LV3(PAWN <= pr && pr < PIECE_HAND_NB);
 
         // Zobrist keyの更新
         h -= Zobrist::hand[Us][pr];
         k ^= Zobrist::psq[pc][to];
 
-#if defined(ENABLE_PAWN_HISTORY)
+#if defined(USE_PARTIAL_KEY)
         // 打ち歩なら、pawnKeyの更新が必要
         if (pr == PAWN)
-            st->pawnKey_ ^= Zobrist::psq[pc][to];
+            st->pawnKey ^= Zobrist::psq[pc][to];
 #endif
 
         // なるべく早い段階でのTTに対するprefetch
@@ -1729,8 +1736,8 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
 #endif
 
-        // piece_no_of()のときにこの手駒の枚数を参照するのであとで更新。
-        sub_hand(hand[Us], pr);
+        // piece_no_of()のときにこの手駒の枚数を参照するので↑のあとで更新。
+        remove_hand_piece(Us, pr);
 
         // 王手している駒のbitboardを更新する。
         // 駒打ちなのでこの駒で王手になったに違いない。駒打ちで両王手はありえないので王手している駒はいまtoに置いた駒のみ。
@@ -1780,59 +1787,119 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         materialDiff = m.is_promote() ? Eval::ProDiffPieceValue[moved_pc] : 0;
 #endif
 
-        // 移動先の升にある駒
-        Piece to_pc = piece_on(to);
-        if (to_pc != NO_PIECE)
+		// 駒を取るのか？
+        if (captured != NO_PIECE)
         {
             // --- capture(駒の捕獲)
+
+			// 取られた駒のあったマス        	
+            Square capsq = to;
 
 #if defined(LONG_EFFECT_LIBRARY)
             // 移動先で駒を捕獲するときの利きの更新
             LongEffect::update_by_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc,
-                                                      to_pc);
+                                                      captured);
 #endif
 
             // 玉を取る指し手が実現することはない。この直前の局面で玉を逃げる指し手しか合法手ではないし、
             // 玉を逃げる指し手がないのだとしたら、それは詰みの局面であるから。
 
-            ASSERT_LV1(type_of(to_pc) != KING);
+            ASSERT_LV1(type_of(captured) != KING);
 
-            PieceType pr = raw_type_of(to_pc);
+#if defined(USE_PARTIAL_KEY)
+            // If the captured piece is a pawn, update pawn hash key, otherwise
+            // update non-pawn material.
+
+			// 取られた駒がポーンであれば、ポーン用のハッシュキーを更新し、
+            // そうでなければポーン以外の駒の持ち駒情報を更新する。
+
+            if (type_of(captured) == PAWN)
+            {
+#if STOCKFISH
+                if (m.type_of() == EN_PASSANT)
+                {
+                    capsq -= pawn_push(us);
+
+                    assert(pc == make_piece(us, PAWN));
+                    assert(to == st->epSquare);
+                    assert(relative_rank(us, to) == RANK_6);
+                    assert(piece_on(to) == NO_PIECE);
+                    assert(piece_on(capsq) == make_piece(them, PAWN));
+                }
+#endif
+                st->pawnKey ^= Zobrist::psq[captured][to];
+            }
+			else
+			{
+#if STOCKFISH
+                st->nonPawnMaterial[them] -= PieceValue[captured];
+				// やねうら王ではnonPawnMaterialは使わない。
+
+                st->nonPawnKey[them] ^= Zobrist::psq[captured][capsq];
+
+                if (type_of(captured) <= BISHOP)
+                    st->minorPieceKey ^= Zobrist::psq[captured][capsq];
+#else
+                st->nonPawnKey[them] ^= Zobrist::psq[captured][capsq];
+
+                if (is_minor_piece(captured))
+                    st->minorPieceKey ^= Zobrist::psq[captured][capsq];
+#endif
+			}
+#endif
+
+#if !STOCKFISH
+			PieceType pr = raw_type_of(captured);
 
             // 捕獲した駒に関するevalListの更新
 #if defined(USE_EVAL_LIST)
-            // このPieceNumberの駒が手駒に移動したのでEvalListのほうを更新しておく。
-            PieceNumber piece_no = piece_no_of(to);
-            ASSERT_LV3(is_ok(piece_no));
-            dp.dirty_num                  = 2;  // 動いた駒は2個
-            dp.pieceNo[1]                 = piece_no;
-            dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
-            evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
-            dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
+			// このPieceNumberの駒が手駒に移動したのでEvalListのほうを更新しておく。
+			PieceNumber piece_no = piece_no_of(to);
+			ASSERT_LV3(is_ok(piece_no));
+			dp.dirty_num                  = 2;  // 動いた駒は2個
+			dp.pieceNo[1]                 = piece_no;
+			dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
+			evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
+			dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
 #endif
 
             // 駒取りなら現在の手番側の駒が増える。
-            add_hand(hand[Us], pr);
+            // ⚠ put_hand_piece()は、↑の piece_no_of()に影響するので、
+            //    ↑のあとに行う必要がある。
+            put_hand_piece(Us, pr);
+#endif
 
+#if defined(USE_SFNN)
+            dp.remove_pc = captured;
+            dp.remove_sq = capsq;
+#endif
+
+	        // Update board and piece lists
             // 捕獲される駒の除去
             remove_piece(to);
 
             // 捕獲された駒が盤上から消えるので局面のhash keyを更新する
-            k ^= Zobrist::psq[to_pc][to];
+            k ^= Zobrist::psq[captured][capsq];
+#if !STOCKFISH
             h += Zobrist::hand[Us][pr];
-
-#if defined(ENABLE_PAWN_HISTORY)
-            // 歩を捕獲したならば、その歩をpawnKeyから除去。
-            if (type_of(to_pc) == PAWN)
-                st->pawnKey_ ^= Zobrist::psq[to_pc][to];
 #endif
 
-            // 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
-            st->capturedPiece = to_pc;
+#if defined(USE_PARTIAL_KEY)
+			st->materialKey ^= Zobrist::psq[captured][8 + pieceCount[captured]];
+#endif
+
+#if STOCKFISH
+	        // Reset rule 50 counter
+            st->rule50 = 0;
+#else
 
 #if defined(USE_PIECE_VALUE)
             // 評価関数で使う駒割りの値も更新
-            materialDiff += Eval::CapturePieceValue[to_pc];
+            materialDiff += Eval::CapturePieceValue[captured];
+#endif
+
+			// 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
+            st->capturedPiece = captured;
 #endif
         }
         else
@@ -1880,15 +1947,15 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         k ^= Zobrist::psq[moved_pc][from];
         k ^= Zobrist::psq[moved_after_pc][to];
 
-#if defined(ENABLE_PAWN_HISTORY)
+#if defined(USE_PARTIAL_KEY)
         // 歩の移動ならば移動元の歩を除去
         if (type_of(moved_pc) == PAWN)
         {
-            st->pawnKey_ ^= Zobrist::psq[moved_pc][from];
+            st->pawnKey ^= Zobrist::psq[moved_pc][from];
 
             // 成ってないなら移動先に歩を配置
-            if (!is_promote(m))
-                st->pawnKey_ ^= Zobrist::psq[moved_pc][to];
+            if (!m.is_promote())
+                st->pawnKey ^= Zobrist::psq[moved_pc][to];
         }
 #endif
 
@@ -2125,13 +2192,13 @@ Key Position::key_after(Move m) const {
         Piece moved_after_pc = m.is_promote() ? make_promoted_piece(moved_pc) : moved_pc;
 
         // 移動先の升にある駒
-        Piece to_pc = piece_on(to);
-        if (to_pc != NO_PIECE)
+        Piece captured = piece_on(to);
+        if (captured != NO_PIECE)
         {
-            PieceType pr = raw_type_of(to_pc);
+            PieceType pr = raw_type_of(captured);
 
             // 捕獲された駒が盤上から消えるので局面のhash keyを更新する
-            k ^= Zobrist::psq[to_pc][to];
+            k ^= Zobrist::psq[captured][to];
             h += Zobrist::hand[Us][pr];
         }
 
@@ -2178,8 +2245,8 @@ void Position::undo_move_impl(Move m) {
 #if defined(USE_EVAL_LIST)
         evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
 #endif
-
-        add_hand(hand[Us], pt);
+		// 手駒が増える
+        put_hand_piece(Us, pt);
 
         // toの場所から駒を消す
         remove_piece(to);
@@ -2219,7 +2286,7 @@ void Position::undo_move_impl(Move m) {
             evalList.put_piece(piece_no2, to, to_pc);
 
             // 手駒から減らす
-            sub_hand(hand[Us], raw_type_of(to_pc));
+            remove_hand_piece(Us, raw_type_of(to_pc));
 
             // 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
             // moved_pcが玉であることはあるが、いまkingSquareを更新してしまうと
@@ -2227,7 +2294,7 @@ void Position::undo_move_impl(Move m) {
             evalList.put_piece(piece_no, from, moved_pc);
 #else
             // 手駒から減らす
-            sub_hand(hand[Us], raw_type_of(to_pc));
+            remove_hand_piece(Us, raw_type_of(to_pc));
 #endif
 
 #if defined(LONG_EFFECT_LIBRARY)
