@@ -40,7 +40,7 @@ struct StateInfo {
     // 指し手で局面を進めるときにコピーされる。
 
 #if defined(USE_PARTIAL_KEY)
-	// 位置を無視した駒種と手番によるhash key
+	// 位置を無視したPiece(手番考慮ありの駒)によるhash key
     Key materialKey;
 
 	// 歩のhash key(盤上のみ)
@@ -339,16 +339,6 @@ public:
 	template <Color C>
 	Hand hand_of() const { ASSERT_LV3(is_ok(C));  return hand[C]; }
 
-	// c側の玉の位置を返す。
-	// Stockfishには
-	//   template<PieceType Pt> Square square(Color c) const
-	// というmethodがあるが、PtにはKINGしか渡せないので要らないと思う。
-	FORCE_INLINE Square king_square(Color c) const { ASSERT_LV3(is_ok(c)); return kingSquare[c]; }
-
-	// ↑のtemplate版
-	template <Color C>
-	Square king_square() const { ASSERT_LV3(is_ok(C)); return kingSquare[C]; }
-
 	// 保持しているデータに矛盾がないかテストする。
 	bool pos_is_ok() const;
 
@@ -464,6 +454,20 @@ public:
 
 	// 駒がない升が1になっているBitboardが返る
 	Bitboard empties() const { return pieces() ^ Bitboard(1); }
+
+	// 駒の枚数を返す。
+    template<PieceType Pt>
+    int count(Color c) const;
+
+	// 駒の枚数を返す。(先後のPtの合計)
+    template<PieceType Pt>
+    int count() const;
+
+	// c側のPtの場所(1枚しかない場合)を取得する。
+    // ⚠ やねうら王では、Pt == KINGに対してしか使えないが、Stockfishも
+	//     そういう使い方しかしていないので問題ない。
+    template<PieceType Pt>
+    Square square(Color c) const;
 
 	// --- 王手
 
@@ -658,20 +662,25 @@ public:
 
 #endif
 
-	// --- Accessing hash keys
+	// Accessing hash keys
+	// hash keysへのアクセス
 
-	// StateInfo::key()への簡易アクセス。
-	Key key() const { return st->key(); }
+	// 📝 StateInfoの同名のメンバーへの簡易アクセス。
 
+    Key key() const;
+#if defined(USE_PARTIAL_KEY)
+    Key material_key() const;
+    Key pawn_key() const;
+    Key minor_piece_key() const;
+    Key non_pawn_key(Color c) const;
+#endif
+
+#if !STOCKFISH
 	// ある指し手を指した後のhash keyを返す。
 	// 将棋だとこの計算にそこそこ時間がかかるので、通常の探索部でprefetch用に
 	// これを計算するのはあまり得策ではないが、詰将棋ルーチンでは置換表を投機的に
 	// prefetchできるとずいぶん速くなるのでこの関数を用意しておく。
 	Key key_after(Move m) const;
-
-#if defined(ENABLE_PAWN_HISTORY)
-	// 歩の陣形に対するhash key
-	Key pawn_key() const { return st->pawn_key(); }
 #endif
 
 	// --- misc
@@ -860,19 +869,21 @@ public:
 	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 
 private:
+    // Initialization helpers (used while setting up a position)
+	 // 初期化用のヘルパー（局面を設定する際に使用）
 
-	/// Position::set_state() computes the hash keys of the position, and other
-	/// data that once computed is updated incrementally as moves are made.
-	/// The function is only used when a new position is set up
+#if STOCKFISH
+	void set_castling_right(Color c, Square rfrom);
+#endif
 
-	// Position::set_state()は、局面のハッシュキーおよび、
-	// 一度計算されると手が指されるたびに差分更新されるその他のデータを計算します。
-	// この関数は、新しい局面が設定されたときのみ使用されます。
-
+	// StateInfoの初期化。Position::set()のタイミングで行われる。
 	void set_state() const;
 
-	// 王手になるbitboard等を更新する。set_state()とdo_move()のときに自動的に行われる。
-	// null moveのときは利きの更新を少し端折れるのでフラグを渡すことに。
+#if STOCKFISH
+    void set_check_info() const;
+#else
+	// 王手になるbitboard等を更新する。set_state()とdo_move()から呼び出される。
+	// 🌈 null moveのときは利きの更新を少し端折れるのでフラグを渡すことにした。
 	template <bool doNullMove,Color Us>
 	void set_check_info() const;
 
@@ -881,6 +892,10 @@ private:
 	{
 		sideToMove == BLACK ? set_check_info<doNullMove, BLACK>() : set_check_info<doNullMove, WHITE>();
 	}
+#endif
+
+    // Other helpers
+
 
 	// do_move()の先後分けたもの。内部的に呼び出される。
     template<Color Us, typename T>
@@ -898,42 +913,35 @@ private:
     EnteringKingRule ekr = EKR_NULL;
 	int enteringKingPoint[COLOR_NB];
 
-	// --- Bitboards
-	// alignas(16)を要求するものを先に宣言。
-
-	// 盤上の先手/後手/両方の駒があるところが1であるBitboard
-	Bitboard byColorBB[COLOR_NB];
-
-	// 駒が存在する升を表すBitboard。先後混在。
-	// pieces()の引数と同じく、ALL_PIECES,HDKなどのPieceで定義されている特殊な定数が使える。
-	Bitboard byTypeBB[PIECE_BB_NB];
-
-	// put_piece()やremove_piece()、xor_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
+	// put_piece()やremove_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
 	// bitboardの整合性を保つこと。
 	// また、put_piece_simple()は、put_piece()の王の升(kingSquare)を更新しない版。do_move()で用いる。
 
-	// 駒を配置して、内部的に保持しているBitboardなどを更新する。
-	// 注意1 : kingを配置したときには、このクラスのkingSqaure[]を更新しないといけないが、
-	// この関数のなかでは行っていないので呼び出し側で更新すること。
-	// 注意2 : evalListのほうの更新もこの関数のなかでは行っていないので必要ならば呼び出し側で更新すること。
-	// 例) 
-	// if (type_of(pc) == KING)
-	//		kingSquare[color_of(pc)] = sq;
-	// もしくはupdate_kingSquare()を呼び出すこと。
-	void put_piece(Square sq, Piece pc);
+	// 駒を配置して、内部的に保持しているBitboard、pieceCountも更新する。
+    /*
+		⚠ : kingを配置したときには、このクラスのkingSqaure[]を更新しないといけないが、
+			  この関数のなかでは行っていないので呼び出し側で更新すること。
+			  (StockfishはkingSquare[]を持っていないのでStockfishにはこれに該当する処理はない。)
+
+		⚠ :  evalListのほうの更新もこの関数のなかでは行っていないので必要ならば
+			   呼び出し側で更新すること。
+		例) 
+			if (type_of(pc) == KING)
+				kingSquare[color_of(pc)] = sq;
+			もしくはupdate_kingSquare()を呼び出すこと。
+	*/
+
+	void put_piece(Piece pc, Square sq);
 
 	// 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
 	void remove_piece(Square sq);
 
-	// sqの地点にpcを置く/取り除く、したとして内部で保持しているBitboardを更新する。
-	// 最後にupdate_bitboards()を呼び出すこと。
-	void xor_piece(Piece pc, Square sq);
-
-	// put_piece(),remove_piece(),xor_piece()を用いたあとに呼び出す必要がある。
+	// put_piece(),remove_piece()を用いたあとに呼び出す必要がある。
+	// 📝 やねうら王ではHDKのような駒が合成されたBitboardを用いるため。
 	void update_bitboards();
 
 	// このクラスが保持しているkingSquare[]の更新。
-	// put_piece(),remove_piece(),xor_piece()では玉の位置(kingSquare[])を
+	// put_piece(),remove_piece()では玉の位置(kingSquare[])を
 	// 更新してくれないので、自前で更新するか、一連の処理のあとにこの関数を呼び出す必要がある。
 	void update_kingSquare();
 
@@ -965,35 +973,59 @@ private:
 	PieceNumber piece_no_of(Piece pc, Square sq) const { return PIECE_NUMBER_ZERO; }
 	PieceNumber piece_no_of(Square sq) const { return PIECE_NUMBER_ZERO; }
 #endif
-	// ---
+
+	// --------------------
+    //    Data members
+    // --------------------
 
 	// 盤面、81升分の駒 + 1
-	Piece board[SQ_NB_PLUS1];
+    Piece board[SQ_NB_PLUS1];
 
-	// 手駒
-	Hand hand[COLOR_NB];
+	// 駒が存在する升を表すBitboard。先後混在。
+    // pieces()の引数と同じく、ALL_PIECES,HDKなどのPieceで定義されている特殊な定数が使える。
+    Bitboard byTypeBB[PIECE_BB_NB];
 
-	// 手番
-	Color sideToMove;
+    // 盤上の先手/後手/両方の駒があるところが1であるBitboard
+    Bitboard byColorBB[COLOR_NB];
 
-	// 玉の位置
-	Square kingSquare[COLOR_NB];
+	// 各駒の数
+    int pieceCount[PIECE_NB];
 
-	// 初期局面からの手数(初期局面 == 1)
-	int gamePly;
+#if STOCKFISH
+    int      castlingRightsMask[SQUARE_NB];
+    Square   castlingRookSquare[CASTLING_RIGHT_NB];
+    Bitboard castlingPath[CASTLING_RIGHT_NB];
+#endif
 
 	// 現局面に対応するStateInfoのポインタ。
-	// do_move()で次の局面に進むときは次の局面のStateInfoへの参照をdo_move()の引数として渡される。
-	//   このとき、undo_move()で戻れるようにStateInfo::previousに前のstの値を設定しておく。
-	// undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
-	StateInfo* st;
+    // do_move()で次の局面に進むときは次の局面のStateInfoへの参照をdo_move()の引数として渡される。
+    //   このとき、undo_move()で戻れるようにStateInfo::previousに前のstの値を設定しておく。
+    // undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
+    StateInfo* st;
+
+	// 初期局面からの手数(初期局面 == 1)
+    int gamePly;
+
+    // 手番
+    Color sideToMove;
+
+#if STOCKFISH
+    bool chess960;
+#else
+    // 手駒
+    Hand hand[COLOR_NB];
+
+    // 玉の位置
+    Square kingSquare[COLOR_NB];
 
 	// set_max_repetition_ply()で設定される、千日手の最大遡り手数
-	static int max_repetition_ply /* = 16 */;
+    static int max_repetition_ply /* = 16 */;
 
 #if defined(USE_EVAL_LIST)
-	// 評価関数で用いる駒のリスト
-	Eval::EvalList evalList;
+    // 評価関数で用いる駒のリスト
+    Eval::EvalList evalList;
+#endif
+
 #endif
 };
 
@@ -1058,7 +1090,7 @@ template <Color C>
 Bitboard Position::pinned_pieces(Square avoid) const
 {
 	Bitboard b, pinners, result = Bitboard(ZERO);
-	Square ksq = king_square(C);
+    Square   ksq = square<KING>(C);
 
 	// avoidを除外して考える。
 	Bitboard avoid_bb = ~Bitboard(avoid);
@@ -1083,7 +1115,7 @@ Bitboard Position::pinned_pieces(Square avoid) const
 template <Color C>
 Bitboard Position::pinned_pieces(Square from, Square to) const {
 	Bitboard b, pinners, result = Bitboard(ZERO);
-	Square ksq = king_square(C);
+    Square   ksq = square<KING>(C);
 
 	// avoidを除外して考える。
 	Bitboard avoid_bb = ~Bitboard(from);
@@ -1105,40 +1137,105 @@ Bitboard Position::pinned_pieces(Square from, Square to) const {
 	return result;
 }
 
-inline void Position::xor_piece(Piece pc, Square sq)
-{
-	// 先手・後手の駒のある場所を示すoccupied bitboardの更新
-	byColorBB[color_of(pc)] ^= sq;
-
-	// 先手 or 後手の駒のある場所を示すoccupied bitboardの更新
-	byTypeBB[ALL_PIECES] ^= sq;
-
-	// 駒別のBitboardの更新
-	// これ以外のBitboardの更新は、update_bitboards()で行なう。
-	byTypeBB[type_of(pc)] ^= sq;
-}
-
-// 駒を配置して、内部的に保持しているBitboardも更新する。
-inline void Position::put_piece(Square sq, Piece pc)
-{
-	ASSERT_LV2(board[sq] == NO_PIECE);
-	board[sq] = pc;
-	xor_piece(pc, sq);
-}
-
-// 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
-inline void Position::remove_piece(Square sq)
-{
-	Piece pc = board[sq];
-	ASSERT_LV3(pc != NO_PIECE);
-	board[sq] = NO_PIECE;
-	xor_piece(pc, sq);
-}
 
 inline bool is_ok(Position& pos) { return pos.pos_is_ok(); }
 
 // 盤面を出力する。(USI形式ではない) デバッグ用。
 std::ostream& operator<<(std::ostream& os, const Position& pos);
+
+// 🚧
+
+#if STOCKFISH
+template<PieceType Pt>
+inline Square Position::square(Color c) const {
+    assert(count<Pt>(c) == 1);
+    return lsb(pieces(c, Pt));
+}
+#else
+template<PieceType Pt>
+inline Square Position::square(Color c) const {
+    // やねうら王ではPt == KINGしか許容しない。
+    static_assert(Pt == KING);
+
+    // 📝 やねうら王では、lsb()が重いのでこれを使わない実装を考える。
+    return kingSquare[c];
+}
+#endif
+
+
+#if STOCKFISH
+inline Key Position::key() const { return adjust_key50<false>(st->key); }
+
+template<bool AfterMove>
+inline Key Position::adjust_key50(Key k) const {
+    return st->rule50 < 14 - AfterMove ? k : k ^ make_key((st->rule50 - (14 - AfterMove)) / 8);
+}
+#else
+inline Key Position::key() const { return st->key(); }
+#endif
+
+#if defined(USE_PARTIAL_KEY)
+inline Key Position::pawn_key() const { return st->pawnKey; }
+
+inline Key Position::material_key() const { return st->materialKey; }
+
+inline Key Position::minor_piece_key() const { return st->minorPieceKey; }
+
+inline Key Position::non_pawn_key(Color c) const { return st->nonPawnKey[c]; }
+#endif
+
+#if STOCKFISH
+inline Value Position::non_pawn_material(Color c) const { return st->nonPawnMaterial[c]; }
+
+inline Value Position::non_pawn_material() const {
+    return non_pawn_material(WHITE) + non_pawn_material(BLACK);
+}
+#endif
+
+// 🚧
+
+template<PieceType Pt>
+inline int Position::count(Color c) const {
+    return pieceCount[make_piece(c, Pt)];
+}
+
+template<PieceType Pt>
+inline int Position::count() const {
+    return count<Pt>(WHITE) + count<Pt>(BLACK);
+}
+
+// 駒を配置して、内部的に保持しているBitboard、pieceCountも更新する。
+inline void Position::put_piece(Piece pc, Square s) {
+
+	board[s] = pc;
+
+    // byTypeBB[type_of(pc)]は、駒別のBitboard
+	// byTypeBB[ALL_PIECES ]は、任意の駒がある場所を示すBitboard
+	// これらを同時に更新する。
+    byTypeBB[ALL_PIECES] |= byTypeBB[type_of(pc)] |= s;
+
+	// 先手・後手の駒のある場所を示すoccupied bitboardの更新
+    byColorBB[color_of(pc)] |= s;
+
+	// 駒のカウント
+    pieceCount[pc]++;
+    pieceCount[make_piece(color_of(pc), ALL_PIECES)]++;
+}
+
+// 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
+inline void Position::remove_piece(Square s) {
+
+	Piece pc = board[s];
+    byTypeBB[ALL_PIECES] ^= s;
+    byTypeBB[type_of(pc)] ^= s;
+    byColorBB[color_of(pc)] ^= s;
+    board[s] = NO_PIECE;
+    pieceCount[pc]--;
+    pieceCount[make_piece(color_of(pc), ALL_PIECES)]--;
+}
+
+
+
 
 } // namespace YaneuraOu
 

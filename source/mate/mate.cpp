@@ -37,7 +37,7 @@ namespace Mate {
 
 		Color us = pos.side_to_move();
 		Color them = ~us;
-		Bitboard around8 = kingEffect(pos.king_square(them));
+        Bitboard around8 = kingEffect(pos.square<KING>(them));
 
 		// const剥がし
 		Position* This = ((Position*)&pos);
@@ -59,7 +59,7 @@ namespace Mate {
 				&& (m.is_drop() ? pos.effected_to(us, to) : (bool)(pos.attackers_to(us, to, pos.pieces() ^ m.from_sq()) ^ m.from_sq()))
 
 				// 敵玉の利きは必ずtoにあるのでそれを除いた利きがあるかどうか。
-				&& (pos.attackers_to(them, to, pos.pieces()) ^ pos.king_square(them))
+                && (pos.attackers_to(them, to, pos.pieces()) ^ pos.square<KING>(them))
 #else
 				&& (m.is_drop() ? pos.effected_to(us, to) :
 					pos.board_effect[us].effect(to) >= 2 ||

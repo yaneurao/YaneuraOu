@@ -416,7 +416,7 @@ namespace {
 	template<Color OurKing>
 	Bitboard AttacksAroundKingNonSlider(const Position& pos)
 	{
-		Square sq_king = pos.king_square<OurKing>();
+		Square sq_king = pos.square<KING>(OurKing);
 		constexpr Color Them = ~OurKing;
 		Square from;
 		Bitboard bb;
@@ -458,7 +458,7 @@ namespace {
 	{
 		constexpr Color Them = ~OurKing;
 
-		Square sq_king = pos.king_square<OurKing>();
+		Square   sq_king = pos.square<KING>(OurKing);
 		Square from;
 		Bitboard bb;
 		Bitboard sum(ZERO);
@@ -487,7 +487,7 @@ namespace {
 	template <Color Us>
 	Bitboard AttacksAroundKingNonSliderInAvoiding(const Position& pos, Square avoid_from)
 	{
-		Square sq_king = pos.king_square(Us);
+		Square sq_king = pos.square<KING>(Us);
 		constexpr Color Them = ~Us;
 		Bitboard bb;
 		Bitboard avoid_bb = ~Bitboard(avoid_from);
@@ -560,7 +560,7 @@ namespace {
 		// captureの場合、もともとtoには駒があるわけで、ここをxorで処理するわけにはいかない。
 		Bitboard slide = slide_ | to;
 
-		Square sq_king = pos.king_square(Us);
+		Square sq_king = pos.square<KING>(Us);
 		/*
 		// kingもいないものとして考える必要がある。
 		slide ^= sq_king;
@@ -591,7 +591,7 @@ namespace {
 		// toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
 		Bitboard slide = slide_ | to;
 
-		Square sq_king = pos.king_square(Us);
+		Square sq_king = pos.square<KING>(Us);
 		// kingもいないものとして考える必要がある。
 		slide ^= sq_king;
 		// これは呼び出し側でbb_avoidを計算するときに保証するものとする。
@@ -625,7 +625,7 @@ namespace {
 		// toには駒が置かれているのでこれにより利きの遮断は発生している。(attackers_to()で利きを見るときに重要)
 		Bitboard slide = slide_ | to;
 
-		Square sq_king = pos.king_square<Us>();
+		Square sq_king = pos.square<KING>(Us);
 		// kingもいないものとして考える必要がある。
 		slide ^= sq_king;
 		// これは呼び出し側でbb_avoidを計算するときに保証するものとする。
@@ -656,7 +656,7 @@ namespace {
 	template <Color Us>
 	bool can_piece_capture(const Position& pos, Square to, const Bitboard& pinned, const Bitboard& slide)
 	{
-		Square sq_king = pos.king_square(Us);
+		Square sq_king = pos.square<KING>(Us);
 
 		// 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
 		Bitboard sum = pos.pieces<KING>().andnot(pos.attackers_to<Us>(to, slide));
@@ -682,7 +682,7 @@ namespace {
 	{
 		ASSERT_LV3(is_ok(to));
 
-		Square sq_king = pos.king_square<Us>();
+		Square sq_king = pos.square<KING>(Us);
 
 		// 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがあるので玉では取れないものとする)
 		Bitboard sum = (pos.pieces(KING) | Bitboard(avoid)).andnot(pos.attackers_to<Us>(to, slide));
@@ -719,7 +719,7 @@ namespace Mate {
 		ASSERT_LV3(!pos.checkers());
 
 		constexpr Color Them = ~Us;
-		Square sq_king = pos.king_square(Them);
+        Square          sq_king = pos.square<KING>(Them);
 
 		// 移動させると(相手側＝非手番側)の玉に対して空き王手となる候補の(手番側)駒のbitboard。
 		Bitboard dcCandidates = pos.blockers_for_king(Them) & pos.pieces<Us>();
@@ -912,7 +912,7 @@ namespace Mate {
 		Bitboard our_pinned = pos.blockers_for_king<Us>() & pos.pieces<Us>();
 
 		// 自玉
-		Square our_king = pos.king_square<Us>();
+        Square our_king = pos.square<KING>(Us);
 
 		// 龍
 		bb = pos.pieces<Us,DRAGON>();
@@ -1082,7 +1082,7 @@ namespace Mate {
 
 				// これで王手になってないと駄目
 				if (!(bb_attacks & sq_king)) { continue; }
-				if (pos.discovered(from, to, pos.king_square<Us>(), our_pinned)) { continue; }
+                if (pos.discovered(from, to, pos.square<KING>(Us), our_pinned)) { continue; }
 				if (can_king_escape<Them>(pos, from, to, bb_attacks, slide)) { continue; }
 				// 移動元で角だとpin方向を変える王手なので、これは両王手である。
 				if (dcCandidates & from)

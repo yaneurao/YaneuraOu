@@ -208,7 +208,7 @@ struct SfenPacker
 
 		// 先手玉、後手玉の位置、それぞれ7bit
 		for(auto c : COLOR)
-			stream.write_n_bit(pos.king_square(c), 7);
+			stream.write_n_bit(pos.square<KING>(c), 7);
 
 		// 盤面の駒は王以外はそのまま書き出して良し！
 		for (auto sq : SQ)
@@ -507,7 +507,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 		if (pc == NO_PIECE)
 			continue;
 
-		put_piece(sq, Piece(pc));
+		put_piece(Piece(pc), sq);
 
 	#if defined(USE_EVAL_LIST)
 		// evalListの更新

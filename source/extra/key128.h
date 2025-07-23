@@ -20,8 +20,9 @@ namespace YaneuraOu {
 
 // 置換表で用いるためにPositionクラスから得られるhash keyを64bit版の他に128,256bitに変更することが出来るのでそのための構造体。
 
-// 64bit版
+// hash key 64bit版
 using Key64 = uint64_t;
+
 
 // 128bit版
 struct alignas(16) Key128

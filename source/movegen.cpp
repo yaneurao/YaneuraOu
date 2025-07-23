@@ -350,7 +350,8 @@ template <Color Us> struct GenerateDropMoves {
 
 			// 打ち歩詰めチェック
 			// 敵玉に敵の歩を置いた位置に打つ予定だったのなら、打ち歩詰めチェックして、打ち歩詰めならそこは除外する。
-			Bitboard pe = pawnEffect<Them>(pos.king_square<Them>());
+
+			Bitboard pe = pawnEffect<Them>(pos.square<KING>(Them));
 			if (pe & target2)
 			{
 				Square to = pe.pop_c();
@@ -482,7 +483,7 @@ ExtMove* generate_evasions(const Position& pos, ExtMove* mlist)
 	int checkersCnt = 0;
 
 	// 自玉を移動させるので、この玉はないものとして利きを求める必要がある。
-	Square ksq = pos.king_square(Us);
+    Square   ksq = pos.square<KING>(Us);
 	Bitboard occ = pos.pieces() ^ Bitboard(ksq);
 
 	// 王手している駒のある升
@@ -801,7 +802,7 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 	// すなわち、y と (x | y)^y
 
 	constexpr Color Them = ~Us;
-	const Square themKing = pos.king_square(Them);
+    const Square    themKing = pos.square<KING>(Them);
 
 	// 以下の方法だとxとして飛(龍)は100%含まれる。角・馬は60%ぐらいの確率で含まれる。事前条件でもう少し省ければ良いのだが…。
 	const Bitboard x =

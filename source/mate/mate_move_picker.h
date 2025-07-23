@@ -88,7 +88,7 @@ namespace Mate {
 
 				// and node側の玉の手番
 				Color king_color = ((us == BLACK) ^ or_node) ? BLACK : WHITE;
-				auto ksq = pos.king_square(king_color);
+				auto ksq = pos.square<KING>(king_color);
 
 				// 玉は下段のほうが詰ませやすいはずなので下段の玉に対して加点する。
 				// ※　詰将棋だと ksq = SQ_NBもありうる

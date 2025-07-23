@@ -379,8 +379,8 @@ namespace Eval {
 		// →　32bit環境だとこの変数、単なるポインタなのでこのassertは意味がないのだが、
 		// とりあえず開発時に早期に気づくようにこのassertを入れておく。
 
-		Square sq_bk = pos.king_square(BLACK);
-		Square sq_wk = pos.king_square(WHITE);
+		Square sq_bk = pos.square<KING>(BLACK);
+		Square sq_wk = pos.square<KING>(WHITE);
 		const auto* ppkppb = kpp[sq_bk];
 		const auto* ppkppw = kpp[Inv(sq_wk)];
 
@@ -475,7 +475,7 @@ namespace Eval {
 
 	// 後手玉が移動したときの先手玉に対するの差分
 	std::array<s32, 2> do_a_black(const Position& pos, const ExtBonaPiece ebp) {
-		const Square sq_bk = pos.king_square(BLACK);
+		const Square sq_bk = pos.square<KING>(BLACK);
 		const auto* list0 = pos.eval_list()->piece_list_fb();
 		const int length = pos.eval_list()->length();
 
@@ -488,7 +488,7 @@ namespace Eval {
 
 	// 先手玉が移動したときの後手玉に対する差分
 	std::array<s32, 2> do_a_white(const Position& pos, const ExtBonaPiece ebp) {
-		const Square sq_wk = pos.king_square(WHITE);
+		const Square sq_wk = pos.square<KING>(WHITE);
 		const auto* list1 = pos.eval_list()->piece_list_fw();
 		const int length = pos.eval_list()->length();
 
@@ -508,8 +508,8 @@ namespace Eval {
 			 みたいなことをすべきだが、mはたかだか2なので、
 			 こうはせずに、引きすぎた重複分(kpp[k][n-1][n-2])をあとで加算している。
 		*/
-		const Square sq_bk = pos.king_square(BLACK);
-		const Square sq_wk = pos.king_square(WHITE);
+		const Square sq_bk = pos.square<KING>(BLACK);
+		const Square sq_wk = pos.square<KING>(WHITE);
 		const auto list0 = pos.eval_list()->piece_list_fb();
 		const auto list1 = pos.eval_list()->piece_list_fw();
 		const int length = pos.eval_list()->length();
@@ -667,8 +667,8 @@ namespace Eval {
 			// この意味においてdiffという名前は少々不適切ではあるが。
 			EvalSum diff = prev->sum;
 
-			auto sq_bk = pos.king_square(BLACK);
-			auto sq_wk = pos.king_square(WHITE);
+			auto sq_bk = pos.square<KING>(BLACK);
+			auto sq_wk = pos.square<KING>(WHITE);
 
 			// ΣKKPは最初から全計算するしかないので初期化する。
 			diff.p[2] = kk[sq_bk][sq_wk];
@@ -884,8 +884,8 @@ namespace Eval {
 
 				// 動いた駒が2つ。
 
-				auto sq_bk = pos.king_square(BLACK);
-				auto sq_wk = pos.king_square(WHITE);
+				auto sq_bk = pos.square<KING>(BLACK);
+				auto sq_wk = pos.square<KING>(WHITE);
 
 				diff += do_a_pc(pos, dp.changed_piece[1].new_piece);
 				diff.p[0] -= kpp[    sq_bk ][dp.changed_piece[0].new_piece.fb][dp.changed_piece[1].new_piece.fb];
@@ -1095,8 +1095,8 @@ namespace Eval {
 	{
 		cout << "--- EVAL STAT\n";
 
-		Square sq_bk = pos.king_square(BLACK);
-		Square sq_wk = pos.king_square(WHITE);
+		Square sq_bk = pos.square<KING>(BLACK);
+		Square sq_wk = pos.square<KING>(WHITE);
 		const auto* ppkppb = kpp[sq_bk];
 		const auto* ppkppw = kpp[Inv(sq_wk)];
 
