@@ -44,8 +44,7 @@ Key side;
 
 // 駒pcが盤上sqに配置されているときのZobrist Key
 // 💡 玉などは盤上にない場合、SQ_NBになるのでSQ_NB_PLUS1で確保する。
-// ⚠ やねうら王では、Zobrist::psqは[sq][pc]の順で、Stockfishとは逆である。
-Key psq[SQ_NB_PLUS1][PIECE_NB];
+Key psq[PIECE_NB][SQ_NB_PLUS1];
 
 // c側の手駒prが一枚増えるごとにこれを加算するZobristKey
 // 枚数ごとにhash keyのtableを用意するのは嫌なので、加算型にしてある。
@@ -141,7 +140,7 @@ void Position::init() {
 	for (auto pc : Piece())
 		for (auto sq : SQ)
 			if (pc)
-                set_rand(Zobrist::psq[sq][pc]);
+                set_rand(Zobrist::psq[pc][sq]);
 	
 	// またpr==NO_PIECEのときは0であることを保証したいのでSET_HASHしない。
 	for (auto c : COLOR)
@@ -616,22 +615,20 @@ void Position::set_state() const {
         }
     }
 #else
-	// ⚠ やねうら王では、Zobrist::psqは[sq][pc]の順で、Stockfishとは逆である。
-
-	for (auto sq : pieces())
+	for (auto s : pieces())
 	{
-		auto pc = piece_on(sq);
+		auto pc = piece_on(s);
 
-		st->board_key ^= Zobrist::psq[sq][pc];
+		st->board_key ^= Zobrist::psq[pc][s];
 
 #if defined(USE_PARTIAL_KEY)
         if (type_of(pc) == PAWN)
 			// 歩によるhash key
-            st->pawnKey ^= Zobrist::psq[sq][pc];
+            st->pawnKey ^= Zobrist::psq[pc][s];
 		else
 		{
 			// 歩以外によるhash key
-            st->nonPawnKey[color_of(pc)] ^= Zobrist::psq[sq][pc];
+            st->nonPawnKey[color_of(pc)] ^= Zobrist::psq[pc][s];
 
             if (type_of(pc) != KING)
             {
@@ -640,7 +637,7 @@ void Position::set_state() const {
 				// 香・桂・銀・金とその成駒に限ることにする。
                 auto pt = raw_type_of(pc);
                 if (pt == LANCE || pt == KNIGHT || pt == SILVER || pt == GOLD)
-                    st->minorPieceKey ^= Zobrist::psq[sq][pc];
+                    st->minorPieceKey ^= Zobrist::psq[pc][s];
             }
 		}
 
@@ -1466,12 +1463,12 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 
 		// Zobrist keyの更新
 		h -= Zobrist::hand[Us][pr];
-		k ^= Zobrist::psq[to][pc];
+        k ^= Zobrist::psq[pc][to];
 
 #if defined(ENABLE_PAWN_HISTORY)
 		// 打ち歩なら、pawnKeyの更新が必要
 		if (pr == PAWN)
-			st->pawnKey_ ^= Zobrist::psq[to][pc];
+            st->pawnKey_ ^= Zobrist::psq[pc][to];
 #endif
 
 		// なるべく早い段階でのTTに対するprefetch
@@ -1583,13 +1580,13 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 			remove_piece(to);
 
 			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
-			k ^= Zobrist::psq[to][to_pc];
+            k ^= Zobrist::psq[to_pc][to];
 			h += Zobrist::hand[Us][pr];
 
 #if defined(ENABLE_PAWN_HISTORY)
 			// 歩を捕獲したならば、その歩をpawnKeyから除去。
 			if (type_of(to_pc)==PAWN)
-				st->pawnKey_ ^= Zobrist::psq[to][to_pc];
+                st->pawnKey_ ^= Zobrist::psq[to_pc][to];
 #endif
 
 			// 捕獲した駒をStateInfoに保存しておく。(undo_moveのため)
@@ -1639,18 +1636,19 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 			kingSquare[Us] = to;
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
-		k ^= Zobrist::psq[from][moved_pc];
-		k ^= Zobrist::psq[to][moved_after_pc];
+
+		k ^= Zobrist::psq[moved_pc][from];
+        k ^= Zobrist::psq[moved_after_pc][to];
 
 #if defined(ENABLE_PAWN_HISTORY)
 		// 歩の移動ならば移動元の歩を除去
 		if (type_of(moved_pc)==PAWN)
 		{
-			st->pawnKey_ ^= Zobrist::psq[from][moved_pc];
+            st->pawnKey_ ^= Zobrist::psq[moved_pc][from];
 
 			// 成ってないなら移動先に歩を配置
 			if (!is_promote(m))
-				st->pawnKey_ ^= Zobrist::psq[to][moved_pc];
+                st->pawnKey_ ^= Zobrist::psq[moved_pc][to];
 		}
 #endif
 
@@ -1866,8 +1864,8 @@ Key Position::key_after(Move m) const {
 		Piece pc = make_piece(Us, pr);
 
 		// Zobrist keyの更新
-        k ^= Zobrist::psq[to][pc];
-        h -= Zobrist::hand[Us][pr];
+        k ^= Zobrist::psq[pc][to];
+        h -= Zobrist::hand[pr][Us];
 	}
 	else
 	{
@@ -1890,13 +1888,13 @@ Key Position::key_after(Move m) const {
 			PieceType pr = raw_type_of(to_pc);
 
 			// 捕獲された駒が盤上から消えるので局面のhash keyを更新する
-			k ^= Zobrist::psq [to][to_pc];
-			h += Zobrist::hand[Us][pr   ];
+            k ^= Zobrist::psq [to_pc][to];
+			h += Zobrist::hand[Us   ][pr];
 		}
 
 		// fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
-		k ^= Zobrist::psq[from][moved_pc      ];
-		k ^= Zobrist::psq[to  ][moved_after_pc];
+        k ^= Zobrist::psq[moved_pc][from];
+        k ^= Zobrist::psq[moved_after_pc][to];
 	}
 
 	return k ^ h;
