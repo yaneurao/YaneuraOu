@@ -1759,11 +1759,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
 	// posKey       : このnodeのhash key
 
-#if STOCKFISH
 	Key        posKey;
-#else
-    HASH_KEY   posKey;
-#endif
 
     // move			: MovePickerから1手ずつもらうときの一時変数
     // excludedMove	: singular extemsionのときに除外する指し手
@@ -2068,13 +2064,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 			そのどちらが得なのかということのようである。
 	*/
 
-#if STOCKFISH
     posKey                         = pos.key();
-#else
-    // 🌈 やねうら王では、HASH_KEYのbit数は可変なのでこちらを呼び出す必要がある。
-    // ⚠ こちらを呼び出さないと、128bit hash keyのときに、TT.probe()と整合しないので注意。
-    posKey                         = pos.hash_key();
-#endif
     auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
 
     // Need further processing of the saved data
@@ -2863,7 +2853,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
             //     MovePickerはprob cutの時に、
             //    (GenerateAllLegalMovesオプションがオンであっても)歩の成らずは返してこないことを保証すべき。
 
-            movedPiece = pos.moved_piece_after(move);
+            movedPiece = pos.moved_piece(move);
 
 #if STOCKFISH
             do_move(pos, move, st);
@@ -4024,11 +4014,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     StateInfo st;
 
     // この局面のhash key
-#if STOCKFISH
-    Key posKey;
-#else
-    HASH_KEY posKey;
-#endif
+	Key posKey;
 
     // move				: MovePickerからもらった現在の指し手
     // bestMove			: この局面でのベストな指し手
@@ -4141,12 +4127,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     // Step 3. 置換表のlookup
     // -----------------------
 
-#if STOCKFISH
     posKey                         = pos.key();
-#else
-    // 🌈 やねうら王では、HASH_KEYのbit数は可変なのでこちらを呼び出す。
-    posKey                         = pos.hash_key();
-#endif
     auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
 
     // Need further processing of the saved data
@@ -4154,6 +4135,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     ss->ttHit   = ttHit;
     ttData.move = ttHit ? ttData.move : Move::none();
+
     ttData.value =
 #if STOCKFISH
       ttHit ? value_from_tt(ttData.value, ss->ply , pos.rule50_count()) : VALUE_NONE;

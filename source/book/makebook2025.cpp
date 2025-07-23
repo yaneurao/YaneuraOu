@@ -594,7 +594,7 @@ namespace MakeBook2025
 					// hashkey_to_indexには後手番の局面のhash keyからのindexを登録する。
 					StateInfo si;
 					pos.set(white_sfen, &si);
-					HASH_KEY white_hash_key = pos.hash_key();
+					Key white_hash_key = pos.key();
 					// 元の定跡ファイルにflipした局面は登録されていないものとする。
 					// ⇨  登録されていたら、あとから出現した局面を優先する。
 
@@ -691,7 +691,7 @@ namespace MakeBook2025
 				for (auto move : MoveList<LEGAL_ALL>(pos))
 				{
 					// moveで進めた局面が存在する時のhash値。
-					HASH_KEY next_hash = pos.hash_key_after(move);
+					Key next_hash = pos.key_after(move);
 
 					if (hashkey_to_index.count(next_hash) > 0)
 					{
@@ -1316,7 +1316,7 @@ namespace MakeBook2025
 		// ただし、flipして後手番にしたhashkeyを登録してある。
 		// ⇨　後手の局面はflipして先手の局面として格納している。ゆえに、格納されているのはすべて先手の局面であり、
 		// 　そこから1手進めると後手の局面となる。この時に、hash keyから既存の局面かどうかを調べたいので…。
-		using HashKey2Index = unordered_map<HASH_KEY, BookNodeIndex>;
+		using HashKey2Index = unordered_map<Key, BookNodeIndex>;
 		HashKey2Index hashkey_to_index;
 
 		// fast == trueのときは、テンポラリファイルではなくここに元の定跡ファイル上のSFEN文字列を溜めておく。

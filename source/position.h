@@ -43,13 +43,14 @@ struct StateInfo {
 	// 位置を無視した駒種と手番によるhash key
     Key materialKey;
 
-	// 歩のhash key
+	// 歩のhash key(盤上のみ)
     Key pawnKey;
 
-	// 小駒(歩、香、桂、銀、金 とその成り駒)によるhash key
+	// 小駒(香、桂、銀、金 とその成り駒)によるhash key
+	// 📝 チェスだとKnight, Bishop。
     Key minorPieceKey;
 
-	// 大駒(角、飛 とその成り駒)によるhash key
+	// 歩以外の駒によるhash key(盤上のみ)
     Key nonPawnKey[COLOR_NB];
 #endif
 
@@ -83,30 +84,26 @@ struct StateInfo {
 
 	// 💡 board_keyはZobrist::psqをxorしていく。hand_keyはZobrist::handを加算していく。key = board_key ^ hand_key。
 
-	HASH_KEY board_key_;
-	HASH_KEY hand_key_;
+	Key board_key;
+    Key hand_key;
 
 	// この局面のハッシュキー
 	// ※　次の局面にdo_move()で進むときに最終的な値が設定される
-	// board_key()は盤面のhash。hand_key()は手駒のhash。それぞれ加算したのがkey() 盤面のhash。
-	// board_key()のほうは、手番も込み。
+	// board_keyは盤面のhash。hand_keyは手駒のhash。それぞれxorしたのがkey 盤面のhash。
+	// board_keyのほうは、手番も込み。
     /*
-		📓 board_key()がなぜ必要なのか？
+		📓 board_keyがなぜ必要なのか？
 
 		盤面が同じで手駒だけ損している局面(劣等局面)を検出するためには、
 		同一の盤面であるかを高速に調べる必要があり、それには盤面のhash keyが必要となる。
-		それがboard_key()である。
-	*/ 
+		それがboard_keyである。
 
-	Key key()                     const { return hash_key_to_key(hash_key());       }
-	Key board_key()               const { return hash_key_to_key(board_hash_key()); }
-	Key hand_key()                const { return hash_key_to_key(hand_hash_key());  }
+		⚠ KeyからKey64(64bit key)が欲しい場合、
+		    暗黙の変換子が定義されているので単にKey64へcastすると良い。
+	*/
 
-	// HASH_KEY_BITSが128のときはKey128が返るhash key,256のときはKey256
+	Key key() const { return board_key ^ hand_key; }
 
-	HASH_KEY hash_key()           const { return board_key_ ^ hand_key_; }
-	HASH_KEY board_hash_key()     const { return board_key_            ; }
-	HASH_KEY hand_hash_key()      const { return              hand_key_; }
 #endif
 
 	// 現局面で手番側に対して王手をしている駒のbitboard
@@ -664,20 +661,17 @@ public:
 	// --- Accessing hash keys
 
 	// StateInfo::key()への簡易アクセス。
-	Key           key() const { return st->key()     ; }
-	HASH_KEY hash_key() const { return st->hash_key(); }
+	Key key() const { return st->key(); }
 
 	// ある指し手を指した後のhash keyを返す。
 	// 将棋だとこの計算にそこそこ時間がかかるので、通常の探索部でprefetch用に
 	// これを計算するのはあまり得策ではないが、詰将棋ルーチンでは置換表を投機的に
 	// prefetchできるとずいぶん速くなるのでこの関数を用意しておく。
-	Key      key_after     (Move m) const;
-	HASH_KEY hash_key_after(Move m) const;
+	Key key_after(Move m) const;
 
 #if defined(ENABLE_PAWN_HISTORY)
 	// 歩の陣形に対するhash key
-	// やねうら王ではbit0を手番に用いているので、ここを使わないように >> 1して値を返す。
-	Key pawn_key() const { return st->pawn_key() >> 1; }
+	Key pawn_key() const { return st->pawn_key(); }
 #endif
 
 	// --- misc

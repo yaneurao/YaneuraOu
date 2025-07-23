@@ -752,7 +752,7 @@ namespace Mate::Dfpn32
 				// 千日手が絡まずに詰み or 不詰を証明したので、置換表に保存する。
 				if (WithHash && (node->dn == 0 || node->pn == 0) && !node->repeated)
 				{
-					auto key = pos.state()->board_key();
+					Key key = pos.state()->board_key;
 					auto entry = hash_table->first_entry(key, pos.side_to_move());
 
 					// たぶん指し手mでこれを証明したはずなので、これを登録しておく。
@@ -990,7 +990,7 @@ namespace Mate::Dfpn32
 			{
 				// 置換表に登録されていれば、その結論を用いる。
 
-				auto key = pos.state()->board_key();
+				Key key = pos.state()->board_key;
 				auto entry = hash_table->first_entry(key, pos.side_to_move());
 
 				// 置換表の値で証明されたか？

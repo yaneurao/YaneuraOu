@@ -672,14 +672,14 @@ constexpr bool pretty_jp = false;
 #define HASH_KEY_BITS 64
 #endif
 
-// ここ、typedef ではなく usingで書きたいが、現時点でKey64が未定義なので…。
+// ここ、typedef ではなく usingで書きたいが、現時点でKey64,Key128,Key256が未定義なので…。
 
 #if HASH_KEY_BITS <= 64
-#define HASH_KEY Key64
+#define Key Key64
 #elif HASH_KEY_BITS <= 128
-#define HASH_KEY Key128
+#define Key Key128
 #else
-#define HASH_KEY Key256
+#define Key Key256
 #endif
 
 #if !defined(TT_CLUSTER_SIZE)

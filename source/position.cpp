@@ -37,22 +37,23 @@ Key side, noPawns;
 
 // 💡 Stockfishでは、Keyはuint64_tなので zeroは単に 0と書けるが、
 //     やねうら王は、HASH_KEYは64,128,256bitに拡張しているので…。
-HASH_KEY zero;
+Key zero;
 
 // 手番
-HASH_KEY side;
+Key side;
 
 // 駒pcが盤上sqに配置されているときのZobrist Key
 // 💡 玉などは盤上にない場合、SQ_NBになるのでSQ_NB_PLUS1で確保する。
-HASH_KEY psq[SQ_NB_PLUS1][PIECE_NB];
+// ⚠ やねうら王では、Zobrist::psqは[sq][pc]の順で、Stockfishとは逆である。
+Key psq[SQ_NB_PLUS1][PIECE_NB];
 
 // c側の手駒prが一枚増えるごとにこれを加算するZobristKey
 // 枚数ごとにhash keyのtableを用意するのは嫌なので、加算型にしてある。
-HASH_KEY hand[COLOR_NB][PIECE_HAND_NB];
+Key hand[COLOR_NB][PIECE_HAND_NB];
 
 #if defined(USE_PARTIAL_KEY)
 // 歩の陣形に関して盤上に歩が一枚もない時のhash key
-HASH_KEY noPawns;
+Key noPawns;
 #endif
 
 #endif
@@ -117,11 +118,11 @@ void Position::init() {
 	PRNG rng(20151225); // 開発開始日 == 電王トーナメント2015,最終日
 
 	// 乱数で初期化するコード
-	auto set_rand = [&](HASH_KEY& h) {
-        auto r1 = rng.rand<Key>();
-        auto r2 = rng.rand<Key>();
-        auto r3 = rng.rand<Key>();
-        auto r4 = rng.rand<Key>();
+	auto set_rand = [&](Key& h) {
+        auto r1 = rng.rand<Key64>();
+        auto r2 = rng.rand<Key64>();
+        auto r3 = rng.rand<Key64>();
+        auto r4 = rng.rand<Key64>();
         SET_HASH(h, r1, r2, r3, r4);
     };
 
@@ -557,44 +558,135 @@ const std::string Position::sfen_to_flipped_sfen(std::string sfen)
 void Position::set_state() const {
 
 #if STOCKFISH
-    st->key = st->materialKey = 0;
+
+	st->key = st->materialKey = 0;
+    st->minorPieceKey         = 0;
+    st->nonPawnKey[WHITE] = st->nonPawnKey[BLACK] = 0;
+    st->pawnKey                                   = Zobrist::noPawns;
+    st->nonPawnMaterial[WHITE] = st->nonPawnMaterial[BLACK] = VALUE_ZERO;
+    st->checkersBB = attackers_to(square<KING>(sideToMove)) & pieces(~sideToMove);
+
+    set_check_info();
+
 #else
 	// 🌈 やねうら王では、st->keyはboard_keyとhand_keyに分かれる。
-	st->board_key_ = sideToMove == BLACK ? Zobrist::zero : Zobrist::side;
-	st->hand_key_  = Zobrist::zero;
-    //st->materialKey = Zobrist::zero;
-#endif
+	st->board_key = Zobrist::zero;
+	st->hand_key  = Zobrist::zero;
 
 #if defined(USE_PARTIAL_KEY)
-	//st->pawnKey     = Zobrist::noPawns;
+    st->materialKey = Zobrist::zero;
+    st->minorPieceKey     = 0;
+    st->nonPawnKey[WHITE] = st->nonPawnKey[BLACK] = 0;
+    st->pawnKey     = Zobrist::noPawns;
 #endif
+    // 歩以外の駒の価値。やねうら王では使っていない。
+    // st->nonPawnMaterial[WHITE] = st->nonPawnMaterial[BLACK] = VALUE_ZERO;
 
     // この局面で自玉に王手している敵駒
     st->checkersBB = attackers_to(~sideToMove, king_square(sideToMove));
 
-    // 王手情報の初期化
+	// 王手情報の初期化
     set_check_info<false>();
+#endif
+
+
+#if STOCKFISH
+    for (Bitboard b = pieces(); b;)
+    {
+        Square s  = pop_lsb(b);
+        Piece  pc = piece_on(s);
+        st->key ^= Zobrist::psq[pc][s];
+
+        if (type_of(pc) == PAWN)
+            st->pawnKey ^= Zobrist::psq[pc][s];
+
+        else
+        {
+            st->nonPawnKey[color_of(pc)] ^= Zobrist::psq[pc][s];
+
+            if (type_of(pc) != KING)
+            {
+                st->nonPawnMaterial[color_of(pc)] += PieceValue[pc];
+
+				// 📝 StockfishはKNIGHTとBISHOPをminor pieceとして扱っているっぽい。
+
+                if (type_of(pc) <= BISHOP)
+                    st->minorPieceKey ^= Zobrist::psq[pc][s];
+            }
+        }
+    }
+#else
+	// ⚠ やねうら王では、Zobrist::psqは[sq][pc]の順で、Stockfishとは逆である。
 
 	for (auto sq : pieces())
 	{
 		auto pc = piece_on(sq);
-		st->board_key_ ^= Zobrist::psq[sq][pc];
 
-#if defined(ENABLE_PAWN_HISTORY)
+		st->board_key ^= Zobrist::psq[sq][pc];
+
+#if defined(USE_PARTIAL_KEY)
         if (type_of(pc) == PAWN)
-            st->pawnKey_ ^= Zobrist::psq[sq][pc];
+			// 歩によるhash key
+            st->pawnKey ^= Zobrist::psq[sq][pc];
+		else
+		{
+			// 歩以外によるhash key
+            st->nonPawnKey[color_of(pc)] ^= Zobrist::psq[sq][pc];
+
+            if (type_of(pc) != KING)
+            {
+                //st->nonPawnMaterial[color_of(pc)] += PieceValue[pc];
+
+				// 香・桂・銀・金とその成駒に限ることにする。
+                auto pt = raw_type_of(pc);
+                if (pt == LANCE || pt == KNIGHT || pt == SILVER || pt == GOLD)
+                    st->minorPieceKey ^= Zobrist::psq[sq][pc];
+            }
+		}
+
+		/*
+			🤔 手駒も含めたPARTIAL KEYにしたほうがいいかも知れないが、
+			    手駒は足し算にしているので、それに対応するのは容易ではない。
+			    盤上が同じで手駒違いの兄弟局面が現れることはレアケースなので
+				気にしないことにする。
+		*/
+
 #endif
-	}
+    }
 	for (auto c : COLOR)
 		for (PieceType pr = PAWN; pr < PIECE_HAND_NB; ++pr)
-			st->hand_key_ += Zobrist::hand[c][pr] * (int64_t)hand_count(hand[c], pr); // 手駒はaddにする(差分計算が楽になるため)
-
-	// pawnKeyは、手駒の歩も考慮したほうがいいんだろうけど手駒に応じた更新が面倒なので端折っておく。
-	// TODO : あとで実装するかも。
+			st->hand_key += Zobrist::hand[c][pr] * (int64_t)hand_count(hand[c], pr); // 手駒はaddにする(差分計算が楽になるため)
 
 	// --- hand
 	st->hand = hand[sideToMove];
+#endif
 
+#if STOCKFISH
+    if (st->epSquare != SQ_NONE)
+        st->key ^= Zobrist::enpassant[file_of(st->epSquare)];
+
+    if (sideToMove == BLACK)
+        st->key ^= Zobrist::side;
+
+    st->key ^= Zobrist::castling[st->castlingRights];
+
+    for (Piece pc : Pieces)
+        for (int cnt = 0; cnt < pieceCount[pc]; ++cnt)
+            st->materialKey ^= Zobrist::psq[pc][8 + cnt];
+
+#else
+
+	// 🌈 将棋では、WHITEが後手番なので、WHITEのほうをZobrist::sideにしておく。
+	if (sideToMove == WHITE)
+        st->board_key ^= Zobrist::side;
+
+//#if defined(USE_PARTIAL_KEY)
+//    for (Piece pc : Piece())
+//        for (int cnt = 0; cnt < pieceCount[pc]; ++cnt)
+//            st->materialKey ^= Zobrist::psq[8 + cnt][pc];
+//#endif
+
+#endif
 }
 
 // put_piece(),remove_piece(),xor_piece()を用いたあとに呼び出す必要がある。
@@ -1248,10 +1340,10 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 #if STOCKFISH
     Key k = st->key ^ Zobrist::side;
 #else
-    HASH_KEY k = st->board_key_ ^ Zobrist::side;
+    Key k = st->board_key ^ Zobrist::side;
 
 	// 🌈 将棋だと手駒がある。手駒用のhash keyを別途用意
-    HASH_KEY h = st->hand_key_;
+    Key h = st->hand_key;
 #endif
 
     // Copy some fields of the old state to our new StateInfo object except the
@@ -1274,7 +1366,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 #if STOCKFISH
     std::memcpy(&newSt, st, offsetof(StateInfo, key));
 #else
-    std::memcpy(static_cast<void*>(& newSt), st, offsetof(StateInfo, board_key_));
+    std::memcpy(static_cast<void*>(& newSt), st, offsetof(StateInfo, board_key));
 #endif
 	newSt.previous = st;
     st             = &newSt;
@@ -1386,7 +1478,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 		// 駒打ちのときはこの時点でTT entryのアドレスが確定できる
 		if constexpr (std::is_same_v<T, TranspositionTable>)
 		{
-            const HASH_KEY key = k ^ h;
+            const auto key = k ^ h;
             prefetch(tt->first_entry(key, them));
 		}
 
@@ -1565,7 +1657,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 		// 駒打ちでないときはprefetchはこの時点まで延期される。
         if constexpr (std::is_same_v<T, TranspositionTable>)
         {
-            const HASH_KEY key = k ^ h;
+            const auto key = k ^ h;
             prefetch(tt->first_entry(key, them));
         }
 
@@ -1638,8 +1730,8 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 	sideToMove = them;
 
 	// 更新されたhash keyをStateInfoに書き戻す。
-	st->board_key_ = k;
-	st->hand_key_  = h;
+	st->board_key = k;
+	st->hand_key  = h;
 
 	st->hand = hand[them];
 
@@ -1673,7 +1765,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         for (int i = 4; i <= end; i += 2)
         {
             stp = stp->previous->previous;
-            if (stp->board_key() == st->board_key())
+            if (stp->board_key == st->board_key)
             {
 				// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
 				if (stp->hand == st->hand)
@@ -1756,15 +1848,10 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 
 // ある指し手を指した後のhash keyを返す。
 Key Position::key_after(Move m) const {
-	return hash_key_to_key(hash_key_after(m));
-}
-
-// ある指し手を指した後のhash keyを返す。
-HASH_KEY Position::hash_key_after(Move m) const {
 
 	Color Us = side_to_move();
-	auto k = st->board_key_ ^ Zobrist::side;
-	auto h = st->hand_key_;
+	auto k = st->board_key ^ Zobrist::side;
+	auto h = st->hand_key;
 
 	// 移動先の升
 	Square to = m.to_sq();
@@ -2015,13 +2102,14 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
 	// 📝 以下のprefetchのfirst_entry()でやねうら王は、この時の手番が必要なので
     //     先に手番を変えておく。
     sideToMove = ~sideToMove;
-	st->board_key_ ^= Zobrist::side;
+
+	st->board_key ^= Zobrist::side;
 
 	// 🌈 やねうら王では、TTを引数に取らないこともできるように
 	//     template引数で実装している。
 	if constexpr (std::is_same_v<T, TranspositionTable>)
     {
-        const HASH_KEY key = st->hash_key();
+        const auto key = st->key();
         prefetch(tt.first_entry(key, sideToMove));
     }
 
@@ -2381,7 +2469,7 @@ RepetitionState Position::is_repetition(int ply) const
 
 		// board_key : 盤上の駒のみのhash(手駒を除く)
 		// 盤上の駒が同じ状態であるかを判定する。
-		if (stp->board_key() == st->board_key())
+		if (stp->board_key == st->board_key)
 		{
 			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
 			if (stp->hand == st->hand)
@@ -2468,7 +2556,7 @@ RepetitionState Position::is_repetition(int ply, int& found_ply) const
 
 		// board_key : 盤上の駒のみのhash(手駒を除く)
 		// 盤上の駒が同じ状態であるかを判定する。
-		if (stp->board_key() == st->board_key())
+		if (stp->board_key == st->board_key)
 		{
 			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
 			if (stp->hand == st->hand)

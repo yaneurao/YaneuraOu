@@ -83,13 +83,7 @@ struct TTData {
 
 struct TTWriter {
 public:
-
-#if STOCKFISH
     void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
-#else
-	// TTのTTEntryに書き込む。
-	void write(const HASH_KEY& k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
-#endif
 
 private:
 	friend class TranspositionTable;
@@ -167,7 +161,7 @@ public:
     std::tuple<bool, TTData, TTWriter> probe(
           const Key key) const;  // The main method, whose retvals separate local vs global objects
 #else
-	std::tuple<bool, TTData, TTWriter> probe(const HASH_KEY& key, const Position& pos) const;
+	std::tuple<bool, TTData, TTWriter> probe(const Key key, const Position& pos) const;
 #endif
 
 	// This is the hash function; its only external use is memory prefetching.
@@ -191,7 +185,7 @@ public:
     TTEntry* first_entry(const Key key)
       const;  // This is the hash function; its only external use is memory prefetching.
 #else
-	TTEntry* first_entry(const HASH_KEY& key, Color side_to_move) const;
+	TTEntry* first_entry(const Key& key, Color side_to_move) const;
 #endif
 
 	static void UnitTest(Test::UnitTester& unittest, IEngine& engine);

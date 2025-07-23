@@ -38,7 +38,7 @@ struct alignas(16) Key128
 	Key128() {}
 
 	// kを下位64bitに格納する(上位64bitは0)
-	Key128(const Key& k) { set(k, 0); }
+	Key128(const Key64& k) { set(k, 0); }
 
 #if defined (USE_SSE2)
 	Key128(const Key128& bb) { _mm_store_si128(&this->m, bb.m); }
@@ -48,7 +48,7 @@ struct alignas(16) Key128
 #endif
 
 	// 下位64bitをk0、上位64bitをk1にする。
-	void set(Key k0, Key k1) {
+	void set(Key64 k0, Key64 k1) {
 #if defined(USE_SSE2)
 	m = _mm_set_epi64x(k1,k0);
 #else
@@ -105,6 +105,9 @@ struct alignas(16) Key128
         }
         return this->p[1] < rhs.p[1];
     }
+
+	// Key64への暗黙の変換子
+	operator Key64() const { return static_cast<int64_t>(extract64<0>()); }
 };
 
 static std::ostream& operator << (std::ostream& os, const Key128& k)
@@ -127,14 +130,14 @@ struct alignas(32) Key256
 #endif
 
 	Key256() {}
-	Key256(const Key& k) { set(k, 0, 0, 0); }
+	Key256(const Key64& k) { set(k, 0, 0, 0); }
 #if defined(USE_AVX2)
 	Key256(const Key256& bb) { _mm256_store_si256(&this->m, bb.m); }
 	Key256& operator = (const Key256& rhs) { _mm256_store_si256(&this->m, rhs.m); return *this; }
 #endif
 
 	// 下位64bitから順にk0, k1, k2, k3に設定する。
-	void set(Key k0, Key k1, Key k2, Key k3) {
+	void set(Key64 k0, Key64 k1, Key64 k2, Key64 k3) {
 #if defined(USE_AVX2)
 	m = _mm256_set_epi64x(k3, k2, k1, k0);
 #else
@@ -183,6 +186,8 @@ struct alignas(32) Key256
 	Key256 operator + (const Key256& rhs) const { return Key256(*this) += rhs; }
 	Key256 operator ^ (const Key256& rhs) const { return Key256(*this) ^= rhs; }
 
+	// Key64への暗黙の変換子
+    operator Key64() const { return static_cast<int64_t>(extract64<0>()); }
 };
 
 static std::ostream& operator << (std::ostream& os, const Key256& k)
@@ -191,11 +196,6 @@ static std::ostream& operator << (std::ostream& os, const Key256& k)
 	os <<  k.extract64<3>() << ":" << k.extract64<2>() <<  k.extract64<1>() << ":" << k.extract64<0>();
 	return os;
 }
-
-// HASH_KEYをKeyに変換する。
-static Key hash_key_to_key(const Key     key) { return key               ; }
-static Key hash_key_to_key(const Key128& key) { return key.extract64<0>(); }
-static Key hash_key_to_key(const Key256& key) { return key.extract64<0>(); }
 
 } // namespace YaneuraOu
 

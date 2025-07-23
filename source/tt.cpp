@@ -245,7 +245,7 @@ void TTWriter::write(
 #else
 
 void TTWriter::write(
-  const HASH_KEY& k_, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+  const Key k_, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
 
 #if HASH_KEY_BITS <= 64
     const TTE_KEY_TYPE k = TTE_KEY_TYPE(k_);
@@ -442,7 +442,7 @@ uint8_t TranspositionTable::generation() const { return generation8; }
 //    probe()してhitしたときに ttData.moveは Move16のままなので ttData.move32(pos)を用いて取得する必要がある。
 //    そこで、probe()の第2引数にPositionを渡すようにして、Move16ではなくMoveに変換されたTTDataを返すことにする。
 
-std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const HASH_KEY& key, const Position& pos) const {
+std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, const Position& pos) const {
 
     TTEntry* const tte = first_entry(key, pos.side_to_move());
 
@@ -495,7 +495,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const HASH_KEY& key
 // keyを元にClusterのindexを求めて、その最初のTTEntry*を返す。内部実装用。
 // ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
 
-TTEntry* TranspositionTable::first_entry(const HASH_KEY& key_, Color side_to_move) const {
+TTEntry* TranspositionTable::first_entry(const Key& key_, Color side_to_move) const {
 
 #if STOCKFISH
 
@@ -508,12 +508,8 @@ TTEntry* TranspositionTable::first_entry(const HASH_KEY& key_, Color side_to_mov
 
 #else
 
-	const Key key =
-#if HASH_KEY_BITS <= 64
-      key_;
-#else
-      key_.extract64<0>();
-#endif
+	// ⚠ Key128, Key256ならば、これで key_.extract64<0>() の意味になる。
+	const Key64 key = Key64(key_);
 
 	/*
 		📓
@@ -585,7 +581,7 @@ void TranspositionTable::UnitTest(Test::UnitTester& unittest, IEngine& engine)
 		StateInfo si;
 		pos.set_hirate(&si);
 
-		HASH_KEY posKey = pos.hash_key();
+		Key posKey = pos.key();
 		auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
 		for (int i = 0; i < 10; ++i)
 		{
