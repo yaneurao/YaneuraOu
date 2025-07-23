@@ -5,6 +5,9 @@
 
 #include <iostream>
 
+// clang-format off
+// 🌈 indentに特別な意味があるので、clang-formatはこのファイルでは無効化しておく。
+
 using namespace std;
 namespace YaneuraOu {
 
@@ -346,7 +349,7 @@ template <Color Us> struct GenerateDropMoves {
 			// →　pawn_drop_mask()はQugiyのアルゴリズムを用いるように変更する。[2021/12/01]
 
 			// 歩の打てる場所
-			Bitboard target2 = target & pawn_drop_mask<Us>(pos.pieces<Us>(PAWN));
+			Bitboard target2 = target & pawn_drop_mask<Us>(pos.pieces(Us, PAWN));
 
 			// 打ち歩詰めチェック
 			// 敵玉に敵の歩を置いた位置に打つ予定だったのなら、打ち歩詰めチェックして、打ち歩詰めならそこは除外する。
@@ -555,8 +558,8 @@ ExtMove* generate_evasions(const Position& pos, ExtMove* mlist)
 // 返し値 : 生成した指し手の終端
 // generateMovesのほうから内部的に呼び出される。(直接呼び出さないこと。)
 template<MOVE_GEN_TYPE GenType, Color Us, bool All>
-ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = SQ_NB)
-{
+ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = SQ_NB) {
+
 	// --- 駒の移動による指し手
 
 	// ・移動先の升。
@@ -582,9 +585,9 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = 
 
 	// 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
 	const Bitboard targetPawn =
-		(GenType == NON_CAPTURES_PRO_MINUS) ?  enemy_field(Us).andnot(pos.empties())                          : // 駒を取らない指し手 かつ、歩の成る指し手を引いたもの
-		(GenType == CAPTURES_PRO_PLUS)      ? (pos.pieces<Us>().andnot(enemy_field(Us)) | pos.pieces<Them>()) : // 歩の場合は敵陣での成りもこれに含める
-		target;
+		(GenType == NON_CAPTURES_PRO_MINUS) ?  enemy_field(Us).andnot(pos.empties()) : // 駒を取らない指し手 かつ、歩の成る指し手を引いたもの
+        (GenType == CAPTURES_PRO_PLUS)      ? (pos.pieces(Us).andnot(enemy_field(Us)) | pos.pieces(Them)) :  // 歩の場合は敵陣での成りもこれに含める
+		                                       target;
 
 	// 各駒による移動の指し手の生成
 	// 歩の指し手は歩のBitboardをbit shiftすることで移動先が一発で求まるので特別扱い
@@ -617,9 +620,10 @@ ExtMove* generate_general(const Position& pos, ExtMove* mlist, Square recapSq = 
 
 // make_move_targetを呼び出すための踏み台
 // ptの駒をfromに置いたときの移動する指し手を生成する。ただし、targetで指定された升のみ。
-template <Color Us, bool All> struct make_move_target_general {
-	ExtMove* operator()(const Position& pos, Piece pc, Square from, const Bitboard& target, ExtMove* mlist)
-	{
+template <Color Us, bool All>
+struct make_move_target_general {
+	ExtMove* operator()(const Position& pos, Piece pc, Square from, const Bitboard& target, ExtMove* mlist) {
+
 		ASSERT_LV2(pc != NO_PIECE);
 		auto effect = effects_from(pc, from, pos.pieces());
 		switch (type_of(pc))
@@ -824,9 +828,9 @@ ExtMove* generate_checks(const Position& pos, ExtMove* mlist)
 	const Bitboard y = pos.blockers_for_king(Them) & pos.pieces(Us);
 
 	const Bitboard target =
-		(GenType == CHECKS       || GenType == CHECKS_ALL      ) ? ~pos.pieces<Us>() :           // 自駒がない場所が移動対象升
-		(GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL) ?  pos.empties()    :           // 捕獲の指し手を除外するため駒がない場所が移動対象升
-		Bitboard(1); // Error!
+		(GenType == CHECKS       || GenType == CHECKS_ALL      ) ? ~pos.pieces(Us) :           // 自駒がない場所が移動対象升
+		(GenType == QUIET_CHECKS || GenType == QUIET_CHECKS_ALL) ?  pos.empties()  :           // 捕獲の指し手を除外するため駒がない場所が移動対象升
+		                                                            Bitboard(1);               // Error!
 
 	// yのみ。ただしxかつyである可能性もある。
 	auto src = y;
@@ -1016,3 +1020,5 @@ template ExtMove* generateMoves<RECAPTURES            >(const Position& pos, Ext
 template ExtMove* generateMoves<RECAPTURES_ALL        >(const Position& pos, ExtMove* mlist, Square recapSq);
 
 } // namespace YaneuraOu
+
+// clang-format on

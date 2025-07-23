@@ -2,6 +2,9 @@
 
 #if defined(USE_MATE_1PLY) && !defined(LONG_EFFECT_LIBRARY)
 
+// clang-format off
+// 🌈 indentに特別な意味があるので、clang-formatはこのファイルでは無効化しておく。
+
 // 利きを用いない1手詰め判定用。(Bonanza6風)
 // やねうら王2014からの移植。
 
@@ -568,7 +571,7 @@ namespace {
 		*/
 
 		// bbとtoと自駒のないところから移動先を探す
-		Bitboard bb = (bb_avoid | to | pos.pieces<Us>()).andnot(kingEffect(sq_king));
+		Bitboard bb = (bb_avoid | to | pos.pieces(Us)).andnot(kingEffect(sq_king));
 
 		while (bb)
 		{
@@ -598,7 +601,7 @@ namespace {
 		// →　ああ、だめだ。fromの後ろにあった駒での開き王手が..
 
 		// bb_avoidとtoと自駒のないところから移動先を探す
-		Bitboard bb = (bb_avoid | to | pos.pieces<Us>()).andnot(kingEffect(sq_king));
+		Bitboard bb = (bb_avoid | to | pos.pieces(Us)).andnot(kingEffect(sq_king));
 
 		while (bb)
 		{
@@ -659,7 +662,7 @@ namespace {
 		Square sq_king = pos.square<KING>(Us);
 
 		// 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
-		Bitboard sum = pos.pieces<KING>().andnot(pos.attackers_to<Us>(to, slide));
+		Bitboard sum = pos.pieces(KING).andnot(pos.attackers_to<Us>(to, slide));
 		while (sum)
 		{
 			Square from = sum.pop();
@@ -722,10 +725,10 @@ namespace Mate {
         Square          sq_king = pos.square<KING>(Them);
 
 		// 移動させると(相手側＝非手番側)の玉に対して空き王手となる候補の(手番側)駒のbitboard。
-		Bitboard dcCandidates = pos.blockers_for_king(Them) & pos.pieces<Us>();
+        Bitboard dcCandidates = pos.blockers_for_king(Them) & pos.pieces(Us);
 
 		// 相手玉側のpinされている駒の列挙(相手玉側は、この駒を動かすと素抜きに遭う)
-		Bitboard pinned = pos.blockers_for_king<Them>() & pos.pieces<Them>();
+        Bitboard pinned = pos.blockers_for_king<Them>() & pos.pieces(Them);
 	
 		Square from, to;
 
@@ -903,19 +906,19 @@ namespace Mate {
 		// -- 移動による1手詰め
 
 		// 駒の移動可能な場所
-		Bitboard bb_move = ~pos.pieces<Us>();
+                Bitboard bb_move = ~pos.pieces(Us);
 
 		// 王手となる移動先
 		Bitboard bb_check;
 
 		// 自分のpin駒
-		Bitboard our_pinned = pos.blockers_for_king<Us>() & pos.pieces<Us>();
+        Bitboard our_pinned = pos.blockers_for_king<Us>() & pos.pieces(Us);
 
 		// 自玉
         Square our_king = pos.square<KING>(Us);
 
 		// 龍
-		bb = pos.pieces<Us,DRAGON>();
+        bb = pos.pieces(Us, DRAGON);
 		while (bb)
 		{
 			from = bb.pop();
@@ -1097,7 +1100,8 @@ namespace Mate {
 		}
 
 		// 香の移動王手
-		bb = check_cand_bb<Us>(PIECE_TYPE_CHECK_LANCE, sq_king) & pos.pieces<Us, LANCE>();
+        bb = check_cand_bb<Us>(PIECE_TYPE_CHECK_LANCE, sq_king) & pos.pieces(Us, LANCE);
+
 		while (bb)
 		{
 			from = bb.pop();
@@ -1534,7 +1538,8 @@ namespace Mate {
 		}
 
 		// 桂も成りと不成が選択できるので少し嫌らしい
-		bb = check_cand_bb(Us, PIECE_TYPE_CHECK_KNIGHT, sq_king)  & pos.pieces<Us, KNIGHT>();
+        bb = check_cand_bb(Us, PIECE_TYPE_CHECK_KNIGHT, sq_king) & pos.pieces(Us, KNIGHT);
+
 		while (bb)
 		{
 			from = bb.pop();
@@ -1580,7 +1585,8 @@ namespace Mate {
 		}
 
 		// 歩の移動による詰み
-		if (check_cand_bb<Us>(PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO, sq_king) & pos.pieces<Us, PAWN>())
+        if (check_cand_bb<Us>(PIECE_TYPE_CHECK_PAWN_WITH_NO_PRO, sq_king)
+            & pos.pieces(Us, PAWN))
 		{
 			// 先手の歩による敵玉の王手だとすると、敵玉の一升下(SQ_D)が歩の移動先。
 			to = sq_king + (Us == BLACK ? SQ_D : SQ_U);
@@ -1601,7 +1607,8 @@ namespace Mate {
 	SKIP_PAWN:;
 
 		// 歩の成りによる詰み
-		bb = check_cand_bb<Us>(PIECE_TYPE_CHECK_PAWN_WITH_PRO, sq_king) & pos.pieces<Us, PAWN>();
+        bb = check_cand_bb<Us>(PIECE_TYPE_CHECK_PAWN_WITH_PRO, sq_king) & pos.pieces(Us, PAWN);
+
 		while (bb)
 		{
 			from = bb.pop();
@@ -2172,5 +2179,7 @@ namespace Mate {
 //template Move Mate::mate_1ply_imp<WHITE>(const Position& pos);
 
 } // namespace YaneuraOu
+
+// clang-format on
 
 #endif // if defined(MATE_1PLY)...
