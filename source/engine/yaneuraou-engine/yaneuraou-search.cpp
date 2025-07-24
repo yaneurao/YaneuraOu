@@ -4069,7 +4069,19 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     auto draw_type = pos.is_repetition(ss->ply);
     if (draw_type != REPETITION_NONE)
-        return draw_value(draw_type, us);
+        /*
+			📓 なぜvalue_from_tt()が必要なのか？
+
+			draw_value()では、優等局面、劣等局面の時にVALUE_MATE , -VALUE_MATEが返ってくる。
+			これは1手詰めのスコアと同じ意味である。
+
+			これは現在の手数に準じたスコアに変換する必要がある。
+			すなわち、mate_in(VALUE_MATE, ss->ply), mated_in(VALUE_MATE, ss->ply)と同じスコアに
+			なるように変換しなければならない。
+			
+			そのため、value_from_tt()が必要なのである。
+		*/ 
+        return value_from_tt(draw_value(draw_type, us), ss->ply);
 
 // TODO : あとで検討する。
 #if 0
