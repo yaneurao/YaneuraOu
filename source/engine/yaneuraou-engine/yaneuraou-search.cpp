@@ -442,17 +442,17 @@ using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 // tests at these types of time controls.
 
 int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack* const ss) {
-	const Color us = pos.side_to_move();
-	const auto  m = (ss - 1)->currentMove;
-	const auto  pcv = w.pawnCorrectionHistory[pawn_structure_index<Correction>(pos)][us];
-	const auto  micv = w.minorPieceCorrectionHistory[minor_piece_index(pos)][us];
-	const auto  wnpcv = w.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us];
-	const auto  bnpcv = w.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us];
-	const auto  cntcv =
-		m.is_ok() ? (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
-		: 0;
+    const Color us    = pos.side_to_move();
+    const auto  m     = (ss - 1)->currentMove;
+    const auto  pcv   = w.pawnCorrectionHistory[pawn_structure_index<Correction>(pos)][us];
+    const auto  micv  = w.minorPieceCorrectionHistory[minor_piece_index(pos)][us];
+    const auto  wnpcv = w.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us];
+    const auto  bnpcv = w.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us];
+    const auto  cntcv =
+      m.is_ok() ? (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
+                 : 0;
 
-	return 7696 * pcv + 7689 * micv + 9708 * (wnpcv + bnpcv) + 6978 * cntcv;
+    return 7696 * pcv + 7689 * micv + 9708 * (wnpcv + bnpcv) + 6978 * cntcv;
 }
 
 // Add correctionHistory value to raw staticEval and guarantee evaluation
@@ -1519,7 +1519,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
             if (rootMoves.size() == 1)
                 totalTime = std::min(500.0, totalTime);
-            // TODO : やねうら王ではここ0でも良いような…？
+	            // 🤔 やねうら王ではここ0でも良いような…？
 
 #if STOCKFISH
             auto elapsedTime = elapsed();

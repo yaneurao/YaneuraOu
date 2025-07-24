@@ -1,6 +1,4 @@
-﻿// TODO : このファイル、作業中
-
-#ifndef ENGINE_H_INCLUDED
+﻿#ifndef ENGINE_H_INCLUDED
 #define ENGINE_H_INCLUDED
 
 #include <cstddef>
@@ -146,12 +144,8 @@ public:
 
     // modifiers
 
-#if STOCKFISH
-    // TODO : あとで
-
 	// NumaConfigをエンジンオプションの"NumaPolicy"から設定する。
-    void set_numa_config_from_option(const std::string& o);
-#endif
+    virtual void set_numa_config_from_option(const std::string& o) = 0;
 
 	// options["Threads"]やoptions["NumaPolicy"]が変更になった時に呼び出され、
     // スレッドを必要な数だけ再生成するhandler。
@@ -238,11 +232,8 @@ public:
 	// (探索中の)現在の局面のsfen文字列を返す。
     virtual std::string sfen() const = 0;
 
-	// TODO : あとで
-#if STOCKFISH
 	// 盤面を180°回転させる。デバッグ用
-    virtual void flip();
-#endif
+    virtual void flip() = 0;
 
     // 局面を視覚化した文字列を取得する。(デバッグ用)
     virtual std::string visualize() const = 0;
@@ -355,6 +346,8 @@ class Engine: public IEngine {
     virtual void wait_for_search_finished() override;
     virtual void set_position(const std::string&              sfen,
                               const std::vector<std::string>& moves) override;
+
+    virtual void set_numa_config_from_option(const std::string& o) override;
     virtual void resize_threads() override;
     virtual void set_tt_size(size_t mb) override {}
     virtual void set_ponderhit(bool b) override {}
@@ -374,7 +367,8 @@ class Engine: public IEngine {
     virtual const OptionsMap& get_options() const override { return options; }
     virtual OptionsMap&       get_options() override { return options; }
     virtual std::string       sfen() const override { return pos.sfen(); }
-    virtual std::string       visualize() const override;
+    virtual void              flip() override { return pos.flip(); }
+    virtual std::string visualize() const override;
 
 	virtual std::vector<std::pair<size_t, size_t>> get_bound_thread_count_by_numa_node() const override;
     virtual std::string get_numa_config_as_string() const override;
@@ -434,9 +428,6 @@ class Engine: public IEngine {
 
     // 📌 エンジンで用いるヘルパー関数
 
-    // NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
-    void set_numa_config_from_option(const std::string& o);
-
     // 🌈 実行に時間がかかるjobを実行する。
     // job : 実行するjob
     //
@@ -464,6 +455,12 @@ class EngineWrapper: public IEngine {
     virtual void go(Search::LimitsType& limits) override { engine->go(limits); }
     virtual void stop() override { engine->stop(); }
     virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
+    virtual void set_position(const std::string&              sfen,
+                              const std::vector<std::string>& moves) override {
+        engine->set_position(sfen, moves);
+    }
+
+    virtual void set_numa_config_from_option(const std::string& o) override { engine->set_numa_config_from_option(o); }
     virtual void resize_threads() override { engine->resize_threads(); }
     virtual void set_tt_size(size_t mb) override { engine->set_tt_size(mb); }
     virtual void set_ponderhit(bool b) override { engine->set_ponderhit(b); }
@@ -497,6 +494,7 @@ class EngineWrapper: public IEngine {
     virtual OptionsMap&       get_options() override { return engine->get_options(); }
 
     virtual std::string sfen() const override { return engine->sfen(); }
+    virtual void        flip() override { return engine->flip(); }
     virtual std::string visualize() const override { return engine->visualize(); }
 
     virtual std::vector<std::pair<size_t, size_t>>
@@ -524,10 +522,6 @@ class EngineWrapper: public IEngine {
     virtual void usi() override { engine->usi(); }
     virtual void isready() override { engine->isready(); }
     virtual void usinewgame() override { engine->usinewgame(); }
-    virtual void set_position(const std::string&              sfen,
-                              const std::vector<std::string>& moves) override {
-        engine->set_position(sfen, moves);
-    }
     virtual void user(std::istringstream& is) override { engine->user(is); }
 
     virtual std::string get_engine_name() const override { return engine->get_engine_name(); }

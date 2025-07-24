@@ -779,13 +779,8 @@ public:
 
 	bool pos_is_ok() const;
 
-#if STOCKFISH
 	// 盤面を180°回転させる。
-	// デバッグでしか使わないし、やねうら王の場合、flipped_sfen()を
-	// 利用して書けるから実装しない。
-
 	void flip();
-#endif
 
     // 現在の局面に対応するStateInfoを返す。
     // たとえば、state()->capturedPieceであれば、前局面で捕獲された駒が格納されている。

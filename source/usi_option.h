@@ -1,8 +1,6 @@
 ﻿#ifndef USI_OPTION_H_INCLUDED
 #define USI_OPTION_H_INCLUDED
 
-// TODO : このファイル作業中
-
 #include <cstddef>
 #include <functional>
 #include <iosfwd>

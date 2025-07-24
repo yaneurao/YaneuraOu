@@ -270,12 +270,9 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
         // 独自の非UCIコマンドを追加する（主にデバッグ目的）。
         // これらのコマンドは探索中に使用してはならない！
 
-#if STOCKFISH
         // 📝 flipは盤面を180°回転させたsfenを出力する。
-
         else if (token == "flip")
             engine.flip();
-#endif
 
         // ベンチコマンド(これは常に使える)
         else if (token == "bench")
