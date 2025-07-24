@@ -247,13 +247,17 @@ public:
     // 局面を視覚化した文字列を取得する。(デバッグ用)
     virtual std::string visualize() const = 0;
 
-#if STOCKFISH
-	std::vector<std::pair<size_t, size_t>> get_bound_thread_count_by_numa_node() const;
-    std::string                            get_numa_config_as_string() const;
-    std::string                            numa_config_information_as_string() const;
-    std::string                            thread_allocation_information_as_string() const;
-    std::string                            thread_binding_information_as_string() const;
+	// スレッド割り当てをした時などのメッセージ出力用handler。
 
+	virtual std::vector<std::pair<size_t, size_t>> get_bound_thread_count_by_numa_node() const {
+        return std::vector<std::pair<size_t, size_t>>();
+    }
+	virtual std::string get_numa_config_as_string() const { return ""; }
+    virtual std::string numa_config_information_as_string() const { return ""; }
+    virtual std::string thread_allocation_information_as_string() const { return ""; }
+    virtual std::string thread_binding_information_as_string() const { return ""; }
+
+#if STOCKFISH
    private:
     const std::string binaryDirectory;
 #endif
@@ -372,6 +376,12 @@ class Engine: public IEngine {
     virtual std::string       sfen() const override { return pos.sfen(); }
     virtual std::string       visualize() const override;
 
+	virtual std::vector<std::pair<size_t, size_t>> get_bound_thread_count_by_numa_node() const override;
+    virtual std::string get_numa_config_as_string() const override;
+    virtual std::string numa_config_information_as_string() const override;
+    virtual std::string thread_allocation_information_as_string() const override;
+    virtual std::string thread_binding_information_as_string() const override;
+
     virtual void              add_options() override;
     virtual ThreadPool&       get_threads() override { return threads; }
     virtual const ThreadPool& get_threads() const override { return threads; }
@@ -488,6 +498,23 @@ class EngineWrapper: public IEngine {
 
     virtual std::string sfen() const override { return engine->sfen(); }
     virtual std::string visualize() const override { return engine->visualize(); }
+
+    virtual std::vector<std::pair<size_t, size_t>>
+    get_bound_thread_count_by_numa_node() const override {
+        return engine->get_bound_thread_count_by_numa_node();
+    }
+    virtual std::string get_numa_config_as_string() const override {
+        return engine->get_numa_config_as_string();
+    }
+    virtual std::string numa_config_information_as_string() const override {
+        return engine->numa_config_information_as_string();
+    }
+    virtual std::string thread_allocation_information_as_string() const override {
+        return engine->thread_allocation_information_as_string();
+    }
+    virtual std::string thread_binding_information_as_string() const override {
+        return engine->thread_binding_information_as_string();
+    }
 
     virtual void              add_options() override { return engine->add_options(); }
     virtual ThreadPool&       get_threads() override { return engine->get_threads(); }

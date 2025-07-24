@@ -104,6 +104,12 @@ void USIEngine::set_engine(IEngine& _engine) {
     Eval::add_options(engine.get_options(), engine.get_threads());
 #endif
 
+	// optionの値が変更された時に、その結果文字列を出力するためのhandlerを設定してやる。
+    engine.get_options().add_info_listener([](const std::optional<std::string>& str) {
+        if (str.has_value())
+            print_info_string(*str);
+    });
+
     // 📝 セットされたEngineに対してlisterを設定する必要がある。
     //     Stockfishは、USIEngineのコンストラクタで行っているが、
     //     やねうら王ではEngineの差し替えができるのでこのタイミング。
@@ -387,7 +393,13 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
             if (value == "=") // skip '='
                 is >> value;
 
-            sync_cout << engine.get_options().set_option_if_exists(token, value) << sync_endl;
+			// ⚠ set_option_if_exists()のなかでoptionが変更されて、結果文字列が戻ってきて、
+			//    それを出力するhandlerが呼び出されて、そのなかでsync_cout ～ sync_endlで出力するので
+			//    ここで直接 set_option_if_exists()の戻り値をsync_cout～sync_endlで出力しようとすると
+			//    二重ロックになる。ゆえにいったん変数に代入している。
+
+			auto ss = engine.get_options().set_option_if_exists(token, value);
+            sync_cout << ss << sync_endl;
         }
     }
 #endif

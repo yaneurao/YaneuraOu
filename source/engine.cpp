@@ -58,26 +58,31 @@ void Engine::add_options()
 		//     過去にdefault設定のまま対局させて「やねうら王弱い」という人がいたため。
 		"Threads", Option(4, 1, MaxThreads, [this](const Option&) {
 			resize_threads();
-			//return thread_allocation_information_as_string();
-			return std::nullopt;
+			return thread_allocation_information_as_string();
 		}));
 
 	// NumaPolicy
 	//   Numaの割り当て方針
 	// 
-	// auto     : 自動
-	// system   : OS任せ
-	// hardware : hardwareに従う
-	// none     : なし
+	// none       : 単一のNUMAノード、スレッドバインディングなしを想定。
+    // system     : システムから利用可能なNUMA情報を使用し、それに応じてスレッドをバインドします。
+    // auto       : デフォルト;システムに基づいてsystemとnoneを自動的に選択。
+	// hardware   : 基盤ハードウェアからのNUMA情報を使用し、それに応じてスレッドをバインドし、
+	//				以前のアフィニティをオーバーライドします。
+	//				すべてのスレッドを使用しない場合（Windows 10やChessBaseなどの特定のGUIなど）に使用してください。
+	// [[custom]] : NUMAドメインごとに利用可能なCPUを正確に指定します。
+	//				':'はNUMAノードを区切り、','はCPUインデックスを区切ります。
+	//				CPUインデックスには「最初-最後」の範囲構文をサポートします。
+	//				例:0-15,32-47:16-31,48-63
+	// 
+	// 🔍  https://github.com/official-stockfish/Stockfish/wiki/UCI-&-Commands#numapolicy
 
-	options.add(
-		"NumaPolicy", Option("auto", [this](const Option& o) {
+	options.add("NumaPolicy", Option( "auto" , [this](const Option& o) {
 			set_numa_config_from_option(o);
-			//return numa_config_information_as_string() + "\n"
-			//	+ thread_allocation_information_as_string();
-			return std::nullopt;
+			return numa_config_information_as_string() + "\n"
+				+ thread_allocation_information_as_string();
 		}));
-
+	 
 	// ponderの有無
 	// 📝 TimeManagementがこのoptionを持っていることを仮定している。
 	// 🤔 思考Engineである以上はUSI_Ponderをサポートすべきだと思う。
@@ -628,6 +633,8 @@ void Engine::save_network(/*const std::pair<std::optional<std::string>, std::str
 		});
 }
 
+#endif
+
 std::vector<std::pair<size_t, size_t>> Engine::get_bound_thread_count_by_numa_node() const {
 	auto                                   counts = threads.get_bound_thread_count_by_numa_node();
 	const NumaConfig& cfg = numaContext.get_numa_config();
@@ -684,8 +691,6 @@ std::string Engine::thread_allocation_information_as_string() const {
 
 	return ss.str();
 }
-
-#endif
 
 // --------------------
 //  やねうら王独自拡張
