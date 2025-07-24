@@ -106,9 +106,7 @@ class MovePicker {
     const LowPlyHistory*         lowPlyHistory;
     const CapturePieceToHistory* captureHistory;
     const PieceToHistory**       continuationHistory;
-#if defined(ENABLE_PAWN_HISTORY)
-    const PawnHistory* pawnHistory;
-#endif
+    const PawnHistory*           pawnHistory;
 
     // 置換表の指し手(コンストラクタで渡される)
     Move ttMove;

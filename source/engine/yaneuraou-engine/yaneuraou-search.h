@@ -344,6 +344,8 @@ public:
 	// 置換表のresize event。
 	virtual void set_tt_size(size_t mb) override;
 
+	// StockfishのThreadPool::clear()にあったもの。
+	void clear();
 
 	// 定跡の指し手を選択するモジュール
     Book::BookMoveSelector book;
@@ -351,6 +353,9 @@ public:
 	// 探索manager
     // 📝 やねうら王では、Engine派生classがSearchMangerを持っている。
     Search::SearchManager manager;
+
+	// Stockfishとの互換性のために用意。
+    Search::SearchManager* main_manager() { return &manager; }
 };
 
 namespace Search {

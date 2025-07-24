@@ -133,9 +133,7 @@ MovePicker::MovePicker(const Position&              p,
     lowPlyHistory(lph),
     captureHistory(cph),
     continuationHistory(ch),
-#if defined(ENABLE_PAWN_HISTORY)
     pawnHistory(ph),
-#endif
     ttMove(ttm),
     depth(d),
     ply(pl)
@@ -342,9 +340,7 @@ void MovePicker::score()
 			//    駒を成るような指し手はどうせevaluate()で大きな値がつくからそっちを先に探索することになる。
 
 			m.value  =  2 * (*mainHistory)[us][m.from_to()];
-#if defined(ENABLE_PAWN_HISTORY)
-			m.value +=  2 * (*pawnHistory)[pawn_structure(pos)][pc][to];
-#endif
+			m.value +=  2 * (*pawnHistory)[pawn_structure_index(pos)][pc][to];
 			m.value +=      (*continuationHistory[0])[pc][to];
 			m.value +=      (*continuationHistory[1])[pc][to];
 			m.value +=      (*continuationHistory[2])[pc][to];

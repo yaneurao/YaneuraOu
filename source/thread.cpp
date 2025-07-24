@@ -288,8 +288,8 @@ void ThreadPool::clear() {
 		th->wait_for_search_finished();
 
 	// 🤔 これはEngine派生class側で行うべき。
-	//     ここにあったコードは、YaneuraOuWorker::clear()に移動させた。
-#if 0
+	//     ここにあったコードは、YaneuraOuEngine::clear()に移動させた。
+#if STOCKFISH
 	// These two affect the time taken on the first move of a game:
 	main_manager()->bestPreviousAverageScore = VALUE_INFINITE;
 	main_manager()->previousTimeReduction = 0.85;
@@ -426,22 +426,32 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
     for (auto&& th : threads)
     {
         th->run_custom_job([&]() {
+#if STOCKFISH
             th->worker->limits = limits;
-            th->worker->nodes  = /* th->worker->tbHits = */ 0;
-
-#if STOCKFISH
-            th->worker->bestMoveChanges = 0;
-            th->worker->nmpMinPly       = 0;
+            th->worker->nodes = th->worker->tbHits = th->worker->nmpMinPly =
+              th->worker->bestMoveChanges          = 0;
             th->worker->rootDepth = th->worker->completedDepth = 0;
-
-            // 🤔 この初期化は、Worker派生classのstart_searching()で行うようにする。
-            //     やねうら王では、void Search::YaneuraOuWorker::iterative_deepening()で行っている。
-#endif
-            th->worker->rootMoves = rootMoves;
-            th->worker->rootPos.set(pos.sfen() /*, pos.is_chess960()*/, &th->worker->rootState);
+            th->worker->rootMoves                              = rootMoves;
+            th->worker->rootPos.set(pos.fen(), pos.is_chess960(), &th->worker->rootState);
             th->worker->rootState = setupStates->back();
-#if STOCKFISH
-            th->worker->tbConfig = tbConfig;
+            th->worker->tbConfig  = tbConfig;
+#else
+
+            th->worker->limits = limits;
+            th->worker->nodes  = 0;
+
+			// 📝 tbHits、tbConfigは将棋では使わない。
+
+			// 🤔 以下の初期化は、Worker派生classのstart_searching()で行うようにする。
+            //     やねうら王では、void Search::YaneuraOuWorker::iterative_deepening()で行っている。
+
+            // th->worker->nmpMinPly = 0;
+			// th->worker->bestMoveChanges = 0;
+            // th->worker->rootDepth = th->worker->completedDepth = 0;
+
+            th->worker->rootMoves = rootMoves;
+            th->worker->rootPos.set(pos.sfen(), &th->worker->rootState);
+            th->worker->rootState = setupStates->back();
 #endif
         });
     }
