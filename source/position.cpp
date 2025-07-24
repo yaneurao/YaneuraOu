@@ -315,8 +315,8 @@ void Position::set_state() const {
 #if defined(USE_PARTIAL_KEY)
 
     st->materialKey       = Zobrist::zero;
-    st->minorPieceKey     = 0;
-    st->nonPawnKey[WHITE] = st->nonPawnKey[BLACK] = 0;
+    st->minorPieceKey     = Zobrist::zero;
+    st->nonPawnKey[WHITE] = st->nonPawnKey[BLACK] = Zobrist::zero;
     st->pawnKey                                   = Zobrist::noPawns;
 
 #endif
@@ -1935,7 +1935,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 
         // 移動元の升からの駒の除去
         remove_piece(from);
-        remove_piece_for_partial_key(st, moved_pc, to);
+        remove_piece_for_partial_key(st, moved_pc, from);
 
         // 移動先の升に駒を配置
         put_piece(moved_after_pc, to);
@@ -3633,6 +3633,60 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
             // ここでやる必要なし。
         }
         tester.test("handicapped sfen", success);
+    }
+#endif
+
+#if defined(USE_PARTIAL_KEY)
+    {
+        // 部分hashkeyのテスト
+        auto section = tester.section("PartialKey");
+        {
+            PRNG     my_rand(114514);
+            Position pos2;
+
+            bool ok = true;
+
+            for (int i = 0; i < 1000; ++i)
+            {
+                StateInfo si[MAX_PLY];
+                pos.set_hirate(&si[0]);
+                for (int j = 1; j < MAX_PLY; ++j)
+                {
+                    MoveList<LEGAL_ALL> ml(pos);
+
+                    // 指し手がない == 負け == 終了
+                    if (ml.size() == 0)
+                        break;
+
+                    Move m = Move(ml.at(size_t(my_rand.rand(ml.size()))));
+                    pos.do_move(m, si[j + 1]);
+
+					// 📓 sfen経由でset()を呼び出す。この時、set()によってpartial keyが初期化される。
+					//     差分更新したpartial keyと一致するかをテストする。
+
+					auto      sfen = pos.sfen();
+                    StateInfo si2;
+                    pos2.set(sfen, &si2);
+
+                    // clang-format off
+
+                    // 部分keyが一致するか。
+                    ok &= pos.state()->board_key     == pos2.state()->board_key;
+                    ok &= pos.state()->hand_key      == pos2.state()->hand_key;
+                    ok &= pos.state()->pawnKey       == pos2.state()->pawnKey;
+                    ok &= pos.state()->nonPawnKey[0] == pos2.state()->nonPawnKey[0];
+                    ok &= pos.state()->nonPawnKey[1] == pos2.state()->nonPawnKey[1];
+                    ok &= pos.state()->materialKey   == pos2.state()->materialKey;
+                    ok &= pos.state()->minorPieceKey == pos2.state()->minorPieceKey;
+
+                    // clang-format on
+
+                    //if (!ok)
+                    //    tester.test("game " + to_string(i) + " ply = " + to_string(j), ok);
+                }
+            }
+            tester.test("partial hash key", ok);
+        }
     }
 #endif
 
