@@ -612,7 +612,7 @@ namespace Eval {
 	// prefetchする関数も用意しておく。
 	void prefetch_evalhash(const Key key)
 	{
-		prefetch(g_evalTable[key >> 1]);
+		prefetch(g_evalTable[key]);
 	}
 
 #endif
@@ -947,15 +947,15 @@ namespace Eval {
 #endif
 
 #if defined ( USE_EVAL_HASH )
-		// 手番を消した局面hash key
-		const Key keyExcludeTurn = st->key() >> 1;
+		// 局面のhash key
+		const Key key = st->key;
 
 		// evaluate hash tableにはあるかも。
 
-		//		cout << "EvalSum " << hex << g_evalTable[keyExcludeTurn] << endl;
-		EvalSum entry = *g_evalTable[keyExcludeTurn];   // atomic にデータを取得する必要がある。
+		//		cout << "EvalSum " << hex << g_evalTable[key] << endl;
+        EvalSum entry = *g_evalTable[key];  // atomic にデータを取得する必要がある。
 		entry.decode();
-		if (entry.key == keyExcludeTurn)
+        if (entry.key == key)
 		{
 			//	dbg_hit_on(true);
 
@@ -972,9 +972,9 @@ namespace Eval {
 
 #if defined ( USE_EVAL_HASH )
 		// せっかく計算したのでevaluate hash tableに保存しておく。
-		sum.key = keyExcludeTurn;
+		sum.key = key;
 		sum.encode();
-		*g_evalTable[keyExcludeTurn] = sum;
+		*g_evalTable[key] = sum;
 #endif
 
 		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));

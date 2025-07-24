@@ -111,7 +111,7 @@ struct StateInfo {
 		    暗黙の変換子が定義されているので単にKey64へcastすると良い。
 	*/
 
-	Key key() const { return board_key ^ hand_key; }
+	Key key; // == board_key ^ hand_key
 
 #endif
 
@@ -707,14 +707,13 @@ public:
     // -----------------------
 
 	// 📝 StateInfoの同名のメンバーへの簡易アクセス。
+	// 💡 USE_PARTIAL_KEYがdefineされていない時は、key()以外は使えない。
 
     Key key() const;
-#if defined(USE_PARTIAL_KEY)
     Key material_key() const;
     Key pawn_key() const;
     Key minor_piece_key() const;
     Key non_pawn_key(Color c) const;
-#endif
 
 #if !STOCKFISH
 	// ある指し手を指した後のhash keyを返す。
@@ -1251,7 +1250,7 @@ inline Key Position::adjust_key50(Key k) const {
     return st->rule50 < 14 - AfterMove ? k : k ^ make_key((st->rule50 - (14 - AfterMove)) / 8);
 }
 #else
-inline Key Position::key() const { return st->key(); }
+inline Key Position::key() const { return st->key; }
 #endif
 
 #if defined(USE_PARTIAL_KEY)
@@ -1262,6 +1261,15 @@ inline Key Position::material_key() const { return st->materialKey; }
 inline Key Position::minor_piece_key() const { return st->minorPieceKey; }
 
 inline Key Position::non_pawn_key(Color c) const { return st->nonPawnKey[c]; }
+#else
+
+// 使わないのでダミーの値を返すようにしておく。
+
+inline Key Position::pawn_key() const { return Key(); }
+inline Key Position::material_key() const { return Key(); }
+inline Key Position::minor_piece_key() const { return Key(); }
+inline Key Position::non_pawn_key(Color c) const { return Key(); }
+
 #endif
 
 #if STOCKFISH

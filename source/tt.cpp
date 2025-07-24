@@ -194,12 +194,8 @@ void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, V
 		eval16    = int16_t(ev);
 
 		// value,evalが適切な範囲であるか(やねうら王独自追加)
-		//ASSERT_LV3(-VALUE_INFINITE <   v  && v < VALUE_INFINITE  ||  v == VALUE_NONE);
-		//ASSERT_LV3(-VALUE_MAX_EVAL <= ev && ev <= VALUE_MAX_EVAL || ev == VALUE_NONE);
-		// ⇨  correction history導入後、この範囲外になることがある？ TODO : 要調査
-
-		// ASSERT_LV3(INT16_MIN <  v && v  < INT16_MAX   );
-		// ASSERT_LV3(INT16_MIN < ev && ev < INT16_MAX );
+		ASSERT_LV3(-VALUE_INFINITE <   v  && v < VALUE_INFINITE  ||  v == VALUE_NONE);
+		ASSERT_LV3(-VALUE_MAX_EVAL <= ev && ev <= VALUE_MAX_EVAL || ev == VALUE_NONE);
 		
 	}
 	// depthが高くてBOUND_EXACTでないときは、BOUND_EXACTと差別化するためにdepthを1引いておく。

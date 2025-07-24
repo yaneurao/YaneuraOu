@@ -139,11 +139,11 @@ namespace Mate {
 			{
 			case REPETITION_DRAW:
 			case REPETITION_LOSE:
-			case REPETITION_INFERIOR: // 駒損したのでplies_from_root以降で生じているから、これは不詰扱いして良い。
+            // case REPETITION_INFERIOR:  // 駒損したのでplies_from_root以降で生じているから、これは不詰扱いして良い。
 				return MateRepetitionState::Mated; // 不詰 = 相手の勝ち = Mated
 
-			case REPETITION_WIN:      // 連続王手の千日手で勝ちになった。(or nodeで普通これはないはずだが)
-			case REPETITION_SUPERIOR: // 相手は駒損をしているが、即座に詰みとは言い切れない。
+			case REPETITION_WIN:        // 連続王手の千日手で勝ちになった。(or nodeで普通これはないはずだが)
+			//case REPETITION_SUPERIOR: // 相手は駒損をしているが、即座に詰みとは言い切れない。
 				// しかしこれが詰まないなら、相手は駒損せずに詰みを逃れる手段があるのでそちらを選択するだろうから、これは調べる必要がなく、詰み扱いで良い。
 				return MateRepetitionState::Mate;
 
@@ -168,8 +168,8 @@ namespace Mate {
 					return MateRepetitionState::Mate;  // 詰み
 
 				case REPETITION_NONE:
-				case REPETITION_INFERIOR: // 駒損はしたが、それはroot以前の局面から見ると、であって、歩を成り捨てて劣等局面には突入するが、詰むようなケースかもしれない。
-				case REPETITION_SUPERIOR: // 相手は駒損をしているが、即座に詰みとは言い切れない。
+				//case REPETITION_INFERIOR: // 駒損はしたが、それはroot以前の局面から見ると、であって、歩を成り捨てて劣等局面には突入するが、詰むようなケースかもしれない。
+				//case REPETITION_SUPERIOR: // 相手は駒損をしているが、即座に詰みとは言い切れない。
 					break;
 
 				default: UNREACHABLE;
@@ -183,11 +183,11 @@ namespace Mate {
 			{
 			case REPETITION_DRAW:     // 詰まない(千日手で逃れている)
 			case REPETITION_WIN:      // 連続王手の千日手で勝ちになった。
-			case REPETITION_SUPERIOR: // 駒得をしている。即座に詰まないとは言い切れないが、これでこのあと詰まされるとしたら相手は駒損せずに詰ますことができるのでこの指し手は不詰扱いして良い。
+			//case REPETITION_SUPERIOR: // 駒得をしている。即座に詰まないとは言い切れないが、これでこのあと詰まされるとしたら相手は駒損せずに詰ますことができるのでこの指し手は不詰扱いして良い。
 				return MateRepetitionState::Mate;  // 不詰 = and node側から見ると勝ち
 
 			case REPETITION_LOSE:     // 連続王手の千日手による反則負け。
-			case REPETITION_INFERIOR: // 駒損したものの即座に詰まないとは言い切れないが、これで詰まないとしたら駒損しないほうの変化でも詰まないので、これは詰み扱いして良い。
+			//case REPETITION_INFERIOR: // 駒損したものの即座に詰まないとは言い切れないが、これで詰まないとしたら駒損しないほうの変化でも詰まないので、これは詰み扱いして良い。
 				return MateRepetitionState::Mated; // 詰み = and node側から見ると負け
 
 			case REPETITION_NONE:
@@ -210,8 +210,8 @@ namespace Mate {
 					return MateRepetitionState::Mated; // 負け
 
 				case REPETITION_NONE:
-				case REPETITION_INFERIOR: // 駒損はしたが、今回は詰むとは言えない。
-				case REPETITION_SUPERIOR: // 攻め方が駒損をしているが、即座にこの筋がないとは言い切れない。(MCTSの探索ならそんな指し手はしないかも知れないが)
+				//case REPETITION_INFERIOR: // 駒損はしたが、今回は詰むとは言えない。
+				//case REPETITION_SUPERIOR: // 攻め方が駒損をしているが、即座にこの筋がないとは言い切れない。(MCTSの探索ならそんな指し手はしないかも知れないが)
 					break;
 
 				default: UNREACHABLE;

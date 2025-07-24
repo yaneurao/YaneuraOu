@@ -84,8 +84,8 @@ std::string to_usi_string(RepetitionState rs)
 		(rs == REPETITION_WIN)      ? "rep_win" :
 		(rs == REPETITION_LOSE)     ? "rep_lose" :
 		(rs == REPETITION_DRAW)     ? "rep_draw" :
-		(rs == REPETITION_SUPERIOR) ? "rep_sup" :
-		(rs == REPETITION_INFERIOR) ? "rep_inf" :
+		//(rs == REPETITION_SUPERIOR) ? "rep_sup" :
+		//(rs == REPETITION_INFERIOR) ? "rep_inf" :
 		"")
 		;
 #else
@@ -126,8 +126,8 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
 	{  VALUE_MATE        ,  VALUE_MATE        }, // REPETITION_WIN
 	{ -VALUE_MATE        , -VALUE_MATE        }, // REPETITION_LOSE
 	{  VALUE_ZERO        ,  VALUE_ZERO        }, // REPETITION_DRAW  : このスコアはUSIのoptionコマンドで変更可能
-	{  VALUE_SUPERIOR    ,  VALUE_SUPERIOR    }, // REPETITION_SUPERIOR
-	{ -VALUE_SUPERIOR    , -VALUE_SUPERIOR    }, // REPETITION_INFERIOR
+	//{  VALUE_SUPERIOR    ,  VALUE_SUPERIOR    }, // REPETITION_SUPERIOR
+	//{ -VALUE_SUPERIOR    , -VALUE_SUPERIOR    }, // REPETITION_INFERIOR
 };
 
 Move16 Move::to_move16() const { return Move16(data); }
