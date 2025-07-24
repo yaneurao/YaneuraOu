@@ -856,7 +856,7 @@ namespace Eval {
 
 #if defined ( USE_EVAL_HASH )
 		// 局面のhash key
-		const Key key = st->key;
+		const Key key = pos.key();
 
 		// evaluate hash tableにはあるかも。
 

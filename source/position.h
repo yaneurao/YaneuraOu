@@ -111,7 +111,7 @@ struct StateInfo {
 		    暗黙の変換子が定義されているので単にKey64へcastすると良い。
 	*/
 
-	Key key; // == board_key ^ hand_key
+	Key key() const { return board_key ^ hand_key; }
 
 #endif
 
@@ -1250,7 +1250,7 @@ inline Key Position::adjust_key50(Key k) const {
     return st->rule50 < 14 - AfterMove ? k : k ^ make_key((st->rule50 - (14 - AfterMove)) / 8);
 }
 #else
-inline Key Position::key() const { return st->key; }
+inline Key Position::key() const { return st->key(); }
 #endif
 
 #if defined(USE_PARTIAL_KEY)

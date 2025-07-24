@@ -1758,12 +1758,14 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         // Zobrist keyの更新
         h -= Zobrist::hand[Us][pr];
         k ^= Zobrist::psq[pc][to];
-        st->key = k ^ h;
 
         // なるべく早い段階でのTTに対するprefetch
         // 駒打ちのときはこの時点でTT entryのアドレスが確定できる
         if constexpr (std::is_same_v<T, TranspositionTable>)
-            prefetch(tt->first_entry(st->key, them));
+        {
+            const auto key = k ^ h;
+            prefetch(tt->first_entry(key, them));
+        }
 
 #if defined(USE_PARTIAL_KEY) & 0
         // 打ち歩なら、pawnKeyの更新が必要
@@ -1918,10 +1920,11 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 
         // 💪 これでdo_move()後のhash keyが確定したのでprefetchしておく。
 
-        st->key = k ^ h;
-
         if constexpr (std::is_same_v<T, TranspositionTable>)
-            prefetch(tt->first_entry(st->key, them));
+        {
+            const auto key = k ^ h;
+            prefetch(tt->first_entry(key, them));
+        }
 
 #if defined(USE_EVAL_LIST)
         // 移動元にあった駒のpiece_noを得る
@@ -2057,49 +2060,77 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         for (int i = 4; i <= end; i += 2)
         {
             stp = stp->previous->previous;
-            if (stp->key == st->key)
+            if (stp->board_key == st->board_key)
             {
-                // 同一局面が見つかった。
+                // 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+                if (stp->hand == st->hand)
+                {
+                    // 同一局面が見つかった。
 
-                // 以下、Stockfishのコードは利用せず、将棋風に書き換えてある。
+                    // 以下、Stockfishのコードは利用せず、将棋風に書き換えてある。
 
-                // 繰り返し回数のカウント
-                st->repetition_times = stp->repetition_times + 1;
+                    // 繰り返し回数のカウント
+                    st->repetition_times = stp->repetition_times + 1;
 
-                // (同一局面の)3回目までは正(4回目以降は負)の手数にする。
-                // ※　st->repetition_timesは、4回目の時点において、3になっている。
-                // これにより、
-                //  if (st->repetition && st->repetition < ply)
-                // のようなif式は必ず成立するようになる。(plyはrootからの手数とする)
-                //
-                st->repetition = st->repetition_times >= 3 ? -i : i;
+                    // (同一局面の)3回目までは正(4回目以降は負)の手数にする。
+                    // ※　st->repetition_timesは、4回目の時点において、3になっている。
+                    // これにより、
+                    //  if (st->repetition && st->repetition < ply)
+                    // のようなif式は必ず成立するようになる。(plyはrootからの手数とする)
+                    //
+                    st->repetition = st->repetition_times >= 3 ? -i : i;
 
-                // 自分が王手をしている連続王手の千日手なのか？
-                // 相手が王手をしている連続王手の千日手なのか？
-                st->repetition_type = (i <= st->continuousCheck[sideToMove])  ? REPETITION_LOSE
-                                    : (i <= st->continuousCheck[~sideToMove]) ? REPETITION_WIN
-                                                                              : REPETITION_DRAW;
+                    // 自分が王手をしている連続王手の千日手なのか？
+                    // 相手が王手をしている連続王手の千日手なのか？
+                    st->repetition_type = (i <= st->continuousCheck[sideToMove])  ? REPETITION_LOSE
+                                        : (i <= st->continuousCheck[~sideToMove]) ? REPETITION_WIN
+                                                                                  : REPETITION_DRAW;
 
-                // 途中が連続王手でない場合、4回目の同一局面で連続王手の千日手は成立せず、普通の千日手となる。
-                //
-                // よって、例えば、3..4回目までの間が連続王手であっても、前回(2..3回目までの間)がREPETITION_DRAW
-                // であれば、今回をREPETITION_DRAWとして扱わなければならない。
-                //
-                // これは、『将棋ガイドブック』P.14に以下のように書かれている。
-                //
-                // > 一局中同一局面の最初と4回目出現の局面の間の一方の指し手が王手の連続であった時、
-                // > 連続王手をしていた側にとって4回目の同一局面が出現した時
+                    // 途中が連続王手でない場合、4回目の同一局面で連続王手の千日手は成立せず、普通の千日手となる。
+                    //
+                    // よって、例えば、3..4回目までの間が連続王手であっても、前回(2..3回目までの間)がREPETITION_DRAW
+                    // であれば、今回をREPETITION_DRAWとして扱わなければならない。
+                    //
+                    // これは、『将棋ガイドブック』P.14に以下のように書かれている。
+                    //
+                    // > 一局中同一局面の最初と4回目出現の局面の間の一方の指し手が王手の連続であった時、
+                    // > 連続王手をしていた側にとって4回目の同一局面が出現した時
 
-                // 同様の理屈により、1..2回目が先手の連続王手で、2..3回目が後手の連続王手のような場合も、
-                // このまま4回目に達した場合、これは普通の千日手局面である。
-                // ゆえに、3回目以降の同一局面の出現において、
-                // 前回のrepetition_typeと今回のrepetition_typeが異なるならば、今回のrepetition_typeを
-                // 普通の千日手(REPETITION_DRAW)として扱わなければならない。
+                    // 同様の理屈により、1..2回目が先手の連続王手で、2..3回目が後手の連続王手のような場合も、
+                    // このまま4回目に達した場合、これは普通の千日手局面である。
+                    // ゆえに、3回目以降の同一局面の出現において、
+                    // 前回のrepetition_typeと今回のrepetition_typeが異なるならば、今回のrepetition_typeを
+                    // 普通の千日手(REPETITION_DRAW)として扱わなければならない。
 
-                if (stp->repetition_times && st->repetition_type != stp->repetition_type)
-                    st->repetition_type = REPETITION_DRAW;
+                    if (stp->repetition_times && st->repetition_type != stp->repetition_type)
+                        st->repetition_type = REPETITION_DRAW;
 
-                break;
+                    break;
+                }
+                else
+                {
+
+                    // 盤上の駒は一致したが、手駒が一致しないケース。
+
+                    // 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+
+                    if (hand_is_equal_or_superior(st->hand, stp->hand))
+                    {
+                        st->repetition_type = REPETITION_SUPERIOR;
+                        st->repetition      = i;
+                        // 劣等局面かつ千日手局面とかもありうるのだが、超レアケースなので考えないことにする。
+                        break;
+                    }
+
+                    if (hand_is_equal_or_superior(stp->hand, st->hand))
+                    {
+                        st->repetition_type = REPETITION_INFERIOR;
+                        st->repetition      = i;
+                        break;
+                    }
+
+                    // 上記のどちらにも該当しない場合は、盤上の駒がたまたま一致しただけの局面。
+                }
             }
         }
     }
@@ -2367,12 +2398,14 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
     sideToMove = ~sideToMove;
 
 	st->board_key ^= Zobrist::side;
-	st->key = st->board_key ^ st->hand_key;
 
 	// 🌈 やねうら王では、TTを引数に取らないこともできるように
 	//     template引数で実装している。
 	if constexpr (std::is_same_v<T, TranspositionTable>)
-        prefetch(tt.first_entry(st->key, sideToMove));
+    {
+        const auto key = st->key();
+        prefetch(tt.first_entry(key, sideToMove));
+    }
 
 	st->pliesFromNull = 0;
 
@@ -2731,17 +2764,30 @@ RepetitionState Position::is_repetition(int ply) const
 	{
 		stp = stp->previous->previous;
 
-		if (stp->key == st->key)
+		// board_key : 盤上の駒のみのhash(手駒を除く)
+		// 盤上の駒が同じ状態であるかを判定する。
+		if (stp->board_key == st->board_key)
 		{
-			// 自分が王手をしている連続王手の千日手なのか？
-			if (i <= st->continuousCheck[ sideToMove])
-				return REPETITION_LOSE;
+			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+			if (stp->hand == st->hand)
+			{
+				// 自分が王手をしている連続王手の千日手なのか？
+				if (i <= st->continuousCheck[ sideToMove])
+					return REPETITION_LOSE;
 
-			// 相手が王手をしている連続王手の千日手なのか？
-			if (i <= st->continuousCheck[~sideToMove])
-				return REPETITION_WIN;
+				// 相手が王手をしている連続王手の千日手なのか？
+				if (i <= st->continuousCheck[~sideToMove])
+					return REPETITION_WIN;
 
-			return REPETITION_DRAW;
+				return REPETITION_DRAW;
+			}
+			else {
+				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+				if (hand_is_equal_or_superior(st ->hand , stp->hand))
+					return REPETITION_SUPERIOR;
+				if (hand_is_equal_or_superior(stp->hand , st ->hand))
+					return REPETITION_INFERIOR;
+			}
 		}
 	}
 
@@ -2805,17 +2851,30 @@ RepetitionState Position::is_repetition(int ply, int& found_ply) const
 	{
 		stp = stp->previous->previous;
 
-		if (stp->key == st->key)
+		// board_key : 盤上の駒のみのhash(手駒を除く)
+		// 盤上の駒が同じ状態であるかを判定する。
+		if (stp->board_key == st->board_key)
 		{
-			// 自分が王手をしている連続王手の千日手なのか？
-			if (found_ply <= st->continuousCheck[ sideToMove])
-				return REPETITION_LOSE;
+			// 手駒が一致するなら同一局面である。(2手ずつ遡っているので手番は同じである)
+			if (stp->hand == st->hand)
+			{
+				// 自分が王手をしている連続王手の千日手なのか？
+				if (found_ply <= st->continuousCheck[ sideToMove])
+					return REPETITION_LOSE;
 
-			// 相手が王手をしている連続王手の千日手なのか？
-			if (found_ply <= st->continuousCheck[~sideToMove])
-				return REPETITION_WIN;
+				// 相手が王手をしている連続王手の千日手なのか？
+				if (found_ply <= st->continuousCheck[~sideToMove])
+					return REPETITION_WIN;
 
-			return REPETITION_DRAW;
+				return REPETITION_DRAW;
+			}
+			else {
+				// 優等局面か劣等局面であるか。(手番が相手番になっている場合はいま考えない)
+				if (hand_is_equal_or_superior(st ->hand, stp->hand))
+					return REPETITION_SUPERIOR;
+				if (hand_is_equal_or_superior(stp->hand, st ->hand))
+					return REPETITION_INFERIOR;
+			}
 		}
 	}
 
@@ -3229,6 +3288,9 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
                       == (goldEffect<WHITE>(SQ_61) | goldEffect<WHITE>(SQ_41)));
     }
 
+#if defined(ENABLE_QUICK_DRAW)
+	// ENABLE_QUICK_DRAWを定義していない時は、4回出現しないと千日手として扱わない。
+
     // 千日手検出のテスト
     {
         auto section2 = tester.section("is_repetition");
@@ -3277,6 +3339,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         draw_value = pos.is_repetition();
         tester.test("REPETITION_WIN", draw_value == REPETITION_WIN);
     }
+#endif
 
     // 入玉のテスト
     {
