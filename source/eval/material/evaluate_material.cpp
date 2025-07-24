@@ -100,7 +100,7 @@ namespace Eval {
 			for (auto color : COLOR)
 			{
 				// color側の玉に対して
-				auto king_sq = pos.king_square(color);
+				auto king_sq = pos.square<KING>(color);
 
 				// 筋と段でたくさん離れているほうの数をその距離とする。
 				int d = dist(sq, king_sq);
@@ -166,7 +166,7 @@ namespace Eval {
 			for (auto color : COLOR)
 			{
 				// color側の玉に対して
-				auto king_sq = pos.king_square(color);
+				auto king_sq = pos.square<KING>(color);
 
 				// 筋と段でたくさん離れているほうの数をその距離とする。
 				int d = dist(sq, king_sq);
@@ -266,7 +266,7 @@ namespace Eval {
 		for (auto sq : SQ)
 		{
 			// 盤上の升の利きの価値
-			score += effect_table[pos.king_square(BLACK)][pos.king_square(WHITE)][sq][pos.board_effect[BLACK].effect(sq)][pos.board_effect[WHITE].effect(sq)];
+			score += effect_table[pos.square<KING>(BLACK)][pos.square<KING>(WHITE)][sq][pos.board_effect[BLACK].effect(sq)][pos.board_effect[WHITE].effect(sq)];
 
 			auto pc = pos.piece_on(sq);
 			if (pc == NO_PIECE)
@@ -366,7 +366,7 @@ namespace Eval {
 		auto score = pos.state()->materialValue;
 
 		for (auto sq : SQ)
-			score += KKPEE[pos.king_square(BLACK)][pos.king_square(WHITE)][sq]
+			score += KKPEE[pos.square<KING>(BLACK)][pos.square<KING>(WHITE)][sq]
 				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
 
 		return pos.side_to_move() == BLACK ? score : -score;
@@ -495,7 +495,7 @@ namespace Eval {
 
 		Value score = VALUE_ZERO;
 		for (auto sq : SQ)
-			score += KKPEE[pos.king_square(BLACK)][pos.king_square(WHITE)][sq]
+			score += KKPEE[pos.square<KING>(BLACK)][pos.square<KING>(WHITE)][sq]
 				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
 
 		// KKPEE配列はFV_SCALE倍されているのでこれで割ってから駒割を加算する。
@@ -672,7 +672,7 @@ namespace Eval {
 
 		Value score = VALUE_ZERO;
 		for (auto sq : SQ)
-			score += KKPEE[pos.king_square(BLACK)][pos.king_square(WHITE)][sq]
+			score += KKPEE[pos.square<KING>(BLACK)][pos.square<KING>(WHITE)][sq]
 				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
 
 		// KKPEE配列はFV_SCALE倍されているのでこれで割ってから駒割を加算する。
@@ -891,7 +891,7 @@ namespace Eval {
 
 		Value score = VALUE_ZERO;
 		for (auto sq : SQ)
-			score += KKPEE[pos.king_square(BLACK)][pos.king_square(WHITE)][sq]
+			score += KKPEE[pos.square<KING>(BLACK)][pos.square<KING>(WHITE)][sq]
 				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
 
 		// KKPEE配列はFV_SCALE倍されているのでこれで割ってから駒割を加算する。

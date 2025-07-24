@@ -666,7 +666,7 @@ void Search::YaneuraOuWorker::start_searching() {
     //
     // 参考動画 : https://www.youtube.com/watch?v=8nwJcKH0x0c
 
-    auto their_king = rootPos.king_square(~us);
+    auto their_king = rootPos.square<KING>(~us);
     auto our_piece  = rootPos.attackers_to(their_king) & rootPos.pieces(us);
     // 敵玉に利いている自駒があるなら、それを移動させて勝ち。
     if (our_piece)
