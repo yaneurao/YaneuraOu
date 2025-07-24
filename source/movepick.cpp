@@ -10,6 +10,8 @@
 #include "position.h"
 
 namespace YaneuraOu {
+using namespace Eval; // Eval::PieceValue
+
 namespace {
   
 // -----------------------
@@ -323,7 +325,7 @@ void MovePicker::score()
 			//    ここでpromotionの価値まで足し込んでしまうとそこと整合性がとれなくなるのか…。
 
 			m.value = (*captureHistory)[pc][to][type_of(capturedPiece)]
-						+ 7 * int(Eval::CapturePieceValuePlusPromote(pos, m)) + 1024 * bool(pos.check_squares(pt) & to);
+						+ 7 * int(Eval::PieceValue[capturedPiece]) + 1024 * bool(pos.check_squares(pt) & to);
 			// →　係数を掛けてるのは、
 			// このあと、GOOD_CAPTURE で、
 			//	return pos.see_ge(*cur, Value(-cur->value))
@@ -379,14 +381,8 @@ void MovePicker::score()
 		else // Type == EVASIONS
 		{
 			// 王手回避の指し手をスコアリングする。
-#if STOCKFISH
 			if (pos.capture_stage(m))
 				m.value = PieceValue[capturedPiece] + (1 << 28);
-#else
-			if (pos.capture_or_promotion(m))
-				m.value = Eval::CapturePieceValuePlusPromote(pos, m)
-                        + (1 << 28);
-#endif
 			/* 📓 捕獲する指し手に関しては簡易SEE + MVV/LVA
 				  
 				  被害が小さいように、LVA(価値の低い駒)を動かして取ることを
