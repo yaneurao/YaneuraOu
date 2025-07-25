@@ -18,7 +18,7 @@
 //#include "syzygy/tbprobe.h"  // for Stockfish::Depth
 #include "thread.h"
 #include "tt.h"
-#include "usi_option.h"
+#include "usioption.h"
 
 namespace YaneuraOu {
 

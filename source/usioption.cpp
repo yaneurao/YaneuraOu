@@ -112,7 +112,7 @@ Option::Option(OnChange f) :
 	on_change(std::move(f)) {
 }
 
-Option::Option(s64 v, s64 minv, s64 maxv, OnChange f) :
+Option::Option(int64_t v, int64_t minv, int64_t maxv, OnChange f) :
 	type("spin"),
 	min(minv),
 	max(maxv),
@@ -140,7 +140,7 @@ Option::Option(const std::vector<std::string>& list, const std::string& cur, OnC
 	currentValue = cur;
 }
 
-Option::operator s64() const {
+Option::operator int64_t() const {
 	ASSERT_LV1(type == "check" || type == "spin");
 	//return (type == "spin" ? std::stoi(currentValue) : currentValue == "true");
 	return (type == "spin" ? std::stoll(currentValue) : currentValue == "true");
@@ -287,8 +287,8 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 
 					if (o.type == "spin")
 						// この範囲はStockfishではfloatになっているが、
-						// やねうら王では、s64に変更する。
-						os << " default " << s64(stoll(o.defaultValue))
+						// やねうら王では、int64_tに変更する。
+						os << " default " << int64_t(stoll(o.defaultValue))
 						<< " min " << o.min
 						<< " max " << o.max;
 

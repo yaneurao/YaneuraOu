@@ -167,7 +167,7 @@ LOCAL_SRC_FILES := \
   ../source/movegen.cpp                                                \
   ../source/position.cpp                                               \
   ../source/usi.cpp                                                    \
-  ../source/usi_option.cpp                                             \
+  ../source/usioption.cpp                                              \
   ../source/thread.cpp                                                 \
   ../source/tt.cpp                                                     \
   ../source/movepick.cpp                                               \
@@ -177,6 +177,7 @@ LOCAL_SRC_FILES := \
   ../source/search.cpp                                                 \
   ../source/score.cpp                                                  \
   ../source/benchmark.cpp                                              \
+  ../source/tune.cpp                                                   \
   ../source/book/apery_book.cpp                                        \
   ../source/book/book.cpp                                              \
   ../source/extra/bitop.cpp                                            \

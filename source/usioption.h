@@ -23,74 +23,74 @@ class OptionsMap;
 // Optionクラスは、UCIプロトコルで指定された各オプションを実装します
 
 class Option {
-public:
-	// 値が変更された時に呼び出されるevent handlerの型。
-	using OnChange = std::function<std::optional<std::string>(const Option&)>;
+   public:
+    // 値が変更された時に呼び出されるevent handlerの型。
+    using OnChange = std::function<std::optional<std::string>(const Option&)>;
 
-	Option(const OptionsMap*);
-	Option(OnChange = nullptr);
+    Option(const OptionsMap*);
+    Option(OnChange = nullptr);
 
-	// bool
-	Option(bool v, OnChange = nullptr);
+    // bool
+    Option(bool v, OnChange = nullptr);
 
-	// string
-	Option(const char* v, OnChange = nullptr);
+    // string
+    Option(const char* v, OnChange = nullptr);
 
-	// integer
-	//Option(double v, int minv, int maxv, OnChange = nullptr);
-	// ⇨ 💡 やねうら王では、引数をs64に変更
-	Option(s64 v, s64 minv, s64 maxv, OnChange = nullptr);
+    // integer
+    //Option(double v, int minv, int maxv, OnChange = nullptr);
+    // ⇨ 💡 やねうら王では、引数をint64_tに変更
+    Option(int64_t v, int64_t minv, int64_t maxv, OnChange = nullptr);
 
-	// combo
-	// 📌 Option("A B C","B")のようなcombo形式。
-	Option(const char* v, const char* cur, OnChange = nullptr);
-	Option(const std::vector<std::string>& list, const std::string& cur, OnChange = nullptr);
+    // combo
+    // 📌 Option("A B C","B")のようなcombo形式。
+    Option(const char* v, const char* cur, OnChange = nullptr);
+    Option(const std::vector<std::string>& list, const std::string& cur, OnChange = nullptr);
 
-	Option& operator=(const std::string&);
+    Option& operator=(const std::string&);
 
-	//operator int() const;
-	// 📌 やねうら王では、s64に変更する。
-	operator s64() const;
+    //operator int() const;
+    // 📌 やねうら王では、int64_tに変更する。
+    operator int64_t() const;
 
-	operator std::string() const;
-	bool operator==(const char*) const;
-	bool operator!=(const char*) const;
+    operator std::string() const;
+    bool operator==(const char*) const;
+    bool operator!=(const char*) const;
 
-	friend std::ostream& operator<<(std::ostream&, const OptionsMap&);
+    friend std::ostream& operator<<(std::ostream&, const OptionsMap&);
 
-	int operator<<(const Option&) = delete;
+    int operator<<(const Option&) = delete;
 
-	// -- やねうら王独自
+    // -- やねうら王独自
 
-	// 固定化フラグ。
-	// これを true にすると、operator = で変更できなくなる。
-	bool fixed = false;
+    // 固定化フラグ。
+    // これを true にすると、operator = で変更できなくなる。
+    bool fixed = false;
 
-private:
-	friend class OptionsMap;
-	friend class Engine;
-	friend class Tune;
+   private:
+    friend class OptionsMap;
+    friend class Engine;
+    friend class Tune;
 
-	// このオプション設定のdefaultの値、現在の値、type。
-	// 💡 typeは USIプロトコルのsetoptionの時に指定できるオプションの型名。
-	std::string       defaultValue, currentValue, type;
+    // このオプション設定のdefaultの値、現在の値、type。
+    // 💡 typeは USIプロトコルのsetoptionの時に指定できるオプションの型名。
+    std::string defaultValue, currentValue, type;
 
-	// このオプション設定がint型であるときに、最小値と最大値。
-	// 📒 Stockfishではintだが、やねうら王ではs64に変更。
-	s64               min, max;
+    // このオプション設定がint型であるときに、最小値と最大値。
+    // 📒 Stockfishではintだが、やねうら王ではint64_tに変更。
+    int64_t min, max;
 
-	// 追加した順に0,1,2,…
-	// 💡 これは、OptionsMap.add()で追加する時に設定される。
-	// 📝 "usi"コマンド応答で、OptionsMapへの登録順に出力されてほしいので、
-	//     カウンターを0から増やしていき、Option::idxが一致したものを表示していくようになっている。
-	//     この変数は、そのためのもの。
-	size_t            idx;
+    // 追加した順に0,1,2,…
+    // 💡 これは、OptionsMap.add()で追加する時に設定される。
+    // 📝 "usi"コマンド応答で、OptionsMapへの登録順に出力されてほしいので、
+    //     カウンターを0から増やしていき、Option::idxが一致したものを表示していくようになっている。
+    //     この変数は、そのためのもの。
+    size_t idx;
 
-	// このOptionの設定値が変更された時に呼び出されるevent handler。
-	OnChange          on_change;
+    // このOptionの設定値が変更された時に呼び出されるevent handler。
+    OnChange on_change;
 
-	// 親objectへのpointer
-	const OptionsMap* parent = nullptr;
+    // 親objectへのpointer
+    const OptionsMap* parent = nullptr;
 };
 
 // 思考エンジンオプションを保持しておくためのclass。

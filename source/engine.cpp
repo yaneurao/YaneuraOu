@@ -1,7 +1,7 @@
 ﻿#include "engine.h"
 #include "thread.h"
 #include "perft.h"
-#include "usi_option.h"
+#include "usioption.h"
 #include "book/book.h"
 #include "search.h"
 

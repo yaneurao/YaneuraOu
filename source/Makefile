@@ -331,7 +331,7 @@ SOURCES  = \
 	movegen.cpp                                                                \
 	position.cpp                                                               \
 	usi.cpp                                                                    \
-	usi_option.cpp                                                             \
+	usioption.cpp                                                              \
 	thread.cpp                                                                 \
 	tt.cpp                                                                     \
 	movepick.cpp                                                               \
@@ -341,6 +341,7 @@ SOURCES  = \
 	search.cpp                                                                 \
 	score.cpp                                                                  \
 	benchmark.cpp                                                              \
+	tune.cpp                                                                   \
 	book/book.cpp                                                              \
 	book/apery_book.cpp                                                        \
 	book/policybook.cpp                                                        \
