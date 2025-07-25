@@ -10,6 +10,7 @@
 #include "testcmd/unit_test.h"
 #include "benchmark.h"
 #include "engine.h"
+#include "movegen.h"
 
 #if defined(__EMSCRIPTEN__)
 // yaneuraou.wasm
@@ -1225,7 +1226,7 @@ void USIEngine::isready() {
 void USIEngine::moves() {
     auto& pos = engine.get_position();
     for (auto m : MoveList<LEGAL_ALL>(pos))
-        std::cout << Move(m) << ' ';
+        std::cout << m << ' ';
     std::cout << std::endl;
 }
 

@@ -924,38 +924,6 @@ enum MoveType {
 // 指し手(Move)のMoveTypeを返す。
 constexpr MoveType type_of(Move m) { return MoveType(m.to_u16() & (MOVE_PROMOTE | MOVE_DROP)); }
 
-// --------------------
-//   拡張された指し手
-// --------------------
-
-// 指し手とオーダリングのためのスコアがペアになっている構造体。
-// オーダリングのときにスコアで並べ替えしたいが、一つになっているほうが並び替えがしやすいのでこうしてある。
-// ⇨ Moveがclassになったので、このclass memberを呼び出したいから、Moveから派生させるように変更になった。
-struct ExtMove : public Move {
-
-	int value;	// 指し手オーダリング(並び替え)のときのスコア(符号つき32bit)
-
-	// Move型から暗黙で代入できる。
-	// ⇨ こうしておけば、MoveList* curに対して *cur++ = move; のように書ける。
-	void operator=(const Move m) { data = m.to_u32(); }
-	// ⇨ ここ、data = m.dataとしようとするとdataはprotectedなのにアクセスできない。なぜ…？
-
-	// 補足 : このクラスの変数をMove型にしたいときは、このクラスの変数を Move(m) のようにすれば良い。
-
-	// Inhibit unwanted implicit conversions to Move
-	// with an ambiguity that yields to a compile error.
-	// 意図しない暗黙のMoveへの変換を防ぎ、あいまいさによってコンパイルエラーを引き起こします。
-
-	// cf. Fix involuntary conversions of ExtMove to Move : https://github.com/official-stockfish/Stockfish/commit/d482e3a8905ee194bda3f67a21dda5132c21f30b
-	operator float() const = delete;
-};
-
-// partial_insertion_sort()でExtMoveの並べ替えを行なうので比較オペレーターを定義しておく。
-constexpr bool operator<(const ExtMove& first, const ExtMove& second) {
-	return first.value < second.value;
-}
-
-static std::ostream& operator<<(std::ostream& os, ExtMove m) { os << Move(m) << '(' << m.value << ')'; return os; }
 
 // --------------------
 //       手駒
@@ -1067,124 +1035,14 @@ constexpr bool hand_exceptPawnExists(HandKind hk) { return hk & ~HAND_KIND_PAWN;
 
 #endif
 
-// --------------------
-//    指し手生成器
-// --------------------
-
-// 将棋のある局面の合法手の最大数。593らしいが、保険をかけて少し大きめにしておく。
-constexpr int MAX_MOVES = 600;
-
-// 生成する指し手の種類
-enum MOVE_GEN_TYPE
-{
-	//
-	// 注意)
-	// 指し手生成器で生成される指し手はすべてpseudo-legalであるが、
-	// LEGAL/LEGAL_ALL以外は自殺手が含まれることがある。
-	// (pseudo-legalは自殺手も含むので)
-	// 
-	// そのため、do_moveの前にPosition::legal()でのチェックが必要である。
-	//
-
-	NON_CAPTURES,           // 駒を取らない指し手
-	CAPTURES,               // 駒を取る指し手
-
-	NON_CAPTURES_ALL,		// NON_CAPTURES + 歩の不成、大駒の不成で駒を取る手
-	CAPTURES_ALL,			// CAPTURES     + 歩の不成、大駒の不成で駒を取る手
-
-	CAPTURES_PRO_PLUS,      // CAPTURES     + 価値のかなりあると思われる成り(歩だけ)
-	NON_CAPTURES_PRO_MINUS, // NON_CAPTURES - 価値のかなりあると思われる成り(歩だけ)
-
-	CAPTURES_PRO_PLUS_ALL,      // CAPTURES_PRO_PLUS      + 歩の不成、大駒の不成で駒を取る手
-	NON_CAPTURES_PRO_MINUS_ALL, // NON_CAPTURES_PRO_MINUS + 歩の不成、大駒の不成で駒を取らない手
-
-	// note : 歩の不成で駒を取らない指し手は後者に含まれるべきだが、指し手生成の実装が難しくなるので前者に含めることにした。
-	//        オーダリング(movepicker)でなんとかするだろうからそこまで悪くはならないだろうし、普段は
-	//		  GenerateAllLegalMovesがオンにして動かさないから良しとする。
-
-	// BonanzaではCAPTURESに銀以外の成りを含めていたが、Aperyでは歩の成り以外は含めない。
-	// あまり変な成りまで入れるとオーダリングを阻害する。
-	// 本ソースコードでは、NON_CAPTURESとCAPTURESは使わず、CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSを使う。
-
-	// note : NON_CAPTURESとCAPTURESとの生成される指し手の集合は被覆していない。
-	// note : CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSとの生成される指し手の集合も被覆していない。
-	// note : CAPTURES_PRO_PLUS_ALLとNON_CAPTURES_PRO_MINUS_ALLとの生成される指し手の集合も被覆していない。
-	// →　被覆させないことで、二段階に指し手生成を分解することが出来る。
-
-	EVASIONS,              // 王手の回避(指し手生成元で王手されている局面であることがわかっているときはこちらを呼び出す)
-	EVASIONS_ALL,          // EVASIONS + 歩の不成なども含む。
-
-	NON_EVASIONS,          // 王手の回避ではない手(指し手生成元で王手されていない局面であることがわかっているときのすべての指し手)
-	NON_EVASIONS_ALL,      // NON_EVASIONS + 歩の不成などを含む。
-
-	// 以下の2つは、pos.legalを内部的に呼び出すので生成するのに時間が少しかかる。棋譜の読み込み時などにしか使わない。
-	LEGAL,                 // 合法手すべて。ただし、2段目の歩・香の不成や角・飛の不成は生成しない。
-	LEGAL_ALL,             // 合法手すべて
-
-	CHECKS,                // 王手となる指し手(歩の不成などは含まない)
-	CHECKS_ALL,            // 王手となる指し手(歩の不成なども含む)
-
-	QUIET_CHECKS,          // 王手となる指し手(歩の不成などは含まない)で、CAPTURESの指し手は含まない指し手
-	QUIET_CHECKS_ALL,      // 王手となる指し手(歩の不成なども含む)でCAPTURESの指し手は含まない指し手
-
-	// QUIET_CHECKS_PRO_MINUS,	  // 王手となる指し手(歩の不成などは含まない)で、CAPTURES_PRO_PLUSの指し手は含まない指し手
-	// QUIET_CHECKS_PRO_MINUS_ALL, // 王手となる指し手(歩の不成なども含む)で、CAPTURES_PRO_PLUSの指し手は含まない指し手
-	// →　これらは実装が難しいので、QUIET_CHECKSで生成してから、歩の成る指し手を除外したほうが良いと思う。
-
-	RECAPTURES,            // 指定升への移動の指し手のみを生成する。(歩の不成などは含まない)
-	RECAPTURES_ALL,        // 指定升への移動の指し手のみを生成する。(歩の不成なども含む)
-
-	QUIETS = NON_CAPTURES, // Stockfishとの互換性向上ためのalias
-};
-
-class Position; // 前方宣言
-
 // 平手の開始局面のSFEN文字列。
 // 📝 Stockfishではengine.cppとuci.cppで定義されている。
 extern const std::string StartSFEN;
 
-// 指し手を生成器本体
-// gen_typeとして生成する指し手の種類をシてする。gen_allをfalseにすると歩の不成、香の8段目の不成は生成しない。通常探索中はそれでいいはず。
-// mlist : 指し手を返して欲しい指し手生成バッファのアドレス
-// 返し値 : 生成した指し手の終端
-struct CheckInfo;
-template <MOVE_GEN_TYPE gen_type> ExtMove* generateMoves(const Position& pos, ExtMove* mlist);
-template <MOVE_GEN_TYPE gen_type> ExtMove* generateMoves(const Position& pos, ExtMove* mlist,Square recapSq); // RECAPTURES,RECAPTURES_ALL専用
+// 局面 class。前方宣言。
+class Position;
 
-// MoveGeneratorのwrapper。範囲forで回すときに便利。
-template<MOVE_GEN_TYPE GenType>
-struct MoveList {
-	// 局面をコンストラクタの引数に渡して使う。すると指し手が生成され、lastが初期化されるので、
-	// このclassのbegin(),end()が正常な値を返すようになる。
-	// lastは内部のバッファを指しているので、このクラスのコピーは不可。
-	//
-	// for(auto extmove : MoveList<LEGAL_ALL>(pos)) ...
-	// のような書き方ができる。
-
-	explicit MoveList(const Position& pos) : last(generateMoves<GenType>(pos, mlist)) {}
-
-	// 内部的に持っている指し手生成バッファの先頭
-	const ExtMove* begin() const { return mlist; }
-
-	// 生成された指し手の末尾のひとつ先
-	const ExtMove* end() const { return last; }
-
-	// 生成された指し手のなかに引数で指定された指し手が含まれているかの判定。
-	// ASSERTなどで用いる。遅いので通常探索等では用いないこと。
-	bool contains(Move move) const {
-		return std::find(begin(), end(), move) != end();
-	}
-
-	// 生成された指し手の数
-	size_t size() const { return last - mlist; }
-
-	// i番目の要素を返す
-	const ExtMove at(size_t i) const { ASSERT_LV3(i < size()); return begin()[i]; }
-
-private:
-	// 指し手生成バッファも自前で持っている。
-	ExtMove mlist[MAX_MOVES], *last;
-};
+// 💡 ここにあった指し手生成に関するコードは、movegen.hに移動した。
 
 // --------------------
 //        探索

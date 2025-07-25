@@ -1,6 +1,7 @@
 ﻿#include "mate.h"
 #if defined (USE_MATE_1PLY)
 #include "../position.h"
+#include "../movegen.h"
 
 namespace YaneuraOu {
 namespace Mate {

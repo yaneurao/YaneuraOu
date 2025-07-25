@@ -11,6 +11,7 @@
 #include "../usi.h"
 #include "../thread.h"
 #include "../search.h"
+#include "../movegen.h"
 
 #if defined(EVAL_LEARN)
 #include "../eval/evaluate_common.h"

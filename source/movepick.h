@@ -13,7 +13,7 @@
 //#include <type_traits>
 
 #include "history.h"
-//#include "movegen.h"
+#include "movegen.h"
 #include "types.h"
 #include "position.h"
 
@@ -91,8 +91,8 @@ class MovePicker {
     // GenType == CAPTURES : 捕獲する指し手のオーダリング
     // GenType == QUIETS   : 捕獲しない指し手のオーダリング
     // GenType == EVASIONS : 王手回避の指し手のオーダリング
-    template<MOVE_GEN_TYPE>
-    void score();
+    template<GenType T>
+    ExtMove* score(MoveList<T>&);
 
     // range-based forを使いたいので。
     // 現在の指し手から終端までの指し手が返る。

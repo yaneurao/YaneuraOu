@@ -3,7 +3,7 @@
 
 //#include <cstdint>
 
-//#include "movegen.h"
+#include "movegen.h"
 #include "position.h"
 #include "types.h"
 #include "usi.h"

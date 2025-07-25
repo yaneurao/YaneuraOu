@@ -264,17 +264,27 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
 // 静かな手は履歴テーブルを使用して順序付けられます。
 
 // QUIETS、EVASIONS、CAPTURESの指し手のオーダリングのためのスコアリング。似た処理なので一本化。
-template<MOVE_GEN_TYPE Type>
-void MovePicker::score()
-{
+template<GenType Type>
+ExtMove* MovePicker::score(MoveList<Type>& ml) {
+
+#if STOCKFISH
 	static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
+#else
+    static_assert(Type == CAPTURES || Type == CAPTURES_ALL || Type == QUIETS || Type == QUIETS_ALL
+                    || Type == EVASIONS || Type == EVASIONS_ALL,
+                  "Wrong type");
+#endif
 
 	Color us = pos.side_to_move();
 
 	// 自分より価値の安い駒で当たりになっているか
 	//[[maybe_unused]] Bitboard threatByLesser[QUEEN + 1];
 
+#if STOCKFISH
 	if constexpr (Type == QUIETS)
+#else
+    if constexpr (Type == QUIETS || Type == QUIETS_ALL)
+#endif
 	{
 #if STOCKFISH
         threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.attacks_by<PAWN>(~us);
@@ -300,8 +310,12 @@ void MovePicker::score()
 #endif
 	}
 
-	for (auto& m : *this)
-	{
+    ExtMove* it = cur;
+    for (auto move : ml)
+    {
+        ExtMove& m = *it++;
+        m          = move;
+
 		const Square    from          = m.from_sq();
 		const Square    to            = m.to_sq();
 		const Piece     pc            = pos.moved_piece(m);
@@ -334,7 +348,11 @@ void MovePicker::score()
 			// Stockfishとは駒点が異なるので、この部分の係数を調整する必要がある。
 			//
 		}
+#if STOCKFISH
 		else if constexpr (Type == QUIETS)
+#else
+        else if constexpr (Type == QUIETS || Type == QUIETS_ALL)
+#endif
 		{
 			// 駒を取らない指し手をオーダリングする。
 			// ここ、歩以外の成りも含まれているのだが…。
@@ -378,7 +396,7 @@ void MovePicker::score()
 				m.value += 8 * (*lowPlyHistory)[ply][m.from_to()] / (1 + ply);
 			
 		}
-		else // Type == EVASIONS
+		else // Type == EVASIONS || EVASIONS_ALL
 		{
 			// 王手回避の指し手をスコアリングする。
 			if (pos.capture_stage(m))
@@ -411,6 +429,7 @@ void MovePicker::score()
 			}
 		}
 	}
+    return it;
 }
 
 // Returns the next move satisfying a predicate function.
@@ -448,37 +467,50 @@ Move MovePicker::next_move() {
 	constexpr int goodQuietThreshold = -14000;
 
 top:
-	switch (stage) {
+    switch (stage)
+    {
 
-	// 置換表の指し手を返すフェーズ
-	case MAIN_TT:
-	case EVASION_TT:
-	case QSEARCH_TT:
-	case PROBCUT_TT:
-		++stage;
-		return ttMove;
+    // 置換表の指し手を返すフェーズ
+    case MAIN_TT :
+    case EVASION_TT :
+    case QSEARCH_TT :
+    case PROBCUT_TT :
+        ++stage;
+        return ttMove;
 
-	// 置換表の指し手を返したあとのフェーズ
-	case CAPTURE_INIT:
-	case PROBCUT_INIT:
-	case QCAPTURE_INIT:
-		cur = endBadCaptures = moves;
+    // 置換表の指し手を返したあとのフェーズ
+    case CAPTURE_INIT :
+    case PROBCUT_INIT :
+    case QCAPTURE_INIT : {
+
 #if STOCKFISH
-        endCur = endCaptures = generate<CAPTURES>(pos, cur);
+        MoveList<CAPTURES> ml(pos);
+
+        cur = endBadCaptures = moves;
+
+        // 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
+        endCur = endCaptures = score<CAPTURES>(ml);
 #else
-        endCur = endCaptures = generate_all_legal_moves
-                                ? generateMoves<CAPTURES_ALL>(pos, cur)
-                                : generateMoves<CAPTURES>(pos, cur);
+        if (generate_all_legal_moves)
+        {
+            MoveList<CAPTURES_ALL> ml(pos);
+            cur = endBadCaptures = moves;
+            endCur = endCaptures = score<CAPTURES_ALL>(ml);
+        }
+        else
+        {
+            MoveList<CAPTURES> ml(pos);
+            cur = endBadCaptures = moves;
+            endCur = endCaptures = score<CAPTURES>(ml);
+        }
 #endif
 
-		// 駒を捕獲する指し手に対してオーダリングのためのスコアをつける
-		score<CAPTURES>();
+        // captureの指し手はそんなに数多くないので全数ソートで問題ないし、全数ソートした方が良い。
+        partial_insertion_sort(cur, endCur, std::numeric_limits<int>::min());
 
-		// captureの指し手はそんなに数多くないので全数ソートで問題ないし、全数ソートした方が良い。
-		partial_insertion_sort(cur, endCur, std::numeric_limits<int>::min());
-
-		++stage;
-		goto top;
+        ++stage;
+        goto top;
+    }
 
 	// 置換表の指し手を返したあとのフェーズ
 	// (killer moveの前のフェーズなのでkiller除去は不要)
@@ -539,31 +571,44 @@ top:
 			*/
 
 #if STOCKFISH
-            endCur = endGenerated = generate<QUIETS>(pos, cur);
+            MoveList<QUIETS> ml(pos);
+
+            endCur = endGenerated = score<QUIETS>(ml);
 #else
-            endCur = endGenerated = generate_all_legal_moves
-                        ? generateMoves<NON_CAPTURES_ALL>(pos, cur)
-                        : generateMoves<NON_CAPTURES>(pos, cur);
+			if (generate_all_legal_moves)
+			{
+                MoveList<QUIETS_ALL> ml(pos);
+                endCur = endGenerated = score<QUIETS_ALL>(ml);
+			}
+			else
+			{
+                MoveList<QUIETS> ml(pos);
+                // 駒を捕獲しない指し手に対してオーダリングのためのスコアをつける
+                endCur = endGenerated = score<QUIETS>(ml);
+			}
+            // ⚠ ここ⇑、CAPTURE_INITで生成した指し手に歩の成りの指し手が
+			//     含まれているなら、それを除外しなければならない。
 #endif						
-			// 注意 : ここ⇑、CAPTURE_INITで生成した指し手に歩の成りの指し手が含まれているなら、それを除外しなければならない。
 
-			// 駒を捕獲しない指し手に対してオーダリングのためのスコアをつける
-			score<QUIETS>();
+			/*
+				📓
 
-			// 指し手を部分的にソートする。depthに線形に依存する閾値で。
-			// (depthが低いときに真面目に全要素ソートするのは無駄だから)
+					指し手を部分的にソートする。depthに線形に依存する閾値で。
+					(depthが低いときに真面目に全要素ソートするのは無駄だから)
+			
+					将棋では平均合法手は100手程度。(以前は80手程度だったが、
+					AI同士の対局では終局までの平均手数が伸びたので相対的に
+					終盤が多くなり、終盤は手駒を持っていることが多いから、
+					そのため平均合法手が増えた。)
 
-			// メモ書き)
-			//
-			// 将棋では平均合法手は100手程度。(以前は80手程度だったが、AI同士の対局では
-			// 終局までの平均手数が伸びたので相対的に終盤が多くなり、終盤は手駒を持っていることが多いから、
-			// そのため平均合法手が増えた。)
-			// また、合法手の最大は、593手。
-			// 
-			// それに対して、チェスの平均合法手は40手、合法手の最大は、218手と言われている。
-			//
-			// insertion sortの計算量は、O(n^2) で、将棋ではわりと悩ましいところ。
-			// sortする個数が64以上などはquick sortに切り替えるなどした方がいい可能性もある。
+					また、合法手の最大は、593手。
+			 
+					それに対して、チェスの平均合法手は40手、合法手の最大は、218手と言われている。
+			
+					insertion sortの計算量は、O(n^2) で、将棋ではわりと悩ましいところ。
+					sortする個数が64以上などはquick sortに切り替えるなどした方がいい可能性もある。
+			*/
+
 
 			partial_insertion_sort(cur, endCur, -3560 * depth);
 		}
@@ -608,24 +653,34 @@ top:
 
 		return Move::none();
 
-		// 王手回避手の生成
-	case EVASION_INIT:
-		cur    = moves;
-#if STOCKFISH		
-        endCur = endGenerated = generate<EVASIONS>(pos, cur);
+	// 王手回避手の生成
+    case EVASION_INIT : {
+#if STOCKFISH
+        MoveList<EVASIONS> ml(pos);
+
+        cur    = moves;
+        endCur = endGenerated = score<EVASIONS>(ml);
 #else
-        endCur = endGenerated = generate_all_legal_moves
-                                ? generateMoves<EVASIONS_ALL>(pos, cur)
-                                : generateMoves<EVASIONS>(pos, cur);
+		if (generate_all_legal_moves)
+		{
+            MoveList<EVASIONS_ALL> ml(pos);
+            cur    = moves;
+            endCur = endGenerated = score<EVASIONS_ALL>(ml);
+		}
+		else
+		{
+            MoveList<EVASIONS> ml(pos);
+            cur    = moves;
+			// 王手を回避する指し手に対してオーダリングのためのスコアをつける
+            endCur = endGenerated = score<EVASIONS>(ml);
+		}
 #endif
-		// 王手を回避する指し手に対してオーダリングのためのスコアをつける
-		score<EVASIONS>();
 
-		partial_insertion_sort(cur, endCur, std::numeric_limits<int>::min());
+        partial_insertion_sort(cur, endCur, std::numeric_limits<int>::min());
 
-		++stage;
-		[[fallthrough]];
-
+        ++stage;
+        [[fallthrough]];
+    }
 		// 王手回避の指し手を返す
 	case EVASION:
 		// 静止探索用の指し手を返す処理

@@ -12,7 +12,7 @@
 #include "../thread.h"
 #include "../learn/multi_think.h"
 #include "../usi.h"
-#include "../search.h"
+#include "../movegen.h"
 
 namespace YaneuraOu {
 namespace Book

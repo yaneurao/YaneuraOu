@@ -8,6 +8,7 @@
 #include "tt.h"
 #include "mate/mate.h"
 #include "book/book.h"
+#include "movegen.h"
 #include "testcmd/unit_test.h"
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
@@ -3485,51 +3486,51 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
             Move move1 = make_move(SQ_24, SQ_23, B_PAWN);
             Move move2 = make_move_promote(SQ_24, SQ_23, B_PAWN);
 
-            ExtMove move_buf[MAX_MOVES], *move_last;
+            Move move_buf[MAX_MOVES], *move_last;
             // move_bufからmove_lastのなかにmoveがあるかを探す。あればtrueを返す。
             auto find_move = [&](Move m) {
-                for (ExtMove* em = &move_buf[0]; em != move_last; ++em)
-                    if (Move(*em) == m)
+                for (Move* em = &move_buf[0]; em != move_last; ++em)
+                    if (*em == m)
                         return true;
                 return false;
             };
 
             bool all = true;
 
-            move_last = generateMoves<NON_CAPTURES>(pos, move_buf);
+            move_last = generate<QUIETS>(pos, move_buf);
             all &= !find_move(move1);
             all &= find_move(move2);
 
-            move_last = generateMoves<CAPTURES>(pos, move_buf);
+            move_last = generate<CAPTURES>(pos, move_buf);
             all &= !find_move(move1);
             all &= !find_move(move2);
 
-            move_last = generateMoves<NON_EVASIONS>(pos, move_buf);
+            move_last = generate<NON_EVASIONS>(pos, move_buf);
             all &= !find_move(move1);
             all &= find_move(move2);
 
-            move_last = generateMoves<NON_EVASIONS_ALL>(pos, move_buf);
+            move_last = generate<NON_EVASIONS_ALL>(pos, move_buf);
             all &= find_move(move1);
             all &= find_move(move2);
 
-            move_last = generateMoves<CAPTURES>(pos, move_buf);
+            move_last = generate<CAPTURES>(pos, move_buf);
             all &= !find_move(move1);
             all &= !find_move(move2);
 
-            move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
+            move_last = generate<CAPTURES_PRO_PLUS>(pos, move_buf);
             all &= !find_move(move1);
             all &= find_move(move2);
 
-            move_last = generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, move_buf);
+            move_last = generate<CAPTURES_PRO_PLUS_ALL>(pos, move_buf);
             all &= find_move(
               move1);  // 歩の不成はこちらに含めることになった。(movegenの実装の修正が難しいので)
             all &= find_move(move2);
 
-            move_last = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, move_buf);
+            move_last = generate<QUIETS_PRO_MINUS>(pos, move_buf);
             all &= !find_move(move1);
             all &= !find_move(move2);
 
-            move_last = generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(pos, move_buf);
+            move_last = generate<QUIETS_PRO_MINUS_ALL>(pos, move_buf);
             all &= !find_move(move1);  // 歩の不成はこちらには含まれていないので注意。
             all &= !find_move(move2);
 
@@ -3543,27 +3544,27 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
             move2 = make_move_promote(SQ_41, SQ_23, B_BISHOP);
             all   = true;
 
-            move_last = generateMoves<LEGAL_ALL>(pos, move_buf);
+            move_last = generate<LEGAL_ALL>(pos, move_buf);
             all &= find_move(move1);
             all &= find_move(move2);
 
-            move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
+            move_last = generate<CAPTURES_PRO_PLUS>(pos, move_buf);
             all &= !find_move(move1);
             all &= find_move(move2);
 
-            move_last = generateMoves<NON_CAPTURES_PRO_MINUS>(pos, move_buf);
+            move_last = generate<QUIETS_PRO_MINUS>(pos, move_buf);
             all &= !find_move(move1);
             all &= !find_move(move2);
 
-            move_last = generateMoves<CAPTURES_PRO_PLUS>(pos, move_buf);
+            move_last = generate<CAPTURES_PRO_PLUS>(pos, move_buf);
             all &= !find_move(move1);
             all &= find_move(move2);
 
-            move_last = generateMoves<NON_CAPTURES_PRO_MINUS_ALL>(pos, move_buf);
+            move_last = generate<QUIETS_PRO_MINUS_ALL>(pos, move_buf);
             all &= !find_move(move1);
             all &= !find_move(move2);
 
-            move_last = generateMoves<CAPTURES_PRO_PLUS_ALL>(pos, move_buf);
+            move_last = generate<CAPTURES_PRO_PLUS_ALL>(pos, move_buf);
             all &= find_move(move1);
             all &= find_move(move2);
 

@@ -7,6 +7,7 @@
 
 #include "../position.h"
 #include "../evaluate.h" // CapturePieceValue
+#include "../movegen.h"
 
 namespace YaneuraOu {
 namespace Mate {

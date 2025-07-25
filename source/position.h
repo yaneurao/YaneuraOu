@@ -1008,10 +1008,6 @@ public:
 	// 盤面を出力する。(USI形式ではない) デバッグ用。
 	friend std::ostream& operator<<(std::ostream& os, const Position& pos);
 
-	// MoveGenerator(指し手生成器)からは盤面・手駒にアクセス出来る必要があるのでfriend
-	template <MOVE_GEN_TYPE gen_type, bool gen_all>
-	friend struct MoveGenerator;
-
 	// UnitTest
 	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 

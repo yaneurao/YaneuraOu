@@ -5,6 +5,7 @@
 #include "thread.h"
 #include "usi.h"
 #include "tt.h"
+#include "movegen.h"
 
 namespace YaneuraOu {
 
