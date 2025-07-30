@@ -1614,14 +1614,18 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                              skill.best ? skill.best : skill.pick_best(rootMoves, multiPV)));
 }
 
-void YaneuraOuWorker::do_move(Position& pos, const Move move, StateInfo& st) {
-    do_move(pos, move, st, pos.gives_check(move));
+void Search::YaneuraOuWorker::do_move(Position & pos, const Move move, StateInfo& st,
+                                        Stack* const ss) {
+    do_move(pos, move, st, pos.gives_check(move), ss);
 }
 
 void YaneuraOuWorker::do_move(Position&  pos,
-                              const Move move,
-                              StateInfo& st,
-                              const bool givesCheck) {
+                            const Move move,
+                            StateInfo& st,
+                              const bool givesCheck,
+							  Stack* const ss) {
+
+    bool capture = pos.capture_stage(move);
 
 #if defined(EVAL_SFNN)
 
@@ -1637,6 +1641,24 @@ void YaneuraOuWorker::do_move(Position&  pos,
     nodes.fetch_add(1, std::memory_order_relaxed);
 
 #endif
+
+    if (ss != nullptr)
+    {
+		// currentMove(現在探索中の指し手)の更新
+        ss->currentMove         = move;
+
+#if STOCKFISH
+        ss->continuationHistory = &continuationHistory[ss->inCheck][capture][dp.pc][move.to_sq()];
+        ss->continuationCorrectionHistory = &continuationCorrectionHistory[dp.pc][move.to_sq()];
+#else
+		// やねうら王とStockfishでは、DirtyPieceの構造が違うし、
+		// やねうら王では、移動後の駒(成りの指し手なら成り駒)を使いたい。
+        Piece dp_pc = pos.moved_piece(move);
+        ss->continuationHistory =
+          &continuationHistory[ss->inCheck][capture][dp_pc][move.to_sq()];
+        ss->continuationCorrectionHistory = &continuationCorrectionHistory[dp_pc][move.to_sq()];
+#endif
+    }
 }
 
 void YaneuraOuWorker::do_null_move(Position& pos, StateInfo& st) { pos.do_null_move(st, tt); }
@@ -1851,24 +1873,24 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         evaluated = true;
         return this->evaluate(pos);
     };
-    auto do_move = [&](Position & pos, Move move, StateInfo st, bool givesCheck) {
+    auto do_move = [&](Position & pos, Move move, StateInfo st, bool givesCheck, Stack* ss) {
         if (!evaluated)
         {
             evaluated = true;
             Eval::evaluate_with_no_return(pos);
         }
-        this->do_move(pos, move, st, givesCheck);
+        this->do_move(pos, move, st, givesCheck, ss);
     };
 
 	// 🤔 同じ名前で呼び分けできないので、
 	//     こちらを名前を do_move_ にする。
-    auto do_move_ = [&](Position & pos, Move move, StateInfo st) {
+    auto do_move_ = [&](Position & pos, Move move, StateInfo st, Stack* ss) {
         if (!evaluated)
         {
             evaluated = true;
             Eval::evaluate_with_no_return(pos);
         }
-        this->do_move(pos, move, st);
+        this->do_move(pos, move, st, ss);
     };
     auto do_null_move = [&](Position& pos, StateInfo st) {
         if (!evaluated)
@@ -1879,7 +1901,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         this->do_null_move(pos, st);
     };
 #else
-    auto do_move_ = [&](Position& pos, Move move, StateInfo st) { this->do_move(pos, move, st); };
+    auto do_move_ = [&](Position& pos, Move move, StateInfo st, Stack* ss) { this->do_move(pos, move, st, ss); };
 #endif
 
 	// 📌 Timerの監視
@@ -2237,10 +2259,10 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
                 && !is_decisive(ttData.value))
             {
 #if STOCKFISH
-                do_move(pos, ttData.move, st);
+                do_move(pos, ttData.move, st, nullptr);
                 Key nextPosKey                             = pos.key();
 #else
-                do_move_(pos, ttData.move, st);
+                do_move_(pos, ttData.move, st, nullptr);
                 HASH_KEY nextPosKey                        = pos.hash_key();
 #endif
                 auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey, pos);
@@ -2862,16 +2884,10 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
             movedPiece = pos.moved_piece(move);
 
 #if STOCKFISH
-            do_move(pos, move, st);
+            do_move(pos, move, st, ss);
 #else
-            do_move_(pos, move, st);
+            do_move_(pos, move, st, ss);
 #endif
-
-            ss->currentMove = move;
-            ss->continuationHistory =
-              &continuationHistory[ss->inCheck][true][movedPiece][move.to_sq()];
-            ss->continuationCorrectionHistory =
-              &continuationCorrectionHistory[movedPiece][move.to_sq()];
 
             // Perform a preliminary qsearch to verify that the move holds
             // この指し手がよさげであることを確認するための予備的なqsearch
@@ -3350,23 +3366,14 @@ moves_loop:  // When in check, search starts here
         // -----------------------
 
 		// 指し手で1手進める
-        do_move(pos, move, st, givesCheck);
+        do_move(pos, move, st, givesCheck, ss);
 
         // Add extension to new depth
         // 求まった延長する手数を新しいdepthに加算
 
 		newDepth += extension;
 
-        // Update the current move (this must be done after singular extension search)
-        // 現在の指し手を更新する（これはシンギュラー延長探索の後に行う必要がある）
-        // 💡 これはsingluar extensionの探索が終わってから決めなければならない。(singularなら延長したいので)
-
-		ss->currentMove = move;
-        ss->continuationHistory =
-            &continuationHistory[ss->inCheck][capture][movedPiece][move.to_sq()];
-        ss->continuationCorrectionHistory =
-            &continuationCorrectionHistory[movedPiece][move.to_sq()];
-        uint64_t nodeCount = rootNode ? uint64_t(nodes) : 0;
+		uint64_t nodeCount = rootNode ? uint64_t(nodes) : 0;
 
         // Decrease reduction for PvNodes (*Scaler)
         // Pv Nodesに対してreductionを減らす(*Scaler)
@@ -4036,13 +4043,13 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         evaluated = true;
         return this->evaluate(pos);
     };
-    auto do_move = [&](Position& pos, Move move, StateInfo st, bool givesCheck) {
+    auto do_move = [&](Position& pos, Move move, StateInfo st, bool givesCheck, Stack* ss) {
         if (!evaluated)
         {
             evaluated = true;
             Eval::evaluate_with_no_return(pos);
         }
-        this->do_move(pos, move, st, givesCheck);
+        this->do_move(pos, move, st, givesCheck, ss);
     };
 #endif
 
@@ -4483,20 +4490,9 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         // Step 7. 指し手で進め探索する
         // -----------------------
 
-		Piece movedPiece = pos.moved_piece(move);
-
 		// 📝 1手動かして、再帰的にqsearch()を呼ぶ
 
-        do_move(pos, move, st, givesCheck);
-
-        // Update the current move
-        // 探索中の指し手を更新する
-
-        ss->currentMove = move;
-        ss->continuationHistory =
-          &continuationHistory[ss->inCheck][capture][movedPiece][move.to_sq()];
-        ss->continuationCorrectionHistory =
-          &continuationCorrectionHistory[movedPiece][move.to_sq()];
+        do_move(pos, move, st, givesCheck, ss);
 
         value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha);
         undo_move(pos, move);

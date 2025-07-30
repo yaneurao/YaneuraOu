@@ -7,6 +7,7 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <cstdint>
 
 namespace YaneuraOu {
 
