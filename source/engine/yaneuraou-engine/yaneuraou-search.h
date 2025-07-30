@@ -250,26 +250,50 @@ class SearchManager {
 // 各検索スレッドは、現在の深さ（ply）に基づいてインデックスされた、独自のStackオブジェクトの配列を持っています。
 
 struct Stack {
-    Move* pv;  // PVへのポインター。RootMovesのvector<Move> pvを指している。
-    PieceToHistory*
-      continuationHistory;  // historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
-    CorrectionHistory<PieceTo>* continuationCorrectionHistory;
+    // PVへのポインター。RootMovesのvector<Move> pvを指している。
+    Move* pv;
+
+    // historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
+    PieceToHistory* continuationHistory;
+
     // [pc][to]のペアに対する correction history。
-    int  ply;          // rootからの手数。rootならば0。
-    Move currentMove;  // そのスレッドの探索においてこの局面で現在選択されている指し手
-    Move
-      excludedMove;  // singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
-    Value
-      staticEval;  // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
-    int statScore;  // 一度計算したhistoryの合計値をcacheしておくのに用いる。
-    int
-      moveCount;  // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
-    bool inCheck;          // この局面で王手がかかっていたかのフラグ
-    bool ttPv;             // 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
-    bool ttHit;            // 置換表にhitしたかのフラグ
-    int  cutoffCnt;        // cut off(betaを超えたので枝刈りとしてreturn)した回数。
-    int  reduction;        // このnodeでのreductionの量
-    int  quietMoveStreak;  // quietの指し手が親nodeからこのnodeまでに何連続したか。
+    CorrectionHistory<PieceTo>* continuationCorrectionHistory;
+
+    // rootからの手数。rootならば0。
+    int ply;
+
+    // そのスレッドの探索においてこの局面で現在選択されている指し手
+    Move currentMove;
+
+    // singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
+    Move excludedMove;
+
+    // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+    Value staticEval;
+
+    // 一度計算したhistoryの合計値をcacheしておくのに用いる。
+    int statScore;
+
+    // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+    int moveCount;
+
+    // この局面で王手がかかっていたかのフラグ
+    bool inCheck;
+
+    // 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
+    bool ttPv;
+
+    // 置換表にhitしたかのフラグ
+    bool ttHit;
+
+    // cut off(betaを超えたので枝刈りとしてreturn)した回数。
+    int cutoffCnt;
+
+    // このnodeでのreductionの量
+    int reduction;
+
+    // quietの指し手が親nodeからこのnodeまでに何連続したか。
+    int quietMoveStreak;
 };
 
 
@@ -282,53 +306,52 @@ struct Stack {
       このclassがStockfishのEngine classに相当する。
       エンジン共通で必要なものは、IEngine/Engine(これが、それぞれエンジンのinterfaceとエンジン基底class)に移動させた。
 */
-class YaneuraOuEngine : public Engine
-{
-public:
-	// 📌 StockfishのEngine classに合わせる 📌
+class YaneuraOuEngine: public Engine {
+   public:
+    // 📌 StockfishのEngine classに合わせる 📌
 
-	// 📝 やねうら王では、namespace Searchに書いてあるので不要。
+    // 📝 やねうら王では、namespace Searchに書いてあるので不要。
 #if STOCKFISH
-	using InfoShort = Search::InfoShort;
-	using InfoFull  = Search::InfoFull;
-	using InfoIter  = Search::InfoIteration;
+    using InfoShort = Search::InfoShort;
+    using InfoFull  = Search::InfoFull;
+    using InfoIter  = Search::InfoIteration;
 #endif
 
-    YaneuraOuEngine(/* std::optional<std::string> path = std::nullopt */):
-            manager(updateContext) {}
+    YaneuraOuEngine(/* std::optional<std::string> path = std::nullopt */) :
+        manager(updateContext) {}
 
-	// 📝 やねうら王では、CommandLine::gから取得できるので使わない。
+    // 📝 やねうら王では、CommandLine::gから取得できるので使わない。
     // const std::string binaryDirectory;
 
-	// TODO : あとで整理する
+    // TODO : あとで整理する
 
-	//NumaReplicationContext numaContext;
+    //NumaReplicationContext numaContext;
 
-	// 📝 やねうら王では、base classであるEngine classが持っている。
+    // 📝 やねうら王では、base classであるEngine classが持っている。
 #if STOCKFISH
     Position     pos;
     StateListPtr states;
 
-	OptionsMap options;
+    OptionsMap options;
     ThreadPool threads;
 #endif
 
-	// 置換表
-	TranspositionTable tt;
+    // 置換表
+    TranspositionTable tt;
 
-	// TODO : あとで
+    // TODO : あとで
     //LazyNumaReplicated<Eval::NNUE::Networks> networks;
 
 
-	// 📝 Engine classにある
+    // 📝 Engine classにある
     // Search::UpdateContext updateContext;
 
-	// TODO : あとで
+    // TODO : あとで
     //std::function<void(std::string_view)> onVerifyNetworks;
 
-	// 🌈 やねうら王独自 🌈
+    // 🌈 やねうら王独自 🌈
 
-	// 思考エンジンの追加オプションを設定する。
+    // 思考エンジンの追加オプションを設定する。
     virtual void add_options() override;
 
     // "isready"のタイミングでの初期化処理。
@@ -337,23 +360,23 @@ public:
     // "ponderhit"に対するhandler。
     virtual void set_ponderhit(bool b) override;
 
-	// Threadのresizeするときのevent。
-	virtual void resize_threads() override;
+    // Threadのresizeするときのevent。
+    virtual void resize_threads() override;
 
-	// 置換表のresize event。
-	virtual void set_tt_size(size_t mb) override;
+    // 置換表のresize event。
+    virtual void set_tt_size(size_t mb) override;
 
-	// StockfishのThreadPool::clear()にあったもの。
-	void clear();
+    // StockfishのThreadPool::clear()にあったもの。
+    void clear();
 
-	// 定跡の指し手を選択するモジュール
+    // 定跡の指し手を選択するモジュール
     Book::BookMoveSelector book;
 
-	// 探索manager
+    // 探索manager
     // 📝 やねうら王では、Engine派生classがSearchMangerを持っている。
     Search::SearchManager manager;
 
-	// Stockfishとの互換性のために用意。
+    // Stockfishとの互換性のために用意。
     Search::SearchManager* main_manager() { return &manager; }
 };
 

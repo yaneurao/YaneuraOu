@@ -59,14 +59,14 @@ inline uint64_t perft(const std::string& fen, Depth depth /*, bool isChess960 */
     time.reset();
 #endif
 
-	StateListPtr states(new std::deque<StateInfo>(1));
-    Position     p;
+	Position  p;
+    StateInfo st;
 
 #if STOCKFISH
-    p.set(fen, isChess960, &states->back());
+    p.set(fen, isChess960, &st);
     return perft<true>(p, depth);
 #else
-	p.set(fen, /* isChess960,*/ &states->back());
+    p.set(fen, &st);
 
 	// 🌈 やねうら王では、NPS(leaf nodeの数/elapsed)と計測に要した時間も出力する。
 	auto nodes = perft<true>(p, depth);
