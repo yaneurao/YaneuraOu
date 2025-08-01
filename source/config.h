@@ -426,6 +426,15 @@ constexpr int MAX_PLY_NUM = 246;
 		#define USE_DIFF_EVAL
 	#endif
 
+	#if defined(YANEURAOU_ENGINE_NNUE) && !defined(NNUE_EMBEDDING)
+		// 📝 Stockfishでは、NNUE_EMBEDDING_OFFを定義した時にのみ、
+		//    評価関数パラメーターをファイルから読みこむ機能が有効になる。
+		//    (定義しないとincbinを用いて埋め込まれているものを読み込む)
+		//     やねうら王もこれに倣ったので、埋め込まないならばNNUE_EMBEDDING_OFFを
+		//    定義する必要がある。
+		#define NNUE_EMBEDDING_OFF
+	#endif
+
 	// 学習機能を有効にするオプション。
 	// 教師局面の生成、定跡コマンド(makebook thinkなど)を用いる時には、これを
 	// 有効化してコンパイルしなければならない。

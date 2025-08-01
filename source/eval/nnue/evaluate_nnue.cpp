@@ -67,7 +67,12 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
     Options("SkipLoadingEval", Option(false));
 #endif
 
+#if defined(NNUE_EMBEDDING_OFF)
     const char* default_eval_dir = "eval";
+#else
+	// メモリから読み込む。
+    const char* default_eval_dir = "<internal>";
+#endif
     Options.add("EvalDir", Option(default_eval_dir, [](const Option& o) {
                     std::string eval_dir = std::string(o);
                     if (last_eval_dir != eval_dir)
@@ -104,7 +109,7 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
 //     const unsigned int         gEmbeddedNNUESize;    // 埋め込まれたファイルのサイズ
 // なお、この方法は Microsoft Visual Studio では動作しません。
 
-#if !defined(_MSC_VER) && defined(NNUE_EMBEDDING)
+#if !defined(_MSC_VER) && !defined(NNUE_EMBEDDING_OFF)
 INCBIN(EmbeddedNNUE, EvalFileDefaultName);
 #else
 const unsigned char        gEmbeddedNNUEData[1] = { 0x0 };
@@ -157,7 +162,7 @@ namespace NNUE {
     AlignedPtr<Network> network;
 
     // 評価関数ファイル名
-    const char* const kFileName = "nn.bin";
+    const char* const kFileName = EvalFileDefaultName;
 
     // 評価関数の構造を表す文字列を取得する
     std::string GetArchitectureString() {
@@ -409,8 +414,11 @@ void load_eval() {
                     }
                 };
 
-                MemoryBuffer buffer(const_cast<char*>(reinterpret_cast<const char*>(gEmbeddedNNUEData)),
-                    size_t(gEmbeddedNNUESize));
+			    const auto embedded = get_embedded(/* embeddedType */);
+
+                MemoryBuffer buffer(
+                              const_cast<char*>(reinterpret_cast<const char*>(embedded.data)),
+                              size_t(embedded.size));
 
                 std::istream stream(&buffer);
                 sync_cout << "info string loading eval file : <internal>" << sync_endl;

@@ -16,6 +16,8 @@
 namespace YaneuraOu {
 namespace Eval::NNUE {
 
+	#define EvalFileDefaultName "nn.bin"
+
 	// Hash value of evaluation function structure
 	// 評価関数の構造のハッシュ値
 	constexpr std::uint32_t kHashValue =
