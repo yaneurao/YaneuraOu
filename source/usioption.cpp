@@ -47,13 +47,16 @@ void OptionsMap::setoption(std::istringstream& is) {
 // これはread onlyで、設定はここからしてはならない。
 const Option& OptionsMap::operator[](const std::string& name) const {
 	auto it = options_map.find(name);
-	//assert(it != options_map.end());
+#if STOCKFISH
+	assert(it != options_map.end());
+#else
 	if (it == options_map.end())
 	{
 		// Optionを生やす前に参照したのだと思うので、エラーメッセージを出力して終了する。
 		sync_cout << "Error : Options[" << name << "] , not found." << sync_endl;
 		Tools::exit();
 	}
+#endif
 
 	return it->second;
 }
@@ -112,13 +115,19 @@ Option::Option(OnChange f) :
 	on_change(std::move(f)) {
 }
 
+#if STOCKFISH
+Option::Option(double v, int minv, int maxv, OnChange f) :
+#else
 Option::Option(int64_t v, int64_t minv, int64_t maxv, OnChange f) :
+#endif
 	type("spin"),
 	min(minv),
 	max(maxv),
 	on_change(std::move(f)) {
 	defaultValue = currentValue = std::to_string(v);
 }
+
+#if STOCKFISH
 
 Option::Option(const char* v, const char* cur, OnChange f) :
 	type("combo"),
@@ -128,7 +137,9 @@ Option::Option(const char* v, const char* cur, OnChange f) :
 	defaultValue = v;
 	currentValue = cur;
 }
+#else
 
+// 🤔 Stockfishのcombo optionの設定、すごく使いにくいので定義しなおす。
 Option::Option(const std::vector<std::string>& list, const std::string& cur, OnChange f) :
 	type("combo"),
 	min(0),
@@ -136,24 +147,39 @@ Option::Option(const std::vector<std::string>& list, const std::string& cur, OnC
 	on_change(std::move(f)) {
 
 	// listの文字列をスペース区切りで連結してdefaultValueに突っ込む。
-	defaultValue = StringExtension::Join(list, " ");
+	//defaultValue = StringExtension::Join(list, " ");
+	// 📝 間違い。
+	//    {"A","B","C"}なるstd::vector<string>とcur = "B"から
+	//    "B var A var B var C"のような文字列を構築してdefaultValueに入れる必要がある。
+    std::string s = cur;
+    for (auto l : list)
+        s += " var " + l;
+    defaultValue = s;
 	currentValue = cur;
 }
+#endif
 
 Option::operator int64_t() const {
 	ASSERT_LV1(type == "check" || type == "spin");
-	//return (type == "spin" ? std::stoi(currentValue) : currentValue == "true");
+#if STOCKFISH
+	return (type == "spin" ? std::stoi(currentValue) : currentValue == "true");
+#else
 	return (type == "spin" ? std::stoll(currentValue) : currentValue == "true");
+#endif
 }
 
 Option::operator std::string() const {
-	ASSERT_LV1(type == "string" || type == "combo" /* 将棋用拡張*/ );
+#if STOCKFISH
+    assert(type == "string");
+#else
+	ASSERT_LV1(type == "string" || type == "combo");
+#endif
 	return currentValue;
 }
 
 bool Option::operator==(const char* s) const {
 	ASSERT_LV1(type == "combo");
-	return    !CaseInsensitiveLess()(currentValue, s) && !CaseInsensitiveLess()(s, currentValue);
+    return !CaseInsensitiveLess()(currentValue, s) && !CaseInsensitiveLess()(s, currentValue);
 }
 
 bool Option::operator!=(const char* s) const { return !(*this == s); }
@@ -169,18 +195,25 @@ bool Option::operator!=(const char* s) const { return !(*this == s); }
 
 Option& Option::operator=(const std::string& v) {
 
+#if STOCKFISH
+    assert(!type.empty());
+#else
 	ASSERT_LV1(!type.empty());
 
 	// fixedになっていれば代入をキャンセル
 	if (fixed)
 		return *this;
+#endif
 
 	// 範囲外なら設定せずに返る。
 	// "EvalDir"などでstringの場合は空の文字列を設定したいことがあるので"string"に対して空の文字チェックは行わない。
 	if ((type != "button" && type != "string" && v.empty())
 		|| (type == "check" && v != "true" && v != "false")
-		//|| (type == "spin" && (std::stof(v) < min || std::stof(v) > max)))
+#if STOCKFISH
+		|| (type == "spin" && (std::stof(v) < min || std::stof(v) > max)))
+#else
 		|| (type == "spin" && (std::stoll(v) < min || std::stoll(v) > max)))
+#endif
 		return *this;
 
 	if (type == "combo")
@@ -190,11 +223,24 @@ Option& Option::operator=(const std::string& v) {
 		std::string        token;
 		std::istringstream ss(defaultValue);
 		// defaultValueにスペース区切りで書かれているのでこれをparseする。
+#if STOCKFISH
 		while (ss >> token)
 			comboMap.add(token, Option());
 		if (!comboMap.count(v) || v == "var")
 			// defaultValueのなかに見つからなかったのでリタイア
+			// "var"が見つかってもこれは見つかったことにはしない。
 			return *this;
+#else
+        while (ss >> token)
+			// 📝 USIではvarは複数回出てくることがある。そこでこの時点で除外する。
+			//     同じ値がdefulat値と選択肢との両方に出てくることもある。これも除外する。
+            if (token != "var" && !comboMap.count(token))
+                comboMap.add(token, Option());
+
+		if (!comboMap.count(v))
+            // defaultValueのなかに見つからなかったのでリタイア
+            return *this;
+#endif
 	}
 
 	if (type == "string")
@@ -260,9 +306,6 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 
 	// --- やねうら王独自拡張分の前方宣言
 
-	// 入玉ルールのUSI文字列
-	std::vector<std::string> ekr_rules = { "NoEnteringKing", "CSARule24" , "CSARule24H" , "CSARule27" , "CSARule27H", "TryRule" };
-
 	// 前回のOptions["EvalDir"]
 	std::string last_eval_dir;
 
@@ -312,22 +355,6 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 
 	// 評価関数を読み込んだかのフラグ。これはevaldirの変更にともなってfalseにする。
 	bool load_eval_finished = false;
-
-	// 入玉ルール
-#if defined(USE_ENTERING_KING_WIN)
-
-	// 文字列に対応するEnteringKingRuleを取得する。
-	EnteringKingRule to_entering_king_rule(const std::string& rule)
-	{
-		for (size_t i = 0; i < ekr_rules.size(); ++i)
-			if (ekr_rules[i] == rule)
-				return (EnteringKingRule)i;
-
-		ASSERT(false);
-		return EnteringKingRule::EKR_NONE;
-	}
-#endif
-
 
 	// エンジンオプションをコンパイル時に設定する機能
 	// "ENGINE_OPTIONS"で指定した内容を設定する。

@@ -38,14 +38,22 @@ class Option {
     Option(const char* v, OnChange = nullptr);
 
     // integer
-    //Option(double v, int minv, int maxv, OnChange = nullptr);
-    // ⇨ 💡 やねうら王では、引数をint64_tに変更
+#if STOCKFISH
+	Option(double v, int minv, int maxv, OnChange = nullptr);
+#else
+	// ⇨ 💡 やねうら王では、引数をint64_tに変更
     Option(int64_t v, int64_t minv, int64_t maxv, OnChange = nullptr);
+#endif
 
     // combo
-    // 📌 Option("A B C","B")のようなcombo形式。
+#if STOCKFISH
+    // 📌 Option("B var A var B var C","B")のような形式。
+    //     これは使いづらい。やねうら王では使わない。
     Option(const char* v, const char* cur, OnChange = nullptr);
+#else
+	// 📌 Option(vector{"A","B","C"},"B")のような形式。
     Option(const std::vector<std::string>& list, const std::string& cur, OnChange = nullptr);
+#endif
 
     Option& operator=(const std::string&);
 
@@ -74,6 +82,16 @@ class Option {
 
     // このオプション設定のdefaultの値、現在の値、type。
     // 💡 typeは USIプロトコルのsetoptionの時に指定できるオプションの型名。
+    /*
+		 📓 defaultValueは、USIプロトコルの
+			"option name XXX type YYY default [defaultValue]"の形で表示するときの
+			 文字列をそのまま格納している。
+	
+			このため、type == comboのときは、
+			 USIでは"standard_book.db var no_book var standard_book.db"のようにvarが複数回出てくるし、
+			 同じ値が2回でてくる。
+			 UCIは、"var"は1度しか出てこないので、このため、Stockfishとはコードが異なるので注意。
+	*/
     std::string defaultValue, currentValue, type;
 
     // このオプション設定がint型であるときに、最小値と最大値。
