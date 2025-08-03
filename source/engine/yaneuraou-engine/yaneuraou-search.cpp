@@ -1373,7 +1373,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 // otherwise exit the loop.
                 if (bestValue <= alpha)
                 {
-                    beta  = (alpha + beta) / 2;
+                    beta  = (3 * alpha + beta) / 4;
                     alpha = std::max(bestValue - delta, -VALUE_INFINITE);
 
                     failedHighCnt = 0;
@@ -2406,9 +2406,8 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 	*/
 
 	if (!rootNode && !ttHit
-#if !defined(CHECK_MATE1PLY_REGARDLESS_OF_EXCLUDED_MOVE)
+		// TODO : この条件必要なのか？
         && !excludedMove
-#endif
     )
     {
         if (!ss->inCheck)
@@ -2644,12 +2643,15 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         mainHistory[~us][((ss - 1)->currentMove).from_to()] << bonus * 935 / 1024;
 
 #if STOCKFISH
-        if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
+        if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
+            && ((ss - 1)->currentMove).type_of() != PROMOTION)
             pawnHistory[pawn_structure_index(pos)][pos.piece_on(prevSq)][prevSq]
               << bonus * 1428 / 1024;
 #else
 		// TODO : これで合ってるのか、あとで検証する。
-        if (type_of(pos.piece_on(prevSq)) != PAWN && !((ss - 1)->currentMove).is_promote())
+
+		if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
+            && !((ss - 1)->currentMove).is_promote())
             pawnHistory[pawn_structure_index(pos)][pos.piece_on(prevSq)][prevSq]
               << bonus * 1428 / 1024;
 
@@ -2823,7 +2825,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
 	// ここでimproving計算しなおす。
 
-    improving |= ss->staticEval >= beta + 94 * !PvNode;
+    improving |= ss->staticEval >= beta;
 
 	// -----------------------
     // Step 10. Internal iterative reductions
@@ -2835,7 +2837,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // 十分な探索深さがある場合、置換表（TTMove）に手がないPVノードやCutノードについては探索深さを削減する。
     //（*Scaler）特に、IIR のアグレッシブさが抑えられる場合に適用されます。
 
-    if (!allNode && depth >= 6 && !ttData.move)
+    if (!allNode && depth >= 6 && !ttData.move && priorReduction <= 3)
         depth--;
 
 #if OLD_CODE
@@ -3524,7 +3526,7 @@ moves_loop:  // When in check, search starts here
                 // LMRの結果に基づいて完全な探索深さを調整します -
                 // 結果が十分に良ければ深く探索し、十分に悪ければ浅く探索します。
 
-                const bool doDeeperSearch = value > (bestValue + 43 + 2 * newDepth);
+                const bool doDeeperSearch = d < newDepth && value > (bestValue + 43 + 2 * newDepth);
                 const bool doShallowerSearch = value < bestValue + 9;
 
                 newDepth += doDeeperSearch - doShallowerSearch;
@@ -4284,15 +4286,17 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                 {
                     bestValue = mate_in(ss->ply + 1);
 
-#if defined(WRITE_QSEARCH_MATE1PLY_TO_TT)
-                    ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT, DEPTH_QS, move,
-                                   unadjustedStaticEval, TT.generation());
-                    // depth - 6 は値の範囲が良くない。DEPTH_QSにすべき。
+					// WRITE_QSEARCH_MATE1PLY_TO_TT
+                    if (0)
+                    {
+                        ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT, DEPTH_QS, move,
+                                       unadjustedStaticEval, tt.generation());
+                        // depth - 6 は値の範囲が良くない。DEPTH_QSにすべき。
 
-                    // ⇨ 置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
-                    // ⇨ 再度テスト(V8.36dev-d vs V8.36dev-e)
-                    // このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない可能性がある。
-#endif
+                        // ⇨ 置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
+                        // ⇨ 再度テスト(V8.36dev-d vs V8.36dev-e)
+                        // このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない可能性がある。
+                    }
 
                     return bestValue;
                 }
