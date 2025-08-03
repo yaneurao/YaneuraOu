@@ -1086,74 +1086,87 @@ namespace Book
 
 
 	// 与えられたmで進めて定跡のpv文字列を生成する。
-    std::string BookMoveSelector::pv_builder(Position&                            pos,
-                                                const Search::UpdateContext&         updates,
-												Move16                               m16,
-                                                int                                  rest_ply)
-	{
-		ASSERT_LV3(rest_ply > 0);
+    std::string BookMoveSelector::pv_builder(Position&                    pos,
+                                                const Search::UpdateContext& updates,
+                                                Move16                       m16,
+                                                int                          rest_ply) {
+        ASSERT_LV3(rest_ply > 0);
 
-		std::string result = "";
+        std::string result = "";
 
-		Move m = pos.to_move(m16);
+        // resultが空でないならスペースを追加してやる。(連結のため)
+        auto add_space_check = [&result]() {
+            if (result != "")
+                result += " ";
+        };
 
-		if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
-		{
-			StateInfo si;
-			pos.do_move(m, si);
+        Move m = pos.to_move(m16);
 
-			result = " " + m16.to_usi_string();
-			// 残り出力するPV長さをデクリメントしておく。
-			--rest_ply;
+        if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
+        {
+            StateInfo si;
+            pos.do_move(m, si);
 
-			// 千日手検出
-			auto rep = pos.is_repetition(MAX_PLY);
-			if (rep != REPETITION_NONE)
-			{
-				// 千日手でPVを打ち切るときはその旨を表示(USI拡張)
-				result += " " + to_usi_string(rep);
+            result = m16.to_usi_string();
+            // 残り出力するPV長さをデクリメントしておく。
+            --rest_ply;
 
-			} else {
+            // 千日手検出
+            auto rep = pos.is_repetition(MAX_PLY);
+            if (rep != REPETITION_NONE)
+            {
+                // 千日手でPVを打ち切るときはその旨を表示(USI拡張)
+                add_space_check();
+                result += to_usi_string(rep);
+            }
+            else
+            {
 
-				// さらに指し手を進める
-				Move16 bestMove16, ponderMove16;
-				Value value;
-				if (probe_impl(pos, updates, bestMove16, ponderMove16, value, true /* 強制的にhitさせる */))
-				{
-					// hitした
+                // さらに指し手を進める
+                Move16 bestMove16, ponderMove16;
+                Value  value;
+                if (probe_impl(pos, false, updates, bestMove16, ponderMove16, value,
+                                true /* 強制的にhitさせる */))
+                {
+                    // hitした
 
-					std::string result2;
-					if (rest_ply >= 1)
-					{
-						// まだ表示すべき手数が残っているので再帰的にさらにbestMoveで指し手を進める。
-						result2 = pv_builder(pos, updates, bestMove16 , rest_ply);
+                    std::string result2;
+                    if (rest_ply >= 1)
+                    {
+                        // まだ表示すべき手数が残っているので再帰的にさらにbestMoveで指し手を進める。
+                        result2 = pv_builder(pos, updates, bestMove16, rest_ply);
 
-						// resultの文字がないならそこでPVの末尾なのでponderがあればそれを出力。
-						if (result2.empty())
-						{
-							// result2がemptyということはPVを出力しなかったということなのでrest_plyは消費していない。
-							// だから、
-							// 1. rest_plyの残りがあるならもう1手は出力しないといけないのでponderを出力して良い。
-							// 2. 但し、この時、ponderが登録されていない(MOVE_NONE)なら出力しない。
-							if (rest_ply >= 1 && ponderMove16.to_u16() != MOVE_NONE)
-								result += " " + ponderMove16.to_usi_string();
+                        // resultの文字がないならそこでPVの末尾なのでponderがあればそれを出力。
+                        if (result2.empty())
+                        {
+                            // result2がemptyということはPVを出力しなかったということなのでrest_plyは消費していない。
+                            // だから、
+                            // 1. rest_plyの残りがあるならもう1手は出力しないといけないのでponderを出力して良い。
+                            // 2. 但し、この時、ponderが登録されていない(MOVE_NONE)なら出力しない。
+                            if (rest_ply >= 1 && ponderMove16.to_u16() != MOVE_NONE)
+                            {
+                                add_space_check();
+                                result += " " + ponderMove16.to_usi_string();
+                            }
+                        }
+                        else
+                        {
+                            add_space_check();
+                            result += result2;
+                        }
 
-						} else {
-							result += result2;
-						}
-
-						//--rest_ply;
-						// ↑このあと用いないので更新不要。
-					}
-				}
-			}
-			pos.undo_move(m);
-		}
-		return result;
-	}
+                        //--rest_ply;
+                        // ↑このあと用いないので更新不要。
+                    }
+                }
+            }
+            pos.undo_move(m);
+        }
+        return result;
+    }
 
 	// probe()の下請け
-	bool BookMoveSelector::probe_impl(Position& rootPos, const Search::UpdateContext& updates , Move16& bestMove , Move16& ponderMove , Value& value, bool forceHit)
+	bool BookMoveSelector::probe_impl(Position& rootPos, bool isRoot, const Search::UpdateContext& updates , Move16& bestMove , Move16& ponderMove , Value& value, bool forceHit)
 	{
 		if (!forceHit)
 		{
@@ -1228,33 +1241,49 @@ namespace Book
 		u64 move_count_total = std::accumulate(move_list.begin(), move_list.end(), (u64)0, [](u64 acc, BookMove& b) { return acc + b.move_count; });
 		move_count_total = std::max(move_count_total, (u64)1); // ゼロ除算対策
 
-		// PVとして出力する長さ(手数)
-		int pv_moves = (int)options["BookPvMoves"];
+		// "info ..."と出力するのは、rootでだけ。
+        if (isRoot)
+        {
 
-		for (size_t i = 0; i < move_list.size() ; ++ i)
-		{
-			// PVを構築する。pv_movesで指定された手数分だけ表示する。
-			// bestMoveを指した局面でさらに定跡のprobeを行なって…。
-			auto& it = move_list[i];
+            // PVとして出力する長さ(手数)
+            int pv_moves = (int) options["BookPvMoves"];
 
-			// USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
-			// 複数出力するときに"multipv"は連番なのでこれが先頭に来ているほうが見やすいと思うので先頭に"multipv"を出力する。
+            for (size_t i = 0; i < move_list.size(); ++i)
+            {
+                // PVを構築する。pv_movesで指定された手数分だけ表示する。
+                // bestMoveを指した局面でさらに定跡のprobeを行なって…。
+                auto& it = move_list[i];
 
-			sync_cout << "info"
-#if !defined(NICONICO)
-				<< " multipv " << (i + 1)
-#endif
-				<< " score cp " << it.value << " depth " << it.depth
-				<< " pv" << pv_builder(rootPos, updates, it.move, pv_moves)
-				<< " (" << std::fixed << std::setprecision(2) << (100 * it.move_count / double(move_count_total)) << "%" << ")" // 採択確率
-				<< sync_endl;
+                // USIの"info"で読み筋を出力するときは"pv"サブコマンドはサブコマンドの一番最後にしなければならない。
+                // 複数出力するときに"multipv"は連番なのでこれが先頭に来ているほうが見やすいと思うので先頭に"multipv"を出力する。
 
-			// 電王盤はMultiPV非対応なので1番目の読み筋だけを"multipv"をつけずに送信する。
-			// ("multipv"を出力してはならない)
-#if defined(NICONICO)
-			break;
-#endif
-		}
+                // 採択確率
+                std::string prob_str;
+                if (move_count_total)
+                {
+                    double             prob = 100 * it.move_count / double(move_count_total);
+                    std::ostringstream oss;
+                    oss << std::fixed << " (" << std::setprecision(2) << prob << "%)";
+                    prob_str = oss.str();
+                    // C++20なら prob_str = std::format("{:.2f}", prob);と書けるのだが…。
+                }
+
+                YaneuraOu::Search::InfoFull info;
+
+                info.multiPV   = i + 1;
+                info.score     = it.value;
+                info.depth     = it.depth;
+                std::string pv = pv_builder(rootPos, updates, it.move, pv_moves) + prob_str;
+                info.pv        = pv;
+                info.selDepth  = 0;
+                info.nodes     = 0;
+                info.nps       = 0;
+                info.timeMs    = 0;
+                info.hashfull  = 0;
+
+                updates.onUpdateFull(info);
+            }
+        }
 
 		// このなかの一つをランダムに選択
 
@@ -1411,7 +1440,7 @@ namespace Book
 	{
 		Move16 bestMove16, ponderMove16;
 		Value value;
-		if (!probe_impl(pos, updates, bestMove16, ponderMove16, value))
+		if (!probe_impl(pos, true, updates, bestMove16, ponderMove16, value))
 			return Move::none();
 
 		Move bestMove = pos.to_move(bestMove16);
@@ -1423,18 +1452,17 @@ namespace Book
 	}
 
 	// 定跡の指し手の選択
-    bool BookMoveSelector::probe(Search::RootMoves&           rootMoves,
+    bool BookMoveSelector::probe(Position& pos,
+								 Search::RootMoves&           rootMoves,
                                  const Search::UpdateContext& updates)
 	{
 		// エンジン側の定跡を有効化されていないなら、probe()に失敗する。
 		if (!options["USI_OwnBook"])
 			return false;
 
-		Position pos;
-
 		Move16 bestMove16, ponderMove16;
 		Value value;
-		if (probe_impl(pos, updates, bestMove16, ponderMove16, value))
+		if (probe_impl(pos, true, updates, bestMove16, ponderMove16, value))
 		{
 			// bestMoveは16bit Moveなので32bit化する必要がある。
 			Move bestMove = pos.to_move(bestMove16);

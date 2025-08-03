@@ -268,6 +268,9 @@ void YaneuraOuEngine::isready() {
 	// StockfishのThreadPool::clear()にあったコード。
 	clear();
 
+	// 定跡の読み込み
+    book.read_book();
+
 	// 🌈 tune.pyによってここ以下に自動的にエンジンオプションが追加される。
     //                      %%TUNE_ISREADY%%
 
@@ -622,6 +625,11 @@ void Search::YaneuraOuWorker::start_searching() {
 
     mainManager.tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options,
                         mainManager.search_options.max_moves_to_draw);
+
+	// 🌈 やねうら王では、このままiterative_deepning()に行かずにpv()を出力することがあるので
+	//     初期化しておかなければならない。
+	completedDepth = 0;
+
 #endif
 
     // 📌 置換表のTTEntryの世代を進める。
@@ -743,7 +751,7 @@ void Search::YaneuraOuWorker::start_searching() {
     //     定跡の選択部
     // ---------------------
 
-    if (engine.book.probe(rootMoves, main_manager()->updates))
+    if (engine.book.probe(rootPos, rootMoves , main_manager()->updates))
         goto SKIP_SEARCH;
 
     // ---------------------
@@ -821,6 +829,12 @@ void Search::YaneuraOuWorker::start_searching() {
     //     ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
     //     やねうら王のほうは、かなり早くからこの構造で書いていた。後にStockfishがこの書き方に追随した。
 
+    // 普通に探索したのでskipしたかのフラグをfalseにする。
+    // 💡やねうら王独自
+    search_skipped = false;
+
+SKIP_SEARCH:
+
     while (!threads.stop && (main_manager()->ponder || limits.infinite))
     {
         // Busy wait for a stop or a ponder reset
@@ -877,12 +891,6 @@ void Search::YaneuraOuWorker::start_searching() {
         main_manager()->tm.advance_nodes_time(threads.nodes_searched()
                                               - limits.inc[rootPos.side_to_move()]);
 #endif
-
-    // 普通に探索したのでskipしたかのフラグをfalseにする。
-    // 💡やねうら王独自
-    search_skipped = false;
-
-SKIP_SEARCH:;
 
 	// 📌 指し手をGUIに返す 📌
 

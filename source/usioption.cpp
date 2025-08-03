@@ -238,8 +238,12 @@ Option& Option::operator=(const std::string& v) {
                 comboMap.add(token, Option());
 
 		if (!comboMap.count(v))
+        {
             // defaultValueのなかに見つからなかったのでリタイア
+            sync_cout << "info string Error! : combo value not found, value = `" << v
+                      << "`, values = " << defaultValue << sync_endl;
             return *this;
+        }
 #endif
 	}
 
@@ -251,7 +255,9 @@ Option& Option::operator=(const std::string& v) {
 	else if (type != "button")
 		currentValue = v;
 
-	// 値が変化したのでハンドラを呼びだす。
+	// 適切な値の範囲であったので、
+	// ハンドラが設定されているならハンドラを呼びだす。
+	// 💡 値が変化したとは限らない。
 	if (on_change)
 	{
 		const auto ret = on_change(*this);
