@@ -590,7 +590,42 @@ void Search::YaneuraOuWorker::ensure_network_replicated() {
 	#endif
 }
 
-void Search::YaneuraOuWorker::pre_start_searching() { main_manager()->pre_start_searching(*this); }
+void Search::YaneuraOuWorker::pre_start_searching() {
+
+	if (is_mainthread())
+        // 🌈 Stockfishでthread.cppにあった初期化の一部はSearchManager::pre_start_searching()に移動させた。
+        main_manager()->pre_start_searching(*this);
+
+    // 📝 StockfishではThreadPool::start_thinking()で行っているが、
+    //     やねうら王では、派生classのpre_start_thinking()以降で行う。
+    nmpMinPly       = 0;
+    bestMoveChanges = 0;
+    rootDepth = completedDepth = 0;
+
+	// 入玉ルールを反映させる必要がある。
+    auto& search_options = main_manager()->search_options;
+    rootPos.set_ekr(search_options.enteringKingRule);
+
+	// 🌈 入玉宣言ができるならrootMovesに追加する。
+	//    これは、main threadでだけ行えば良い。(main threadに属するWorkerのrootMovesにさえ追加されていれば良いので)
+	if (is_mainthread())
+    {
+        // 🌈  宣言勝ちできるなら、rootMovesに追加する。
+		// ⚠  ↑のset_erk()をしたあとでないとPosition::DeclarationWin()が正常に機能しない。
+        auto bestMove = rootPos.DeclarationWin();
+        if (bestMove != Move::none())
+        {
+            // 🤔 searchmovesが指定されていて
+            //     そこに宣言勝ちがない時に宣言勝ちはできるのか…？
+            //     できないと不便な気は少しするから、
+            //     宣言勝ちできるならばつねにMove::win()を追加しておく。
+
+            auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
+            if (it_move == rootMoves.end()) // 追加されていない
+                rootMoves.emplace_back(Move::win());
+        }
+    }
+}
 
 void Search::YaneuraOuWorker::start_searching() {
 
@@ -625,11 +660,6 @@ void Search::YaneuraOuWorker::start_searching() {
 
     mainManager.tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options,
                         mainManager.search_options.max_moves_to_draw);
-
-	// 🌈 やねうら王では、このままiterative_deepning()に行かずにpv()を出力することがあるので
-	//     初期化しておかなければならない。
-	completedDepth = 0;
-
 #endif
 
     // 📌 置換表のTTEntryの世代を進める。
@@ -715,7 +745,7 @@ void Search::YaneuraOuWorker::start_searching() {
         else
             rootMoves[0].pv[0] = m;
 
-        rootMoves[0].score = rootMoves[0].usiScore = mate_in(1);
+        rootMoves[0].score = rootMoves[0].uciScore = mate_in(1);
 
         goto SKIP_SEARCH;
     }
@@ -748,13 +778,6 @@ void Search::YaneuraOuWorker::start_searching() {
     }
 
     // ---------------------
-    //     定跡の選択部
-    // ---------------------
-
-    if (engine.book.probe(rootPos, rootMoves , main_manager()->updates))
-        goto SKIP_SEARCH;
-
-    // ---------------------
     //    宣言勝ち判定
     // ---------------------
 
@@ -768,16 +791,6 @@ void Search::YaneuraOuWorker::start_searching() {
         auto bestMove = rootPos.DeclarationWin();
         if (bestMove != Move::none())
         {
-            // root movesの集合に突っ込んであるはず。
-            // このときMultiPVが利かないが、ここ真面目にMultiPVして指し手を返すのは
-            // プログラムがくちゃくちゃになるのでいまはこれは仕様としておく。
-
-            // トライルールのとき、その指し手がgoコマンドで指定された指し手集合に含まれることを
-            // 保証しないといけないのでrootMovesのなかにこの指し手が見つからないなら指すわけにはいかない。
-
-            // 入玉宣言の条件を満たしているときは、
-            // goコマンドを処理したあとのthreads.cppでMove::win()は追加されているはず。
-
             auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
             if (it_move != rootMoves.end())
             {
@@ -785,12 +798,25 @@ void Search::YaneuraOuWorker::start_searching() {
 
                 // 1手詰めのときのスコアにしておく。
                 rootMoves[0].score = rootMoves[0].uciScore = mate_in(1);
-                ;
-
                 goto SKIP_SEARCH;
+            }
+            else
+            {
+				// pre_start_searching()で追加したはずなのに追加されていない。
+                sync_cout << "info string Error : The declaration win move cannot be found in rootMoves."
+                          << sync_endl;
+
+				exit(EXIT_FAILURE);
             }
         }
     }
+
+    // ---------------------
+    //     定跡の選択部
+    // ---------------------
+
+    if (engine.book.probe(rootPos, rootMoves, main_manager()->updates))
+        goto SKIP_SEARCH;
 
     // ---------------------
     //    通常の思考処理
@@ -996,12 +1022,6 @@ SKIP_SEARCH:
 //     Lazy SMPなので、置換表を共有しながらそれぞれのスレッドが勝手に探索しているだけ。
 
 void Search::YaneuraOuWorker::iterative_deepening() {
-
-    // 📝 StockfishではThreadPool::start_thinking()で行っているが、
-    //     やねうら王では、派生classのstart_thinking()以降で行う。
-    nmpMinPly       = 0;
-	bestMoveChanges = 0;
-    rootDepth = completedDepth = 0;
 
     // もし自分がメインスレッドであるならmainThreadにmain_managerのポインタを代入。
     // 自分がサブスレッドのときは、これはnullptrになる。

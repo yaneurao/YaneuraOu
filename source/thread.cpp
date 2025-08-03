@@ -331,6 +331,7 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
     // 📝 increaseDepthはmain_managerに移動させた。
     //     ここのある初期化のうち、stopとabortedSearch以外は、Worker派生classで処理すべき。
     // 🌈 SearchManager::pre_start_searching()に移動させた。
+	//     これは、Workerの派生classのpre_start_searching()から呼び出される。
 #if STOCKFISH
     main_manager()->stopOnPonderhit = stop = abortedSearch = false;
     main_manager()->ponder                                 = limits.ponderMode;
@@ -388,15 +389,6 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
         setup_rootMoves(legalmoves);
     }
 
-    // 🤔 searchmovesが指定されていて
-    //     そこに宣言勝ちがない時に宣言勝ちはできるのか…？
-    //     できないと不便な気は少しするから、
-    //     宣言勝ちできるならばつねにMove::win()を追加しておく。
-
-    // 🌈  宣言勝ちできるなら、rootMovesに追加する。
-    if (pos.DeclarationWin() == Move::win())
-        rootMoves.emplace_back(Move::win());
-
 #endif
 
     //Tablebases::Config tbConfig = Tablebases::rank_root_moves(options, pos, rootMoves);
@@ -440,36 +432,33 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
 
             th->worker->limits = limits;
             th->worker->nodes  = 0;
+#endif
 
 			// 📝 tbHits、tbConfigは将棋では使わない。
 
-			// 🤔 以下の初期化は、Worker派生classのstart_searching()で行うようにする。
-            //     やねうら王では、void Search::YaneuraOuWorker::iterative_deepening()で行っている。
+#if STOCKFISH
+            th->worker->nmpMinPly = 0;
+			th->worker->bestMoveChanges = 0;
+            th->worker->rootDepth = th->worker->completedDepth = 0;
 
-            // th->worker->nmpMinPly = 0;
-			// th->worker->bestMoveChanges = 0;
-            // th->worker->rootDepth = th->worker->completedDepth = 0;
+            // 🤔 やねうら王では、Worker派生classのpre_start_searching()で行うようにする。
+            //     やねうら王では、void Search::YaneuraOuWorker::pre_start_searching()で行っている。
+#endif
 
             th->worker->rootMoves = rootMoves;
             th->worker->rootPos.set(pos.sfen(), &th->worker->rootState);
             th->worker->rootState = setupStates->back();
+
+#if !STOCKFISH
+			// ⚠ どうせなら、↑でworker->rootPos.set()が終わってから呼び出したい。
+			//     (rootPosを使って入玉判定などを行いたいため)
+            th->worker->pre_start_searching();
 #endif
-        });
+		});
     }
 
     for (auto&& th : threads)
         th->wait_for_search_finished();
-
-#if !STOCKFISH
-    /*
-		📓 やねうら王では、start_searching() の前に、
-	        UI threadからpre_start_searching()をblocking callする。
-
-			start_searching()はnon blocking callなのでUI threadがUSI loopに戻ってしまい、
-			"ponderhit"などを受信してしまうため。
-	*/
-    main_thread()->worker->pre_start_searching();
-#endif
 
     main_thread()->start_searching();
 }

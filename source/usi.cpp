@@ -923,7 +923,12 @@ int win_rate_model(Value v, const Position& pos) {
 std::string USIEngine::format_score(const Score& s) {
     constexpr int TB_CP  = 20000;
     const auto    format = overload{[](Score::Mate mate) -> std::string {
-                                     auto m = (mate.plies > 0 ? (mate.plies + 1) : mate.plies) / 2;
+#if STOCKFISH
+									 auto m = (mate.plies > 0 ? (mate.plies + 1) : mate.plies) / 2;
+									 // 📝 UCIだと先後1手ずつで mate Xと出力しているらしく、2で割ってある。
+#else
+                                     auto m = mate.plies;
+#endif
                                      return std::string("mate ") + std::to_string(m);
                                  },
 #if STOCKFISH
