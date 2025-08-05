@@ -2735,9 +2735,9 @@ RepetitionState Position::is_repetition(int ply) const
 	//   Don't score as an immediate draw 2-fold repetitions of the root position
 	//   https://github.com/official-stockfish/Stockfish/commit/6d89d0b64a99003576d3e0ed616b43333c9eca01
 
-	// ※　基本的にrootより遡って判定しないのだが、しかし、4回目の同一局面の場合は、強制的に千日手となるため、
-	// 　ここで探索は打ち切られなければならない。よって、4回目の同一局面の場合のみ、plyに関わらず
-	//   REPETITION_NONE以外が返る。
+	// 📝　基本的にrootより遡って判定しないのだが、しかし、4回目の同一局面の場合は、強制的に千日手となるため、
+	// 　   ここで探索は打ち切られなければならない。よって、4回目の同一局面の場合のみ、plyに関わらず
+	//      REPETITION_NONE以外が返る。
 
     if (st->repetition && st->repetition < ply)
 		return st->repetition_type;

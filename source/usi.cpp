@@ -1156,13 +1156,13 @@ void USIEngine::on_update_full(const Engine::InfoFull& info /*, bool showWDL */)
        << " multipv " << info.multiPV             //
        << " score " << format_score(info.score);  //
 
+    if (!info.bound.empty())
+        ss << " " << info.bound;
+
 #if STOCKFISH
     if (showWDL)
         ss << " wdl " << info.wdl;
 #endif
-
-    if (!info.bound.empty())
-        ss << " " << info.bound;
 
     ss << " nodes " << info.nodes        //
        << " nps " << info.nps            //
