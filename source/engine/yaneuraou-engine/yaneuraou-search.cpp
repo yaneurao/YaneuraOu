@@ -348,6 +348,12 @@ void YaneuraOuEngine::set_tt_size(size_t mb){
 	tt.resize(mb, threads);
 }
 
+// 置換表の使用率を返す。
+// 🌈 やねうら王では派生class側でget_hashfull()を実装する。
+int YaneuraOuEngine::get_hashfull(int maxAge) const
+{
+	return tt.hashfull(maxAge);
+}
 
 // 並列探索において一番良い思考をしたthreadの選出。
 // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
@@ -3554,8 +3560,6 @@ moves_loop:  // When in check, search starts here
 
             if (!ttData.move)
                 r += 1139;
-
-			// TODO : あとで調整する
 
             const int threshold1 = depth <= 4 ? 2000 : 3200;
             const int threshold2 = depth <= 4 ? 3500 : 4600;

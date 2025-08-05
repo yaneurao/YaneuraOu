@@ -27,7 +27,7 @@ class Engine;
 // --------------------
 
 // エンジンのバージョン情報を返す。
-//std::string engine_version_info();
+std::string engine_version_info();
 
 // "USI"コマンドに応答するために表示する。
 //

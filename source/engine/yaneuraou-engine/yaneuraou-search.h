@@ -366,6 +366,9 @@ class YaneuraOuEngine: public Engine {
     // 置換表のresize event。
     virtual void set_tt_size(size_t mb) override;
 
+	// 置換表の使用率を返す。
+    virtual int get_hashfull(int maxAge) const override;
+
     // StockfishのThreadPool::clear()にあったもの。
     void clear();
 

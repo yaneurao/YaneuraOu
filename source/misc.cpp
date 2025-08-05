@@ -191,13 +191,20 @@ void start_logger(const string& fname) { Logger::start(fname); }
 // リリース（開発版でない）ビルドでは、バージョン番号のみを含めます：
 //      Stockfish version
 
-#if 0
 std::string engine_version_info() {
 	std::stringstream ss;
+#if STOCKFISH
 	ss << "Stockfish " << version << std::setfill('0');
+#else
+    ss << "YaneuraOu" << ENGINE_VERSION;
+#endif
 
 	// "dev"版であれば日付を出力する機能。
+#if STOCKFISH
 	if constexpr (version == "dev")
+#else
+    if (StringExtension::Contains(ENGINE_VERSION, "dev"))
+#endif
 	{
 		ss << "-";
 #ifdef GIT_DATE
@@ -224,17 +231,17 @@ std::string engine_version_info() {
 
 	return ss.str();
 }
-#endif
-
 
 std::string engine_info(const std::string& engine_name,
                         const std::string& engine_author,
 						const std::string& engine_version,
                         const std::string& eval_name)
 {
-	//return engine_version_info()
-	//	+ (to_usi ? "\nid author " : " by ")
-	//	+ "the YaneuraOu developers (see AUTHORS file)";
+#if STOCKFISH
+    return engine_version_info() + (to_uci ? "\nid author " : " by ")
+         + "the Stockfish developers (see AUTHORS file)";
+#endif
+    // → これ好きじゃない。
 
 	stringstream ss;
 	string engine_name_, engine_author_;

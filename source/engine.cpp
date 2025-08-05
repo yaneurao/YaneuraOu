@@ -142,6 +142,12 @@ std::string Engine::visualize() const {
 	return ss.str();
 }
 
+#if STOCKFISH
+int Engine::get_hashfull(int maxAge) const { return tt.hashfull(maxAge); }
+#else
+int Engine::get_hashfull(int maxAge) const { return 0; }
+#endif
+
 // blocking call to wait for search to finish
 // 探索が完了のを待機する。(完了したらリターンする)
 void Engine::wait_for_search_finished() { threads.main_thread()->wait_for_search_finished(); }
@@ -206,6 +212,22 @@ void Engine::go(Search::LimitsType& limits) {
 }
 
 void Engine::stop() { threads.stop = true; }
+
+void Engine::search_clear() {
+#if STOCKFISH
+    wait_for_search_finished();
+
+    tt.clear(threads);
+    threads.clear();
+
+    // @TODO wont work with multiple instances
+    Tablebases::init(options["SyzygyPath"]);  // Free mapped files
+#else
+	// benchコマンドから内部的に呼び出す。
+    wait_for_search_finished();
+    isready();
+#endif
+}
 
 void Engine::set_on_update_no_moves(std::function<void(const Engine::InfoShort&)>&& f) {
     updateContext.onUpdateNoMoves = std::move(f);

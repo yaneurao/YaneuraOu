@@ -620,20 +620,15 @@ void USIEngine::bench(std::istream& args) {
             setoption(is);
         else if (token == "position")
             position(is);
-#if STOCKFISH
         else if (token == "ucinewgame")
+						// 💡 Stockfishとの互換性維持のため"usinewgame"と変更していない。
+						//     どうせ内部でしか使わない符号みたいなものなので…。
         {
             engine.search_clear();  // search_clear may take a while
                                     // search_clear は時間がかかることがある
-            elapsed = now();
+
+			elapsed = now();
         }
-#else
-        else if (token == "usinewgame")
-        {
-            //engine.search_clear();  // 🤔 将棋ではisreadyのhandlerを呼び出したほうがいいか？
-            elapsed = now();
-        }
-#endif
     }
 
     elapsed = now() - elapsed + 1;  // Ensure positivity to avoid a 'divide by zero'
@@ -657,9 +652,9 @@ void USIEngine::bench(std::istream& args) {
 }
 
 void USIEngine::benchmark(std::istream& args) {
-	// TODO : あとで
-#if 0
-    // Probably not very important for a test this long, but include for completeness and sanity.
+
+	// Probably not very important for a test this long, but include for completeness and sanity.
+    // このように長いテストではおそらくあまり重要ではないが、完全性と安心のために含めておく。
     static constexpr int NUM_WARMUP_POSITIONS = 3;
 
     std::string token;
@@ -675,17 +670,28 @@ void USIEngine::benchmark(std::istream& args) {
 
     Benchmark::BenchmarkSetup setup = Benchmark::setup_benchmark(args);
 
+#if STOCKFISH
     const int numGoCommands = count_if(setup.commands.begin(), setup.commands.end(), [](const std::string& s) { return s.find("go ") == 0; });
+#else
+	// 🤔 警告がでかねないので修正しておく。
+	const size_t numGoCommands = count_if(setup.commands.begin(), setup.commands.end(),
+                                       [](const std::string& s) { return s.find("go ") == size_t(0); });
+#endif
 
     TimePoint totalTime = 0;
 
     // Set options once at the start.
     auto ss = std::istringstream("name Threads value " + std::to_string(setup.threads));
     setoption(ss);
-    ss = std::istringstream("name Hash value " + std::to_string(setup.ttSize));
+#if STOCKFISH
+	ss = std::istringstream("name Hash value " + std::to_string(setup.ttSize));
     setoption(ss);
     ss = std::istringstream("name UCI_Chess960 value false");
     setoption(ss);
+#else
+    ss = std::istringstream("name USI_Hash value " + std::to_string(setup.ttSize));
+    setoption(ss);
+#endif
 
     // Warmup
     for (const auto& cmd : setup.commands)
@@ -818,7 +824,7 @@ void USIEngine::benchmark(std::istream& args) {
     // clang-format on
 
     init_search_update_listeners();
-#endif
+
 }
 
 // "setoption"コマンド応答。

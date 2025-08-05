@@ -169,11 +169,10 @@ public:
     // 🤔 このbool、どう見ても不要なのだが…。
     virtual void set_ponderhit(bool b) = 0;
 
-#if STOCKFISH
-	// "usinewgame"に対してWorkerを初期化する。
+	// "ucinewgame"に対してWorkerを初期化する。(tt.clear(), threads.clear()を呼び出す)
 	//	🤔 将棋だと"isready"に対するhandlerで処理したほうがいいと思う。
-	void search_clear();
-#endif
+	//      "bench"コマンドから内部的に呼び出すので用意しておく。
+	virtual void search_clear() = 0;
 
 	// 📌 読み筋の出力など、event handlerのsetter
     //     例えば、verify_network()を呼び出した時に、NN::network.verify()からcallbackされるfunctionを設定する。
@@ -223,11 +222,10 @@ public:
     virtual const OptionsMap& get_options() const = 0;
     virtual OptionsMap&       get_options()       = 0;
 
-#if STOCKFISH
 	// 置換表サイズの取得。
-	// 🤔 置換表はやねうら王ではEngine基底classでは関与しない。
-	int get_hashfull(int maxAge = 0) const;
-#endif
+	// 🤔 置換表はやねうら王ではEngine基底classでは関与しないが、
+	//	   "bench"コマンドから呼び出されるので用意しておく。
+    virtual int get_hashfull(int maxAge = 0) const = 0;
 
 	// (探索中の)現在の局面のsfen文字列を返す。
     virtual std::string sfen() const = 0;
@@ -351,6 +349,7 @@ class Engine: public IEngine {
     virtual void resize_threads() override;
     virtual void set_tt_size(size_t mb) override {}
     virtual void set_ponderhit(bool b) override {}
+    virtual void search_clear() override;
 
     virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&&) override final;
     virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) override final;
@@ -366,6 +365,9 @@ class Engine: public IEngine {
     virtual void              trace_eval() const override {}
     virtual const OptionsMap& get_options() const override { return options; }
     virtual OptionsMap&       get_options() override { return options; }
+
+	virtual int get_hashfull(int maxAge = 0) const override;
+
     virtual std::string       sfen() const override { return pos.sfen(); }
     virtual void              flip() override { return pos.flip(); }
     virtual std::string visualize() const override;
@@ -464,6 +466,7 @@ class EngineWrapper: public IEngine {
     virtual void resize_threads() override { engine->resize_threads(); }
     virtual void set_tt_size(size_t mb) override { engine->set_tt_size(mb); }
     virtual void set_ponderhit(bool b) override { engine->set_ponderhit(b); }
+    virtual void search_clear() override { engine->search_clear(); }
 
     virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&& f) override final {
         engine->set_on_update_no_moves(std::move(f));
@@ -492,6 +495,8 @@ class EngineWrapper: public IEngine {
 
     virtual const OptionsMap& get_options() const override { return engine->get_options(); }
     virtual OptionsMap&       get_options() override { return engine->get_options(); }
+
+    virtual int get_hashfull(int maxAge = 0) const override { return engine->get_hashfull(maxAge); }
 
     virtual std::string sfen() const override { return engine->sfen(); }
     virtual void        flip() override { return engine->flip(); }
