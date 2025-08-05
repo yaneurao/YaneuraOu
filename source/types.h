@@ -700,6 +700,20 @@ enum MoveEnum : uint32_t {
 	MOVE_PROMOTE = 1 << 15,       // 駒成りフラグ
 };
 
+// Stockfishとの互換性を保つために導入。
+// 普通の指し手か成りの指し手かを判定するのに用いる。
+enum MoveType {
+    NORMAL,
+#if STOCKFISH
+    PROMOTION  = 1 << 14,
+    EN_PASSANT = 2 << 14,
+    CASTLING   = 3 << 14
+#else
+    PROMOTION     = MOVE_PROMOTE,
+    DROP          = MOVE_DROP,
+#endif
+};
+
 // 指し手を表現するclass(実体は32bit整数)
 class Move
 {
@@ -755,6 +769,11 @@ public:
 	// 注) 駒打ちに関して、先手の駒と後手の駒の区別はしない。
 	// 　　これは、この関数は、MovePickerのButterflyHistoryで使うから必要なのだが、そこでは指し手の手番(Color)を別途持っているから。
 	int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq());}
+
+	// 指し手(Move)のMoveTypeを返す。
+    constexpr MoveType type_of() {
+        return MoveType(data & (MOVE_PROMOTE | MOVE_DROP));
+    }
 
 	// 上記のfrom_toが返す最大値 + 1。
 	static constexpr int FROM_TO_SIZE = int(SQ_NB + 7) * int(SQ_NB);
@@ -833,6 +852,7 @@ public:
 	PieceType move_dropped_piece() const { return PieceType((data >> 7) & 0x7f); }
 
 	int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq()); }
+    constexpr MoveType type_of() { return MoveType(data & (MOVE_PROMOTE | MOVE_DROP)); }
 	constexpr bool is_ok() const { return (data >> 7) != (data & 0x7f); }
 
 	// -- 比較
@@ -910,20 +930,6 @@ std::string pretty(Move m);
 // 移動させた駒がわかっているときに指し手をわかりやすい表示形式で表示する。
 std::string pretty(Move m, Piece movedPieceType);
 static std::string pretty(Move m, PieceType movedPieceType) { return pretty(m, (Piece)movedPieceType); }
-
-// Stockfishとの互換性を保つために導入。
-// 普通の指し手か成りの指し手かを判定するのに用いる。
-enum MoveType {
-	NORMAL,
-	PROMOTION = MOVE_PROMOTE,
-	DROP      = MOVE_DROP,
-	//ENPASSANT = 2 << 14,
-	//CASTLING = 3 << 14
-};
-
-// 指し手(Move)のMoveTypeを返す。
-constexpr MoveType type_of(Move m) { return MoveType(m.to_u16() & (MOVE_PROMOTE | MOVE_DROP)); }
-
 
 // --------------------
 //       手駒

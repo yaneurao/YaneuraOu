@@ -912,30 +912,15 @@ public:
 	// 捕獲する指し手であるか。
     bool capture(Move m) const;
 
+	// capture_or_pawn_promotion()みたいなもの。
+	/*
+	    📓 Stockfishでは、この関数は、「捕獲する指し手かQUEENにpromoteする
+			指し手かのどちらかであるか」を判定する。
 
-	// Stockfishにはcapture_stage()というメソッドが追加された。下記のコード。
-	// これは、捕獲する指し手かQUEENにpromoteする指し手かのどちらかであるかを判定する。
-	// 将棋で言うとcapture_or_valuable_promotion()みたいなもの。
-
-	//// returns true if a move is generated from the capture stage
-	//// having also queen promotions covered, i.e. consistency with the capture stage move generation
-	//// is needed to avoid the generation of duplicate moves.
-	//bool capture_stage(Move m) const {
-	//  assert(is_ok(m));
-	//  return  capture(m) || promotion_type(m) == QUEEN;
-	//}
-
-	// →　互換性維持のために、capture_stageを定義。
-	bool capture_stage(Move m) const
-	{
-		//return capture_or_valuable_promotion(m);
-		//return capture_or_pawn_promotion(m);
-
-		// →　V7.73y3とy4,y5の比較。
-		// 単にcapture()にするのが一番良かった。
-
-		return capture(m);
-	}
+			Stockfishとの互換性のために用意。
+			やねうら王では、capture()と同義。
+	*/
+    bool capture_stage(Move m) const;
 
 	// 入玉時の宣言勝ち
     /*
@@ -1290,9 +1275,30 @@ inline bool Position::capture(Move m) const {
 #endif
 
 
+// returns true if a move is generated from the capture stage
+// having also queen promotions covered, i.e. consistency with the capture stage move generation
+// is needed to avoid the generation of duplicate moves.
 
-// 🚧
+// キャプチャ段階で生成された指し手であれば true を返す
+// クイーン昇格も含めてカバーする。つまり、キャプチャ段階での指し手生成との整合性を
+// 保つ必要があり、重複した指し手の生成を避けるためである。
+// 💡 「キャプチャ段階」とは、MovePickerでの指し手生成のうち捕獲する指し手の生成フェーズのこと。
 
+inline bool Position::capture_stage(Move m) const
+{
+#if STOCKFISH
+    assert(is_ok(m));
+    return  capture(m) || promotion_type(m) == QUEEN;
+#else
+
+    // 📊　V7.73y3とy4,y5の比較。
+    //      return capture_or_valuable_promotion(m);
+    //      return capture_or_pawn_promotion(m);
+    //      よりは、単にcapture()にするのが良かった。
+
+    return capture(m);
+#endif
+}
 
 // 駒を配置して、内部的に保持しているBitboard、pieceCountも更新する。
 inline void Position::put_piece(Piece pc, Square s) {

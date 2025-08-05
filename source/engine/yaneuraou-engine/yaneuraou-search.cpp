@@ -2557,9 +2557,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         if (!is_valid(unadjustedStaticEval))
             unadjustedStaticEval = evaluate(pos);
 
-#if STOCKFISH
-#else
-
+#if !STOCKFISH
 #if defined(YANEURAOU_ENGINE_NNUE)
 #if defined(USE_LAZY_EVALUATE)
         // 🌈 これ書かないとR70ぐらい弱くなる。
@@ -2647,20 +2645,11 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
             std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -1979, 1561) + 630;
         mainHistory[~us][((ss - 1)->currentMove).from_to()] << bonus * 935 / 1024;
 
-#if STOCKFISH
+		// TODO : これ必要なのか？あとで検証する。
         if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
             && ((ss - 1)->currentMove).type_of() != PROMOTION)
-            pawnHistory[pawn_structure_index(pos)][pos.piece_on(prevSq)][prevSq]
-              << bonus * 1428 / 1024;
-#else
-		// TODO : これで合ってるのか、あとで検証する。
-
-		if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
-            && !((ss - 1)->currentMove).is_promote())
             pawnHistory[pawn_history_index(pos)][pos.piece_on(prevSq)][prevSq]
               << bonus * 1428 / 1024;
-
-#endif
     }
 
     // Set up the improving flag, which is true if current static evaluation is
@@ -3875,12 +3864,8 @@ moves_loop:  // When in check, search starts here
 
         mainHistory[~us][((ss - 1)->currentMove).from_to()] << scaledBonus * 224 / 32768;
 
-#if STOCKFISH
-        if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
-#else
 		// TODO : これで合ってるか？あとで検証する。
-        if (type_of(pos.piece_on(prevSq)) != PAWN && !(ss - 1)->currentMove.is_promote())
-#endif
+        if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
             pawnHistory[pawn_history_index(pos)][pos.piece_on(prevSq)][prevSq]
               << scaledBonus * 1127 / 32768;
     }
@@ -4299,13 +4284,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 					// WRITE_QSEARCH_MATE1PLY_TO_TT
                     if (0)
                     {
-                        ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT, DEPTH_QS, move,
-                                       unadjustedStaticEval, tt.generation());
-                        // depth - 6 は値の範囲が良くない。DEPTH_QSにすべき。
+                        // 🤔 このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない可能性があるが。
 
-                        // ⇨ 置換表に書き出しても得するかわからなかった。(V7.74taya-t9 vs V7.74taya-t12)
-                        // ⇨ 再度テスト(V8.36dev-d vs V8.36dev-e)
-                        // このnodeに再訪問することはまずないだろうから、置換表に保存する価値はない可能性がある。
+						ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT, DEPTH_QS, move,
+                                       unadjustedStaticEval, tt.generation());
+
                     }
 
                     return bestValue;
@@ -4444,6 +4427,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
             if (!givesCheck && move.to_sq() != prevSq && !is_loss(futilityBase)
 #if STOCKFISH            
+				// TODO : ここの最適化、optimizerに任せるか？
                 && move.type_of() != PROMOTION
 				// 📝 この最後の条件、入れたほうがいいのか？
 				// 📊 入れない方が良さげ。(V7.74taya-t50 VS V7.74taya-t51)
