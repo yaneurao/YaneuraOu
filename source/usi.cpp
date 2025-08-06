@@ -29,9 +29,17 @@ constexpr auto BenchmarkCommand = "speedtest";
 constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 #else
 
+// Engine開発者が用いる"test"コマンド。
 namespace Test {
 void test_cmd(IEngine& engine, std::istringstream& is);
 }
+
+// 定跡を作るコマンド
+#if defined(ENABLE_MAKEBOOK_CMD)
+namespace Book {
+void makebook(IEngine& engine, std::istringstream& is);
+}
+#endif
 
 #endif
 
@@ -327,7 +335,9 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
             sync_cout << "Unknown command: '" << cmd << "'. Type help for more information." << sync_endl;
 #else
 
+	// --------------------------------
     // 📌 以下、やねうら王独自拡張 📌
+    // --------------------------------
 
     // fileの内容をUSIコマンドとして実行する。
     else if (token == "f")
@@ -348,6 +358,12 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
     // config.hで設定した値などについて出力する。
     else if (token == "config")
         sync_cout << config_info() << sync_endl;
+
+#if defined(ENABLE_MAKEBOOK_CMD)
+	// 定跡コマンド
+	else if (token == "makebook")
+        Book::makebook(engine, is);
+#endif
 
     // 指し手生成祭りの局面をセットする。
     else if (token == "matsuri")
@@ -1392,14 +1408,6 @@ void user_test(Position& pos, std::istringstream& is);
 void mate_cmd(Position& pos, std::istream& is);
 #endif
 
-// ----------------------------------
-//      USI拡張コマンド "makebook"
-// ----------------------------------
-
-// 定跡を作るコマンド
-#if defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
-namespace Book { void makebook_cmd(Position& pos, istringstream& is); }
-#endif
 
 // ----------------------------------
 //      USI拡張コマンド "learn"

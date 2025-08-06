@@ -344,6 +344,8 @@ void Engine::run_heavy_job(std::function<void()> job)
 }
 
 
+// 🚧 工事中 🚧
+
 #if 0
 
 YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :

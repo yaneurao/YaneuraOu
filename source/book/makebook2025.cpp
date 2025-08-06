@@ -1369,7 +1369,7 @@ namespace Book
 	// "makebook XXX"コマンド。XXXの部分に"build_tree"や"extend_tree"が来る。
 	// この拡張コマンドを処理したら、この関数は非0を返す。
 	int makebook2025(std::istringstream& is, const std::string& token, const OptionsMap& options)
-	{
+    {
 		if (token == "peta_shock") {
 
 			// ペタショックコマンド

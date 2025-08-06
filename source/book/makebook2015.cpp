@@ -1,6 +1,6 @@
 ﻿#include "../config.h"
 
-#if defined (ENABLE_MAKEBOOK_CMD) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
+#if defined (ENABLE_MAKEBOOK_CMD)
 
 #include "book.h"
 #include "../position.h"
@@ -355,7 +355,7 @@ namespace Book {
 					{
 						// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
 						auto sfen = feed_sfen(iss);
-						pos.set(sfen,&state,Threads.main());
+						pos.set(sfen,&state);
 						hirate = false;
 					}
 				} while (token == "startpos" || token == "moves" || token == "sfen");
@@ -401,7 +401,7 @@ namespace Book {
 						break;
 					}
 
-					Move move = USI::to_move(pos, token);
+					Move move = USIEngine::to_move(pos, token);
 					// illigal moveであるとMOVE_NONEが返る。
 					if (move == Move::none())
 					{
@@ -667,4 +667,4 @@ namespace Book {
 } // namespace Book
 } // namespace YaneuraOu
 
-#endif // defined(YANEURAOU_ENGINE) && (defined(EVAL_LEARN) || defined(YANEURAOU_ENGINE_DEEP))
+#endif // defined(YANEURAOU_ENGINE)

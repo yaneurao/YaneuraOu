@@ -818,13 +818,13 @@ constexpr bool pretty_jp = false;
 #elif defined(EVAL_DEEP)
 	#if defined(ONNXRUNTIME)
 		#if defined(ORT_CPU)
-			#define EVAL_TYPE_NAME "ORT_CPU-" + EVAL_DEEP
+			#define EVAL_TYPE_NAME "ORT_CPU-" EVAL_DEEP
 		#elif defined(ORT_DML)
-			#define EVAL_TYPE_NAME "ORT_DML-" + EVAL_DEEP
+			#define EVAL_TYPE_NAME "ORT_DML-" EVAL_DEEP
 		#elif defined(ORT_TRT)
-			#define EVAL_TYPE_NAME "ORT_TRT-" + EVAL_DEEP
+			#define EVAL_TYPE_NAME "ORT_TRT-" EVAL_DEEP
 		#else
-			#define EVAL_TYPE_NAME "ORT-" + EVAL_DEEP
+			#define EVAL_TYPE_NAME "ORT-" EVAL_DEEP
 		#endif
 	#elif defined(TENSOR_RT)
 		#include "NvInferRuntimeCommon.h"
