@@ -1976,11 +1976,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         // 　優等局面に突入するからと言って即詰みを逃がすのもちょっと嫌)
         // cf. https://github.com/yaneurao/YaneuraOu/issues/264
 
-		auto draw_type = pos.is_repetition(ss->ply);
-        if (draw_type != REPETITION_NONE)
-            return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
-
-		// 最大手数を超えている、もしくは停止命令が来ている。
+		// 最大手数を超えている、もしくは千日手、停止命令が来ている。
 
 #if STOCKFISH
         if (threads.stop.load(std::memory_order_relaxed) || pos.is_draw(ss->ply)
@@ -1989,10 +1985,22 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
                                                         : value_draw(nodes);
 #else
 
+		auto draw_type = pos.is_repetition(ss->ply);
+        if (draw_type != REPETITION_NONE)
+        {
+            if (draw_type == REPETITION_DRAW)
+				// 通常の千日手の時はゆらぎを持たせる。
+				// 💡 引き分けのスコアvは abs(v±1) <= VALUE_MAX_EVALであることが保証されているので、
+				//     value_from_tt()での変換は不要。
+                return draw_value(draw_type, pos.side_to_move()) + value_draw(nodes);
+            else
+	            return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
+        }
+
 		// 📌 将棋では手数を超えたら無条件で引き分け扱い。
         if (threads.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY
             || pos.game_ply() > search_options.max_moves_to_draw)
-            return draw_value(REPETITION_DRAW, pos.side_to_move());
+            return draw_value(REPETITION_DRAW, pos.side_to_move()) + value_draw(nodes);
 #endif
 
 		/*
@@ -4116,7 +4124,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     auto draw_type = pos.is_repetition(ss->ply);
     if (draw_type != REPETITION_NONE)
-        /*
+    /*
 			📓 なぜvalue_from_tt()が必要なのか？
 
 			draw_value()では、優等局面、劣等局面の時にVALUE_MATE , -VALUE_MATEが返ってくる。
@@ -4127,8 +4135,16 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 			なるように変換しなければならない。
 			
 			そのため、value_from_tt()が必要なのである。
-		*/ 
-        return value_from_tt(draw_value(draw_type, us), ss->ply);
+	*/
+    {
+        if (draw_type == REPETITION_DRAW)
+            // 通常の千日手の時はゆらぎを持たせる。
+            // 💡 引き分けのスコアvは abs(v±1) <= VALUE_MAX_EVALであることが保証されているので、
+            //     value_from_tt()での変換は不要。
+            return draw_value(draw_type, pos.side_to_move()) + value_draw(nodes);
+		else
+	        return value_from_tt(draw_value(draw_type, us), ss->ply);
+    }
 
 // TODO : あとで検討する。
 #if 0
@@ -4141,7 +4157,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     // 最大手数の到達
     if (ss->ply >= MAX_PLY || pos.game_ply() > search_options.max_moves_to_draw)
-        return draw_value(REPETITION_DRAW, us);
+        return draw_value(REPETITION_DRAW, us) + value_draw(nodes);
 
     ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
