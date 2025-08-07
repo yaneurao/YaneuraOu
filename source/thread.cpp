@@ -163,18 +163,34 @@ uint64_t ThreadPool::nodes_searched() const { return accumulate(&Search::Worker:
 // 作成され起動されたスレッドは、すぐに idle_loop 内でスリープ状態に入ります。
 // リサイズ時には、必要に応じてスレッドのバインディングを可能にするために再作成されます。
 
-void ThreadPool::set(
-	const NumaConfig&            numaConfig,
-    const OptionsMap&            options,
+void ThreadPool::set(const NumaConfig&                           numaConfig,
+#if STOCKFISH
+	Search::SharedState                         sharedState,
+	const Search::SearchManager::UpdateContext& updateContext) {
+#else
+	// 🤔 やねうら王ではさらに抽象化する。
+	const OptionsMap&            options,
     size_t                       requested_threads,
     const Search::WorkerFactory& worker_factory
-	//Search::SharedState                         sharedState,
-	//const Search::SearchManager::UpdateContext& updateContext
+#endif
 	)
 {
+#if !STOCKFISH
+    /*  📓
+		   このあと、スレッドをいったん全部解体しているのは、確保するスレッド数がいま確保しているスレッド数と
+		   変わらないとしても、NumaPolicyに変更があると、割り当て方法が変わるからである。
+
+		   そこで、やねうら王では、NumaPolicyとoptions["Threads"]に変更がなければ、再確保するのをやめる。
+	*/
+    if (threads.size() == requested_threads
+        && std::string(options["NumaPolicy"]) == lastNumaPolicy)
+        return;
+
+	lastNumaPolicy = options["NumaPolicy"];
+#endif
 
 	// いま生成済みのスレッドは全部解体してしまう。
-	if (threads.size() > 0)  // destroy any existing thread(s)
+    if (threads.size() > 0)  // destroy any existing thread(s)
 	{
 		main_thread()->wait_for_search_finished();
 
@@ -184,8 +200,12 @@ void ThreadPool::set(
 		boundThreadToNumaNode.clear();
 	}
 
-	const size_t requested = requested_threads; // options["Threads"];
-	// ⇨  やねうら王では、ここ、"Threads"の値を反映させたくない。(DL系などで、ここに柔軟性が必要)
+#if STOCKFISH
+    const size_t requested = sharedState.options["Threads"];
+#else
+    const size_t requested = requested_threads;
+    // 🤔 やねうら王では、ここ、"Threads"の値を反映させたくない。(DL系などで、ここに柔軟性が必要)
+#endif
 
 	if (requested > 0)  // create new thread(s)
 	{
@@ -206,8 +226,13 @@ void ThreadPool::set(
 		// 確実に分かっている場合を除き、スレッドをプロセッサにバインドしないようになっています。
 
 		// NumaPolicy
-		//   none ... バインドしない(1PCで複数エンジンを動かすときはこちらにすべき。)
-		//   auto ... バインドする。
+		//   none     ... バインドしない(1PCで複数エンジンを動かすときはこちらにすべき。)
+		//   system   ... システムから利用可能なNUMA情報を取得。
+		//   auto     ... systemとnoneを自動選択。
+		//   hardware ... Windows10など古いシステムでスレッドを使い切らない時用。
+		// 💡 詳しくは、やねうら王Wikiの「思考エンジンオプション」の説明を参考にすること。
+
+		// options["NumaPolicy"]と要求されたスレッド数から考慮して、スレッドのbindが必要であるかを判定する。
 
 		const std::string numaPolicy(options["NumaPolicy"]);
 		const bool        doBindThreads = [&]() {
@@ -218,6 +243,8 @@ void ThreadPool::set(
 				return numaConfig.suggests_binding_threads(requested);
 
 			// numaPolicy == "system", or explicitly set by the user
+            // numaPolicy が "system" であるか、またはユーザーによって明示的に設定された場合
+
 			return true;
 			}();
 
@@ -230,9 +257,12 @@ void ThreadPool::set(
 			const size_t    threadId = threads.size();
 			const NumaIndex numaId = doBindThreads ? boundThreadToNumaNode[threadId] : 0;
 
-			//auto            manager = threadId == 0 ? std::unique_ptr<Search::ISearchManager>(
-			//	std::make_unique<Search::SearchManager>(updateContext))
-			//	: std::make_unique<Search::NullSearchManager>();
+#if STOCKFISH
+            auto manager = threadId == 0
+                                ? std::unique_ptr<Search::ISearchManager>(
+                                    std::make_unique<Search::SearchManager>(updateContext))
+                                : std::make_unique<Search::NullSearchManager>();
+#endif
 
 			// 💡 Stockfishのこの実装は、main threadのときだけSearchManagerを渡して、main thread以外のときは
 			//     SearchManagerを使わせない(NullSearchManagerを渡す)という意味。しかし、結局探索部からmain threadでしか
@@ -254,17 +284,19 @@ void ThreadPool::set(
 			auto binder = doBindThreads ? OptionalThreadToNumaNodeBinder(numaConfig, numaId)
 										: OptionalThreadToNumaNodeBinder(numaId);
 
-			//threads.emplace_back(
-			//	std::make_unique<Thread>(sharedState, std::move(manager), threadId, binder));
-
+#if STOCKFISH
+			threads.emplace_back(
+				std::make_unique<Thread>(sharedState, std::move(manager), threadId, binder));
+#else
 			threads.emplace_back(
 				std::make_unique<Thread>(worker_factory, threadId, binder));
+#endif
 		}
 
-		// 📑 std::make_unique<Thread>()でもWorker::clear()が呼び出されるので起動時には二重にclearしてしまうが、仕方がないか…。
-
 		// 生成したスレッドに対してThread::clear_worker()を呼び出す。
-		clear();
+        // 🤔 std::make_unique<Thread>()でもWorker::clear()が呼び出されるので
+		//     起動時には二重にclearしてしまうが、仕方がないか…。
+        clear();
 
 		main_thread()->wait_for_search_finished();
 	}

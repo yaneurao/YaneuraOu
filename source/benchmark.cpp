@@ -58,6 +58,15 @@ namespace YaneuraOu::Benchmark {
 // bench 64 4 5000 current movetime : 現在の局面を4スレッドで5秒間探索
 // bench 16 1 5 blah perft          : ファイル"blah"内の局面に対してperft 5を実行
 
+/*
+	📓 やねうら王では、制限の種類をデフォルトで、depthからmovetimeに変更しているので、
+		上の例のようにdepthで深さ15まで探索するには
+
+			bench 64 1 15 default depth
+
+		のように指定する必要がある。
+*/
+
 std::vector<std::string> setup_bench(const std::string& currentFen, std::istream& is) {
 	std::vector<std::string> fens, list;
 	std::string              go, token;

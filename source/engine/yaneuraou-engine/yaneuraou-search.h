@@ -1,7 +1,7 @@
 ﻿#ifndef YANEURAOU_SEARCH_H_INCLUDED
 #define YANEURAOU_SEARCH_H_INCLUDED
 
-#include "../../types.h"
+#include "../../config.h"
 
 #if defined (YANEURAOU_ENGINE)
 

@@ -2,37 +2,31 @@
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 
+#include "FukauraOuEngine.h"
+
 #include "../../position.h"
 #include "../../usi.h"
 #include "../../thread.h"
 
-#include "dlshogi_types.h"
-#include "Node.h"
-#include "UctSearch.h"
-#include "dlshogi_searcher.h"
-#include "dlshogi_min.h"
+//#include "dlshogi_types.h"
+//#include "Node.h"
+//#include "UctSearch.h"
+//#include "dlshogi_searcher.h"
+//#include "dlshogi_min.h"
 
 #include "../../eval/deep/nn_types.h"
 
-// やねうら王フレームワークと、dlshogiの橋渡しを行うコード
+using namespace YaneuraOu;
 
-// --- やねうら王のsearchのoverride
+namespace dlshogi {
 
-namespace YaneuraOu {
-using namespace dlshogi;
-using namespace Eval::dlshogi;
+void FukauraOuEngine::add_options() {
+    // エンジンオプションを生やす
 
-// 探索部本体。とりま、globalに配置しておく。
-DlshogiSearcher searcher;
+    //   定跡のオプションを生やす
+    book.add_options(options);
 
-void USI::extra_option(USI::OptionsMap& o)
-{
-	// エンジンオプションを生やす
-
-	//   定跡のオプションを生やす
-	searcher.book.init(o);
-
-#if 0
+#if DLSHOGI
     (*this)["Book_File"]                   = USIOption("book.bin");
     (*this)["Best_Book_Move"]              = USIOption(true);
     (*this)["OwnBook"]                     = USIOption(false);
@@ -43,101 +37,132 @@ void USI::extra_option(USI::OptionsMap& o)
     (*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
     (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
     (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, int_max);
+
+#ifdef MAKE_BOOK
+    // 定跡を生成するときはPV出力は抑制したほうが良さげ。
+    (*this)["PV_Interval"]          = USIOption(0, 0, INT_MAX);
+    (*this)["Save_Book_Interval"]   = USIOption(100, 0, INT_MAX);
+    (*this)["Make_Book_Sleep"]      = USIOption(0, 0, INT_MAX);
+    (*this)["Use_Interruption"]     = USIOption(true);
+    (*this)["Book_Eval_Threshold"]  = USIOption(INT_MAX, 1, INT_MAX);
+    (*this)["Book_Visit_Threshold"] = USIOption(5, 0, 1000);
+    (*this)["Book_Cutoff"]          = USIOption(15, 0, 1000);
+    (*this)["Book_Temperature"]     = USIOption(1000, 0, 100000);
+    (*this)["Book_Merge_File"]      = USIOption("");
+    (*this)["Make_Book_Color"]      = USIOption("both");
+#else
+    (*this)["PV_Interval"] = USIOption(500, 0, INT_MAX);
+#endif  // !MAKE_BOOK
+
 #endif
 
-#if defined(MAKE_BOOK)
-	// 定跡を生成するときはPV出力は抑制したほうが良さげ。
-    o["PV_Interval"]                 << USI::Option(0, 0, int_max);
-    o["Save_Book_Interval"]          << USI::Option(100, 0, int_max);
-#else
-    o["PV_Interval"]                 << USI::Option(500, 0, int_max);
-#endif // defined(MAKE_BOOK)
-	
-	// UCTノードの上限(この値を10億以上にするならWIN_TYPE_DOUBLEをdefineしてコンパイルしないと
-	// MCTSする時の勝率の計算精度足りないし、あとメモリも2TBは載ってないと足りないと思う…)
-	o["UCT_NodeLimit"]				 << USI::Option(10000000, 10, 1000000000);
+    options.add("PV_Interval", Option(500, 0, int_max));
 
-	// デバッグ用のメッセージ出力の有無
-	o["DebugMessage"]                << USI::Option(false);
+    // 💡 UCTノードの上限(この値を10億以上にするならWIN_TYPE_DOUBLEをdefineしてコンパイルしないと
+    //     MCTSする時の勝率の計算精度足りないし、あとメモリも2TBは載ってないと足りないと思う…)
+    options.add("UCT_NodeLimit", Option(10000000, 10, 1000000000));
 
-	// ノードを再利用するか。
-    o["ReuseSubtree"]                << USI::Option(true);
+    // デバッグ用のメッセージ出力の有無
+    options.add("DebugMessage", Option(false));
 
-	// 勝率を評価値に変換する時の定数。
-	o["Eval_Coef"]                   << USI::Option(285, 1, 10000);
+    // ノードを再利用するか。
+    options.add("ReuseSubtree", Option(true));
 
-	// 投了値 : 1000分率で
-	o["Resign_Threshold"]            << USI::Option(0, 0, 1000);
+    // 勝率を評価値に変換する時の定数。
+    options.add("Eval_Coef", Option(285, 1, 10000));
 
-	// 引き分けの時の値 : 1000分率で
-	// 引き分けの局面では、この値とみなす。
-	// root color(探索開始局面の手番)に応じて、2通り。
+    // 投了値 : 1000分率で
+    options.add("Resign_Threshold", Option(0, 0, 1000));
 
-	o["DrawValueBlack"]              << USI::Option(500, 0, 1000);
-	o["DrawValueWhite"]              << USI::Option(500, 0, 1000);
+    // 引き分けの時の値 : 1000分率で
+    // 引き分けの局面では、この値とみなす。
+    // root color(探索開始局面の手番)に応じて、2通り。
 
-	// --- PUCTの時の定数
-	// これ、探索パラメーターの一種と考えられるから、最適な値を事前にチューニングして設定するように
-	// しておき、ユーザーからは触れない(触らなくても良い)ようにしておく。
-	// →　dlshogiはoptimizerで最適化するために外だししているようだ。
+    options.add("DrawValueBlack", Option(500, 0, 1000));
+    options.add("DrawValueWhite", Option(500, 0, 1000));
 
-	// fpu_reductionの値を100分率で設定。
-	// c_fpu_reduction_rootは、rootでのfpu_reductionの値。
-    o["C_fpu_reduction"]             << USI::Option(27, 0, 100);
-    o["C_fpu_reduction_root"]        << USI::Option(0, 0, 100);
+    // --- PUCTの時の定数
+    // これ、探索パラメーターの一種と考えられるから、最適な値を事前にチューニングして設定するように
+    // しておき、ユーザーからは触れない(触らなくても良い)ようにしておく。
+    // →　dlshogiはoptimizerで最適化するために外だししているようだ。
 
-    o["C_init"]                      << USI::Option(144, 0, 500);
-    o["C_base"]                      << USI::Option(28288, 10000, 100000);
-    o["C_init_root"]                 << USI::Option(116, 0, 500);
-    o["C_base_root"]                 << USI::Option(25617, 10000, 100000);
+    // fpu_reductionの値を100分率で設定。
+    // c_fpu_reduction_rootは、rootでのfpu_reductionの値。
+    options.add("C_fpu_reduction", Option(27, 0, 100));
+    options.add("C_fpu_reduction_root", Option(0, 0, 100));
 
-	// 探索のSoftmaxの温度
-	o["Softmax_Temperature"]		 << USI::Option( 174 , 1, 10000);
+    options.add("C_init", Option(144, 0, 500));
+    options.add("C_base", Option(28288, 10000, 100000));
+    options.add("C_init_root", Option(116, 0, 500));
+    options.add("C_base_root", Option(25617, 10000, 100000));
 
-	// 各GPU用のDNNモデル名と、そのGPU用のUCT探索のスレッド数と、そのGPUに一度に何個の局面をまとめて評価(推論)を行わせるのか。
-	// GPUは最大で8個まで扱える。
+    // 探索のSoftmaxの温度
+    options.add("Softmax_Temperature", Option(174, 1, 10000));
 
-	// RTX 3090で10bなら4、15bなら2で最適。
-    o["UCT_Threads1"]                << USI::Option(2, 0, 256);
-	for (int i = 2; i <= max_gpu ; ++i)
-		o["UCT_Threads" + std::to_string(i)] << USI::Option(0, 0, 256);
+    // 各GPU用のDNNモデル名と、そのGPU用のUCT探索のスレッド数と、そのGPUに一度に何個の局面をまとめて評価(推論)を行わせるのか。
+
+    // RTX 3090で10bなら4、15bなら2で最適。
+    options.add("UCT_Threads", Option(2, 0, 256));
 
 #if defined(COREML)
-	// Core MLでは、ONNXではなく独自形式のモデルが必要。
-    o["DNN_Model1"]                  << USI::Option(R"(model.mlmodel)");
+    // Core MLでは、ONNXではなく独自形式のモデルが必要。
+    options.add("DNN_Model", Option(R"(model.mlmodel)"));
 #else
-    o["DNN_Model1"]                  << USI::Option(R"(model.onnx)");
+    options.add("DNN_Model", Option(R"(model.onnx)"));
 #endif
-	for (int i = 2; i <= max_gpu ; ++i)
-		o["DNN_Model" + std::to_string(i)] << USI::Option("");
 
 #if defined(TENSOR_RT) || defined(ORT_TRT)
-	// 通常時の推奨128 , 検討の時は推奨256。
-	o["DNN_Batch_Size1"]             << USI::Option(128, 1, 1024);
+    // 通常時の推奨128 , 検討の時は推奨256。
+    options.add("DNN_Batch_Size", Option(128, 1, 1024));
 #elif defined(ONNXRUNTIME)
-	// CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
-	o["DNN_Batch_Size1"]             << USI::Option(32, 1, 1024);
+    // CPUを使っていることがあるので、default値、ちょっと少なめにしておく。
+    options.add("DNN_Batch_Size", Option(32, 1, 1024));
 #elif defined(COREML)
-	// M1チップで8程度でスループットが飽和する。
-	o["DNN_Batch_Size1"]             << USI::Option(8, 1, 1024);
+    // M1チップで8程度でスループットが飽和する。
+    options.add("DNN_Batch_Size", Option(8, 1, 1024));
 #endif
-	for (int i = 2; i <= max_gpu ; ++i)
-		o["DNN_Batch_Size" + std::to_string(i)] << USI::Option(0, 0, 1024);
 
+#if DLSHOGI
     //(*this)["Const_Playout"]               = USIOption(0, 0, int_max);
-	// →　Playout数固定。これはNodesLimitでできるので不要。
+    // 🤔 Playout数固定。これはNodesLimitでできるので不要。
+#endif
 
-	// PV lineの即詰みを調べるスレッドの数と1局面当たりの最大探索ノード数。
-	o["PV_Mate_Search_Threads"]     << USI::Option(1, 0, 256);
-	o["PV_Mate_Search_Nodes"]       << USI::Option(500000, 0, UINT32_MAX);
+    // PV lineの即詰みを調べるスレッドの数と1局面当たりの最大探索ノード数。
+    options.add("PV_Mate_Search_Threads", Option(1, 0, 256));
+    options.add("PV_Mate_Search_Nodes", Option(500000, 0, UINT32_MAX));
 
-	// → leaf nodeではdf-pnに変更。
-	// 探索ノード数の上限値を設定する。0 : 呼び出さない。
-	o["LeafDfpnNodesLimit"]			<< USI::Option(40, 0, 10000);
+    // → leaf nodeではdf-pnに変更。
+    // 探索ノード数の上限値を設定する。0 : 呼び出さない。
+    options.add("LeafDfpnNodesLimit", Option(40, 0, 10000));
 }
 
-// "isready"コマンドに対する初回応答
-void Search::init(){}
+
+// "isready"コマンド応答。
+void FukauraOuEngine::isready() {
+
+	// 評価関数テーブルの初期化(起動時でも良い)
+	YaneuraOu::Eval::dlshogi::init();
+}
+
+// エンジン作者名の変更
+std::string FukauraOuEngine::get_engine_author() const { return "Tadao Yamaoka , yaneurao"; }
+
+
+// 🚧 工事中 🚧
+
+
+// やねうら王フレームワークと、dlshogiの橋渡しを行うコード
+
+#if 0
+
+// --- やねうら王のsearchのoverride
+
+namespace YaneuraOu {
+using namespace dlshogi;
+using namespace Eval::dlshogi;
+
+// 探索部本体。とりま、globalに配置しておく。
+DlshogiSearcher searcher;
 
 // "isready"コマンド時に毎回呼び出される。
 void Search::clear()
@@ -528,6 +553,29 @@ void gameover_handler(const std::string& cmd)
 	searcher.GameOver();
 }
 
-} // namespace YaneuraOu
+#endif
+
+} // namespace dlshogi
+
+namespace {
+
+// 自作のエンジンのentry point
+void engine_main() {
+
+    // ここで作ったエンジン
+    dlshogi::FukauraOuEngine engine;
+
+    // USIコマンドの応答部
+    YaneuraOu::USIEngine usi;
+    usi.set_engine(engine);  // エンジン実装を差し替える。
+
+    // USIコマンドの応答のためのループ
+    usi.loop();
+}
+
+// このentry pointを登録しておく。
+static YaneuraOu::EngineFuncRegister r(engine_main, "FukauraOuEngine", 0);
+}
+
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

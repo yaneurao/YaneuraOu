@@ -18,6 +18,10 @@
 namespace YaneuraOu {
 namespace Eval::dlshogi {
 
+	// この評価関数で使うテーブルの初期化
+	// 💡 起動時か、"isready"コマンドに対して呼び出して欲しい。
+	void init();
+
 	// === GPU関連の設定 ===
 
 	// GPUの最大数(これ以上のGPUは扱えない)

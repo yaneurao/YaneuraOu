@@ -48,8 +48,21 @@ public:
 		numaConfig(&cfg),
 		numaId(n) {}
 
+	/*
+	 📝 OptionalThreadToNumaNodeBinder binder;
+         に対してbinder() とやるとこのoperatorが呼び出されて、
+	     NumaReplicatedAccessTokenがもらえる。
+	 
+	     そのあと (void) (networks[numaAccessToken]); とやると
+	     (これは、Search::Worker::ensure_network_replicated()で行っている)
+	     適切なNUMAに割り当てられるようになっている。
+	 
+	     これは、LazyNumaReplicatedのoperator[]でensure_present()が呼び出されて
+	     NumaConfig.execute_on_numa_node()が呼び出されるからである。
+	*/
 	NumaReplicatedAccessToken operator()() const {
 		if (numaConfig != nullptr)
+			// このスレッドを適切なNUMAで実行できるようにOSレベルでbindする。
 			return numaConfig->bind_current_thread_to_numa_node(numaId);
 		else
 			return NumaReplicatedAccessToken(numaId);
@@ -332,6 +345,11 @@ private:
 			sum += (th->worker.get()->*member).load(std::memory_order_relaxed);
 		return sum;
 	}
+
+#if !STOCKFISH
+	// 前回にset()が呼び出された時のoptions["NumaPolicy"]の値。
+    std::string lastNumaPolicy;
+#endif
 };
 
 } // namespace YaneuraOu

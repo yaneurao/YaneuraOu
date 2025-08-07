@@ -177,12 +177,13 @@ struct StateInfo {
 #endif
 
 	// --- evaluate
-#if defined(USE_CLASSIC_EVAL)
 
-#if defined (USE_PIECE_VALUE)
-	// この局面での評価関数の駒割
-	Value materialValue;
+#if defined(USE_PIECE_VALUE)
+        // この局面での評価関数の駒割
+        Value materialValue;
 #endif
+
+#if defined(USE_CLASSIC_EVAL)
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 

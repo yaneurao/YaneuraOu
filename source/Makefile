@@ -456,7 +456,7 @@ ifneq (,$(findstring YANEURAOU_ENGINE_DEEP,$(YANEURAOU_EDITION)))
 		engine/dlshogi-engine/UctSearch.cpp                             \
 		engine/dlshogi-engine/Node.cpp                                  \
 		engine/dlshogi-engine/PvMateSearch.cpp                          \
-		engine/dlshogi-engine/YaneuraOu_dlshogi_bridge.cpp
+		engine/dlshogi-engine/FukauraOuEngine.cpp
 endif
 
 ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))

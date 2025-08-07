@@ -49,6 +49,7 @@
 #include "book.h"
 #include "../thread.h"
 #include "../position.h"
+#include "../movegen.h"
 #include "../misc.h"
 
 using namespace std;

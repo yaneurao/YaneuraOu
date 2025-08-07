@@ -1734,11 +1734,12 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 
 #endif
 
-#if defined(USE_CLASSIC_EVAL)
 #if defined(USE_PIECE_VALUE)
     // 駒割りの差分計算用
     int materialDiff;
 #endif
+
+#if defined(USE_CLASSIC_EVAL)
 
 #if defined(USE_EVAL_LIST)
     auto& dp = st->dirtyPiece;

@@ -52,10 +52,6 @@ namespace Eval {
 	// 評価関数本体
 	Value evaluate(const Position& pos);
 
-	// 駒割りを計算する。Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
-	Value material(const Position& pos);
-
-
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 	// 評価関数パラメーターのチェックサムを返す。
 	u64 calc_check_sum();
@@ -67,9 +63,15 @@ namespace Eval {
 	static void print_softname([[maybe_unused]] u64 check_sum) {}
 #endif
 
-#endif // CLASSIC_EVAL
+#endif // defined(USE_CLASSIC_EVAL)
+
 
 #if defined (USE_PIECE_VALUE)
+
+    // 駒割りを計算する。
+	// 💡 この関数は、classic evalでなくとも用いることがある。(例えば、dfpnのMovePickerでmaterialに従ってorderingする場合など)
+	// 📝 Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
+    Value material(const Position& pos);
 
 	// Apery(WCSC26)の駒割り
 	enum {

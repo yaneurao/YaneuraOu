@@ -292,18 +292,6 @@
     <ClInclude Include="engine\dlshogi-engine\misc\fastmath.h">
       <Filter>リソース ファイル\engine\dlshogi-engine\misc</Filter>
     </ClInclude>
-    <ClInclude Include="engine\dlshogi-engine\Node.h">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\dlshogi-engine\PrintInfo.h">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\dlshogi-engine\UctSearch.h">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\dlshogi-engine\dlshogi_searcher.h">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClInclude>
     <ClInclude Include="eval\deep\nn.h">
       <Filter>リソース ファイル\eval\deep</Filter>
     </ClInclude>
@@ -334,17 +322,11 @@
     <ClInclude Include="eval\nnue\architectures\halfkpvm_256x2-32-32.h">
       <Filter>リソース ファイル\eval\nnue\architectures</Filter>
     </ClInclude>
-    <ClInclude Include="engine\dlshogi-engine\dlshogi_min.h">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClInclude>
     <ClInclude Include="eval\nnue\architectures\halfkp_512x2-16-32.h">
       <Filter>リソース ファイル\eval\nnue\architectures</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-8-32.h">
       <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="engine\dlshogi-engine\PvMateSearch.h">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-8-64.h">
       <Filter>リソース ファイル\eval\nnue\architectures</Filter>
@@ -423,6 +405,12 @@
     </ClInclude>
     <ClInclude Include="tune.h">
       <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\dlshogi-engine\FukauraOuEngine.h">
+      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
+    </ClInclude>
+    <ClInclude Include="engine\dlshogi-engine\FukauraOuSearch.h">
+      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -552,18 +540,6 @@
     <ClCompile Include="book\makebook.cpp">
       <Filter>リソース ファイル\book</Filter>
     </ClCompile>
-    <ClCompile Include="engine\dlshogi-engine\Node.cpp">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\dlshogi-engine\PrintInfo.cpp">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\dlshogi-engine\UctSearch.cpp">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\dlshogi-engine\YaneuraOu_dlshogi_bridge.cpp">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClCompile>
     <ClCompile Include="eval\deep\nn.cpp">
       <Filter>リソース ファイル\eval\deep</Filter>
     </ClCompile>
@@ -575,9 +551,6 @@
     </ClCompile>
     <ClCompile Include="eval\deep\nn_types.cpp">
       <Filter>リソース ファイル\eval\deep</Filter>
-    </ClCompile>
-    <ClCompile Include="engine\dlshogi-engine\dlshogi_searcher.cpp">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
     <ClCompile Include="mate\mate1ply_with_effect.cpp">
       <Filter>リソース ファイル\mate</Filter>
@@ -615,9 +588,6 @@
     <ClCompile Include="book\makebook2025.cpp">
       <Filter>リソース ファイル\book</Filter>
     </ClCompile>
-    <ClCompile Include="engine\dlshogi-engine\PvMateSearch.cpp">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClCompile>
     <ClCompile Include="book\policybook.cpp">
       <Filter>リソース ファイル\book</Filter>
     </ClCompile>
@@ -650,6 +620,9 @@
     </ClCompile>
     <ClCompile Include="tune.cpp">
       <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="engine\dlshogi-engine\FukauraOuEngine.cpp">
+      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
