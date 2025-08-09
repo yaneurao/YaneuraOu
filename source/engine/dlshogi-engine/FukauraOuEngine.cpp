@@ -14,6 +14,7 @@
 //#include "dlshogi_searcher.h"
 //#include "dlshogi_min.h"
 
+#include "../../eval/deep/nn.h"
 #include "../../eval/deep/nn_types.h"
 
 using namespace YaneuraOu;
@@ -21,6 +22,12 @@ using namespace YaneuraOu;
 namespace dlshogi {
 
 void SearchOptions::add_options(OptionsMap& options) {
+
+	// USI_Ponder
+    options.add("USI_Ponder", Option(false, [&](const Option& o) {
+                    usi_ponder = o;
+                    return std::nullopt;
+                }));
 
 	// PV出力間隔
     options.add("PV_Interval", Option(500, 0, int_max, [&](const Option& o) {
@@ -55,7 +62,11 @@ void SearchOptions::add_options(OptionsMap& options) {
 
     // 💡 UCTノードの上限(この値を10億以上にするならWIN_TYPE_DOUBLEをdefineしてコンパイルしないと
     //     MCTSする時の勝率の計算精度足りないし、あとメモリも2TBは載ってないと足りないと思う…)
-    options.add("UCT_NodeLimit", Option(10000000, 10, 1000000000, [&](const Option& o) {
+
+    //     これはノード制限ではなく、ノード上限を示す。この値を超えたら思考を中断するが、
+    // 　  この値を超えていなくとも、持ち時間制御によって思考は中断する。
+    // ※　探索ノード数を固定したい場合は、NodesLimitオプションを使うべし。
+	options.add("UCT_NodeLimit", Option(10000000, 10, 1000000000, [&](const Option& o) {
                     uct_node_limit = NodeCountType(o);
                     return std::nullopt;
                 }));
@@ -107,7 +118,12 @@ void SearchOptions::add_options(OptionsMap& options) {
                     return std::nullopt;
                 }));
 
-    // 探索のSoftmaxの温度
+    // softmaxの時のボルツマン温度設定
+    // これは、dlshogiの"Softmax_Temperature"の値。(174) = 1.74
+    // ※ 100分率で指定する。
+    // hcpe3から学習させたmodelの場合、1.40～1.50ぐらいにしないといけない。
+    // cf. https://tadaoyamaoka.hatenablog.com/entry/2021/04/05/215431
+
     options.add("Softmax_Temperature", Option(174, 1, 10000, [&](const Option& o) {
                     Eval::dlshogi::set_softmax_temperature( o / 100.0f);
                     return std::nullopt;
@@ -123,7 +139,7 @@ void SearchOptions::add_options(OptionsMap& options) {
 
     // → leaf nodeではdf-pnに変更。
     // 探索ノード数の上限値を設定する。0 : 呼び出さない。
-    options.add("LeafDfpnNodesLimit", Option(40, 0, 10000, [&](const Option& o) {
+	options.add("LeafDfpnNodesLimit", Option(40, 0, 10000, [&](const Option& o) {
                     leaf_dfpn_nodes_limit = NodeCountType(o);
                     return std::nullopt;
                 }));
@@ -141,11 +157,11 @@ void FukauraOuEngine::add_nn_options()
 
     // 各GPU用のDNNモデル名と、そのGPU用のUCT探索のスレッド数と、そのGPUに一度に何個の局面をまとめて評価(推論)を行わせるのか。
 
-	// DNN_GPU_Devicesオプションは、
-	// 1. GPUの数をそのまま書く
-	// 2. "1-6;8-16"のように使用するGPU番号を書く。
-	options.add("GPU_Devices", Option("1"));
-	// TODO : これ、もう少し考える。
+	// 使用するGPUの最大
+	options.add("Max_GPU", Option(1, 1, 1024));
+
+	// 無効化するGPU(カンマ区切りで)
+	options.add("Disabled_GPU", Option(""));
 
     // RTX 3090で10bなら4、15bなら2で最適。
     options.add("UCT_Threads", Option(2, 0, 256));
@@ -182,6 +198,67 @@ void FukauraOuEngine::add_options() {
 	manager.search_options.add_options(options);
 }
 
+// "Max_GPU","Disabled_GPU"と"UCT_Threads"の設定値から、各GPUのスレッド数の設定を返す。
+std::vector<int> FukauraOuEngine::get_thread_settings() {
+
+    // GPUのデバイス数を取得する
+    int device_count = Eval::dlshogi::NN::get_device_count();
+
+	// GPUの最大数
+    int max_gpu    = std::min(int(options["Max_GPU"]), device_count);
+
+	// 各GPUのスレッド数
+	int thread_num = int(options["UCT_Threads"]);
+
+	// スレッド設定
+	std::vector<int> thread_settings;
+
+	// GPUの数だけスレッド数を設定
+    thread_settings.assign(thread_num, max_gpu);
+
+	for (auto&& disabled : split(std::string(options["Disabled_GPU"]), ","))
+	{
+        int d = StringExtension::to_int(std::string(disabled), 0);
+        if (d == 0)
+			// 🤔 これ、parse失敗した警告を出しておいたほうがいいか？
+            continue;
+
+		// 番号は1 originである。
+		if (1 <= d && d <= max_gpu)
+			// 無効化するGPU番号に対応するスレッド数を0に設定する。
+            thread_settings[d - 1] = 0;
+	}
+
+	return thread_settings;
+}
+
+void FukauraOuEngine::init_gpu()
+{
+    auto& options = get_options();
+
+	// 各GPUのスレッド設定。無効化されているdeviceは0。
+    auto thread_settings = get_thread_settings();
+
+	// DNNのbatch sizeの設定。
+    int dnn_batch_size = int(options["DNN_Batch_Size"]);
+
+#if 0
+    // ※　InitGPU()に先だってSetMateLimits()でのmate solverの初期化が必要。この呼出をInitGPU()のあとにしないこと！
+    searcher.SetMateLimits((int) Options["MaxMovesToDraw"],
+                           (u32) Options["RootMateSearchNodesLimit"],
+                           (u32) Options["LeafDfpnNodesLimit"] /*Options["MateSearchPly"]*/);
+#endif
+
+	//InitGPU(Eval::dlshogi::ModelPaths, thread_settings, dnn_batch_size);
+
+#if 0
+
+    // PV lineの詰み探索の設定
+    searcher.SetPvMateSearch(int(Options["PV_Mate_Search_Threads"]),
+                             int(Options["PV_Mate_Search_Nodes"]));
+#endif
+}
+
 
 // "isready"コマンド応答。
 void FukauraOuEngine::isready() {
@@ -195,76 +272,14 @@ void FukauraOuEngine::isready() {
 
     book.read_book();
 
-	// エンジンオプションの反映
+    // -----------------------
+    //   GPUの初期化
+    // -----------------------
+
+	init_gpu();
 
 
-#if 0
-    // スレッド数と各GPUのbatchsizeをsearcherに設定する。
 
-        std::vector<int> new_thread;
-        std::vector<int> new_policy_value_batch_maxsize;
-
-        for (int i = 1; i <= max_gpu; ++i)
-        {
-            // GPU_unlimited() なら、すべてUCT_Threads1, DNN_Batch_Size1を参照する。
-            new_thread.emplace_back((int) Options["UCT_Threads" + std::to_string(i)]);
-            new_policy_value_batch_maxsize.emplace_back(
-              (int) Options["DNN_Batch_Size" + std::to_string(i)]);
-        }
-
-        // 対応デバイス数を取得する
-        int device_count = NN::get_device_count();
-
-        std::vector<int> thread_nums;
-        std::vector<int> policy_value_batch_maxsizes;
-        for (int i = 0; i < max_gpu; ++i)
-        {
-            // 対応デバイス数以上のデバイスIDのスレッド数は 0 として扱う(デバイスの無効化)
-            thread_nums.push_back(i < device_count ? new_thread[i] : 0);
-            policy_value_batch_maxsizes.push_back(new_policy_value_batch_maxsize[i]);
-        }
-
-        // ※　InitGPU()に先だってSetMateLimits()でのmate solverの初期化が必要。この呼出をInitGPU()のあとにしないこと！
-        searcher.SetMateLimits((int) Options["MaxMovesToDraw"],
-                               (u32) Options["RootMateSearchNodesLimit"],
-                               (u32) Options["LeafDfpnNodesLimit"] /*Options["MateSearchPly"]*/);
-        searcher.InitGPU(Eval::dlshogi::ModelPaths, thread_nums, policy_value_batch_maxsizes);
-
-        // その他、dlshogiにはあるけど、サポートしないもの。
-
-        // EvalDir　　　 →　dlshogiではサポートされていないが、やねうら王は、EvalDirにあるモデルファイルを読み込むようにする。
-
-        auto& search_options                = searcher.search_options;
-        search_options.c_fpu_reduction      = Options["C_fpu_reduction"] / 100.0f;
-        search_options.c_fpu_reduction_root = Options["C_fpu_reduction_root"] / 100.0f;
-
-        search_options.c_init      = Options["C_init"] / 100.0f;
-        search_options.c_base      = (NodeCountType) Options["C_base"];
-        search_options.c_init_root = Options["C_init_root"] / 100.0f;
-        search_options.c_base_root = (NodeCountType) Options["C_base_root"];
-
-        // softmaxの時のボルツマン温度設定
-        // これは、dlshogiの"Softmax_Temperature"の値。(174) = 1.74
-        // ※ 100分率で指定する。
-        // hcpe3から学習させたmodelの場合、1.40～1.50ぐらいにしないといけない。
-        // cf. https://tadaoyamaoka.hatenablog.com/entry/2021/04/05/215431
-
-        Eval::dlshogi::set_softmax_temperature(Options["Softmax_Temperature"] / 100.0f);
-
-        searcher.SetDrawValue((int) Options["DrawValueBlack"], (int) Options["DrawValueWhite"]);
-
-        searcher.SetPonderingMode(Options["USI_Ponder"]);
-
-        // UCT_NodeLimit : これはノード制限ではなく、ノード上限を示す。この値を超えたら思考を中断するが、
-        // 　この値を超えていなくとも、持ち時間制御によって思考は中断する。
-        // ※　探索ノード数を固定したい場合は、NodesLimitオプションを使うべし。
-        searcher.InitializeUctSearch((NodeCountType) Options["UCT_NodeLimit"]);
-
-        // PV lineの詰み探索の設定
-        searcher.SetPvMateSearch(int(Options["PV_Mate_Search_Threads"]),
-                                 int(Options["PV_Mate_Search_Nodes"]));
-
-#endif
 
 
 #if 0

@@ -152,6 +152,12 @@ class FukauraOuEngine: public YaneuraOu::Engine {
     // NNの設定を生やす。add_options()時に呼び出される。
     void add_nn_options();
 
+	// "isready"タイミングで行うGPUの初期化。
+	void init_gpu();
+
+	// "Max_GPU","Disabled_GPU"と"UCT_Threads"の設定値から、各GPUのスレッド数の設定を返す。
+    std::vector<int> FukauraOuEngine::get_thread_settings();
+
 };  // class FukauraOuEngine
 
 } // namespace dlshogi
