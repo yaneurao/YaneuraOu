@@ -343,6 +343,10 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
     else if (token == "f")
         enqueue_command_from_file(is);
 
+	// evaluate()を呼び出して生の評価値の出力。(デバッグ用)
+	else if (token == "e")
+        sync_cout << "eval = " << engine.evaluate() << sync_endl;
+
     // この局面での指し手をすべて出力
     else if (token == "moves")
         moves();

@@ -369,6 +369,12 @@ class YaneuraOuEngine: public Engine {
 	// 置換表の使用率を返す。
     virtual int get_hashfull(int maxAge) const override;
 
+	// 現在の局面の評価値の詳細を出力する。
+    virtual void trace_eval() const override;
+
+	// 現在の局面の評価値を出力する。
+    virtual Value evaluate() const override;
+
     // StockfishのThreadPool::clear()にあったもの。
     void clear();
 

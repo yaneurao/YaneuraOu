@@ -214,8 +214,11 @@ public:
     // utility functions
 	// ユーティリティ関数
 
-    // "trace"コマンド。現在の局面に対して評価関数を呼び出して結果を出力する。
+    // "trace"コマンド。現在の局面に対して評価関数を呼び出して評価値の詳細を出力する。
     virtual void trace_eval() const = 0;
+
+    // 🌈 "e"コマンド。現在の局面に対して評価関数を呼び出して評価値を返す。
+    virtual Value evaluate() const = 0;
 
 	// OptionsMap(エンジンオプション)を取得
 
@@ -251,9 +254,8 @@ public:
     const std::string binaryDirectory;
 #endif
 
-
-	// エンジンに追加オプションを設定したいときは、この関数をoverrideする。
-	// この関数は、USIEngine::set_engine()のタイミングで呼び出される。
+	// 🌈 エンジンに追加オプションを設定したいときは、この関数をoverrideする。
+	//     この関数は、USIEngine::set_engine()のタイミングで呼び出される。
 	// 📝 この関数のなかでGetOptions()->add()を用いて、Optionを追加する。
 	// 💡 Engine::add_options()で"Threads", "NumaPolicy"などのエンジンオプションを生やしているので
 	//     これらが必要なのであれば、add_options()をoverrideしてEngine::add_options()を呼び出すこと。
@@ -347,8 +349,8 @@ class Engine: public IEngine {
 
     virtual void set_numa_config_from_option(const std::string& o) override;
     virtual void resize_threads() override;
-    virtual void set_tt_size(size_t mb) override {}
-    virtual void set_ponderhit(bool b) override {}
+    virtual void set_tt_size(size_t mb) override;
+    virtual void set_ponderhit(bool b) override;
     virtual void search_clear() override;
 
     virtual void set_on_update_no_moves(std::function<void(const InfoShort&)>&&) override final;
@@ -362,14 +364,15 @@ class Engine: public IEngine {
     virtual void verify_networks() const override {}
     virtual void save_network(const std::string& path) override {}
 
-    virtual void              trace_eval() const override {}
-    virtual const OptionsMap& get_options() const override { return options; }
-    virtual OptionsMap&       get_options() override { return options; }
+    virtual void              trace_eval() const override;
+    virtual Value             evaluate() const override;
+    virtual const OptionsMap& get_options() const override;
+    virtual OptionsMap&       get_options() override;
 
 	virtual int get_hashfull(int maxAge = 0) const override;
 
-    virtual std::string       sfen() const override { return pos.sfen(); }
-    virtual void              flip() override { return pos.flip(); }
+    virtual std::string sfen() const override;
+    virtual void        flip() override;
     virtual std::string visualize() const override;
 
 	virtual std::vector<std::pair<size_t, size_t>> get_bound_thread_count_by_numa_node() const override;
@@ -492,6 +495,7 @@ class EngineWrapper: public IEngine {
     virtual void save_network(const std::string& path) override { engine->save_network(path); }
 
     virtual void trace_eval() const override { engine->trace_eval(); }
+    virtual Value evaluate() const override { return engine->evaluate(); }
 
     virtual const OptionsMap& get_options() const override { return engine->get_options(); }
     virtual OptionsMap&       get_options() override { return engine->get_options(); }

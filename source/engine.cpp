@@ -135,18 +135,6 @@ void Engine::set_numa_config_from_option(const std::string& o) {
 	threads.ensure_network_replicated();
 }
 
-// 局面を視覚化した文字列を取得する。
-std::string Engine::visualize() const {
-	std::stringstream ss;
-	ss << pos;
-	return ss.str();
-}
-
-#if STOCKFISH
-int Engine::get_hashfull(int maxAge) const { return tt.hashfull(maxAge); }
-#else
-int Engine::get_hashfull(int maxAge) const { return 0; }
-#endif
 
 // blocking call to wait for search to finish
 // 探索が完了のを待機する。(完了したらリターンする)
@@ -262,21 +250,26 @@ void Engine::resize_threads() {
 
 	// 📌 スレッド数のリサイズ
 
-	//threads.set(numaContext.get_numa_config(), { options, threads, tt, networks }, updateContext);
+#if STOCKFISH
+	threads.set(numaContext.get_numa_config(), { options, threads, tt, networks }, updateContext);
+#else
 
-	// ⇨  やねうら王ではここでWorkerFactoryを渡すように変更。
+	// 🌈  やねうら王ではここでWorkerFactoryを渡すように変更。
 	//    これにより、生成Worker(Worker派生class)をEngine派生classで選択できる。
 
 	auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
 		{ return std::make_unique<Search::Worker>(options, threads, threadIdx, numaAccessToken); };
-        threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
+    threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
+#endif
 
 	// 📌 置換表の再割り当て。
 
+#if STOCKFISH
 	// Reallocate the hash with the new threadpool size
 	// 新しいスレッドプールのサイズに合わせてハッシュを再割り当てする
-	//set_tt_size(options["USI_Hash"]);
-	//  ⇨  EngineがTTを持っているとは限らないので、この部分を分離したい。
+	set_tt_size(options["Hash"]);
+	//  ⇨  EngineがTTを持っているとは限らないので、やねうら王ではこの部分を分離したい。
+#endif
 
 	// 📌 NUMAの設定
 
@@ -284,9 +277,135 @@ void Engine::resize_threads() {
 	threads.ensure_network_replicated();
 }
 
+void Engine::set_tt_size(size_t mb) {
+#if STOCKFISH
+	wait_for_search_finished();
+    tt.resize(mb, threads);
+#endif
+    // 🌈 やねうら王ではEngine classはTTを持たない。派生class側で処理する。
+}
+
+void Engine::set_ponderhit(bool b) {
+#if STOCKFISH
+	threads.main_manager()->ponder = b;
+#endif
+    // 🌈 やねうら王ではThreadPool classはmain_managerを持たない。Engine派生class側で処理する。
+}
+
+// network related
+
+
+// 🚧 工事中 🚧
+
+
+// utility functions
+
+void Engine::trace_eval() const {
+	// 🌈 やねうら王では、Engine派生classで定義する。
+#if STOCKFISH
+	StateListPtr trace_states(new std::deque<StateInfo>(1));
+    Position     p;
+
+	p.set(pos.fen(), options["UCI_Chess960"], &trace_states->back());
+
+    verify_networks();
+	sync_cout << "\n" << Eval::trace(p, *networks) << sync_endl;
+#endif
+}
+
+#if !STOCKFISH
+Value Engine::evaluate() const { return VALUE_NONE; }
+#endif
+
+const OptionsMap& Engine::get_options() const { return options; }
+OptionsMap&       Engine::get_options() { return options; }
+
+// 現在の局面のsfen形式の表現を取得する。
+#if STOCKFISH
+std::string Engine::fen() const { return pos.fen(); }
+#else
+std::string Engine::sfen() const { return pos.sfen(); }
+#endif
+
+// 盤面を180°回転させる。
+void Engine::flip() { pos.flip(); }
+
+// 局面を視覚化した文字列を取得する。
+std::string Engine::visualize() const {
+    std::stringstream ss;
+    ss << pos;
+    return ss.str();
+}
+
+#if STOCKFISH
+int Engine::get_hashfull(int maxAge) const { return tt.hashfull(maxAge); }
+#else
+int Engine::get_hashfull(int maxAge) const { return 0; }
+#endif
+
+std::vector<std::pair<size_t, size_t>> Engine::get_bound_thread_count_by_numa_node() const {
+	auto                                   counts = threads.get_bound_thread_count_by_numa_node();
+	const NumaConfig& cfg = numaContext.get_numa_config();
+	std::vector<std::pair<size_t, size_t>> ratios;
+	NumaIndex                              n = 0;
+	for (; n < counts.size(); ++n)
+		ratios.emplace_back(counts[n], cfg.num_cpus_in_numa_node(n));
+	if (!counts.empty())
+		for (; n < cfg.num_numa_nodes(); ++n)
+			ratios.emplace_back(0, cfg.num_cpus_in_numa_node(n));
+	return ratios;
+}
+
+std::string Engine::get_numa_config_as_string() const {
+	return numaContext.get_numa_config().to_string();
+}
+
+std::string Engine::numa_config_information_as_string() const {
+	auto cfgStr = get_numa_config_as_string();
+	return "Available processors: " + cfgStr;
+}
+
+std::string Engine::thread_binding_information_as_string() const {
+	auto              boundThreadsByNode = get_bound_thread_count_by_numa_node();
+	std::stringstream ss;
+	if (boundThreadsByNode.empty())
+		return ss.str();
+
+	bool isFirst = true;
+
+	for (auto&& [current, total] : boundThreadsByNode)
+	{
+		if (!isFirst)
+			ss << ":";
+		ss << current << "/" << total;
+		isFirst = false;
+	}
+
+	return ss.str();
+}
+
+std::string Engine::thread_allocation_information_as_string() const {
+	std::stringstream ss;
+
+	size_t threadsSize = threads.size();
+	ss << "Using " << threadsSize << (threadsSize > 1 ? " threads" : " thread");
+
+	auto boundThreadsByNodeStr = thread_binding_information_as_string();
+	if (boundThreadsByNodeStr.empty())
+		return ss.str();
+
+	ss << " with NUMA node thread binding: ";
+	ss << boundThreadsByNodeStr;
+
+	return ss.str();
+}
+
+// --------------------
+//  やねうら王独自拡張
+// --------------------
+
 // 💡 USIで"isready"に対して時間のかかる処理を実行したい時に用いる。
-void Engine::run_heavy_job(std::function<void()> job)
-{
+void Engine::run_heavy_job(std::function<void()> job) {
     // --- Keep Alive的な処理 ---
 
     // "isready"を受け取ったあと、"readyok"を返すまで5秒ごとに改行を送るように修正する。(keep alive的な処理)
@@ -338,9 +457,57 @@ void Engine::run_heavy_job(std::function<void()> job)
 
     // --- Keep Alive的な処理ここまで ---
 
-	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
+    // 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
     // 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
     job();
+}
+
+// ----------------------------------------------
+// 📌 Engineのentry pointを登録しておく仕組み 📌
+// ----------------------------------------------
+
+using EngineEntry = std::tuple<std::function<void()>, std::string, int>;
+
+// エンジンの共通の登録先
+// 📝 static EngineFuncRegister reg_a(engine_main_a, 1); のようにしてengine_main_a()を登録する。
+//     USER_ENGINEであるuser-engine.cpp を参考にすること。
+static std::vector<EngineEntry>& engineFuncs() {
+	// 💡 関数のなかのstatic変数は最初に呼び出された時に初期化されることが保証されている。
+	//     なので、初期化順の問題は発生しない。
+	static std::vector<EngineEntry> funcs;
+	return funcs;
+}
+
+// エンジンの登録用のヘルパー
+EngineFuncRegister::EngineFuncRegister(std::function<void()> f, const std::string& engine_name, int priority)
+{
+	engineFuncs().push_back({ f , engine_name, priority });
+}
+
+// EngineFuncRegisterで登録されたEngineのうち、priorityの一番高いエンジンを起動する。
+void run_engine_entry()
+{
+	auto& v = engineFuncs();
+	// priorityの最大
+	EngineEntry* m = nullptr;
+	for (auto& entry : v)
+	{
+		//sync_cout << "info string engine name = " << std::get<1>(entry) << ", priority = " << std::get<2>(entry) << sync_endl;
+		if (!m || std::get<2>(*m) < std::get<2>(entry))
+		{
+			m = &entry;
+		}
+	}
+
+	// priority最大のentry pointを開始する。
+	if (m == nullptr) {
+		sync_cout << "Error: no engine entry point." << sync_endl;
+		Tools::exit();
+	}
+	else {
+		//sync_cout << "info string startup engine = " << std::get<1>(*m) << sync_endl;
+		std::get<0>(*m)(); // このエンジンを実行
+	}
 }
 
 
@@ -397,8 +564,8 @@ YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 	o["EvalHash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
 #else
 	o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
-#endif // defined(FOR_TOURNAMENT)
-#endif // defined(USE_EVAL_HASH)
+#endif  // defined(FOR_TOURNAMENT)
+#endif  // defined(USE_EVAL_HASH)
 
 
 #if 0
@@ -439,13 +606,13 @@ YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 	o["GenerateAllLegalMoves"] << Option(false);
 #endif
 
-#if defined (USE_ENTERING_KING_WIN)
+#if defined(USE_ENTERING_KING_WIN)
 	// 入玉ルール
 	o["EnteringKingRule"] << Option(USI::ekr_rules, USI::ekr_rules[EKR_27_POINT]);
 #endif
 
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) && \
-	 (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) )
+#if defined(USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) \
+  && (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT))
 	// 評価関数パラメーターを共有するか。
 	// デフォルトで有効に変更。(V4.90～)
 	o["EvalShare"] << Option(true);
@@ -555,27 +722,6 @@ YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 
 // かきかけ
 
-
-// utility functions
-
-void Engine::trace_eval() const {
-	StateListPtr trace_states(new std::deque<StateInfo>(1));
-	Position     p;
-	p.set(pos.sfen() /*, options["UCI_Chess960"]*/, &trace_states->back());
-
-	verify_networks();
-	//sync_cout << "\n" << Eval::trace(p, *networks) << sync_endl;
-}
-
-const OptionsMap& Engine::get_options() const { return options; }
-OptionsMap& Engine::get_options()             { return options; }
-
-// 現在の局面のsfen形式の表現を取得する。
-std::string Engine::sfen() const { return pos.sfen(); }
-
-// 盤面を180°回転させる。
-void Engine::flip() { /* pos.flip(); */ }
-
 void Engine::set_on_iter(std::function<void(const Engine::InfoIter&)>&& f) {
 	updateContext.onIter = std::move(f);
 }
@@ -590,8 +736,6 @@ void Engine::set_on_verify_networks(std::function<void(std::string_view)>&& f) {
 }
 
 
-
-int Engine::get_hashfull(int maxAge) const { return tt.hashfull(maxAge); }
 
 
 // modifiers
@@ -658,113 +802,5 @@ void Engine::save_network(/*const std::pair<std::optional<std::string>, std::str
 }
 
 #endif
-
-std::vector<std::pair<size_t, size_t>> Engine::get_bound_thread_count_by_numa_node() const {
-	auto                                   counts = threads.get_bound_thread_count_by_numa_node();
-	const NumaConfig& cfg = numaContext.get_numa_config();
-	std::vector<std::pair<size_t, size_t>> ratios;
-	NumaIndex                              n = 0;
-	for (; n < counts.size(); ++n)
-		ratios.emplace_back(counts[n], cfg.num_cpus_in_numa_node(n));
-	if (!counts.empty())
-		for (; n < cfg.num_numa_nodes(); ++n)
-			ratios.emplace_back(0, cfg.num_cpus_in_numa_node(n));
-	return ratios;
-}
-
-std::string Engine::get_numa_config_as_string() const {
-	return numaContext.get_numa_config().to_string();
-}
-
-std::string Engine::numa_config_information_as_string() const {
-	auto cfgStr = get_numa_config_as_string();
-	return "Available processors: " + cfgStr;
-}
-
-std::string Engine::thread_binding_information_as_string() const {
-	auto              boundThreadsByNode = get_bound_thread_count_by_numa_node();
-	std::stringstream ss;
-	if (boundThreadsByNode.empty())
-		return ss.str();
-
-	bool isFirst = true;
-
-	for (auto&& [current, total] : boundThreadsByNode)
-	{
-		if (!isFirst)
-			ss << ":";
-		ss << current << "/" << total;
-		isFirst = false;
-	}
-
-	return ss.str();
-}
-
-std::string Engine::thread_allocation_information_as_string() const {
-	std::stringstream ss;
-
-	size_t threadsSize = threads.size();
-	ss << "Using " << threadsSize << (threadsSize > 1 ? " threads" : " thread");
-
-	auto boundThreadsByNodeStr = thread_binding_information_as_string();
-	if (boundThreadsByNodeStr.empty())
-		return ss.str();
-
-	ss << " with NUMA node thread binding: ";
-	ss << boundThreadsByNodeStr;
-
-	return ss.str();
-}
-
-// --------------------
-//  やねうら王独自拡張
-// --------------------
-
-
-// 📌 Engineのentry pointを登録しておく仕組み 📌
-
-using EngineEntry = std::tuple<std::function<void()>, std::string, int>;
-
-// エンジンの共通の登録先
-// 📝 static EngineFuncRegister reg_a(engine_main_a, 1); のようにしてengine_main_a()を登録する。
-//     USER_ENGINEであるuser-engine.cpp を参考にすること。
-static std::vector<EngineEntry>& engineFuncs() {
-	// 💡 関数のなかのstatic変数は最初に呼び出された時に初期化されることが保証されている。
-	//     なので、初期化順の問題は発生しない。
-	static std::vector<EngineEntry> funcs;
-	return funcs;
-}
-
-// エンジンの登録用のヘルパー
-EngineFuncRegister::EngineFuncRegister(std::function<void()> f, const std::string& engine_name, int priority)
-{
-	engineFuncs().push_back({ f , engine_name, priority });
-}
-
-// EngineFuncRegisterで登録されたEngineのうち、priorityの一番高いエンジンを起動する。
-void run_engine_entry()
-{
-	auto& v = engineFuncs();
-	// priorityの最大
-	EngineEntry* m = nullptr;
-	for (auto& entry : v)
-	{
-		//sync_cout << "info string engine name = " << std::get<1>(entry) << ", priority = " << std::get<2>(entry) << sync_endl;
-		if (!m || std::get<2>(*m) < std::get<2>(entry))
-		{
-			m = &entry;
-		}
-	}
-
-	// priority最大のentry pointを開始する。
-	if (m == nullptr) {
-		sync_cout << "Error: no engine entry point." << sync_endl;
-		Tools::exit();
-	}
-	else {
-		//sync_cout << "info string startup engine = " << std::get<1>(*m) << sync_endl;
-		std::get<0>(*m)(); // このエンジンを実行
-	}
-}
 
 } // namespace YaneuraOu

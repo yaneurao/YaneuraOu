@@ -355,6 +355,28 @@ int YaneuraOuEngine::get_hashfull(int maxAge) const
 	return tt.hashfull(maxAge);
 }
 
+// utility functions
+
+void YaneuraOuEngine::trace_eval() const {
+    StateListPtr trace_states(new std::deque<StateInfo>(1));
+    Position     p;
+#if STOCKFISH
+	p.set(pos.fen(), options["UCI_Chess960"], &trace_states->back());
+#else
+    p.set(pos.sfen(),&trace_states->back());
+#endif
+    verify_networks();
+
+    //sync_cout << "\n" << Eval::trace(p, *networks) << sync_endl;
+	// TODO あとで
+}
+
+// 現在の局面の評価値を出力する。
+Value YaneuraOuEngine::evaluate() const {
+	verify_networks();
+    return Eval::evaluate(pos); // cpに変換するか？まあいいか…。
+}
+
 // 並列探索において一番良い思考をしたthreadの選出。
 // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
 YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
@@ -485,6 +507,8 @@ int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack*
 
 // Add correctionHistory value to raw staticEval and guarantee evaluation
 // does not hit the tablebase range.
+// correctionHistory の値を raw staticEval に加え、
+// 評価値がテーブルベースの範囲に入らないことを保証する。
 Value to_corrected_static_eval(const Value v, const int cv) {
 	return std::clamp(v + cv / 131072, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
 }
