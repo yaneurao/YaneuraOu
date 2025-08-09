@@ -409,9 +409,6 @@
     <ClInclude Include="engine\dlshogi-engine\FukauraOuEngine.h">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
-    <ClInclude Include="engine\dlshogi-engine\FukauraOuSearch.h">
-      <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">

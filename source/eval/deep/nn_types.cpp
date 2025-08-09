@@ -686,14 +686,11 @@ Value value_to_cp(const float score, const float eval_coef) {
 void init()
 {
     // 初回初期化
-    static bool init = false;
-    if (!init)
-    {
+    static bool initialized = [] {
         // 指し手に対して、Policy Networkの返してくる配列のindexを返すテーブルの初期化
-		// 💡 事故で二重に呼び出されても問題ないので雑に実装しておく。
         dlshogi::init_move_label();
-        init = true;
-    }
+        return true;
+    }();
 }
 
 } // namespace Eval::dlshogi

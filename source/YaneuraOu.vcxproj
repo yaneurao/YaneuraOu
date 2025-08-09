@@ -594,7 +594,6 @@
     <ClInclude Include="engine.h" />
     <ClInclude Include="engine\dlshogi-engine\dlshogi_types.h" />
     <ClInclude Include="engine\dlshogi-engine\FukauraOuEngine.h" />
-    <ClInclude Include="engine\dlshogi-engine\FukauraOuSearch.h" />
     <ClInclude Include="engine\dlshogi-engine\misc\fastmath.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-search.h" />
     <ClInclude Include="evaluate.h" />

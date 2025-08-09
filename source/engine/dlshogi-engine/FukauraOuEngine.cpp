@@ -20,86 +20,132 @@ using namespace YaneuraOu;
 
 namespace dlshogi {
 
-void FukauraOuEngine::add_options() {
-    // エンジンオプションを生やす
+void SearchOptions::add_options(OptionsMap& options) {
 
-    //   定跡のオプションを生やす
-    book.add_options(options);
+	// PV出力間隔
+    options.add("PV_Interval", Option(500, 0, int_max, [&](const Option& o) {
+                    pv_interval = TimePoint(o);
+                    return std::nullopt;
+                }));
 
-#if DLSHOGI
-    (*this)["Book_File"]                   = USIOption("book.bin");
-    (*this)["Best_Book_Move"]              = USIOption(true);
-    (*this)["OwnBook"]                     = USIOption(false);
-    (*this)["Min_Book_Score"]              = USIOption(-3000, -ScoreInfinite, ScoreInfinite);
-    (*this)["USI_Ponder"]                  = USIOption(false);
-    (*this)["Stochastic_Ponder"]           = USIOption(true);
-    (*this)["Time_Margin"]                 = USIOption(1000, 0, int_max);
-    (*this)["Mate_Root_Search"]            = USIOption(29, 0, 35);
-    (*this)["DfPn_Hash"]                   = USIOption(2048, 64, 4096); // DfPnハッシュサイズ
-    (*this)["DfPn_Min_Search_Millisecs"]   = USIOption(300, 0, int_max);
+    // ノードを再利用するか。
+    options.add("ReuseSubtree", Option(true, [&](const Option& o) {
+                    reuse_subtree = o;
+                    return std::nullopt;
+                }));
 
-#ifdef MAKE_BOOK
-    // 定跡を生成するときはPV出力は抑制したほうが良さげ。
-    (*this)["PV_Interval"]          = USIOption(0, 0, INT_MAX);
-    (*this)["Save_Book_Interval"]   = USIOption(100, 0, INT_MAX);
-    (*this)["Make_Book_Sleep"]      = USIOption(0, 0, INT_MAX);
-    (*this)["Use_Interruption"]     = USIOption(true);
-    (*this)["Book_Eval_Threshold"]  = USIOption(INT_MAX, 1, INT_MAX);
-    (*this)["Book_Visit_Threshold"] = USIOption(5, 0, 1000);
-    (*this)["Book_Cutoff"]          = USIOption(15, 0, 1000);
-    (*this)["Book_Temperature"]     = USIOption(1000, 0, 100000);
-    (*this)["Book_Merge_File"]      = USIOption("");
-    (*this)["Make_Book_Color"]      = USIOption("both");
-#else
-    (*this)["PV_Interval"] = USIOption(500, 0, INT_MAX);
-#endif  // !MAKE_BOOK
 
-#endif
+    // 勝率を評価値に変換する時の定数。
+    options.add("Eval_Coef", Option(285, 1, 10000, [&](const Option& o) {
+                    eval_coef = float(o);
+                    return std::nullopt;
+                }));
 
-    options.add("PV_Interval", Option(500, 0, int_max));
+    // 投了値 : 1000分率で
+    options.add("Resign_Threshold", Option(0, 0, 1000, [&](const Option& o) {
+                    RESIGN_THRESHOLD = int(options["Resign_Threshold"]) / 1000.0f;
+                    return std::nullopt;
+                }));
+
+    // デバッグ用のメッセージ出力の有無。
+    options.add("DebugMessage", Option(false, [&](const Option& o) {
+                    debug_message = o;
+                    return std::nullopt;
+                }));
 
     // 💡 UCTノードの上限(この値を10億以上にするならWIN_TYPE_DOUBLEをdefineしてコンパイルしないと
     //     MCTSする時の勝率の計算精度足りないし、あとメモリも2TBは載ってないと足りないと思う…)
-    options.add("UCT_NodeLimit", Option(10000000, 10, 1000000000));
-
-    // デバッグ用のメッセージ出力の有無
-    options.add("DebugMessage", Option(false));
-
-    // ノードを再利用するか。
-    options.add("ReuseSubtree", Option(true));
-
-    // 勝率を評価値に変換する時の定数。
-    options.add("Eval_Coef", Option(285, 1, 10000));
-
-    // 投了値 : 1000分率で
-    options.add("Resign_Threshold", Option(0, 0, 1000));
+    options.add("UCT_NodeLimit", Option(10000000, 10, 1000000000, [&](const Option& o) {
+                    uct_node_limit = NodeCountType(o);
+                    return std::nullopt;
+                }));
 
     // 引き分けの時の値 : 1000分率で
     // 引き分けの局面では、この値とみなす。
     // root color(探索開始局面の手番)に応じて、2通り。
 
-    options.add("DrawValueBlack", Option(500, 0, 1000));
-    options.add("DrawValueWhite", Option(500, 0, 1000));
+    options.add("DrawValueBlack", Option(500, 0, 1000, [&](const Option& o) {
+                    draw_value_black = int(o) / 1000.0f;
+                    return std::nullopt;
+                }));
+    options.add("DrawValueWhite", Option(500, 0, 1000, [&](const Option& o) {
+                    draw_value_white = int(o) / 1000.0f;
+                    return std::nullopt;
+                }));
 
     // --- PUCTの時の定数
-    // これ、探索パラメーターの一種と考えられるから、最適な値を事前にチューニングして設定するように
+
+	// これ、探索パラメーターの一種と考えられるから、最適な値を事前にチューニングして設定するように
     // しておき、ユーザーからは触れない(触らなくても良い)ようにしておく。
     // →　dlshogiはoptimizerで最適化するために外だししているようだ。
 
     // fpu_reductionの値を100分率で設定。
     // c_fpu_reduction_rootは、rootでのfpu_reductionの値。
-    options.add("C_fpu_reduction", Option(27, 0, 100));
-    options.add("C_fpu_reduction_root", Option(0, 0, 100));
+    options.add("C_fpu_reduction", Option(27, 0, 100, [&](const Option& o) {
+                    c_fpu_reduction = o / 100.0f;
+                    return std::nullopt;
+                }));
+    options.add("C_fpu_reduction_root", Option(0, 0, 100, [&](const Option& o) {
+                    c_fpu_reduction_root = o / 100.0f;
+                    return std::nullopt;
+                }));
 
-    options.add("C_init", Option(144, 0, 500));
-    options.add("C_base", Option(28288, 10000, 100000));
-    options.add("C_init_root", Option(116, 0, 500));
-    options.add("C_base_root", Option(25617, 10000, 100000));
+    options.add("C_init", Option(144, 0, 500, [&](const Option& o) {
+                    c_init = o / 100.0f;
+                    return std::nullopt;
+                }));
+    options.add("C_base", Option(28288, 10000, 100000, [&](const Option& o) {
+                    c_base = NodeCountType(o);
+                    return std::nullopt;
+                }));
+    options.add("C_init_root", Option(116, 0, 500, [&](const Option& o) {
+                    c_init_root = o / 100.0f;
+                    return std::nullopt;
+                }));
+    options.add("C_base_root", Option(25617, 10000, 100000, [&](const Option& o) {
+                    c_base_root = NodeCountType(o);
+                    return std::nullopt;
+                }));
 
     // 探索のSoftmaxの温度
-    options.add("Softmax_Temperature", Option(174, 1, 10000));
+    options.add("Softmax_Temperature", Option(174, 1, 10000, [&](const Option& o) {
+                    Eval::dlshogi::set_softmax_temperature( o / 100.0f);
+                    return std::nullopt;
+                }));
+
+#if DLSHOGI
+    //(*this)["Const_Playout"]               = USIOption(0, 0, int_max);
+    // 🤔 Playout数固定。これはNodesLimitでできるので不要。
+
+	dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
+    // →　ふかうら王では、rootのdf-pnは、node数を指定することにした。
+#endif
+
+    // → leaf nodeではdf-pnに変更。
+    // 探索ノード数の上限値を設定する。0 : 呼び出さない。
+    options.add("LeafDfpnNodesLimit", Option(40, 0, 10000, [&](const Option& o) {
+                    leaf_dfpn_nodes_limit = NodeCountType(o);
+                    return std::nullopt;
+                }));
+
+    // PV lineの即詰みを調べるスレッドの数と1局面当たりの最大探索ノード数。
+    options.add("PV_Mate_Search_Threads", Option(1, 0, 256));
+    options.add("PV_Mate_Search_Nodes", Option(500000, 0, UINT32_MAX));
+
+
+}
+
+void FukauraOuEngine::add_nn_options()
+{
+    OptionsMap& options = get_options();
 
     // 各GPU用のDNNモデル名と、そのGPU用のUCT探索のスレッド数と、そのGPUに一度に何個の局面をまとめて評価(推論)を行わせるのか。
+
+	// DNN_GPU_Devicesオプションは、
+	// 1. GPUの数をそのまま書く
+	// 2. "1-6;8-16"のように使用するGPU番号を書く。
+	options.add("GPU_Devices", Option("1"));
+	// TODO : これ、もう少し考える。
 
     // RTX 3090で10bなら4、15bなら2で最適。
     options.add("UCT_Threads", Option(2, 0, 256));
@@ -121,19 +167,19 @@ void FukauraOuEngine::add_options() {
     // M1チップで8程度でスループットが飽和する。
     options.add("DNN_Batch_Size", Option(8, 1, 1024));
 #endif
+}
 
-#if DLSHOGI
-    //(*this)["Const_Playout"]               = USIOption(0, 0, int_max);
-    // 🤔 Playout数固定。これはNodesLimitでできるので不要。
-#endif
+// ふかうら王のエンジンオプションを生やす
+void FukauraOuEngine::add_options() {
 
-    // PV lineの即詰みを調べるスレッドの数と1局面当たりの最大探索ノード数。
-    options.add("PV_Mate_Search_Threads", Option(1, 0, 256));
-    options.add("PV_Mate_Search_Nodes", Option(500000, 0, UINT32_MAX));
+	// NN関係の設定を生やす。
+	add_nn_options();
 
-    // → leaf nodeではdf-pnに変更。
-    // 探索ノード数の上限値を設定する。0 : 呼び出さない。
-    options.add("LeafDfpnNodesLimit", Option(40, 0, 10000));
+    // 定跡のオプションを生やす
+    book.add_options(options);
+
+	// SearchOptionのオプションを生やす。
+	manager.search_options.add_options(options);
 }
 
 
@@ -141,123 +187,84 @@ void FukauraOuEngine::add_options() {
 void FukauraOuEngine::isready() {
 
 	// 評価関数テーブルの初期化(起動時でも良い)
-	YaneuraOu::Eval::dlshogi::init();
-}
+	Eval::dlshogi::init();
 
-// エンジン作者名の変更
-std::string FukauraOuEngine::get_engine_author() const { return "Tadao Yamaoka , yaneurao"; }
+    // -----------------------
+    //   定跡の読み込み
+    // -----------------------
 
+    book.read_book();
 
-// 🚧 工事中 🚧
-
-
-// やねうら王フレームワークと、dlshogiの橋渡しを行うコード
-
-#if 0
-
-// --- やねうら王のsearchのoverride
-
-namespace YaneuraOu {
-using namespace dlshogi;
-using namespace Eval::dlshogi;
-
-// 探索部本体。とりま、globalに配置しておく。
-DlshogiSearcher searcher;
-
-// "isready"コマンド時に毎回呼び出される。
-void Search::clear()
-{
 	// エンジンオプションの反映
 
-	// -----------------------
-	//   定跡の読み込み
-	// -----------------------
-
-	searcher.book.read_book();
 
 #if 0
-	// オプション設定
-	dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
+    // スレッド数と各GPUのbatchsizeをsearcherに設定する。
 
-	// →　ふかうら王では、rootのdf-pnは、node数を指定することにした。
+        std::vector<int> new_thread;
+        std::vector<int> new_policy_value_batch_maxsize;
+
+        for (int i = 1; i <= max_gpu; ++i)
+        {
+            // GPU_unlimited() なら、すべてUCT_Threads1, DNN_Batch_Size1を参照する。
+            new_thread.emplace_back((int) Options["UCT_Threads" + std::to_string(i)]);
+            new_policy_value_batch_maxsize.emplace_back(
+              (int) Options["DNN_Batch_Size" + std::to_string(i)]);
+        }
+
+        // 対応デバイス数を取得する
+        int device_count = NN::get_device_count();
+
+        std::vector<int> thread_nums;
+        std::vector<int> policy_value_batch_maxsizes;
+        for (int i = 0; i < max_gpu; ++i)
+        {
+            // 対応デバイス数以上のデバイスIDのスレッド数は 0 として扱う(デバイスの無効化)
+            thread_nums.push_back(i < device_count ? new_thread[i] : 0);
+            policy_value_batch_maxsizes.push_back(new_policy_value_batch_maxsize[i]);
+        }
+
+        // ※　InitGPU()に先だってSetMateLimits()でのmate solverの初期化が必要。この呼出をInitGPU()のあとにしないこと！
+        searcher.SetMateLimits((int) Options["MaxMovesToDraw"],
+                               (u32) Options["RootMateSearchNodesLimit"],
+                               (u32) Options["LeafDfpnNodesLimit"] /*Options["MateSearchPly"]*/);
+        searcher.InitGPU(Eval::dlshogi::ModelPaths, thread_nums, policy_value_batch_maxsizes);
+
+        // その他、dlshogiにはあるけど、サポートしないもの。
+
+        // EvalDir　　　 →　dlshogiではサポートされていないが、やねうら王は、EvalDirにあるモデルファイルを読み込むようにする。
+
+        auto& search_options                = searcher.search_options;
+        search_options.c_fpu_reduction      = Options["C_fpu_reduction"] / 100.0f;
+        search_options.c_fpu_reduction_root = Options["C_fpu_reduction_root"] / 100.0f;
+
+        search_options.c_init      = Options["C_init"] / 100.0f;
+        search_options.c_base      = (NodeCountType) Options["C_base"];
+        search_options.c_init_root = Options["C_init_root"] / 100.0f;
+        search_options.c_base_root = (NodeCountType) Options["C_base_root"];
+
+        // softmaxの時のボルツマン温度設定
+        // これは、dlshogiの"Softmax_Temperature"の値。(174) = 1.74
+        // ※ 100分率で指定する。
+        // hcpe3から学習させたmodelの場合、1.40～1.50ぐらいにしないといけない。
+        // cf. https://tadaoyamaoka.hatenablog.com/entry/2021/04/05/215431
+
+        Eval::dlshogi::set_softmax_temperature(Options["Softmax_Temperature"] / 100.0f);
+
+        searcher.SetDrawValue((int) Options["DrawValueBlack"], (int) Options["DrawValueWhite"]);
+
+        searcher.SetPonderingMode(Options["USI_Ponder"]);
+
+        // UCT_NodeLimit : これはノード制限ではなく、ノード上限を示す。この値を超えたら思考を中断するが、
+        // 　この値を超えていなくとも、持ち時間制御によって思考は中断する。
+        // ※　探索ノード数を固定したい場合は、NodesLimitオプションを使うべし。
+        searcher.InitializeUctSearch((NodeCountType) Options["UCT_NodeLimit"]);
+
+        // PV lineの詰み探索の設定
+        searcher.SetPvMateSearch(int(Options["PV_Mate_Search_Threads"]),
+                                 int(Options["PV_Mate_Search_Nodes"]));
+
 #endif
-
-	searcher.SetPvInterval((TimePoint)Options["PV_Interval"]);
-
-	// ノードを再利用するかの設定。
-	searcher.SetReuseSubtree(Options["ReuseSubtree"]);
-
-	// 勝率を評価値に変換する時の定数を設定。
-	searcher.SetEvalCoef((int)Options["Eval_Coef"]);
-
-	// 投了値
-	searcher.SetResignThreshold((int)Options["Resign_Threshold"]);
-
-	// デバッグ用のメッセージ出力の有無。
-	searcher.SetDebugMessage(Options["DebugMessage"]);
-
-	// スレッド数と各GPUのbatchsizeをsearcherに設定する。
-
-	std::vector<int> new_thread;
-	std::vector<int> new_policy_value_batch_maxsize;
-
-	for (int i = 1; i <= max_gpu; ++i)
-	{
-		// GPU_unlimited() なら、すべてUCT_Threads1, DNN_Batch_Size1を参照する。
-		new_thread.emplace_back((int)Options["UCT_Threads" + std::to_string(i)]);
-		new_policy_value_batch_maxsize.emplace_back((int)Options["DNN_Batch_Size" + std::to_string(i)]);
-	}
-	
-	// 対応デバイス数を取得する
-	int device_count = NN::get_device_count();
-
-	std::vector<int> thread_nums;
-	std::vector<int> policy_value_batch_maxsizes;
-	for (int i = 0; i < max_gpu ; ++i)
-	{
-		// 対応デバイス数以上のデバイスIDのスレッド数は 0 として扱う(デバイスの無効化)
-		thread_nums.push_back(i < device_count ? new_thread[i] : 0);
-		policy_value_batch_maxsizes.push_back(new_policy_value_batch_maxsize[i]);
-	}
-
-	// ※　InitGPU()に先だってSetMateLimits()でのmate solverの初期化が必要。この呼出をInitGPU()のあとにしないこと！
-	searcher.SetMateLimits((int)Options["MaxMovesToDraw"] , (u32)Options["RootMateSearchNodesLimit"] , (u32)Options["LeafDfpnNodesLimit"] /*Options["MateSearchPly"]*/);
-	searcher.InitGPU(Eval::dlshogi::ModelPaths , thread_nums, policy_value_batch_maxsizes);
-
-	// その他、dlshogiにはあるけど、サポートしないもの。
-
-	// EvalDir　　　 →　dlshogiではサポートされていないが、やねうら王は、EvalDirにあるモデルファイルを読み込むようにする。
-
-	auto& search_options = searcher.search_options;
-	search_options.c_fpu_reduction      =                Options["C_fpu_reduction"     ] / 100.0f;
-	search_options.c_fpu_reduction_root =                Options["C_fpu_reduction_root"] / 100.0f;
-
-	search_options.c_init               =                Options["C_init"              ] / 100.0f;
-	search_options.c_base               = (NodeCountType)Options["C_base"              ];
-	search_options.c_init_root          =                Options["C_init_root"         ] / 100.0f;
-	search_options.c_base_root          = (NodeCountType)Options["C_base_root"         ];
-
-	// softmaxの時のボルツマン温度設定
-	// これは、dlshogiの"Softmax_Temperature"の値。(174) = 1.74
-	// ※ 100分率で指定する。
-	// hcpe3から学習させたmodelの場合、1.40～1.50ぐらいにしないといけない。
-	// cf. https://tadaoyamaoka.hatenablog.com/entry/2021/04/05/215431
-
-	Eval::dlshogi::set_softmax_temperature(Options["Softmax_Temperature"] / 100.0f);
-
-	searcher.SetDrawValue(
-		(int)Options["DrawValueBlack"],
-		(int)Options["DrawValueWhite"]);
-
-	searcher.SetPonderingMode(Options["USI_Ponder"]);
-
-	// UCT_NodeLimit : これはノード制限ではなく、ノード上限を示す。この値を超えたら思考を中断するが、
-	// 　この値を超えていなくとも、持ち時間制御によって思考は中断する。
-	// ※　探索ノード数を固定したい場合は、NodesLimitオプションを使うべし。
-	searcher.InitializeUctSearch((NodeCountType)Options["UCT_NodeLimit"]);
-
-	// PV lineの詰み探索の設定
-	searcher.SetPvMateSearch(int(Options["PV_Mate_Search_Threads"]), int(Options["PV_Mate_Search_Nodes"]));
 
 
 #if 0
@@ -278,8 +285,22 @@ void Search::clear()
 	};
 	searcher.UctSearchGenmove(&pos_tmp, pos_tmp.sfen(), {}, ponder , false, start_threads);
 #endif
-
 }
+
+// エンジン作者名の変更
+std::string FukauraOuEngine::get_engine_author() const { return "Tadao Yamaoka , yaneurao"; }
+
+
+// 🚧 工事中 🚧
+
+
+// やねうら王フレームワークと、dlshogiの橋渡しを行うコード
+
+#if 0
+
+// 探索部本体。とりま、globalに配置しておく。
+DlshogiSearcher searcher;
+
 
 // "go"コマンドに対して呼び出される。
 void MainThread::search()
