@@ -548,8 +548,7 @@ void update_all_stats(const Position& pos,
                       SearchedList&   quietsSearched,
                       SearchedList&   capturesSearched,
                       Depth           depth,
-                      Move            TTMove,
-                      int             moveCount);
+                      Move            TTMove);
 
 
 }  // namespace
@@ -1987,7 +1986,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
 		auto draw_type = pos.is_repetition(ss->ply);
         if (draw_type != REPETITION_NONE)
-        {
+        { 
             if (draw_type == REPETITION_DRAW)
 				// 通常の千日手の時はゆらぎを持たせる。
 				// 💡 引き分けのスコアvは abs(v±1) <= VALUE_MAX_EVALであることが保証されているので、
@@ -2895,7 +2894,8 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
                       search_options.generate_all_legal_moves);
 #endif
 
-        Depth      probCutDepth = std::max(depth - 5, 0);
+        Depth dynamicReduction = (ss->staticEval - beta) / 300;
+        Depth probCutDepth     = std::max(depth - 5 - dynamicReduction, 0);
 
 		// 💡 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
         //     cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
@@ -3141,9 +3141,9 @@ moves_loop:  // When in check, search starts here
                     //       = CapturePieceValuePlusPromote()
                     //     のほうがより正確な評価ではないか？
 
-                    Value futilityValue = ss->staticEval + 225 + 220 * lmrDepth
-                                        + 275 * (move.to_sq() == prevSq) + PieceValue[capturedPiece]
-                                        + 131 * captHist / 1024;
+
+                    Value futilityValue = ss->staticEval + 232 + 224 * lmrDepth
+                                        + PieceValue[capturedPiece] + 131 * captHist / 1024;
 
                     if (futilityValue <= alpha)
                         continue;
@@ -3840,7 +3840,7 @@ moves_loop:  // When in check, search starts here
         // 💡 quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
 
 		update_all_stats(pos, ss, *this, bestMove, prevSq, quietsSearched, capturesSearched, depth,
-                         ttData.move, moveCount);
+                         ttData.move);
         if (!PvNode)
             ttMoveHistory << (bestMove == ttData.move ? 811 : -848);
     }
@@ -4851,16 +4851,24 @@ void update_all_stats(const Position&          pos,
                       SearchedList&            quietsSearched,
                       SearchedList&            capturesSearched,
                       Depth                    depth,
-                      Move                     ttMove,
-                      int                      moveCount) {
+                      Move                     ttMove) {
 
     CapturePieceToHistory& captureHistory = workerThread.captureHistory;
     Piece                  movedPiece     = pos.moved_piece(bestMove);
     PieceType              capturedPiece;
 
-    int bonus = std::min(142 * depth - 88, 1501) + 318 * (bestMove == ttMove);
-    int malus = std::min(757 * depth - 172, 2848) - 30 * moveCount;
-
+#if STOCKFISH
+    int quietBonus   = std::min(170 * depth - 87, 1598) + 332 * (bestMove == ttMove);
+    int quietMalus   = std::min(743 * depth - 180, 2287) - 33 * quietsSearched.size();
+    int captureBonus = std::min(124 * depth - 62, 1245) + 336 * (bestMove == ttMove);
+    int captureMalus = std::min(708 * depth - 148, 2287) - 29 * capturesSearched.size();
+#else
+	// 🤔 size()はsize_tでintに代入すると警告が出るので修正しておく。
+    int quietBonus   = std::min(170 * depth - 87, 1598) + 332 * (bestMove == ttMove);
+    int quietMalus   = std::min(743 * depth - 180, 2287) - 33 * int(quietsSearched.size());
+    int captureBonus = std::min(124 * depth - 62, 1245) + 336 * (bestMove == ttMove);
+    int captureMalus = std::min(708 * depth - 148, 2287) - 29 * int(capturesSearched.size());
+#endif
 	/*
 		📓 Stockfish 14ではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
 			Stockfish 16では、capture()からcapture_stage()に変更された。[2023/10/15]
@@ -4868,13 +4876,13 @@ void update_all_stats(const Position&          pos,
 
     if (!pos.capture_stage(bestMove))
     {
-        update_quiet_histories(pos, ss, workerThread, bestMove, bonus * 1054 / 1024);
+        update_quiet_histories(pos, ss, workerThread, bestMove, quietBonus * 978 / 1024);
 
         // Decrease stats for all non-best quiet moves
         // 最善でないquietの指し手すべての統計を減少させる
 
 		for (Move move : quietsSearched)
-            update_quiet_histories(pos, ss, workerThread, move, -malus * 1388 / 1024);
+            update_quiet_histories(pos, ss, workerThread, move, -quietMalus * 1115 / 1024);
     }
     else
     {
@@ -4882,7 +4890,7 @@ void update_all_stats(const Position&          pos,
         // 最善手が捕獲する指し手だった場合、その統計を増加させる
 
         capturedPiece = type_of(pos.piece_on(bestMove.to_sq()));
-        captureHistory[movedPiece][bestMove.to_sq()][capturedPiece] << bonus * 1235 / 1024;
+        captureHistory[movedPiece][bestMove.to_sq()][capturedPiece] << captureBonus * 1288 / 1024;
     }
 
     // Extra penalty for a quiet early move that was not a TT move in
@@ -4895,7 +4903,8 @@ void update_all_stats(const Position&          pos,
     // 💡 Move::null()の場合、Stockfishでは65(移動後の升がSQ_NONEであることを保証している。やねうら王もそう変更した。)
 
 	if (prevSq != SQ_NONE && ((ss - 1)->moveCount == 1 + (ss - 1)->ttHit) && !pos.captured_piece())
-        update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -malus * 595 / 1024);
+        update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
+                                      -captureMalus * 622 / 1024);
 
     // Decrease stats for all non-best capture moves
     // 最善の捕獲する指し手以外のすべての手の統計を減少させます
@@ -4911,7 +4920,7 @@ void update_all_stats(const Position&          pos,
 
         movedPiece    = pos.moved_piece(move);
         capturedPiece = type_of(pos.piece_on(move.to_sq()));
-        captureHistory[movedPiece][move.to_sq()][capturedPiece] << -malus * 1354 / 1024;
+        captureHistory[movedPiece][move.to_sq()][capturedPiece] << -captureMalus * 1431 / 1024;
     }
 }
 

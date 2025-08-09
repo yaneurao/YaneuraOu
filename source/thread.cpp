@@ -182,11 +182,13 @@ void ThreadPool::set(const NumaConfig&                           numaConfig,
 
 		   そこで、やねうら王では、NumaPolicyとoptions["Threads"]に変更がなければ、再確保するのをやめる。
 	*/
-    if (threads.size() == requested_threads
-        && std::string(options["NumaPolicy"]) == lastNumaPolicy)
-        return;
+	if (threads.size() == requested_threads
+		&& std::string(options["NumaPolicy"]) == lastNumaPolicy
+		&& &worker_factory == last_worker_factory)
+            return; 
 
-	lastNumaPolicy = options["NumaPolicy"];
+	lastNumaPolicy = std::string(options["NumaPolicy"]);
+    last_worker_factory = &worker_factory;
 #endif
 
 	// いま生成済みのスレッドは全部解体してしまう。

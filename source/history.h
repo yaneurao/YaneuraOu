@@ -122,33 +122,42 @@ using Stats = MultiArray<StatsEntry<T, D>, Sizes...>;
 // ButterflyHistory records how often quiet moves have been successful or unsuccessful
 // during the current search, and is used for reduction and move ordering decisions.
 // It uses 2 tables (one for each color) indexed by the move's from and to squares,
-// see www.chessprogramming.org/Butterfly_Boards (~11 elo)
+// see https://www.chessprogramming.org/Butterfly_Boards
 
-// ButterflyHistoryは、 現在の探索中にquietな指し手がどれくらい成功/失敗したかを記録し、
-// reductionと指し手オーダリングの決定のために用いられる。
-// cf. http://chessprogramming.wikispaces.com/Butterfly+Boards
-// 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
+// ButterflyHistory は、現在の探索中に quiet moves がどれくらい成功または失敗したかを記録し、
+// reductionや move ordering の判断に使用されます。
+// これは 2 つのテーブル（各手番ごとに1つ）を使用し、手の移動元と移動先のマスでインデックス付けします。
+// 詳細は https://www.chessprogramming.org/Butterfly_Boards を参照してください。
+// 💡 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
 
-//using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, int(SQUARE_NB)* int(SQUARE_NB)>;
+#if STOCKFISH
+using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, int(SQUARE_NB)* int(SQUARE_NB)>;
+#else
 using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, Move::FROM_TO_SIZE>;
+#endif
 
-// ↑ このような配列、将棋では添字順を入れ替えて、history[c][to]をhistory[to][c]としたい。
-// これは、配列の末尾側サイズは2のべき乗になっている方がアドレッシングが簡単で高速なコードが生成されるため。
-// 
-// しかし逆順にしているのを忘れてしまい、Stockfishのコードを参考にする時に色々面倒である。
-// やねうら王V8.60まではwrapper classを用意していたが、管理が複雑になり、Stockfishとの差分が大きくなるのでやめることにした。
-// move.from_to()を呼び出した時、Stockfishでは 0～SQUARE_NB*SQUARE_NB-1までの値だが、
-// やねうら王では、0 ～ ((SQUARE_NB+7) * SQUARE_NB - 1)であることに注意。
-// ⇨ 後者のサイズとして、Move::FROM_TO_SIZEを用いると良い。
-//
-// また、やねうら王では、ここのfrom_toで用いられるfromは、駒打ちのときに特殊な値になっていて、
-// 盤上のfromとは区別される。そのため、(SQUARE_NB + 7)まで移動元がある。
-// 例) from = SQUARE_NB     の時、歩打ち
-//     from = SQUARE_NB + 1 の時、香打ち
-//         …
-// 注) 打ち駒に関して、先手と後手の歩打ちを区別する必要はない。
-// 　　なぜなら、このButterflyHistoryではその指し手の手番(Color)の区別をしているから。
+/*
+	 📓 上記のような配列、将棋では添字順を入れ替えて、history[c][to]をhistory[to][c]としたい。
+	     これは、配列の末尾側サイズは2のべき乗になっている方がアドレッシングが簡単で高速なコードが生成されるため。
 
+	     しかし逆順にしているのを忘れてしまい、Stockfishのコードを参考にする時に色々面倒である。
+
+		 やねうら王V8.60まではwrapper classを用意していたが、管理が複雑になり、Stockfishとの差分が
+		 大きくなるのでやめることにした。
+
+		 move.from_to()を呼び出した時、Stockfishでは 0～SQUARE_NB*SQUARE_NB-1までの値だが、
+	     やねうら王では、0 ～ ((SQUARE_NB+7) * SQUARE_NB - 1)であることに注意。
+	     ⇨ 後者のサイズとして、Move::FROM_TO_SIZEを用いると良い。
+
+	     また、やねうら王では、ここのfrom_toで用いられるfromは、駒打ちのときに特殊な値になっていて、
+	     盤上のfromとは区別される。そのため、(SQUARE_NB + 7)まで移動元がある。
+
+		 例) from = SQUARE_NB     の時、歩打ち
+			 from = SQUARE_NB + 1 の時、香打ち
+				 …
+		 注) 打ち駒に関して、先手と後手の歩打ちを区別する必要はない。
+ 　　		   なぜなら、このButterflyHistoryではその指し手の手番(Color)の区別をしているから。
+*/
 
 // LowPlyHistory is adressed by play and move's from and to squares, used
 // to improve move ordering near the root
@@ -157,8 +166,11 @@ using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, Move::FROM_TO_SIZE>
 // ルート付近での手順の順序を改善するために使用されます。
 
 using LowPlyHistory =
-//Stats<std::int16_t, 7183, LOW_PLY_HISTORY_SIZE, int(SQUARE_NB)* int(SQUARE_NB)>;
+#if STOCKFISH
+Stats<std::int16_t, 7183, LOW_PLY_HISTORY_SIZE, int(SQUARE_NB)* int(SQUARE_NB)>;
+#else
 Stats<std::int16_t, 7183, LOW_PLY_HISTORY_SIZE, Move::FROM_TO_SIZE>;
+#endif
 
 // CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
 // CapturePieceToHistoryは、指し手の [piece][to][captured piece type]で示される。
@@ -173,7 +185,7 @@ using PieceToHistory = Stats<std::int16_t, 30000, PIECE_NB, SQUARE_NB>;
 // ContinuationHistory is the combined history of a given pair of moves, usually
 // the current one given a previous one. The nested history table is based on
 // PieceToHistory instead of ButterflyBoards.
-// (~63 elo)
+
 // ContinuationHistoryは、与えられた2つの指し手のhistoryを組み合わせたもので、
 // 普通、1手前によって与えられる現在の指し手(によるcombined history)
 // このnested history tableは、ButterflyBoardsの代わりに、PieceToHistoryをベースとしている。

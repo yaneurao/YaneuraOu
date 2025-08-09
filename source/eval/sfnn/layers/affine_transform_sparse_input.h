@@ -88,14 +88,15 @@ void find_nnz(const std::int32_t* RESTRICT input,
     constexpr IndexType SimdWidthOut = 32;  // 512 bits / 16 bits
     constexpr IndexType NumChunks    = InputDimensions / SimdWidthOut;
     const __m512i       increment    = _mm512_set1_epi16(SimdWidthOut);
-    __m512i base = _mm512_set_epi16(31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16,
-                                    15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m512i             base = _mm512_set_epi16(  // Same permute order as _mm512_packus_epi32()
+      31, 30, 29, 28, 15, 14, 13, 12, 27, 26, 25, 24, 11, 10, 9, 8, 23, 22, 21, 20, 7, 6, 5, 4, 19,
+      18, 17, 16, 3, 2, 1, 0);
 
     IndexType count = 0;
     for (IndexType i = 0; i < NumChunks; ++i)
     {
-        const __m512i inputV0 = _mm512_load_si512(input + i * 2 * SimdWidthIn);
-        const __m512i inputV1 = _mm512_load_si512(input + i * 2 * SimdWidthIn + SimdWidthIn);
+        const __m512i   inputV01 = _mm512_packus_epi32(inputV0, inputV1);
+        const __mmask32 nnzMask  = _mm512_test_epi16_mask(inputV01, inputV01);
 
         // Get a bitmask and gather non zero indices
         const __mmask32 nnzMask = _mm512_kunpackw(_mm512_test_epi32_mask(inputV1, inputV1),

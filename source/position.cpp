@@ -2138,6 +2138,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
     }
 #endif
 
+	ASSERT_LV5(pos_is_ok());
 }
 
 // ある指し手を指した後のhash keyを返す。
@@ -2325,7 +2326,7 @@ void Position::undo_move_impl(Move m) {
     // ASSERT_LV5(evalList.is_valid(*this));
     //evalList.is_valid(*this);
 
-    //ASSERT(pos_is_ok());
+    ASSERT_LV5(pos_is_ok());
 }
 
 // do_move()を先後分けたdo_move_impl<>()を呼び出す。
@@ -3117,6 +3118,8 @@ void Position::flip() {
 	auto f_sfen = flipped_sfen();
     set(f_sfen, st);
 
+	ASSERT_LV5(pos_is_ok());
+
 #endif
 }
 
@@ -3138,7 +3141,7 @@ bool Position::pos_is_ok() const
 {
 	// Bitboardの完全なテストには時間がかかるので、あまりややこしいテストは現実的ではない。
 
-#if 0
+#if ASSERT_LV >= 5
 	// 1) 盤上の駒と手駒を合わせて40駒あるか。
 	// →　駒落ちに対応させたいのでコメントアウト
 
