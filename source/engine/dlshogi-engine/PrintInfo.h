@@ -7,8 +7,6 @@
 #include "Node.h"
 #include "UctSearch.h"
 
-namespace YaneuraOu {
-
 namespace dlshogi
 {
 	struct SearchLimits;
@@ -23,7 +21,7 @@ namespace dlshogi::UctPrint
 	void PrintPlayoutInformation(const Node* root, const SearchLimits* po_info, const TimePoint finish_time, const NodeCountType pre_simulated);
 
 	// 探索時間の出力
-	void PrintPlayoutLimits(const Timer& time_manager, const int playout_limit);
+	void PrintPlayoutLimits(const TimeManagement& time_manager, const int playout_limit);
 
 	// 再利用した探索回数の出力
 	void PrintReuseCount(const int count);
@@ -51,7 +49,6 @@ namespace dlshogi::UctPrint
 	BestMovePonder get_best_move_multipv(const Node* rootNode, const SearchLimits& po_info, const SearchOptions& options, bool silent);
 
 } // namespace dlshogi
-} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 

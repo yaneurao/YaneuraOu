@@ -2,7 +2,6 @@
 #if defined(YANEURAOU_ENGINE_DEEP)
 #include "../../misc.h"
 
-namespace YaneuraOu {
 namespace dlshogi {
 
 	// --- struct Node
@@ -145,6 +144,5 @@ namespace dlshogi {
 	}
 
 } // namespace dlshogi
-} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

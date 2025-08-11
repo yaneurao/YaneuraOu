@@ -2,16 +2,15 @@
 #if defined(YANEURAOU_ENGINE_DEEP)
 
 #include "PrintInfo.h"
+#include "FukauraOuEngine.h"
 #include "Node.h"
 #include "UctSearch.h"
-#include "dlshogi_searcher.h"
 
 #include "../../usi.h"
 
 #include <iomanip>		// std::setw()
 #include <sstream>		// std::stringstream
 
-namespace YaneuraOu {
 namespace dlshogi::UctPrint {
 
 	// ---   print PV   ---
@@ -193,12 +192,12 @@ namespace dlshogi::UctPrint {
 
 	// ベストの指し手とponderの指し手の取得
 	//   silent : これがtrueなら読み筋は出力しない。
-	BestMovePonder get_best_move_multipv(const Node* rootNode , const SearchLimits& po_info , const SearchOptions& options , bool silent)
+	BestMovePonder get_best_move_multipv(const Node* rootNode , const SearchLimits& po_info , const SearchOptions& options)
 	{
 		ChildNumType multiPv = options.multi_pv;
 		
 		// 探索にかかった時間を求める
-		auto finish_time = std::max((TimePoint)1, po_info.time_manager.elapsed());
+        auto finish_time = std::max((TimePoint) 1, po_info.time_manager.elapsed_time());
 		std::stringstream nps;
 		nps << " nps "      << (po_info.nodes_searched * 1000LL / (u64)finish_time)
 			<< " time "     <<  finish_time
@@ -264,7 +263,9 @@ namespace dlshogi::UctPrint {
 			std::vector<Move> moves = { best.move };
 			get_pv(best.node, moves);
 
-			if (!silent)
+			// TODO : あとで
+
+			//if (!silent)
 				sync_cout << pv_to_string(best, moves, multiPv, i , nps.str() , options.eval_coef) << sync_endl;
 
 			if (i == 0 && moves.size() >= 2)
@@ -308,7 +309,7 @@ namespace dlshogi::UctPrint {
 	}
 
 	// 探索時間の出力
-	void PrintPlayoutLimits(const Timer& time_manager, const int playout_limit)
+	void PrintPlayoutLimits(const TimeManagement& time_manager, const int playout_limit)
 	{
 		sync_cout << "Minimum Time  : " << time_manager.minimum() << "[ms]" << sync_endl;
 		sync_cout << "Optimum Time  : " << time_manager.optimum() << "[ms]" << sync_endl;
@@ -323,7 +324,6 @@ namespace dlshogi::UctPrint {
 	}
 
 } // namespace dlshogi::UctPrint
-} // namespace YaneuraOu
 
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)

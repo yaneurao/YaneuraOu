@@ -10,7 +10,6 @@
 #include "../../mate/mate.h"
 #include "Node.h"
 
-namespace YaneuraOu {
 namespace dlshogi {
 
 	class DlshogiSearcher;
@@ -100,7 +99,6 @@ namespace dlshogi {
 	};
 
 } // namespace dlshogi
-} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 #endif // ndef __PV_MATE_SEARCH__

@@ -396,7 +396,9 @@ class Engine: public IEngine {
     virtual std::string get_engine_version() const override { return ENGINE_VERSION; }
     virtual std::string get_eval_name() const override { return EVAL_TYPE_NAME; }
 
+#if STOCKFISH    
    protected:
+#endif   
     // 📌 エンジンを実装するために必要な最低限のコンポーネント
 
     //const std::string binaryDirectory;

@@ -592,9 +592,14 @@
     <ClInclude Include="book\policybook.h" />
     <ClInclude Include="config.h" />
     <ClInclude Include="engine.h" />
+    <ClInclude Include="engine\dlshogi-engine\dlshogi_searcher.h" />
     <ClInclude Include="engine\dlshogi-engine\dlshogi_types.h" />
     <ClInclude Include="engine\dlshogi-engine\FukauraOuEngine.h" />
     <ClInclude Include="engine\dlshogi-engine\misc\fastmath.h" />
+    <ClInclude Include="engine\dlshogi-engine\Node.h" />
+    <ClInclude Include="engine\dlshogi-engine\PrintInfo.h" />
+    <ClInclude Include="engine\dlshogi-engine\PvMateSearch.h" />
+    <ClInclude Include="engine\dlshogi-engine\SearchOptions.h" />
     <ClInclude Include="engine\yaneuraou-engine\yaneuraou-search.h" />
     <ClInclude Include="evaluate.h" />
     <ClInclude Include="eval\deep\nn_types.h" />
@@ -681,6 +686,7 @@
     <ClInclude Include="perft.h" />
     <ClInclude Include="score.h" />
     <ClInclude Include="timeman.h" />
+    <ClInclude Include="tracer.h" />
     <ClInclude Include="search.h" />
     <ClInclude Include="testcmd\unit_test.h" />
     <ClInclude Include="thread_win32_osx.h" />
@@ -702,7 +708,12 @@
     <ClCompile Include="book\makebook2025.cpp" />
     <ClCompile Include="book\policybook.cpp" />
     <ClCompile Include="engine.cpp" />
+    <ClCompile Include="engine\dlshogi-engine\dlshogi_searcher.cpp" />
     <ClCompile Include="engine\dlshogi-engine\FukauraOuEngine.cpp" />
+    <ClCompile Include="engine\dlshogi-engine\Node.cpp" />
+    <ClCompile Include="engine\dlshogi-engine\PrintInfo.cpp" />
+    <ClCompile Include="engine\dlshogi-engine\PvMateSearch.cpp" />
+    <ClCompile Include="engine\dlshogi-engine\SearchOptions.cpp" />
     <ClCompile Include="engine\tanuki-mate-engine\tanuki-mate-search.cpp" />
     <ClCompile Include="engine\user-engine\user-search.cpp" />
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp" />

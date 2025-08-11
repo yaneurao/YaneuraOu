@@ -9,7 +9,6 @@
 #include "dlshogi_searcher.h"
 #include "UctSearch.h"
 
-namespace YaneuraOu {
 namespace dlshogi {
 
 	// ゲーム木
@@ -398,7 +397,6 @@ namespace dlshogi {
 	}
 
 } // namespace dlshogi
-} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 #endif // ndef __PV_MATE_SEARCH_CPP__

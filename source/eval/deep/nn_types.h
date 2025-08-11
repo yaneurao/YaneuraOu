@@ -22,14 +22,6 @@ namespace Eval::dlshogi {
 	// 💡 起動時か、"isready"コマンドに対して呼び出して欲しい。
 	void init();
 
-	// === GPU関連の設定 ===
-
-	// GPUの最大数(これ以上のGPUは扱えない)
-#if !defined(MAX_GPU)
-	constexpr int MAX_GPU = 16;
-#endif
-	constexpr int max_gpu = MAX_GPU;
-
 	// === 入出力の特徴量の定義 ===
 
 	// 各手駒の上限枚数。
@@ -190,7 +182,7 @@ namespace Eval::dlshogi {
 	// エンジンオプションで設定されたモデルファイル名。(フォルダ名含む)
 	// このsize() == max_gpuのはず。
 	// "isready"で初期化されている。
-	extern std::vector<std::string> ModelPaths;
+	//extern std::string ModelPath;
 
 } // namespace Eval::dlshogi
 } // namespace YaneuraOu

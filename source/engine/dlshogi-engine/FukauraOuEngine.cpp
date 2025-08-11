@@ -8,11 +8,8 @@
 #include "../../usi.h"
 #include "../../thread.h"
 
-//#include "dlshogi_types.h"
-//#include "Node.h"
-//#include "UctSearch.h"
-//#include "dlshogi_searcher.h"
-//#include "dlshogi_min.h"
+#include "dlshogi_searcher.h"
+#include "UctSearch.h"
 
 #include "../../eval/deep/nn.h"
 #include "../../eval/deep/nn_types.h"
@@ -21,135 +18,10 @@ using namespace YaneuraOu;
 
 namespace dlshogi {
 
-void SearchOptions::add_options(OptionsMap& options) {
 
-	// USI_Ponder
-    options.add("USI_Ponder", Option(false, [&](const Option& o) {
-                    usi_ponder = o;
-                    return std::nullopt;
-                }));
+FukauraOuEngine::FukauraOuEngine() :
+    searcher(*this) {}
 
-	// PV出力間隔
-    options.add("PV_Interval", Option(500, 0, int_max, [&](const Option& o) {
-                    pv_interval = TimePoint(o);
-                    return std::nullopt;
-                }));
-
-    // ノードを再利用するか。
-    options.add("ReuseSubtree", Option(true, [&](const Option& o) {
-                    reuse_subtree = o;
-                    return std::nullopt;
-                }));
-
-
-    // 勝率を評価値に変換する時の定数。
-    options.add("Eval_Coef", Option(285, 1, 10000, [&](const Option& o) {
-                    eval_coef = float(o);
-                    return std::nullopt;
-                }));
-
-    // 投了値 : 1000分率で
-    options.add("Resign_Threshold", Option(0, 0, 1000, [&](const Option& o) {
-                    RESIGN_THRESHOLD = int(options["Resign_Threshold"]) / 1000.0f;
-                    return std::nullopt;
-                }));
-
-    // デバッグ用のメッセージ出力の有無。
-    options.add("DebugMessage", Option(false, [&](const Option& o) {
-                    debug_message = o;
-                    return std::nullopt;
-                }));
-
-    // 💡 UCTノードの上限(この値を10億以上にするならWIN_TYPE_DOUBLEをdefineしてコンパイルしないと
-    //     MCTSする時の勝率の計算精度足りないし、あとメモリも2TBは載ってないと足りないと思う…)
-
-    //     これはノード制限ではなく、ノード上限を示す。この値を超えたら思考を中断するが、
-    // 　  この値を超えていなくとも、持ち時間制御によって思考は中断する。
-    // ※　探索ノード数を固定したい場合は、NodesLimitオプションを使うべし。
-	options.add("UCT_NodeLimit", Option(10000000, 10, 1000000000, [&](const Option& o) {
-                    uct_node_limit = NodeCountType(o);
-                    return std::nullopt;
-                }));
-
-    // 引き分けの時の値 : 1000分率で
-    // 引き分けの局面では、この値とみなす。
-    // root color(探索開始局面の手番)に応じて、2通り。
-
-    options.add("DrawValueBlack", Option(500, 0, 1000, [&](const Option& o) {
-                    draw_value_black = int(o) / 1000.0f;
-                    return std::nullopt;
-                }));
-    options.add("DrawValueWhite", Option(500, 0, 1000, [&](const Option& o) {
-                    draw_value_white = int(o) / 1000.0f;
-                    return std::nullopt;
-                }));
-
-    // --- PUCTの時の定数
-
-	// これ、探索パラメーターの一種と考えられるから、最適な値を事前にチューニングして設定するように
-    // しておき、ユーザーからは触れない(触らなくても良い)ようにしておく。
-    // →　dlshogiはoptimizerで最適化するために外だししているようだ。
-
-    // fpu_reductionの値を100分率で設定。
-    // c_fpu_reduction_rootは、rootでのfpu_reductionの値。
-    options.add("C_fpu_reduction", Option(27, 0, 100, [&](const Option& o) {
-                    c_fpu_reduction = o / 100.0f;
-                    return std::nullopt;
-                }));
-    options.add("C_fpu_reduction_root", Option(0, 0, 100, [&](const Option& o) {
-                    c_fpu_reduction_root = o / 100.0f;
-                    return std::nullopt;
-                }));
-
-    options.add("C_init", Option(144, 0, 500, [&](const Option& o) {
-                    c_init = o / 100.0f;
-                    return std::nullopt;
-                }));
-    options.add("C_base", Option(28288, 10000, 100000, [&](const Option& o) {
-                    c_base = NodeCountType(o);
-                    return std::nullopt;
-                }));
-    options.add("C_init_root", Option(116, 0, 500, [&](const Option& o) {
-                    c_init_root = o / 100.0f;
-                    return std::nullopt;
-                }));
-    options.add("C_base_root", Option(25617, 10000, 100000, [&](const Option& o) {
-                    c_base_root = NodeCountType(o);
-                    return std::nullopt;
-                }));
-
-    // softmaxの時のボルツマン温度設定
-    // これは、dlshogiの"Softmax_Temperature"の値。(174) = 1.74
-    // ※ 100分率で指定する。
-    // hcpe3から学習させたmodelの場合、1.40～1.50ぐらいにしないといけない。
-    // cf. https://tadaoyamaoka.hatenablog.com/entry/2021/04/05/215431
-
-    options.add("Softmax_Temperature", Option(174, 1, 10000, [&](const Option& o) {
-                    Eval::dlshogi::set_softmax_temperature( o / 100.0f);
-                    return std::nullopt;
-                }));
-
-#if DLSHOGI
-    //(*this)["Const_Playout"]               = USIOption(0, 0, int_max);
-    // 🤔 Playout数固定。これはNodesLimitでできるので不要。
-
-	dfpn_min_search_millisecs = options["DfPn_Min_Search_Millisecs"];
-    // →　ふかうら王では、rootのdf-pnは、node数を指定することにした。
-#endif
-
-    // → leaf nodeではdf-pnに変更。
-    // 探索ノード数の上限値を設定する。0 : 呼び出さない。
-	options.add("LeafDfpnNodesLimit", Option(40, 0, 10000, [&](const Option& o) {
-                    leaf_dfpn_nodes_limit = NodeCountType(o);
-                    return std::nullopt;
-                }));
-
-    // PV lineの即詰みを調べるスレッドの数と1局面当たりの最大探索ノード数。
-    options.add("PV_Mate_Search_Threads", Option(1, 0, 256));
-    options.add("PV_Mate_Search_Nodes", Option(500000, 0, UINT32_MAX));
-
-
-}
 
 void FukauraOuEngine::add_nn_options()
 {
@@ -191,11 +63,11 @@ void FukauraOuEngine::add_options() {
 	// NN関係の設定を生やす。
 	add_nn_options();
 
-    // 定跡のオプションを生やす
+    // 定跡関係のオプションを生やす
     book.add_options(options);
 
-	// SearchOptionのオプションを生やす。
-	manager.search_options.add_options(options);
+	// 探索部で用いるオプションを生やす。
+    searcher.add_options(options);
 }
 
 // "Max_GPU","Disabled_GPU"と"UCT_Threads"の設定値から、各GPUのスレッド数の設定を返す。
@@ -242,29 +114,26 @@ void FukauraOuEngine::init_gpu()
 	// DNNのbatch sizeの設定。
     int dnn_batch_size = int(options["DNN_Batch_Size"]);
 
-#if 0
-    // ※　InitGPU()に先だってSetMateLimits()でのmate solverの初期化が必要。この呼出をInitGPU()のあとにしないこと！
-    searcher.SetMateLimits((int) Options["MaxMovesToDraw"],
-                           (u32) Options["RootMateSearchNodesLimit"],
-                           (u32) Options["LeafDfpnNodesLimit"] /*Options["MateSearchPly"]*/);
-#endif
+	// 評価関数モデルのPATH。
+	auto eval_dir = options["EvalDir"];
+    auto model_name = options["DNN_Model"];
+    auto model_path = Path::Combine(eval_dir, model_name);
 
-	//InitGPU(Eval::dlshogi::ModelPaths, thread_settings, dnn_batch_size);
-
-#if 0
+	searcher.InitGPU(model_path, thread_settings, dnn_batch_size);
 
     // PV lineの詰み探索の設定
-    searcher.SetPvMateSearch(int(Options["PV_Mate_Search_Threads"]),
-                             int(Options["PV_Mate_Search_Nodes"]));
-#endif
+    searcher.SetPvMateSearch(int(options["PV_Mate_Search_Threads"]),
+                             int(options["PV_Mate_Search_Nodes"]));
 }
 
 
 // "isready"コマンド応答。
 void FukauraOuEngine::isready() {
 
-	// 評価関数テーブルの初期化(起動時でも良い)
-	Eval::dlshogi::init();
+    // -----------------------
+    // 評価関数テーブルの初期化(起動時でも良い)
+    // -----------------------
+    Eval::dlshogi::init();
 
     // -----------------------
     //   定跡の読み込み
@@ -284,8 +153,8 @@ void FukauraOuEngine::isready() {
 
 #if 0
 	// dlshogiでは、
-	// "isready"に対してnode limit = 1 , batch_size = 128 で探索しておく。
-	// 初期局面に対してはわりと得か？
+	// "isready"に対してnode limit = 1 , batch_size = 128 で探索してある。
+	// 初期局面に対してはわりと得かも？
 
 	// 初回探索をキャッシュ
 	Position pos_tmp;
@@ -306,70 +175,72 @@ void FukauraOuEngine::isready() {
 std::string FukauraOuEngine::get_engine_author() const { return "Tadao Yamaoka , yaneurao"; }
 
 
-// 🚧 工事中 🚧
+// 🌈 やねうら王フレームワークと、dlshogiの橋渡しを行うコード 🌈
 
-
-// やねうら王フレームワークと、dlshogiの橋渡しを行うコード
-
-#if 0
-
-// 探索部本体。とりま、globalに配置しておく。
-DlshogiSearcher searcher;
+FukauraOuWorker::FukauraOuWorker(OptionsMap&               options,
+                                 ThreadPool&               threads,
+                                 size_t                    threadIdx,
+                                 NumaReplicatedAccessToken numaAccessToken,
+                                 DlshogiSearcher&          searcher,
+                                 FukauraOuEngine&          engine) :
+    Worker(options, threads, threadIdx, numaAccessToken),
+    searcher(searcher),
+    engine(engine) {}
 
 
 // "go"コマンドに対して呼び出される。
-void MainThread::search()
+void FukauraOuWorker::start_searching()
 {
-	// 開始局面の手番をglobalに格納しておいたほうが便利。
-	searcher.search_limits.root_color = rootPos.side_to_move();
+    // 開始局面の手番をglobalに格納しておいたほうが便利。
+    searcher.search_limits.root_color = rootPos.side_to_move();
 
-	// "NodesLimit"の値など、今回の"go"コマンドによって決定した値が反映される。
-	searcher.SetLimits(&rootPos,Search::Limits);
+    // "NodesLimit"の値など、今回の"go"コマンドによって決定した値が反映される。
+    searcher.SetLimits(&rootPos, limits);
 
-	// MultiPV
-	// ※　dlshogiでは現状未サポートだが、欲しいので追加しておく。
-	// これは、isreadyのあと、goの直前まで変更可能
-	searcher.search_options.multi_pv = (ChildNumType)Options["MultiPV"];
+    // "position"コマンドが送られずに"go"がきた。
+    if (game_root_sfen.empty())
+        game_root_sfen = StartSFEN;
 
-	// "position"コマンドが送られずに"go"がきた。
-	if (game_root_sfen.empty())
-		game_root_sfen = SFEN_HIRATE;
+    Move ponderMove;
+    Move move =
+      searcher.UctSearchGenmove(&rootPos, game_root_sfen, moves_from_game_root, ponderMove);
 
-	Move ponderMove;
-	Move move = searcher.UctSearchGenmove(&rootPos, game_root_sfen , moves_from_game_root , ponderMove);
+    // ponder中であれば、呼び出し元で待機しなければならない。
 
-	// ponder中であれば、呼び出し元で待機しなければならない。
+    // 最大depth深さに到達したときに、ここまで実行が到達するが、
+    // まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
+    // USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
+    // それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
+    // "stop"が送られてきたらThreads.stop == trueになる。
+    // "ponderhit"が送られてきたらThreads.ponder == falseになるので、それを待つ。(stopOnPonderhitは用いない)
+    // "go infinite"に対してはstopが送られてくるまで待つ。
+    // ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
+    // やねうら王のほうは、かなり早くからこの構造で書いていた。最近のStockfishではこの書き方に追随した。
+    while (!threads.stop && (this->ponder || limits.infinite))
+    {
+        //	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
+        // (思考のためには計算資源を使っていないので。)
+        Tools::sleep(1);
 
-	// 最大depth深さに到達したときに、ここまで実行が到達するが、
-	// まだThreads.stopが生じていない。しかし、ponder中や、go infiniteによる探索の場合、
-	// USI(UCI)プロトコルでは、"stop"や"ponderhit"コマンドをGUIから送られてくるまでbest moveを出力してはならない。
-	// それゆえ、単にここでGUIからそれらのいずれかのコマンドが送られてくるまで待つ。
-	// "stop"が送られてきたらThreads.stop == trueになる。
-	// "ponderhit"が送られてきたらThreads.ponder == falseになるので、それを待つ。(stopOnPonderhitは用いない)
-	// "go infinite"に対してはstopが送られてくるまで待つ。
-	// ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
-	// やねうら王のほうは、かなり早くからこの構造で書いていた。最近のStockfishではこの書き方に追随した。
-	while (!Threads.stop && (this->ponder || Search::Limits.infinite))
-	{
-		//	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
-		// (思考のためには計算資源を使っていないので。)
-		Tools::sleep(1);
+        // Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
+    }
 
-		// Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
-	}
 
-	// silent modeでないなら、bestmoveとponderの指し手を出力する。
-	if (!Search::Limits.silent)
-	{
-		sync_cout << "bestmove " << to_usi_string(move);
+    std::string bestmove = to_usi_string(move);
+    std::string ponder;
+    // USI_Ponderがtrueならば、bestmoveに続けて、ponderの指し手も出力する。
+    if (searcher.search_options.usi_ponder && ponderMove)
+        ponder = to_usi_string(ponderMove);
 
-		// USI_Ponderがtrueならば、bestmoveに続けて、ponderの指し手も出力する。
-		if (searcher.search_options.usi_ponder && ponderMove)
-			std::cout << " ponder " << to_usi_string(ponderMove);
+    engine.updateContext.onBestmove(bestmove, ponder);
 
-		std::cout << sync_endl;
-	}
+    std::cout << sync_endl;
 }
+
+
+// 🚧 工事中 🚧
+
+#if 0
 
 void Thread::search()
 {

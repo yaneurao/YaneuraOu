@@ -6,10 +6,12 @@
 
 #include <thread>
 #include "../../position.h"
+#include "../../movegen.h"
 #include "dlshogi_types.h"
 
-namespace YaneuraOu {
 namespace dlshogi {
+
+	using namespace YaneuraOu;
 
 	struct Node;
 	class NodeGarbageCollector;
@@ -188,7 +190,7 @@ namespace dlshogi {
 	private:
 
 		// ExpandNode()の下請け。生成する指し手の種類を指定できる。
-		template <MOVE_GEN_TYPE T>
+        template<GenType T>
 		void expand_node(const Position* pos)
 		{
 			MoveList<T> ml(*pos);
@@ -319,7 +321,9 @@ namespace dlshogi {
 				if (current_thread_id != next_thread_id)
 				{
 					current_thread_id = next_thread_id.load();
-					WinProcGroup::bindThisThread(current_thread_id);
+
+					//WinProcGroup::bindThisThread(current_thread_id);
+					// TODO : あとで binderどうにかする。
 				}
 			};
 		}
@@ -346,7 +350,6 @@ namespace dlshogi {
 	};
 
 } // namespace dlshogi
-} // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 

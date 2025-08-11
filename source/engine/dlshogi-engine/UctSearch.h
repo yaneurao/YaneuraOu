@@ -14,11 +14,10 @@
 #include "../../eval/deep/nn_types.h"
 #include "../../eval/deep/nn.h"
 
-namespace YaneuraOu {
-using namespace Eval::dlshogi;
-
 namespace dlshogi
 {
+	using namespace YaneuraOu::Eval::dlshogi;
+
 	class UctSearcher;
 	class DlshogiSearcher;
 	struct SearchOptions;
@@ -343,7 +342,6 @@ namespace dlshogi
 	void select_nth_child_node(const Node* uct_node, int n , int (&indices)[MAX_MOVES]);
 
 } // namespace dlshogi
-} // namespace YaneuraOu
 
 #endif
 
