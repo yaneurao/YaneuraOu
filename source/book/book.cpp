@@ -1436,89 +1436,38 @@ namespace Book
 		return false;
 	}
 
-	Move BookMoveSelector::probe(Position& pos, const Search::UpdateContext& updates)
+	ProbeResult BookMoveSelector::probe(Position& pos, const Search::UpdateContext& updates)
 	{
-		Move16 bestMove16, ponderMove16;
-		Value value;
-		if (!probe_impl(pos, true, updates, bestMove16, ponderMove16, value))
-			return Move::none();
+        ProbeResult result;
 
-		Move bestMove = pos.to_move(bestMove16);
-
-		// bestMoveが合法であることは保証されている。(非合法手は除外してから選択を行うので)
-		// なので、ここではそのチェックは行わない。
-
-		return bestMove;
-	}
-
-	// 定跡の指し手の選択
-    bool BookMoveSelector::probe(Position& pos,
-								 Search::RootMoves&           rootMoves,
-                                 const Search::UpdateContext& updates)
-	{
 		// エンジン側の定跡を有効化されていないなら、probe()に失敗する。
 		if (!options["USI_OwnBook"])
-			return false;
+			return result;
 
 		Move16 bestMove16, ponderMove16;
 		Value value;
 		if (probe_impl(pos, true, updates, bestMove16, ponderMove16, value))
 		{
-			// bestMoveは16bit Moveなので32bit化する必要がある。
-			Move bestMove = pos.to_move(bestMove16);
+            Move bestMove = pos.to_move(bestMove16);
 
-			// RootMovesに含まれているかどうかをチェックしておく。
-			// RootMovesをgoコマンドで指定されることがあるので、必ずこれはチェックしないといけない。
-			// 注意)
-			// 定跡で歩の不成の指し手がある場合、
-			// "GenerateAllLegalMoves"がfalseだとrootMovesにはそれが生成されておらず、find()に失敗する。
-			// この時、定跡にhitしなかった扱いとする。
-			auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
-			if (it_move != rootMoves.end())
-			{
-				// swapしておかないと同じ指し手が複数rootMoves[]に残ってしまう。
-				// MultiPVで探索してrootMoves自体を取得しようとした時に困る。
+            // bestMoveが合法であることは保証されている。(非合法手は除外してから選択を行うので)
+            // なので、ここではそのチェックは行わない。
 
-				// この意味では、
-				// MultiPVでの探索の時は定跡の上位の指し手をrootMoves[0..N-1]に反映させたほうが良いかも？
+            result.bestmove   = bestMove;
+            result.bestscore  = value;
 
-				auto& r = rootMoves[0];
-				std::swap(r, *it_move);
+			// ponderMoveが合法手であることも保証する。
+            StateInfo si;
+            pos.do_move(bestMove, si);
+            Move ponderMove = pos.to_move(ponderMove16);
+            if (pos.pseudo_legal_s<true>(ponderMove) && pos.legal(ponderMove))
+                result.pondermove = ponderMove;
+            pos.undo_move(bestMove);
+        }
 
-				// 定跡の評価値はcp(centi-pawn)のはずだから、
-				// この逆変換をしたものを設定してやる。そうすると出力するときにcpに変換されてちょうど良くなる。
-				// ⇨　出力する逆変換の時の誤差あるの少し気持ち悪いか…。まあ仕方ないな…。定跡ファイルがcp単位になってるからな…。
-				// これは次のaspiration searchで少し探索効率が良くなるから、設定はしたいが…。
-
-				// cp_to_value()はscale downするから⇓変換後、このclampの範囲外に出ないことは保証される。scale upする場合は、注意。
-				value = std::clamp(value , VALUE_MATED_IN_MAX_PLY , VALUE_MATE_IN_MAX_PLY);
-#if defined(USE_PIECE_VALUE)
-				r.previousScore = r.uciScore = r.score = USIEngine::cp_to_value(value);
-#endif
-				// ⇨　定跡の評価値0になってる方が、嬉しい意味もあるか…。
-
-				// 2手目の指し手も与えないとponder出来ない。
-				// 定跡ファイルに2手目が書いてあったなら、それをponder用に出力する。
-				// これが合法手でなかったら将棋所が弾くと思う。
-				// (ただし、"ponder resign"などと出力してしまうと投了と判定されてしまうらしいので
-				//  普通の指し手でなければならない。これは、Move16.is_ok()で判定できる。)
-				if (ponderMove16.is_ok())
-				{
-					if (r.pv.size() <= 1)
-						r.pv.push_back(Move::none());
-
-					// これ32bit Moveに変換してあげるほうが親切なのか…。
-					StateInfo si;
-					pos.do_move(bestMove,si);
-					r.pv[1] = pos.to_move(ponderMove16);
-					pos.undo_move(bestMove);
-				}
-				// この指し手を指す
-				return true;
-			}
-		}
-		return false;
+		return result;
 	}
+
 
 	// 定跡部のUnitTest
 	void UnitTest(Test::UnitTester& tester, IEngine& engine)

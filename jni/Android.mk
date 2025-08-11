@@ -194,7 +194,11 @@ LOCAL_SRC_FILES := \
   ../source/eval/material/evaluate_material.cpp                        \
   ../source/testcmd/mate_test_cmd.cpp                                  \
   ../source/testcmd/normal_test_cmd.cpp                                \
-  ../source/testcmd/unit_test.cpp
+  ../source/testcmd/unit_test.cpp                                      \
+  ../source/book/makebook.cpp                                          \
+  ../source/book/makebook2015.cpp                                      \
+  ../source/book/makebook2025.cpp
+
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
 LOCAL_SRC_FILES += \

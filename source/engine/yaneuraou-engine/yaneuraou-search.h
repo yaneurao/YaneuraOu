@@ -149,7 +149,7 @@ struct Skill {
 class SearchManager {
    public:
     // 📝 やねうら王では、これはnamespace Searchで定義しておく。
-#if 0
+#if STOCKFISH
 	// Infoを更新した時のcallback。このcallbackを行うと標準出力に出力する。
     using UpdateShort    = std::function<void(const InfoShort&)>;
     using UpdateFull     = std::function<void(const InfoFull&)>;

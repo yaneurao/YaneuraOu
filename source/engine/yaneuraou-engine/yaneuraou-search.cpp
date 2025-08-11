@@ -733,6 +733,8 @@ void Search::YaneuraOuWorker::start_searching() {
     //     Stockfish本家もこうするべきだと思う。
     mainManager.ponder_candidate = Move::none();
 
+	// 探索せずに指し手を返すときの指し手
+	Book::ProbeResult probeMove;
 
 #if defined(SHOGI24)
     // ---------------------
@@ -768,13 +770,8 @@ void Search::YaneuraOuWorker::start_searching() {
         // rootMoves.size() == 0だけど、玉で玉を取る指し手だけがあることは起こり得る。
         // (この理由から、玉を取る判定は、合法手がない判定より先にしなければならない)
 
-        if (rootMoves.size() == 0)
-            rootMoves.emplace_back(m);
-        else
-            rootMoves[0].pv[0] = m;
-
-        rootMoves[0].score = rootMoves[0].uciScore = mate_in(1);
-
+		probeMove.bestmove = m;
+        probeMove.bestscore = mate_in(1);
         goto SKIP_SEARCH;
     }
 #endif
@@ -790,8 +787,8 @@ void Search::YaneuraOuWorker::start_searching() {
     {
         // rootで指し手がない = (将棋だと)詰みの局面である
 
-        // 💡 投了の指し手と評価値をrootMoves[0]に積んでおけばUSI::pv()が良きに計らってくれる。
-        rootMoves.emplace_back(Move::resign());
+        probeMove.bestmove = Move::resign();
+        probeMove.bestscore = mated_in(1);
 
 #if STOCKFISH
         main_manager()->updates.onUpdateNoMoves(
@@ -819,23 +816,9 @@ void Search::YaneuraOuWorker::start_searching() {
         auto bestMove = rootPos.DeclarationWin();
         if (bestMove != Move::none())
         {
-            auto it_move = std::find(rootMoves.begin(), rootMoves.end(), bestMove);
-            if (it_move != rootMoves.end())
-            {
-                std::swap(rootMoves[0], *it_move);
-
-                // 1手詰めのときのスコアにしておく。
-                rootMoves[0].score = rootMoves[0].uciScore = mate_in(1);
-                goto SKIP_SEARCH;
-            }
-            else
-            {
-				// pre_start_searching()で追加したはずなのに追加されていない。
-                sync_cout << "info string Error : The declaration win move cannot be found in rootMoves."
-                          << sync_endl;
-
-				exit(EXIT_FAILURE);
-            }
+            probeMove.bestmove = bestMove;
+            probeMove.bestscore = mate_in(1);
+            goto SKIP_SEARCH;
         }
     }
 
@@ -843,7 +826,8 @@ void Search::YaneuraOuWorker::start_searching() {
     //     定跡の選択部
     // ---------------------
 
-    if (engine.book.probe(rootPos, rootMoves, main_manager()->updates))
+    probeMove = engine.book.probe(rootPos, main_manager()->updates);
+    if (probeMove.bestmove)
         goto SKIP_SEARCH;
 
     // ---------------------
@@ -888,6 +872,24 @@ void Search::YaneuraOuWorker::start_searching() {
     search_skipped = false;
 
 SKIP_SEARCH:
+
+#if !STOCKFISH
+	// rootMovesがなければとりあえずアクセス違反にならないようにMove::none()を積む。
+	if (rootMoves.empty())
+        rootMoves.emplace_back(Move::none());
+
+    // 定跡にhitしたり宣言勝ちであったりするなら、その指し手を選ぶようにする。
+    if (probeMove.bestmove != Move::none())
+    {
+        auto it_move = std::find(rootMoves.begin(), rootMoves.end(), probeMove.bestmove);
+        if (it_move != rootMoves.end())
+            std::swap(rootMoves[0], *it_move);
+        else
+            rootMoves.emplace_back(probeMove.bestmove);
+
+		rootMoves[0].score = rootMoves[0].uciScore = probeMove.bestscore;
+    }
+#endif
 
     while (!threads.stop && (main_manager()->ponder || limits.infinite))
     {
