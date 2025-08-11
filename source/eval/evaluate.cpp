@@ -31,12 +31,12 @@ namespace Eval
 		int v = VALUE_ZERO;
 
 		for (auto i : SQ)
-			v = v + PieceValue[pos.piece_on(i)];
+			v += PieceValueM[pos.piece_on(i)];
 
 		// 手駒も足しておく
 		for (auto c : COLOR)
-			for (auto pc = PAWN; pc < PIECE_HAND_NB; ++pc)
-				v += (c == BLACK ? 1 : -1) * Value(hand_count(pos.hand_of(c), pc) * PieceValue[pc]);
+			for (auto pt = PAWN; pt < PIECE_HAND_NB; ++pt)
+				v += (c == BLACK ? 1 : -1) * Value(hand_count(pos.hand_of(c), pt) * PieceValue[pt]);
 
 		return (Value)v;
 	}

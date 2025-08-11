@@ -92,27 +92,29 @@ namespace Eval {
 	};
 
 	// 駒の価値のテーブル
-	// ※　後手の駒は負の値なので注意。
-	// →　後手の駒に対してプラスの値が欲しいなら、PieceValue[type_of(pc)]のようにする。
-	//   StockfishのPieceValue()は、負の値は返ってこないので注意。
+	// ⚠ 後手の駒に対してもプラスの値が返る。
 	extern int PieceValue[PIECE_NB];
+
+	// 駒の価値、駒割計算用
+	// ⚠ 後手の駒が負の値
+    extern int PieceValueM[PIECE_NB];
 
 	// 駒の交換値(＝捕獲したときの価値の上昇値)
 	// 例)「と」を取ったとき、評価値の変動量は手駒歩+盤面の「と」。
 	// MovePickerとSEEの計算で用いる。
-	// ※  後手の駒に対してもプラスの値が返るので注意。
+	// ⚠  後手の駒に対してもプラスの値が返る。
 	extern int CapturePieceValue[PIECE_NB];
 
 	// 駒を成ったときの成る前との価値の差。SEEで用いる。
 	// 駒の成ったものと成っていないものとの価値の差
-	// ※　PAWNでもPRO_PAWNでも　と金 - 歩 の価値が返る。
-	// ※  後手の駒に対してもプラスの値が返るので注意。
+	// 💡　PAWNでもPRO_PAWNでも　と金 - 歩 の価値が返る。
+	// ⚠  後手の駒に対してもプラスの値が返る。
 	extern int ProDiffPieceValue[PIECE_NB];
 
 	// 指し手moveによってtoの地点の駒が捕獲できることがわかっている時の、駒を捕獲する価値
 	// moveが成りの指し手である場合、その価値も上乗せして計算する。
 	// ※　move.to_sq()に駒がない場合もこの関数の呼び出しは合法。(VALUE_NONEが返る)
-	// ※  後手の駒に対してもプラスの値が返るので注意。
+	// ⚠  後手の駒に対してもプラスの値が返る。
 	Value CapturePieceValuePlusPromote(const Position& pos, Move move);
 
 #else

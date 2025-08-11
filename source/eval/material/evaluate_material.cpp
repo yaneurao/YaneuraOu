@@ -57,7 +57,7 @@ namespace Eval {
 			// 後手の駒ならマイナスになるが、
 			// いま計算しようとしているのは先手から見た評価値なので
 			// これで辻褄が合う。
-			auto piece_value = PieceValue[pc];
+			auto piece_value = PieceValueM[pc];
 			score -= piece_value * 104 / 1024;
 		}
 
@@ -117,7 +117,7 @@ namespace Eval {
 				continue;
 
 			// 盤上の駒に対しては、その価値を1/10ほど減ずる。
-			auto piece_value = PieceValue[pc];
+			auto piece_value = PieceValueM[pc];
 			score -= piece_value * 104 / 1024;
 		}
 
@@ -183,7 +183,7 @@ namespace Eval {
 				continue;
 
 			// 盤上の駒に対しては、その価値を1/10ほど減ずる。
-			auto piece_value = PieceValue[pc];
+			auto piece_value = PieceValueM[pc];
 			score -= piece_value * 104 / 1024;
 		}
 
@@ -273,7 +273,7 @@ namespace Eval {
 				continue;
 
 			// 盤上の駒に対しては、その価値を1/10ほど減ずる。
-			auto piece_value = PieceValue[pc];
+			auto piece_value = PieceValueM[pc];
 			score -= piece_value * 104 / 1024;
 		}
 
@@ -350,7 +350,7 @@ namespace Eval {
 								if (pc != NO_PIECE)
 								{
 									// 盤上の駒に対しては、その価値を1/10ほど減ずる。
-									auto piece_value = PieceValue[pc];
+									auto piece_value = PieceValueM[pc];
 									score -= piece_value * 104 / 1024;
 								}
 
@@ -467,9 +467,9 @@ namespace Eval {
 									// 3) 玉以外の駒がいる対象升
 
 									// 盤上の駒に対しては、その価値を1/10ほど減ずる。
-									// 玉に∞の価値があるので、PieceValueを求めてその何%かを加点しようとすると発散するから玉はここから除く。
+									// 玉に∞の価値があるので、PieceValueMを求めてその何%かを加点しようとすると発散するから玉はここから除く。
 
-									double piece_value = PieceValue[pc];
+									double piece_value = PieceValueM[pc];
 									score -= piece_value * 104 / 1024;
 
 									// さらにこの駒に利きがある時は、その利きの価値を上乗せする。
@@ -644,9 +644,9 @@ namespace Eval {
 									// 3) 玉以外の駒がいる対象升
 									
 									// 盤上の駒に対しては、その価値を1/10ほど減ずる。
-									// 玉に∞の価値があるので、PieceValueを求めてその何%かを加点しようとすると発散するから玉はここから除く。
+									// 玉に∞の価値があるので、PieceValueMを求めてその何%かを加点しようとすると発散するから玉はここから除く。
 
-									double piece_value = PieceValue[pc];
+									double piece_value = PieceValueM[pc];
 									score -= piece_value * 104 / 1024;
 
 									// さらにこの駒に利きがある時は、その利きの価値を上乗せする。
@@ -863,9 +863,9 @@ namespace Eval {
 									// 3) 玉以外の駒がいる対象升
 
 									// 盤上の駒に対しては、その価値を1/10ほど減ずる。
-									// 玉に∞の価値があるので、PieceValueを求めてその何%かを加点しようとすると発散するから玉はここから除く。
+									// 玉に∞の価値があるので、PieceValueMを求めてその何%かを加点しようとすると発散するから玉はここから除く。
 
-									double piece_value = PieceValue[pc];
+									double piece_value = PieceValueM[pc];
 									score -= piece_value * 104 / 1024;
 
 									// さらにこの駒に利きがある時は、その利きの価値を上乗せする。

@@ -20,6 +20,7 @@ namespace YaneuraOu {
 
 #if !STOCKFISH
 using namespace Effect8;
+using namespace Eval;
 
 // set_max_repetition_ply()で設定される、千日手の最大遡り手数
 int Position::max_repetition_ply = 16;
@@ -2481,33 +2482,41 @@ bool Position::see_ge(Move m, Value threshold) const
 {
 	ASSERT_LV3(m.is_ok());
 
-    //// Only deal with normal moves, assume others pass a simple SEE
-    //if (type_of(m) != NORMAL)
-    //    return VALUE_ZERO >= threshold;
+#if STOCKFISH
+    // Only deal with normal moves, assume others pass a simple SEE
+    if (type_of(m) != NORMAL)
+        return VALUE_ZERO >= threshold;
+#endif
 
 	bool drop = m.is_drop();
 
 	// 以下、Stockfishの挙動をなるべく忠実に再現する。
 
+#if STOCKFISH
+    Square from = m.from_sq(), to = m.to_sq();
+#else
 	// 駒の移動元(駒打ちの場合は)と移動先。
 	// dropのときにはSQ_NBにしておくことで、pieces() ^ fromを無効化するhack
 	// ※　piece_on(SQ_NB)で NO_PIECE が返ることは保証されている。
 	Square from = drop ? SQ_NB : m.from_sq();
 	Square to   = m.to_sq();
+#endif
 
-	// → 将棋だと、駒打ちで、SEE > 0になることはないので(打った駒を取られてマイナスになることはあっても)
-	//  threshold > 0なら、即座に falseが返せる。
-	//if (drop && threshold > 0)
-	//	return false;
-	// → この判定、以下の条件式が含むから、無駄。
+	/*
+		📓
+			将棋だと、駒打ちで、SEE > 0になることはないので(打った駒を取られてマイナスになることはあっても)
+			threshold > 0なら、即座に falseが返せる。
+
+			if (drop && threshold > 0)
+				return false;
+
+			しかし、この判定、以下の条件式が含むから、入れる必要がない。
+	*/
 
 	// toの地点にある駒の価値がthreshold以上ではない。
 	// この場合、取り返されなかったとしても、条件を満たすことはないので即座にfalseを返せる。
 
-	//int swap = PieceValue[piece_on(to)] - threshold;
-	// →　StockfishのPieceValueは負の値は返ってこないが、やねうら王では後手の駒の価値は負の値になっているので、
-	//    type_of()を用いて先手の駒に変換してからPieceValueを用いる必要があることに注意。
-    int swap = Eval::PieceValue[type_of(piece_on(to))] - threshold;
+    int swap = PieceValue[piece_on(to)] - threshold;
 	if (swap < 0)
         return false;
 
@@ -2515,17 +2524,22 @@ bool Position::see_ge(Move m, Value threshold) const
 	//   PieceValue[piece_on(to)] - 最初に動かす駒の価値 >= threshold
 	// なら、取り返されたところですでにしきい値以上になることは確定しているのでtrueが返せる。
 
-	//swap = PieceValue[piece_on(from)] - swap;
-
+#if STOCKFISH
+	swap = PieceValue[piece_on(from)] - swap;
+#else
 	// →　駒打ちの時は、移動元にその駒がないので、これを復元してやる必要がある。
 	PieceType from_pt = drop ? m.move_dropped_piece() : type_of(piece_on(from));
-    swap = Eval::PieceValue[from_pt] - swap;
+    swap = PieceValue[from_pt] - swap;
+#endif
 
 	if (swap <= 0)
         return true;
 
-    //assert(color_of(piece_on(from)) == sideToMove);
-    ASSERT_LV3(drop || color_of(piece_on(from)) == sideToMove);
+#if STOCKFISH
+	assert(color_of(piece_on(from)) == sideToMove);
+#else
+	ASSERT_LV3(drop || color_of(piece_on(from)) == sideToMove);
+#endif
 
     Bitboard occupied  = pieces() ^ from ^ to;  // xoring to is important for pinned piece logic
     Color    stm       = sideToMove;
@@ -2545,6 +2559,7 @@ bool Position::see_ge(Move m, Value threshold) const
 
         // Don't allow pinned pieces to attack as long as there are
         // pinners on their original square.
+        // 元のマスにピンしている駒がある限り、ピンされている駒が攻撃することを許可しない。
         if (pinners(~stm) & occupied)
         {
             stmAttackers &= ~blockers_for_king(stm);
@@ -2557,6 +2572,8 @@ bool Position::see_ge(Move m, Value threshold) const
 
         // Locate and remove the next least valuable attacker, and add to
         // the bitboard 'attackers' any X-ray attackers behind it.
+        // 次に価値の低い攻撃駒を特定して取り除き、その背後にいるX線攻撃駒を
+        // ビットボード 'attackers' に追加する。
 
         // 歩で取れるなら、まず歩で取る。
         if ((bb = stmAttackers & pieces(PAWN)))
@@ -2564,25 +2581,28 @@ bool Position::see_ge(Move m, Value threshold) const
             // この時点で、歩で取れることは確定した。
 
             // この時点でPawnValue以上に得しているなら、この歩を取り返されたところで、手抜いてthresholdを下回らないので、returnできる。
-            if ((swap = Eval::PawnValue - swap) < res)
+            if ((swap = PawnValue - swap) < res)
                 break;
 
-            //occupied ^= least_significant_square_bb(bb);
-            //attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+#if STOCKFISH
+            occupied ^= least_significant_square_bb(bb);
+            attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
             // →　チェスではPAWNで取る時、PAWNが斜めに移動するので、toの斜め(X-ray)にある駒を
             //    attackersとして追加する必要があるが、将棋の場合は、歩の背後にいる香・飛車を追加する必要がある。
+#endif
         }
 
+#if !STOCKFISH
         // 香を試す(将棋only)
         else if ((bb = stmAttackers & pieces(LANCE)))
         {
-            if ((swap = Eval::LanceValue - swap) < res)
+            if ((swap = LanceValue - swap) < res)
                 break;
         }
-
+#endif
         else if ((bb = stmAttackers & pieces(KNIGHT)))
         {
-            if ((swap = Eval::KnightValue - swap) < res)
+            if ((swap = KnightValue - swap) < res)
                 break;
             occupied ^= least_significant_square_bb(bb);
 
@@ -2591,10 +2611,11 @@ bool Position::see_ge(Move m, Value threshold) const
             continue;
         }
 
+#if !STOCKFISH
         // 銀を試す(将棋only)
         else if ((bb = stmAttackers & pieces(SILVER)))
         {
-            if ((swap = Eval::SilverValue - swap) < res)
+            if ((swap = SilverValue - swap) < res)
                 break;
         }
         // 金を試す(将棋only)
@@ -2602,26 +2623,32 @@ bool Position::see_ge(Move m, Value threshold) const
         {
             // ここ、今回捕獲する金相当の駒の価値にすべきかも知れないが、
             // この時点ではまだ今回動かす駒の移動元が得られていないので、その処理書きにくい。
-            if ((swap = Eval::GoldValue - swap) < res)
+            if ((swap = GoldValue - swap) < res)
                 break;
         }
+#endif
 
         else if ((bb = stmAttackers & pieces(BISHOP)))
         {
-            if ((swap = Eval::BishopValue - swap) < res)
+            if ((swap = BishopValue - swap) < res)
                 break;
-            //occupied ^= least_significant_square_bb(bb);
-            //attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+#if STOCKFISH
+            occupied ^= least_significant_square_bb(bb);
+            attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+#endif
         }
 
         else if ((bb = stmAttackers & pieces(ROOK)))
         {
-            if ((swap = Eval::RookValue - swap) < res)
+            if ((swap = RookValue - swap) < res)
                 break;
-            //occupied ^= least_significant_square_bb(bb);
-            //attackers |= attacks_bb<ROOK>(to, occupied) & pieces(ROOK, QUEEN);
+#if STOCKFISH
+            occupied ^= least_significant_square_bb(bb);
+            attackers |= attacks_bb<ROOK>(to, occupied) & pieces(ROOK, QUEEN);
+#endif
         }
 
+#if !STOCKFISH
         // 馬を試す(将棋only)
         else if ((bb = stmAttackers & pieces(HORSE)))
         {
@@ -2639,8 +2666,9 @@ bool Position::see_ge(Move m, Value threshold) const
             //occupied ^= least_significant_square_bb(bb);
             //attackers |= attacks_bb<ROOK>(to, occupied) & pieces(ROOK, QUEEN);
         }
+#endif
 
-#if 0
+#if STOCKFISH
         else if ((bb = stmAttackers & pieces(QUEEN)))
         {
             if ((swap = QueenValue - swap) < res)
@@ -2655,6 +2683,13 @@ bool Position::see_ge(Move m, Value threshold) const
               // reverse the result.
             return (attackers & ~pieces(stm)) ? res ^ 1 : res;
 
+#if !STOCKFISH
+        /*
+			occupied ^= least_significant_square_bb(bb);
+			attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+
+			みたいなのに相当する処理。将棋では、この部分、もう少し最適化できる。
+		*/
 
         // 今回移動させてtoの駒を取るための駒の移動元の升
         Square sq = bb.pop();
@@ -2695,7 +2730,8 @@ bool Position::see_ge(Move m, Value threshold) const
 
         // SEEって、最後、toの地点で成れるなら、その成ることによる価値上昇分も考慮すべきだと思うのだが、
         // そうすると早期枝刈りができないことになるので、とりあえず、このままでいいや。
-    }
+#endif
+	}
 
     return bool(res);
 }

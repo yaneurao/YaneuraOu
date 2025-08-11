@@ -13,6 +13,16 @@ namespace Eval {
         0, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue,GoldValue,
         KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue,0,
 
+        0, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue,GoldValue,
+        KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue,0,
+    };
+
+	// 駒の価値、駒割計算用(後手の駒が負の値)
+    int PieceValueM[PIECE_NB] =
+    {
+        0, PawnValue, LanceValue, KnightValue, SilverValue, BishopValue, RookValue,GoldValue,
+        KingValue, ProPawnValue, ProLanceValue, ProKnightValue, ProSilverValue, HorseValue, DragonValue,0,
+
         0, -PawnValue, -LanceValue, -KnightValue, -SilverValue, -BishopValue, -RookValue,-GoldValue,
         -KingValue, -ProPawnValue, -ProLanceValue, -ProKnightValue, -ProSilverValue, -HorseValue, -DragonValue,0,
     };
