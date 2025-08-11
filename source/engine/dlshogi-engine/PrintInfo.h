@@ -45,8 +45,7 @@ namespace dlshogi::UctPrint
 	};
 
 	// ベストの指し手とponderの指し手の取得
-	//   silent : これがtrueなら読み筋は出力しない。
-	BestMovePonder get_best_move_multipv(const Node* rootNode, const SearchLimits& po_info, const SearchOptions& options, bool silent);
+	BestMovePonder get_best_move_multipv(const Node* rootNode, const SearchLimits& po_info, const SearchOptions& options);
 
 } // namespace dlshogi
 

@@ -20,7 +20,7 @@ namespace dlshogi {
 
 
 FukauraOuEngine::FukauraOuEngine() :
-    searcher(*this) {}
+    searcher(*this){}
 
 
 void FukauraOuEngine::add_nn_options()
@@ -61,13 +61,13 @@ void FukauraOuEngine::add_nn_options()
 void FukauraOuEngine::add_options() {
 
 	// NN関係の設定を生やす。
-	add_nn_options();
-
-    // 定跡関係のオプションを生やす
-    book.add_options(options);
+    add_nn_options();
 
 	// 探索部で用いるオプションを生やす。
     searcher.add_options(options);
+
+    // 定跡関係のオプションを生やす
+    book.add_options(options);
 }
 
 // "Max_GPU","Disabled_GPU"と"UCT_Threads"の設定値から、各GPUのスレッド数の設定を返す。
@@ -195,7 +195,7 @@ void FukauraOuWorker::start_searching()
     searcher.search_limits.root_color = rootPos.side_to_move();
 
     // "NodesLimit"の値など、今回の"go"コマンドによって決定した値が反映される。
-    searcher.SetLimits(&rootPos, limits);
+    searcher.SetLimits(rootPos, limits);
 
     // "position"コマンドが送られずに"go"がきた。
     if (game_root_sfen.empty())
@@ -203,7 +203,7 @@ void FukauraOuWorker::start_searching()
 
     Move ponderMove;
     Move move =
-      searcher.UctSearchGenmove(&rootPos, game_root_sfen, moves_from_game_root, ponderMove);
+      searcher.UctSearchGenmove(rootPos, game_root_sfen, moves_from_game_root, ponderMove);
 
     // ponder中であれば、呼び出し元で待機しなければならない。
 

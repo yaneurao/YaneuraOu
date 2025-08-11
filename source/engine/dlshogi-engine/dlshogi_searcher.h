@@ -184,14 +184,6 @@ namespace dlshogi {
 		// nodes   : 1局面で詰探索する最大ノード数。
 		void SetPvMateSearch(const int threads, /*const int depth,*/ const int nodes);
 
-		// PV表示間隔設定[ms]
-		void SetPvInterval(const TimePoint interval);
-
-		// DebugMessageの出力。
-		// エンジンオプションの"DebugMessage"の値をセットする。
-		// search_options.debug_messageに反映される。
-		void SetDebugMessage(bool flag);
-
 		// (歩の不成、敵陣2段目の香の不成など)全合法手を生成するのか。
 		void SetGetnerateAllLegalMoves(bool flag) { search_options.generate_all_legal_moves = flag; }
 
@@ -209,7 +201,7 @@ namespace dlshogi {
 		//    limits.max_game_ply : 引き分けになる手数の設定 →  search_limits.max_moves_to_drawに反映する。
 		// などなど。
 		// その他、"go"コマンドで渡された残り時間等から、今回の思考時間を算出し、search_limits.time_managerに反映する。
-		void SetLimits(const Position* pos, const Search::LimitsType& limits);
+		void SetLimits(const Position& pos, const Search::LimitsType& limits);
 
 		// 終了させるために、search_groupsを開放する。
 		void FinalizeUctSearch();
@@ -227,7 +219,7 @@ namespace dlshogi {
 		//   ponderMove     : [Out] ponderの指し手(ないときはMOVE_NONEが代入される)
 		//   返し値 : この局面でのbestな指し手
 		// ponderの場合は、呼び出し元で待機すること。
-		Move UctSearchGenmove(Position* pos, const std::string& game_root_sfen , const std::vector<Move>& moves, Move& ponderMove);
+		Move UctSearchGenmove(Position& pos, const std::string& game_root_sfen , const std::vector<Move>& moves, Move& ponderMove);
 
 		// NNに渡すモデルPathの設定。
 		//void SetModelPaths(const std::vector<std::string>& paths);
