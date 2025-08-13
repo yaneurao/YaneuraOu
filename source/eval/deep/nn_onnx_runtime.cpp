@@ -118,7 +118,7 @@ namespace Eval::dlshogi {
 		// 実装していないgpu_idに対して、USIオプション UCT_Threads1 ~ UCT_Threads16 で指定された値を無視して、
 		// 自動的にスレッド数を 0 として取り扱う処理を行わなくなる。
 
-		# 🤔 -1を返すようにする。呼び出し側でなんとかして欲しい。
+		// 🤔 -1を返すようにする。呼び出し側でなんとかして欲しい。
 		device_count = - 1;
 #endif
 		return device_count;
