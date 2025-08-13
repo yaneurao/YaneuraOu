@@ -896,11 +896,11 @@ void USIEngine::position(std::istringstream& is) {
 
     std::vector<std::string> moves;
 
-    // 指し手のリストをパースする(あるなら)
+	// 指し手のリストをパースする(あるなら)
     while (is >> token)
     {
         moves.push_back(token);
-    }
+	}
 
     engine.set_position(sfen, moves);
 }

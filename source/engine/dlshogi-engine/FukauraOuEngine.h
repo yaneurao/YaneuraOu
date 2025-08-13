@@ -23,6 +23,7 @@ namespace dlshogi {
 class FukauraOuEngine;
 
 class FukauraOuWorker : public YaneuraOu::Search::Worker {
+   public:
 
 	FukauraOuWorker(OptionsMap&               options,
                     ThreadPool&               threads,
@@ -31,8 +32,17 @@ class FukauraOuWorker : public YaneuraOu::Search::Worker {
                     DlshogiSearcher&          searcher,
                     FukauraOuEngine&          engine);
 
+
+	// "go"コマンドの初期化時に呼び出される。
+	virtual void pre_start_searching() override;
+
 	// "go"コマンドで呼び出される。
     virtual void start_searching() override;
+
+	// 並列探索
+	void parallel_search();
+
+	virtual ~FukauraOuWorker();
 
 	// dlshogiの探索部本体
     DlshogiSearcher& searcher;
@@ -48,14 +58,17 @@ class FukauraOuEngine: public YaneuraOu::Engine {
     // エンジンoptionを生やす。
     virtual void add_options() override;
 
+	// 基底classにあったoptionを生やす。
+	void add_base_options();
+
     // "isready"コマンド応答。
     virtual void isready() override;
 
+	// 🌈 "ponderhit"に対する処理。
+    virtual void set_ponderhit(bool b) override;
+
     // エンジン作者名の変更。
     virtual std::string get_engine_author() const override;
-
-    // 定跡の指し手を選択するモジュール。
-    YaneuraOu::Book::BookMoveSelector book;
 
 	// dlshogiの探索部本体
     DlshogiSearcher searcher;

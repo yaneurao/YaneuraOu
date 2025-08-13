@@ -159,6 +159,20 @@ void SearchOptions::add_options(OptionsMap& options) {
     // PV lineの即詰みを調べるスレッドの数と1局面当たりの最大探索ノード数。
     options.add("PV_Mate_Search_Threads", Option(1, 0, 256));
     options.add("PV_Mate_Search_Nodes", Option(500000, 0, UINT32_MAX));
+
+    // すべての合法手を生成するのか
+    options.add("GenerateAllLegalMoves", Option(false, [&](const Option& o) {
+                    generate_all_legal_moves = o;
+                    return std::nullopt;
+                }));
+
+    // 入玉ルール
+    options.add("EnteringKingRule",
+                Option(EKR_STRINGS, EKR_STRINGS[EKR_27_POINT], [&](const Option& o) {
+                    enteringKingRule = to_entering_king_rule(o);
+                    return std::nullopt;
+                }));
+
 }
 
 } // namespace dlshogi

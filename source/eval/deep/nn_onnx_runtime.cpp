@@ -2,6 +2,16 @@
 
 #if defined(YANEURAOU_ENGINE_DEEP) && defined(ONNXRUNTIME)
 
+#include "../../usi.h"
+/*
+	⚠ usi.hが numa.h を読み込み、numa.hのなかで Windows.h を読み込み、Windows.hの読み込みに際してNOMINMAXを定義している。
+		これによって、min,maxがマクロとみなされるのを回避しているのだが、 dml_provider_factory.h のような
+		Windows.hに依存するheaderを先に読み込むんでしまうと、NOMINMAXを定義せずにWindows.hを読み込んでしまうので、
+		min,naxがマクロとみなされてしまいコンパイルエラーになる。
+
+		そのため、usi.hを最初にincludeする必要がある。
+*/
+
 //#include "dlshogi_types.h"
 
 #if defined(ORT_DML)
@@ -15,7 +25,6 @@
 #else
 #include <cpu_provider_factory.h>
 #endif
-#include "../../usi.h"
 
 using namespace std;
 

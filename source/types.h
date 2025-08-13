@@ -42,6 +42,8 @@
 
 namespace YaneuraOu {
 
+class Position;
+
 // --------------------
 //  型の最小値・最大値
 // --------------------
@@ -810,6 +812,9 @@ public:
 	// USI形式の文字列にする。
 	std::string to_usi_string() const { return YaneuraOu::to_usi_string(*this); }
 
+	// USI形式の文字列からMoveに変換する。
+	static Move from_string(const Position& pos, const std::string usi_move);
+
 	// -- unordered_mapなどで比較するときに用いる。operator<()は定義したくないので、こちらを用いる。
 	struct MoveHash {
 		std::size_t operator()(const Move& m) const { return make_key(m.data); }
@@ -878,6 +883,9 @@ public:
 
 	// USI形式の文字列にする。
 	std::string to_usi_string() const { return YaneuraOu::to_usi_string(*this); }
+
+	// USI形式の文字列からMove16に変換する。
+	static Move16 from_string(const std::string usi_move);
 
 protected:
 	uint16_t data;
@@ -1044,9 +1052,6 @@ constexpr bool hand_exceptPawnExists(HandKind hk) { return hk & ~HAND_KIND_PAWN;
 // 平手の開始局面のSFEN文字列。
 // 📝 Stockfishではengine.cppとuci.cppで定義されている。
 extern const std::string StartSFEN;
-
-// 局面 class。前方宣言。
-class Position;
 
 // 💡 ここにあった指し手生成に関するコードは、movegen.hに移動した。
 

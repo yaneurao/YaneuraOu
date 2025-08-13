@@ -6,9 +6,9 @@
 #if defined(ONNXRUNTIME)
 
 // ONNX Runtimeを使う場合。
-	// "docs/解説.txt"を確認すること。
+// "docs/解説.txt"を確認すること。
 
-	#include <onnxruntime_cxx_api.h>
+#include <onnxruntime_cxx_api.h>
 
 #include "nn.h"
 #include "nn_types.h"

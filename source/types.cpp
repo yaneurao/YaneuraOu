@@ -130,6 +130,10 @@ Value drawValueTable[REPETITION_NB][COLOR_NB] =
 	{ -VALUE_SUPERIOR    , -VALUE_SUPERIOR    }, // REPETITION_INFERIOR
 };
 
+Move Move::from_string(const Position& pos, const std::string usi_move) { return USIEngine::to_move(pos, usi_move); }
+
 Move16 Move::to_move16() const { return Move16(data); }
+Move16 Move16::from_string(const std::string usi_move) { return USIEngine::to_move16(usi_move); }
+
 
 } // namespace YaneuraOu

@@ -329,6 +329,21 @@ public:
     virtual std::string get_engine_version() const = 0;
     virtual std::string get_eval_name() const      = 0;
 
+	// 🌈 以下は、Stochastic Ponderなどのために必要 🌈
+
+	// "Position"コマンドで1つ目に送られてきた文字列("startpos" or sfen文字列)
+	std::string game_root_sfen;
+
+	// "Position"コマンドで"moves"以降にあった、rootの局面からこの局面に至るまでの手順
+	std::vector<Move> moves_from_game_root;
+
+	// Stochastic Ponderのときに↑を2手前に戻すので元の"position"コマンドと"go"コマンドの文字列を保存しておく。
+	std::string last_position_cmd_string = "position startpos";
+	std::string last_go_cmd_string;
+
+	// Stochastic Ponderのために2手前に戻してしまっているかのフラグ
+	bool position_is_dirty = false;
+
 };
 
 // エンジンの基底クラス

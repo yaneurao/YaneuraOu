@@ -95,6 +95,9 @@ namespace dlshogi {
 
 		// 現在のrootの対局開始からの手数
 		int game_ply;
+
+		// "go ponder"中であるか。
+		std::atomic_bool ponder;
 	};
 
 
@@ -169,10 +172,6 @@ namespace dlshogi {
 		//TimePoint GetTimeLimit() const;
 		// →　search_limits.time_limitから取得すればいいか…。
 
-		//  ノード再利用の設定
-		//    flag : 探索したノードの再利用をするのか
-		void SetReuseSubtree(bool flag);
-
 		// 勝率から評価値に変換する際の係数を設定する。
 		// ここで設定した値は、そのままsearch_options.eval_coefに反映する。
 		// 変換部の内部的には、ここで設定した値が1/1000倍されて計算時に使用される。
@@ -188,9 +187,7 @@ namespace dlshogi {
 		void SetGetnerateAllLegalMoves(bool flag) { search_options.generate_all_legal_moves = flag; }
 
 		// UCT探索の初期設定
-		//    node_limit : 探索ノード数の制限 0 = 無制限
-		//  →　これ、SetLimitsで反映するから、ここでは設定しない。
-		void InitializeUctSearch(NodeCountType  node_limit);
+		void InitializeUctSearch();
 
 		//  UCT探索の終了処理
 		void TerminateUctSearch();
@@ -296,8 +293,8 @@ namespace dlshogi {
 
 		// UCT探索を行う、GPUに対応するスレッドグループの集合
 		std::unique_ptr<UctSearcherGroup[]> search_groups;
-		// ↑の配列サイズ(GPUの最大数)
-		size_t max_gpu = 0;
+		// ↑の配列サイズ
+		size_t search_groups_size = 0;
 
 		// 前回の探索開始局面などを保持するためのtree
 		std::unique_ptr<NodeTree> tree;

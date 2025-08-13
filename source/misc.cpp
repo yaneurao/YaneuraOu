@@ -608,7 +608,7 @@ void prefetch([[maybe_unused]] const void* addr) {
 // --------------------
 
 ElapsedTimer::ElapsedTimer() :
-    startTime(0) {}
+    startTime(now()) {}
 ElapsedTimer::ElapsedTimer(TimePoint s) :
     startTime(s) {}
 

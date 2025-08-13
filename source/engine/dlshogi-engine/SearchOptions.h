@@ -55,7 +55,8 @@ struct SearchOptions {
     TimePoint pv_interval = 500;
 
     // 勝率を評価値に変換する時の定数値。
-    // dlsearcher::SetEvalCoef()で設定する。
+	// 勝率から評価値に変換する際の係数を設定する。
+	// 変換部の内部的には、ここで設定した値が1/1000倍されて計算時に使用される。
     float eval_coef = 285;
 
     // 決着つかずで引き分けとなる手数
@@ -85,6 +86,9 @@ struct SearchOptions {
 
     // (歩の不成、敵陣2段目の香の不成など)全合法手を生成するのか。
     bool generate_all_legal_moves = false;
+
+	// 入玉ルール
+	EnteringKingRule enteringKingRule = EKR_27_POINT;
 
     // leaf node(探索の末端の局面)でのdf-pn詰みルーチンを呼び出す時のノード数上限
     // 0 = 呼び出さない。

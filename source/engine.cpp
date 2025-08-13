@@ -46,8 +46,8 @@ void Engine::usi()
 #endif
 }
 
-void Engine::add_options()
-{
+void Engine::add_options() {
+
 	// 📌 最低限のoptionを生やす。
 	//     これが要らなければ、このEngine classを派生させて、add_optionsをoverrideして、
 	//     このadd_options()を呼び出さないようにしてください。
@@ -150,6 +150,10 @@ void Engine::set_position(const std::string& sfen, const std::vector<std::string
 	states = StateListPtr(new std::deque<StateInfo>(1));
 	pos.set(sfen /*, options["UCI_Chess960"]*/ , &states->back());
 
+#if !STOCKFISH
+    std::vector<Move> moves0;
+#endif
+
 	for (const auto& move : moves)
 	{
 		auto m = USIEngine::to_move(pos, move);
@@ -159,7 +163,21 @@ void Engine::set_position(const std::string& sfen, const std::vector<std::string
 
 		states->emplace_back();
 		pos.do_move(m, states->back());
+
+#if !STOCKFISH
+		moves0.emplace_back(m);
+#endif
 	}
+
+#if !STOCKFISH
+	// やねうら王では、ここに保存しておくことになっている。
+    game_root_sfen = sfen;
+	moves_from_game_root = std::move(moves0);
+
+	// 盤面を設定しなおしたのでこのフラグはfalseに。
+	position_is_dirty = false;
+#endif
+
 }
 
 

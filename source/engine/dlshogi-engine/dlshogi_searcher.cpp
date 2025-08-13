@@ -88,16 +88,16 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> n
 
 	// このタイミングで確保しなおす。
 
-	if (new_thread.size() != max_gpu)
+	if (new_thread.size() != search_groups_size)
     {
-        search_groups = std::make_unique<UctSearcherGroup[]>(max_gpu);
-        max_gpu       = new_thread.size();
+        search_groups      = std::make_unique<UctSearcherGroup[]>(new_thread.size());
+        search_groups_size = new_thread.size();
     }
 
 	// モデルの読み込み
     ElapsedTimer time;
         
-	for (int i = 0; i < max_gpu; i++)
+	for (int i = 0; i < search_groups_size ; i++)
 		if (new_thread[i] > 0)
 			search_groups[i].Initialize(model_path , new_thread[i],/* gpu_id = */i, policy_value_batch_maxsize);
 
@@ -112,7 +112,7 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> n
 
 	thread_id_to_uct_searcher.clear();
 
-	for (size_t i = 0; i < max_gpu; ++i)
+	for (size_t i = 0; i < search_groups_size ; ++i)
 		for(int j = 0;j < new_thread[i];++j)
 			thread_id_to_uct_searcher.push_back(search_groups[i].get_uct_searcher(j));
 
@@ -132,20 +132,6 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> n
 	policy_book.read_book();
 #endif
 
-}
-
-// 全スレッドでの探索開始
-void DlshogiSearcher::StartThreads()
-{
-	// main以外のthreadを開始する
-	//threads.start_searching();
-
-	// main thread(このスレッド)も探索に参加する。
-	//threads.main()->thread_search();
-
-	// これで探索が始まって、このあとmainスレッドが帰還する。
-	// そのあと全探索スレッドの終了を待ってからPV,bestmoveを返す。
-	// (そうしないとvirtual lossがある状態でbest nodeを拾おうとしてしまう)
 }
 
 // 探索スレッドの終了(main thread以外)
@@ -201,22 +187,6 @@ void DlshogiSearcher::SetDrawValue(const int value_black, const int value_white)
 //	draw_ply = ply;
 //}
 
-//  ノード再利用の設定
-//    flag : 探索したノードの再利用をするのか
-void DlshogiSearcher::SetReuseSubtree(bool flag)
-{
-	search_options.reuse_subtree = flag;
-}
-
-// 勝率から評価値に変換する際の係数を設定する。
-// ここで設定した値は、そのままsearch_options.eval_cosefに反映する。
-// 変換部の内部的には、ここで設定した値が1/1000倍されて計算時に使用される。
-// デフォルトは 756。
-void DlshogiSearcher::SetEvalCoef(const int eval_coef)
-{
-	search_options.eval_coef = (float)eval_coef;
-}
-
 // PV lineの詰み探索の設定
 // threads : スレッド数
 // nodes   : 1局面で詰探索する最大ノード数。
@@ -237,8 +207,7 @@ void DlshogiSearcher::SetPvMateSearch(const int threads, /*const int depth,*/ co
 }
 
 //  UCT探索の初期設定
-void DlshogiSearcher::InitializeUctSearch(NodeCountType uct_node_limit) {
-    search_options.uct_node_limit = uct_node_limit;
+void DlshogiSearcher::InitializeUctSearch() {
 
     if (!tree)
         tree = std::make_unique<NodeTree>(gc.get());
@@ -247,7 +216,7 @@ void DlshogiSearcher::InitializeUctSearch(NodeCountType uct_node_limit) {
 
     // dlshogiにはないが、dlshogiでglobalだった変数にアクセスするために、
     // UctSearcherGroupは、DlshogiSearcher*を持たなければならない。
-    for (int i = 0; i < max_gpu; ++i)
+    for (int i = 0; i < search_groups_size; ++i)
         search_groups[i].set_dlsearcher(this);
 }
 
@@ -349,7 +318,8 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
                                        const std::string&       game_root_sfen,
                                        const std::vector<Move>& moves,
                                        Move&                    ponderMove) {
-    // 詰み探索スレッドの停止フラグの初期化
+
+	// 詰み探索スレッドの停止フラグの初期化
     for (auto& searcher : pv_mate_searchers)
         searcher.Stop(false);
 
@@ -466,7 +436,22 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
         searcher.Run();
 
     // 探索スレッドの開始
-    StartThreads();
+    //StartThreads();
+
+	// main以外のthreadを開始する
+	engine.threads.start_searching();
+	// 💡 FukauraOuWorker::start_searching()が呼び出され、FukauraOuWorker::parallel_search()から、
+	//     このclassのparallel_search()がよびだされる 。
+
+	// main thread(このスレッド)も探索に参加する。
+	// 💡 main threadは thread id == 0と決まっている。
+    parallel_search(pos, 0);
+
+	/*
+		📓 これで探索が始まって、このあとmainスレッドが帰還する。
+			そのあと全探索スレッドの終了を待ってからPV,bestmoveを返す。
+			(そうしないとvirtual lossがある状態でbest nodeを拾おうとしてしまう)
+	*/ 
 
     // PVの詰み探索スレッド停止(まず停止命令だけ送っておく)
     for (auto& searcher : pv_mate_searchers)
@@ -587,7 +572,7 @@ void pv_key(Position& pos, Node* node, int ply, Key64 keys[]) {
                 max_i = i;
 
         StateInfo si;
-        Move      m = node->child[max_i].getMove();
+        Move      m = node->child[max_i].move;
         //sync_cout << to_usi_string(m) << sync_endl;
         pos.do_move(m, si);
         pv_key(pos, node->child_nodes[max_i].get(), ply - 1, keys);
@@ -664,7 +649,7 @@ void DlshogiSearcher::InterruptionCheck(const Position& rootPos) {
         return;
 
     // "go ponder"で呼び出されて、"ponderhit"が来ていないなら持ち時間制御の対象外。
-    if (threads.main()->ponder)
+    if (search_limits.ponder)
         return;
 
     // -- 時間制御
@@ -853,8 +838,8 @@ void DlshogiSearcher::InterruptionCheck(const Position& rootPos) {
                     std::memcpy(&pos, &rootPos, sizeof(Position));
                     StateInfo si;
 
-                    Move m1 = uct_child[best_i].getMove();
-                    Move m2 = uct_child[second_i].getMove();
+                    Move m1 = uct_child[best_i].move;
+                    Move m2 = uct_child[second_i].move;
 
                     //sync_cout << to_usi_string(m1) << sync_endl;
                     //sync_cout << to_usi_string(m2) << sync_endl;
@@ -963,7 +948,8 @@ void DlshogiSearcher::InterruptionCheck(const Position& rootPos) {
 // ※ やねうら王独自拡張
 void DlshogiSearcher::parallel_search(const Position& rootPos, size_t thread_id)
 {
-	// このrootPosはスレッドごとに用意されているから単純なメモリコピー可能。
+	// このrootPosはスレッドごとに用意されていることが保証されているから
+	// 単純なメモリコピー可能。
 
 	// thread_id、割り当てられている末尾の1つは、GC用とSearchInterruptionChecker用なので
 	// このidに応じて、処理を割り当てる。
