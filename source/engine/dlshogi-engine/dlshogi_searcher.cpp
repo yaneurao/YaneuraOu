@@ -219,7 +219,7 @@ void DlshogiSearcher::InitializeUctSearch() {
 
     // dlshogiにはないが、dlshogiでglobalだった変数にアクセスするために、
     // UctSearcherGroupは、DlshogiSearcher*を持たなければならない。
-    for (int i = 0; i < search_groups_size; ++i)
+    for (size_t i = 0; i < search_groups_size; ++i)
         search_groups[i].set_dlsearcher(this);
 }
 

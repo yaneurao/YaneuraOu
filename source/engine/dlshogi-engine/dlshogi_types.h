@@ -5,6 +5,7 @@
 #if defined(YANEURAOU_ENGINE_DEEP)
 
 #include "../../types.h"
+#include <cfloat> // FLT_MAX
 
 // dlshogiのソースコードを参考にさせていただいています。
 // DeepLearningShogi GitHub : https://github.com/TadaoYamaoka/DeepLearningShogi
