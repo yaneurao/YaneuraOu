@@ -828,9 +828,9 @@ constexpr bool pretty_jp = false;
 		#endif
 	#elif defined(TENSOR_RT)
 		#include "NvInferRuntimeCommon.h"
-		#define EVAL_TYPE_NAME "TensorRT" + std::to_string(getInferLibVersion()) + "-" + EVAL_DEEP
+		#define EVAL_TYPE_NAME "TensorRT" + std::to_string(getInferLibVersion()) + "-" EVAL_DEEP
 	#elif defined(COREML)
-		#define EVAL_TYPE_NAME "CoreML-" + EVAL_DEEP
+		#define EVAL_TYPE_NAME "CoreML-" EVAL_DEEP
 	#endif
 
 #else

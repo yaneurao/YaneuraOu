@@ -103,35 +103,41 @@ void FukauraOuEngine::add_options() {
 // "Max_GPU","Disabled_GPU"と"UCT_Threads"の設定値から、各GPUのスレッド数の設定を返す。
 std::vector<int> FukauraOuEngine::get_thread_settings() {
 
+    int option_max_gpu = int(options["Max_GPU"]);
+
     // GPUのデバイス数を取得する
     int device_count = Eval::dlshogi::NN::get_device_count();
 
-	// GPUの最大数
-    int max_gpu    = std::min(int(options["Max_GPU"]), device_count);
+	// 取得できなかった時は-1が返るので、その時はオプション設定に従う。
+    if (device_count == -1)
+        device_count = option_max_gpu;
 
-	// 各GPUのスレッド数
-	int thread_num = int(options["UCT_Threads"]);
+    // GPUの最大数
+    int max_gpu = std::min(option_max_gpu, device_count);
 
-	// スレッド設定
-	std::vector<int> thread_settings;
+    // 各GPUのスレッド数
+    int thread_num = int(options["UCT_Threads"]);
 
-	// GPUの数だけスレッド数を設定
+    // スレッド設定
+    std::vector<int> thread_settings;
+
+    // GPUの数だけスレッド数を設定
     thread_settings.assign(max_gpu, thread_num);
 
-	for (auto&& disabled : split(std::string(options["Disabled_GPU"]), ","))
-	{
+    for (auto&& disabled : split(std::string(options["Disabled_GPU"]), ","))
+    {
         int d = StringExtension::to_int(std::string(disabled), 0);
         if (d == 0)
-			// 🤔 これ、parse失敗した警告を出しておいたほうがいいか？
+            // 🤔 これ、parse失敗した警告を出しておいたほうがいいか？
             continue;
 
-		// 番号は1 originである。
-		if (1 <= d && d <= max_gpu)
-			// 無効化するGPU番号に対応するスレッド数を0に設定する。
+        // 番号は1 originである。
+        if (1 <= d && d <= max_gpu)
+            // 無効化するGPU番号に対応するスレッド数を0に設定する。
             thread_settings[d - 1] = 0;
-	}
+    }
 
-	return thread_settings;
+    return thread_settings;
 }
 
 void FukauraOuEngine::init_gpu()

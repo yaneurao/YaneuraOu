@@ -21,7 +21,7 @@
 #ifndef NNUE_FEATURES_HALF_KA_V2_HM_H_INCLUDED
 #define NNUE_FEATURES_HALF_KA_V2_HM_H_INCLUDED
 
-#include "../../config.h"
+#include "../../../config.h"
 #if defined(EVAL_SFNN)
 
 #include <cstdint>
