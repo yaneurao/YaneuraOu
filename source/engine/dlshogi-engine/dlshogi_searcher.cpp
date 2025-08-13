@@ -38,14 +38,14 @@ void DlshogiSearcher::add_options(OptionsMap& options) {
 // GPUの初期化、各UctSearchThreadGroupに属するそれぞれのスレッド数と、各スレッドごとのNNのbatch sizeの設定
 // "isready"に対して呼び出される。
 // スレッドの生成ついでに、詰将棋探索系の初期化もここで行う。
-void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> new_thread, int policy_value_batch_maxsize)
+void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> thread_settings, int policy_value_batch_maxsize)
 {
 	// ----------------------
 	// 必要なスレッド数の算出
 	// ----------------------
 
 	// トータルのスレッド数go
-    size_t total_thread_num = std::accumulate(new_thread.begin(), new_thread.end(), 0);
+    size_t total_thread_num = std::accumulate(thread_settings.begin(), thread_settings.end(), 0);
 
 	// スレッド数の合計が0はさすがにおかしい。
 	if (total_thread_num == 0)
@@ -91,18 +91,19 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> n
 
 	// このタイミングで確保しなおす。
 
-	if (new_thread.size() != search_groups_size)
+	if (thread_settings != last_thread_settings)
     {
-        search_groups      = std::make_unique<UctSearcherGroup[]>(new_thread.size());
-        search_groups_size = new_thread.size();
+        search_groups        = std::make_unique<UctSearcherGroup[]>(thread_settings.size());
+        search_groups_size   = thread_settings.size();
+        last_thread_settings = thread_settings;
     }
 
 	// モデルの読み込み
     ElapsedTimer time;
         
 	for (size_t i = 0; i < search_groups_size ; i++)
-		if (new_thread[i] > 0)
-			search_groups[i].Initialize(model_path , new_thread[i],/* gpu_id = */i, policy_value_batch_maxsize);
+		if (thread_settings[i] > 0)
+			search_groups[i].Initialize(model_path , thread_settings[i],/* gpu_id = */int(i), policy_value_batch_maxsize);
 
 	sync_cout << "info string All model files have been loaded. " << time.elapsed() << "ms." << sync_endl;
 
@@ -116,7 +117,7 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> n
 	thread_id_to_uct_searcher.clear();
 
 	for (size_t i = 0; i < search_groups_size ; ++i)
-		for(int j = 0;j < new_thread[i];++j)
+		for(int j = 0;j < thread_settings[i];++j)
 			thread_id_to_uct_searcher.push_back(search_groups[i].get_uct_searcher(j));
 
 	// GC用のスレッドにもスレッド番号を連番で与えておく。

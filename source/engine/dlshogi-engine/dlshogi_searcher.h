@@ -143,7 +143,8 @@ namespace dlshogi {
 		// GPUの初期化、各UctSearchThreadGroupに属するそれぞれのスレッド数と、各スレッドごとのNNのbatch sizeの設定
 		// "isready"に対して呼び出される。
 		// スレッドの生成ついでに、詰将棋探索系の初期化もここで行う。
-        void InitGPU(const std::string& model_path , std::vector<int> new_thread, int policy_value_batch_maxsize);
+		// thread_settings : 各GPU用のスレッド数
+        void InitGPU(const std::string& model_path , std::vector<int> thread_settings, int policy_value_batch_maxsize);
 
 		// 対局開始時に呼び出されるハンドラ
 		void NewGame();
@@ -316,6 +317,9 @@ namespace dlshogi {
 		// スレッドIDから対応するgpu_idへのmapper
 		std::vector<int> thread_id_to_gpu_id;
 		std::vector<UctSearcher*> thread_id_to_uct_searcher;
+
+		// 前回のInitGPU時のthread_settings
+        std::vector<int>          last_thread_settings;
 
 		// ノードのlockに使うmutex
 		MutexPool node_mutexes;
