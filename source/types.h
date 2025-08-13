@@ -850,13 +850,13 @@ public:
 
 	// -- property
 
-	Square from_sq() const { ASSERT_LV3(is_ok()); return Square((data >> 7) & 0x7f); }
-	Square to_sq() const { return Square(data & 0x7f); }
-	bool is_drop() const { return (data & MOVE_DROP) != 0; }
-	bool is_promote() const { return (data & MOVE_PROMOTE) != 0; }
-	PieceType move_dropped_piece() const { return PieceType((data >> 7) & 0x7f); }
+	constexpr Square from_sq() const { return Square((data >> 7) & 0x7f); }
+	constexpr Square to_sq() const { return Square(data & 0x7f); }
+	constexpr bool is_drop() const { return (data & MOVE_DROP) != 0; }
+	constexpr bool is_promote() const { return (data & MOVE_PROMOTE) != 0; }
+	constexpr PieceType move_dropped_piece() const { return PieceType((data >> 7) & 0x7f); }
 
-	int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq()); }
+	constexpr int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq()); }
     constexpr MoveType type_of() { return MoveType(data & (MOVE_PROMOTE | MOVE_DROP)); }
 	constexpr bool is_ok() const { return (data >> 7) != (data & 0x7f); }
 

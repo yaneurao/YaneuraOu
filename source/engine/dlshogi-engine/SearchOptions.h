@@ -78,7 +78,7 @@ struct SearchOptions {
     NodeCountType uct_node_limit = 10000000;
 
     // エンジンオプションの"MultiPV"の値。
-    ChildNumType multi_pv;
+    ChildNumType multi_pv = 1;
 
     // デバッグ用のメッセージの出力を行うかのフラグ。
     // エンジンオプションの"DebugMessage"の値。

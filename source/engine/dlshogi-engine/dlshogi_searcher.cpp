@@ -83,8 +83,11 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> n
               *this, engine);
         };
 
-    engine.threads.set(engine.numaContext.get_numa_config(), engine.options, total_thread_num,
-                       worker_factory);
+	// 探索の終了条件を満たしたかを監視するためのスレッド数
+	const int search_interruption_check_thread_num = 1;
+
+    engine.threads.set(engine.numaContext.get_numa_config(), engine.options,
+                           total_thread_num + search_interruption_check_thread_num, worker_factory);
 
 	// このタイミングで確保しなおす。
 
@@ -118,7 +121,7 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> n
 
 	// GC用のスレッドにもスレッド番号を連番で与えておく。
 	// (WinProcGroup::bindThisThread()用)
-	gc->set_thread_id(total_thread_num /* + dfpn_thread_num*/);
+    //gc->set_thread_id(total_thread_num  /* + dfpn_thread_num*/);
 
 	// ----------------------
 	// 詰将棋探索系の初期化

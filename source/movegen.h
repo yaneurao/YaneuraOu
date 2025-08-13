@@ -199,8 +199,9 @@ ExtMove* generateMoves(const Position& pos, ExtMove* moveList)
 
 	// これをexpandして返す。
 
-	size_t size = moveList1 - moveList0;
-	for (size_t i = size - 1; i >= 0; --i)
+	// ⚠ 符号型にしておかないと i >= 0 が意味をなさない。
+	int size = int(moveList1 - moveList0);
+	for (int i = size - 1; i >= 0; --i)
 		// MoveからMoveExtへのコピー
 		moveList[i] = moveList0[i];
 

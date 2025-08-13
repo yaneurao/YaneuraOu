@@ -684,7 +684,7 @@ float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, N
 				}
 				else {
 					// 候補手を展開する（千日手や詰みの場合は候補手の展開が不要なため、タイミングを遅らせる）
-					child_node->ExpandNode(pos,options.generate_all_legal_moves);
+					child_node->ExpandNode(pos, options.generate_all_legal_moves);
 					if (child_node->child_num == 0) {
 						// 詰み
 						uct_child[next_index].SetLose();
@@ -907,185 +907,196 @@ ChildNumType UctSearcher::SelectMaxUcbChild(ChildNode* parent, Node* current)
 
 // 評価関数を呼び出す。
 // batchに積まれていた入力特徴量をまとめてGPUに投げて、結果を得る。
-void UctSearcher::EvalNode()
-{
-	// 何もデータが積まれていないならこのあとforwardを呼び出してはならないので帰る。
-	if (current_policy_value_batch_index == 0)
-		return;
+void UctSearcher::EvalNode() {
+    // 何もデータが積まれていないならこのあとforwardを呼び出してはならないので帰る。
+    if (current_policy_value_batch_index == 0)
+        return;
 
-	// batchに積まれているデータの個数
-	const int policy_value_batch_size = current_policy_value_batch_index;
-	auto ds = grp->get_dlsearcher();
+    // batchに積まれているデータの個数
+    const int policy_value_batch_size = current_policy_value_batch_index;
+    auto      ds                      = grp->get_dlsearcher();
 
 #if defined(LOG_PRINT)
-	// 入力特徴量
-	std::stringstream ss;
-	for (int i = 0; i < sizeof(NN_Input1) / sizeof(DType); ++i)
-		ss << ((DType*)features1)[i] << ",";
-	ss << endl << "Input2" << endl;
-	for (int i = 0; i < sizeof(NN_Input2) / sizeof(DType); ++i)
-		ss << ((DType*)features2)[i] << ",";
-	logger.print(ss.str());
+    // 入力特徴量
+    std::stringstream ss;
+    for (int i = 0; i < sizeof(NN_Input1) / sizeof(DType); ++i)
+        ss << ((DType*) features1)[i] << ",";
+    ss << endl << "Input2" << endl;
+    for (int i = 0; i < sizeof(NN_Input2) / sizeof(DType); ++i)
+        ss << ((DType*) features2)[i] << ",";
+    logger.print(ss.str());
 #endif
 
-	// predict
-	// policy_value_batch_sizeの数だけまとめて局面を評価する
-	grp->nn_forward(policy_value_batch_size, packed_features1, packed_features2, features1, features2, y1, y2);
+    // predict
+    // policy_value_batch_sizeの数だけまとめて局面を評価する
+    grp->nn_forward(policy_value_batch_size, packed_features1, packed_features2, features1,
+                    features2, y1, y2);
 
-	//cout << *y2 << endl;
+    //cout << *y2 << endl;
 
-	const NN_Output_Policy *logits = y1;
-	const NN_Output_Value  *value  = y2;
+    const NN_Output_Policy* logits = y1;
+    const NN_Output_Value*  value  = y2;
 
-	for (int i = 0; i < policy_value_batch_size; i++, logits++, value++)
-	{
-			    Node*        node      = policy_value_batch[i].node;
-		const Color        color     = policy_value_batch[i].color;
-		const ChildNumType child_num = node->child_num;
-			    ChildNode *  uct_child = node->child.get();
+    for (int i = 0; i < policy_value_batch_size; i++, logits++, value++)
+    {
+        Node*              node      = policy_value_batch[i].node;
+        const Color        color     = policy_value_batch[i].color;
+        const ChildNumType child_num = node->child_num;
+        ChildNode*         uct_child = node->child.get();
 
 #if defined(USE_POLICY_BOOK)
-				HASH_KEY     key       = policy_value_batch[i].key;
-		auto* policy_book_entry      = grp->get_dlsearcher()->policy_book.probe_policy_book(key);
+        HASH_KEY key               = policy_value_batch[i].key;
+        auto*    policy_book_entry = grp->get_dlsearcher()->policy_book.probe_policy_book(key);
 #endif
 
-		// 合法手それぞれに対する遷移確率
-		std::vector<float> legal_move_probabilities;
-		// いまからemplace_backしていく回数がchild_numであることはわかっているので事前に要素を確保しておく。
-		legal_move_probabilities.reserve(child_num);
+        // 合法手それぞれに対する遷移確率
+        std::vector<float> legal_move_probabilities;
+        // いまからemplace_backしていく回数がchild_numであることはわかっているので事前に要素を確保しておく。
+        legal_move_probabilities.reserve(child_num);
 
 #if defined(LOG_PRINT)
-		// あとで消す
-		vector<int> move_labels;
-		vector<MoveMoveLabel> moves;
-		for (int j = 0; j < child_num; j++) {
-			Move move = uct_child[j].move;
-			const int move_label = make_move_label(move, color);
-			moves.emplace_back(move, move_label);
-		}
-		// move label順でsortして、再現性を持たせる。
-		std::sort(moves.begin(), moves.end());
-		for (int j = 0; j < child_num; j++)
-		{
-			uct_child[j].move = moves[j].move;
-			move_labels.push_back(make_move_label(moves[j].move,color));
-		}
+        // あとで消す
+        vector<int>           move_labels;
+        vector<MoveMoveLabel> moves;
+        for (int j = 0; j < child_num; j++)
+        {
+            Move      move       = uct_child[j].move;
+            const int move_label = make_move_label(move, color);
+            moves.emplace_back(move, move_label);
+        }
+        // move label順でsortして、再現性を持たせる。
+        std::sort(moves.begin(), moves.end());
+        for (int j = 0; j < child_num; j++)
+        {
+            uct_child[j].move = moves[j].move;
+            move_labels.push_back(make_move_label(moves[j].move, color));
+        }
 #endif
 
-		for (ChildNumType j = 0; j < child_num; j++) {
-			Move move = uct_child[j].move;
-			const int move_label = make_move_label(move, color);
-			const float logit = (*logits)[move_label];
-			legal_move_probabilities.emplace_back(logit);
+        for (ChildNumType j = 0; j < child_num; j++)
+        {
+            Move        move       = uct_child[j].move;
+            const int   move_label = make_move_label(move, color);
+            const float logit      = (*logits)[move_label];
+            legal_move_probabilities.emplace_back(logit);
 
-			// デバッグ用に出力させてみる。
-			//cout << uct_child[j].move << " " << move_label << " " << logit << endl;
-		}
+            // デバッグ用に出力させてみる。
+            //cout << uct_child[j].move << " " << move_label << " " << logit << endl;
+        }
 
-		// Boltzmann distribution
-		softmax_temperature_with_normalize(legal_move_probabilities);
+        // Boltzmann distribution
+        softmax_temperature_with_normalize(legal_move_probabilities);
 
 #if !defined(USE_POLICY_BOOK)
-		for (ChildNumType j = 0; j < child_num; j++) {
-			uct_child[j].nnrate = legal_move_probabilities[j];
-		}
+        for (ChildNumType j = 0; j < child_num; j++)
+        {
+            uct_child[j].nnrate = legal_move_probabilities[j];
+        }
 #else
-		if (policy_book_entry == nullptr)
-		{
-			for (ChildNumType j = 0; j < child_num; j++) {
-				uct_child[j].nnrate = legal_move_probabilities[j];
-			}
-		} else {
-			// Policy Bookに従う。
+        if (policy_book_entry == nullptr)
+        {
+            for (ChildNumType j = 0; j < child_num; j++)
+            {
+                uct_child[j].nnrate = legal_move_probabilities[j];
+            }
+        }
+        else
+        {
+            // Policy Bookに従う。
 
-			// 評価値の書かれている局面であるか？
-			float v = policy_book_entry->value;
-			if (v != FLT_MAX)
-				node->policy_book_value = v;
+            // 評価値の書かれている局面であるか？
+            float v = policy_book_entry->value;
+            if (v != FLT_MAX)
+                node->policy_book_value = v;
 
-			u32 total = 0;
-			size_t k1;
-			for (k1 = 0; k1 < POLICY_BOOK_NUM; ++k1)
-			{
-				if (policy_book_entry->move_freq[k1].move16 == Move16::none())
-					break;
-				total += policy_book_entry->move_freq[k1].freq;
-			}
-			// ⇨ k1個だけ有効なmoveがあることがわかった。
+            u32    total = 0;
+            size_t k1;
+            for (k1 = 0; k1 < POLICY_BOOK_NUM; ++k1)
+            {
+                if (policy_book_entry->move_freq[k1].move16 == Move16::none())
+                    break;
+                total += policy_book_entry->move_freq[k1].freq;
+            }
+            // ⇨ k1個だけ有効なmoveがあることがわかった。
 
-			// 元のPolicyの按分率
-			// 
-			// 定跡の質により変化させる。
-			// totalが1000回    ⇨ さすがに信用していいのでは。100%
-			// totalが 100回    ⇨ 90%ぐらい信用できるか
-			// totalが  10回    ⇨ 80%
-			// totalが それ以下 ⇨ 70%
-			// みたいな感じにする。
-			// 0 < total <= u32_maxであることは保証されている。
-			//
-			// 注意 : 電竜戦の開始4手の玉の屈伸の棋譜を利用したときに、あれをPolicyとされてしまうと困る。
-			//  (PolicyBookを作るときに除外する必要がある)
+            // 元のPolicyの按分率
+            //
+            // 定跡の質により変化させる。
+            // totalが1000回    ⇨ さすがに信用していいのでは。100%
+            // totalが 100回    ⇨ 90%ぐらい信用できるか
+            // totalが  10回    ⇨ 80%
+            // totalが それ以下 ⇨ 70%
+            // みたいな感じにする。
+            // 0 < total <= u32_maxであることは保証されている。
+            //
+            // 注意 : 電竜戦の開始4手の玉の屈伸の棋譜を利用したときに、あれをPolicyとされてしまうと困る。
+            //  (PolicyBookを作るときに除外する必要がある)
 
-			float book_policy_ratio = 0.7f + 0.1f * std::clamp(log10f(float(total)), 0.0f, 3.0f);
+            float book_policy_ratio = 0.7f + 0.1f * std::clamp(log10f(float(total)), 0.0f, 3.0f);
 
-			for (ChildNumType j = 0; j < child_num; j++) {
+            for (ChildNumType j = 0; j < child_num; j++)
+            {
 
-				uct_child[j].nnrate = (1.0f - book_policy_ratio) * legal_move_probabilities[j];
+                uct_child[j].nnrate = (1.0f - book_policy_ratio) * legal_move_probabilities[j];
 
-				// PolicyBookに出現していた指し手であれば、それで按分する。
-				for (size_t k2 = 0 ; k2 < k1; ++k2)
-				{
-					if (uct_child[j].move.to_move16() == policy_book_entry->move_freq[k2].move16)
-					{
-						uct_child[j].nnrate += book_policy_ratio * policy_book_entry->move_freq[k2].freq / total;
-						break;
-					}
-				}
-			}
-		}
+                // PolicyBookに出現していた指し手であれば、それで按分する。
+                for (size_t k2 = 0; k2 < k1; ++k2)
+                {
+                    if (uct_child[j].move.to_move16() == policy_book_entry->move_freq[k2].move16)
+                    {
+                        uct_child[j].nnrate +=
+                          book_policy_ratio * policy_book_entry->move_freq[k2].freq / total;
+                        break;
+                    }
+                }
+            }
+        }
 #endif
 
-		// valueの値はここに返すことになっている。
-		*policy_value_batch[i].value_win = *value;
+        // valueの値はここに返すことになっている。
+        *policy_value_batch[i].value_win = *value;
 
 #if defined(LOG_PRINT)
-		std::vector<MoveIntFloat> m;
-		for (int j = 0; j < child_num; ++j)
-			m.emplace_back(uct_child[j].move, move_labels[j], uct_child[j].nnrate);
-		logger.print(m);
-		logger.print("NN value = " + std::to_string(*value));
-		static int visit_count = 0;
-		++visit_count;
-		logger.print("visit = " + std::to_string(visit_count));
+        std::vector<MoveIntFloat> m;
+        for (int j = 0; j < child_num; ++j)
+            m.emplace_back(uct_child[j].move, move_labels[j], uct_child[j].nnrate);
+        logger.print(m);
+        logger.print("NN value = " + std::to_string(*value));
+        static int visit_count = 0;
+        ++visit_count;
+        logger.print("visit = " + std::to_string(visit_count));
 #endif
 
 
-		// あとで
+        // あとで
 #ifdef MAKE_BOOK
-		// 定跡作成時は、事前確率に定跡の遷移確率も使用する
-		constexpr float alpha = 0.5f;
-		const Key& key = policy_value_book_key[i];
-		const auto itr = bookMap.find(key);
-		if (itr != bookMap.end()) {
-			const auto& entries = itr->second;
-			// countから分布を作成
-			std::map<u16, u16> count_map;
-			int sum = 0;
-			for (const auto& entry : entries) {
-				count_map.insert(std::make_pair(entry.fromToPro, entry.count));
-				sum += entry.count;
-			}
-			// policyと定跡から作成した分布の加重平均
-			for (int j = 0; j < child_num; ++j) {
-				const Move& move = uct_child[j].move;
-				const auto itr2 = count_map.find((u16)move.proFromAndTo());
-				const float bookrate = itr2 != count_map.end() ? (float)itr2->second / sum : 0.0f;
-				uct_child[j].nnrate = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
-			}
-		}
+        // 定跡作成時は、事前確率に定跡の遷移確率も使用する
+        constexpr float alpha = 0.5f;
+        const Key&      key   = policy_value_book_key[i];
+        const auto      itr   = bookMap.find(key);
+        if (itr != bookMap.end())
+        {
+            const auto& entries = itr->second;
+            // countから分布を作成
+            std::map<u16, u16> count_map;
+            int                sum = 0;
+            for (const auto& entry : entries)
+            {
+                count_map.insert(std::make_pair(entry.fromToPro, entry.count));
+                sum += entry.count;
+            }
+            // policyと定跡から作成した分布の加重平均
+            for (int j = 0; j < child_num; ++j)
+            {
+                const Move& move     = uct_child[j].move;
+                const auto  itr2     = count_map.find((u16) move.proFromAndTo());
+                const float bookrate = itr2 != count_map.end() ? (float) itr2->second / sum : 0.0f;
+                uct_child[j].nnrate  = (1.0f - alpha) * uct_child[j].nnrate + alpha * bookrate;
+            }
+        }
 #endif
-		node->SetEvaled();
-	}
+        node->SetEvaled();
+    }
 }
 
 

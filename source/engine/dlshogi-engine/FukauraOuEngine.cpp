@@ -203,6 +203,18 @@ void FukauraOuEngine::isready() {
 #endif
 }
 
+// 🌈 "ponderhit"に対する処理。
+void FukauraOuEngine::set_ponderhit(bool b) {
+
+	// 📝 ponderhitしたので、やねうら王では、
+    //     現在時刻をtimer classに保存しておく必要がある。
+	// 💡 ponderフラグを変更する前にこちらを先に実行しないと
+	//     ponderフラグを見てponderhitTimeを参照して間違った計算をしてしまう。
+    searcher.search_limits.time_manager.ponderhitTime = now();
+
+	searcher.search_limits.ponder           = b;
+}
+
 // エンジン作者名の変更
 std::string FukauraOuEngine::get_engine_author() const { return "Tadao Yamaoka , yaneurao"; }
 
@@ -230,24 +242,14 @@ void FukauraOuWorker::pre_start_searching() {
 }
 
 
-// 🌈 "ponderhit"に対する処理。
-void FukauraOuEngine::set_ponderhit(bool b) {
-
-	// 📝 ponderhitしたので、やねうら王では、
-    //     現在時刻をtimer classに保存しておく必要がある。
-	// 💡 ponderフラグを変更する前にこちらを先に実行しないと
-	//     ponderフラグを見てponderhitTimeを参照して間違った計算をしてしまう。
-    searcher.search_limits.time_manager.ponderhitTime = now();
-
-	searcher.search_limits.ponder           = b;
-}
-
-
 // "go"コマンドに対して呼び出される。
 void FukauraOuWorker::start_searching()
 {
-    if (!threads.main_thread())
+    if (!is_mainthread())
+    {
         parallel_search();
+        return;
+    }
 
     // 開始局面の手番をglobalに格納しておいたほうが便利。
     searcher.search_limits.root_color = rootPos.side_to_move();
@@ -291,8 +293,6 @@ void FukauraOuWorker::start_searching()
         ponder = to_usi_string(ponderMove);
 
     engine.updateContext.onBestmove(bestmove, ponder);
-
-    std::cout << sync_endl;
 }
 
 void FukauraOuWorker::parallel_search()
