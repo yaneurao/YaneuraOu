@@ -100,7 +100,7 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> n
 	// モデルの読み込み
     ElapsedTimer time;
         
-	for (int i = 0; i < search_groups_size ; i++)
+	for (size_t i = 0; i < search_groups_size ; i++)
 		if (new_thread[i] > 0)
 			search_groups[i].Initialize(model_path , new_thread[i],/* gpu_id = */i, policy_value_batch_maxsize);
 

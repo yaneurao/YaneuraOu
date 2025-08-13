@@ -81,7 +81,7 @@ class FukauraOuEngine: public YaneuraOu::Engine {
 	void init_gpu();
 
 	// "Max_GPU","Disabled_GPU"と"UCT_Threads"の設定値から、各GPUのスレッド数の設定を返す。
-    std::vector<int> FukauraOuEngine::get_thread_settings();
+    std::vector<int> get_thread_settings();
 
 };  // class FukauraOuEngine
 
