@@ -674,6 +674,7 @@ Position& Position::set(const std::string& sfen, StateInfo* si) {
     // これassertにしてしまうと、先手玉のいない局面や駒落ちの局面で落ちて困る。
     if (!is_ok(*this))
         std::cout << "info string Illigal Position?" << endl;
+		// ⚠ UnitTestで駒落ちのテストをするので、そのときに引っかかるが…。
 #endif
 #endif
 

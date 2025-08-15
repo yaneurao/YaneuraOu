@@ -138,7 +138,16 @@ void Engine::set_numa_config_from_option(const std::string& o) {
 
 // blocking call to wait for search to finish
 // 探索が完了のを待機する。(完了したらリターンする)
-void Engine::wait_for_search_finished() { threads.main_thread()->wait_for_search_finished(); }
+void Engine::wait_for_search_finished() {
+#if !STOCKFISH
+	// やねうら王では、まだスレッド初期化が終わっていない可能性がある。
+	// スレッドが生成されていないとmain_thread()がないので、この場合、無視する。
+    if (!threads.size())
+        return;
+#endif
+
+	threads.main_thread()->wait_for_search_finished();
+}
 
 // "position"コマンドの下請け。
 // sfen文字列 + movesのあとに書かれていた(USIの)指し手文字列から、現在の局面を設定する。

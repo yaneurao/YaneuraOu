@@ -644,7 +644,7 @@ void USIEngine::bench(std::istream& args) {
 						// 💡 Stockfishとの互換性維持のため"usinewgame"と変更していない。
 						//     どうせ内部でしか使わない符号みたいなものなので…。
         {
-            engine.search_clear();  // search_clear may take a while
+			engine.search_clear();  // search_clear may take a while
                                     // search_clear は時間がかかることがある
 
 			elapsed = now();
