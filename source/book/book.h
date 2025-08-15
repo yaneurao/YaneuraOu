@@ -27,6 +27,7 @@ static const char* BookDBHeader2016_100 = "#YANEURAOU-DB2016 1.00";
 struct ProbeResult {
     // bestmove (定跡にhitしなければMOVE_NONE)
     Move bestmove = Move::none();
+	// ⚠ cpに変換する前のもの。cpなら、USIEngine::cp_to_value()で変換したものを設定する。
     Value bestscore = 0;
 
 	// pondermove(なければMOVE_NONE)
