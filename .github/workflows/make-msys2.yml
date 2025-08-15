@@ -32,7 +32,7 @@ jobs:
           # - g++
         target:
           - tournament
-          - evallearn
+          # - evallearn
         archcpu:
           - AVX2
           # - NO_SSE
