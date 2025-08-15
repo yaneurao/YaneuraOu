@@ -473,7 +473,7 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
     // ---------------------
 
     // PVの取得と表示
-    auto best = UctPrint::get_best_move_multipv(current_root, search_limits, search_options);
+    auto best = UctPrint::get_best_move_multipv(current_root, search_limits, search_options, engine.updateContext);
 
     // デバッグ用のメッセージ出力
     if (search_options.debug_message)
@@ -548,7 +548,7 @@ void DlshogiSearcher::OutputPvCheck() {
 
         // PV表示
         //get_and_print_pv();
-        UctPrint::get_best_move_multipv(tree->GetCurrentHead(), search_limits, search_options);
+        UctPrint::get_best_move_multipv(tree->GetCurrentHead(), search_limits, search_options, engine.updateContext);
 
         // 出力が終わった時点から数えて pv_interval後以降に再度表示。
         // (前回の出力時刻から数えてしまうと、PVの出力がたくさんあるとき出力が間に合わなくなる)

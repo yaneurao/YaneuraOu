@@ -740,20 +740,6 @@ YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
 
 // かきかけ
 
-void Engine::set_on_iter(std::function<void(const Engine::InfoIter&)>&& f) {
-	updateContext.onIter = std::move(f);
-}
-
-void Engine::set_on_bestmove(std::function<void(std::string_view, std::string_view)>&& f) {
-	updateContext.onBestmove = std::move(f);
-}
-
-// verify_network()を呼び出した時に、NN::network.verify()からcallbackされるfunctionを設定する。
-void Engine::set_on_verify_networks(std::function<void(std::string_view)>&& f) {
-	onVerifyNetworks = std::move(f);
-}
-
-
 
 
 // modifiers

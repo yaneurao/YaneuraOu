@@ -1271,7 +1271,7 @@ namespace Book
                 YaneuraOu::Search::InfoFull info;
 
                 info.multiPV   = i + 1;
-                info.score     = USIEngine::cp_to_value(it.value);
+                info.score     = Score::from_internal_value(it.value);
                 info.depth     = it.depth;
                 std::string pv = pv_builder(rootPos, updates, it.move, pv_moves) + prob_str;
                 info.pv        = pv;
@@ -1454,7 +1454,7 @@ namespace Book
             // なので、ここではそのチェックは行わない。
 
             result.bestmove   = bestMove;
-            result.bestscore  = USIEngine::cp_to_value(value);
+            result.bestscore  = Score::from_internal_value(value);
 
 			// ponderMoveが合法手であることも保証する。
             StateInfo si;

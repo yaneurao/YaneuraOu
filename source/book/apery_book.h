@@ -29,14 +29,11 @@
 namespace YaneuraOu {
 namespace Book {
 
-	using Key = uint64_t;
-	using Score = int;
-
 	struct AperyBookEntry {
-		Key key;
+		uint64_t key;
 		uint16_t fromToPro;
 		uint16_t count;
-		Score score;
+		int32_t score;
 	};
 
 	class AperyBook {

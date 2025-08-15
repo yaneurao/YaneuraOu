@@ -887,7 +887,7 @@ SKIP_SEARCH:
         else
             rootMoves.emplace_back(probeMove.bestmove);
 
-		rootMoves[0].score = rootMoves[0].uciScore = probeMove.bestscore;
+		rootMoves[0].score = rootMoves[0].uciScore = probeMove.bestscore.to_value();
     }
 #endif
 

@@ -28,4 +28,24 @@ Score::Score(Value v /*, const Position& pos*/) {
     }
 }
 
+#if !STOCKFISH
+// 🌈 Valueの値を(cpへの変換をせずに)そのままScoreに変換する。
+Score Score::from_internal_value(Value v) {
+    Score score;
+    score.score = InternalUnits{ v };
+    return score;
+}
+
+// 🌈 いま保持している値をValueに変換する。
+Value Score::to_value() const {
+    if (is<InternalUnits>())
+		// cpで保持している。
+        return USIEngine::cp_to_value(get<InternalUnits>().value);
+
+	// Mateで保持している。
+    int plies = get<Mate>().plies;
+    return (plies > 0) ? mate_in(plies) : mated_in(plies);
+}
+#endif
+
 }

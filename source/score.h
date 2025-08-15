@@ -37,6 +37,13 @@ class Score {
 	//     変換に際してPosition classが必要なのだが、やねうら王では使わないのでコメントアウト。
     Score(Value v /*, const Position& pos*/);
 
+#if !STOCKFISH
+	// 🌈 Valueの値を(cpへの変換をせずに)そのままScoreに変換する。
+    static Score from_internal_value(Value v);
+	// 🌈 いま保持している値をValueに変換する。
+    Value        to_value() const;
+#endif
+
 	// MateかInternalUnitsか、どちらで保持しているかを判定する。
     template<typename T>
     bool is() const {
