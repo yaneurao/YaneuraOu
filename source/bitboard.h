@@ -1118,6 +1118,91 @@ inline Bitboard attacks_bb(Square s, Bitboard occupied) {
 	return effects_from(PC, s, occupied);
 }
 
+
+
+
+// Returns the least significant bit in a non-zero bitboard.
+// 0でないビットボードにおける最下位ビットを返す。
+// 📝 Stockfishとの互換性のために用意
+#if STOCKFISH
+inline Square lsb(Bitboard b) {
+#else
+inline uint32_t lsb(uint64_t b) {
+#endif
+	assert(b);
+
+#if defined(__GNUC__)  // GCC, Clang, ICX
+
+    return uint32_t(__builtin_ctzll(b));
+
+#elif defined(_MSC_VER)
+    #ifdef _WIN64  // MSVC, WIN64
+
+    unsigned long idx;
+    _BitScanForward64(&idx, b);
+    return uint32_t(idx);
+
+    #else  // MSVC, WIN32
+    unsigned long idx;
+
+    if (b & 0xffffffff)
+    {
+        _BitScanForward(&idx, int32_t(b));
+        return uint32_t(idx);
+    }
+    else
+    {
+        _BitScanForward(&idx, int32_t(b >> 32));
+        return uint32_t(idx + 32);
+    }
+    #endif
+#else  // Compiler is neither GCC nor MSVC compatible
+    #error "Compiler not supported."
+#endif
+}
+
+// Returns the most significant bit in a non-zero bitboard.
+// 0でないビットボードにおける最上位ビットを返す。
+// 📝 Stockfishとの互換性のために用意
+#if STOCKFISH
+inline Square msb(Bitboard b) {
+#else
+inline uint32_t msb(uint64_t b) {
+#endif
+    assert(b);
+
+#if defined(__GNUC__)  // GCC, Clang, ICX
+
+    return uint32_t(63 ^ __builtin_clzll(b));
+
+#elif defined(_MSC_VER)
+    #ifdef _WIN64  // MSVC, WIN64
+
+    unsigned long idx;
+    _BitScanReverse64(&idx, b);
+    return uint32_t(idx);
+
+    #else  // MSVC, WIN32
+
+    unsigned long idx;
+
+    if (b >> 32)
+    {
+        _BitScanReverse(&idx, int32_t(b >> 32));
+        return uint32_t(idx + 32);
+    }
+    else
+    {
+        _BitScanReverse(&idx, int32_t(b));
+        return uint32_t(idx);
+    }
+    #endif
+#else  // Compiler is neither GCC nor MSVC compatible
+    #error "Compiler not supported."
+#endif
+}
+
+
 /// least_significant_square_bb() returns the bitboard of the least significant
 /// square of a non-zero bitboard. It is equivalent to square_bb(lsb(bb)).
 

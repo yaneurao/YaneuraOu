@@ -1422,7 +1422,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 // otherwise exit the loop.
                 if (bestValue <= alpha)
                 {
-                    beta  = (3 * alpha + beta) / 4;
+                    beta  = alpha;
                     alpha = std::max(bestValue - delta, -VALUE_INFINITE);
 
                     failedHighCnt = 0;
@@ -3325,9 +3325,8 @@ moves_loop:  // When in check, search starts here
 		*/
 
 		// singular延長をするnodeであるか。
-        if (!rootNode && move == ttData.move && !excludedMove
-            && depth >= 6 - (completedDepth > 26) + ss->ttPv && is_valid(ttData.value)
-            && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
+        if (!rootNode && move == ttData.move && !excludedMove && depth >= 6 + ss->ttPv
+            && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
             && ttData.depth >= depth - 3)
         {
             /*
@@ -3462,10 +3461,9 @@ moves_loop:  // When in check, search starts here
         // These reduction adjustments have no proven non-linear scaling
         // これらの減少量調整には、非線形スケーリングの有効性が証明されていません
 
-        r += 650;  // Base reduction offset to compensate for other tweaks
-				   // 他の調整を補正するための基準リダクションオフセット
-
-        r -= moveCount * 69;
+        r += 679 - 6 * msb(depth);  // Base reduction offset to compensate for other tweaks
+								    // 他の調整を補正するための基準リダクションオフセット
+        r -= moveCount * (67 - 2 * msb(depth));
         r -= std::abs(correctionValue) / 27160;
 
         // Increase reduction for cut nodes
@@ -3480,19 +3478,19 @@ moves_loop:  // When in check, search starts here
 		*/
 
         if (cutNode)
-            r += 3000 + 1024 * !ttData.move;
+            r += 2998 + 2 * msb(depth) + (948 + 14 * msb(depth)) * !ttData.move;
 
         // Increase reduction if ttMove is a capture
         // ttMove が捕獲する指し手なら、reductionを増やす
 
         if (ttCapture)
-            r += 1350;
+            r += 1402 - 39 * msb(depth);
 
         // Increase reduction if next ply has a lot of fail high
         // 次の手でfail highが多い場合、reductionを増やす
 
         if ((ss + 1)->cutoffCnt > 2)
-            r += 935 + allNode * 763;
+            r += 925 + 33 * msb(depth) + allNode * (701 + 224 * msb(depth));
 
         r += (ss + 1)->quietMoveStreak * 51;
 
@@ -3500,7 +3498,7 @@ moves_loop:  // When in check, search starts here
         // 最初に選ばれた指し手（ttMove）ではreductionを減らす
 
         if (move == ttData.move)
-	        r -= 2043;
+            r -= 2121 + 28 * msb(depth);
 
         if (capture)
             ss->statScore = 782 * int(PieceValue[pos.captured_piece()]) / 128
@@ -3515,7 +3513,7 @@ moves_loop:  // When in check, search starts here
         // Decrease/increase reduction for moves with a good/bad history
         // 良い/悪い履歴を持つ手に対して、reductionを減らす/増やす
 
-        r -= ss->statScore * 789 / 8192;
+        r -= ss->statScore * (729 - 12 * msb(depth)) / 8192;
 
 		// -----------------------
         // Step 17. Late moves reduction / extension (LMR)
@@ -3601,17 +3599,16 @@ moves_loop:  // When in check, search starts here
             // ttMoveが存在しない場合、削減を増やします。
 
             if (!ttData.move)
-                r += 1139;
+                r += 1199 + 35 * msb(depth);
 
-            const int threshold1 = depth <= 4 ? 2000 : 3200;
-            const int threshold2 = depth <= 4 ? 3500 : 4600;
+            if (depth <= 4)
+                r += 1150;
 
             // Note that if expected reduction is high, we reduce search depth here
             // 期待される削減が大きい場合、ここで探索深さを1減らすことに注意してください。
 
             value = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha,
-                                   newDepth - (r > threshold1) - (r > threshold2 && newDepth > 2),
-                                   !cutNode);
+                                   newDepth - (r > 3200) - (r > 4600 && newDepth > 2), !cutNode);
 
 		}
 
@@ -4903,15 +4900,13 @@ void update_all_stats(const Position&          pos,
     PieceType              capturedPiece;
 
 #if STOCKFISH
-    int quietBonus   = std::min(170 * depth - 87, 1598) + 332 * (bestMove == ttMove);
+    int bonus        = std::min(170 * depth - 87, 1598) + 332 * (bestMove == ttMove);
     int quietMalus   = std::min(743 * depth - 180, 2287) - 33 * quietsSearched.size();
-    int captureBonus = std::min(124 * depth - 62, 1245) + 336 * (bestMove == ttMove);
     int captureMalus = std::min(708 * depth - 148, 2287) - 29 * capturesSearched.size();
 #else
 	// 🤔 size()はsize_tでintに代入すると警告が出るので修正しておく。
-    int quietBonus   = std::min(170 * depth - 87, 1598) + 332 * (bestMove == ttMove);
+    int bonus        = std::min(170 * depth - 87, 1598) + 332 * (bestMove == ttMove);
     int quietMalus   = std::min(743 * depth - 180, 2287) - 33 * int(quietsSearched.size());
-    int captureBonus = std::min(124 * depth - 62, 1245) + 336 * (bestMove == ttMove);
     int captureMalus = std::min(708 * depth - 148, 2287) - 29 * int(capturesSearched.size());
 #endif
 	/*
@@ -4921,7 +4916,7 @@ void update_all_stats(const Position&          pos,
 
     if (!pos.capture_stage(bestMove))
     {
-        update_quiet_histories(pos, ss, workerThread, bestMove, quietBonus * 978 / 1024);
+        update_quiet_histories(pos, ss, workerThread, bestMove, bonus * 978 / 1024);
 
         // Decrease stats for all non-best quiet moves
         // 最善でないquietの指し手すべての統計を減少させる
@@ -4935,7 +4930,7 @@ void update_all_stats(const Position&          pos,
         // 最善手が捕獲する指し手だった場合、その統計を増加させる
 
         capturedPiece = type_of(pos.piece_on(bestMove.to_sq()));
-        captureHistory[movedPiece][bestMove.to_sq()][capturedPiece] << captureBonus * 1288 / 1024;
+        captureHistory[movedPiece][bestMove.to_sq()][capturedPiece] << bonus;
     }
 
     // Extra penalty for a quiet early move that was not a TT move in
