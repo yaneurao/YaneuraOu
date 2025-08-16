@@ -69,7 +69,8 @@ struct SearchOptions {
     // エンジンオプションの"USI_Ponder"の値。
     // これがtrueのときだけ "bestmove XXX ponder YYY" のようにponderの指し手を返す。
     // ※　dlshogiは変数名pondering_mode。
-    bool usi_ponder = false;
+    //bool usi_ponder = false;
+	// 🌈 ふかうら王では、Engine::usi_ponderがあるのでそちらを見に行けばいいから不要。
 
     // エンジンオプションの "UCT_NodeLimit" の値。
     // これは、Nodeを作る数の制限。これはメモリ使用量に影響する。

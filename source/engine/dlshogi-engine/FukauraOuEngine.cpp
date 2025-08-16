@@ -167,9 +167,6 @@ void FukauraOuEngine::isready() {
 	// PV lineの詰み探索の設定
 	searcher.SetPvMateSearch(int(options["PV_Mate_Search_Threads"]), int(options["PV_Mate_Search_Nodes"]));
 
-	// USI_Ponderの反映
-    searcher.search_options.usi_ponder = options["USI_Ponder"];
-
 	// 🤔 "isready"に対してnode limit = 1 , batch_size = 128 で探索したほうがいいかも。(dlshogiはそうなっている)
 }
 
@@ -259,7 +256,7 @@ void FukauraOuWorker::start_searching()
     std::string bestmove = to_usi_string(move);
     std::string ponder;
     // USI_Ponderがtrueならば、bestmoveに続けて、ponderの指し手も出力する。
-    if (searcher.search_options.usi_ponder && ponderMove)
+    if (engine.usi_ponder && ponderMove)
         ponder = to_usi_string(ponderMove);
 
     engine.updateContext.onBestmove(bestmove, ponder);

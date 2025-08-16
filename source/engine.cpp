@@ -77,7 +77,21 @@ void Engine::add_base_options() {
     // 📝 TimeManagementがこのoptionを持っていることを仮定している。
     // 🤔 思考Engineである以上はUSI_Ponderをサポートすべきだと思う。
     options.add(  //
-      "USI_Ponder", Option(false));
+      "USI_Ponder", Option(false, [this](const Option& o) {
+          usi_ponder = o;
+          return std::nullopt;
+      }));
+
+	// 確率的Ponder
+	options.add(  //
+      "Stochastic_Ponder", Option(false, [this](const Option& o) {
+          stochastic_ponder = o;
+		  // これをONにするときは、USI_Ponderの値もONにしなければならない。
+		  // ユーザー側で設定するの忘れかねないのでここで設定しておく。 
+          if (o)
+              usi_ponder = true;
+		return std::nullopt;
+	}));
 
     // 🤔 思考エンジンである以上、limits.depth, nodesには従うはずで、
     //     これを固定で制限する思考エンジンオプションはdefaultで生えてていいと思うんだよなー。
