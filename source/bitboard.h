@@ -1127,20 +1127,20 @@ inline Bitboard attacks_bb(Square s, Bitboard occupied) {
 #if STOCKFISH
 inline Square lsb(Bitboard b) {
 #else
-inline uint32_t lsb(uint64_t b) {
+inline int8_t lsb(uint64_t b) {
 #endif
 	assert(b);
 
 #if defined(__GNUC__)  // GCC, Clang, ICX
 
-    return uint32_t(__builtin_ctzll(b));
+    return int8_t(__builtin_ctzll(b));
 
 #elif defined(_MSC_VER)
     #ifdef _WIN64  // MSVC, WIN64
 
     unsigned long idx;
     _BitScanForward64(&idx, b);
-    return uint32_t(idx);
+    return int8_t(idx);
 
     #else  // MSVC, WIN32
     unsigned long idx;
@@ -1148,12 +1148,12 @@ inline uint32_t lsb(uint64_t b) {
     if (b & 0xffffffff)
     {
         _BitScanForward(&idx, int32_t(b));
-        return uint32_t(idx);
+        return int8_t(idx);
     }
     else
     {
         _BitScanForward(&idx, int32_t(b >> 32));
-        return uint32_t(idx + 32);
+        return int8_t(idx + 32);
     }
     #endif
 #else  // Compiler is neither GCC nor MSVC compatible
@@ -1167,20 +1167,20 @@ inline uint32_t lsb(uint64_t b) {
 #if STOCKFISH
 inline Square msb(Bitboard b) {
 #else
-inline uint32_t msb(uint64_t b) {
+inline int8_t msb(uint64_t b) {
 #endif
     assert(b);
 
 #if defined(__GNUC__)  // GCC, Clang, ICX
 
-    return uint32_t(63 ^ __builtin_clzll(b));
+    return int8_t(63 ^ __builtin_clzll(b));
 
 #elif defined(_MSC_VER)
     #ifdef _WIN64  // MSVC, WIN64
 
     unsigned long idx;
     _BitScanReverse64(&idx, b);
-    return uint32_t(idx);
+    return int8_t(idx);
 
     #else  // MSVC, WIN32
 
@@ -1189,12 +1189,12 @@ inline uint32_t msb(uint64_t b) {
     if (b >> 32)
     {
         _BitScanReverse(&idx, int32_t(b >> 32));
-        return uint32_t(idx + 32);
+        return int8_t(idx + 32);
     }
     else
     {
         _BitScanReverse(&idx, int32_t(b));
-        return uint32_t(idx);
+        return int8_t(idx);
     }
     #endif
 #else  // Compiler is neither GCC nor MSVC compatible
