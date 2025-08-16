@@ -488,6 +488,7 @@ constexpr Value VALUE_NOT_EVALUATED = INT32_MAX;
 constexpr Value mate_in(int ply) { return (Value)(VALUE_MATE - ply); }
 
 // ply手で詰まされるときのスコア
+// 💡 現局面で詰まされているなら、mated_in(1)
 constexpr Value mated_in(int ply) { return (Value)(-VALUE_MATE + ply); }
 
 

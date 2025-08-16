@@ -189,11 +189,11 @@ MateRepetitionState mate_repetition(const Position& pos,
         {
         case REPETITION_DRAW :  // 詰まない(千日手で逃れている)
         case REPETITION_WIN :   // 連続王手の千日手で勝ちになった。
-            //case REPETITION_SUPERIOR: // 駒得をしている。即座に詰まないとは言い切れないが、これでこのあと詰まされるとしたら相手は駒損せずに詰ますことができるのでこの指し手は不詰扱いして良い。
+        case REPETITION_SUPERIOR: // 駒得をしている。即座に詰まないとは言い切れないが、これでこのあと詰まされるとしたら相手は駒損せずに詰ますことができるのでこの指し手は不詰扱いして良い。
             return MateRepetitionState::Mate;  // 不詰 = and node側から見ると勝ち
 
         case REPETITION_LOSE :  // 連続王手の千日手による反則負け。
-            //case REPETITION_INFERIOR: // 駒損したものの即座に詰まないとは言い切れないが、これで詰まないとしたら駒損しないほうの変化でも詰まないので、これは詰み扱いして良い。
+        case REPETITION_INFERIOR: // 駒損したものの即座に詰まないとは言い切れないが、これで詰まないとしたら駒損しないほうの変化でも詰まないので、これは詰み扱いして良い。
             return MateRepetitionState::Mated;  // 詰み = and node側から見ると負け
 
         case REPETITION_NONE :
@@ -217,8 +217,8 @@ MateRepetitionState mate_repetition(const Position& pos,
                 return MateRepetitionState::Mated;  // 負け
 
             case REPETITION_NONE :
-                //case REPETITION_INFERIOR: // 駒損はしたが、今回は詰むとは言えない。
-                //case REPETITION_SUPERIOR: // 攻め方が駒損をしているが、即座にこの筋がないとは言い切れない。(MCTSの探索ならそんな指し手はしないかも知れないが)
+            case REPETITION_INFERIOR: // 駒損はしたが、今回は詰むとは言えない。
+            case REPETITION_SUPERIOR: // 攻め方が駒損をしているが、即座にこの筋がないとは言い切れない。(MCTSの探索ならそんな指し手はしないかも知れないが)
                 break;
 
             default :

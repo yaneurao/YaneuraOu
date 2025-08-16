@@ -710,7 +710,7 @@ void Search::YaneuraOuWorker::start_searching() {
     // go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
     // この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
     search_options.computed_pv_interval =
-		(limits.infinite || search_options.consideration_mode) ? 0 : search_options.pv_interval;
+      (limits.infinite || search_options.consideration_mode) ? 0 : search_options.pv_interval;
 
     // 🌈 引き分けのスコア
 
@@ -733,8 +733,8 @@ void Search::YaneuraOuWorker::start_searching() {
     //     Stockfish本家もこうするべきだと思う。
     mainManager.ponder_candidate = Move::none();
 
-	// 探索せずに指し手を返すときの指し手
-	Book::ProbeResult probeMove;
+    // 探索せずに指し手を返すときの指し手
+    Book::ProbeResult probeResult;
 
 #if defined(SHOGI24)
     // ---------------------
@@ -770,7 +770,7 @@ void Search::YaneuraOuWorker::start_searching() {
         // rootMoves.size() == 0だけど、玉で玉を取る指し手だけがあることは起こり得る。
         // (この理由から、玉を取る判定は、合法手がない判定より先にしなければならない)
 
-		probeMove.bestmove = m;
+        probeMove.bestmove  = m;
         probeMove.bestscore = mate_in(1);
         goto SKIP_SEARCH;
     }
@@ -787,16 +787,18 @@ void Search::YaneuraOuWorker::start_searching() {
     {
         // rootで指し手がない = (将棋だと)詰みの局面である
 
-        probeMove.bestmove = Move::resign();
-        probeMove.bestscore = mated_in(1);
+        probeResult.bestmove  = Move::resign();
+        probeResult.bestscore = mated_in(1);
+
+		// 💡 このあとrootMoves[0]にアクセスして、アクセス違反になるのを防ぐため。
+        rootMoves.emplace_back(Move::none());
 
 #if STOCKFISH
         main_manager()->updates.onUpdateNoMoves(
           {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
         // 💡 チェスだと王手されていないなら引き分けだが、将棋だとつねに負け。
 #else
-        // 指し手がないときのdepthと評価値のPVを出力。
-        mainManager.updates.onUpdateNoMoves({0, -VALUE_MATE});
+		// やねうら王では、このあと、probeResultを用いる時用にPVを出力するので、そこで行う。
 #endif
 
         goto SKIP_SEARCH;
@@ -816,8 +818,8 @@ void Search::YaneuraOuWorker::start_searching() {
         auto bestMove = rootPos.DeclarationWin();
         if (bestMove != Move::none())
         {
-            probeMove.bestmove = bestMove;
-            probeMove.bestscore = mate_in(1);
+            probeResult.bestmove  = bestMove;
+            probeResult.bestscore = mate_in(1);
             goto SKIP_SEARCH;
         }
     }
@@ -826,8 +828,8 @@ void Search::YaneuraOuWorker::start_searching() {
     //     定跡の選択部
     // ---------------------
 
-    probeMove = engine.book.probe(rootPos, main_manager()->updates);
-    if (probeMove.bestmove)
+    probeResult = engine.book.probe(rootPos, main_manager()->updates);
+    if (probeResult.bestmove)
         goto SKIP_SEARCH;
 
     // ---------------------
@@ -873,24 +875,6 @@ void Search::YaneuraOuWorker::start_searching() {
 
 SKIP_SEARCH:
 
-#if !STOCKFISH
-	// rootMovesがなければとりあえずアクセス違反にならないようにMove::none()を積む。
-	if (rootMoves.empty())
-        rootMoves.emplace_back(Move::none());
-
-    // 定跡にhitしたり宣言勝ちであったりするなら、その指し手を選ぶようにする。
-    if (probeMove.bestmove != Move::none())
-    {
-        auto it_move = std::find(rootMoves.begin(), rootMoves.end(), probeMove.bestmove);
-        if (it_move != rootMoves.end())
-            std::swap(rootMoves[0], *it_move);
-        else
-            rootMoves.emplace_back(probeMove.bestmove);
-
-		rootMoves[0].score = rootMoves[0].uciScore = probeMove.bestscore.to_value();
-    }
-#endif
-
     while (!threads.stop && (main_manager()->ponder || limits.infinite))
     {
         // Busy wait for a stop or a ponder reset
@@ -902,7 +886,7 @@ SKIP_SEARCH:
         // ⚠ Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
 
 
-		/*
+        /*
 			📓 ここでPVを出力したほうがいいかも？
 
 				ponder中/go infinite中であっても、ここに抜けてきている以上、
@@ -948,9 +932,9 @@ SKIP_SEARCH:
                                               - limits.inc[rootPos.side_to_move()]);
 #endif
 
-	// 📌 指し手をGUIに返す 📌
+    // 📌 指し手をGUIに返す 📌
 
-	// Lazy SMPの結果を取り出す
+    // Lazy SMPの結果を取り出す
 
 #if STOCKFISH
     // 並列探索したうちのbestな結果を保持しているthread
@@ -969,13 +953,7 @@ SKIP_SEARCH:
 #endif
 
     if (int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate && !skill.enabled()
-        && rootMoves[0].pv[0] != Move::none()
-#if !STOCKFISH
-        && !search_skipped
-		// ⚠ この条件を追加しておかないと、定跡にhitしたりして、main threadのrootMovesに積んだりしても、
-		//     bestThreadがmain threadではないものを指してしまい、期待した指し手がbestmoveとして出力されなくなる。
-#endif
-    )
+        && rootMoves[0].pv[0] != Move::none())
 #if STOCKFISH
         bestThread = threads.get_best_thread()->worker.get();
 #else
@@ -994,20 +972,51 @@ SKIP_SEARCH:
         main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
 
     // 🤔 こんなにPV出力するの好きじゃないので省略。
-	//     ただし、一度もPVを出力していないなら、出力すべきだと思う。
+    //     ただし、一度もPVを出力していないなら、出力すべきだと思う。
 
 #else
+    // この時点で一度もPVを出力していないなら出力する。
+    // 💡 一度も出力していない場合、lastPvInfoTimeは、"go"された時刻であるstartTimeになっている。
+    if (search_options.lastPvInfoTime == limits.startTime)
+    {
+        if (search_skipped)
+        {
+            // search_skippedのときは、自前でPVを構築する。
+            // 💡 このとき、rootMovesの情報を使わないようにしたい。
+
+            InfoFull info;
+            info.depth     = 0;
+            info.selDepth  = 0;
+            info.multiPV   = 1;
+            info.score     = probeResult.bestscore;
+            TimePoint time = std::max(TimePoint(1), mainManager.tm.elapsed_time());
+            info.timeMs    = time;
+            info.nodes     = 0;
+            info.nps       = 0;
+            std::string pv = probeResult.bestmove.to_usi_string();
+            if (probeResult.pondermove)
+                pv += " " + probeResult.pondermove.to_usi_string();
+            info.pv       = pv;
+            info.hashfull = tt.hashfull();
+            mainManager.updates.onUpdateFull(info);
+        }
+        else
+        {
+            main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
+        }
+    }
+
     // 🌈 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。
     //    ただし定跡の指し手にhitした場合などはrootMoves[0].score == -VALUE_INFINITEになっているのでそれは除外。
     auto resign_value = (int) options["ResignValue"];
     if (bestThread->rootMoves[0].score != -VALUE_INFINITE
         && USIEngine::to_cp(bestThread->rootMoves[0].score) <= -resign_value)
-        bestThread->rootMoves[0].pv[0] = Move::resign();
+    {
+        // 探索がskipされた扱いにして、resignを積む。
+        search_skipped = true;
+        probeResult    = Book::ProbeResult(Move::resign());
+    };
 
-	// この時点で一度もPVを出力していないなら出力する。
-	// 💡 一度も出力していない場合、lastPvInfoTimeは、"go"された時刻であるstartTimeになっている。
-	if (search_options.lastPvInfoTime == limits.startTime)
-        main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
 #endif
 
     // デバッグ用に(ギリギリまで思考できているかを確認するために)経過時間を出力してみる。
@@ -1027,15 +1036,25 @@ SKIP_SEARCH:
     auto bestmove = UCIEngine::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
 #else
 
-	// 🌈 extract_ponder_from_tt()に
-    //     ponder_candidateを渡して、ponderの指し手をひねり出す。
+	std::string bestmove;
+    if (search_skipped)
+    {
+        bestmove = probeResult.bestmove.to_usi_string();
+        if (probeResult.pondermove)
+	        ponder   = probeResult.pondermove.to_usi_string();
+	}
+    else
+    {
+		// 🌈 extract_ponder_from_tt()に
+		//     ponder_candidateを渡して、ponderの指し手をひねり出す。
+        if (bestThread->rootMoves[0].pv.size() > 1
+            || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos,
+                                                               main_manager()->ponder_candidate))
+            ponder = USIEngine::move(bestThread->rootMoves[0].pv[1]);
 
-	if (bestThread->rootMoves[0].pv.size() > 1
-        || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos,
-                                                           main_manager()->ponder_candidate))
-        ponder = USIEngine::move(bestThread->rootMoves[0].pv[1]);
+        bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0]);
+    }
 
-    auto bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0]);
 #endif
     main_manager()->updates.onBestmove(bestmove, ponder);
 }

@@ -364,6 +364,10 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
     // 探索開始局面の初期化
     ExpandRoot(&pos, search_options.generate_all_legal_moves);
 
+	// 探索をスキップしたかのフラグ
+	bool search_skipped = true;
+    Book::ProbeResult probeResult;
+
     // ---------------------
     //     詰まされチェック
     // ---------------------
@@ -373,8 +377,9 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
     const ChildNumType child_num = current_root->child_num;
     if (child_num == 0)
     {
-        // 投了しておく。
-        return Move::resign();
+        probeResult.bestmove = Move::resign();
+        probeResult.bestscore = mated_in(1);
+		goto SEARCH_SKIP;
     }
 
     // ---------------------
@@ -390,12 +395,9 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
             // 宣言勝ち
             // 💡 sync_cout << "info score mate 1 pv MOVE_WIN" << sync_endl;
 
-            Search::InfoFull info;
-            info.score = mate_in(1);
-            info.pv    = "MOVE_WIN";
-            engine.updateContext.onUpdateFull(info);
-
-            return move;
+			probeResult.bestmove = move;
+            probeResult.bestscore = mate_in(1);
+            goto SEARCH_SKIP;
         }
 
         // 詰みはdf-pnで詰め探索をしているので何もせずとも普通に見つけるはず…。
@@ -408,16 +410,15 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
 
     // 定跡DBにhitするか調べる。
 
-    auto probe_result = book.probe(pos, engine.updateContext);
-    if (probe_result.bestmove)
-    {
-        ponderMove = probe_result.pondermove;
-        return probe_result.bestmove;
-    }
+    probeResult = book.probe(pos, engine.updateContext);
+    if (probeResult.bestmove)
+        goto SEARCH_SKIP;
 
     // ---------------------
     //     並列探索の開始
     // ---------------------
+
+	search_skipped        = false;
 
     // 前回、この現在の探索局面を何回訪問したのか
     const NodeCountType pre_simulated =
@@ -468,12 +469,10 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
     for (auto& searcher : pv_mate_searchers)
         searcher.Join();
 
+SEARCH_SKIP:
     // ---------------------
     //     PVの出力
     // ---------------------
-
-    // PVの取得と表示
-    auto best = UctPrint::get_best_move_multipv(current_root, search_limits, search_options, engine.updateContext);
 
     // デバッグ用のメッセージ出力
     if (search_options.debug_message)
@@ -485,6 +484,34 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
         // 探索の情報を出力(探索回数, 勝敗, 思考時間, 勝率, 探索速度)
         UctPrint::PrintPlayoutInformation(current_root, &search_limits, finish_time, pre_simulated);
     }
+
+	if (search_skipped)
+	{
+        // search_skippedのときは、自前でPVを構築する。
+        // 💡 このとき、rootMovesの情報を使わないようにしたい。
+
+        Search::InfoFull info;
+        info.depth     = 0;
+        info.selDepth  = 0;
+        info.multiPV   = 1;
+        info.score     = probeResult.bestscore;
+        TimePoint time = std::max(TimePoint(1), search_limits.time_manager.elapsed_time());
+        info.timeMs    = time;
+        info.nodes     = 0;
+        info.nps       = 0;
+        std::string pv = probeResult.bestmove.to_usi_string();
+        if (probeResult.pondermove)
+            pv += " " + probeResult.pondermove.to_usi_string();
+        info.pv       = pv;
+        info.hashfull = 0; // 不明
+        engine.updateContext.onUpdateFull(info);
+
+		ponderMove = probeResult.pondermove;
+        return probeResult.bestmove;
+	}
+
+    // PVの取得と表示
+    auto best = UctPrint::get_best_move_multipv(current_root, search_limits, search_options, engine.updateContext);
 
     // ---------------------
     //   思考した指し手を返す

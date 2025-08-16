@@ -26,13 +26,23 @@ static const char* BookDBHeader2016_100 = "#YANEURAOU-DB2016 1.00";
 // 定跡の指し手を返す時の型
 struct ProbeResult {
     // bestmove (定跡にhitしなければMOVE_NONE)
-    Move bestmove = Move::none();
-	// ⚠ cpに変換後のもの。
-	//     ValueからならScore::from_internal_score()で変換したものを設定する。
+    Move bestmove;
+    // ⚠ cpに変換後のもの。
+    //     ValueからならScore::from_internal_score()で変換したものを設定する。
     Score bestscore = 0;
 
-	// pondermove(なければMOVE_NONE)
-	Move pondermove = Move::none();
+    // pondermove(なければMOVE_NONE)
+    Move pondermove;
+
+	// 通常のコンストラクタ
+    ProbeResult() :
+        bestmove(Move::none()),
+        pondermove(Move::none()) {}
+
+	// 引数で渡されたmoveをbestmoveに設定する。
+    ProbeResult(Move move) :
+        bestmove(move),
+        pondermove(Move::none()) {}
 };
 
 // 将棋ソフト用の標準定跡ファイルフォーマットの提案 : http://yaneuraou.yaneu.com/2016/02/05/standard-shogi-book-format/
