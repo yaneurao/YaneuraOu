@@ -238,7 +238,7 @@ public:
 	// ※　Thread::search()から呼び出す。
 	void ParallelUctSearchStart(const Position& rootPos);
 
-	// leaf node用の詰め将棋ルーチンの初期化(alloc)を行う。
+	// leaf node用の詰め将棋ルーチンの初期化(alloc)を行う。"isready"に対して行う。
 	// ※　SetLimits()が"go"に対してしか呼び出されていないからmax_moves_to_drawは未確定なのでここで設定するわけにはいかない。
 	void InitMateSearcher(const SearchOptions& options);
 

@@ -22,28 +22,6 @@ namespace dlshogi {
 FukauraOuEngine::FukauraOuEngine() :
     searcher(*this){}
 
-// 基底classにあったoptionを生やす。
-void FukauraOuEngine::add_base_options()
-{
-	options.add("NumaPolicy", Option( "auto" , [this](const Option& o) {
-			set_numa_config_from_option(o);
-			return numa_config_information_as_string() + "\n"
-				+ thread_allocation_information_as_string();
-		}));
-	 
-    //options.add("USI_Ponder", Option(false));
-	// → SearchOptions::add_options()で生やしている。
-
-	//options.add("DepthLimit", Option(0, 0, int_max));
-	// → ふかうら王ではサポートしない。
-
-    options.add("NodesLimit", Option(0, 0, int64_max));
-	// これは生やしておけば、"go"のときにLimits.nodesに自動的に反映される。
-
-	//Engine::resize_threads();
-	// → この時点ではスレッド数が確定しないので呼ばない。
-}
-
 // NN関係のoptionを生やす。
 void FukauraOuEngine::add_nn_options()
 {
@@ -87,8 +65,8 @@ void FukauraOuEngine::add_nn_options()
 // ふかうら王のエンジンオプションを生やす
 void FukauraOuEngine::add_options() {
 
-	// 基底classにあったoptionを生やす(ただしThreadsは不要)
-    add_base_options();
+	// 全エンジン共通optionを生やす(ただしThreadsは不要)
+    Engine::add_base_options();
 
 	// 探索部で用いるoptionを生やす。
     searcher.add_options(options);
@@ -189,24 +167,10 @@ void FukauraOuEngine::isready() {
 	// PV lineの詰み探索の設定
 	searcher.SetPvMateSearch(int(options["PV_Mate_Search_Threads"]), int(options["PV_Mate_Search_Nodes"]));
 
-#if DLSHOGI
-	// dlshogiでは、
-	// "isready"に対してnode limit = 1 , batch_size = 128 で探索してある。
-	// 初期局面に対してはわりと得かも？
+	// USI_Ponderの反映
+    searcher.search_options.usi_ponder = options["USI_Ponder"];
 
-	// 初回探索をキャッシュ
-	Position pos_tmp;
-	StateInfo si;
-	pos_tmp.set_hirate(&si);
-	Search::LimitsType limits;
-	limits.nodes = 1;
-	searcher.SetLimits(pos_tmp, limits);
-	Move ponder;
-	auto start_threads = [&]() {
-		searcher.parallel_search(pos_tmp,0);
-	};
-	searcher.UctSearchGenmove(pos_tmp, pos_tmp.sfen(), {}, ponder);
-#endif
+	// 🤔 "isready"に対してnode limit = 1 , batch_size = 128 で探索したほうがいいかも。(dlshogiはそうなっている)
 }
 
 // 🌈 "ponderhit"に対する処理。

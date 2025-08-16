@@ -58,9 +58,6 @@ class FukauraOuEngine: public YaneuraOu::Engine {
     // エンジンoptionを生やす。
     virtual void add_options() override;
 
-	// 基底classにあったoptionを生やす。
-	void add_base_options();
-
     // "isready"コマンド応答。
     virtual void isready() override;
 

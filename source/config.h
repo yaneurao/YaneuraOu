@@ -158,10 +158,6 @@
 //#define USE_EVAL_LIST
 
 
-// 評価関数を計算したときに、それをHashTableに記憶しておく機能。KPPT評価関数においてのみサポート。
-// #define USE_EVAL_HASH
-
-
 // 評価関数パラメーターを共有メモリを用いて他プロセスのものと共有する。
 // 少ないメモリのマシンで思考エンジンを何十個も立ち上げようとしたときにメモリ不足になるので
 // 評価関数をshared memoryを用いて他のプロセスと共有する機能。(対応しているのはいまのところKPPT評価関数のみ。かつWindows限定)
@@ -411,8 +407,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_EVAL
 
 	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
-		// EvalHashを用いるのは3駒型のみ。それ以外は差分計算用の状態が大きすぎてhitしたところでどうしようもない。
-		#define USE_EVAL_HASH
 
 		// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
 		#define USE_SHARED_MEMORY_IN_EVAL
@@ -769,24 +763,6 @@ constexpr bool pretty_jp = false;
 
 #if defined (USE_SSSE3)
 #define USE_SSE2
-#endif
-
-
-// --------------------
-//    for 32bit OS
-// --------------------
-
-#if !defined(IS_64BIT)
-
-// 32bit環境ではメモリが足りなくなるので以下の2つは強制的にオフにしておく。
-
-#undef USE_EVAL_HASH
-//#undef USE_SHARED_MEMORY_IN_EVAL
-
-// 機械学習用の配列もメモリ空間に収まりきらないのでコンパイルエラーとなるから
-// これもオフにしておく。
-#undef EVAL_LEARN
-
 #endif
 
 // ----------------------------

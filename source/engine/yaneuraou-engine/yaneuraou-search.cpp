@@ -630,7 +630,7 @@ void Search::YaneuraOuWorker::pre_start_searching() {
     bestMoveChanges = 0;
     rootDepth = completedDepth = 0;
 
-	// 入玉ルールを反映させる必要がある。
+    // 各WorkerのPosition::set_ekr()を呼び出して入玉ルールを反映させる必要がある。
     auto& search_options = main_manager()->search_options;
     rootPos.set_ekr(search_options.enteringKingRule);
 

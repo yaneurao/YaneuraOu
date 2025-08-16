@@ -364,6 +364,10 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
     // 探索開始局面の初期化
     ExpandRoot(&pos, search_options.generate_all_legal_moves);
 
+    // 前回、この現在の探索局面を何回訪問したのか
+    const NodeCountType pre_simulated =
+      current_root->move_count != NOT_EXPANDED ? current_root->move_count.load() : 0;
+
 	// 探索をスキップしたかのフラグ
 	bool search_skipped = true;
     Book::ProbeResult probeResult;
@@ -419,10 +423,6 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
     // ---------------------
 
 	search_skipped        = false;
-
-    // 前回、この現在の探索局面を何回訪問したのか
-    const NodeCountType pre_simulated =
-      current_root->move_count != NOT_EXPANDED ? current_root->move_count.load() : 0;
 
     // 探索時間とプレイアウト回数の予測値を出力
     if (search_options.debug_message)

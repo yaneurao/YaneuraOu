@@ -46,68 +46,96 @@ void Engine::usi()
 #endif
 }
 
-void Engine::add_options() {
+// どのエンジンでも共通で必要なエンジンオプションを生やす。
+// "NumaPolicy","DebugLogFile","DepthLimit", "NodesLimit", "DebugLogFile"
+void Engine::add_base_options() {
 
-	// 📌 最低限のoptionを生やす。
-	//     これが要らなければ、このEngine classを派生させて、add_optionsをoverrideして、
-	//     このadd_options()を呼び出さないようにしてください。
-	// ⚠ だとして、その時にもresize_threads()は呼び出して、スレッド自体は生成するようにしてください。
-
-	options.add(
-		// 📝 やねうら王では default threadを4に変更する。
-		//     過去にdefault設定のまま対局させて「やねうら王弱い」という人がいたため。
-		"Threads", Option(4, 1, MaxThreads, [this](const Option&) {
-			resize_threads();
-			return thread_allocation_information_as_string();
-		}));
-
-	// NumaPolicy
-	//   Numaの割り当て方針
-	// 
-	// none       : 単一のNUMAノード、スレッドバインディングなしを想定。
+    // NumaPolicy
+    //   Numaの割り当て方針
+    //
+    // none       : 単一のNUMAノード、スレッドバインディングなしを想定。
     // system     : システムから利用可能なNUMA情報を使用し、それに応じてスレッドをバインドします。
     // auto       : デフォルト;システムに基づいてsystemとnoneを自動的に選択。
-	// hardware   : 基盤ハードウェアからのNUMA情報を使用し、それに応じてスレッドをバインドし、
-	//				以前のアフィニティをオーバーライドします。
-	//				すべてのスレッドを使用しない場合（Windows 10やChessBaseなどの特定のGUIなど）に使用してください。
-	// [[custom]] : NUMAドメインごとに利用可能なCPUを正確に指定します。
-	//				':'はNUMAノードを区切り、','はCPUインデックスを区切ります。
-	//				CPUインデックスには「最初-最後」の範囲構文をサポートします。
-	//				例:0-15,32-47:16-31,48-63
-	// 
-	// 🔍  https://github.com/official-stockfish/Stockfish/wiki/UCI-&-Commands#numapolicy
+    // hardware   : 基盤ハードウェアからのNUMA情報を使用し、それに応じてスレッドをバインドし、
+    //				以前のアフィニティをオーバーライドします。
+    //				すべてのスレッドを使用しない場合（Windows 10やChessBaseなどの特定のGUIなど）に使用してください。
+    // [[custom]] : NUMAドメインごとに利用可能なCPUを正確に指定します。
+    //				':'はNUMAノードを区切り、','はCPUインデックスを区切ります。
+    //				CPUインデックスには「最初-最後」の範囲構文をサポートします。
+    //				例:0-15,32-47:16-31,48-63
+    //
+    // 🔍  https://github.com/official-stockfish/Stockfish/wiki/UCI-&-Commands#numapolicy
 
-	options.add("NumaPolicy", Option( "auto" , [this](const Option& o) {
-			set_numa_config_from_option(o);
-			return numa_config_information_as_string() + "\n"
-				+ thread_allocation_information_as_string();
-		}));
-	 
-	// ponderの有無
-	// 📝 TimeManagementがこのoptionを持っていることを仮定している。
-	// 🤔 思考Engineである以上はUSI_Ponderをサポートすべきだと思う。
-    options.add("USI_Ponder", Option(false));
+    options.add(  //
+      "NumaPolicy", Option("auto", [this](const Option& o) {
+          set_numa_config_from_option(o);
+          return numa_config_information_as_string() + "\n"
+               + thread_allocation_information_as_string();
+      }));
 
-	// 🤔 思考エンジンである以上、limits.depth, nodesには従うはずで、
-	//     これを固定で制限する思考エンジンオプションはdefaultで生えてていいと思うんだよなー。
+    // ponderの有無
+    // 📝 TimeManagementがこのoptionを持っていることを仮定している。
+    // 🤔 思考Engineである以上はUSI_Ponderをサポートすべきだと思う。
+    options.add(  //
+      "USI_Ponder", Option(false));
 
-	// 探索深さ制限。0なら無制限。
-	// 📝 "go"コマンドで、このオプションが指定されていたら、limits.depthのdefault値をこれに変更する。
-    options.add("DepthLimit", Option(0, 0, int_max));
+    // 🤔 思考エンジンである以上、limits.depth, nodesには従うはずで、
+    //     これを固定で制限する思考エンジンオプションはdefaultで生えてていいと思うんだよなー。
+
+    // 探索深さ制限。0なら無制限。
+    // 📝 "go"コマンドで、このオプションが指定されていたら、limits.depthのdefault値をこれに変更する。
+    options.add(  //
+      "DepthLimit", Option(0, 0, int_max));
 
     // 探索ノード制限。0なら無制限。
     // 📝 "go"コマンドで、このオプションが指定されていたら、limits.nodesのdefault値をこれに変更する。
-    options.add("NodesLimit", Option(0, 0, int64_max));
+    options.add(  //
+      "NodesLimit", Option(0, 0, int64_max));
 
-	// このタイミングで"Threads"の設定を仮に反映させる。
-	// 📝 Threadsを1以上にしておかないと、このあと置換表のクリアなど、
-	//     複数スレッドを用いて行うことができなくなるため。
-	// ⚠ ここで、派生class側のresize_threads()ではなく、
-	//	   このclassのresize_threads()を呼び出すことに注意。
-	//     派生class側のresize_threads()は、"USI_Hash"を参照して
-	//     置換表を初期化するコードが書かれているかもしれないが、
-	//     いま時点では、"USI_Hash"のoptionをaddしていないのでエラーとなる。
-	Engine::resize_threads();
+    // デバッグ用にログファイルへ書き出す。
+    options.add(  //
+      "DebugLogFile", Option("", [](const Option& o) {
+          start_logger(o);
+          return std::nullopt;
+      }));
+}
+
+void Engine::add_options() {
+
+    // 📌 最低限のoptionを生やす。
+    //     これが要らなければ、このEngine classを派生させて、add_optionsをoverrideして、
+    //     このadd_options()を呼び出さないようにしてください。
+    // ⚠ だとして、その時にもresize_threads()は呼び出して、スレッド自体は生成するようにしてください。
+
+    options.add(  //
+      // 📝 やねうら王では default threadを4に変更する。
+      //     過去にdefault設定のまま対局させて「やねうら王弱い」という人がいたため。
+      "Threads", Option(4, 1, MaxThreads, [this](const Option&) {
+          resize_threads();
+          return thread_allocation_information_as_string();
+      }));
+
+    // 基本オプションを生やす。
+    add_base_options();
+
+#if STOCKFISH
+    // Stockfishには、探索部を初期化するエンジンオプションがあるが使わないので未サポートとする。
+    options.add(  //
+      "Clear Hash", Option([this](const Option&) {
+          search_clear();
+          return std::nullopt;
+      }));
+#endif
+
+    // このタイミングで"Threads"の設定を仮に反映させる。
+    // 📝 Threadsを1以上にしておかないと、このあと置換表のクリアなど、
+    //     複数スレッドを用いて行うことができなくなるため。
+    // ⚠ ここで、派生class側のresize_threads()ではなく、
+    //	   このclassのresize_threads()を呼び出すことに注意。
+    //     派生class側のresize_threads()は、"USI_Hash"を参照して
+    //     置換表を初期化するコードが書かれているかもしれないが、
+    //     いま時点では、"USI_Hash"のoptionをaddしていないのでエラーとなる。
+    Engine::resize_threads();
 }
 
 // NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
@@ -537,283 +565,5 @@ void run_engine_entry()
 	}
 }
 
-
-// 🚧 工事中 🚧
-
-#if 0
-
-YaneuraOuEngine::YaneuraOuEngine(/* std::optional<std::string> path */) :
-	//binaryDirectory(path ? CommandLine::get_binary_directory(*path) : ""),
-	numaContext(NumaConfig::from_system()),
-	states(new std::deque<StateInfo>(1)),
-	threads(),
-	networks(numaContext)
-	// TODO : あとで
-
-	// networks(
-	//	numaContext,
-	//	NN::Networks(
-	//		NN::NetworkBig({ EvalFileDefaultNameBig, "None", "" }, NN::EmbeddedNNUEType::BIG),
-	//		NN::NetworkSmall({ EvalFileDefaultNameSmall, "None", "" }, NN::EmbeddedNNUEType::SMALL)))
-{
-	// 定跡DB classの初期化
-	book = std::make_shared<Book::BookMoveSelector>();
-	book->init(options);
-
-	// 局面を初期局面に設定する。
-	pos.set(StartSFEN, &states->back());
-
-
-
-#if defined(YANEURAOU_ENGINE)
-	constexpr int HashMB = 1024;
-#elif defined(TANUKI_MATE_ENGINE)
-	constexpr int HashMB = 4096;
-#elif defined(YANEURAOU_MATE_ENGINE)
-	constexpr int HashMB = 1024;
-#else
-	// other engine
-	constexpr int HashMB = 16; // maybe not used
-#endif
-
-	// 置換表のサイズ。[MB]で指定。
-	options.add(  //
-		"USI_Hash", Option(HashMB, 1, MaxHashMB, [this](const Option& o) {
-			set_tt_size(o);
-			return std::nullopt;
-			}));
-
-#if defined(USE_EVAL_HASH)
-	// 評価値用のcacheサイズ。[MB]で指定。
-
-#if defined(FOR_TOURNAMENT)
-		// トーナメント用は少し大きなサイズ
-	o["EvalHash"] << Option(1024, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
-#else
-	o["EvalHash"] << Option(128, 1, MaxHashMB, [](const Option& o) { Eval::EvalHash_Resize(o); });
-#endif  // defined(FOR_TOURNAMENT)
-#endif  // defined(USE_EVAL_HASH)
-
-
-#if 0
-
-	// Stockfishには、探索部を初期化するエンジンオプションがあるが使わないので未サポートとする。
-	//o["Clear Hash"]            << Option(on_clear_hash);
-
-	// 確率的ponder , defaultでfalseにしとかないと、読み筋の表示がおかしくなって、初心者混乱する。
-	o["Stochastic_Ponder"] << USI::Option(false);
-
-
-
-#if defined(__EMSCRIPTEN__) && defined(EVAL_NNUE)
-	// WASM NNUE
-	const char* default_eval_file = "nn.bin";
-	last_eval_file = default_eval_file;
-	o["EvalFile"] << Option(default_eval_file, [](const USI::Option& o) {
-		if (last_eval_file != std::string(o))
-		{
-			// 評価関数ファイル名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
-			last_eval_file = std::string(o);
-			load_eval_finished = false;
-		}
-		});
-#endif
-
-	// cin/coutの入出力をファイルにリダイレクトする
-	o["WriteDebugLog"] << Option("", [](const Option& o) { on_logger(o); });
-
-	// 読みの各局面ですべての合法手を生成する
-	// (普通、歩の2段目での不成などは指し手自体を生成しないが、
-	// これのせいで不成が必要な詰みが絡む問題が解けないことがあるので、このオプションを用意した。)
-#if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE)
-		// 詰将棋エンジンではデフォルトでオン。
-	o["GenerateAllLegalMoves"] << Option(true);
-#else
-		// 通常探索エンジンではデフォルトでオフ。
-	o["GenerateAllLegalMoves"] << Option(false);
-#endif
-
-#if defined(USE_ENTERING_KING_WIN)
-	// 入玉ルール
-	o["EnteringKingRule"] << Option(USI::ekr_rules, USI::ekr_rules[EKR_27_POINT]);
-#endif
-
-#if defined(USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32) \
-  && (defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT))
-	// 評価関数パラメーターを共有するか。
-	// デフォルトで有効に変更。(V4.90～)
-	o["EvalShare"] << Option(true);
-#endif
-
-#if defined(EVAL_LEARN)
-	// isreadyタイミングで評価関数を読み込まれると、新しい評価関数の変換のために
-	// test evalconvertコマンドを叩きたいのに、その新しい評価関数がないがために
-	// このコマンドの実行前に異常終了してしまう。
-	// そこでこの隠しオプションでisready時の評価関数の読み込みを抑制して、
-	// test evalconvertコマンドを叩く。
-	o["SkipLoadingEval"] << Option(false);
-#endif
-
-#if defined(_WIN64)
-	// LargePageを有効化するか。
-	// これを無効化できないと自己対局の時に片側のエンジンだけがLargePageを使うことがあり、
-	// 不公平になるため、無効化する方法が必要であった。
-	o["LargePageEnable"] << Option(true);
-#endif
-
-	// 各エンジンがOptionを追加したいだろうから、コールバックする。
-	USI::extra_option(o);
-
-	// コンパイル時にエンジンオプションが指定されている。
-#if defined(ENGINE_OPTIONS)
-	const std::string opt = ENGINE_OPTIONS;
-	set_engine_options(opt);
-#endif
-
-	// カレントフォルダに"engine_options.txt"があればそれをオプションとしてOptions[]の値をオーバーライドする機能。
-	read_engine_options("engine_options.txt");
-
-
-#endif
-
-	// 並列探索するときのスレッド数
-	// CPUの搭載コア数をデフォルトとすべきかも知れないが余計なお世話のような気もするのでしていない。
-
-#if !defined(YANEURAOU_ENGINE_DEEP)
-
-		// ※　やねうら王独自改良
-		// スレッド数の変更やUSI_Hashのメモリ確保をそのハンドラでやってしまうと、
-		// そのあとLargePageEnableを送られても困ることになる。
-		// ゆえにこれらは、"isready"に対する応答で行うことにする。
-		// そもそもで言うとsetoptionに対してそんなに時間のかかることをするとGUI側がtimeoutになる懸念もある。
-		// Stockfishもこうすべきだと思う。
-
-#if !defined(__EMSCRIPTEN__)
-	options.add(
-		// 📝 やねうら王では default threadを4に変更する。
-		//     過去にdefault設定のまま対局させて「やねうら王弱い」という人がいたため。
-		"Threads", Option(4, 1, MaxThreads, [this](const Option&) {
-			resize_threads();
-			return thread_allocation_information_as_string();
-			}));
-
-#else
-		// yaneuraou.wasm
-		// スレッド数などの調整
-		// stockfish.wasmの数値を基本的に使用している
-	options.add(  //
-		"Threads", Option(1, 1, 32, [this]([[maybe_unused]] const Option&) {
-			resize_threads();
-			return thread_allocation_information_as_string();
-			}));
-
-#endif
-#endif
-
-	// 評価関数フォルダと評価関数ファイル名。
-	// これらを変更したとき、評価関数を次のisreadyタイミングで読み直す必要がある。
-	// 📝 これらのhandlerは存在しない。
-	//     verify_networks()のなかで前回のpathと違うなら読み直す。
-
-#if defined(EVAL_EMBEDDING)
-	const char* default_eval_dir = "<internal>";
-#elif !defined(__EMSCRIPTEN__)
-	const char* default_eval_dir = "eval";
-#else
-		// WASM
-	const char* default_eval_dir = ".";
-#endif
-	options.add("EvalDir", Option(default_eval_dir));
-
-#if defined(YANEURAOU_ENGINE_NNUE)
-	const char* default_eval_file = "nn.bin";
-#elif defined(USER_ENGINE)
-	const char* default_eval_file = "eval.bin";
-#else
-	const char* default_eval_file = "eval.bin";
-#endif
-	options.add("EvalFile", Option(default_eval_file));
-
-
-	// 📌 やねうら王独自
-	//     各エンジン向けに、追加でオプションを生やす。
-	extra_option();
-
-	// 📝 Optionのhandlerは options.add()の時点では呼び出されない。
-	//     そこで、反映が必要なhandlerはここで呼び出してやる。
-	//     ここでOption名を指定してhandlerだけ呼び出せたほうが良いのではなかろうか。
-
-	//load_networks();
-	resize_threads();
-}
-
-// かきかけ
-
-
-
-// modifiers
-
-void Engine::set_tt_size(size_t mb) {
-	wait_for_search_finished();
-
-#if defined(TANUKI_MATE_ENGINE) || defined(YANEURAOU_MATE_ENGINE) || defined(YANEURAOU_ENGINE_DEEP)
-	//　これらのengineでは、この標準TTを用いない。
-	return;
-#endif
-
-	tt.resize(mb, threads);
-}
-
-void Engine::set_ponderhit(bool b) { threads.main_manager()->ponder = b; }
-
-// network related
-
-void Engine::verify_networks() const {
-	//networks->big.verify(options["EvalFile"], onVerifyNetworks);
-	//networks->small.verify(options["EvalFileSmall"], onVerifyNetworks);
-
-	auto& path = Path::Combine(options["EvalDir"], options["EvalFile"]);
-	networks->verify(path, onVerifyNetworks);
-}
-
-void Engine::load_networks() {
-
-	networks.modify_and_replicate([this](Eval::Evaluator& networks_) {
-		//networks_.big.load(binaryDirectory, options["EvalFile"]);
-		//networks_.small.load(binaryDirectory, options["EvalFileSmall"]);
-
-		auto path = Path::Combine(this->options["EvalDir"], this->options["EvalFile"]);
-		networks_.load(path);
-	});
-
-	threads.clear();
-	threads.ensure_network_replicated();
-}
-
-//void Engine::load_big_network(const std::string& file) {
-//	networks.modify_and_replicate(
-//		[this, &file](NN::Networks& networks_) { networks_.big.load(binaryDirectory, file); });
-//	threads.clear();
-//	threads.ensure_network_replicated();
-//}
-//
-//void Engine::load_small_network(const std::string& file) {
-//	networks.modify_and_replicate(
-//		[this, &file](NN::Networks& networks_) { networks_.small.load(binaryDirectory, file); });
-//	threads.clear();
-//	threads.ensure_network_replicated();
-//}
-
-void Engine::save_network(/*const std::pair<std::optional<std::string>, std::string> files[2]*/ const std::string& filename) {
-	//networks.modify_and_replicate([&files](Eval::Evaluator& networks_) {
-	//	networks_.big.save(files[0].first);
-	//	networks_.small.save(files[1].first);
-	//	});
-	networks.modify_and_replicate([&filename](Eval::Evaluator& networks_) {
-		networks_.save(filename);
-		});
-}
-
-#endif
 
 } // namespace YaneuraOu

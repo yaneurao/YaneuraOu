@@ -411,6 +411,10 @@ class Engine: public IEngine {
     virtual std::string get_engine_version() const override { return ENGINE_VERSION; }
     virtual std::string get_eval_name() const override { return EVAL_TYPE_NAME; }
 
+	// どのエンジンでも共通で必要なエンジンオプションを生やす。
+	// "NumaPolicy","DebugLogFile","DepthLimit", "NodesLimit", "DebugLogFile"
+	void add_base_options();
+
 #if STOCKFISH    
    protected:
 #endif   
