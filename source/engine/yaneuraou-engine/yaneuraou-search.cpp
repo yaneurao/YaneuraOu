@@ -790,7 +790,7 @@ void Search::YaneuraOuWorker::start_searching() {
         probeResult.bestmove  = Move::resign();
         probeResult.bestscore = mated_in(1);
 
-        // 💡 このあとrootMoves[0]にアクセスして、アクセス違反になるのを防ぐため。
+		// 💡 このあとrootMoves[0]にアクセスして、アクセス違反になるのを防ぐため。
         rootMoves.emplace_back(Move::none());
 
 #if STOCKFISH
@@ -798,7 +798,7 @@ void Search::YaneuraOuWorker::start_searching() {
           {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
         // 💡 チェスだと王手されていないなら引き分けだが、将棋だとつねに負け。
 #else
-        // やねうら王では、このあと、probeResultを用いる時用にPVを出力するので、そこで行う。
+		// やねうら王では、このあと、probeResultを用いる時用にPVを出力するので、そこで行う。
 #endif
 
         goto SKIP_SEARCH;
@@ -1036,28 +1036,37 @@ SKIP_SEARCH:
     auto bestmove = UCIEngine::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
 #else
 
-    std::string bestmove;
+	std::string bestmove;
     if (search_skipped)
     {
         bestmove = probeResult.bestmove.to_usi_string();
-        if (engine.usi_ponder && probeResult.pondermove)
-            ponder = probeResult.pondermove.to_usi_string();
-    }
+        if (probeResult.pondermove)
+	        ponder   = probeResult.pondermove.to_usi_string();
+	}
     else
     {
-        // 🌈 extract_ponder_from_tt()に
-        //     ponder_candidateを渡して、ponderの指し手をひねり出す。
-        // 💡 やねうら王では、エンジンオプション"USI_Ponder" == trueの時だけpondermoveをGUIに返す。
-        if (engine.usi_ponder
-            && (bestThread->rootMoves[0].pv.size() > 1
-                || bestThread->rootMoves[0].extract_ponder_from_tt(
-                  tt, rootPos, main_manager()->ponder_candidate)))
+		// 🌈 extract_ponder_from_tt()に
+		//     ponder_candidateを渡して、ponderの指し手をひねり出す。
+        if (bestThread->rootMoves[0].pv.size() > 1
+            || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos,
+                                                               main_manager()->ponder_candidate))
             ponder = USIEngine::move(bestThread->rootMoves[0].pv[1]);
 
         bestmove = USIEngine::move(bestThread->rootMoves[0].pv[0]);
     }
 
+	/*
+		📓
+			USIプロトコルにおいて、bestmoveの時に返すponderは、常に返して問題ない。
+
+			エンジンオプションの"USI_Ponder"がtrueであれば、GUIは次に相手の手番で"go ponder"を送信して
+			思考エンジンにponderで思考させる。
+
+			つまり、"USI_Ponder"は思考エンジンのためではなく、GUI側のためのオプションである。
+	*/
+
 #endif
+
     main_manager()->updates.onBestmove(bestmove, ponder);
 }
 

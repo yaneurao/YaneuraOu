@@ -86,10 +86,6 @@ void Engine::add_base_options() {
 	options.add(  //
       "Stochastic_Ponder", Option(false, [this](const Option& o) {
           stochastic_ponder = o;
-		  // これをONにするときは、USI_Ponderの値もONにしなければならない。
-		  // ユーザー側で設定するの忘れかねないのでここで設定しておく。 
-          if (o)
-              usi_ponder = true;
 		return std::nullopt;
 	}));
 

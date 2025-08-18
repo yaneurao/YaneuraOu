@@ -271,13 +271,10 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 		optimumTime = std::min(t1, optimumTime) * slowMover / 100;
 		maximumTime = std::min(t2, maximumTime);
 
-#if !defined(YANEURAOU_ENGINE_DEEP)
-		// Ponderが有効になっている場合、ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
-		// これ本当はゲーム開始時にUSIコマンドで送られてくるべきだと思う。→　将棋所では、送られてきてた。"USI_Ponder"  [2019/04/29]
-		// ふかうら王の場合、Ponder当たったからと言って探索量減らさないし、Stochastic Ponderがあるから、まあこれはいいや…。
-		if (/* Threads.main()->received_go_ponder*/ options["USI_Ponder"])
+		// Ponderが有効でStochastic_Ponderが無効の場合、
+		// ponderhitすると時間が本来の予測より余っていくので思考時間を心持ち多めにとっておく。
+        if (options["USI_Ponder"] && !options["Stochastic_Ponder"])
 			optimumTime += optimumTime / 4;
-#endif
 
 	}
 

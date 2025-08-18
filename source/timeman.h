@@ -28,6 +28,7 @@ class TimeManagement {
 
     // 今回の思考時間を決定する。
     // optimum(),maximum(),minimum()に反映する。
+	// ⚠ optionsに"USI_Ponder"と"Stochastic_Ponder"オプションが含まれていること。
     void init(const Search::LimitsType& limits, Color us, int ply, const OptionsMap& options
 #if STOCKFISH
 			  , double& originalTimeAdjust

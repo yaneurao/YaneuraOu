@@ -255,8 +255,7 @@ void FukauraOuWorker::start_searching()
 
     std::string bestmove = to_usi_string(move);
     std::string ponder;
-    // USI_Ponderがtrueならば、bestmoveに続けて、ponderの指し手も出力する。
-    if (engine.usi_ponder && ponderMove)
+    if (ponderMove)
         ponder = to_usi_string(ponderMove);
 
     engine.updateContext.onBestmove(bestmove, ponder);
