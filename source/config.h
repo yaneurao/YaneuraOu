@@ -484,8 +484,8 @@ constexpr int MAX_PLY_NUM = 246;
 		// EVAL_NNUE_KP256      : KP256(評価関数1MB未満)
 		// EVAL_NNUE_HALFKPE9   : 標準NNUE型のおよそ9倍(540MB程度)
 
-		 //#undef EVAL_NNUE_KP256
-		 //#define EVAL_NNUE_HALFKPE9
+		//#undef EVAL_NNUE_KP256
+		//#define EVAL_NNUE_HALFKPE9
 
 		// #define EVAL_NNUE_HALFKP256
 		// #define EVAL_NNUE_KP256
