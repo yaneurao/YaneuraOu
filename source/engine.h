@@ -182,8 +182,16 @@ public:
     virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) {}
     virtual void set_on_iter(std::function<void(const InfoIter&)>&&) {}
     virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) {}
-    virtual void set_on_update_string(std::function<void(std::string_view)>&&) {}
     virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) {}
+
+#if !STOCKFISH
+    virtual void set_on_update_string(std::function<void(std::string_view)>&&) {}
+
+	// 🌈 待避させたいことがあるので、getterも用意しておく。
+    virtual std::function<void(std::string_view, std::string_view)> get_on_bestmove() {
+        return [](auto, auto) {};
+    }
+#endif
 
     // network related
 	// ネットワーク(評価関数)関連
@@ -329,20 +337,22 @@ public:
     virtual std::string get_engine_version() const = 0;
     virtual std::string get_eval_name() const      = 0;
 
-	// 🌈 以下は、Stochastic Ponderなどのために必要 🌈
+	// 🌈 やねうら王 独自 🌈
+
+	/*
+		📓 dlshogi(ふかうら王)では、
+
+		1. "Position"コマンドで1つ目に送られてきた文字列("startpos" or sfen文字列)
+		2. "Position"コマンドで"moves"以降にあった、rootの局面からこの局面に至るまでの手順
+
+		が必要なので、これらを用意する。
+	*/
 
 	// "Position"コマンドで1つ目に送られてきた文字列("startpos" or sfen文字列)
 	std::string game_root_sfen;
 
 	// "Position"コマンドで"moves"以降にあった、rootの局面からこの局面に至るまでの手順
 	std::vector<Move> moves_from_game_root;
-
-	// Stochastic Ponderのときに↑を2手前に戻すので元の"position"コマンドと"go"コマンドの文字列を保存しておく。
-	std::string last_position_cmd_string = "position startpos";
-	std::string last_go_cmd_string;
-
-	// Stochastic Ponderのために2手前に戻してしまっているかのフラグ
-	bool position_is_dirty = false;
 
 };
 
@@ -373,8 +383,10 @@ class Engine: public IEngine {
     virtual void set_on_iter(std::function<void(const InfoIter&)>&&) override final;
     virtual void
     set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) override final;
-    virtual void set_on_update_string(std::function<void(std::string_view)>&&) override final;
     virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) override;
+    virtual void set_on_update_string(std::function<void(std::string_view)>&&) override final;
+    virtual std::function<void(std::string_view, std::string_view)>
+    get_on_bestmove() override final;
 
     virtual void verify_networks() const override {}
     virtual void save_network(const std::string& path) override {}
@@ -511,11 +523,14 @@ class EngineWrapper: public IEngine {
     set_on_bestmove(std::function<void(std::string_view, std::string_view)>&& f) override final {
         engine->set_on_bestmove(std::move(f));
     }
+    virtual void set_on_verify_networks(std::function<void(std::string_view)>&& f) override {
+        engine->set_on_verify_networks(std::move(f));
+    }
     virtual void set_on_update_string(std::function<void(std::string_view)>&& f) override final {
         engine->set_on_update_string(std::move(f));
     }
-    virtual void set_on_verify_networks(std::function<void(std::string_view)>&& f) override {
-        engine->set_on_verify_networks(std::move(f));
+    virtual std::function<void(std::string_view, std::string_view)> get_on_bestmove() override {
+        return engine->get_on_bestmove();
     }
 
     virtual void verify_networks() const override { engine->verify_networks(); }

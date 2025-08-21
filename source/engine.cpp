@@ -220,9 +220,6 @@ void Engine::set_position(const std::string& sfen, const std::vector<std::string
 	// やねうら王では、ここに保存しておくことになっている。
     game_root_sfen = sfen;
 	moves_from_game_root = std::move(moves0);
-
-	// 盤面を設定しなおしたのでこのフラグはfalseに。
-	position_is_dirty = false;
 #endif
 
 }
@@ -298,15 +295,20 @@ void Engine::set_on_bestmove(std::function<void(std::string_view, std::string_vi
     updateContext.onBestmove = std::move(f);
 }
 
-void Engine::set_on_update_string(std::function<void(std::string_view)>&& f) {
-    updateContext.onUpdateString = std::move(f);
-}
-
 void Engine::set_on_verify_networks(std::function<void(std::string_view)>&& f) {
     //onVerifyNetworks = std::move(f);
 	// TODO : あとで
 }
 
+#if !STOCKFISH
+void Engine::set_on_update_string(std::function<void(std::string_view)>&& f) {
+    updateContext.onUpdateString = std::move(f);
+}
+
+std::function<void(std::string_view, std::string_view)> Engine::get_on_bestmove() {
+    return updateContext.onBestmove;
+}
+#endif
 
 void Engine::resize_threads() {
 

@@ -185,154 +185,192 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
     std::string token;
 #endif
 
-        std::istringstream is(cmd);
-        is >> std::skipws >> token;
+    std::istringstream is(cmd);
+    is >> std::skipws >> token;
 
 #if STOCKFISH
-        if (token == "quit" || token == "stop")
+    if (token == "quit" || token == "stop")
 #else
-        if (token == "quit" || token == "stop" || token == "gameover")
-        /*
-		📓 USIプロトコルにはUCIプロトコルから、
-              gameover win | lose | draw
-            が追加されているが、stopと同じ扱いをして良いと思う。
+    if (token == "quit" || token == "stop" || token == "gameover")
+    /*
+	📓 USIプロトコルにはUCIプロトコルから、
+            gameover win | lose | draw
+        が追加されているが、stopと同じ扱いをして良いと思う。
 
-           これハンドルしておかないとponderが停止しなくて困る。
-           gameoverに対してbestmoveは返すべきではないのかも知れないが、
-           それを言えばstopにだって…。
+        これハンドルしておかないとponderが停止しなくて困る。
+        gameoverに対してbestmoveは返すべきではないのかも知れないが、
+        それを言えばstopにだって…。
 	*/
 #endif
-            // "stop"コマンドが来るとEngine.stop()が呼び出され、その結果threads.stop = trueとなる。
-            engine.stop();
+        // "stop"コマンドが来るとEngine.stop()が呼び出され、その結果threads.stop = trueとなる。
+        engine.stop();
 
-        // The GUI sends 'ponderhit' to tell that the user has played the expected move.
-        // So, 'ponderhit' is sent if pondering was done on the same move that the user
-        // has played. The search should continue, but should also switch from pondering
-        // to the normal search.
+    // The GUI sends 'ponderhit' to tell that the user has played the expected move.
+    // So, 'ponderhit' is sent if pondering was done on the same move that the user
+    // has played. The search should continue, but should also switch from pondering
+    // to the normal search.
 
-        // GUIは「ponderhit」を送信して、ユーザーが予想通りの手を指したことを通知する。
-        // つまり、ユーザーが実際に指した手と同じ手についてポンダリング（先読み）が
-        // 行われていた場合、「ponderhit」が送られる。
-        // 探索は継続すべきだが、ポンダリングから通常の探索に切り替える必要がある。
+    // GUIは「ponderhit」を送信して、ユーザーが予想通りの手を指したことを通知する。
+    // つまり、ユーザーが実際に指した手と同じ手についてポンダリング（先読み）が
+    // 行われていた場合、「ponderhit」が送られる。
+    // 探索は継続すべきだが、ポンダリングから通常の探索に切り替える必要がある。
 
-        else if (token == "ponderhit")
-            engine.set_ponderhit(false);
-
-        // TODO : あとで Stochastic_Ponder
-
-        // 起動時いきなりこれが飛んでくるので速攻応答しないとタイムアウトになる。
-        else if (token == "usi")
+    else if (token == "ponderhit")
 #if STOCKFISH
+        engine.set_ponderhit(false);
+#else
+    {
+        // Stochastic Ponder中にhitした。
+        if (engine.get_options().count("Stochastic_Ponder")
+            && engine.get_options()["Stochastic_Ponder"])
         {
-            sync_cout << "id name " << engine_info(true) << "\n"
-                      << engine.get_options() << sync_endl;
+			// 思考をいったん停止。このときbestmoveを出力されると困るので抑制してから。
+            auto on_bestmove = engine.get_on_bestmove();
+            engine.set_on_bestmove([](auto,auto) {});
+	        engine.stop();
+            engine.wait_for_search_finished();
+            engine.set_on_bestmove(std::move(on_bestmove));
 
-            sync_cout << "uciok" << sync_endl;
-        }
+			// 1手前の局面で思考させていたので、現在の局面にする必要がある。
+
+            std::istringstream iss1(last_position_cmd_string);
+            iss1 >> token; // 先頭の"position"を捨てる。
+            position(iss1);
+
+			std::istringstream iss2(last_go_cmd_string);
+            iss2 >> token; // 先頭の"go"を捨てる。
+            iss2 >> token; // "ponder"の文字列も捨てる。("go ponder"と連続してきているはず。
+            go(iss2);
+		}
+		else
+	        engine.set_ponderhit(false);
+    }
+#endif
+
+    // 起動時いきなりこれが飛んでくるので速攻応答しないとタイムアウトになる。
+    else if (token == "usi")
+#if STOCKFISH
+    {
+        sync_cout << "id name " << engine_info(true) << "\n"
+                    << engine.get_options() << sync_endl;
+
+        sync_cout << "uciok" << sync_endl;
+    }
 #else
-            engine.usi();
+        engine.usi();
 #endif
 
-        // オプションを設定する
-        else if (token == "setoption")
-            setoption(is);
+    // オプションを設定する
+    else if (token == "setoption")
+        setoption(is);
 
-        else if (token == "go")
-        {
-            // send info strings after the go command is sent for old GUIs and python-chess
-            // 古いGUIやpython-chessのために、goコマンド送信後にinfo文字列を送信する。
-
-#if STOCKFISH
-            print_info_string(engine.numa_config_information_as_string());
-            print_info_string(engine.thread_allocation_information_as_string());
-            /*
-			📓 以下のようなメッセージを出力する。要らんと思う..。
-        		info string Available processors : 0 - 31
-        		info string Using 4 thread
-		*/
-#endif
-            go(is);
-        }
-
-        else if (token == "position")
-            position(is);
+    else if (token == "go")
+    {
+        // send info strings after the go command is sent for old GUIs and python-chess
+        // 古いGUIやpython-chessのために、goコマンド送信後にinfo文字列を送信する。
 
 #if STOCKFISH
-        else if (token == "ucinewgame")
-            engine.search_clear();
+        print_info_string(engine.numa_config_information_as_string());
+        print_info_string(engine.thread_allocation_information_as_string());
+        /*
+		📓 以下のようなメッセージを出力する。要らんと思う..。
+        	info string Available processors : 0 - 31
+        	info string Using 4 thread
+	*/
 #else
-        else if (token == "usinewgame")
-            engine.usinewgame();
+		// Stochastic Ponderのために"go"コマンド行を保存しておく。
+        last_go_cmd_string = cmd;
 #endif
+        go(is);
+    }
 
-        // 思考エンジンの準備が出来たかの確認
-        else if (token == "isready")
+    else if (token == "position")
 #if STOCKFISH
-            sync_cout << "readyok" << sync_endl;
+        position(is);
 #else
-            isready();
+    {
+		// Stochastic Ponderのために保存しておく。
+        last_position_cmd_string = cmd;
+        position(is);
+    }
 #endif
 
-        // Add custom non-UCI commands, mainly for debugging purposes.
-        // These commands must not be used during a search!
-
-        // 独自の非UCIコマンドを追加する（主にデバッグ目的）。
-        // これらのコマンドは探索中に使用してはならない！
-
-        // 📝 flipは盤面を180°回転させたsfenを出力する。
-        else if (token == "flip")
-            engine.flip();
-
-        // ベンチコマンド(これは常に使える)
-        else if (token == "bench")
-            bench(is);
-
-        else if (token == BenchmarkCommand)
-            benchmark(is);
-
-        // 現在の局面を視覚的に表示する。
-        else if (token == "d")
-            sync_cout << engine.visualize() << sync_endl;
-
-        // 現在の局面の評価値を表示する。
-        else if (token == "eval")
-            engine.trace_eval();
-
-        // コンパイルに使用したコンパイラを表示する。
-        else if (token == "compiler")
-            sync_cout << compiler_info() << sync_endl;
-
-        // 評価関数パラメーターをファイルに保存する。
-        // export_net filename
-        else if (token == "export_net")
-        {
 #if STOCKFISH
-            std::pair<std::optional<std::string>, std::string> files[2];
-
-            if (is >> std::skipws >> files[0].second)
-                files[0].first = files[0].second;
-
-            if (is >> std::skipws >> files[1].second)
-                files[1].first = files[1].second;
+    else if (token == "ucinewgame")
+        engine.search_clear();
 #else
-        std::string file;
-        is >> std::skipws >> file;
-        engine.save_network(file);
+    else if (token == "usinewgame")
+        engine.usinewgame();
 #endif
-        }
+
+    // 思考エンジンの準備が出来たかの確認
+    else if (token == "isready")
+#if STOCKFISH
+        sync_cout << "readyok" << sync_endl;
+#else
+        isready();
+#endif
+
+    // Add custom non-UCI commands, mainly for debugging purposes.
+    // These commands must not be used during a search!
+
+    // 独自の非UCIコマンドを追加する（主にデバッグ目的）。
+    // これらのコマンドは探索中に使用してはならない！
+
+    // 📝 flipは盤面を180°回転させたsfenを出力する。
+    else if (token == "flip")
+        engine.flip();
+
+    // ベンチコマンド(これは常に使える)
+    else if (token == "bench")
+        bench(is);
+
+    else if (token == BenchmarkCommand)
+        benchmark(is);
+
+    // 現在の局面を視覚的に表示する。
+    else if (token == "d")
+        sync_cout << engine.visualize() << sync_endl;
+
+    // 現在の局面の評価値を表示する。
+    else if (token == "eval")
+        engine.trace_eval();
+
+    // コンパイルに使用したコンパイラを表示する。
+    else if (token == "compiler")
+        sync_cout << compiler_info() << sync_endl;
+
+    // 評価関数パラメーターをファイルに保存する。
+    // export_net filename
+    else if (token == "export_net")
+    {
+#if STOCKFISH
+        std::pair<std::optional<std::string>, std::string> files[2];
+
+        if (is >> std::skipws >> files[0].second)
+            files[0].first = files[0].second;
+
+        if (is >> std::skipws >> files[1].second)
+            files[1].first = files[1].second;
+#else
+    std::string file;
+    is >> std::skipws >> file;
+    engine.save_network(file);
+#endif
+    }
 
 #if STOCKFISH
-        else if (token == "--help" || token == "help" || token == "--license" || token == "license")
-            sync_cout << "\nStockfish is a powerful chess engine for playing and analyzing."
-                         "\nIt is released as free software licensed under the GNU GPLv3 License."
-                         "\nStockfish is normally used with a graphical user interface (GUI) and implements"
-                         "\nthe Universal Chess Interface (UCI) protocol to communicate with a GUI, an API, etc."
-                         "\nFor any further information, visit https://github.com/official-stockfish/Stockfish#readme"
-                         "\nor read the corresponding README.md and Copying.txt files distributed along with this program.\n"
-                      << sync_endl;
+    else if (token == "--help" || token == "help" || token == "--license" || token == "license")
+        sync_cout << "\nStockfish is a powerful chess engine for playing and analyzing."
+                        "\nIt is released as free software licensed under the GNU GPLv3 License."
+                        "\nStockfish is normally used with a graphical user interface (GUI) and implements"
+                        "\nthe Universal Chess Interface (UCI) protocol to communicate with a GUI, an API, etc."
+                        "\nFor any further information, visit https://github.com/official-stockfish/Stockfish#readme"
+                        "\nor read the corresponding README.md and Copying.txt files distributed along with this program.\n"
+                    << sync_endl;
 
-        else if (!token.empty() && token[0] != '#')
-            sync_cout << "Unknown command: '" << cmd << "'. Type help for more information." << sync_endl;
+    else if (!token.empty() && token[0] != '#')
+        sync_cout << "Unknown command: '" << cmd << "'. Type help for more information." << sync_endl;
 #else
 
 	// --------------------------------
@@ -584,7 +622,31 @@ void USIEngine::go(std::istringstream& is)
 	if (limits.perft)
 		perft(limits);
 	else
+#if STOCKFISH
 		engine.go(limits);
+#else
+	{
+		// Stochastic Ponderが有効なときに"go ponder"が送られてきたら、
+		// last_position_cmd_stringから1手戻した局面に変更してからgo ponderする。
+		if (limits.ponderMode && engine.get_options().count("Stochastic_Ponder")
+			&& engine.get_options()["Stochastic_Ponder"])
+		{
+            auto s = last_position_cmd_string;
+			// 最初("position")と最後(最後の指し手)のtokenを捨てる。
+
+			// 最後のスペース位置
+			std::size_t last_space  = s.find_last_of(' ');
+			std::istringstream iss(s.substr(0,last_space));
+			// 先頭の"position"を捨てる
+            std::string             token;
+            iss >> token;
+
+            position(iss);
+		}
+
+		engine.go(limits);
+	}
+#endif
 }
 
 // "bench"コマンドの応答部。
@@ -1177,7 +1239,8 @@ void USIEngine::on_update_no_moves(const Engine::InfoShort& info) {
 }
 
 void USIEngine::on_update_full(const Engine::InfoFull& info /*, bool showWDL */) {
-    std::stringstream ss;
+
+	std::stringstream ss;
 
     ss << "info";
     ss << " depth " << info.depth                 //
@@ -1206,7 +1269,8 @@ void USIEngine::on_update_full(const Engine::InfoFull& info /*, bool showWDL */)
 }
 
 void USIEngine::on_iter(const Engine::InfoIter& info) {
-    std::stringstream ss;
+
+	std::stringstream ss;
 
     ss << "info";
     ss << " depth " << info.depth                     //
@@ -1217,6 +1281,7 @@ void USIEngine::on_iter(const Engine::InfoIter& info) {
 }
 
 void USIEngine::on_bestmove(std::string_view bestmove, std::string_view ponder) {
+
     sync_cout << "bestmove " << bestmove;
     if (!ponder.empty())
         std::cout << " ponder " << ponder;

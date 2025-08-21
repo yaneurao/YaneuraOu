@@ -207,6 +207,25 @@ private:
 	// USIコマンドを1行実行する。
 	// "quit"が来たら、trueを返す。
 	bool usi_cmdexec(const std::string& cmd);
+
+	/*
+		📓 Stochastic Ponderの実装について
+
+		Stochastic Ponderはdlshogiで最初に実装された機能。
+		やねうら王では、以下のように実装している。このため、Stockfishと差異が生じる。
+
+		1. GUIから送られてきた"position"コマンドのコマンドラインを丸ごと保存しておく。
+		2. GUIから送られてきた"go ponder"コマンドのコマンドラインを丸ごと保存しておく。
+		3. GUIから"go ponder"が送られてきたときに、1.で保存した局面の1手前の局面をrootとして、そこから探索する。
+		4. GUIから"ponderhit"が送られてきたときに、2.で保存しておいたコマンド列から"ponder"の文字列を取り除き(無視して)実行する。
+	*/
+
+	// 上記1.
+	std::string last_position_cmd_string = "position startpos";
+
+	// 上記2.
+	std::string last_go_cmd_string;
+
 #endif
 };
 
