@@ -240,7 +240,7 @@ public:
     void clear();
 
 	// requested_threadsの数になるように、スレッド数を変更する。
-    // 💡 各ThreadのWorkerに対してclear()が呼び出される。
+    // 💡 各ThreadのWorkerに対してclear()が1度以上呼び出されることは保証されている。
     void set(const NumaConfig&            numaConfig,
 #if STOCKFISH
              Search::SharedState,

@@ -182,10 +182,13 @@ void ThreadPool::set(const NumaConfig&                           numaConfig,
 
 		   そこで、やねうら王では、NumaPolicyとoptions["Threads"]に変更がなければ、再確保するのをやめる。
 	*/
-	if (threads.size() == requested_threads
-		&& std::string(options["NumaPolicy"]) == lastNumaPolicy
-		&& &worker_factory == last_worker_factory)
-            return; 
+    if (threads.size() == requested_threads
+        && std::string(options["NumaPolicy"]) == lastNumaPolicy
+        && &worker_factory == last_worker_factory)
+    {
+        clear();
+        return;
+    }
 
 	lastNumaPolicy = std::string(options["NumaPolicy"]);
     last_worker_factory = &worker_factory;
@@ -300,6 +303,7 @@ void ThreadPool::set(const NumaConfig&                           numaConfig,
 		//     起動時には二重にclearしてしまうが、仕方がないか…。
         clear();
 
+		// 🤔 これ、ThreadPool::clear()のなかでやっているので不要なのでは…。
 		main_thread()->wait_for_search_finished();
 	}
 }
