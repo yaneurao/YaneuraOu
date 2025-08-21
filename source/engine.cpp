@@ -324,6 +324,11 @@ void Engine::resize_threads() {
 	// 🌈  やねうら王ではここでWorkerFactoryを渡すように変更。
 	//    これにより、生成Worker(Worker派生class)をEngine派生classで選択できる。
 
+	// Engine派生classが"Threads"オプションを用意していない。
+	// Engine派生class側のresize_threads()かThreadPool::set()が直接が呼び出されるべき。
+	if (!options.count("Threads"))
+        return;
+
 	auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
 		{ return std::make_unique<Search::Worker>(options, threads, threadIdx, numaAccessToken); };
     threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
