@@ -120,7 +120,9 @@ std::vector<int> FukauraOuEngine::get_thread_settings() {
 
 void FukauraOuEngine::init_gpu()
 {
-    auto& options = get_options();
+	// 📝 GPUの数に応じてthreadの確保を行うのでthreadの確保はこのタイミングで行われる。
+
+	auto& options = get_options();
 
 	// 各GPUのスレッド設定。無効化されているdeviceは0。
     auto thread_settings = get_thread_settings();

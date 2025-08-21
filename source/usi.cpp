@@ -1250,10 +1250,23 @@ void USIEngine::on_update_full(const Engine::InfoFull& info /*, bool showWDL */)
 	std::stringstream ss;
 
     ss << "info";
-    ss << " depth " << info.depth                 //
+
+#if STOCKFISH
+	ss << " depth " << info.depth                 //
        << " seldepth " << info.selDepth           //
        << " multipv " << info.multiPV             //
        << " score " << format_score(info.score);  //
+#else
+
+	ss << " depth " << info.depth;
+
+	// selDepthは、非0の時のみ出力する。(定跡にhitして出力されると見づらい)
+    if (info.selDepth)
+        ss << " seldepth " << info.selDepth;
+
+	ss << " multipv " << info.multiPV             //
+       << " score " << format_score(info.score);  //
+#endif
 
     if (!info.bound.empty())
         ss << " " << info.bound;
