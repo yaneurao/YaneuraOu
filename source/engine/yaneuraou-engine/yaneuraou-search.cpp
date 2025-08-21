@@ -295,6 +295,8 @@ void YaneuraOuEngine::clear()
     main_manager()->bestPreviousScore = VALUE_INFINITE;
 #if STOCKFISH
     main_manager()->originalTimeAdjust = -1;
+#else
+    main_manager()->lastGamePly = 0;
 #endif
     main_manager()->tm.clear();
 }
@@ -966,6 +968,10 @@ SKIP_SEARCH:
     // 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
     main_manager()->bestPreviousScore        = bestThread->rootMoves[0].score;
     main_manager()->bestPreviousAverageScore = bestThread->rootMoves[0].averageScore;
+#if !STOCKFISH
+	// 次回に手番が今回と異なるかを検出するためにgame_ply()を保存しておく。
+    main_manager()->lastGamePly = rootPos.game_ply();
+#endif
 
 #if STOCKFISH
     // Send again PV info if we have a new best thread
@@ -1157,6 +1163,19 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
     if (mainThread)
     {
+#if !STOCKFISH
+		// 🌈 Stochastic Ponderでは前回と別手番になるので、このとき、
+		//     bestPreviousScoreとpreviousAverageScoreを反転させる必要がある。
+		if ((mainThread->lastGamePly - rootPos.game_ply()) & 1)
+		{
+            if (mainThread->bestPreviousScore != VALUE_INFINITE)
+	            mainThread->bestPreviousScore *= -1;
+
+            if (mainThread->bestPreviousAverageScore != VALUE_INFINITE)
+	            mainThread->bestPreviousAverageScore *= -1;
+		}
+#endif
+
         if (mainThread->bestPreviousScore == VALUE_INFINITE)
             mainThread->iterValue.fill(VALUE_ZERO);
         else

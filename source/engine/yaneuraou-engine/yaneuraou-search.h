@@ -207,6 +207,8 @@ class SearchManager {
     //     ここで保存しているのは、前回の反復深化のiterationの時のtimeReductionの値。
     double previousTimeReduction;
 
+	// 前回の探索時のbestScore,bestAverageScore。
+	// 📝 aspiration searchの初期値として用いる。
     Value bestPreviousScore;
     Value bestPreviousAverageScore;
 
@@ -233,6 +235,11 @@ class SearchManager {
     // 📝 やねうら王では、ponderの指し手がないとき、一つ前のiterationのときのPV上の(相手の)指し手を用いるという独自仕様。
     //     Stockfish本家もこうするべきだと思う。
     Move ponder_candidate;
+
+	// 前回のgamePly。今回と手番が異なるかを検出するのに用いる。
+	// 📝 Stochastic Ponderの場合、手番が異なることになる。
+	//     この時、bestPreviousScore、bestPreviousAverageScoreを反転させる必要がある。
+	int lastGamePly;
 };
 }
 
