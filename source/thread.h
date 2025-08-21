@@ -345,12 +345,6 @@ private:
 			sum += (th->worker.get()->*member).load(std::memory_order_relaxed);
 		return sum;
 	}
-
-#if !STOCKFISH
-	// 前回にset()が呼び出された時のoptions["NumaPolicy"]の値。
-    std::string lastNumaPolicy;
-    const Search::WorkerFactory* last_worker_factory;
-#endif
 };
 
 } // namespace YaneuraOu

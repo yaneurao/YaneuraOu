@@ -605,8 +605,10 @@ Search::YaneuraOuWorker::YaneuraOuWorker(OptionsMap&               options,
     Search::Worker(options, threads, threadIdx, numaAccessToken), tt(tt),
 		engine(engine), manager(engine.manager) {
 
-    // 💡 Worker::clear()が呼び出される。
-    clear();
+    //clear();
+
+	// 🤔 ThreadPool::resize_thread()→ThreadPool::set()でThreadPool::clear()が呼び出されて、
+	//     そのなかでWorker::clear()が呼び出されるから、ここで呼び出す必要はないと思う。
 }
 
 void Search::YaneuraOuWorker::ensure_network_replicated() {

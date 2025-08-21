@@ -175,24 +175,13 @@ void ThreadPool::set(const NumaConfig&                           numaConfig,
 #endif
 	)
 {
-#if !STOCKFISH
     /*  📓
 		   このあと、スレッドをいったん全部解体しているのは、確保するスレッド数がいま確保しているスレッド数と
 		   変わらないとしても、NumaPolicyに変更があると、割り当て方法が変わるからである。
 
-		   そこで、やねうら王では、NumaPolicyとoptions["Threads"]に変更がなければ、再確保するのをやめる。
+		   NumaPolicyとoptions["Threads"]に変更がなければ、再確保せずに済むのだが、
+		   worker_factoryが一致しない場合作り直す必要があり、その判定が難しいので毎回再確保することにする。
 	*/
-    if (threads.size() == requested_threads
-        && std::string(options["NumaPolicy"]) == lastNumaPolicy
-        && &worker_factory == last_worker_factory)
-    {
-        clear();
-        return;
-    }
-
-	lastNumaPolicy = std::string(options["NumaPolicy"]);
-    last_worker_factory = &worker_factory;
-#endif
 
 	// いま生成済みのスレッドは全部解体してしまう。
     if (threads.size() > 0)  // destroy any existing thread(s)
