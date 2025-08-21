@@ -229,8 +229,8 @@ void FukauraOuWorker::start_searching()
         engine.game_root_sfen = StartSFEN;
 
     Move ponderMove;
-    Move move =
-      searcher.UctSearchGenmove(rootPos, engine.game_root_sfen, engine.moves_from_game_root, ponderMove);
+    Move move = searcher.UctSearchGenmove(rootPos, engine.game_root_sfen,
+                                          engine.moves_from_game_root, ponderMove);
 
     // ponder中であれば、呼び出し元で待機しなければならない。
 

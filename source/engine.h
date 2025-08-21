@@ -336,24 +336,6 @@ public:
     virtual std::string get_engine_author() const  = 0;
     virtual std::string get_engine_version() const = 0;
     virtual std::string get_eval_name() const      = 0;
-
-	// 🌈 やねうら王 独自 🌈
-
-	/*
-		📓 dlshogi(ふかうら王)では、
-
-		1. "Position"コマンドで1つ目に送られてきた文字列("startpos" or sfen文字列)
-		2. "Position"コマンドで"moves"以降にあった、rootの局面からこの局面に至るまでの手順
-
-		が必要なので、これらを用意する。
-	*/
-
-	// "Position"コマンドで1つ目に送られてきた文字列("startpos" or sfen文字列)
-	std::string game_root_sfen;
-
-	// "Position"コマンドで"moves"以降にあった、rootの局面からこの局面に至るまでの手順
-	std::vector<Move> moves_from_game_root;
-
 };
 
 // エンジンの基底クラス
@@ -368,6 +350,7 @@ class Engine: public IEngine {
 
     virtual void go(Search::LimitsType& limits) override;
     virtual void stop() override;
+
     virtual void wait_for_search_finished() override;
     virtual void set_position(const std::string&              sfen,
                               const std::vector<std::string>& moves) override;
@@ -401,7 +384,6 @@ class Engine: public IEngine {
     virtual std::string sfen() const override;
     virtual void        flip() override;
     virtual std::string visualize() const override;
-
 	virtual std::vector<std::pair<size_t, size_t>> get_bound_thread_count_by_numa_node() const override;
     virtual std::string get_numa_config_as_string() const override;
     virtual std::string numa_config_information_as_string() const override;
@@ -478,6 +460,21 @@ class Engine: public IEngine {
     // 📝 実行中にkeep aliveのために定期的に改行を標準出力に出力する。
     //     USIで"isready"に対して時間のかかる処理を実行したい時に用いる。
     void run_heavy_job(std::function<void()> job);
+
+	/*
+		📓 dlshogi(ふかうら王)では、
+
+		1. "Position"コマンドで1つ目に送られてきた文字列("startpos" or sfen文字列)
+		2. "Position"コマンドで"moves"以降にあった、rootの局面からこの局面に至るまでの手順
+
+		が必要なので、これらを用意する。
+	*/
+
+	// "Position"コマンドで1つ目に送られてきた文字列("startpos" or sfen文字列)
+	std::string game_root_sfen;
+
+	// "Position"コマンドで"moves"以降にあった、rootの局面からこの局面に至るまでの手順
+	std::vector<Move> moves_from_game_root;
 };
 
 // IEngine派生classを入れておいて、使うためのwrapper
@@ -498,6 +495,7 @@ class EngineWrapper: public IEngine {
 
     virtual void go(Search::LimitsType& limits) override { engine->go(limits); }
     virtual void stop() override { engine->stop(); }
+
     virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
     virtual void set_position(const std::string&              sfen,
                               const std::vector<std::string>& moves) override {

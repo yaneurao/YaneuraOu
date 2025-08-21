@@ -217,7 +217,7 @@ void Engine::set_position(const std::string& sfen, const std::vector<std::string
 	}
 
 #if !STOCKFISH
-	// やねうら王では、ここに保存しておくことになっている。
+	// 🌈 やねうら王では、ここに保存しておくことになっている。
     game_root_sfen = sfen;
 	moves_from_game_root = std::move(moves0);
 #endif

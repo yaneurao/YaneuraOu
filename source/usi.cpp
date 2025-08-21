@@ -409,7 +409,14 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
 
     // 指し手生成祭りの局面をセットする。
     else if (token == "matsuri")
-        engine.set_position("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1", std::vector<std::string>());
+    {
+        std::istringstream iss("l6nl/5+P1gk/2np1S3/p1p4Pp/3P2Sp1/1PPb2P1P/P5GS1/R8/LN4bKL w GR5pnsg 1");
+
+		// "position"コマンドが実行されたものとして処理する。
+        position(iss);
+
+        sync_cout << "The matsuri position has been set." << sync_endl;
+    }
 
     // ログファイルの書き出しのon
     // 🤔 Stockfishの方は、エンジンオプションでログの出力ファイル名を指定できるのだが、
