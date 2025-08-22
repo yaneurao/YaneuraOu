@@ -170,6 +170,9 @@ void FukauraOuEngine::isready() {
 	searcher.SetPvMateSearch(int(options["PV_Mate_Search_Threads"]), int(options["PV_Mate_Search_Nodes"]));
 
 	// 🤔 "isready"に対してnode limit = 1 , batch_size = 128 で探索したほうがいいかも。(dlshogiはそうなっている)
+
+	// 基底classのisready()の呼び出し。
+	Engine::isready();
 }
 
 // 🌈 "ponderhit"に対する処理。
