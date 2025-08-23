@@ -243,15 +243,10 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 		TimePoint t1 = minimumTime + remain_estimate / MTG;
 
 		// -- maximumTime
-		//float max_ratio = 5.0f;
-#if !defined(YANEURAOU_ENGINE_DEEP)
-		float max_ratio = 3.0f;
-		// 5.0f、やりすぎな気がする。時間使いすぎて他のところで足りなくなる。
-#else
-		// ふかうら王、5.0fでもうまくマネージメントできるんじゃないか？(根拠なし。計測すべき)
-		float max_ratio = 5.0f;
-#endif
 
+		// 5.0fでもうまくマネージメントできる。
+		// 📝 上手くタイムマネージメントできない探索部なら3.0fぐらいにするのが無難。
+		float max_ratio = 5.0f;
 
 		// 切れ負けルールにおいては、5分を切っていたら、このratioを抑制する。
 		if (time_forfeit)
