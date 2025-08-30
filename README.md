@@ -7,6 +7,7 @@
 [![Make CI (for macOS)](https://github.com/yaneurao/YaneuraOu/actions/workflows/make-macos.yml/badge.svg?event=push)](https://github.com/yaneurao/YaneuraOu/actions/workflows/make-macos.yml)
 [![Make CI (for WebAssembly)](https://github.com/yaneurao/YaneuraOu/actions/workflows/make-wasm.yml/badge.svg?event=push)](https://github.com/yaneurao/YaneuraOu/actions/workflows/make-wasm.yml)
 
+
 # About this project
 
 YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner , educational and USI compliant engine.
@@ -15,6 +16,16 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 - [WCSC29、やねうら王優勝しました！](http://yaneuraou.yaneu.com/2019/05/06/wcsc29%E3%80%81%E3%82%84%E3%81%AD%E3%81%86%E3%82%89%E7%8E%8B%E5%84%AA%E5%8B%9D%E3%81%97%E3%81%BE%E3%81%97%E3%81%9F%EF%BC%81/)
 - [第4回世界将棋AI電竜戦本戦 優勝記](https://yaneuraou.yaneu.com/2023/12/10/won-the-4th-shogi-ai-denryu-tournament/)
+
+
+# やねうら王プロジェクトを支援する
+
+[![やねうら王プロジェクトを支援する](docs/yaneuraou-sponsors-banner.png "支援バナー")](https://github.com/sponsors/yaneurao)
+
+- GitHub Sponsors : https://github.com/sponsors/yaneurao
+- FANBOX : https://www.fanbox.cc/@yaneurao
+
+やねうら王プロジェクトに支援すると、開発版のやねうら王(Windows/macOS)、評価関数ファイル、最新定跡ファイルなどのダウンロードURLが書かれたニュースレターが受け取れます。
 
 
 # やねうら王エンジンの大会での戦績
@@ -95,7 +106,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 | やねうら王 | 現在進行形で改良しています。|
 | ふかうら王 | 現在進行形で改良しています。|
 | やねうら王詰将棋エンジンV2 | 省メモリで長手数の詰将棋が解ける詰将棋用のエンジン。|
-| Bloodgate | floodgateに取って代わる対局場です |
+| やねうら王Script-Collection | やねうら王関連のスクリプト集です。|
 
 # 過去のサブプロジェクト
 
@@ -127,6 +138,8 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 |やねうら王mini 公式 (解説記事等)| http://yaneuraou.yaneu.com/YaneuraOu_Mini/|
 |やねうら王Twitter | https://twitter.com/yaneuraou|
 |やねうら王公式ちゃんねる(YouTube) | https://www.youtube.com/c/yanechan|
+|やねうら王 GitHub Sponsors | https://github.com/sponsors/yaneurao |
+|やねうら王 FANBOX | https://www.fanbox.cc/@yaneurao |
 
 上記のやねうら王公式ブログでは、コンピュータ将棋に関する情報を大量に発信していますので、やねうら王に興味がなくとも、コンピュータ将棋の開発をしたいなら、非常に参考になると思います。
 
@@ -134,3 +147,4 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 やねうら王関連の質問は、以下のブログ記事のコメント欄にお願いします。
 https://yaneuraou.yaneu.com/2022/05/19/yaneuraou-question-box/
+
