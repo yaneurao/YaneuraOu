@@ -1484,6 +1484,16 @@ namespace Path
 
 		return false;
 	}
+
+	// ファイルが存在するかの確認
+	bool Exists(const std::string& path)
+	{
+		std::ifstream ifs(path);
+
+		// openに成功したら存在する。
+        return ifs.is_open();
+	}
+
 };
 
 // --------------------

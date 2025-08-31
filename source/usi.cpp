@@ -197,8 +197,11 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
             gameover win | lose | draw
         が追加されているが、stopと同じ扱いをして良いと思う。
 
-        これハンドルしておかないとponderが停止しなくて困る。
-        gameoverに対してbestmoveは返すべきではないのかも知れないが、
+		あと、将棋所では、通信対局では、こちらのgo ponderのあと相手が投了すると、
+		stopを送らずにgameoverが送られてくるため、これをハンドルしておかないと
+		ponderingが停止しない。
+
+		gameoverに対してはbestmoveは返すべきではないのかも知れないが、
         それを言えばstopにだって…。
 	*/
 #endif

@@ -849,6 +849,10 @@ namespace Path
 	//   ~myeval            ← Linuxのhome
 	//   /YaneuraOu/Eval    ← Windows、Linuxのroot
 	bool IsAbsolute(const std::string& path);
+
+	// ファイルが存在するかの確認
+	bool Exists(const std::string& path);
+
 };
 
 // --------------------

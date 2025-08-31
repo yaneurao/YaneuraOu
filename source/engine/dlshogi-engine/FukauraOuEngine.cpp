@@ -135,6 +135,13 @@ void FukauraOuEngine::init_gpu()
     auto model_name = options["DNN_Model"];
     auto model_path = Path::Combine(eval_dir, model_name);
 
+	// modelファイルが存在することは事前に確認しておく。
+	if (!Path::Exists(model_path))
+	{
+		sync_cout << "Error! : " << model_path << " file not found" << sync_endl;
+        Tools::exit();
+	}
+
 	searcher.InitGPU(model_path, thread_settings, dnn_batch_size);
 }
 
