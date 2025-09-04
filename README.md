@@ -7,7 +7,6 @@
 [![Make CI (for macOS)](https://github.com/yaneurao/YaneuraOu/actions/workflows/make-macos.yml/badge.svg?event=push)](https://github.com/yaneurao/YaneuraOu/actions/workflows/make-macos.yml)
 [![Make CI (for WebAssembly)](https://github.com/yaneurao/YaneuraOu/actions/workflows/make-wasm.yml/badge.svg?event=push)](https://github.com/yaneurao/YaneuraOu/actions/workflows/make-wasm.yml)
 
-
 # About this project
 
 YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner , educational and USI compliant engine.
@@ -23,7 +22,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 [![やねうら王プロジェクトを支援する](docs/yaneuraou-sponsors-banner.png "支援バナー")](https://github.com/sponsors/yaneurao)
 
 - GitHub Sponsors : https://github.com/sponsors/yaneurao
-- FANBOX : https://www.fanbox.cc/@yaneurao
+- FANBOX : https://yaneurao.fanbox.cc/
 
 やねうら王プロジェクトに支援すると、開発版のやねうら王(Windows/macOS)、評価関数ファイル、最新定跡ファイルなどのダウンロードURLが書かれたニュースレターが受け取れます。
 
@@ -78,7 +77,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 |ふかうら王のインストール手順について | [ふかうら王のインストール手順](https://github.com/yaneurao/YaneuraOu/wiki/ふかうら王のインストール手順)|中級|
 |やねうら王のお勧めエンジン設定について | [やねうら王のお勧めエンジン設定](https://github.com/yaneurao/YaneuraOu/wiki/やねうら王のお勧めエンジン設定)|入門|
 |ふかうら王のお勧めエンジン設定について | [ふかうら王のお勧めエンジン設定](https://github.com/yaneurao/YaneuraOu/wiki/ふかうら王のお勧めエンジン設定)|入門|
-|やねうら王のエンジンオプションについて | [思考エンジンオプション](https://github.com/yaneurao/YaneuraOu/wiki/思考エンジンオプション)|入門~中級|
+|やねうら王/ふかうら王のエンジンオプションについて | [思考エンジンオプション](https://github.com/yaneurao/YaneuraOu/wiki/思考エンジンオプション)|入門~中級|
 |やねうら王詰将棋エンジンについて| [やねうら王詰将棋エンジン](https://github.com/yaneurao/YaneuraOu/wiki/やねうら王詰将棋エンジン)|入門~中級|
 |やねうら王のよくある質問|[よくある質問](https://github.com/yaneurao/YaneuraOu/wiki/よくある質問)|初級~中級|
 |やねうら王のソースコードのルールについて|[CONTRIBUTING.md](CONTRIBUTING.md)|開発者向け|
@@ -134,12 +133,12 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 |サイト | リンク|
 |-----|-----|
-|やねうら王公式ブログ | https://yaneuraou.yaneu.com/|
-|やねうら王mini 公式 (解説記事等)| http://yaneuraou.yaneu.com/YaneuraOu_Mini/|
-|やねうら王Twitter | https://twitter.com/yaneuraou|
+|やねうら王公式ブログ | https://yaneuraou.yaneu.com |
+|やねうら王mini 公式 (解説記事等)| http://yaneuraou.yaneu.com/YaneuraOu_Mini |
+|やねうら王 X | https://x.com/yaneuraou|
 |やねうら王公式ちゃんねる(YouTube) | https://www.youtube.com/c/yanechan|
-|やねうら王 GitHub Sponsors | https://github.com/sponsors/yaneurao |
-|やねうら王 FANBOX | https://www.fanbox.cc/@yaneurao |
+|やねうら王公式GitHub | https://github.com/yaneurao/YaneuraOu |
+|やねうら王スクリプト集 | https://github.com/yaneurao/YaneuraOu-ScriptCollection |
 
 上記のやねうら王公式ブログでは、コンピュータ将棋に関する情報を大量に発信していますので、やねうら王に興味がなくとも、コンピュータ将棋の開発をしたいなら、非常に参考になると思います。
 
