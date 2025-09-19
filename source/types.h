@@ -947,6 +947,8 @@ static std::string pretty(Move m, PieceType movedPieceType) { return pretty(m, (
 
 // 手駒
 // 歩の枚数を8bit、香、桂、銀、角、飛、金を4bitずつで持つ。こうすると16進数表示したときに綺麗に表示される。(なのはのアイデア)
+// 最小でも5bit(歩) + 3bit*4(それ以外) + 2bit*2(飛・角) = 21bit。
+// 📝 これ詰めてもいいが、そうすると角が4枚のような盤面を与えられたときに隣のbitにoverflowしてしまうのであまりいいとも言えない。
 enum Hand : uint32_t { HAND_ZERO = 0, };
 
 // 手駒のbit位置

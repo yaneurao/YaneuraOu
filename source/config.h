@@ -4,7 +4,9 @@
 // ============================================================
 //
 //  やねうら王プロジェクト
-//  公式サイト :  http://yaneuraou.yaneu.com/yaneuraou_mini/
+//  公式ブログ : http://yaneuraou.yaneu.com/
+//  GitHub     : https://github.com/yaneurao/YaneuraOu
+//  Wiki       : https://github.com/yaneurao/YaneuraOu/wiki
 //
 // ============================================================
 
@@ -12,7 +14,7 @@
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
 #if !defined(ENGINE_VERSION)
 
-#define ENGINE_VERSION "9.00beta2git"
+#define ENGINE_VERSION "9.00git"
 
 #endif
 // --------------------

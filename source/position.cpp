@@ -1322,7 +1322,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 	{
 		const PieceType pr = m.move_dropped_piece();
 		// 置換表から取り出してきている以上、一度は指し手生成ルーチンで生成した指し手のはずであり、
-		// KING打ちのような値であることはないものとする。
+		// KING打ちのような値であることはないと仮定できる。
 
 		// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
 		if (moved_piece_after(m) != make_piece(us, pr))
