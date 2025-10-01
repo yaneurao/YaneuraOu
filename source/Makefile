@@ -138,7 +138,7 @@ MATERIAL_LEVEL = 1
 BLAS = OPENBLAS
 # BLAS = BLIS
 
-# NNUE評価関数を実行ファイルに内蔵する。 `eval/nnue/embedded_nnue.cpp` が別途必要。
+# NNUE評価関数を実行ファイルに内蔵する。 ビルドするときにsourceフォルダ直下に"nn.bin"を配置する。
 EVAL_EMBEDDING = OFF
 # EVAL_EMBEDDING = ON
 
@@ -510,9 +510,7 @@ ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))
 			eval/nnue/wasm_simd.cpp
 	endif
 	ifeq ($(EVAL_EMBEDDING),ON)
-		SOURCES += \
-			eval/nnue/embedded_nnue.cpp
-		CPPFLAGS += -DEVAL_EMBEDDING
+		CPPFLAGS += -DNNUE_EMBEDDING
 	endif
 endif
 

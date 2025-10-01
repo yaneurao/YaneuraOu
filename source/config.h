@@ -358,6 +358,7 @@
 // #define ENABLE_POLICY_BOOK_LEARN
 
 // NNUE評価関数の実行ファイルへの埋め込み(incbinを用いる)
+// ⚠ ビルドするときにsourceフォルダ直下に"nn.bin"を配置すること。
 // #define NNUE_EMBEDDING
 
 // このシンボルはStockfishの元のコードを示すのに用いる。
