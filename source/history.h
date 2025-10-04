@@ -21,7 +21,7 @@ namespace YaneuraOu {
 // -----------------------
 
 // 歩の陣形に対するhistory
-constexpr int PAWN_HISTORY_SIZE        = 512;    // has to be a power of 2
+constexpr int PAWN_HISTORY_SIZE        = 1024;   // has to be a power of 2
 constexpr int CORRECTION_HISTORY_SIZE  = 32768;  // has to be a power of 2
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 constexpr int LOW_PLY_HISTORY_SIZE     = 5;

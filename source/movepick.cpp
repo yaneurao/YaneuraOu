@@ -247,8 +247,6 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
         // ただし、TTの指し手は優遇した方が良い可能性もある。
         && pos.pseudo_legal(ttm, generate_all_legal_moves) 
 #endif
-        
-	    && pos.see_ge(ttm, threshold)
 	    );
     // ⇨ qsearch()のTTと同様、置換表の指し手に関してはsee_geの条件、
     // つけないほうがいい可能性があるが、やってみたら良くなかった。(V774v2 vs V774v3)
@@ -278,19 +276,21 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 	Color us = pos.side_to_move();
 
 	// 自分より価値の安い駒で当たりになっているか
-	//[[maybe_unused]] Bitboard threatByLesser[QUEEN + 1];
 
 #if STOCKFISH
+    [[maybe_unused]] Bitboard threatByLesser[KING + 1];
 	if constexpr (Type == QUIETS)
 #else
     if constexpr (Type == QUIETS || Type == QUIETS_ALL)
 #endif
 	{
 #if STOCKFISH
+        threatByLesser[PAWN]   = 0;
         threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.attacks_by<PAWN>(~us);
         threatByLesser[ROOK] =
           pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatByLesser[KNIGHT];
         threatByLesser[QUEEN] = pos.attacks_by<ROOK>(~us) | threatByLesser[ROOK];
+        threatByLesser[KING]  = pos.attacks_by<QUEEN>(~us) | threatByLesser[QUEEN];
 
 #else
 
@@ -381,19 +381,16 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 			//  📓 移動元の駒が安い駒で当たりになっている場合、
 			//      移動させることでそれを回避できるなら価値を上げておく。
 
-			if (KNIGHT <= pt && pt <= QUEEN)
-			{
-				static constexpr int bonus[QUEEN + 1] = { 0, 0, 144, 144, 256, 517 };
-				int v = threatByLesser[pt] & to ? -95 : 100 * bool(threatByLesser[pt] & from);
-				m.value += bonus[pt] * v;
-			}
+            static constexpr int bonus[KING + 1] = {0, 0, 144, 144, 256, 517, 10000};
+            int v = threatByLesser[pt] & to ? -95 : 100 * bool(threatByLesser[pt] & from);
+            m.value += bonus[pt] * v;
 
 			// → Stockfishのコードそのままは書けない。
 #endif
 
 			// lowPlyHistoryも加算
 			if (ply < LOW_PLY_HISTORY_SIZE)
-				m.value += 8 * (*lowPlyHistory)[ply][m.from_to()] / (1 + ply);
+                m.value += 2 * (*lowPlyHistory)[ply][m.from_to()];
 			
 		}
 		else // Type == EVASIONS || EVASIONS_ALL
@@ -703,25 +700,6 @@ top:
 }
 
 void MovePicker::skip_quiet_moves() { skipQuiets = true; }
-
-
-// this function must be called after all quiet moves and captures have been generated
-// この関数は、すべての静かな手と捕獲手が生成された後に呼び出されなければならない
-// 📝 チェス固有の問題っぽいので、この関数は将棋では使わない。
-bool MovePicker::can_move_king_or_pawn() const {
-	// SEE negative captures shouldn't be returned in GOOD_CAPTURE stage
-	// SEEが負になる捕獲手はGOOD_CAPTURE段階では返されるべきではない
-
-	assert(stage > GOOD_CAPTURE && stage != EVASION_INIT);
-
-    for (const ExtMove* m = moves; m < endGenerated; ++m)
-	{
-		PieceType movedPieceType = type_of(pos.moved_piece(*m));
-		if ((movedPieceType == PAWN || movedPieceType == KING) && pos.legal(*m))
-			return true;
-	}
-	return false;
-}
 
 } // namespace YaneuraOu
 

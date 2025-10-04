@@ -79,10 +79,6 @@ class MovePicker {
     // next_move()で、quietな指し手をskipするためのフラグをセットする。
     void skip_quiet_moves();
 
-    // 王か歩を動かせるか？
-    bool can_move_king_or_pawn() const;
-
-
    private:
     template<typename Pred>
     Move select(Pred);
