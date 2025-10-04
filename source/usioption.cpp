@@ -116,7 +116,7 @@ Option::Option(OnChange f) :
 }
 
 #if STOCKFISH
-Option::Option(double v, int minv, int maxv, OnChange f) :
+Option::Option(int v, int minv, int maxv, OnChange f) :
 #else
 Option::Option(int64_t v, int64_t minv, int64_t maxv, OnChange f) :
 #endif
@@ -210,7 +210,7 @@ Option& Option::operator=(const std::string& v) {
 	if ((type != "button" && type != "string" && v.empty())
 		|| (type == "check" && v != "true" && v != "false")
 #if STOCKFISH
-		|| (type == "spin" && (std::stof(v) < min || std::stof(v) > max)))
+		|| (type == "spin" && (std::stoi(v) < min || std::stoi(v) > max)))
 #else
 		|| (type == "spin" && (std::stoll(v) < min || std::stoll(v) > max)))
 #endif
@@ -289,7 +289,11 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 				}
 
 				else if (o.type == "spin")
-					os << " default " << int(stof(o.defaultValue)) << " min " << o.min << " max "
+#if STOCKFISH
+                    os << " default " << stoi(o.defaultValue) << " min " << o.min << " max "
+#else
+					os << " default " << stoll(o.defaultValue) << " min " << o.min << " max "
+#endif
 					<< o.max;
 
 				break;

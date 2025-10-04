@@ -476,10 +476,9 @@ public:
 
 	// 💡 将棋では使わない。
 #if STOCKFISH
-    CastlingRights castling_rights(Color c) const;
-    bool           can_castle(CastlingRights cr) const;
-    bool           castling_impeded(CastlingRights cr) const;
-    Square         castling_rook_square(CastlingRights cr) const;
+    bool   can_castle(CastlingRights cr) const;
+    bool   castling_impeded(CastlingRights cr) const;
+    Square castling_rook_square(CastlingRights cr) const;
 #endif
 
 	// -----------------------
@@ -1023,8 +1022,19 @@ private:
 	}
 #endif
 
-    // Other helpers
+#if STOCKFISH
+	// Other helpers
+    void move_piece(Square from, Square to);
+    template<bool Do>
+    void do_castling(Color             us,
+                     Square            from,
+                     Square&           to,
+                     Square&           rfrom,
+                     Square&           rto,
+                     DirtyPiece* const dp = nullptr);
+    Key  adjust_key50(Key k) const;
 
+#endif
 
 	// do_move()の先後分けたもの。内部的に呼び出される。
     template<Color Us, typename T>
@@ -1201,10 +1211,6 @@ inline Square Position::ep_square() const { return st->epSquare; }
 
 inline bool Position::can_castle(CastlingRights cr) const { return st->castlingRights & cr; }
 
-inline CastlingRights Position::castling_rights(Color c) const {
-    return c & CastlingRights(st->castlingRights);
-}
-
 inline bool Position::castling_impeded(CastlingRights cr) const {
     assert(cr == WHITE_OO || cr == WHITE_OOO || cr == BLACK_OO || cr == BLACK_OOO);
     return pieces() & castlingPath[cr];
@@ -1220,11 +1226,10 @@ inline Square Position::castling_rook_square(CastlingRights cr) const {
 
 
 #if STOCKFISH
-inline Key Position::key() const { return adjust_key50<false>(st->key); }
+inline Key Position::key() const { return adjust_key50(st->key); }
 
-template<bool AfterMove>
 inline Key Position::adjust_key50(Key k) const {
-    return st->rule50 < 14 - AfterMove ? k : k ^ make_key((st->rule50 - (14 - AfterMove)) / 8);
+    return st->rule50 < 14 ? k : k ^ make_key((st->rule50 - 14) / 8);
 }
 #else
 inline Key Position::key() const { return st->key(); }

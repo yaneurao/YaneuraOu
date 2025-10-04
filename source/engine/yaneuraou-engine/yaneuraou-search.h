@@ -298,9 +298,6 @@ struct Stack {
 
     // このnodeでのreductionの量
     int reduction;
-
-    // quietの指し手が親nodeからこのnodeまでに何連続したか。
-    int quietMoveStreak;
 };
 
 

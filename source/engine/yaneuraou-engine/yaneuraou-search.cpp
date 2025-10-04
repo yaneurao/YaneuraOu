@@ -493,6 +493,18 @@ using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 // so changing them or adding conditions that are similar requires
 // tests at these types of time controls.
 
+// (*Scaler) All tuned parameters at time controls shorter than
+// optimized for require verifications at longer time controls
+
+// （※スケーラーについて）
+// アスタリスク（*）付きのスケーラー値は、非線形スケーリングであることが確認されています。
+// これらの値は、180＋1.8（180秒＋1.8秒加算）以上の持ち時間で最適化されています。
+// したがって、これらを変更したり、同様の条件を追加したりする場合は、
+// この種の持ち時間でのテストが必要です。
+
+// （※スケーラー）最適化された持ち時間よりも短い時間設定で調整された
+// すべてのパラメータについては、より長い持ち時間での検証が必要です。
+
 int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack* const ss) {
     const Color us    = pos.side_to_move();
     const auto  m     = (ss - 1)->currentMove;
@@ -502,9 +514,9 @@ int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack*
     const auto  bnpcv = w.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us];
     const auto  cntcv =
       m.is_ok() ? (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
-                 : 0;
+                 : 8;
 
-    return 8867 * pcv + 8136 * micv + 10757 * (wnpcv + bnpcv) + 7232 * cntcv;
+    return 9536 * pcv + 8494 * micv + 10132 * (wnpcv + bnpcv) + 7156 * cntcv;
 }
 
 // Add correctionHistory value to raw staticEval and guarantee evaluation
@@ -522,10 +534,10 @@ void update_correction_history(const Position&          pos,
     const Move  m  = (ss - 1)->currentMove;
     const Color us = pos.side_to_move();
 
-    static constexpr int nonPawnWeight = 165;
+    constexpr int nonPawnWeight = 165;
 
     workerThread.pawnCorrectionHistory[pawn_correction_history_index(pos)][us] << bonus;
-    workerThread.minorPieceCorrectionHistory[minor_piece_index(pos)][us] << bonus * 153 / 128;
+    workerThread.minorPieceCorrectionHistory[minor_piece_index(pos)][us] << bonus * 145 / 128;
     workerThread.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us]
       << bonus * nonPawnWeight / 128;
     workerThread.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us]
@@ -533,7 +545,7 @@ void update_correction_history(const Position&          pos,
 
     if (m.is_ok())
         (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
-          << bonus * 153 / 128;
+          << bonus * 137 / 128;
 }
 
 
@@ -1218,7 +1230,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     int searchAgainCounter = 0;
 
     // 💡 lowPlyHistoryは、試合開始時に1回だけではなく、"go"の度に初期化したほうが強い。
-    lowPlyHistory.fill(89);
+    lowPlyHistory.fill(97);
 
     // Iterative deepening loop until requested to stop or the target depth is reached
     // 要求があるか、または目標深度に達するまで反復深化ループを実行します
@@ -1345,15 +1357,15 @@ void Search::YaneuraOuWorker::iterative_deepening() {
 
             // Reset aspiration window starting size
             // aspiration windowの開始サイズをリセットする。
-            delta     = 5 + std::abs(rootMoves[pvIdx].meanSquaredScore) / 11131;
+            delta     = 5 + threadIdx % 8 + std::abs(rootMoves[pvIdx].meanSquaredScore) / 9000;
             Value avg = rootMoves[pvIdx].averageScore;
             alpha     = std::max(avg - delta, -VALUE_INFINITE);
-            beta      = std::min(avg + delta, VALUE_INFINITE);
+            beta      = std::min(avg + delta,  VALUE_INFINITE);
 
 #if 0
             // Adjust optimism based on root move's averageScore
             // ルート手の averageScore に基づいて楽観度を調整する
-            optimism[us]  = 136 * avg / (std::abs(avg) + 93);
+			optimism[us]  = 137 * avg / (std::abs(avg) + 91);
             optimism[~us] = -optimism[us];
 #endif
 
@@ -1625,20 +1637,20 @@ void Search::YaneuraOuWorker::iterative_deepening() {
               rootMoves[0].effort * 100000 / std::max(size_t(1), size_t(nodes));
 
             double fallingEval =
-              (11.396 + 2.035 * (mainThread->bestPreviousAverageScore - bestValue)
-               + 0.968 * (mainThread->iterValue[iterIdx] - bestValue))
+              (11.325 + 2.115 * (mainThread->bestPreviousAverageScore - bestValue)
+               + 0.987 * (mainThread->iterValue[iterIdx] - bestValue))
               / 100.0;
-            fallingEval = std::clamp(fallingEval, 0.5786, 1.6752);
+            fallingEval = std::clamp(fallingEval, 0.5688, 1.5698);
 
             // If the bestMove is stable over several iterations, reduce time accordingly
             // bestMove が複数回のイテレーションで安定している場合、それに応じて時間を短縮する
 
-            double k      = 0.527;
-            double center = lastBestMoveDepth + 11;
-            timeReduction = 0.8 + 0.84 / (1.077 + std::exp(-k * (completedDepth - center)));
+            double k      = 0.5189;
+            double center = lastBestMoveDepth + 11.57;
+            timeReduction = 0.723 + 0.79 / (1.104 + std::exp(-k * (completedDepth - center)));
             double reduction =
-              (1.4540 + mainThread->previousTimeReduction) / (2.1593 * timeReduction);
-            double bestMoveInstability = 0.9929 + 1.8519 * totBestMoveChanges / threads.size();
+              (1.455 + mainThread->previousTimeReduction) / (2.2375 * timeReduction);
+            double bestMoveInstability = 1.04 + 1.8956 * totBestMoveChanges / threads.size();
 
             double totalTime =
               mainThread->tm.optimum() * fallingEval * reduction * bestMoveInstability;
@@ -1647,7 +1659,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             // 視聴者体験を向上させるため、合法手が1つだけの場合に使用時間を上限で制限する
 
             if (rootMoves.size() == 1)
-                totalTime = std::min(500.0, totalTime);
+                totalTime = std::min(502.0, totalTime);
 	            // 🤔 やねうら王ではここ0でも良いような…？
 
 #if STOCKFISH
@@ -1661,7 +1673,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             //     秒単位で切り上げたいので、tm.search_endまで
             //     持ち時間を使い切りたい。
 
-            if (completedDepth >= 10 && nodesEffort >= 97056 && elapsedTime > totalTime * 0.6540
+            if (completedDepth >= 10 && nodesEffort >= 92425 && elapsedTime > totalTime * 0.666
                 && !mainThread->ponder)
 #if STOCKFISH
                 threads.stop = true;
@@ -1690,7 +1702,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                     threads.stop = true;
             }
             else
-                threads.increaseDepth = mainThread->ponder || elapsedTime <= totalTime * 0.5138;
+                threads.increaseDepth = mainThread->ponder || elapsedTime <= totalTime * 0.503;
 
 #else
             if (elapsedTime > std::min(totalTime, double(mainThread->tm.maximum())))
@@ -1703,7 +1715,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
             }
             else
                 main_manager()->increaseDepth =
-                  mainThread->ponder || elapsedTime <= totalTime * 0.5138;
+                  mainThread->ponder || elapsedTime <= totalTime * 0.503;
 #endif
         }
 
@@ -1788,9 +1800,9 @@ void YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
 // 履歴をリセットする。通常は新しいゲームの前に実行される。
 void YaneuraOuWorker::clear() {
 
-    mainHistory.fill(64);
-    captureHistory.fill(-753);
-    pawnHistory.fill(-1275);
+    mainHistory.fill(68);
+    captureHistory.fill(-689);
+    pawnHistory.fill(-1238);
     pawnCorrectionHistory.fill(5);
     minorPieceCorrectionHistory.fill(0);
     nonPawnCorrectionHistory.fill(0);
@@ -1811,11 +1823,11 @@ void YaneuraOuWorker::clear() {
         for (StatsType c : {NoCaptures, Captures})
             for (auto& to : continuationHistory[inCheck][c])
                 for (auto& h : to)
-                    h.fill(-494);
+                    h.fill(-529);
 
 	// reductions tableの初期化(これはWorkerごとが持つように変更された)
     for (size_t i = 1; i < reductions.size(); ++i)
-        reductions[i] = int(2782 / 128.0 * std::log(i));
+        reductions[i] = int(2809 / 128.0 * std::log(i));
 
 	// 📝 lowPlyHistoryの初期化は、対局ごとではなく、局面ごと("go"のごと)に変更された。
 
@@ -2296,8 +2308,17 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         && is_valid(ttData.value)   // Can happen when !ttHit or when access race in probe()
 							        // !ttHitの場合やprobe()でのアクセス競合時に発生する可能性がありうる。
         && (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER))
-        && (cutNode == (ttData.value >= beta) || depth > 5))
-    /*
+        && (cutNode == (ttData.value >= beta) || depth > 5)
+#if STOCKFISH
+		// avoid a TT cutoff if the rule50 count is high and the TT move is zeroing
+        && (depth > 8 || ttData.move == Move::none() || pos.rule50_count() < 80
+            || (!ttCapture && type_of(pos.moved_piece(ttData.move)) != PAWN)))
+#else
+        && (depth > 8 || ttData.move == Move::none() /* || pos.rule50_count() < 80 */
+            || (!ttCapture && type_of(pos.moved_piece(ttData.move)) != PAWN)))
+#endif
+
+		/*
 		📝 解説
 		
 			ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
@@ -3153,9 +3174,6 @@ moves_loop:  // When in check, search starts here
         // 今回の指し手で王手になるかどうか
         givesCheck = pos.gives_check(move);
 
-        // quietの指し手の連続回数
-        (ss + 1)->quietMoveStreak = (!capture && !givesCheck) ? (ss->quietMoveStreak + 1) : 0;
-
         // Calculate new depth for this move
         // 今回の指し手に関して新しいdepth(残り探索深さ)を計算する。
         newDepth = depth - 1;
@@ -3523,8 +3541,6 @@ moves_loop:  // When in check, search starts here
 
         if ((ss + 1)->cutoffCnt > 2)
             r += 925 + 33 * msb(depth) + allNode * (701 + 224 * msb(depth));
-
-        r += (ss + 1)->quietMoveStreak * 51;
 
         // For first picked move (ttMove) reduce reduction
         // 最初に選ばれた指し手（ttMove）ではreductionを減らす

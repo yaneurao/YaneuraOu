@@ -22,6 +22,7 @@
 #define NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 
@@ -99,8 +100,8 @@ void find_nnz(const std::int32_t* RESTRICT input,
         const __mmask32 nnzMask  = _mm512_test_epi16_mask(inputV01, inputV01);
 
         // Get a bitmask and gather non zero indices
-        const __mmask32 nnzMask = _mm512_kunpackw(_mm512_test_epi32_mask(inputV1, inputV1),
-                                                  _mm512_test_epi32_mask(inputV0, inputV0));
+        const __m512i   inputV01 = _mm512_packus_epi32(inputV0, inputV1);
+        const __mmask32 nnzMask  = _mm512_test_epi16_mask(inputV01, inputV01);
 
         // Avoid _mm512_mask_compressstoreu_epi16() as it's 256 uOps on Zen4
         __m512i nnz = _mm512_maskz_compress_epi16(nnzMask, base);
@@ -287,12 +288,18 @@ class AffineTransformSparseInput {
         for (IndexType k = 0; k < NumRegs; ++k)
             acc[k] = biasvec[k];
 
-        for (IndexType j = 0; j < count; ++j)
+        auto* start = nnz;
+        auto* end   = nnz + count;
+
+        // convince GCC to not do weird pointer arithmetic in the following loop
+        const std::int8_t* weights_cp = weights;
+
+        while (start < end)
         {
-            const auto    i  = nnz[j];
-            const invec_t in = vec_set_32(input32[i]);
-            const auto    col =
-              reinterpret_cast<const invec_t*>(&weights[i * OutputDimensions * ChunkSize]);
+            const std::ptrdiff_t i = *start;
+            start++;
+            const invec_t in  = vec_set_32(input32[i]);
+            const auto    col = (const invec_t*) (&weights_cp[i * OutputDimensions * ChunkSize]);
             for (IndexType k = 0; k < NumRegs; ++k)
                 vec_add_dpbusd_32(acc[k], in, col[k]);
         }

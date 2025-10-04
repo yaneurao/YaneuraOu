@@ -39,7 +39,7 @@ class Option {
 
     // integer
 #if STOCKFISH
-	Option(double v, int minv, int maxv, OnChange = nullptr);
+	Option(int v, int minv, int maxv, OnChange = nullptr);
 #else
 	// ⇨ 💡 やねうら王では、引数をint64_tに変更
     Option(int64_t v, int64_t minv, int64_t maxv, OnChange = nullptr);
