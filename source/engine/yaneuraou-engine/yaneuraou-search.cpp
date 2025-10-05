@@ -1475,7 +1475,8 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 }
                 else if (bestValue >= beta)
                 {
-                    beta = std::min(bestValue + delta, VALUE_INFINITE);
+                    alpha = std::max(beta - delta, alpha);
+                    beta  = std::min(bestValue + delta, VALUE_INFINITE);
                     ++failedHighCnt;
                 }
                 else
@@ -1872,10 +1873,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // Dive into quiescence search when the depth reaches zero
     // 残り探索深さが1手未満であるなら現在の局面のまま静止探索を呼び出す
     if (depth <= 0)
-    {
-        constexpr auto nt = PvNode ? PV : NonPV;
-        return qsearch<nt>(pos, ss, alpha, beta);
-    }
+        return qsearch<PvNode ? PV : NonPV>(pos, ss, alpha, beta);
 
     // Limit the depth if extensions made it too large
     // 拡張によって深さが大きくなりすぎた場合、深さを制限します
@@ -2360,15 +2358,15 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
             if (!ttCapture)
                 update_quiet_histories(pos, ss, *this, ttData.move,
-                                       std::min(127 * depth - 74, 1063));
+                                       std::min(130 * depth - 71, 1043));
 
             // Extra penalty for early quiet moves of the previous ply
             // 1手前の早い時点のquietの指し手に対する追加のペナルティ
 
 			// 💡 1手前がMove::null()であることを考慮する必要がある。
 
-			if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 3 && !priorCapture)
-                update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -2128);
+			if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 4 && !priorCapture)
+                update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -2142);
         }
 
         // Partial workaround for the graph history interaction problem
@@ -2377,13 +2375,13 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 		// グラフ履歴の相互作用問題に対する部分的な回避策
         // rule50カウントが高い場合は、トランスポジションテーブルによるカットオフを行いません。
 
-        // ⚠ 将棋では関係のないルールなので無視して良いが、pos.rule50_count < 90 が(チェスの)通常の状態なので、
+        // ⚠ 将棋では関係のないルールなので無視して良いが、pos.rule50_count < 96 が(チェスの)通常の状態なので、
         //     if成立時のreturnはしなければならない。
 
         // 🤔 比較してみたが、これを有効にするとR10ぐらい弱くなるっぽい。
         //     全体を調整してからまた考える。
 #if 0
-		if (pos.rule50_count() < 91)
+		if (pos.rule50_count() < 96)
         {
             // TODO : 将棋でもこの処理必要なのか？
 
@@ -2746,15 +2744,14 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
     if (((ss - 1)->currentMove).is_ok() && !(ss - 1)->inCheck && !priorCapture)
     {
-        int bonus =
-            std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -1979, 1561) + 630;
-        mainHistory[~us][((ss - 1)->currentMove).from_to()] << bonus * 935 / 1024;
+        int bonus = std::clamp(-10 * int((ss - 1)->staticEval + ss->staticEval), -2023, 1563) + 583;
+        mainHistory[~us][((ss - 1)->currentMove).from_to()] << bonus * 944 / 1024;
 
 		// TODO : これ必要なのか？あとで検証する。
         if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
             && ((ss - 1)->currentMove).type_of() != PROMOTION)
             pawnHistory[pawn_history_index(pos)][pos.piece_on(prevSq)][prevSq]
-              << bonus * 1428 / 1024;
+              << bonus * 1438 / 1024;
     }
 
     // Set up the improving flag, which is true if current static evaluation is
@@ -2791,9 +2788,9 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
 	// 1手前のreductionに応じた残りdepthの調整
 
-    if (priorReduction >= (depth < 10 ? 1 : 3) && !opponentWorsening)
+    if (priorReduction >= 3 && !opponentWorsening)
         depth++;
-    if (priorReduction >= 2 && depth >= 2 && ss->staticEval + (ss - 1)->staticEval > 177)
+    if (priorReduction >= 2 && depth >= 2 && ss->staticEval + (ss - 1)->staticEval > 173)
         depth--;
 
 	// -----------------------
@@ -2806,7 +2803,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 	// 評価値が非常に低い場合、検索を完全にスキップして qsearch の値を返します。
     // PvNode では、チェックメイトが返されるのを防ぐためのガードが必要です。
 
-    if (!PvNode && eval < alpha - 495 - 290 * depth * depth)
+    if (!PvNode && eval < alpha - 514 - 294 * depth * depth)
         return qsearch<NonPV>(pos, ss, alpha, beta);
 
 	// -----------------------

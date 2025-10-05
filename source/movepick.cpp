@@ -422,7 +422,7 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 				// それ以外の指し手に関してはhistoryの値の順番
 				m.value = (*mainHistory)[us][m.from_to()] + (*continuationHistory[0])[pc][to];
 				if (ply < LOW_PLY_HISTORY_SIZE)
-					m.value += 2 * (*lowPlyHistory)[ply][m.from_to()] / (1 + ply);
+                    m.value += (*lowPlyHistory)[ply][m.from_to()];
 			}
 		}
 	}
