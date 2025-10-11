@@ -1081,7 +1081,9 @@ namespace Book
 	// Option["BookDir"]が定跡ファイルの入っているフォルダなのでこれを連結した定跡ファイルのファイル名を返す。
 	std::string BookMoveSelector::get_book_name() const
 	{
-		return Path::Combine( std::string(options["BookDir"]), std::string(options["BookFile"]));
+        std::string abs_book_dir =
+            Path::Combine(Directory::GetBinaryFolder(), std::string(options["BookDir"]));
+		return Path::Combine( abs_book_dir , std::string(options["BookFile"]));
 	}
 
 

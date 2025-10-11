@@ -29,10 +29,7 @@ void FukauraOuEngine::add_nn_options()
 
     // 各GPU用のDNNモデル名と、そのGPU用のUCT探索のスレッド数と、そのGPUに一度に何個の局面をまとめて評価(推論)を行わせるのか。
 
-    options.add("EvalDir", Option("eval", [](const Option& o) {
-                    std::string eval_dir = std::string(o);
-                    return std::nullopt;
-                }));
+    options.add("EvalDir", Option("eval"));
 
 	// 使用するGPUの最大
 	options.add("Max_GPU", Option(1, 1, 1024));
@@ -118,31 +115,31 @@ std::vector<int> FukauraOuEngine::get_thread_settings() {
     return thread_settings;
 }
 
-void FukauraOuEngine::init_gpu()
-{
-	// 📝 GPUの数に応じてthreadの確保を行うのでthreadの確保はこのタイミングで行われる。
+void FukauraOuEngine::init_gpu() {
+    // 📝 GPUの数に応じてthreadの確保を行うのでthreadの確保はこのタイミングで行われる。
 
-	auto& options = get_options();
+    auto& options = get_options();
 
-	// 各GPUのスレッド設定。無効化されているdeviceは0。
+    // 各GPUのスレッド設定。無効化されているdeviceは0。
     auto thread_settings = get_thread_settings();
 
-	// DNNのbatch sizeの設定。
+    // DNNのbatch sizeの設定。
     int dnn_batch_size = int(options["DNN_Batch_Size"]);
 
-	// 評価関数モデルのPATH。
-	auto eval_dir = options["EvalDir"];
-    auto model_name = options["DNN_Model"];
-    auto model_path = Path::Combine(eval_dir, model_name);
+    // 評価関数モデルのPATH。
+    auto eval_dir      = options["EvalDir"];
+    auto abs_eval_path = Path::Combine(Directory::GetBinaryFolder(), eval_dir);
+    auto model_name    = options["DNN_Model"];
+    auto model_path    = Path::Combine(abs_eval_path, model_name);
 
-	// modelファイルが存在することは事前に確認しておく。
-	if (!Path::Exists(model_path))
-	{
-		sync_cout << "Error! : " << model_path << " file not found" << sync_endl;
+    // modelファイルが存在することは事前に確認しておく。
+    if (!Path::Exists(model_path))
+    {
+        sync_cout << "Error! : " << model_path << " file not found" << sync_endl;
         Tools::exit();
-	}
+    }
 
-	searcher.InitGPU(model_path, thread_settings, dnn_batch_size);
+    searcher.InitGPU(model_path, thread_settings, dnn_batch_size);
 }
 
 

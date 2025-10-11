@@ -362,7 +362,17 @@ public:
 	// コンストラクタでargc,argvを渡さなかった時に、あとから設定する。
 	void set_arg(int _argc, char** _argv) { argc = _argc, argv = _argv; }
 
+	// 起動フォルダを返す
+	// 💡 文字列の末尾には`\`がついている。
+	// ⚠ set_arg()を事前に呼び出して、コマンドラインから渡されたargc, argvをセットしてあること。
+	// 🤔 やねうら王では、Directory::GetBinaryDirectory()を用いる。この関数は内部的に呼び出される。
+    static std::string get_binary_directory() { return g.get_binary_directory(g.argv[0]); }
+
+	// argv0 : コマンドラインから渡されたargv[0]を渡して、そこから起動フォルダを返す。
+	// Stockfishとの互換性のために用意。やねうら王では呼び出さない。
 	static std::string get_binary_directory(std::string argv0);
+
+	// cwd(current working directory)
 	static std::string get_working_directory();
 
 	int    argc;
@@ -874,9 +884,8 @@ namespace Directory
 	// 　ゆえに、CreateDirectory()をやめて、CreateFolder()に変更する。
 	Tools::Result CreateFolder(const std::string& dir_name);
 
-	// working directoryを返す。
-	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
-	std::string GetCurrentFolder();
+	// 起動時のフォルダを返す。
+	std::string GetBinaryFolder();
 }
 
 // --------------------

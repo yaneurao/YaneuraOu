@@ -118,7 +118,11 @@ namespace Eval {
 		// EvalIOを利用して評価関数ファイルを読み込む。
 		// ちなみに、inputのところにあるbasic_kppt32()をbasic_kppt16()に変更するとApery(WCSC27)の評価関数ファイルが読み込める。
 		// また、eval_convert()に渡している引数のinputとoutputを入れ替えるとファイルに書き出すことが出来る。EvalIOマジ、っょぃ。
-		auto make_name = [&](std::string filename) { return Path::Combine((string)Options["EvalDir"], filename); };
+        auto make_name = [&](std::string filename) {
+            auto eval_dir      = Options["EvalDir"];
+            auto abs_eval_path = Path::Combine(Directory::GetBinaryFolder(), eval_dir);
+            return Path::Combine(abs_eval_path, filename);
+        };
 		auto input = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
 		auto output = EvalIO::EvalInfo::build_kppt32((void*)kk, (void*)kkp, (void*)kpp);
 
@@ -267,7 +271,7 @@ namespace Eval {
 		// カレントフォルダに".."みたいなフォルダ駆け上がりが含まれていて、絶対pathは同じなのに同じ文字列にならないかも知れない。
 		// それはPath::Combine()が正規化して欲しい気はするが…面倒なのでやってない。
 
-		auto dir_name = Path::Combine( Directory::GetCurrentFolder(), (std::string)Options["EvalDir"]);
+		auto dir_name = Path::Combine( Directory::GetBinaryFolder(), (std::string)Options["EvalDir"]);
 		sync_cout << "info string EvalDirectory = " << dir_name << sync_endl;
 
 		// Mutex名,MMF(Memory Mapped File)名にbackslash文字は使えないらしいので、escapeする。念のため'/'もescapeする。

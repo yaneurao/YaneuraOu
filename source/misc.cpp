@@ -1536,10 +1536,8 @@ namespace Directory
 			: Tools::Result(Tools::ResultCode::CreateFolderError);
 	}
 
-	// カレントフォルダを返す(起動時のフォルダ)
-	// main関数に渡された引数から設定してある。
-	// "GetCurrentDirectory"という名前はWindowsAPI(で定義されているマクロ)と競合する。
-	string GetCurrentFolder() { return CommandLine::get_working_directory(); }
+	// 起動時のフォルダを返す。
+	string GetBinaryFolder() { return CommandLine::get_binary_directory(); }
 }
 
 
@@ -1921,8 +1919,8 @@ size_t str_to_size_t(const string& s) {
 #define GETCWD getcwd
 #endif
 
-string CommandLine::get_binary_directory(string argv0) {
-	string pathSeparator;
+string CommandLine::get_binary_directory(std::string argv0) {
+	std::string pathSeparator;
 
 #ifdef _WIN32
 	pathSeparator = "\\";
@@ -1955,6 +1953,7 @@ string CommandLine::get_binary_directory(string argv0) {
 	return binaryDirectory;
 }
 
+// 起動時のworking directory
 string CommandLine::get_working_directory() {
 	string workingDirectory = "";
 	char        buff[40000];

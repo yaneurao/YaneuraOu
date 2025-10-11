@@ -394,10 +394,8 @@ void load_eval() {
     #endif
         const Tools::Result result = [&] {
             if (dir_name != "<internal>") {
-                auto full_dir_name = Path::Combine(Directory::GetCurrentFolder(), dir_name);
-                sync_cout << "info string EvalDirectory = " << full_dir_name << sync_endl;
-
-                const std::string file_path = Path::Combine(dir_name, file_name);
+                auto abs_eval_path = Path::Combine(Directory::GetBinaryFolder(), dir_name);
+                const std::string file_path = Path::Combine(abs_eval_path, file_name);
                 std::ifstream stream(file_path, std::ios::binary);
                 sync_cout << "info string loading eval file : " << file_path << sync_endl;
 				if (!stream.is_open())
