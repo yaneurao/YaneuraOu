@@ -609,9 +609,11 @@ namespace SystemIO
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
 	// 引数で渡されるtrimはtrueを渡すと末尾のスペース、タブがトリムされる。
 	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
+	// 💡 filenameは、起動フォルダ相対で指定する。
 	Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
 
 	// ファイルにすべての行を書き出す。
+	// 💡 filenameは、起動フォルダ相対で指定する。
 	Tools::Result WriteAllLines(const std::string& filename, std::vector<std::string>& lines);
 
 
@@ -624,6 +626,7 @@ namespace SystemIO
 	//
 	// また、callbackされた関数のなかでバッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
 	// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
+	// 💡 filenameは、起動フォルダ相対で指定する。
 
 	Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func);
 	Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, size_t size);
@@ -642,6 +645,7 @@ namespace SystemIO
 		virtual ~TextReader();
 
 		// ファイルをopenする。
+		// 💡 filenameは、起動フォルダ相対で指定する。
 		Tools::Result Open(const std::string& filename);
 
 		// Open()を呼び出してオープンしたファイルをクローズする。
@@ -655,6 +659,7 @@ namespace SystemIO
 		// SkipEmptyLine(),SetTrim()の設定を反映する。
 		// Eofに達した場合は、返し値としてTools::ResultCode::Eofを返す。
 		// 先頭のUTF-8のBOM(EF BB BF)は無視する。
+		// 💡 filenameは、起動フォルダ相対で指定する。
 		Tools::Result ReadLine(std::string& line);
 
 		// ReadLine()で空行を読み飛ばすかどうかの設定。
@@ -738,6 +743,7 @@ namespace SystemIO
 		// 書き出し用のバッファサイズ([byte])
 		static constexpr size_t buf_size = 4096;
 
+		// 💡 filenameは、起動フォルダ相対で指定する。
 		Tools::Result Open(const std::string& filename);
 
 		// 文字列を書き出す(改行コードは書き出さない)
@@ -788,6 +794,7 @@ namespace SystemIO
 	{
 	public:
 		// ファイルのopen
+		// 💡 filenameは、起動フォルダ相対で指定する。
 		Tools::Result Open(const std::string& filename);
 
 		// ファイルサイズの取得
@@ -809,6 +816,7 @@ namespace SystemIO
 	public:
 		// ファイルのopen
 		// append == trueで呼び出すと、このあとWriteしたものはファイル末尾に追記される。
+		// 💡 filenameは、起動フォルダ相対で指定する。
 		Tools::Result Open(const std::string& filename, bool append = false);
 
 		// ptrの指すメモリからsize[byte]だけファイルに書き込む。
@@ -823,7 +831,9 @@ namespace SystemIO
 // ファイルをバイトとして読み込みます。
 // ファイルが存在しない場合は std::nullopt を返します。
 
-std::optional<std::string> read_file_to_string(const std::string& path);
+// 💡 filenameは、起動フォルダ相対で指定する。
+
+std::optional<std::string> read_file_to_string(const std::string& filename);
 
 // --------------------
 //       Path

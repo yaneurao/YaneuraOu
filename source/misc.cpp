@@ -880,7 +880,10 @@ namespace SystemIO
 		// 空行をスキップするモードにする。
 		reader.SkipEmptyLine(true);
 
-		auto result = reader.Open(filename);
+		// 起動フォルダ相対でのpath
+		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
+		auto result = reader.Open(path);
 		if (!result.is_ok())
 			return result;
 
@@ -895,7 +898,11 @@ namespace SystemIO
 	Tools::Result WriteAllLines(const string& filename, vector<string>& lines)
 	{
 		TextWriter writer;
-		if (writer.Open(filename).is_not_ok())
+
+		// 起動フォルダ相対でのpath
+		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
+		if (writer.Open(path).is_not_ok())
 			return Tools::ResultCode::FileOpenError;
 
 		for(auto& line : lines)
@@ -911,7 +918,10 @@ namespace SystemIO
 	{
 		// fstream、遅いので、FILEを用いて書き換える。
 
-		FILE* fp = fopen(filename.c_str(), "rb");
+		// 起動フォルダ相対でのpath
+		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
+		FILE* fp = fopen(path.c_str(), "rb");
 		if (fp == nullptr)
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
@@ -953,7 +963,10 @@ namespace SystemIO
 
 	Tools::Result WriteMemoryToFile(const string& filename, void* ptr, size_t size)
 	{
-		fstream fs(filename, ios::out | ios::binary);
+		// 起動フォルダ相対でのpath
+		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
+		fstream fs(path, ios::out | ios::binary);
 		if (fs.fail())
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
@@ -1037,8 +1050,11 @@ namespace SystemIO
 	{
 		Close();
 
+		// 起動フォルダ相対でのpath
+		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
 		// 高速化のためにbinary open
-		fp = fopen(filename.c_str(), "rb");
+		fp = fopen(path.c_str(), "rb");
 		return (fp == nullptr) ? Tools::Result(Tools::ResultCode::FileOpenError) : Tools::Result::Ok();
 	}
 
@@ -1211,7 +1227,11 @@ namespace SystemIO
 	Tools::Result TextWriter::Open(const string& filename)
 	{
 		Close();
-		fp = fopen(filename.c_str(), "wb");
+
+		// 起動フォルダ相対でのpath
+		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
+		fp = fopen(path.c_str(), "wb");
 		return fp == nullptr ? Tools::ResultCode::FileOpenError
                              : Tools::ResultCode::Ok;
 	}
@@ -1324,7 +1344,10 @@ namespace SystemIO
 			return close_result;
 		}
 
-		fp = fopen(filename.c_str(), "rb");
+		// 起動フォルダ相対でのpath
+		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
+		fp = fopen(path.c_str(), "rb");
 		if (fp == nullptr)
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
@@ -1373,7 +1396,10 @@ namespace SystemIO
 	// ファイルのopen
 	Tools::Result BinaryWriter::Open(const string& filename, bool append)
 	{
-		fp = fopen(filename.c_str(), append ? "ab" : "wb");
+		// 起動フォルダ相対でのpath
+		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
+		fp = fopen(path.c_str(), append ? "ab" : "wb");
 		if (fp == nullptr)
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
@@ -1396,7 +1422,11 @@ namespace SystemIO
 // ファイルをバイトとして読み込みます。
 // ファイルが存在しない場合は nullopt を返します。
 
-optional<string> read_file_to_string(const string& path) {
+optional<string> read_file_to_string(const string& filename) {
+
+	// 起動フォルダ相対でのpath
+	std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
 	ifstream f(path, ios_base::binary);
 	if (!f)
 		return nullopt;
