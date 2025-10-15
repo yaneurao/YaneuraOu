@@ -157,6 +157,9 @@ void USIEngine::loop()
 			break;
 	}
 
+	// エンジンの終了を待つ。
+	engine.wait_for_search_finished();
+
 #else
 	// yaneuraOu.wasm
 	// ここでループしてしまうと、ブラウザのメインスレッドがブロックされてしまう。
