@@ -679,6 +679,11 @@ void USIEngine::bench(std::istream& args) {
 #endif
     });
 
+#if !STOCKFISH
+	// USIEngine::isready()を呼び出してやらかないと"engine_options.txt"などの読み込みが行われない。
+    isready();
+#endif
+
     std::vector<std::string> list = Benchmark::setup_bench(engine.sfen(), args);
 
     num = count_if(list.begin(), list.end(), [](const std::string& s) { return s.find("go ") == 0 || s.find("eval") == 0; });
@@ -762,6 +767,11 @@ void USIEngine::benchmark(std::istream& args) {
     engine.set_on_update_no_moves([](const auto&) {});
     engine.set_on_bestmove([](const auto&, const auto&) {});
     engine.set_on_verify_networks([](const auto&) {});
+
+#if !STOCKFISH
+	// USIEngine::isready()を呼び出してやらかないと"engine_options.txt"などの読み込みが行われない。
+    isready();
+#endif
 
     Benchmark::BenchmarkSetup setup = Benchmark::setup_benchmark(args);
 
