@@ -191,6 +191,9 @@ void FukauraOuEngine::set_ponderhit(bool b) {
 	searcher.search_limits.ponder           = b;
 }
 
+// エンジン名の変更。
+std::string FukauraOuEngine::get_engine_name() const { return "FukauraOu"; }
+
 // エンジン作者名の変更
 std::string FukauraOuEngine::get_engine_author() const { return "Tadao Yamaoka , yaneurao"; }
 

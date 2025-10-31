@@ -64,6 +64,9 @@ class FukauraOuEngine: public YaneuraOu::Engine {
 	// 🌈 "ponderhit"に対する処理。
     virtual void set_ponderhit(bool b) override;
 
+	// エンジン名の変更。
+    virtual std::string get_engine_name() const override;
+
     // エンジン作者名の変更。
     virtual std::string get_engine_author() const override;
 

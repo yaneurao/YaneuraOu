@@ -501,7 +501,7 @@ constexpr int MAX_PLY_NUM = 246;
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 
-	#define EVAL_DEEP "dlshogi-denryu2021"
+	#define EVAL_DEEP "DL"
 	#define USE_EVAL
 	#define USE_TIME_MANAGEMENT
 	#define USE_MATE_1PLY
@@ -807,7 +807,9 @@ constexpr bool pretty_jp = false;
 		#endif
 	#elif defined(TENSOR_RT)
 		#include "NvInferRuntimeCommon.h"
-		#define EVAL_TYPE_NAME "TensorRT" + std::to_string(getInferLibVersion()) + "-" EVAL_DEEP
+		// TensorRT、長いのでTRTにしておく。TRTのバージョン、長いのでくっつけるのやめておく。
+		// #define EVAL_TYPE_NAME "TRT" + std::to_string(getInferLibVersion()) + "-" EVAL_DEEP
+		#define EVAL_TYPE_NAME "TRT-" EVAL_DEEP
 	#elif defined(COREML)
 		#define EVAL_TYPE_NAME "CoreML-" EVAL_DEEP
 	#endif

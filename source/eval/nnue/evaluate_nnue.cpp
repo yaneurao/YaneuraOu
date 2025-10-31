@@ -263,7 +263,7 @@ namespace NNUE {
         if (result.is_not_ok()) return result;
         if (hash_value != kHashValue) return Tools::ResultCode::FileMismatch;
 		result = Detail::ReadParameters<FeatureTransformer>(stream, feature_transformer); if (result.is_not_ok()) return result;
-		result = Detail::ReadParameters<Network>(stream, network);             if (result.is_not_ok()) return result;
+		result = Detail::ReadParameters<Network>(stream, network);                        if (result.is_not_ok()) return result;
         return (stream && stream.peek() == std::ios::traits_type::eof()) ? Tools::ResultCode::Ok : Tools::ResultCode::FileCloseError;
     }
 
