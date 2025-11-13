@@ -1187,9 +1187,10 @@ class NumaConfig {
         th.join();
     }
 
-   private:
     std::vector<std::set<CpuIndex>> nodes;
     std::map<CpuIndex, NumaIndex>   nodeByCpu;
+
+   private:
     CpuIndex                        highestCpuIndex;
 
     bool customAffinity;
