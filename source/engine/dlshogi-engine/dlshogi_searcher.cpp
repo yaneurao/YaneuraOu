@@ -82,9 +82,7 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> t
               // 追加でFukauraOuEngineからもらいたいもの
               *this, engine);
 
-			Worker* base_ptr = p.release(); // Worker* に upcast
-
-			return LargePagePtr<Worker>(base_ptr, LargePageDeleter<Worker>());
+			return LargePagePtr<Worker>(p.release());  // Worker* に upcast
         };
 
 	// 探索の終了条件を満たしたかを監視するためのスレッド数

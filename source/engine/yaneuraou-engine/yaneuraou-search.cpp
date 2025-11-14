@@ -334,9 +334,7 @@ void YaneuraOuEngine::resize_threads() {
 			tt, *this
 		);
 
-		Worker* base_ptr = p.release(); // Worker* に upcast
-
-		return LargePagePtr<Worker>(base_ptr, LargePageDeleter<Worker>());
+		return LargePagePtr<Worker>(p.release());  // Worker* に upcast
     };
 
     threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);

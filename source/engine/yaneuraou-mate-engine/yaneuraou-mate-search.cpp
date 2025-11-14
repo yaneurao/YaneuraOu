@@ -198,9 +198,15 @@ class YaneuraOuMateEngine: public Engine {
         // 💡　難しいことは考えずにコピペして使ってください。"Search::UserWorker"と書いてあるところに、
         //      あなたの作成したWorker派生classの名前を書きます。
         auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken) {
-            return std::make_unique<Search::YaneuraOuMateWorker>(options, threads, threadIdx,
-                                                                 numaAccessToken);
-        };
+
+			auto p = make_unique_large_page<Search::YaneuraOuMateWorker>(
+				// Worker基底classが渡して欲しいもの。
+				options, threads, threadIdx, numaAccessToken
+			);
+
+			return LargePagePtr<Worker>(p.release());  // Worker* に upcast
+		};
+
         threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
 
         // 📌 NUMAの設定

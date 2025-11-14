@@ -55,6 +55,7 @@
 //
 
 using namespace YaneuraOu;
+using YaneuraOu::Search::Worker;
 
 namespace {
 	// 正確なPVを返すときのUsiOptionで使うnameの文字列。
@@ -1076,11 +1077,18 @@ public:
 		// 💡　難しいことは考えずにコピペして使ってください。"Search::UserWorker"と書いてあるところに、
 		//      あなたの作成したWorker派生classの名前を書きます。
 		auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
-			{ return std::make_unique<TanukiMateWorker>(options, threads, threadIdx, numaAccessToken,
+		{
+
+			auto p = make_unique_large_page<TanukiMateWorker>(
+				// Worker基底classが渡して欲しいもの。
+				options, threads, threadIdx, numaAccessToken,
+
 				// 📌 WorkerからEngine側の何かにアクセスしたい時は、コンストラクタで渡してしまうのが簡単だと思う。
 				//     TODO : あとで他の方法を考える。
 				mateClass
 			);
+
+			return LargePagePtr<Worker>(p.release());  // Worker* に upcast
 		};
 		threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
 
