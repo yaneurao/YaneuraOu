@@ -13,6 +13,8 @@
 #include "dlshogi_searcher.h"
 #include "SearchOptions.h"
 
+using YaneuraOu::Search::Worker;
+
 namespace dlshogi {
 
 /*
@@ -22,7 +24,7 @@ namespace dlshogi {
 
 class FukauraOuEngine;
 
-class FukauraOuWorker : public YaneuraOu::Search::Worker {
+class FukauraOuWorker : public Worker {
    public:
 
 	FukauraOuWorker(OptionsMap&               options,

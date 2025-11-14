@@ -285,7 +285,7 @@ void FukauraOuWorker::parallel_search()
 
 FukauraOuWorker::~FukauraOuWorker()
 {
-	searcher.FinalizeUctSearch();
+	// searcherでの探索は終了しているはずなのでここでは何もしない。
 }
 
 #if 0

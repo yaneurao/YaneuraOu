@@ -310,13 +310,14 @@ struct UpdateContext {
 */
 
 class Worker;
-typedef std::function<std::unique_ptr<Worker>(size_t /*threadIdx*/, NumaReplicatedAccessToken /*numaAccessToken*/)> WorkerFactory;
+typedef std::function<LargePagePtr<Worker>(size_t /*threadIdx*/, NumaReplicatedAccessToken /*numaAccessToken*/)> WorkerFactory;
 
 class Worker
 {
 public:
 
 	Worker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken);
+	 virtual ~Worker() { }
 
 	// Called at instantiation to initialize reductions tables.
     // Reset histories, usually before a new game.
@@ -486,7 +487,7 @@ protected:
 #endif
 
 #if defined(EVAL_SFNN)
-    const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
+    const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
 
     // Used by NNUE
     Eval::NNUE::AccumulatorStack  accumulatorStack;
@@ -515,7 +516,7 @@ struct SharedState {
 	SharedState(const OptionsMap& optionsMap,
 		ThreadPool& threadPool,
 		TranspositionTable& transpositionTable,
-		const LazyNumaReplicated<Eval::Evaluator>& nets
+		const LazyNumaReplicatedSystemWide<Eval::Evaluator>& nets
 	) :
 		options(optionsMap),
 		threads(threadPool),
@@ -528,7 +529,7 @@ struct SharedState {
 	ThreadPool& threads;
 	TranspositionTable& tt;
 
-	const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
+	const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
 };
 #endif
 

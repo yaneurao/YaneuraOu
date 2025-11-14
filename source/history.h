@@ -159,7 +159,7 @@ using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, Move::FROM_TO_SIZE>
  　　		   なぜなら、このButterflyHistoryではその指し手の手番(Color)の区別をしているから。
 */
 
-// LowPlyHistory is adressed by play and move's from and to squares, used
+// LowPlyHistory is addressed by play and move's from and to squares, used
 // to improve move ordering near the root
 
 // LowPlyHistoryはプレイおよび手の「from」と「to」のマスで管理され、

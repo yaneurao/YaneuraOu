@@ -40,9 +40,15 @@ Thread::Thread(
 
 		this->numaAccessToken = binder();
 		this->worker =
-			//std::make_unique<Search::Worker>(/* sharedState, std::move(sm),*/ thread_id, this->numaAccessToken);
+#if STOCKFISH
+        this->worker = make_unique_large_page<Search::Worker>(sharedState, std::move(sm), n,
+                                                              this->numaAccessToken);
+#else
 			std::move(worker_factory(thread_id, this->numaAccessToken));
-		});
+
+#endif
+
+	});
 
 	// スレッドはsearching == trueで開始するので、このままworkerのほう待機状態にさせておく
 	wait_for_search_finished();

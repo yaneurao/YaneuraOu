@@ -24,9 +24,6 @@ enum GenType {
 
 #else
 
-// 将棋のある局面の合法手の最大数。593らしいが、保険をかけて少し大きめにしておく。
-constexpr int MAX_MOVES = 600;
-
 // 生成する指し手の種類
 enum GenType {
     //

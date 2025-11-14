@@ -427,6 +427,12 @@
     <ClInclude Include="engine\dlshogi-engine\UctSearch.h">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClInclude>
+    <ClInclude Include="shm.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="shm_linux.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">

@@ -344,8 +344,7 @@ class YaneuraOuEngine: public Engine {
     TranspositionTable tt;
 
     // TODO : あとで
-    //LazyNumaReplicated<Eval::NNUE::Networks> networks;
-
+    //LazyNumaReplicatedSystemWide<Eval::NNUE::Networks> networks;
 
     // 📝 Engine classにある
     // Search::UpdateContext updateContext;
@@ -595,7 +594,7 @@ class YaneuraOuWorker: public Worker {
 
 #if STOCKFISH || defined(EVAL_SFNN)
 	// NNUE評価関数のパラメーターがNumaごとにコピーされるようにする。
-	const LazyNumaReplicated<Eval::NNUE::Networks>& networks;
+	const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
 
 	// Used by NNUE
 	// NNUEで使う
@@ -619,7 +618,7 @@ class YaneuraOuWorker: public Worker {
 
 	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
     // 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。
-    YaneuraOuWorker* toYaneuraOuWorker(std::unique_ptr<Worker>& worker) {
+    YaneuraOuWorker* toYaneuraOuWorker(LargePagePtr<Worker>& worker) {
         //return dynamic_cast<YaneuraOuWorker*>(worker.get());
 		// ⚠  RTTIが無効(コンパイル時に-frttiを指定している)ので
 		//     dytnamic_castは使えない。

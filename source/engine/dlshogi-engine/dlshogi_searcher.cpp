@@ -74,13 +74,17 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> t
 	*/ 
 
     auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken) {
-            return std::make_unique<FukauraOuWorker>(
+            auto p = make_unique_large_page<FukauraOuWorker>(
 
               // Worker基底classが渡して欲しいもの。
               engine.options, engine.threads, threadIdx, numaAccessToken,
 
               // 追加でFukauraOuEngineからもらいたいもの
               *this, engine);
+
+			Worker* base_ptr = p.release(); // Worker* に upcast
+
+			return LargePagePtr<Worker>(base_ptr, LargePageDeleter<Worker>());
         };
 
 	// 探索の終了条件を満たしたかを監視するためのスレッド数

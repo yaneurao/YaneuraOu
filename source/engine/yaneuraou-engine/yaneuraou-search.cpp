@@ -323,14 +323,20 @@ void YaneuraOuEngine::resize_threads() {
 
     // 📌 スレッド数のリサイズ
 
-    auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken) {
-        return std::make_unique<Search::YaneuraOuWorker>(
+    auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
+	{
 
+		auto p = make_unique_large_page<Search::YaneuraOuWorker>(
 			// Worker基底classが渡して欲しいもの。
 			options, threads, threadIdx, numaAccessToken,
 
 			// 追加でYaneuraOuEngineからもらいたいもの
-			tt, *this);
+			tt, *this
+		);
+
+		Worker* base_ptr = p.release(); // Worker* に upcast
+
+		return LargePagePtr<Worker>(base_ptr, LargePageDeleter<Worker>());
     };
 
     threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);

@@ -8,13 +8,11 @@
 #include <mutex>
 #include <vector>
 
-#include "movepick.h"
+#include "memory.h"
 #include "numa.h"
 #include "position.h"
 #include "search.h"
 #include "thread_win32_osx.h"
-//#include "types.h"
-#include "history.h"
 
 #if defined(EVAL_LEARN)
 // 学習用の実行ファイルでは、スレッドごとに置換表を持ちたい。
@@ -92,7 +90,7 @@ private:
 
 namespace Search {
 	class Worker;
-	typedef std::function<std::unique_ptr<Worker>(size_t /*thread_idx*/, NumaReplicatedAccessToken /*token*/)> WorkerFactory;
+	typedef std::function<LargePagePtr<Worker>(size_t /*thread_idx*/, NumaReplicatedAccessToken /*token*/)> WorkerFactory;
 }
 
 class Thread {
@@ -157,7 +155,7 @@ public:
 	size_t id() const { return idx; }
 
 	// 実行しているworker
-	std::unique_ptr<Search::Worker> worker;
+	LargePagePtr<Search::Worker> worker;
 
 	// 実行しているjob
 	std::function<void()>           jobFunc;

@@ -663,6 +663,9 @@ constexpr bool is_ok(PieceNumber pn) { return pn < PIECE_NUMBER_NB; }
 //       指し手
 // --------------------
 
+// 将棋のある局面の合法手の最大数。593らしいが、保険をかけて少し大きめにしておく。
+constexpr int MAX_MOVES = 600;
+
 // Based on a congruential pseudo-random number generator
 // 合同式による疑似乱数生成器に基づいています。
 // ⇨ Move型のhashを生成するときに用いる。

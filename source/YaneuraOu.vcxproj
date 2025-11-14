@@ -686,6 +686,8 @@
     <ClInclude Include="numa.h" />
     <ClInclude Include="perft.h" />
     <ClInclude Include="score.h" />
+    <ClInclude Include="shm.h" />
+    <ClInclude Include="shm_linux.h" />
     <ClInclude Include="timeman.h" />
     <ClInclude Include="tracer.h" />
     <ClInclude Include="search.h" />
