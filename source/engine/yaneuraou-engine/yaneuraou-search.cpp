@@ -2929,9 +2929,10 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // -----------------------
 
 	// At sufficient depth, reduce depth for PV/Cut nodes without a TTMove.
-    // (*Scaler) Especially if they make IIR less aggressive.
+	// (*Scaler) Making IIR more aggressive scales poorly.
+
     // 十分な探索深さがある場合、置換表（TTMove）に手がないPVノードやCutノードについては探索深さを削減する。
-    //（*Scaler）特に、IIR のアグレッシブさが抑えられる場合に適用されます。
+    //（*Scaler）IIR をよりアグレッシブにすると、スケーリング効率が悪化する。
 
     if (!allNode && depth >= 6 && !ttData.move && priorReduction <= 3)
         depth--;
@@ -3178,18 +3179,20 @@ moves_loop:  // When in check, search starts here
         Depth r = reduction(improving, depth, moveCount, delta);
 
         // Increase reduction for ttPv nodes (*Scaler)
-        // Smaller or even negative value is better for short time controls
-        // Bigger value is better for long time controls
+        // Larger values scale well
 
         // ttPv ノードに対する減少量を増やす（*Scaler）
-        // 短い持ち時間制限では、より小さい値、あるいは負の値のほうが望ましい
-        // 長い持ち時間制限では、より大きい値のほうが望ましい
+		// 大きな値のほうがスケールしやすい。
+
+		// 📝
+        //   短い持ち時間制限では、より小さい値、あるいは負の値のほうが望ましい
+        //   長い持ち時間制限では、より大きい値のほうが望ましい
 
         if (ss->ttPv)
             r += 946;
 
         // -----------------------
-        // Step 14. Pruning at shallow depth
+        // Step 14. Pruning at shallow depths
         // Step 14. (残り探索深さが)浅い深さでの枝刈り
         // -----------------------
 
@@ -3270,19 +3273,20 @@ moves_loop:  // When in check, search starts here
 
                 history += 76 * mainHistory[us][move.from_to()] / 32;
 
-                // (*Scaler): Generally, a lower divisor scales well
-                lmrDepth += history / 3220;
+				// (*Scaler): Generally, lower divisors scales well
+				// 一般に、割る数（divisor）が小さいほどスケールしやすい。
+
+				lmrDepth += history / 3220;
 
 				Value futilityValue = ss->staticEval + 47 + 171 * !bestMove + 134 * lmrDepth
                     + 90 * (ss->staticEval > alpha);
 
                 // Futility pruning: parent node
                 // (*Scaler): Generally, more frequent futility pruning
-                // scales well with respect to time and threads
+				// scales well
 
                 // Futility枝刈り: 親ノード
-                // (*Scaler): 一般的に、より頻繁な無駄枝刈りは
-                // 時間およびスレッドに対して適切にスケールする
+                // (*Scaler): 一般的に、より頻繁な無駄枝刈りはよくスケールする
 
                 // 📝 親nodeの時点で子nodeを展開する前にfutilityの対象となりそうなら枝刈りしてしまう。
                 // 🤔 パラメーター調整の係数を調整したほうが良いのかも知れないが、
@@ -3594,10 +3598,8 @@ moves_loop:  // When in check, search starts here
             // Do a full-depth search when reduced LMR search fails high
             // 深さを減らした LMR 探索がfail highを出した場合は、full depth(元の探索深さ)で探索を行う
 
-			// (*Scaler) Usually doing more shallower searches
-            // doesn't scale well to longer TCs
-            // （*Scaler）通例、より浅い探索を増やしても
-            // 長い持ち時間制限ではうまくスケールしない
+            // (*Scaler) Shallower searches here don't scale well
+            // （*Scaler）ここで浅い探索を増やしても(長い持ち時間では)うまくスケールしない
 
             if (value > alpha)
             {
@@ -3822,8 +3824,8 @@ moves_loop:  // When in check, search starts here
 
                 if (value >= beta)
                 {
-                    // (*Scaler) Especially if they make cutoffCnt increment more often.
-                    //（*Scaler）特に cutoffCnt のインクリメントをより頻繁に行わせる場合に
+					// (*Scaler) Infrequent and small updates scale well
+					// （*Scaler）まれで、小さな更新はスケールする。
 
                     ss->cutoffCnt += (extension < 2) || PvNode;
                     ASSERT_LV3(value >= beta);  // Fail high
