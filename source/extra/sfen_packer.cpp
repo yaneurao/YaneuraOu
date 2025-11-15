@@ -609,7 +609,7 @@ std::string Position::sfen_from_rawdata(Piece board[81], Hand hands[2], Color tu
 	// これで正常に変換されるのでは…。
 	Position pos;
 
-	memcpy(pos.board, board, sizeof(Piece) * 81);
+	memcpy(&pos.board, board, sizeof(Piece) * 81);
 	memcpy(pos.hand, hands, sizeof(Hand) * 2);
 	pos.sideToMove = turn;
 	pos.gamePly = gamePly_;

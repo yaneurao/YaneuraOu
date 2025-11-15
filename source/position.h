@@ -1,5 +1,7 @@
 ﻿#ifndef POSITION_H_INCLUDED
 #define POSITION_H_INCLUDED
+
+#include <array>
 #include <deque>
 #include <memory> // For std::unique_ptr
 
@@ -442,6 +444,13 @@ public:
 	// sのマスにある駒を返す。
     // 💡 sq == SQ_NBの時、NO_PIECEが返ることは保証されている。
     Piece piece_on(Square sq) const;
+
+	// (盤上の)駒の配列をもらう。
+#if STOCKFISH
+    const std::array<Piece, SQUARE_NB>& piece_array() const;
+#else
+    const std::array<Piece, SQ_NB_PLUS1>& piece_array() const;
+#endif
 
 #if STOCKFISH
     Square ep_square() const;
@@ -1087,14 +1096,14 @@ private:
     // --------------------
 
 	// 盤面、81升分の駒 + 1
-    Piece board[SQ_NB_PLUS1];
+    std::array<Piece, SQ_NB_PLUS1>    board;
 
 	// 駒が存在する升を表すBitboard。先後混在。
     // pieces()の引数と同じく、ALL_PIECES,HDKなどのPieceで定義されている特殊な定数が使える。
-    Bitboard byTypeBB[PIECE_BB_NB];
+    std::array<Bitboard, PIECE_BB_NB> byTypeBB;
 
     // 盤上の先手/後手/両方の駒があるところが1であるBitboard
-    Bitboard byColorBB[COLOR_NB];
+    std::array<Bitboard, COLOR_NB>    byColorBB;
 
 #if STOCKFISH
     // 各駒の数
@@ -1149,6 +1158,8 @@ inline Piece Position::piece_on(Square s) const {
     ASSERT_LV3(is_ok(s));
     return board[s];
 }
+
+inline const std::array<Piece, SQ_NB_PLUS1>& Position::piece_array() const { return board; }
 
 inline bool Position::empty(Square s) const { return piece_on(s) == NO_PIECE; }
 

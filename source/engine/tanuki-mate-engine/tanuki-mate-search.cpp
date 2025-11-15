@@ -1124,14 +1124,14 @@ namespace {
 	void engine_main()
 	{
 		// ここで作ったエンジン
-		TanukiMate::TanukiMateEngine engine;
+		auto engine = std::make_unique<TanukiMate::TanukiMateEngine>();
 
 		// USIコマンドの応答部
-		USIEngine usi;
-		usi.set_engine(engine); // エンジン実装を差し替える。
+		auto usi = std::make_unique<USIEngine>();
+		usi->set_engine(*engine);  // エンジン実装を差し替える。
 
 		// USIコマンドの応答のためのループ
-		usi.loop();
+		usi->loop();
 	}
 
 	// このentry pointを登録しておく。
