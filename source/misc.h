@@ -2,11 +2,13 @@
 #define MISC_H_INCLUDED
 
 #include <chrono>
+#include <exception>  // IWYU pragma: keep
+// IWYU pragma: no_include <__exception/terminate.h>
+#include <functional>
 #include <optional>
 #include <string_view>
 #include <vector>
 
-#include <functional>
 #include <fstream>
 #include <mutex>
 #include <atomic>
@@ -350,6 +352,147 @@ inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
     return aH * bH + (c2 >> 32) + (c3 >> 32);
 #endif
 }
+
+// --------------------
+//   hash値の計算
+// --------------------
+
+// 📓 SFNNのバイナリに対してhash値を計算するためのヘルパー関数群。
+
+// 2つのハッシュ値を安全に合成するためのユーティリティ。
+// seed と v を合成した値を seed に返す。
+// 📝 vのほうはT型としてstd::hash<T>を利用する。
+template<typename T>
+inline void hash_combine(std::size_t& seed, const T& v) {
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+// hash_combine の std::size_t 特化版
+// 📝 std::hash<std::size_t> は単なる値返しであることが多く、
+//     特化させることで不要な hasher オブジェクト生成を削減し、
+//     わずかだがパフォーマンス改善になる。
+template<>
+inline void hash_combine(std::size_t& seed, const std::size_t& v) {
+    seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+// 任意の POD ライクなデータ構造を、バイト列そのままのハッシュとして利用し、size_tで返す。
+// 📝 `reinterpret_cast` でメモリ内容を生のまま string_view にして hash を取る。
+//     その実装はコンパイラ依存かつendian依存。
+template<typename T>
+inline std::size_t get_raw_data_hash(const T& value) {
+    return std::hash<std::string_view>{}(
+      std::string_view(reinterpret_cast<const char*>(&value), sizeof(value)));
+}
+
+/*
+	FixedString
+
+	固定長バッファ上で動作する軽量文字列。
+	std::string のような動的メモリアロケーションを一切行わず、
+	組み込み用途やパフォーマンス重視のコードで有用。
+	💡 StringBuilder やログバッファ用途に近い。
+
+    特徴:
+     - Capacity をコンパイル時に決める
+     - オーバーフロー時は std::terminate() で即死（安全優先）
+     - '\0' 終端を保持しており C 文字列互換
+     - std::string / std::string_view への暗黙変換あり
+*/
+
+// Capacity : 最大文字列長(byte)
+template<std::size_t Capacity>
+class FixedString {
+   public:
+
+	// 空のFixedStringを構築する。
+    FixedString() :
+        length_(0) {
+        data_[0] = '\0';
+    }
+
+	// char* から FixedStringを構築する。
+	// ⚠ Capacityを超えた場合は、即座にstd::terminate()を呼び出す。
+    FixedString(const char* str) {
+        size_t len = std::strlen(str);
+        if (len > Capacity)
+            std::terminate();
+        std::memcpy(data_, str, len);
+        length_        = len;
+        data_[length_] = '\0';
+    }
+
+	// std::string から FixedStringを構築する。
+	// ⚠ Capacityを超えた場合は、即座にstd::terminate()を呼び出す。
+    FixedString(const std::string& str) {
+        if (str.size() > Capacity)
+            std::terminate();
+        std::memcpy(data_, str.data(), str.size());
+        length_        = str.size();
+        data_[length_] = '\0';
+    }
+
+	// 格納している文字列長さ
+    std::size_t size() const { return length_; }
+
+	// template引数で渡されたCapacity
+    std::size_t capacity() const { return Capacity; }
+
+	// string::c_str()みたいなの。
+    const char* c_str() const { return data_; }
+	const char* data() const { return data_; }
+
+	// 文字列の i 番目。
+    char& operator[](std::size_t i) { return data_[i]; }
+    const char& operator[](std::size_t i) const { return data_[i]; }
+
+	// 文字列のappend
+	// ⚠ Capacityを超えた場合は、即座にstd::terminate()を呼び出す。
+    FixedString& operator+=(const char* str) {
+        size_t len = std::strlen(str);
+        if (length_ + len > Capacity)
+            std::terminate();
+        std::memcpy(data_ + length_, str, len);
+        length_ += len;
+        data_[length_] = '\0';
+        return *this;
+    }
+
+	// 文字列のappend
+    FixedString& operator+=(const FixedString& other) { return (*this += other.c_str()); }
+
+	// string型への暗黙の変換子
+    operator std::string() const { return std::string(data_, length_); }
+
+	// string_view型への暗黙の変換子
+    operator std::string_view() const { return std::string_view(data_, length_); }
+
+	// 同一であるかの比較
+    template<typename T>
+    bool operator==(const T& other) const noexcept {
+        return (std::string_view) (*this) == other;
+    }
+
+	// 異なる内容であるかの比較
+    template<typename T>
+    bool operator!=(const T& other) const noexcept {
+        return (std::string_view) (*this) != other;
+    }
+
+	// 格納している文字列をclearする。
+    void clear() {
+        length_  = 0;
+        data_[0] = '\0';
+    }
+
+   private:
+	// 文字バッファ(終端の`\0`を考慮して1byte多めに確保)
+    char        data_[Capacity + 1];  // +1 for null terminator
+
+	// 格納している文字列の長さ。
+    std::size_t length_;
+};
 
 // --------------------
 //   コマンドライン
@@ -1301,5 +1444,15 @@ namespace Misc {
 }
 
 } // namespace YaneuraOu
+
+// FixedString型のstd::hashの特殊化
+// 📝 FixedString<N> を string_view に変換して
+//     string_view のハッシュ関数をそのまま使うので高速
+template<std::size_t N>
+struct std::hash<YaneuraOu::FixedString<N>> {
+    std::size_t operator()(const YaneuraOu::FixedString<N>& fstr) const noexcept {
+        return std::hash<std::string_view>{}((std::string_view) fstr);
+    }
+};
 
 #endif // #ifndef MISC_H_INCLUDED

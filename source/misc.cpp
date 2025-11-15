@@ -392,14 +392,15 @@ string compiler_info() {
 #if defined(USE_SSE2)
 	compiler += " SSE2";
 #endif
-
-//	compiler += (HasPopCnt ? " POPCNT" : "");
-// ⇨ このフラグ、やねうら王では持っていない。
-
 #if defined(USE_NEON_DOTPROD)
 	compiler += " NEON_DOTPROD";
 #elif defined(USE_NEON)
 	compiler += " NEON";
+#endif
+
+#if STOCKFISH
+	compiler += (HasPopCnt ? " POPCNT" : "");
+	// ⇨ このフラグ、やねうら王では持っていない。
 #endif
 
 #if !defined(NDEBUG)
