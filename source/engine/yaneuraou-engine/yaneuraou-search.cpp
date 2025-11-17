@@ -5039,8 +5039,8 @@ void update_quiet_histories(
   const Position& pos, Stack* ss, Search::YaneuraOuWorker& workerThread, Move move, int bonus) {
 
     Color us = pos.side_to_move();
-	workerThread.mainHistory[us][move.raw()] << bonus;  // Untuned to prevent duplicate effort
-	                                                        // 重複した処理を防ぐためにチューニングされていない
+    workerThread.mainHistory[us][move.raw()] << bonus;  // Untuned to prevent duplicate effort
+														// 重複した処理を防ぐためにチューニングされていない
 
     if (ss->ply < LOW_PLY_HISTORY_SIZE)
         workerThread.lowPlyHistory[ss->ply][move.raw()] << bonus * 761 / 1024;

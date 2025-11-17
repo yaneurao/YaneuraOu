@@ -26,7 +26,7 @@ constexpr int UINT_16_HISTORY_SIZE     = std::numeric_limits<uint16_t>::max() + 
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 constexpr int LOW_PLY_HISTORY_SIZE     = 5;
 
-static_assert((UINT_16_HISTORY_SIZE & (UINT_16_HISTORY_SIZE - 1)) == 0,
+static_assert((PAWN_HISTORY_SIZE & (PAWN_HISTORY_SIZE - 1)) == 0,
               "PAWN_HISTORY_SIZE has to be a power of 2");
 
 static_assert((UINT_16_HISTORY_SIZE & (UINT_16_HISTORY_SIZE - 1)) == 0,
@@ -37,6 +37,8 @@ inline int pawn_history_index(const Position& pos) {
 }
 
 inline uint16_t pawn_correction_history_index(const Position& pos) { return uint16_t(pos.pawn_key()); }
+// 🌈 Stockfishではhash keyはuint64_tなので、そのままuint16_tにできるが、やねうら王では、
+//     Keyという構造体なので暗黙で64bitにすることはできない。ゆえに明示的なcastが必要となる。
 
 inline uint16_t minor_piece_index(const Position& pos) { return uint16_t(pos.minor_piece_key()); }
 
