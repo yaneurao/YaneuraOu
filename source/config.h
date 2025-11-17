@@ -14,7 +14,7 @@
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
 #if !defined(ENGINE_VERSION)
 
-#define ENGINE_VERSION "9.01git"
+#define ENGINE_VERSION "9.10git"
 
 #endif
 // --------------------
