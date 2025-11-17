@@ -21,32 +21,28 @@ namespace YaneuraOu {
 // -----------------------
 
 // 歩の陣形に対するhistory
-constexpr int PAWN_HISTORY_SIZE        = 8192;   // has to be a power of 2
-constexpr int CORRECTION_HISTORY_SIZE  = 32768;  // has to be a power of 2
+constexpr int PAWN_HISTORY_SIZE        = 8192;  // has to be a power of 2
+constexpr int UINT_16_HISTORY_SIZE     = std::numeric_limits<uint16_t>::max() + 1;
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
 constexpr int LOW_PLY_HISTORY_SIZE     = 5;
 
-static_assert((PAWN_HISTORY_SIZE & (PAWN_HISTORY_SIZE - 1)) == 0,
+static_assert((UINT_16_HISTORY_SIZE & (UINT_16_HISTORY_SIZE - 1)) == 0,
               "PAWN_HISTORY_SIZE has to be a power of 2");
 
-static_assert((CORRECTION_HISTORY_SIZE & (CORRECTION_HISTORY_SIZE - 1)) == 0,
+static_assert((UINT_16_HISTORY_SIZE & (UINT_16_HISTORY_SIZE - 1)) == 0,
               "CORRECTION_HISTORY_SIZE has to be a power of 2");
 
 inline int pawn_history_index(const Position& pos) {
     return pos.pawn_key() & (PAWN_HISTORY_SIZE - 1);
 }
 
-inline int pawn_correction_history_index(const Position& pos) {
-    return pos.pawn_key() & (CORRECTION_HISTORY_SIZE - 1);
-}
+inline uint16_t pawn_correction_history_index(const Position& pos) { return uint16_t(pos.pawn_key()); }
 
-inline int minor_piece_index(const Position& pos) {
-    return pos.minor_piece_key() & (CORRECTION_HISTORY_SIZE - 1);
-}
+inline uint16_t minor_piece_index(const Position& pos) { return uint16_t(pos.minor_piece_key()); }
 
 template<Color c>
-inline int non_pawn_index(const Position& pos) {
-    return pos.non_pawn_key(c) & (CORRECTION_HISTORY_SIZE - 1);
+inline uint16_t non_pawn_index(const Position& pos) {
+    return uint16_t(pos.non_pawn_key(c));
 }
 
 // StatsEntry is the container of various numerical statistics. We use a class
@@ -130,11 +126,7 @@ using Stats = MultiArray<StatsEntry<T, D>, Sizes...>;
 // 詳細は https://www.chessprogramming.org/Butterfly_Boards を参照してください。
 // 💡 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
 
-#if STOCKFISH
-using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, int(SQUARE_NB)* int(SQUARE_NB)>;
-#else
-using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, Move::FROM_TO_SIZE>;
-#endif
+using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, UINT_16_HISTORY_SIZE>;
 
 /*
 	 📓 上記のような配列、将棋では添字順を入れ替えて、history[c][to]をhistory[to][c]としたい。
@@ -165,12 +157,7 @@ using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, Move::FROM_TO_SIZE>
 // LowPlyHistoryはプレイおよび手の「from」と「to」のマスで管理され、
 // ルート付近での手順の順序を改善するために使用されます。
 
-using LowPlyHistory =
-#if STOCKFISH
-Stats<std::int16_t, 7183, LOW_PLY_HISTORY_SIZE, int(SQUARE_NB)* int(SQUARE_NB)>;
-#else
-Stats<std::int16_t, 7183, LOW_PLY_HISTORY_SIZE, Move::FROM_TO_SIZE>;
-#endif
+using LowPlyHistory = Stats<std::int16_t, 7183, LOW_PLY_HISTORY_SIZE, UINT_16_HISTORY_SIZE>;
 
 // CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
 // CapturePieceToHistoryは、指し手の [piece][to][captured piece type]で示される。
@@ -227,7 +214,7 @@ namespace Detail {
 
 template<CorrHistType>
 struct CorrHistTypedef {
-    using type = Stats<std::int16_t, CORRECTION_HISTORY_LIMIT, CORRECTION_HISTORY_SIZE, COLOR_NB>;
+    using type = Stats<std::int16_t, CORRECTION_HISTORY_LIMIT, UINT_16_HISTORY_SIZE, COLOR_NB>;
 };
 
 template<>
@@ -243,7 +230,7 @@ struct CorrHistTypedef<Continuation> {
 template<>
 struct CorrHistTypedef<NonPawn> {
     using type =
-      Stats<std::int16_t, CORRECTION_HISTORY_LIMIT, CORRECTION_HISTORY_SIZE, COLOR_NB, COLOR_NB>;
+      Stats<std::int16_t, CORRECTION_HISTORY_LIMIT, UINT_16_HISTORY_SIZE, COLOR_NB, COLOR_NB>;
 };
 
 }

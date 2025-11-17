@@ -339,7 +339,7 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 			//    ここでpromotionの価値まで足し込んでしまうとそこと整合性がとれなくなるのか…。
 
 			m.value = (*captureHistory)[pc][to][type_of(capturedPiece)]
-						+ 7 * int(Eval::PieceValue[capturedPiece]) + 1024 * bool(pos.check_squares(pt) & to);
+						+ 7 * int(Eval::PieceValue[capturedPiece]);
 			// →　係数を掛けてるのは、
 			// このあと、GOOD_CAPTURE で、
 			//	return pos.see_ge(*cur, Value(-cur->value))
@@ -359,7 +359,7 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 			// →　指し手オーダリングは、quietな指し手の間での優劣を付けたいわけで、
 			//    駒を成るような指し手はどうせevaluate()で大きな値がつくからそっちを先に探索することになる。
 
-			m.value  =  2 * (*mainHistory)[us][m.from_to()];
+			m.value  =  2 * (*mainHistory)[us][m.raw()];
             m.value +=  2 * (*pawnHistory)[pawn_history_index(pos)][pc][to];
 			m.value +=      (*continuationHistory[0])[pc][to];
 			m.value +=      (*continuationHistory[1])[pc][to];
@@ -381,16 +381,15 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 			//  📓 移動元の駒が安い駒で当たりになっている場合、
 			//      移動させることでそれを回避できるなら価値を上げておく。
 
-            static constexpr int bonus[KING + 1] = {0, 0, 144, 144, 256, 517, 10000};
-            int v = threatByLesser[pt] & to ? -95 : 100 * bool(threatByLesser[pt] & from);
-            m.value += bonus[pt] * v;
+            int v = threatByLesser[pt] & to ? -19 : 20 * bool(threatByLesser[pt] & from);
+            m.value += PieceValue[pt] * v;
 
 			// → Stockfishのコードそのままは書けない。
 #endif
 
 			// lowPlyHistoryも加算
 			if (ply < LOW_PLY_HISTORY_SIZE)
-                m.value += 2 * (*lowPlyHistory)[ply][m.from_to()];
+                m.value += 8 * (*lowPlyHistory)[ply][m.raw()] / (1 + ply);
 			
 		}
 		else // Type == EVASIONS || EVASIONS_ALL
@@ -420,9 +419,9 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 			else
 			{
 				// それ以外の指し手に関してはhistoryの値の順番
-				m.value = (*mainHistory)[us][m.from_to()] + (*continuationHistory[0])[pc][to];
+				m.value = (*mainHistory)[us][m.raw()] + (*continuationHistory[0])[pc][to];
 				if (ply < LOW_PLY_HISTORY_SIZE)
-                    m.value += (*lowPlyHistory)[ply][m.from_to()];
+                    m.value += (*lowPlyHistory)[ply][m.raw()];
 			}
 		}
 	}

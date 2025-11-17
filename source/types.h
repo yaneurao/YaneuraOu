@@ -769,21 +769,11 @@ public:
 	// この指し手のあとにtoに来る駒。(移動させる駒だが、成りのときは、成ったあとの駒。)
 	Piece moved_after_piece() const { return Piece(data >> 16); }
 
-	// fromとtoをシリアライズする。駒打ちのときのfromは普通の移動の指し手とは異なる。
-	// この関数は、0 ～ ((SQ_NB+7) * SQ_NB - 1)までの値が返る。
-	// ※ is_drop() == trueの時、from_sq(m)は、打つ駒のPieceTypeが返る。NO_PIECE = 0で、ここが空番であることに注意。
-	//    ゆえに、is_drop()==trueの時は、from_sq(m)にSQ_NB-1を足して、打つ駒がPAWN(= 1)の時にSQ_NBになるようにしてやる必要がある。
-	// 注) 駒打ちに関して、先手の駒と後手の駒の区別はしない。
-	// 　　これは、この関数は、MovePickerのButterflyHistoryで使うから必要なのだが、そこでは指し手の手番(Color)を別途持っているから。
-	int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq());}
 
 	// 指し手(Move)のMoveTypeを返す。
     constexpr MoveType type_of() {
         return MoveType(data & (MOVE_PROMOTE | MOVE_DROP));
     }
-
-	// 上記のfrom_toが返す最大値 + 1。
-	static constexpr int FROM_TO_SIZE = int(SQ_NB + 7) * int(SQ_NB);
 
 	// 指し手が普通の指し手(駒打ち/駒成り含む)であるかテストする。
 	// 特殊な指し手(MOVE_NONE/MOVE_NULL/MOVE_WIN)である場合、falseが返る。
@@ -807,10 +797,13 @@ public:
 
 	// Move16への変換子
 	Move16 to_move16() const;
-	constexpr uint16_t to_u16() const { return (uint16_t)data; }
-	constexpr uint32_t to_u32() const { return (uint32_t)data; }
+	constexpr uint16_t to_u16() const { return uint16_t(data); }
+	constexpr uint32_t to_u32() const { return uint32_t(data); }
 	constexpr explicit operator bool() const { return data != 0; }
-	constexpr explicit operator uint32_t() const { return (uint32_t)data; }
+	constexpr explicit operator uint32_t() const { return uint32_t(data); }
+
+	// 下位16bit(from,to,drop,promote)をそのまま返す。
+    constexpr std::uint16_t raw() const { return uint16_t(data); }
 
 	// -- 文字列化
 
@@ -861,8 +854,10 @@ public:
 	constexpr bool is_promote() const { return (data & MOVE_PROMOTE) != 0; }
 	constexpr PieceType move_dropped_piece() const { return PieceType((data >> 7) & 0x7f); }
 
-	constexpr int from_to() const { return int(from_sq() + int(is_drop() ? (SQ_NB - 1) : 0)) * int(SQ_NB) + int(to_sq()); }
-    constexpr MoveType type_of() { return MoveType(data & (MOVE_PROMOTE | MOVE_DROP)); }
+	// 16bit(from,to,drop,promote)をそのまま返す。
+    constexpr std::uint16_t raw() const { return uint16_t(data); }
+
+	constexpr MoveType type_of() { return MoveType(data & (MOVE_PROMOTE | MOVE_DROP)); }
 	constexpr bool is_ok() const { return (data >> 7) != (data & 0x7f); }
 
 	// -- 比較

@@ -554,6 +554,15 @@ void move_to_front(std::vector<T>& vec, Predicate pred) {
 // 💡 sf_assume(false)ならば、そこには到達しないことを明示する。sf_assume(true)ならば到達する。
 //     clangを除外してあるのは、警告が消えないからっぽい。
 
+#if defined(__GNUC__)
+    #define sf_always_inline __attribute__((always_inline))
+#elif defined(__MSVC)
+    #define sf_always_inline __forceinline
+#else
+    // do nothign for other compilers
+    #define sf_always_inline
+#endif
+
 #if defined(__GNUC__) && !defined(__clang__)
     #if __GNUC__ >= 13
         #define sf_assume(cond) __attribute__((assume(cond)))

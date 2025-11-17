@@ -1751,33 +1751,34 @@ void Search::YaneuraOuWorker::do_move(Position & pos, const Move move, StateInfo
     do_move(pos, move, st, pos.gives_check(move), ss);
 }
 
-void YaneuraOuWorker::do_move(Position&  pos,
-                            const Move move,
-                            StateInfo& st,
-                              const bool givesCheck,
-							  Stack* const ss) {
+
+void YaneuraOuWorker::do_move(
+  Position& pos, const Move move, StateInfo& st, const bool givesCheck, Stack* const ss) {
 
     bool capture = pos.capture_stage(move);
+
+    // Preferable over fetch_add to avoid locking instructions
+	// ロック命令を避けるため、fetch_add よりもこちらの方が望ましい。
+
+	nodes.store(nodes.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
 
 #if defined(EVAL_SFNN)
 
     // accumulatorStackを用いる実装。
 
-    nodes.fetch_add(1, std::memory_order_relaxed);
     DirtyBoardData dirtyBoardData = pos.do_move(move, st, givesCheck, &tt);
     accumulatorStack.push(dirtyBoardData);
 
 #else
 
-	pos.do_move(move, st, givesCheck, &tt);
-    nodes.fetch_add(1, std::memory_order_relaxed);
+    pos.do_move(move, st, givesCheck, &tt);
 
 #endif
 
     if (ss != nullptr)
     {
-		// currentMove(現在探索中の指し手)の更新
-        ss->currentMove         = move;
+        // currentMove(現在探索中の指し手)の更新
+        ss->currentMove = move;
 
 #if STOCKFISH
         ss->currentMove = move;
@@ -1786,11 +1787,10 @@ void YaneuraOuWorker::do_move(Position&  pos,
         ss->continuationCorrectionHistory =
           &continuationCorrectionHistory[dirtyBoardData.dp.pc][move.to_sq()];
 #else
-		// やねうら王とStockfishでは、DirtyPieceの構造が違うし、
-		// やねうら王では、移動後の駒(成りの指し手なら成り駒)を使いたい。
-        Piece dp_pc = pos.moved_piece(move);
-        ss->continuationHistory =
-          &continuationHistory[ss->inCheck][capture][dp_pc][move.to_sq()];
+        // やねうら王とStockfishでは、DirtyPieceの構造が違うし、
+        // やねうら王では、移動後の駒(成りの指し手なら成り駒)を使いたい。
+        Piece dp_pc             = pos.moved_piece(move);
+        ss->continuationHistory = &continuationHistory[ss->inCheck][capture][dp_pc][move.to_sq()];
         ss->continuationCorrectionHistory = &continuationCorrectionHistory[dp_pc][move.to_sq()];
 #endif
     }
@@ -2448,7 +2448,8 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
             if (err != TB::ProbeState::FAIL)
             {
-                tbHits.fetch_add(1, std::memory_order_relaxed);
+                // Preferable over fetch_add to avoid locking instructions
+                tbHits.store(tbHits.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
 
                 int drawScore = tbConfig.useRule50 ? 1 : 0;
 
@@ -2747,10 +2748,11 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 			1手前でMove::null()ではなく、王手がかかっておらず、駒を取る指し手ではなかったなら…。
 	*/
 
+
     if (((ss - 1)->currentMove).is_ok() && !(ss - 1)->inCheck && !priorCapture)
     {
         int evalDiff = std::clamp(-int((ss - 1)->staticEval + ss->staticEval), -200, 156) + 58;
-        mainHistory[~us][((ss - 1)->currentMove).from_to()] << evalDiff * 9;
+        mainHistory[~us][((ss - 1)->currentMove).raw()] << evalDiff * 9;
         if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
             && ((ss - 1)->currentMove).type_of() != PROMOTION)
             pawnHistory[pawn_history_index(pos)][pos.piece_on(prevSq)][prevSq] << evalDiff * 14;
@@ -2760,11 +2762,15 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // bigger than the previous static evaluation at our turn (if we were in
     // check at our previous move we go back until we weren't in check) and is
     // false otherwise. The improving flag is used in various pruning heuristics.
+    // Similarly, opponentWorsening is true if our static evaluation is better
+    // for us than at the last ply.
 
 	// improvingフラグを設定します。これは、現在の静的評価が前回の自分の手番での
     // 静的評価より大きい場合にtrueとなります（前回の手で王手を受けていた場合、
     // 王手を受けていない局面まで遡って評価します）。
     // それ以外の場合はfalseとなります。このimprovingフラグは、さまざまな枝刈り手法で使用されます。
+	// 同様に、opponentWorsening は、現在の静的評価が
+	// 1手前（前の手番）のときよりも自分にとって良くなっている場合に true になる。
 
 	/*
 		📝 improvingは、評価値が2手前の局面から上がって行っているのかのフラグ
@@ -2788,7 +2794,10 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 
     opponentWorsening = ss->staticEval > -(ss - 1)->staticEval;
 
-	// 1手前のreductionに応じた残りdepthの調整
+	// 📝 1手前のreductionに応じた残りdepthの調整
+
+    // Hindsight adjustment of reductions based on static evaluation difference.
+	// 静的評価値の差に基づいて、削減量を事後的に調整する。
 
     if (priorReduction >= 3 && !opponentWorsening)
         depth++;
@@ -2866,7 +2875,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         // Null move dynamic reduction based on depth
         // (残り探索)深さと評価値に基づくnull moveの動的なreduction
 
-        Depth R = 6 + depth / 3 + improving;
+        Depth R = 7 + depth / 3;
 
         ss->currentMove                   = Move::null();
         ss->continuationHistory           = &continuationHistory[0][0][NO_PIECE][0];
@@ -3271,7 +3280,7 @@ moves_loop:  // When in check, search starts here
                 if (history < -4312 * depth)
                     continue;
 
-                history += 76 * mainHistory[us][move.from_to()] / 32;
+                history += 76 * mainHistory[us][move.raw()] / 32;
 
 				// (*Scaler): Generally, lower divisors scales well
 				// 一般に、割る数（divisor）が小さいほどスケールしやすい。
@@ -3545,7 +3554,7 @@ moves_loop:  // When in check, search starts here
         else
             // 📊【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
             // 🤔 contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
-            ss->statScore = 2 * mainHistory[us][move.from_to()]
+            ss->statScore = 2 * mainHistory[us][move.raw()]
                           + (*contHist[0])[movedPiece][move.to_sq()]
                           + (*contHist[1])[movedPiece][move.to_sq()];
 
@@ -3949,7 +3958,7 @@ moves_loop:  // When in check, search starts here
         update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
                                       scaledBonus * 400 / 32768);
 
-        mainHistory[~us][((ss - 1)->currentMove).from_to()] << scaledBonus * 220 / 32768;
+        mainHistory[~us][((ss - 1)->currentMove).raw()] << scaledBonus * 220 / 32768;
 
 		// TODO : これで合ってるか？あとで検証する。
         if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
@@ -4025,11 +4034,10 @@ moves_loop:  // When in check, search starts here
 	// 補正履歴(correction history)を調整する。
 
 	if (!ss->inCheck && !(bestMove && pos.capture(bestMove))
-        && (bestValue < ss->staticEval) == !bestMove)
+        && (bestValue > ss->staticEval) == bool(bestMove))
     {
-        auto bonus =
-          std::clamp(int(bestValue - ss->staticEval) * depth / (8 + (bestValue > ss->staticEval)),
-                     -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+        auto bonus = std::clamp(int(bestValue - ss->staticEval) * depth / (bestMove ? 10 : 8),
+                                -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
 
         update_correction_history(pos, ss, *this, bonus);
     }
@@ -4454,8 +4462,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     //     1手ずつ調べる
     // -----------------------
 
-    const PieceToHistory* contHist[] = {(ss - 1)->continuationHistory,
-                                        (ss - 2)->continuationHistory};
+    const PieceToHistory* contHist[] = {(ss - 1)->continuationHistory};
 
 	// 📓 取り合いの指し手だけ生成する
     //     searchから呼び出された場合、直前の指し手がMove::null()であることがありうる。
@@ -5032,11 +5039,11 @@ void update_quiet_histories(
   const Position& pos, Stack* ss, Search::YaneuraOuWorker& workerThread, Move move, int bonus) {
 
     Color us = pos.side_to_move();
-    workerThread.mainHistory[us][move.from_to()] << bonus;  // Untuned to prevent duplicate effort
+	workerThread.mainHistory[us][move.raw()] << bonus;  // Untuned to prevent duplicate effort
 	                                                        // 重複した処理を防ぐためにチューニングされていない
 
     if (ss->ply < LOW_PLY_HISTORY_SIZE)
-        workerThread.lowPlyHistory[ss->ply][move.from_to()] << bonus * 761 / 1024;
+        workerThread.lowPlyHistory[ss->ply][move.raw()] << bonus * 761 / 1024;
 
     update_continuation_histories(ss, pos.moved_piece(move), move.to_sq(), bonus * 955 / 1024);
 
@@ -5226,8 +5233,9 @@ void syzygy_extend_pv(const OptionsMap&         options,
         for (const auto& m : MoveList<LEGAL>(pos))
             legalMoves.emplace_back(m);
 
-        Tablebases::Config config = Tablebases::rank_root_moves(options, pos, legalMoves);
-        RootMove&          rm     = *std::find(legalMoves.begin(), legalMoves.end(), pvMove);
+        Tablebases::Config config =
+          Tablebases::rank_root_moves(options, pos, legalMoves, false, time_abort);
+        RootMove& rm = *std::find(legalMoves.begin(), legalMoves.end(), pvMove);
 
         if (legalMoves[0].tbRank != rm.tbRank)
             break;
@@ -5286,7 +5294,8 @@ void syzygy_extend_pv(const OptionsMap&         options,
           [](const Search::RootMove& a, const Search::RootMove& b) { return a.tbRank > b.tbRank; });
 
         // The winning side tries to minimize DTZ, the losing side maximizes it
-        Tablebases::Config config = Tablebases::rank_root_moves(options, pos, legalMoves, true);
+        Tablebases::Config config =
+          Tablebases::rank_root_moves(options, pos, legalMoves, true, time_abort);
 
         // If DTZ is not available we might not find a mate, so we bail out
         if (!config.rootInTB || config.cardinality > 0)
