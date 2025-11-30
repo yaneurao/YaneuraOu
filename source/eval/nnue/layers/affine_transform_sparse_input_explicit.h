@@ -1,16 +1,14 @@
-﻿// Definition of layer AffineTransform of NNUE evaluation function
-// Definition of the AffineTransform layer with block-sparse input in the NNUE evaluation function
-// NNUE評価関数におけるブロック疎な入力を持つAffineTransform層の定義
+// Definition of layer AffineTransformSparseInputExplicit of NNUE evaluation function
 
-#ifndef CLASSIC_NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
-#define CLASSIC_NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
+#ifndef NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_EXPLICIT_H_INCLUDED
+#define NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_EXPLICIT_H_INCLUDED
 
 #include "../../../config.h"
 
 #if defined(EVAL_NNUE)
 
 #include "../nnue_common.h"
-#include "affine_transform.h"
+#include "affine_transform.h" // For affine_transform_unaligned
 #include "simd.h"
 
 namespace YaneuraOu {
@@ -19,7 +17,7 @@ namespace Eval::NNUE::Layers {
 #if defined(USE_SSSE3) || USE_NEON >= 8
 
 alignas(kCacheLineSize) static inline const
-  std::array<std::array<std::uint16_t, 8>, 256> lookup_indices = []() {
+  std::array<std::array<std::uint16_t, 8>, 256> lookup_indices_explicit = []() {
       std::array<std::array<std::uint16_t, 8>, 256> v{};
       for (unsigned i = 0; i < 256; ++i)
       {
@@ -32,7 +30,7 @@ alignas(kCacheLineSize) static inline const
 
 // Find indices of nonzero numbers in an int32_t array
 template<const IndexType kInputDimensions>
-void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_out) {
+static void find_nnz_explicit(const std::int32_t* input, std::uint16_t* out, IndexType& count_out) {
 #if defined(USE_SSSE3)
 #if defined(USE_AVX512)
     using vec_t = __m512i;
@@ -43,9 +41,9 @@ void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_ou
 #define vec_nnz(a) _mm256_cmpgt_epi32_mask(a, _mm256_setzero_si256())
 #else
 #define vec_nnz(a) \
-        		_mm256_movemask_ps( \
+                        _mm256_movemask_ps( \
                     _mm256_castsi256_ps(_mm256_cmpgt_epi32(a, _mm256_setzero_si256())))
-	#endif
+        #endif
 #elif defined(USE_SSSE3)
     using vec_t = __m128i;
 #define vec_nnz(a) \
@@ -59,7 +57,7 @@ void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_ou
 #define vec128_add(a, b) _mm_add_epi16(a, b)
 #elif defined(USE_NEON)
     using vec_t                        = uint32x4_t;
-	static constexpr std::uint32_t Mask[4] = {1, 2, 4, 8};
+        static constexpr std::uint32_t Mask[4] = {1, 2, 4, 8};
 #define vec_nnz(a) vaddvq_u32(vandq_u32(vtstq_u32(a, a), vld1q_u32(Mask)))
     using vec128_t                     = uint16x8_t;
 #define vec128_zero vdupq_n_u16(0)
@@ -93,7 +91,7 @@ void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_ou
         {
             const auto lookup = (nnz >> (j * 8)) & 0xFF;
             const auto offsets =
-              vec128_load(reinterpret_cast<const vec128_t*>(&lookup_indices[lookup]));
+              vec128_load(reinterpret_cast<const vec128_t*>(&lookup_indices_explicit[lookup]));
             vec128_storeu(reinterpret_cast<vec128_t*>(out + count), vec128_add(base, offsets));
             count += POPCNT32(lookup);
             base = vec128_add(base, increment);
@@ -110,31 +108,18 @@ void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_ou
 
 #endif
 
-// AffineTransform layer that takes block-sparse input
-// ブロック疎な入力を受け取るアフィン変換層
-template <typename PreviousLayer, IndexType OutputDimensions>
-class AffineTransformSparseInput {
-   public:
-	// Input/output type
-	// 入出力の型
-	using InputType  = typename PreviousLayer::OutputType;
-	using OutputType = std::int32_t;
-	static_assert(std::is_same<InputType, std::uint8_t>::value, "");
+// AffineTransform layer that takes block-sparse input (Explicit Dimensions)
+template <IndexType InputDimensions, IndexType OutputDimensions>
+class AffineTransformSparseInputExplicit {
+public:
+        using InputType = std::uint8_t;
+        using OutputType = std::int32_t;
 
-	// Number of input/output dimensions
-	// 入出力の次元数
-	static constexpr IndexType kInputDimensions       = PreviousLayer::kOutputDimensions;
-	static constexpr IndexType kOutputDimensions      = OutputDimensions;
-	static constexpr IndexType kPaddedInputDimensions = CeilToMultiple<IndexType>(kInputDimensions, kMaxSimdWidth);
-
-	// Size of forward propagation buffer used in this layer
-	// この層で使用する順伝播用バッファのサイズ
-	static constexpr std::size_t kSelfBufferSize =
-	    CeilToMultiple(kOutputDimensions * sizeof(OutputType), kCacheLineSize);
-
-	// Size of the forward propagation buffer used from the input layer to this layer
-	// 入力層からこの層までで使用する順伝播用バッファのサイズ
-	static constexpr std::size_t kBufferSize = PreviousLayer::kBufferSize + kSelfBufferSize;
+        // Number of input/output dimensions
+        static constexpr IndexType kInputDimensions       = InputDimensions;
+        static constexpr IndexType kOutputDimensions      = OutputDimensions;
+        static constexpr IndexType kPaddedInputDimensions = CeilToMultiple<IndexType>(kInputDimensions, kMaxSimdWidth);
+        static constexpr IndexType kPaddedOutputDimensions = CeilToMultiple<IndexType>(kOutputDimensions, kMaxSimdWidth);
 
 #if defined(USE_SSSE3) || USE_NEON >= 8
     static constexpr IndexType kChunkSize = 4;
@@ -142,86 +127,66 @@ class AffineTransformSparseInput {
     static constexpr IndexType kChunkSize = 1;
 #endif
 
-	// 評価関数ファイルに埋め込むハッシュ値
-	// Hash value embedded in the evaluation file
-	static constexpr std::uint32_t GetHashValue() {
-		std::uint32_t hash_value = 0xCC03DAE4u;
-		hash_value += kOutputDimensions;
-		hash_value ^= PreviousLayer::GetHashValue() >> 1;
-		hash_value ^= PreviousLayer::GetHashValue() << 31;
-		return hash_value;
-	}
+        using OutputBuffer = OutputType[kPaddedOutputDimensions];
 
-	// ハッシュ値を前段の値から更新するときのヘルパー
-	static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
-		std::uint32_t hash_value = 0xCC03DAE4u;
-		hash_value += kOutputDimensions;
-		hash_value ^= prevHash >> 1;
-		hash_value ^= prevHash << 31;
-		return hash_value;
-	}
+        // Hash value embedded in the evaluation file
+        static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
+                std::uint32_t hash_value = 0xCC03DAE4u;
+                hash_value += kOutputDimensions;
+                hash_value ^= prevHash >> 1;
+                hash_value ^= prevHash << 31;
+                return hash_value;
+        }
 
-	// 入力層からこの層までの構造を表す文字列
-	static std::string GetStructureString() {
-		return "AffineTransformSparseInput[" + std::to_string(kOutputDimensions) + "<-" + std::to_string(kInputDimensions) + "](" +
-		       PreviousLayer::GetStructureString() + ")";
-	}
+        // Structure string
+        static std::string GetStructureString() {
+                return "AffineTransformSparseInput[" + std::to_string(kOutputDimensions) + "<-" + std::to_string(kInputDimensions) + "]";
+        }
 
-	static constexpr IndexType GetWeightIndexScrambled(IndexType i) {
+        static constexpr IndexType get_weight_index_scrambled(IndexType i) {
         return (i / kChunkSize) % (kPaddedInputDimensions / kChunkSize) * kOutputDimensions * kChunkSize
              + i / kPaddedInputDimensions * kChunkSize + i % kChunkSize;
     }
 
-    static constexpr IndexType GetWeightIndex(IndexType i) {
+    static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || USE_NEON >= 8
-        return kOutputDimensions % 4 == 0 ? GetWeightIndexScrambled(i) : i;
+        return get_weight_index_scrambled(i);
 #else
         return i;
 #endif
     }
 
-	// Read network parameters
-	// パラメータを読み込む
-	Tools::Result ReadParameters(std::istream& stream) {
-		Tools::Result result = previous_layer_.ReadParameters(stream);
-		if (result.is_not_ok()) return result;
-		for (std::size_t i = 0; i < kOutputDimensions; ++i)
-			biases_[i] = read_little_endian<BiasType>(stream);
-		for (std::size_t i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
-			weights_[GetWeightIndex(IndexType(i))] = read_little_endian<WeightType>(stream);
-		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
-	}
+        // Read network parameters
+        Tools::Result ReadParameters(std::istream& stream) {
+                for (std::size_t i = 0; i < kOutputDimensions; ++i)
+                        biases_[i] = read_little_endian<BiasType>(stream);
+                for (std::size_t i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
+                        weights_[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
+                return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
+        }
 
-	// パラメータを書き込む
-	bool WriteParameters(std::ostream& stream) const {
-		if (!previous_layer_.WriteParameters(stream))
-			return false;
-		// TODO : endiannessの調整するコード必要なのでは。(やね)
-		stream.write(reinterpret_cast<const char*>(biases_), kOutputDimensions * sizeof(BiasType));
-		stream.write(reinterpret_cast<const char*>(weights_),
-		             kOutputDimensions * kPaddedInputDimensions * sizeof(WeightType));
-		return !stream.fail();
-	}
+        // Write network parameters
+        bool WriteParameters(std::ostream& stream) const {
+                stream.write(reinterpret_cast<const char*>(biases_), kOutputDimensions * sizeof(BiasType));
+                stream.write(reinterpret_cast<const char*>(weights_),
+                             kOutputDimensions * kPaddedInputDimensions * sizeof(WeightType));
+                return !stream.fail();
+        }
 
-	// Forward propagation
-	// 順伝播
-	const OutputType* Propagate(const TransformedFeatureType* transformed_features, char* buffer) const {
-		const auto input = previous_layer_.Propagate(transformed_features, buffer + kSelfBufferSize);
-		const auto output = reinterpret_cast<OutputType*>(buffer);
-
+        // Forward propagation
+        void Propagate(const InputType* input, OutputType* output) const {
 #if defined(USE_WASM_SIMD)
-		{
-			// Simplify variable names (y = Ax + b)
-			constexpr int n = kInputDimensions;
-			constexpr int m = kOutputDimensions;
-			constexpr int n_stride = kPaddedInputDimensions;
-			auto A = *reinterpret_cast<const int8_t(*)[m][n_stride]>(weights_);
-			auto x = *reinterpret_cast<const uint8_t(*)[n]>(input);
-			auto b = *reinterpret_cast<const int32_t(*)[m]>(biases_);
-			auto y = *reinterpret_cast<int32_t(*)[m]>(buffer);
-			emscripten_wasm_simd::affine<n, m, n_stride>(A, x, b, y);
-			return y;
-		}
+                {
+                        constexpr int n = kInputDimensions;
+                        constexpr int m = kOutputDimensions;
+                        constexpr int n_stride = kPaddedInputDimensions;
+                        auto A = *reinterpret_cast<const int8_t(*)[m][n_stride]>(weights_);
+                        auto x = *reinterpret_cast<const uint8_t(*)[n]>(input);
+                        auto b = *reinterpret_cast<const int32_t(*)[m]>(biases_);
+                        auto y = *reinterpret_cast<int32_t(*)[m]>(output);
+                        emscripten_wasm_simd::affine<n, m, n_stride>(A, x, b, y);
+                        return; // void return
+                }
 #endif
 
 #if defined(USE_SSSE3) || USE_NEON >= 8
@@ -236,8 +201,7 @@ class AffineTransformSparseInput {
 
             const auto input32 = reinterpret_cast<const std::int32_t*>(input);
 
-            // Find indices of nonzero 32-bit blocks
-            find_nnz<kNumChunks>(input32, nnz, count);
+            find_nnz_explicit<kNumChunks>(input32, nnz, count);
 
             const __m512i* biasvec = reinterpret_cast<const __m512i*>(biases_);
             __m512i        acc[kNumRegs];
@@ -273,8 +237,7 @@ class AffineTransformSparseInput {
 
             const auto input32 = reinterpret_cast<const std::int32_t*>(input);
 
-            // Find indices of nonzero 32-bit blocks
-            find_nnz<kNumChunks>(input32, nnz, count);
+            find_nnz_explicit<kNumChunks>(input32, nnz, count);
 
             const __m256i* biasvec = reinterpret_cast<const __m256i*>(biases_);
             __m256i        acc[kNumRegs];
@@ -310,8 +273,7 @@ class AffineTransformSparseInput {
 
             const auto input32 = reinterpret_cast<const std::int32_t*>(input);
 
-            // Find indices of nonzero 32-bit blocks
-            find_nnz<kNumChunks>(input32, nnz, count);
+            find_nnz_explicit<kNumChunks>(input32, nnz, count);
 
             const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases_);
             __m128i        acc[kNumRegs];
@@ -347,8 +309,7 @@ class AffineTransformSparseInput {
 
             const auto input32 = reinterpret_cast<const std::int32_t*>(input);
 
-            // Find indices of nonzero 32-bit blocks
-            find_nnz<kNumChunks>(input32, nnz, count);
+            find_nnz_explicit<kNumChunks>(input32, nnz, count);
 
             const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases_);
             int32x4_t        acc[kNumRegs];
@@ -384,29 +345,21 @@ class AffineTransformSparseInput {
         affine_transform_unaligned<kInputDimensions, kPaddedInputDimensions, kOutputDimensions>(
           output, weights_, biases_, input);
 #endif
-
-		return output;
-	}
+        }
 
    private:
-	// パラメータの型
-	using BiasType   = OutputType;
-	using WeightType = std::int8_t;
+        using BiasType   = OutputType;
+        using WeightType = std::int8_t;
 
-	// 学習用クラスをfriendにする
-	friend class Trainer<AffineTransformSparseInput>;
+        friend class Trainer<AffineTransformSparseInputExplicit>;
 
-	// この層の直前の層
-	PreviousLayer previous_layer_;
-
-	// パラメータ
-	alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
-	alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
+        alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
+        alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
 };
 
-} // namespace Eval::NNUE::Layers
-} // namespace YaneuraOu
+}  // namespace Eval::NNUE::Layers
+}  // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 
-#endif  // ifndef NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
+#endif  // NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_EXPLICIT_H_INCLUDED

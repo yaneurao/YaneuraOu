@@ -200,6 +200,15 @@ class AffineTransform {
 		return hash_value;
 	}
 
+	// ハッシュ値を前段の値から更新するときのヘルパー
+	static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
+		std::uint32_t hash_value = 0xCC03DAE4u;
+		hash_value += kOutputDimensions;
+		hash_value ^= prevHash >> 1;
+		hash_value ^= prevHash << 31;
+		return hash_value;
+	}
+
 	// 入力層からこの層までの構造を表す文字列
 	static std::string GetStructureString() {
 		return "AffineTransform[" + std::to_string(kOutputDimensions) + "<-" + std::to_string(kInputDimensions) + "](" +

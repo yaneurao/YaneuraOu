@@ -20,14 +20,24 @@ namespace Eval::NNUE {
 
 	// Hash value of evaluation function structure
 	// 評価関数の構造のハッシュ値
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+	constexpr std::uint32_t kHashValue = 0x3c203b32u;
+#else
 	constexpr std::uint32_t kHashValue =
 	    FeatureTransformer::GetHashValue() ^ Network::GetHashValue();
+#endif
 
 	// 入力特徴量変換器
 	extern LargePagePtr<FeatureTransformer> feature_transformer;
 
 	// 評価関数
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+	constexpr int kLayerStacks = LayerStacks;
+	extern AlignedPtr<Network> network[kLayerStacks];
+#else
+	constexpr int kLayerStacks = 1;
 	extern AlignedPtr<Network> network;
+#endif
 
 	// 評価関数ファイル名
 	extern const char* const kFileName;
@@ -37,7 +47,7 @@ namespace Eval::NNUE {
 
 	// ヘッダを読み込む
 	Tools::Result ReadHeader(std::istream& stream,
-	    std::uint32_t* hash_value, std::string* architecture);
+	    std::uint32_t* hash_value, std::string* architecture, std::uint32_t* version_out = nullptr);
 
 	// ヘッダを書き込む
 	bool WriteHeader(std::ostream& stream,
