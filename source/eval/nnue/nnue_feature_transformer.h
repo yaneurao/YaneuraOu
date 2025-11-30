@@ -1,4 +1,4 @@
-﻿// A class that converts the input features of the NNUE evaluation function
+// A class that converts the input features of the NNUE evaluation function
 // NNUE評価関数の入力特徴量の変換を行うクラス
 
 #ifndef CLASSIC_NNUE_FEATURE_TRANSFORMER_H_INCLUDED
@@ -8,10 +8,15 @@
 
 #if defined(EVAL_NNUE)
 
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#define USE_ELEMENT_WISE_MULTIPLY
+#endif
+
 #include "nnue_common.h"
 #include "nnue_architecture.h"
 #include "features/index_list.h"
 
+#include <algorithm>  // std::clamp
 #include <cstring>  // std::memset()
 
 namespace YaneuraOu {
@@ -30,7 +35,13 @@ using vec_t = __m512i;
 #define vec_store(a, b) _mm512_store_si512(a, b)
 #define vec_add_16(a, b) _mm512_add_epi16(a, b)
 #define vec_sub_16(a, b) _mm512_sub_epi16(a, b)
-#define vec_zero _mm512_setzero_si512()
+#define vec_mulhi_16(a, b) _mm512_mulhi_epi16(a, b)
+#define vec_set_16(a) _mm512_set1_epi16(a)
+#define vec_max_16(a, b) _mm512_max_epi16(a, b)
+#define vec_min_16(a, b) _mm512_min_epi16(a, b)
+#define vec_slli_16(a, b) _mm512_slli_epi16(a, b)
+#define vec_packus_16(a, b) _mm512_packus_epi16(a, b)
+#define vec_zero() _mm512_setzero_si512()
 static constexpr IndexType kNumRegs = 8;  // only 8 are needed
 
 #elif defined(USE_AVX2)
@@ -39,7 +50,13 @@ using vec_t = __m256i;
 #define vec_store(a, b) _mm256_store_si256(a, b)
 #define vec_add_16(a, b) _mm256_add_epi16(a, b)
 #define vec_sub_16(a, b) _mm256_sub_epi16(a, b)
-#define vec_zero _mm256_setzero_si256()
+#define vec_mulhi_16(a, b) _mm256_mulhi_epi16(a, b)
+#define vec_set_16(a) _mm256_set1_epi16(a)
+#define vec_max_16(a, b) _mm256_max_epi16(a, b)
+#define vec_min_16(a, b) _mm256_min_epi16(a, b)
+#define vec_slli_16(a, b) _mm256_slli_epi16(a, b)
+#define vec_packus_16(a, b) _mm256_packus_epi16(a, b)
+#define vec_zero() _mm256_setzero_si256()
 static constexpr IndexType kNumRegs = 16;
 
 #elif defined(USE_SSE2)
@@ -48,7 +65,13 @@ using vec_t = __m128i;
 #define vec_store(a, b) *(a) = (b)
 #define vec_add_16(a, b) _mm_add_epi16(a, b)
 #define vec_sub_16(a, b) _mm_sub_epi16(a, b)
-#define vec_zero _mm_setzero_si128()
+#define vec_mulhi_16(a, b) _mm_mulhi_epi16(a, b)
+#define vec_set_16(a) _mm_set1_epi16(a)
+#define vec_max_16(a, b) _mm_max_epi16(a, b)
+#define vec_min_16(a, b) _mm_min_epi16(a, b)
+#define vec_slli_16(a, b) _mm_slli_epi16(a, b)
+#define vec_packus_16(a, b) _mm_packus_epi16(a, b)
+#define vec_zero() _mm_setzero_si128()
 static constexpr IndexType kNumRegs = Is64Bit ? 16 : 8;
 
 #elif defined(USE_MMX)
@@ -57,7 +80,7 @@ using vec_t = __m64;
 #define vec_store(a, b) *(a) = (b)
 #define vec_add_16(a, b) _mm_add_pi16(a, b)
 #define vec_sub_16(a, b) _mm_sub_pi16(a, b)
-#define vec_zero _mm_setzero_si64()
+#define vec_zero() _mm_setzero_si64()
 static constexpr IndexType kNumRegs = 8;
 
 #elif defined(USE_NEON)
@@ -66,14 +89,22 @@ using vec_t = int16x8_t;
 #define vec_store(a, b) *(a) = (b)
 #define vec_add_16(a, b) vaddq_s16(a, b)
 #define vec_sub_16(a, b) vsubq_s16(a, b)
-#define vec_zero \
-	{ 0 }
+#define vec_mulhi_16(a, b) vqdmulhq_s16(a, b)
+#define vec_set_16(a) vdupq_n_s16(a)
+#define vec_max_16(a, b) vmaxq_s16(a, b)
+#define vec_min_16(a, b) vminq_s16(a, b)
+#define vec_slli_16(a, b) vshlq_s16(a, vec_set_16(b))
+#define vec_packus_16(a, b) reinterpret_cast<vec_t>(vcombine_u8(vqmovun_s16(a), vqmovun_s16(b)))
+#define vec_zero() \
+	vec_t { 0 }
 static constexpr IndexType kNumRegs = 16;
 
 #else
 #undef VECTOR
 
 #endif
+
+constexpr IndexType MaxChunkSize = 16;
 
 // Input feature converter
 // 入力特徴量変換器
@@ -93,11 +124,17 @@ class FeatureTransformer {
 	// Output type
 	// 出力の型
 	using OutputType = TransformedFeatureType;
+	using BiasType   = std::int16_t;
+	using WeightType = std::int16_t;
 
 	// Number of input/output dimensions
 	// 入出力の次元数
 	static constexpr IndexType kInputDimensions  = RawFeatures::kDimensions;
+#if defined(USE_ELEMENT_WISE_MULTIPLY)
+	static constexpr IndexType kOutputDimensions = kHalfDimensions;
+#else
 	static constexpr IndexType kOutputDimensions = kHalfDimensions * 2;
+#endif
 
 	// Size of forward propagation buffer
 	// 順伝播用バッファのサイズ
@@ -105,21 +142,37 @@ class FeatureTransformer {
 
 	// Hash value embedded in the evaluation file
 	// 評価関数ファイルに埋め込むハッシュ値
-	static constexpr std::uint32_t GetHashValue() { return RawFeatures::kHashValue ^ kOutputDimensions; }
+	static constexpr std::uint32_t GetHashValue() {
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+		return 0x5f134ab8u;
+#else
+		return RawFeatures::kHashValue ^ kOutputDimensions;
+#endif
+	}
 
 	// A string that represents the structure
 	// 構造を表す文字列
 	static std::string GetStructureString() {
-		return RawFeatures::GetName() + "[" + std::to_string(kInputDimensions) + "->" +
-		       std::to_string(kHalfDimensions) + "x2]";
+		return RawFeatures::GetName() + "[" + std::to_string(kInputDimensions) + "->"
+		       + std::to_string(kHalfDimensions) + "x2]";
 	}
 
 	// Read network parameters
 	// パラメータを読み込む
 	Tools::Result ReadParameters(std::istream& stream) {
+#if defined(USE_ELEMENT_WISE_MULTIPLY)
+		read_leb_128<BiasType>(stream, biases_, kHalfDimensions);
+		read_leb_128<WeightType>(stream, weights_, kHalfDimensions * kInputDimensions);
+
+#if defined(VECTOR)
+		permute_weights(inverse_order_packs);
+#endif
+		scale_weights(true);
+#else
 		for (std::size_t i = 0; i < kHalfDimensions; ++i) biases_[i] = read_little_endian<BiasType>(stream);
 		for (std::size_t i = 0; i < kHalfDimensions * kInputDimensions; ++i)
 			weights_[i] = read_little_endian<WeightType>(stream);
+#endif
 		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
 
@@ -153,6 +206,67 @@ class FeatureTransformer {
 			refresh_accumulator(pos);
 		}
 		const auto& accumulation = pos.state()->accumulator.accumulation;
+
+#if defined(USE_ELEMENT_WISE_MULTIPLY)
+
+#if defined(VECTOR)
+		constexpr IndexType OutputChunkSize = MaxChunkSize;
+		static_assert((kHalfDimensions / 2) % OutputChunkSize == 0);
+		constexpr IndexType NumOutputChunks = kHalfDimensions / 2 / OutputChunkSize;
+
+		vec_t Zero = vec_zero();
+		vec_t One = vec_set_16(127 * 2);
+
+		const Color perspectives[2] = { pos.side_to_move(), ~pos.side_to_move() };
+		for (IndexType p = 0; p < 2; ++p) {
+			const IndexType offset = (kHalfDimensions / 2) * p;
+
+			const vec_t* in0 = reinterpret_cast<const vec_t*>(&(accumulation[perspectives[p]][0][0]));
+			const vec_t* in1 = reinterpret_cast<const vec_t*>(&(accumulation[perspectives[p]][0][kHalfDimensions / 2]));
+			vec_t* out = reinterpret_cast<vec_t*>(output + offset);
+
+			constexpr int shift =
+#if defined(USE_SSE2)
+				7;
+#else
+				6;
+#endif
+
+			for (IndexType j = 0; j < NumOutputChunks; ++j)
+			{
+				const vec_t sum0a =
+					vec_slli_16(vec_max_16(vec_min_16(in0[j * 2 + 0], One), Zero), shift);
+				const vec_t sum0b =
+					vec_slli_16(vec_max_16(vec_min_16(in0[j * 2 + 1], One), Zero), shift);
+				const vec_t sum1a = vec_min_16(in1[j * 2 + 0], One);
+				const vec_t sum1b = vec_min_16(in1[j * 2 + 1], One);
+
+				const vec_t pa = vec_mulhi_16(sum0a, sum1a);
+				const vec_t pb = vec_mulhi_16(sum0b, sum1b);
+
+				out[j] = vec_packus_16(pa, pb);
+			}
+
+		}
+
+#else
+		const Color perspectives[2] = { pos.side_to_move(), ~pos.side_to_move() };
+		for (IndexType p = 0; p < 2; ++p) {
+			const IndexType offset = (kHalfDimensions / 2) * p;
+
+			for (IndexType j = 0; j < kHalfDimensions / 2; ++j)
+			{
+				BiasType sum0 = accumulation[perspectives[p]][0][j];
+				BiasType sum1 = accumulation[perspectives[p]][0][j + kHalfDimensions / 2];
+				sum0 = std::clamp<BiasType>(sum0, 0, 127 * 2);
+				sum1 = std::clamp<BiasType>(sum1, 0, 127 * 2);
+				output[offset + j] = static_cast<OutputType>(unsigned(sum0 * sum1) / 512);
+			}
+
+		}
+#endif
+
+#else
 
 #if defined(USE_AVX512)
 		constexpr IndexType kNumChunks = kHalfDimensions / (kSimdWidth * 2);
@@ -194,12 +308,14 @@ class FeatureTransformer {
 				    _mm512_load_si512(&reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][0])[j * 2 + 1]);
 				for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
 					sum0 = _mm512_add_epi16(
-					    sum0, reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][i])[j * 2 + 0]);
+					    sum0,
+					    reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][i])[j * 2 + 0]);
 					sum1 = _mm512_add_epi16(
-					    sum1, reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][i])[j * 2 + 1]);
+					    sum1,
+					    reinterpret_cast<const __m512i*>(accumulation[perspectives[p]][i])[j * 2 + 1]);
 				}
 				_mm512_store_si512(&out[j], _mm512_permutexvar_epi64(
-				                                kControl, _mm512_max_epi8(_mm512_packs_epi16(sum0, sum1), kZero)));
+								 kControl, _mm512_max_epi8(_mm512_packs_epi16(sum0, sum1), kZero)));
 			}
 
 #elif defined(USE_AVX2)
@@ -211,12 +327,14 @@ class FeatureTransformer {
 				    _mm256_load_si256(&reinterpret_cast<const __m256i*>(accumulation[perspectives[p]][0])[j * 2 + 1]);
 				for (IndexType i = 1; i < kRefreshTriggers.size(); ++i) {
 					sum0 = _mm256_add_epi16(
-					    sum0, reinterpret_cast<const __m256i*>(accumulation[perspectives[p]][i])[j * 2 + 0]);
+					    sum0,
+					    reinterpret_cast<const __m256i*>(accumulation[perspectives[p]][i])[j * 2 + 0]);
 					sum1 = _mm256_add_epi16(
-					    sum1, reinterpret_cast<const __m256i*>(accumulation[perspectives[p]][i])[j * 2 + 1]);
+					    sum1,
+					    reinterpret_cast<const __m256i*>(accumulation[perspectives[p]][i])[j * 2 + 1]);
 				}
 				_mm256_store_si256(&out[j], _mm256_permute4x64_epi64(
-				                                _mm256_max_epi8(_mm256_packs_epi16(sum0, sum1), kZero), kControl));
+								 _mm256_max_epi8(_mm256_packs_epi16(sum0, sum1), kZero), kControl));
 			}
 
 #elif defined(USE_SSE2)
@@ -276,9 +394,78 @@ class FeatureTransformer {
 		// USE_MMX を config.h では現状、有効化することがないので dead code
 		_mm_empty();
 #endif
+#endif
 	}
 
    private:
+	static void order_packs([[maybe_unused]] uint64_t* v) {
+#if defined(USE_AVX512)  // _mm512_set_epi32 packs in the order [15 11 7 3 14 10 6 2 13 9 5 1 12 8 4 0]
+		uint64_t tmp0 = v[4], tmp1 = v[5];
+		v[4] = v[6], v[5] = v[7];
+		v[6] = tmp0, v[7] = tmp1;
+		tmp0 = v[8], tmp1 = v[9];
+		v[8] = v[12], v[9] = v[13];
+		v[12] = v[10], v[13] = v[11];
+		v[10] = tmp0, v[11] = tmp1;
+#elif defined(USE_AVX2)  // _mm256_set_epi32 packs in the order [7 3 6 2 5 1 4 0]
+		uint64_t tmp0 = v[2], tmp1 = v[3];
+		v[2] = v[4], v[3] = v[5];
+		v[4] = tmp0, v[5] = tmp1;
+#endif
+	}
+
+	static void inverse_order_packs([[maybe_unused]] uint64_t* v) {
+#if defined(USE_AVX512)
+		uint64_t tmp0 = v[2], tmp1 = v[3];
+		v[2] = v[4], v[3] = v[5];
+		v[4] = v[8], v[5] = v[9];
+		v[8] = tmp0, v[9] = tmp1;
+		tmp0 = v[6], tmp1 = v[7];
+		v[6] = v[12], v[7] = v[13];
+		v[12] = v[10], v[13] = v[11];
+		v[10] = tmp0, v[11] = tmp1;
+#elif defined(USE_AVX2)  // Inverse _mm256_packs_epi16 ordering
+		uint64_t tmp0 = v[2], tmp1 = v[3];
+		v[2] = v[4], v[3] = v[5];
+		v[4] = tmp0, v[5] = tmp1;
+#endif
+	}
+
+	void permute_weights([[maybe_unused]] void (*order_fn)(uint64_t*)) const {
+#if defined(USE_AVX2)
+#if defined(USE_AVX512)
+		constexpr IndexType di = 16;
+#else
+		constexpr IndexType di = 8;
+#endif
+		uint64_t* b = reinterpret_cast<uint64_t*>(const_cast<BiasType*>(&biases_[0]));
+		for (IndexType i = 0; i < kHalfDimensions * sizeof(BiasType) / sizeof(uint64_t); i += di)
+			order_fn(&b[i]);
+
+		for (IndexType j = 0; j < kInputDimensions; ++j)
+		{
+			uint64_t* w =
+				reinterpret_cast<uint64_t*>(const_cast<WeightType*>(&weights_[j * kHalfDimensions]));
+			for (IndexType i = 0; i < kHalfDimensions * sizeof(WeightType) / sizeof(uint64_t);
+					i += di)
+				order_fn(&w[i]);
+		}
+#endif
+	}
+
+	inline void scale_weights(bool read) const {
+		for (IndexType j = 0; j < kInputDimensions; ++j)
+		{
+			WeightType* w = const_cast<WeightType*>(&weights_[j * kHalfDimensions]);
+			for (IndexType i = 0; i < kHalfDimensions; ++i)
+				w[i] = read ? w[i] * 2 : w[i] / 2;
+		}
+
+		BiasType* b = const_cast<BiasType*>(biases_);
+		for (IndexType i = 0; i < kHalfDimensions; ++i)
+			b[i] = read ? b[i] * 2 : b[i] / 2;
+	}
+
 	// Calculate cumulative value without using difference calculation
 	// 差分計算を用いずに累積値を計算する
 	void refresh_accumulator(const Position& pos) const {
@@ -399,8 +586,6 @@ class FeatureTransformer {
 
 	// parameter type
 	// パラメータの型
-	using BiasType   = std::int16_t;
-	using WeightType = std::int16_t;
 
 	// Make the learning class a friend
 	// 学習用クラスをfriendにする
@@ -410,7 +595,7 @@ class FeatureTransformer {
 	// パラメータ
 	alignas(kCacheLineSize) BiasType biases_[kHalfDimensions];
 	alignas(kCacheLineSize) WeightType weights_[kHalfDimensions * kInputDimensions];
-};  // class FeatureTransformer
+};
 
 } // namespace Eval::NNUE
 } // namespace YaneuraOu

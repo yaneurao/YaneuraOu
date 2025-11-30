@@ -4,6 +4,8 @@
 #ifndef CLASSIC_NNUE_COMMON_H_INCLUDED
 #define CLASSIC_NNUE_COMMON_H_INCLUDED
 
+#include <algorithm>   // std::min
+#include <cassert>
 #include <cstring>		// std::memcpy()
 
 #include "../../config.h"
@@ -48,9 +50,20 @@ namespace YaneuraOu {
 
 namespace Eval::NNUE {
 
+  // エンディアン判定
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
+  constexpr bool IsLittleEndian = true;
+#else
+  constexpr bool IsLittleEndian = false;
+#endif
+
   // Version of the evaluation file
   // 評価関数ファイルのバージョンを表す定数
   constexpr std::uint32_t kVersion = 0x7AF32F16u;
+
+  // LEB128圧縮データを識別するためのmagic string
+  constexpr const char        Leb128MagicString[] = "COMPRESSED_LEB128";
+  constexpr const std::size_t Leb128MagicStringSize = sizeof(Leb128MagicString) - 1;
 
   // Constant used in evaluation value calculation
   // 評価値の計算で利用する定数
@@ -138,6 +151,62 @@ namespace Eval::NNUE {
       return result;
   }
 
+  // little-endianで複数の整数を読み込む
+  template <typename IntType>
+  inline void read_little_endian(std::istream& stream, IntType* out, std::size_t count) {
+	  if (IsLittleEndian)
+		  stream.read(reinterpret_cast<char*>(out), sizeof(IntType) * count);
+	  else
+		  for (std::size_t i = 0; i < count; ++i)
+			  out[i] = read_little_endian<IntType>(stream);
+  }
+
+  // signed LEB128で圧縮された整数を読み込む
+  template<typename IntType>
+  inline void read_leb_128(std::istream& stream, IntType* out, std::size_t count) {
+
+	  // Check the presence of our LEB128 magic string
+	  char leb128MagicString[Leb128MagicStringSize];
+	  stream.read(leb128MagicString, Leb128MagicStringSize);
+	  assert(strncmp(Leb128MagicString, leb128MagicString, Leb128MagicStringSize) == 0);
+
+	  static_assert(std::is_signed_v<IntType>, "Not implemented for unsigned types");
+
+	  const std::uint32_t BUF_SIZE = 4096;
+	  std::uint8_t        buf[BUF_SIZE];
+
+	  auto bytes_left = read_little_endian<std::uint32_t>(stream);
+
+	  std::uint32_t buf_pos = BUF_SIZE;
+	  for (std::size_t i = 0; i < count; ++i)
+	  {
+		  IntType result = 0;
+		  size_t  shift = 0;
+		  do
+		  {
+			  if (buf_pos == BUF_SIZE)
+			  {
+				  stream.read(reinterpret_cast<char*>(buf), std::min(bytes_left, BUF_SIZE));
+				  buf_pos = 0;
+			  }
+
+			  std::uint8_t byte = buf[buf_pos++];
+			  --bytes_left;
+			  result |= (byte & 0x7f) << shift;
+			  shift += 7;
+
+			  if ((byte & 0x80) == 0)
+			  {
+				  out[i] = (sizeof(IntType) * 8 <= shift || (byte & 0x40) == 0)
+					  ? result
+					  : result | ~((1 << shift) - 1);
+				  break;
+			  }
+		  } while (shift < sizeof(IntType) * 8);
+	  }
+
+	  assert(bytes_left == 0);
+  }
 } // namespace Eval::NNUE
 } // namespace YaneuraOu
 

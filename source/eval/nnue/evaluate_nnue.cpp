@@ -5,6 +5,8 @@
 #if defined(EVAL_NNUE)
 
 #include <fstream>
+#include <sstream>
+#include <vector>
 
 #define INCBIN_SILENCE_BITCODE_WARNING
 #include "../../incbin/incbin.h"
@@ -159,42 +161,50 @@ namespace NNUE {
 	LargePagePtr<FeatureTransformer> feature_transformer;
 
     // 評価関数
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+    AlignedPtr<Network> network[kLayerStacks];
+#else
     AlignedPtr<Network> network;
+#endif
 
     // 評価関数ファイル名
     const char* const kFileName = EvalFileDefaultName;
 
     // 評価関数の構造を表す文字列を取得する
     std::string GetArchitectureString() {
-        return "Features=" + FeatureTransformer::GetStructureString() +
+        const std::string base = "Features=" + FeatureTransformer::GetStructureString() +
 			",Network=" + Network::GetStructureString();
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+		return "ModelType=SFNNWithoutPsqt;" + base + "{LayerStack=" + std::to_string(kLayerStacks) + "}";
+#else
+		return base;
+#endif
     }
 
-    namespace {
-        namespace Detail {
+namespace {
+	namespace Detail {
 
-            // 評価関数パラメータを初期化する
-            template <typename T>
-            void Initialize(AlignedPtr<T>& pointer) {
-				pointer = make_unique_aligned<T>();
-            }
+		// 評価関数パラメータを初期化する
+		template <typename T>
+		void Initialize(AlignedPtr<T>& pointer) {
+			pointer = make_unique_aligned<T>();
+		}
 
-			template <typename T>
-			void Initialize(LargePagePtr<T>& pointer) {
-				// →　メモリはLarge Pageから確保することで高速化する。
-				pointer = make_unique_large_page<T>();
-			}
+		template <typename T>
+		void Initialize(LargePagePtr<T>& pointer) {
+			// →　メモリはLarge Pageから確保することで高速化する。
+			pointer = make_unique_large_page<T>();
+		}
 
-            // 評価関数パラメータを読み込む
-            template <typename T>
-            Tools::Result ReadParameters(std::istream& stream, const AlignedPtr<T>& pointer) {
-                std::uint32_t header;
-                stream.read(reinterpret_cast<char*>(&header), sizeof(header));
-				if (!stream)                     return Tools::ResultCode::FileReadError;
-				if (header != T::GetHashValue()) return Tools::ResultCode::FileMismatch;
-                return pointer->ReadParameters(stream);
-            }
-
+            			// 評価関数パラメータを読み込む
+            			template <typename T>
+            			Tools::Result ReadParameters(std::istream& stream, const AlignedPtr<T>& pointer) {
+            				std::uint32_t header;
+            				stream.read(reinterpret_cast<char*>(&header), sizeof(header));
+            				if (!stream)                     return Tools::ResultCode::FileReadError;
+            				if (header != T::GetHashValue()) return Tools::ResultCode::FileMismatch;
+            				return pointer->ReadParameters(stream);
+            			}
 			// 評価関数パラメータを読み込む
 			template <typename T>
 			Tools::Result ReadParameters(std::istream& stream, const LargePagePtr<T>& pointer) {
@@ -221,24 +231,36 @@ namespace NNUE {
 				return pointer->WriteParameters(stream);
 			}
 
-        }  // namespace Detail
-
-        // 評価関数パラメータを初期化する
-        void Initialize() {
-            Detail::Initialize<FeatureTransformer>(feature_transformer);
-            Detail::Initialize<Network>(network);
-        }
-
-    }  // namespace
-
+		}  // namespace Detail
+	
+		// 評価関数パラメータを初期化する
+		void Initialize() {
+			Detail::Initialize<FeatureTransformer>(feature_transformer);
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+			for (int i = 0; i < kLayerStacks; ++i) {
+				Detail::Initialize<Network>(network[i]);
+			}
+#else
+			Detail::Initialize<Network>(network);
+#endif
+		}
+	
+		}  // namespace
     // ヘッダを読み込む
     Tools::Result ReadHeader(std::istream& stream,
-        std::uint32_t* hash_value, std::string* architecture) {
-        std::uint32_t version, size;
+        std::uint32_t* hash_value, std::string* architecture, std::uint32_t* version_out) {
+        std::uint32_t version = 0, size = 0;
         stream.read(reinterpret_cast<char*>(&version), sizeof(version));
         stream.read(reinterpret_cast<char*>(hash_value), sizeof(*hash_value));
         stream.read(reinterpret_cast<char*>(&size), sizeof(size));
-		if (!stream || version != kVersion) return Tools::ResultCode::FileMismatch;
+		if (!stream) return Tools::ResultCode::FileReadError;
+		if (version_out)
+			*version_out = version;
+        if (version != kVersion) {
+			sync_cout << "info string NNUE header version mismatch: expected " << kVersion
+				<< " got " << version << sync_endl;
+			return Tools::ResultCode::FileMismatch;
+		}
         architecture->resize(size);
         stream.read(&(*architecture)[0], size);
 		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
@@ -255,23 +277,58 @@ namespace NNUE {
         return !stream.fail();
     }
 
-    // 評価関数パラメータを読み込む
-    Tools::Result ReadParameters(std::istream& stream) {
-        std::uint32_t hash_value;
-        std::string architecture;
-		Tools::Result result = ReadHeader(stream, &hash_value, &architecture);
-        if (result.is_not_ok()) return result;
-        if (hash_value != kHashValue) return Tools::ResultCode::FileMismatch;
-		result = Detail::ReadParameters<FeatureTransformer>(stream, feature_transformer); if (result.is_not_ok()) return result;
-		result = Detail::ReadParameters<Network>(stream, network);                        if (result.is_not_ok()) return result;
-        return (stream && stream.peek() == std::ios::traits_type::eof()) ? Tools::ResultCode::Ok : Tools::ResultCode::FileCloseError;
-    }
+    	// 評価関数パラメータを読み込む
+    	Tools::Result ReadParameters(std::istream& stream) {
+    		std::uint32_t hash_value;
+    		std::string architecture;
+    		Tools::Result result = ReadHeader(stream, &hash_value, &architecture, nullptr);
+    		if (result.is_not_ok()) return result;
+    		if (hash_value != kHashValue) {
+    			sync_cout << "info string NNUE hash mismatch: expected " << kHashValue
+    				<< " got " << hash_value
+    				<< " arch_in_file=" << architecture
+    				<< " arch_expected=" << GetArchitectureString()
+    				<< sync_endl;
+    			return Tools::ResultCode::FileMismatch;
+    		}
+    
+    		result = Detail::ReadParameters<FeatureTransformer>(stream, feature_transformer);
+    		if (result.is_not_ok()) {
+    			sync_cout << "info string NNUE feature params read failed: " << result.to_string() << sync_endl;
+    			return result;
+    		}
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+    		for (int i = 0; i < kLayerStacks; ++i) {
+    			result = Detail::ReadParameters<Network>(stream, network[i]);
+    			if (result.is_not_ok()) {
+    				sync_cout << "info string NNUE network params read failed at stack " << i << ": " << result.to_string() << sync_endl;
+    				return result;
+    			}
+    		}
+#else
+    		result = Detail::ReadParameters<Network>(stream, network);
+    		if (result.is_not_ok()) {
+    			sync_cout << "info string NNUE network params read failed: " << result.to_string() << sync_endl;
+    			return result;
+    		}
+#endif
 
+    		if (stream && stream.peek() == std::ios::traits_type::eof())
+    			return Tools::ResultCode::Ok;
+    		else
+    			return Tools::ResultCode::FileCloseError;
+    	}
     // 評価関数パラメータを書き込む
     bool WriteParameters(std::ostream& stream) {
         if (!WriteHeader(stream, kHashValue, GetArchitectureString())) return false;
         if (!Detail::WriteParameters<FeatureTransformer>(stream, feature_transformer)) return false;
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+        for (int i = 0; i < kLayerStacks; ++i) {
+            if (!Detail::WriteParameters<Network>(stream, network[i])) return false;
+        }
+#else
         if (!Detail::WriteParameters<Network>(stream, network)) return false;
+#endif
         return !stream.fail();
     }
 
@@ -279,6 +336,23 @@ namespace NNUE {
     static void UpdateAccumulatorIfPossible(const Position& pos) {
         feature_transformer->UpdateAccumulatorIfPossible(pos);
     }
+
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+    // レイヤースタックの選択。双方の玉の段に応じて9通りに分岐させる。
+    static int stack_index_for_nnue(const Position& pos) {
+        constexpr int kFToIndex[] = { 0, 0, 0, 3, 3, 3, 6, 6, 6 };
+        constexpr int kEToIndex[] = { 0, 0, 0, 1, 1, 1, 2, 2, 2 };
+        const auto stm = pos.side_to_move();
+        const auto f_king = pos.square<KING>(stm);
+        const auto e_king = pos.square<KING>(~stm);
+        const auto f_rank = stm == BLACK ? rank_of(f_king) : rank_of(Inv(f_king));
+        const auto e_rank = stm == BLACK ? rank_of(Inv(e_king)) : rank_of(e_king);
+        int idx = kFToIndex[f_rank] + kEToIndex[e_rank];
+        if (idx < 0) idx = 0;
+        if (idx >= kLayerStacks) idx = kLayerStacks - 1;
+        return idx;
+    }
+#endif
 
     // 評価値を計算する
     static Value ComputeScore(const Position& pos, bool refresh = false) {
@@ -291,7 +365,12 @@ namespace NNUE {
             transformed_features[FeatureTransformer::kBufferSize];
         feature_transformer->Transform(pos, transformed_features, refresh);
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
+#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+        const auto bucket = stack_index_for_nnue(pos);
+        const auto output = network[bucket]->Propagate(transformed_features, buffer);
+#else
         const auto output = network->Propagate(transformed_features, buffer);
+#endif
 
         // VALUE_MAX_EVALより大きな値が返ってくるとaspiration searchがfail highして
         // 探索が終わらなくなるのでVALUE_MAX_EVAL以下であることを保証すべき。
