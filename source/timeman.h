@@ -93,6 +93,7 @@ class TimeManagement {
     TimePoint search_end;
 
     // 秒単位で切り上げる。ただし、NetworkDelayの値などを考慮する。
+	// ⚠ round_up_to_fullsecondがfalseなら切り上げない
     TimePoint round_up(TimePoint t);
 
     // 探索を終了させることが確定しているが、秒単位で切り上げて、search_endにそれを設定したい時に呼び出す。
@@ -145,6 +146,7 @@ class TimeManagement {
     TimePoint minimum_thinking_time;
     TimePoint network_delay;
     TimePoint remain_time;
+    bool      round_up_to_fullsecond;
 
 	// TODO : あとで
 #if 0

@@ -44,12 +44,16 @@ void TimeManagement::add_options(OptionsMap& options) {
     options.add("NetworkDelay2", Option(time_margin + 1000, 0, 10000));
 
     // 最小思考時間[ms]
-    options.add("MinimumThinkingTime", Option(2000, 1000, 100000));
+    options.add("MinimumThinkingTime", Option(2000, 1, 100000));
 
     // 切れ負けのときの思考時間を調整する。序盤重視率。百分率になっている。
     // 例えば200を指定すると本来の最適時間の200%(2倍)思考するようになる。
     // 対人のときに短めに設定して強制的に早指しにすることが出来る。
     options.add("SlowMover", Option(100, 1, 1000));
+
+	// 持ち時間、各秒のギリギリまで使うか。
+    options.add("RoundUpToFullSecond", true);
+
 }
 
 void TimeManagement::init(const Search::LimitsType& limits,
@@ -136,6 +140,9 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 	// かつ、minimumとmaximumは端数をなくすべき
     network_delay = (TimePoint) options["NetworkDelay"];
 
+	// 秒未満を切り上げるのか
+	round_up_to_fullsecond = options["RoundUpToFullSecond"];
+
 	// 探索開始時刻と終了予定時刻。このタイミングで初期化しておく。
 	// 終了時刻は0ならば未確定という意味である。
     startTime = ponderhitTime = limits.startTime;
@@ -145,8 +152,10 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 	// byoyomiとincの指定は残り時間にこの時点で加算して考える。
     remain_time =
       limits.time[us] + limits.byoyomi[us] + limits.inc[us] - (TimePoint) options["NetworkDelay2"];
-	// ここを0にすると時間切れのあと自爆するのでとりあえず100はあることにしておく。
-    remain_time = std::max(remain_time, (TimePoint) 100);
+
+	// remain_timeを0にすると時間切れのあと自爆するのでとりあえず100はあることにしておく。
+	// round_up_to_fullsecond == falseのときは秒未満での戦いなので、1にしておく。
+	remain_time = std::max(remain_time, (TimePoint) (round_up_to_fullsecond ? 100 : 1) );
 
 	// 最小思考時間
     minimum_thinking_time = (TimePoint) options["MinimumThinkingTime"];
@@ -220,7 +229,9 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 
 	{
 		// 最小思考時間(これが1000より短く設定されることはないはず..)
-		minimumTime = std::max(minimum_thinking_time - network_delay, (TimePoint)1000);
+		// round_up_to_fullsecond == falseのときは秒未満での戦いなので、1にしておく。
+		minimumTime = std::max(minimum_thinking_time - network_delay,
+							   (TimePoint)(round_up_to_fullsecond ? 1000 : 1));
 
 		// 最適思考時間と、最大思考時間には、まずは上限値を設定しておく。
 		optimumTime = maximumTime = remain_time;
@@ -296,19 +307,37 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 // 1秒単位で繰り上げてdelayを引く。
 // ただし、remain_timeよりは小さくなるように制限する。
 TimePoint TimeManagement::round_up(TimePoint t0) {
-    // 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
-    auto t = std::max(((t0 + 999) / 1000) * 1000, minimum_thinking_time);
+	if (round_up_to_fullsecond)
+	{
+		// 📓 秒未満を切り上げる時
 
-    // そこから、Options["NetworkDelay"]の値を引く
-    t = t - network_delay;
+		// 1000で繰り上げる。Options["MinimalThinkingTime"]が最低値。
+		auto t = std::max(((t0 + 999) / 1000) * 1000, minimum_thinking_time);
 
-    // これが元の値より小さいなら、もう1秒使わないともったいない。
-    if (t < t0)
-        t += 1000;
+		// そこから、Options["NetworkDelay"]の値を引く
+		t = t - network_delay;
 
-    // remain_timeを上回ってはならない。
-    t = std::min(t, remain_time);
-    return t;
+		// これが元の値より小さいなら、もう1秒使わないともったいない。
+		if (t < t0)
+			t += 1000;
+
+		// remain_timeを上回ってはならない。
+		t = std::min(t, remain_time);
+		return t;
+
+	} else {
+		// 📓 秒未満を切り上げない時
+
+		// Options["MinimalThinkingTime"]が最低値。
+		auto t = std::max(t0, minimum_thinking_time);
+
+		// そこから、Options["NetworkDelay"]の値を引く
+		t = t - network_delay;
+
+		// remain_timeを上回ってはならない。
+		t = std::min(t, remain_time);
+		return t;
+	}
 };
 
 // 探索を終了させることが確定しているが、秒単位で切り上げて、search_endにそれを設定したい時に呼び出す。
