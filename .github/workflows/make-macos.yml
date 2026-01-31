@@ -14,7 +14,8 @@ jobs:
     # macos-13
     # https://docs.github.com/ja/actions/using-github-hosted-runners/about-github-hosted-runners
     # https://github.com/actions/runner-images/blob/main/images/macos/macos-13-Readme.md
-    runs-on: macos-13
+    # ⇨ 13は使えんくなった。最新版を指定しておく。
+    runs-on: macos-latest
 
     strategy:
       matrix:
@@ -30,12 +31,12 @@ jobs:
 
     steps:
       - name: Checkout own repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: main
 
       - name: make
-        uses: actions/github-script@v5
+        uses: actions/github-script@v7
         env:
           JOBS: '8'
           EDITION: '${{ matrix.edition }}'
