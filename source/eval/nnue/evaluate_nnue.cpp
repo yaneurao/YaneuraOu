@@ -469,7 +469,7 @@ void load_eval() {
 		const std::string file_name = NNUE::kFileName;
 #else
 		// WASM
-        const std::string file_name = options["EvalFile"];
+        const std::string file_name = Options["EvalFile"];
     #endif
         const Tools::Result result = [&] {
             if (dir_name != "<internal>") {
