@@ -433,6 +433,19 @@
     <ClInclude Include="shm_linux.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="tracer.h" />
+    <ClInclude Include="eval\nnue\architectures\sfnnwop-1536.h">
+      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\layers\affine_transform_explicit.h">
+      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\layers\affine_transform_sparse_input_explicit.h">
+      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\layers\clipped_relu_explicit.h">
+      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -696,6 +709,10 @@
       <Filter>script</Filter>
     </None>
     <None Include=".clang-format" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="eval\deep\unpack.cu">

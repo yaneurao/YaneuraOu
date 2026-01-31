@@ -4542,6 +4542,8 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 				)
             {
 				// 💡 MoveCountに基づく枝刈り
+				// move.to_sq() != prevSq のときなので、つまりは、直前に動かされた駒を取り返す以外の指し手。
+				// これを読み始めると組み合わせ爆発してしまうので3手目以降は調べない。(枝刈りする)
 
 				if (moveCount > 2)
                     continue;

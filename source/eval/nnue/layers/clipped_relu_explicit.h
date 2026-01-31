@@ -1,4 +1,5 @@
 // Definition of layer ClippedReLUExplicit of NNUE evaluation function
+// 📝 このheaderはSFNNで使う新しい仕様のaffine_transform.h
 
 #ifndef NNUE_LAYERS_CLIPPED_RELU_EXPLICIT_H_INCLUDED
 #define NNUE_LAYERS_CLIPPED_RELU_EXPLICIT_H_INCLUDED

@@ -612,6 +612,7 @@
     <ClInclude Include="eval\nnue\architectures\halfkp_512x2-16-32.h" />
     <ClInclude Include="eval\nnue\architectures\halfkpvm_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\architectures\kp_256x2-32-32.h" />
+    <ClInclude Include="eval\nnue\architectures\sfnnwop-1536.h" />
     <ClInclude Include="eval\nnue\evaluate_nnue.h" />
     <ClInclude Include="eval\nnue\evaluate_nnue_learner.h" />
     <ClInclude Include="eval\nnue\features\features_common.h" />
@@ -625,8 +626,11 @@
     <ClInclude Include="eval\nnue\features\p.h" />
     <ClInclude Include="eval\nnue\features\pe9.h" />
     <ClInclude Include="eval\nnue\layers\affine_transform.h" />
+    <ClInclude Include="eval\nnue\layers\affine_transform_explicit.h" />
     <ClInclude Include="eval\nnue\layers\affine_transform_sparse_input.h" />
+    <ClInclude Include="eval\nnue\layers\affine_transform_sparse_input_explicit.h" />
     <ClInclude Include="eval\nnue\layers\clipped_relu.h" />
+    <ClInclude Include="eval\nnue\layers\clipped_relu_explicit.h" />
     <ClInclude Include="eval\nnue\layers\input_slice.h" />
     <ClInclude Include="eval\nnue\layers\simd.h" />
     <ClInclude Include="eval\nnue\layers\sum.h" />
