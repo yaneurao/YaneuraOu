@@ -95,7 +95,7 @@ else:
 # ============================================================
 
 # アーキテクチャ名のアンダースコアでsplitした1つ目は入力特徴量。
-# 現在サポートしている入力特徴量は、"halfkp" , "kp" , "halfkpvm" , "halfkpe9", "halfkahm"。
+# 現在サポートしている入力特徴量は、"halfkp" , "kp" , "halfkpe9", "halfkpvm", "halfka", "halfkahm"。
 input_feature = arches[0].lower()
 
 print(f"input feature     : {input_feature}")
@@ -113,6 +113,17 @@ if input_feature == "halfkp":
     raw_features = """
     using RawFeatures = Features::FeatureSet<
         Features::HalfKP<Features::Side::kFriend>>;
+    """
+
+elif input_feature == "kp":
+
+    header += """
+    #include "../features/k.h"
+    #include "../features/p.h"
+    """
+    
+    raw_features = """
+    using RawFeatures = Features::FeatureSet<Features::K, Features::P>;
     """
 
 elif input_feature == "halfkpe9":
@@ -137,15 +148,15 @@ elif input_feature == "halfkpvm":
         Features::HalfKP_vm<Features::Side::kFriend>>;
     """
 
-elif input_feature == "kp":
+elif input_feature == "halfka":
 
     header += """
-    #include "../features/k.h"
-    #include "../features/p.h"
+    #include "../features/half_ka.h"
     """
-    
+
     raw_features = """
-    using RawFeatures = Features::FeatureSet<Features::K, Features::P>;
+    using RawFeatures = Features::FeatureSet<
+        Features::HalfKA<Features::Side::kFriend>>;
     """
 
 elif input_feature == "halfkahm":
