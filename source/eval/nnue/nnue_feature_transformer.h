@@ -143,7 +143,8 @@ class FeatureTransformer {
 	// Hash value embedded in the evaluation file
 	// 評価関数ファイルに埋め込むハッシュ値
 	static constexpr std::uint32_t GetHashValue() {
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
+		// 学習部と整合性とるの面倒なのでSFNNwoPSQTのときはこれに固定しておく。
 		return 0x5f134ab8u;
 #else
 		return RawFeatures::kHashValue ^ kOutputDimensions;
