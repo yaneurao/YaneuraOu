@@ -8,7 +8,7 @@
 
 #if defined(EVAL_NNUE)
 
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
 #define USE_ELEMENT_WISE_MULTIPLY
 #endif
 

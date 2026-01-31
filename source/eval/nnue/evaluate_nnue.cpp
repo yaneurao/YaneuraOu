@@ -161,7 +161,7 @@ namespace NNUE {
 	LargePagePtr<FeatureTransformer> feature_transformer;
 
     // 評価関数
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
     AlignedPtr<Network> network[kLayerStacks];
 #else
     AlignedPtr<Network> network;
@@ -174,7 +174,7 @@ namespace NNUE {
     std::string GetArchitectureString() {
         const std::string base = "Features=" + FeatureTransformer::GetStructureString() +
 			",Network=" + Network::GetStructureString();
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
 		return "ModelType=SFNNWithoutPsqt;" + base + "{LayerStack=" + std::to_string(kLayerStacks) + "}";
 #else
 		return base;
@@ -236,7 +236,7 @@ namespace {
 		// 評価関数パラメータを初期化する
 		void Initialize() {
 			Detail::Initialize<FeatureTransformer>(feature_transformer);
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
 			for (int i = 0; i < kLayerStacks; ++i) {
 				Detail::Initialize<Network>(network[i]);
 			}
@@ -297,7 +297,7 @@ namespace {
     			sync_cout << "info string NNUE feature params read failed: " << result.to_string() << sync_endl;
     			return result;
     		}
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
     		for (int i = 0; i < kLayerStacks; ++i) {
     			result = Detail::ReadParameters<Network>(stream, network[i]);
     			if (result.is_not_ok()) {
@@ -322,7 +322,7 @@ namespace {
     bool WriteParameters(std::ostream& stream) {
         if (!WriteHeader(stream, kHashValue, GetArchitectureString())) return false;
         if (!Detail::WriteParameters<FeatureTransformer>(stream, feature_transformer)) return false;
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
         for (int i = 0; i < kLayerStacks; ++i) {
             if (!Detail::WriteParameters<Network>(stream, network[i])) return false;
         }
@@ -337,7 +337,7 @@ namespace {
         feature_transformer->UpdateAccumulatorIfPossible(pos);
     }
 
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
     // レイヤースタックの選択。双方の玉の段に応じて9通りに分岐させる。
     static int stack_index_for_nnue(const Position& pos) {
         constexpr int kFToIndex[] = { 0, 0, 0, 3, 3, 3, 6, 6, 6 };
@@ -365,7 +365,7 @@ namespace {
             transformed_features[FeatureTransformer::kBufferSize];
         feature_transformer->Transform(pos, transformed_features, refresh);
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
         const auto bucket = stack_index_for_nnue(pos);
         const auto output = network[bucket]->Propagate(transformed_features, buffer);
 #else

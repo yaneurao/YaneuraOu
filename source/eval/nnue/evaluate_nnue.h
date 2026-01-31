@@ -20,7 +20,7 @@ namespace Eval::NNUE {
 
 	// Hash value of evaluation function structure
 	// 評価関数の構造のハッシュ値
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
 	constexpr std::uint32_t kHashValue = 0x3c203b32u;
 #else
 	constexpr std::uint32_t kHashValue =
@@ -31,7 +31,7 @@ namespace Eval::NNUE {
 	extern LargePagePtr<FeatureTransformer> feature_transformer;
 
 	// 評価関数
-#if defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+#if defined(SFNNwoPSQT)
 	constexpr int kLayerStacks = LayerStacks;
 	extern AlignedPtr<Network> network[kLayerStacks];
 #else
