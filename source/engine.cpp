@@ -7,8 +7,21 @@
 
 namespace YaneuraOu {
 
+// The default configuration will attempt to group L3 domains up to 32 threads.
+// This size was found to be a good balance between the Elo gain of increased
+// history sharing and the speed loss from more cross-cache accesses (see
+// PR#6526). The user can always explicitly override this behavior.
+
+// デフォルトの設定では、L3 ドメインを最大 32 スレッドまでまとめようとします。
+// このサイズは、履歴共有が増えることによる Elo の向上と、
+// キャッシュをまたぐアクセスが増えることによる速度低下との
+// バランスが良いことが確認されています（PR#6526 を参照）。
+// ユーザーは、この挙動を明示的に上書きすることができます。
+
+constexpr NumaAutoPolicy DefaultNumaPolicy = BundledL3Policy{32};
+
 Engine::Engine() :
-	numaContext(NumaConfig::from_system()),
+	numaContext(NumaConfig::from_system(DefaultNumaPolicy)),
 	states(new std::deque<StateInfo>(1)),
 	threads()
 {
@@ -152,12 +165,12 @@ void Engine::add_options() {
 void Engine::set_numa_config_from_option(const std::string& o) {
 	if (o == "auto" || o == "system")
 	{
-		numaContext.set_numa_config(NumaConfig::from_system());
+		numaContext.set_numa_config(NumaConfig::from_system(DefaultNumaPolicy));
 	}
 	else if (o == "hardware")
 	{
 		// Don't respect affinity set in the system.
-		numaContext.set_numa_config(NumaConfig::from_system(false));
+		numaContext.set_numa_config(NumaConfig::from_system(DefaultNumaPolicy, false));
 	}
 	else if (o == "none")
 	{
