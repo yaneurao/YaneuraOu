@@ -1,8 +1,7 @@
-﻿// Definition of layer ClippedReLU of NNUE evaluation function
-// NNUE評価関数の層ClippedReLUの定義
+// Definition of layer ClippedReLUExplicit of NNUE evaluation function
 
-#ifndef CLASSIC_NNUE_LAYERS_CLIPPED_RELU_H_INCLUDED
-#define CLASSIC_NNUE_LAYERS_CLIPPED_RELU_H_INCLUDED
+#ifndef NNUE_LAYERS_CLIPPED_RELU_EXPLICIT_H_INCLUDED
+#define NNUE_LAYERS_CLIPPED_RELU_EXPLICIT_H_INCLUDED
 
 #include "../../../config.h"
 
@@ -13,72 +12,41 @@
 namespace YaneuraOu {
 namespace Eval::NNUE::Layers {
 
-// Clipped ReLU
-template <typename PreviousLayer>
-class ClippedReLU {
+// Clipped ReLU (Explicit Dimensions)
+template <IndexType InputDimensions>
+class ClippedReLUExplicit {
  public:
-  // Input/output type
-  // 入出力の型
-  using InputType = typename PreviousLayer::OutputType;
+  using InputType = std::int32_t;
   using OutputType = std::uint8_t;
-  static_assert(std::is_same<InputType, std::int32_t>::value, "");
 
-  // Number of input/output dimensions
-  // 入出力の次元数
-  static constexpr IndexType kInputDimensions =
-      PreviousLayer::kOutputDimensions;
+  static constexpr IndexType kInputDimensions = InputDimensions;
   static constexpr IndexType kOutputDimensions = kInputDimensions;
+  static constexpr IndexType PaddedOutputDimensions =
+          CeilToMultiple<IndexType>(kOutputDimensions, 32);
 
-  // Size of forward propagation buffer used in this layer
-  // この層で使用する順伝播用バッファのサイズ
-  static constexpr std::size_t kSelfBufferSize =
-      CeilToMultiple(kOutputDimensions * sizeof(OutputType), kCacheLineSize);
+  using OutputBuffer = OutputType[PaddedOutputDimensions];
 
-  // Size of the forward propagation buffer used from the input layer to this layer
-  // 入力層からこの層までで使用する順伝播用バッファのサイズ
-  static constexpr std::size_t kBufferSize =
-      PreviousLayer::kBufferSize + kSelfBufferSize;
-
-  // Hash value embedded in the evaluation file
-  // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t GetHashValue() {
+  static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
     std::uint32_t hash_value = 0x538D24C7u;
-    hash_value += PreviousLayer::GetHashValue();
+        hash_value += prevHash;
     return hash_value;
   }
 
-  // ハッシュ値を前段の値から更新するときのヘルパー
-  static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
-    return 0x538D24C7u + prevHash;
-  }
-
-  // 入力層からこの層までの構造を表す文字列
   static std::string GetStructureString() {
     return "ClippedReLU[" +
-        std::to_string(kOutputDimensions) + "](" +
-        PreviousLayer::GetStructureString() + ")";
+        std::to_string(kOutputDimensions) + "]";
   }
 
-  // Read network parameters
-  // パラメータを読み込む
   Tools::Result ReadParameters(std::istream& stream) {
-    return previous_layer_.ReadParameters(stream);
+    return Tools::ResultCode::Ok;
   }
 
-  // パラメータを書き込む
   bool WriteParameters(std::ostream& stream) const {
-    return previous_layer_.WriteParameters(stream);
+    return true;
   }
 
-  // Forward propagation
-  // 順伝播
-  const OutputType* Propagate(
-      const TransformedFeatureType* transformed_features, char* buffer) const {
-    const auto input = previous_layer_.Propagate(
-        transformed_features, buffer + kSelfBufferSize);
-    const auto output = reinterpret_cast<OutputType*>(buffer);
+  void Propagate(const InputType* input, OutputType* output) const {
 
-  // 端数が生じないように、適切なSIMD幅を選択する。
   #if defined(USE_AVX512)
     if constexpr (kInputDimensions % 64 == 0)
     {
@@ -99,7 +67,7 @@ class ClippedReLU {
       }
     }
     else
-  
+
   #endif
 
   #if defined(USE_AVX2)
@@ -155,7 +123,7 @@ class ClippedReLU {
       }
     }
     else
-  
+
   #endif
 
   #if defined(USE_MMX)
@@ -178,7 +146,7 @@ class ClippedReLU {
       _mm_empty();
     }
     else
-  
+
   #endif
 
   #if defined(USE_NEON)
@@ -204,20 +172,15 @@ class ClippedReLU {
       output[i] = static_cast<OutputType>(
           std::max(0, std::min(127, input[i] >> kWeightScaleBits)));
     }
-    return output;
   }
 
  private:
-   // 学習用クラスをfriendにする
-   friend class Trainer<ClippedReLU>;
- 
-   // この層の直前の層
-   PreviousLayer previous_layer_;
+   friend class Trainer<ClippedReLUExplicit>;
 };
 
-} // namespace Eval::NNUE::Layers
-} // namespace YaneuraOu
+}  // namespace Eval::NNUE::Layers
+}  // namespace YaneuraOu
 
 #endif  // defined(EVAL_NNUE)
 
-#endif // NNUE_LAYERS_CLIPPED_RELU_H_INCLUDED
+#endif // NNUE_LAYERS_CLIPPED_RELU_EXPLICIT_H_INCLUDED
