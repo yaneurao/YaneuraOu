@@ -77,15 +77,6 @@
     <Filter Include="リソース ファイル\testcmd">
       <UniqueIdentifier>{f54ef520-240b-40a2-be3a-0c6c3df35b0b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\eval\sfnn">
-      <UniqueIdentifier>{93e09283-efdd-425e-bb2f-f449fa868523}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\eval\sfnn\layers">
-      <UniqueIdentifier>{f5eda8c9-097d-4e50-abcd-656e553d5142}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\eval\sfnn\features">
-      <UniqueIdentifier>{f596f93c-4778-4a90-97ca-05f9c0f7b3a6}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="evaluate.h">
@@ -364,42 +355,6 @@
     <ClInclude Include="score.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="eval\sfnn\network.h">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\nnue_accumulator.h">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\nnue_architecture.h">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\nnue_common.h">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\nnue_feature_transformer.h">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\nnue_misc.h">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\simd.h">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\layers\affine_transform.h">
-      <Filter>リソース ファイル\eval\sfnn\layers</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\layers\affine_transform_sparse_input.h">
-      <Filter>リソース ファイル\eval\sfnn\layers</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\layers\clipped_relu.h">
-      <Filter>リソース ファイル\eval\sfnn\layers</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\layers\sqr_clipped_relu.h">
-      <Filter>リソース ファイル\eval\sfnn\layers</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\sfnn\features\half_ka_v2_hm.h">
-      <Filter>リソース ファイル\eval\sfnn\features</Filter>
-    </ClInclude>
     <ClInclude Include="movegen.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
@@ -640,18 +595,6 @@
     <ClCompile Include="score.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="eval\sfnn\network.cpp">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\sfnn\nnue_accumulator.cpp">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\sfnn\nnue_misc.cpp">
-      <Filter>リソース ファイル\eval\sfnn</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\sfnn\features\half_ka_v2_hm.cpp">
-      <Filter>リソース ファイル\eval\sfnn\features</Filter>
-    </ClCompile>
     <ClCompile Include="tune.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
@@ -709,6 +652,8 @@
       <Filter>script</Filter>
     </None>
     <None Include=".clang-format" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
+    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
     <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
     <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
     <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />

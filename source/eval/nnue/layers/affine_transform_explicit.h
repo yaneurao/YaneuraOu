@@ -1,5 +1,5 @@
-// Definition of layer AffineTransformExplicit of NNUE evaluation function
-// ?? ‚±‚Ìheader‚ÍSFNN‚Åg‚¤V‚µ‚¢d—l‚Ìaffine_transform.h
+ï»¿// Definition of layer AffineTransformExplicit of NNUE evaluation function
+// ğŸ“ ã“ã®headerã¯SFNNã§ä½¿ã†æ–°ã—ã„ä»•æ§˜ã®affine_transform.h
 
 #ifndef NNUE_LAYERS_AFFINE_TRANSFORM_EXPLICIT_H_INCLUDED
 #define NNUE_LAYERS_AFFINE_TRANSFORM_EXPLICIT_H_INCLUDED
