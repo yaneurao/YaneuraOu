@@ -10,6 +10,7 @@
 #include <memory>
 //#include <string>
 #include <string_view>
+#include <type_traits>
 //#include <vector>
 
 #include <fstream>
@@ -170,8 +171,13 @@ template<typename T, std::size_t MaxSize>
 class ValueList {
 
 public:
-	std::size_t size() const { return size_; }
-    void        push_back(const T& value) {
+   	// 配列のsizeを返す。
+    std::size_t size() const { return size_; }
+
+	// 配列のsizeをintで返す。
+    int         ssize() const { return int(size_); }
+
+	void        push_back(const T& value) {
         assert(size_ < MaxSize);
         values_[size_++] = value;
     }
@@ -180,6 +186,15 @@ public:
 
 	const T& operator[](int index) const { return values_[index]; }
 	// ⇨ ここの引数、どうせ大きな配列は確保しないのでsize_tではなくintで良い。
+
+	// count個の要素を増やす。
+	// 要素は未初期化のまま増やした要素の先頭のポインタを返す。
+    T* make_space(size_t count) {
+        T* result = &values_[size_];
+        size_ += count;
+        assert(size_ <= MaxSize);
+        return result;
+    }
 
 	// 非const版の begin/end(やねうら王独自追加)
 	T* begin() { return values_; }
@@ -362,32 +377,45 @@ inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
 
 // 📓 SFNNのバイナリに対してhash値を計算するためのヘルパー関数群。
 
-// 2つのハッシュ値を安全に合成するためのユーティリティ。
-// seed と v を合成した値を seed に返す。
-// 📝 vのほうはT型としてstd::hash<T>を利用する。
-template<typename T>
-inline void hash_combine(std::size_t& seed, const T& v) {
-    std::hash<T> hasher;
-    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
-// hash_combine の std::size_t 特化版
-// 📝 std::hash<std::size_t> は単なる値返しであることが多く、
-//     特化させることで不要な hasher オブジェクト生成を削減し、
-//     わずかだがパフォーマンス改善になる。
-template<>
-inline void hash_combine(std::size_t& seed, const std::size_t& v) {
-    seed ^= v + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+// 任意の byte streamをバイト列そのままのハッシュとして利用し、uint64_tで返す。
+inline std::uint64_t hash_bytes(const char* data, std::size_t size) {
+    // FNV-1a 64-bit
+    const char*   p = data;
+    std::uint64_t h = 14695981039346656037ull;
+    for (std::size_t i = 0; i < size; ++i)
+        h = (h ^ p[i]) * 1099511628211ull;
+    return h;
 }
 
 // 任意の POD ライクなデータ構造を、バイト列そのままのハッシュとして利用し、size_tで返す。
 // 📝 `reinterpret_cast` でメモリ内容を生のまま string_view にして hash を取る。
 //     その実装はコンパイラ依存かつendian依存。
+
 template<typename T>
 inline std::size_t get_raw_data_hash(const T& value) {
-    return std::hash<std::string_view>{}(
-      std::string_view(reinterpret_cast<const char*>(&value), sizeof(value)));
+    // We must have no padding bytes because we're reinterpreting as char
+    static_assert(std::has_unique_object_representations<T>());
+
+    return static_cast<std::size_t>(
+      hash_bytes(reinterpret_cast<const char*>(&value), sizeof(value)));
 }
+
+template<typename T>
+inline void hash_combine(std::size_t& seed, const T& v) {
+    std::size_t x;
+    // For primitive types we avoid using the default hasher, which may be
+    // nondeterministic across program invocations
+    if constexpr (std::is_integral<T>())
+        x = v;
+    else
+        x = std::hash<T>{}(v);
+    seed ^= x + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+// 文字列に対してそのhash値を返す。
+// 💡 アルゴリズムが固定されていないと値が変わるのでC++のruntimeに依存するわけにはいかない。
+inline std::uint64_t hash_string(const std::string& sv) { return hash_bytes(sv.data(), sv.size()); }
+
 
 /*
 	FixedString
@@ -556,10 +584,10 @@ void move_to_front(std::vector<T>& vec, Predicate pred) {
 
 #if defined(__GNUC__)
     #define sf_always_inline __attribute__((always_inline))
-#elif defined(__MSVC)
-    #define sf_always_inline __forceinline
+#elif defined(_MSC_VER)
+	#define sf_always_inline __forceinline
 #else
-    // do nothign for other compilers
+    // do nothing for other compilers
     #define sf_always_inline
 #endif
 
@@ -1463,7 +1491,7 @@ namespace Misc {
 template<std::size_t N>
 struct std::hash<YaneuraOu::FixedString<N>> {
     std::size_t operator()(const YaneuraOu::FixedString<N>& fstr) const noexcept {
-        return std::hash<std::string_view>{}((std::string_view) fstr);
+        return YaneuraOu::hash_bytes(fstr.data(), fstr.size());
     }
 };
 
