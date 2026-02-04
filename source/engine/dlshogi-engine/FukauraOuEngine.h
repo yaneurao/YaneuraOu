@@ -27,10 +27,11 @@ class FukauraOuEngine;
 class FukauraOuWorker : public Worker {
    public:
 
-	FukauraOuWorker(OptionsMap&               options,
-                    ThreadPool&               threads,
+	FukauraOuWorker(Search::SharedState&     sharedState,
                     size_t                    threadIdx,
-                    NumaReplicatedAccessToken numaAccessToken,
+					size_t                    numaThreadIdx,
+					size_t                    numaTotal,
+                    NumaReplicatedAccessToken token,
                     DlshogiSearcher&          searcher,
                     FukauraOuEngine&          engine);
 

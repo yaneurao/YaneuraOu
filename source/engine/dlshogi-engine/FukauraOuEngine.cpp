@@ -200,13 +200,14 @@ std::string FukauraOuEngine::get_engine_author() const { return "Tadao Yamaoka ,
 
 // 🌈 やねうら王フレームワークと、dlshogiの橋渡しを行うコード 🌈
 
-FukauraOuWorker::FukauraOuWorker(OptionsMap&               options,
-                                 ThreadPool&               threads,
-                                 size_t                    threadIdx,
-                                 NumaReplicatedAccessToken numaAccessToken,
-                                 DlshogiSearcher&          searcher,
-                                 FukauraOuEngine&          engine) :
-    Worker(options, threads, threadIdx, numaAccessToken),
+FukauraOuWorker::FukauraOuWorker(Search::SharedState&     sharedState,
+                                size_t                    threadIdx,
+								size_t                    numaThreadIdx,
+								size_t                    numaTotal,
+                                NumaReplicatedAccessToken token,
+                                DlshogiSearcher&          searcher,
+                                FukauraOuEngine&          engine) :
+    Worker(sharedState, threadIdx, numaThreadIdx, numaTotal, numaAccessToken),
     searcher(searcher),
     engine(engine) {}
 
