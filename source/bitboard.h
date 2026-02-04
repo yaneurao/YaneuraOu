@@ -5,8 +5,6 @@
 
 namespace YaneuraOu {
 
-class Engine;
-
 namespace Bitboards
 {
 	// Bitboard関連のテーブル初期化のための関数

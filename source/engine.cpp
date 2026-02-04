@@ -158,7 +158,8 @@ void Engine::add_options() {
     //     派生class側のresize_threads()は、"USI_Hash"を参照して
     //     置換表を初期化するコードが書かれているかもしれないが、
     //     いま時点では、"USI_Hash"のoptionをaddしていないのでエラーとなる。
-    Engine::resize_threads();
+    // Engine::resize_threads();
+	// → thread数が0のときは初期化をskipするようにしたからこれはなくてもいいと思う。
 }
 
 // NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
@@ -342,9 +343,15 @@ void Engine::resize_threads() {
 	if (!options.count("Threads"))
         return;
 
-	auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
-		{ return make_unique_large_page<Search::Worker>(options, threads, threadIdx, numaAccessToken); };
-    threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
+	auto worker_factory = [&](Search::SharedState& sharedState, size_t threadIdx, size_t numaThreadIdx, size_t numaTotal, NumaReplicatedAccessToken numaAccessToken)
+		{ return make_unique_large_page<Search::Worker>(
+			sharedState, threadIdx, numaThreadIdx, numaTotal , numaAccessToken); };
+
+    threads.set(numaContext.get_numa_config(),
+                {options, threads, tt, sharedHists /*, networks*/ }, /* これはSharedState 相当 */
+				updateContext,
+                options["Threads"],
+				worker_factory);
 #endif
 
 	// 📌 置換表の再割り当て。

@@ -90,22 +90,33 @@ private:
 
 namespace Search {
 	class Worker;
-	typedef std::function<LargePagePtr<Worker>(size_t /*thread_idx*/, NumaReplicatedAccessToken /*token*/)> WorkerFactory;
+	typedef std::function<LargePagePtr<Worker>(
+		SharedState& sharedState,
+		size_t threadIdx,
+		size_t numaThreadIdx,
+		size_t numaTotal,
+		NumaReplicatedAccessToken numaAccessToken)>
+	  WorkerFactory;
 }
 
 class Thread {
 public:
 
-	// thread_id : ThreadPoolで何番目のthreadであるか。この値は、idx(スレッドID)となる。
+	// SharedState   : 探索で使うTTやOptionsMap、historyなどが入った構造体。
+	// threadIdx     : ThreadPoolで何番目のthreadであるか。この値は、idx(スレッドID)となる。
+	// numaThreadIdx : NUMA内で何番目のthreadであるか。
+	// numaTotal     : NUMA内は何個のthreadがあるか。
 	Thread(
-#if STOCKFISH
 		Search::SharedState&,
+#if STOCKFISH
 		std::unique_ptr<Search::ISearchManager>,
 #else
-		// 📌 やねうら王では、SharedStateとISearchManagerを使わずに、Workerのfactoryを使ってWorkerを直接生成する。
+		// 📌 やねうら王では、ISearchManagerを使わずに、Workerのfactoryを使ってWorkerを直接生成する。
 		Search::WorkerFactory          factory,
 #endif
-		size_t                         thread_id,
+		size_t                         threadIdx,
+		size_t						   numaThreadIdx,
+		size_t						   numaTotal,
 		OptionalThreadToNumaNodeBinder binder
 	);
 	virtual ~Thread();
@@ -169,12 +180,8 @@ private:
 
 	// thread id。main threadなら0。slaveなら1から順番に値が割当てられる。
 	// nthreadsは、スレッド数。(options["Threads"]の値)
-	size_t                    idx
-#if STOCKFISH
-          // 📌 nthreads使わないと思う。やねうら王ではコメントアウト
-          , nthreads
-#endif
-		;
+    size_t idx, idxInNuma, totalNuma /*, nthreads */;
+    // 📌 nthreads使わないと思う。やねうら王ではコメントアウト
 
 	// exit      : このフラグが立ったら終了する。
 	// searching : 探索中であるかを表すフラグ。プログラムを簡素化するため、事前にtrueにしてある。
@@ -240,14 +247,12 @@ public:
 	// requested_threadsの数になるように、スレッド数を変更する。
     // 💡 各ThreadのWorkerに対してclear()が1度以上呼び出されることは保証されている。
     void set(const NumaConfig&            numaConfig,
-#if STOCKFISH
-             Search::SharedState,
-             const Search::SearchManager::UpdateContext&);
-#else
-             const OptionsMap&            options,
+             Search::SharedState sharedState,
+             const Search::UpdateContext&,
+			 // 🌈 やねうら王独自追加
              size_t                       requested_threads,
-             const Search::WorkerFactory& worker_factory);
-#endif
+             const Search::WorkerFactory& worker_factory
+	);
     /*
 	   💡 Stockfishでは、
             Search::SharedState,

@@ -272,23 +272,16 @@ public:
 	// 📌 Properties
 
 #if STOCKFISH
-	// 📝 やねうら王では、これはEngineに持つ
-    OptionsMap options;
+	// 📝 やねうら王では、これらはすべてEngineに持つ。
 
-	// 📝 やねうら王では、これはEngineに持つ
-	ThreadPool threads;
+    OptionsMap                                         options;
+    ThreadPool                                         threads;
+    TranspositionTable                                 tt;
+    LazyNumaReplicatedSystemWide<Eval::NNUE::Networks> networks;
 
-	// 📝 やねうら王では、これはYaneuraOuEngineに持つ
-    TranspositionTable                       tt;
-
-	// 📝 やねうら王では、これはEngineに持つ
-    LazyNumaReplicated<Eval::NNUE::Networks> networks;
-
-	// 📝 やねうら王では、これはYaneuraOuEngineに持つ
     Search::SearchManager::UpdateContext  updateContext;
-
-	// TODO : あとで
     std::function<void(std::string_view)> onVerifyNetworks;
+    std::map<NumaIndex, SharedHistories>  sharedHists;
 #else
 	// スレッドプール(探索用スレッド)の取得
 	virtual ThreadPool& get_threads() = 0;
@@ -439,9 +432,10 @@ class Engine: public IEngine {
     // スレッドプール(探索用スレッド)
     ThreadPool threads;
 
-    //TranspositionTable tt;
-    // 📝 やねうら王ではEngine基底classはTTを持たない。
-    //     (Engineが必ずStockfishのTTを必要とするわけではないので)
+	// 置換表
+	// 💡 ここに持たせないとSharedStateに渡せなくてStockfishとの差分が大きくなってしまう。
+	//     置換表を実際に確保しないなら、使用メモリは無視できると思うのでこうしておく。
+    TranspositionTable tt;
 
     //LazyNumaReplicated<Eval::NNUE::Networks> networks;
     // TODO : あとで検討する
@@ -451,6 +445,8 @@ class Engine: public IEngine {
 
     // TODO : あとで検討する
     std::function<void(std::string_view)> onVerifyNetworks;
+
+    std::map<NumaIndex, SharedHistories>  sharedHists;
 
     // 📌 エンジンで用いるヘルパー関数
 

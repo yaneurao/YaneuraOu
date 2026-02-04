@@ -73,11 +73,16 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> t
 		💡 やねうら王のThreadPoolクラスは、前回と異なるスレッド数であれば自動的に再確保される。
 	*/ 
 
-    auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken) {
+	auto worker_factory = [&](Search::SharedState& sharedState,
+								size_t threadIdx,
+								size_t numaThreadIdx,
+								size_t numaTotal,
+								NumaReplicatedAccessToken numaAccessToken)
+	{
             auto p = make_unique_large_page<FukauraOuWorker>(
 
               // Worker基底classが渡して欲しいもの。
-              engine.options, engine.threads, threadIdx, numaAccessToken,
+              sharedState, threadIdx, numaThreadIdx, numaTotal, numaAccessToken,
 
               // 追加でFukauraOuEngineからもらいたいもの
               *this, engine);
@@ -88,8 +93,8 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> t
 	// 探索の終了条件を満たしたかを監視するためのスレッド数
 	const int search_interruption_check_thread_num = 1;
 
-    engine.threads.set(engine.numaContext.get_numa_config(), engine.options,
-                           total_thread_num + search_interruption_check_thread_num, worker_factory);
+    engine.threads.set(engine.numaContext.get_numa_config(), {engine.options, engine.threads, engine.tt, engine.sharedHists /*, networks*/ },
+					engine.updateContext, total_thread_num + search_interruption_check_thread_num , worker_factory);
 
 	// このタイミングで確保しなおす。
 

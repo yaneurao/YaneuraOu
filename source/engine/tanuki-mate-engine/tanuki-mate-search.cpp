@@ -977,9 +977,11 @@ class TanukiMateWorker : public YaneuraOu::Search::Worker
 {
 public:
 
-	TanukiMateWorker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken, TanukiMate::TanukiMateClass& mateClass) :
+	TanukiMateWorker(Search::SharedState& sharedState,
+					 size_t threadIdx, size_t numaIdx, size_t numaTotal, NumaReplicatedAccessToken numaAccessToken,
+					 TanukiMate::TanukiMateClass& mateClass) :
 		// 基底classのconstructorの呼び出し
-		Worker(options, threads, threadIdx, numaAccessToken), mateClass(mateClass) {
+		Worker(sharedState, threadIdx, numaIdx, numaTotal, numaAccessToken), mateClass(mateClass) {
 			
 	}
 
@@ -1076,12 +1078,16 @@ public:
 
 		// 💡　難しいことは考えずにコピペして使ってください。"Search::UserWorker"と書いてあるところに、
 		//      あなたの作成したWorker派生classの名前を書きます。
-		auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
+		auto worker_factory = [&](Search::SharedState& sharedState,
+								  size_t threadIdx,
+								  size_t numaThreadIdx,
+								  size_t numaTotal,
+								  NumaReplicatedAccessToken numaAccessToken)
 		{
 
 			auto p = make_unique_large_page<TanukiMateWorker>(
 				// Worker基底classが渡して欲しいもの。
-				options, threads, threadIdx, numaAccessToken,
+                sharedState, threadIdx, numaThreadIdx, numaTotal, numaAccessToken,
 
 				// 📌 WorkerからEngine側の何かにアクセスしたい時は、コンストラクタで渡してしまうのが簡単だと思う。
 				//     TODO : あとで他の方法を考える。
@@ -1090,7 +1096,9 @@ public:
 
 			return LargePagePtr<Worker>(p.release());  // Worker* に upcast
 		};
-		threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
+
+        threads.set(numaContext.get_numa_config(), {options, threads, tt, sharedHists /*, networks*/ },
+					updateContext, options["Threads"], worker_factory);
 
 		// 📌 NUMAの設定
 

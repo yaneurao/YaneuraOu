@@ -124,8 +124,8 @@ MovePicker::MovePicker(const Position&              p,
                        const LowPlyHistory*         lph,
                        const CapturePieceToHistory* cph,
                        const PieceToHistory**       ch,
-                       const PawnHistory* ph,
-                       int pl
+                       const SharedHistories*       sh,
+                       int                          pl
 #if !STOCKFISH
                        ,bool generate_all_legal_moves
 #endif
@@ -135,7 +135,7 @@ MovePicker::MovePicker(const Position&              p,
     lowPlyHistory(lph),
     captureHistory(cph),
     continuationHistory(ch),
-    pawnHistory(ph),
+    sharedHistory(sh),
     ttMove(ttm),
     depth(d),
     ply(pl)
@@ -360,7 +360,7 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 			//    駒を成るような指し手はどうせevaluate()で大きな値がつくからそっちを先に探索することになる。
 
 			m.value  =  2 * (*mainHistory)[us][m.raw()];
-            m.value +=  2 * (*pawnHistory)[pawn_history_index(pos)][pc][to];
+            m.value +=  2 * sharedHistory->pawn_entry(pos)[pc][to];
 			m.value +=      (*continuationHistory[0])[pc][to];
 			m.value +=      (*continuationHistory[1])[pc][to];
 			m.value +=      (*continuationHistory[2])[pc][to];
@@ -417,12 +417,8 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 			*/
 
 			else
-			{
 				// それ以外の指し手に関してはhistoryの値の順番
 				m.value = (*mainHistory)[us][m.raw()] + (*continuationHistory[0])[pc][to];
-				if (ply < LOW_PLY_HISTORY_SIZE)
-                    m.value += (*lowPlyHistory)[ply][m.raw()];
-			}
 		}
 	}
     return it;

@@ -26,7 +26,6 @@
 namespace YaneuraOu {
 
 class OptionsMap;
-class Engine;
 
 // --------------------
 //     engine info

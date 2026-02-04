@@ -46,14 +46,14 @@ class MovePicker {
     MovePicker& operator=(const MovePicker&) = delete;
 
     // 通常探索(main search)と静止探索から呼び出されるとき用のコンストラクタ。
-    MovePicker(const Position&         pos_,
-               Move                    ttMove_,
-               Depth                   depth_,
-               const ButterflyHistory* mh,
-               const LowPlyHistory*,
+    MovePicker(const Position&              pos_,
+               Move                         ttMove_,
+               Depth                        depth_,
+               const ButterflyHistory*      mh,
+               const LowPlyHistory*         lph,
                const CapturePieceToHistory* cph,
                const PieceToHistory**       ch,
-               const PawnHistory* ph,
+               const SharedHistories*       sh,
                int ply_
 #if !STOCKFISH
               ,bool generate_all_legal_moves
@@ -102,7 +102,7 @@ class MovePicker {
     const LowPlyHistory*         lowPlyHistory;
     const CapturePieceToHistory* captureHistory;
     const PieceToHistory**       continuationHistory;
-    const PawnHistory*           pawnHistory;
+	const SharedHistories*       sharedHistory;
 
     // 置換表の指し手(コンストラクタで渡される)
     Move ttMove;

@@ -11,8 +11,6 @@
 
 namespace YaneuraOu {
 
-class Engine;
-
 namespace Search {
 struct LimitsType;
 using  RootMoves = std::vector<RootMove>;

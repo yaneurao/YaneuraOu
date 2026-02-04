@@ -99,10 +99,10 @@ struct RootMove
 	//     ソースコードの差分を減らすことにする。
 	Value uciScore		   = -VALUE_INFINITE;
 
-	// usiScoreはlowerboundになっているのか。
+	// uciScoreはlowerboundになっているのか。
 	bool scoreLowerbound   = false;
 
-	// usiScoreはupperboundになっているのか。
+	// uciScoreはupperboundになっているのか。
 	bool scoreUpperbound   = false;
 
 	// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
@@ -133,7 +133,7 @@ struct LimitsType {
         nodes                                           = 0;
         ponderMode                                      = false;
 
-        // --- やねうら王で、将棋用に追加したメンバーの初期化。
+        // 🌈 将棋用に追加したメンバーの初期化。
 
         byoyomi[WHITE] = byoyomi[BLACK] = TimePoint(0);
         rtime                           = 0;
@@ -203,6 +203,35 @@ struct LimitsType {
 #endif
 };
 
+// The UCI stores the uci options, thread pool, and transposition table.
+// This struct is used to easily forward data to the Search::Worker class.
+
+// UCIは、UCIオプション、スレッドプール、トランスポジションテーブルを保持する。
+// この構造体は、Search::Workerクラスへデータを簡単に渡すために使われる。
+
+struct SharedState {
+    SharedState(const OptionsMap&                                         optionsMap,
+                ThreadPool&                                               threadPool,
+                TranspositionTable&                                       transpositionTable,
+                std::map<NumaIndex, SharedHistories>&                     sharedHists
+				// TODO : あとで考える。
+				//,const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& nets
+	) :
+        options(optionsMap),
+        threads(threadPool),
+        tt(transpositionTable),
+        sharedHistories(sharedHists)
+        //, networks(nets)
+	{}
+
+    const OptionsMap&                                         options;
+    ThreadPool&                                               threads;
+    TranspositionTable&                                       tt;
+    std::map<NumaIndex, SharedHistories>&                     sharedHistories;
+
+	//const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
+};
+
 /*
 	📌  読み筋を表現する構造体  📌
 
@@ -235,6 +264,7 @@ struct InfoFull: InfoShort {
 #endif
 
     // boundを文字列化したもの
+	// 💡 評価値とともに出力されるupperboundとかlowerboundとか。
     std::string_view bound;
 
     // 経過時間
@@ -246,8 +276,10 @@ struct InfoFull: InfoShort {
     // NPS
     size_t nps;
 
+#if STOCKFISH
     // 💡tbHitsもやねうら王では使わない。(tb = tablebases)
-    //size_t           tbHits;
+    size_t           tbHits;
+#endif
 
     // PVを文字列化したもの
     std::string_view pv;
@@ -260,15 +292,17 @@ struct InfoFull: InfoShort {
 struct InfoIteration {
     // 探索深さ
     int depth;
-    // 現在探索中の指し手を文字列化したもの
+
+	// 現在探索中の指し手を文字列化したもの
     std::string_view currmove;
-    // 現在探索中の指し手のナンバー
+
+	// 現在探索中の指し手のナンバー
     size_t currmovenumber;
 };
 
 // 📌 読み筋を出力する時に呼び出すlistener
 // 🤔 StockfishではSearchManagerで定義されているが、
-//     やねうら王ではnamespace Searchで定義しておく。
+//     やねうら王ではSearchManagerを採用しないので、namespace Searchで定義しておく。
 // 📝 UpdateInfoは、"info string ..."にそのまま出力する。
 //    やねうら王独自拡張。
 
@@ -310,13 +344,26 @@ struct UpdateContext {
 */
 
 class Worker;
-typedef std::function<LargePagePtr<Worker>(size_t /*threadIdx*/, NumaReplicatedAccessToken /*numaAccessToken*/)> WorkerFactory;
+typedef std::function<LargePagePtr<Worker>(
+	SharedState& sharedState,
+	size_t threadIdx,
+	size_t numaThreadIdx,
+	size_t numaTotal,
+	NumaReplicatedAccessToken numaAccessToken)>
+	WorkerFactory;
 
 class Worker
 {
 public:
 
-	Worker(OptionsMap& options, ThreadPool& threads, size_t threadIdx, NumaReplicatedAccessToken numaAccessToken);
+	Worker(SharedState& sharedState,
+		   #if STOCKFISH
+		   std::unique_ptr<ISearchManager> sm,
+		   #endif
+		   size_t threadIdx,
+		   size_t numaThreadIdx,
+		   size_t numaTotalThreads,
+		   NumaReplicatedAccessToken numaAccessToken);
 	 virtual ~Worker() { }
 
 	// Called at instantiation to initialize reductions tables.
@@ -364,16 +411,12 @@ public:
     ButterflyHistory mainHistory;
     LowPlyHistory    lowPlyHistory;
 
-    CapturePieceToHistory captureHistory;
-    ContinuationHistory   continuationHistory[2][2];
-    PawnHistory           pawnHistory;
-
-    CorrectionHistory<Pawn>         pawnCorrectionHistory;
-    CorrectionHistory<Minor>        minorPieceCorrectionHistory;
-    CorrectionHistory<NonPawn>      nonPawnCorrectionHistory;
+    CapturePieceToHistory           captureHistory;
+    ContinuationHistory             continuationHistory[2][2];
     CorrectionHistory<Continuation> continuationCorrectionHistory;
 
-    TTMoveHistory ttMoveHistory;
+    TTMoveHistory    ttMoveHistory;
+    SharedHistories& sharedHistory;
 #endif
 
 protected:
@@ -455,9 +498,11 @@ protected:
     //Value rootDelta;
 #endif
 
-	// threadのindex(0からの連番), 0がmain thread
     // 📑コンストラクタで渡されたもの
-    size_t threadIdx;
+	// threadIdx     : threadのindex。0からの連番。0がmain thread
+	// numaThreadIdx : 何番目のNUMAを使うか。
+	// numaTotal     : NUMA内のThreadの合計個数。
+    size_t                    threadIdx, numaThreadIdx, numaTotal;
 
 	// このWorker threadに対応るNumaのtoken
     // 💡 コンストラクタで渡されたもの
@@ -479,15 +524,12 @@ protected:
 	ThreadPool& threads;
 
 	// 置換表
-	// 📝 派生class側で。
-	// 🤔 エンジン種別ごとに異なる置換表実装を行う余地を残すため、
-	//     やねうら王ではWorker classは置換表を持たせない。
-#if STOCKFISH
     TranspositionTable& tt;
-#endif
 
 #if defined(EVAL_SFNN)
-    const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
+	// TODO : あとで検討する
+
+	const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
 
     // Used by NNUE
     Eval::NNUE::AccumulatorStack  accumulatorStack;
@@ -500,38 +542,6 @@ protected:
 #endif
 };
 
-// 📌 やねうら王では、SharedStateを用いない。
-// 
-//     EngineとWorkerと評価関数とを自由に組み合わせられるようにするには、
-//     このStockfishの設計だと難しい。
-
-#if STOCKFISH
-// The UCI stores the uci options, thread pool, and transposition table.
-// This struct is used to easily forward data to the Search::Worker class.
-
-// UCIは、UCIオプション、スレッドプール、トランスポジションテーブルを保持する。
-// この構造体は、Search::Workerクラスへデータを簡単に渡すために使われる。
-
-struct SharedState {
-	SharedState(const OptionsMap& optionsMap,
-		ThreadPool& threadPool,
-		TranspositionTable& transpositionTable,
-		const LazyNumaReplicatedSystemWide<Eval::Evaluator>& nets
-	) :
-		options(optionsMap),
-		threads(threadPool),
-		tt(transpositionTable),
-		networks(nets)
-	{
-	}
-
-	const OptionsMap& options;
-	ThreadPool& threads;
-	TranspositionTable& tt;
-
-	const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
-};
-#endif
 
 } // namespace Search
 } // namespace YaneuraOu

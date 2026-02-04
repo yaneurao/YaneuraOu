@@ -323,21 +323,26 @@ void YaneuraOuEngine::resize_threads() {
 
     // 📌 スレッド数のリサイズ
 
-    auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken)
+    auto worker_factory = [&](SharedState& sharedState,
+							  size_t threadIdx,
+							  size_t numaThreadIdx,
+							  size_t numaTotal,
+							  NumaReplicatedAccessToken numaAccessToken)
 	{
 
 		auto p = make_unique_large_page<Search::YaneuraOuWorker>(
 			// Worker基底classが渡して欲しいもの。
-			options, threads, threadIdx, numaAccessToken,
+			sharedState, threadIdx, numaThreadIdx, numaTotal, numaAccessToken,
 
 			// 追加でYaneuraOuEngineからもらいたいもの
-			tt, *this
+			*this
 		);
 
 		return LargePagePtr<Worker>(p.release());  // Worker* に upcast
     };
 
-    threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
+    threads.set(numaContext.get_numa_config(), {options, threads, tt, sharedHists /*, networks*/ },
+                updateContext , options["Threads"], worker_factory);
 
 	// 置換表の割り当て
 	set_tt_size(options["USI_Hash"]);
@@ -489,6 +494,7 @@ namespace {
 
 // 💡 あるnodeで生成した指し手にbonusを与えるために、そのnodeで生成した指し手を良い順に保存しておく配列のcapacity。
 constexpr int SEARCHEDLIST_CAPACITY = 32;
+constexpr int mainHistoryDefault    = 68;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
 // (*Scalers):
@@ -512,10 +518,11 @@ using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack* const ss) {
     const Color us    = pos.side_to_move();
     const auto  m     = (ss - 1)->currentMove;
-    const auto  pcv   = w.pawnCorrectionHistory[pawn_correction_history_index(pos)][us];
-    const auto  micv  = w.minorPieceCorrectionHistory[minor_piece_index(pos)][us];
-    const auto  wnpcv = w.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us];
-    const auto  bnpcv = w.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us];
+    const auto& shared = w.sharedHistory;
+    const int   pcv    = shared.pawn_correction_entry(pos).at(us).pawn;
+    const int   micv   = shared.minor_piece_correction_entry(pos).at(us).minor;
+    const int   wnpcv  = shared.nonpawn_correction_entry<WHITE>(pos).at(us).nonPawnWhite;
+    const int   bnpcv  = shared.nonpawn_correction_entry<BLACK>(pos).at(us).nonPawnBlack;
     const auto  cntcv =
       m.is_ok() ? (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
 		        + (*(ss - 4)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
@@ -541,12 +548,12 @@ void update_correction_history(const Position&          pos,
 
     constexpr int nonPawnWeight = 165;
 
-    workerThread.pawnCorrectionHistory[pawn_correction_history_index(pos)][us] << bonus;
-    workerThread.minorPieceCorrectionHistory[minor_piece_index(pos)][us] << bonus * 145 / 128;
-    workerThread.nonPawnCorrectionHistory[non_pawn_index<WHITE>(pos)][WHITE][us]
-      << bonus * nonPawnWeight / 128;
-    workerThread.nonPawnCorrectionHistory[non_pawn_index<BLACK>(pos)][BLACK][us]
-      << bonus * nonPawnWeight / 128;
+    auto&         shared        = workerThread.sharedHistory;
+
+    shared.pawn_correction_entry(pos).at(us).pawn << bonus;
+    shared.minor_piece_correction_entry(pos).at(us).minor << bonus * 156 / 128;
+    shared.nonpawn_correction_entry<WHITE>(pos).at(us).nonPawnWhite << bonus * nonPawnWeight / 128;
+    shared.nonpawn_correction_entry<BLACK>(pos).at(us).nonPawnBlack << bonus * nonPawnWeight / 128;
 
     if (m.is_ok())
     {
@@ -620,14 +627,22 @@ Search::Worker::Worker(SharedState& sharedState,
 }
 #endif
 
-Search::YaneuraOuWorker::YaneuraOuWorker(OptionsMap&               options,
-                                         ThreadPool&               threads,
+Search::YaneuraOuWorker::YaneuraOuWorker(SharedState&              sharedState,
+					#if STOCKFISH
+					std::unique_ptr<ISearchManager>,
+					#endif
                                          size_t                    threadIdx,
-                                         NumaReplicatedAccessToken numaAccessToken,
-										 TranspositionTable&       tt,
+										 size_t                    numaThreadIdx,
+										 size_t                    numaTotal,
+                                         NumaReplicatedAccessToken token,
 										 YaneuraOuEngine&          engine) :
-    Search::Worker(options, threads, threadIdx, numaAccessToken), tt(tt),
-		engine(engine), manager(engine.manager) {
+	// Unpack the SharedState struct into member variables
+    sharedHistory(sharedState.sharedHistories.at(token.get_numa_index())),
+	// 残りは基底classであるSearch::Workerのほうでunpackする。
+	Search::Worker(sharedState, threadIdx, numaThreadIdx, numaTotal, token),
+	engine(engine),
+	manager(engine.manager)
+{
 
     //clear();
 
@@ -1814,12 +1829,12 @@ void YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
 // 履歴をリセットする。通常は新しいゲームの前に実行される。
 void YaneuraOuWorker::clear() {
 
-    mainHistory.fill(68);
+	mainHistory.fill(mainHistoryDefault);
     captureHistory.fill(-689);
-    pawnHistory.fill(-1238);
-    pawnCorrectionHistory.fill(5);
-    minorPieceCorrectionHistory.fill(0);
-    nonPawnCorrectionHistory.fill(0);
+
+    // Each thread is responsible for clearing their part of shared history
+    sharedHistory.correctionHistory.clear_range(0, numaThreadIdx, numaTotal);
+    sharedHistory.pawnHistory.clear_range(-1238, numaThreadIdx, numaTotal);
 
 	ttMoveHistory = 0;
 
@@ -2755,7 +2770,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
         mainHistory[~us][((ss - 1)->currentMove).raw()] << evalDiff * 9;
         if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
             && ((ss - 1)->currentMove).type_of() != PROMOTION)
-            pawnHistory[pawn_history_index(pos)][pos.piece_on(prevSq)][prevSq] << evalDiff * 14;
+            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << evalDiff * 13;
     }
 
     // Set up the improving flag, which is true if current static evaluation is
@@ -3078,7 +3093,7 @@ moves_loop:  // When in check, search starts here
 
 
     MovePicker mp(pos, ttData.move, depth, &mainHistory, &lowPlyHistory, &captureHistory, contHist,
-                  &pawnHistory, ss->ply
+                  &sharedHistory, ss->ply
 #if !STOCKFISH
                   ,
                   search_options.generate_all_legal_moves
@@ -3272,7 +3287,7 @@ moves_loop:  // When in check, search starts here
             {
                 int history = (*contHist[0])[movedPiece][move.to_sq()]
                             + (*contHist[1])[movedPiece][move.to_sq()]
-                            + pawnHistory[pawn_history_index(pos)][movedPiece][move.to_sq()];
+                            + sharedHistory.pawn_entry(pos)[movedPiece][move.to_sq()];
 
                 // Continuation history based pruning
                 // Continuation historyに基づいた枝刈り(historyの値が悪いものに関してはskip)
@@ -3962,8 +3977,7 @@ moves_loop:  // When in check, search starts here
 
 		// TODO : これで合ってるか？あとで検証する。
         if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
-            pawnHistory[pawn_history_index(pos)][pos.piece_on(prevSq)][prevSq]
-              << scaledBonus * 1164 / 32768;
+            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << scaledBonus * 290 / 8192;
     }
 
     // Bonus for prior capture countermove that caused the fail low
@@ -4479,7 +4493,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     // captures(駒を取る指し手)、またはevasions(王手の回避)のみです。
 
     MovePicker mp(pos, ttData.move, DEPTH_QS, &mainHistory, &lowPlyHistory, &captureHistory,
-                  contHist, &pawnHistory, ss->ply
+                  contHist, &sharedHistory, ss->ply
 #if !STOCKFISH
                   ,
                   search_options.generate_all_legal_moves
@@ -5049,8 +5063,7 @@ void update_quiet_histories(
 
     update_continuation_histories(ss, pos.moved_piece(move), move.to_sq(), bonus * 955 / 1024);
 
-    int pIndex = pawn_history_index(pos);
-    workerThread.pawnHistory[pIndex][pos.moved_piece(move)][move.to_sq()]
+	workerThread.sharedHistory.pawn_entry(pos)[pos.moved_piece(move)][move.to_sq()]
       << bonus * (bonus > 0 ? 850 : 550) / 1024;
 }
 

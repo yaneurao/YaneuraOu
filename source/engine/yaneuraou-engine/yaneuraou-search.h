@@ -340,17 +340,21 @@ class YaneuraOuEngine: public Engine {
     ThreadPool threads;
 #endif
 
-    // 置換表
-    TranspositionTable tt;
+    // 📝 以下は、Engine classにある
+
+	// 置換表
+    // TranspositionTable tt;
 
     // TODO : あとで
     //LazyNumaReplicatedSystemWide<Eval::NNUE::Networks> networks;
 
-    // 📝 Engine classにある
     // Search::UpdateContext updateContext;
 
     // TODO : あとで
     //std::function<void(std::string_view)> onVerifyNetworks;
+
+	// historyの集めたやつ。
+    std::map<NumaIndex, SharedHistories>  sharedHists;
 
     // 🌈 やねうら王独自 🌈
 
@@ -402,12 +406,15 @@ class YaneuraOuWorker: public Worker {
    public:
     // 💡 コンストラクタでWorkerのコンストラクタを初期化しないといけないので、
     //     少なくともWorkerのコンストラクタと同じ引数が必要。
-    YaneuraOuWorker(OptionsMap&               options,
-                    ThreadPool&               threads,
+    YaneuraOuWorker(SharedState&              sharedState,
+					#if STOCKFISH
+					std::unique_ptr<ISearchManager>,
+					#endif
                     size_t                    threadIdx,
+					size_t                    numaThreadIdx,
+					size_t                    numaTotal,
                     NumaReplicatedAccessToken numaAccessToken,
                     // 追加でYaneuraOuEngineからもらいたいもの
-                    TranspositionTable& tt,
                     YaneuraOuEngine&    engine);
 
     // "usinewgame"に対して呼び出される。対局前の初期化。
@@ -438,15 +445,10 @@ class YaneuraOuWorker: public Worker {
     // 添字の[2][2]は、[inCheck(王手がかかっているか)][capture_stage]
     // →　この改造、レーティングがほぼ上がっていない。悪い改造のような気がする。
     ContinuationHistory continuationHistory[2][2];
-
-    PawnHistory pawnHistory;
-
-    CorrectionHistory<Pawn>         pawnCorrectionHistory;
-    CorrectionHistory<Minor>        minorPieceCorrectionHistory;
-    CorrectionHistory<NonPawn>      nonPawnCorrectionHistory;
     CorrectionHistory<Continuation> continuationCorrectionHistory;
 
-	TTMoveHistory ttMoveHistory;
+    TTMoveHistory    ttMoveHistory;
+    SharedHistories& sharedHistory;
 
    private:
     // 反復深化
@@ -536,12 +538,9 @@ class YaneuraOuWorker: public Worker {
 
 #if STOCKFISH
 	// 探索開始局面とrootでのStateInfo
-	// 📝 やねうら王では、base classが持っている。
+	// 📝 やねうら王では、Engine classが持っている。
     Position  rootPos;
     StateInfo rootState;
-
-	// rootでの指し手
-	// 📝 やねうら王では、base classが持っている。
     RootMoves rootMoves;
 #endif
 
@@ -550,9 +549,13 @@ class YaneuraOuWorker: public Worker {
     Value rootDelta;
 
 #if STOCKFISH
-	// 📝 やねうら王では、base classが持っている。
+	// 📓 やねうら王では、Engine classが持っている。
+	// threadIdx     : threadのindex(0からの連番), 0がmain thread
+	// numaThreadIdx : NUMA内のthread index。
+	// numaTotal     : NUMA内のtotal thread数。numaTotalThreads。
+	// 📑この3つはコンストラクタで渡されたもの
 
-	size_t                    threadIdx;
+	size_t                    threadIdx, numaThreadIdx, numaTotal;
     NumaReplicatedAccessToken numaAccessToken;
 #endif
 
@@ -566,6 +569,8 @@ class YaneuraOuWorker: public Worker {
     std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
 
 #if STOCKFISH
+	// やねうら王では、これらは基底classであるWorkerが持っている。
+
     // The main thread has a SearchManager, the others have a NullSearchManager
     // メインスレッドは SearchManager を持ち、他のスレッドは NullSearchManager を持つ。
     std::unique_ptr<ISearchManager> manager;
@@ -576,7 +581,11 @@ class YaneuraOuWorker: public Worker {
     const OptionsMap&                               options;
     ThreadPool&                                     threads;
     TranspositionTable&                             tt;
-#else
+	// TODO : あとで考える。
+    //const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
+
+#endif
+
 	// 💡 やねうら王では、SearchManagerは、NullObject patternをやめて、単に参照で持つ。
     // 🤔 Stockfishも、main threadからしか呼び出さないのだから、これでいいと思うのだが…。
     SearchManager& manager;
@@ -585,14 +594,11 @@ class YaneuraOuWorker: public Worker {
     // 📝 より詳しい説明は、Worker::pre_start_searching()のコメントを読むこと。
     virtual void pre_start_searching() override;
 
-	// 置換表
-	// 📝 やねうら王ではコンストラクタで受け取っている。
-    TranspositionTable&                             tt;
-#endif
-
 	// NNUEの評価関数の計算用
 
-#if STOCKFISH || defined(EVAL_SFNN)
+#if STOCKFISH
+	// TODO : あとでよく考える。
+
 	// NNUE評価関数のパラメーターがNumaごとにコピーされるようにする。
 	const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
 

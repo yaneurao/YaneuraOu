@@ -401,6 +401,12 @@
     <ClInclude Include="eval\nnue\layers\clipped_relu_explicit.h">
       <Filter>リソース ファイル\eval\nnue\layers</Filter>
     </ClInclude>
+    <ClInclude Include="eval\nnue\features\half_ka.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
+    <ClInclude Include="eval\nnue\features\half_ka_hm.h">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
@@ -619,6 +625,12 @@
     <ClCompile Include="engine\dlshogi-engine\UctSearch.cpp">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
+    <ClCompile Include="eval\nnue\features\half_ka.cpp">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClCompile>
+    <ClCompile Include="eval\nnue\features\half_ka_hm.cpp">
+      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\script\readme.txt">
@@ -652,10 +664,6 @@
       <Filter>script</Filter>
     </None>
     <None Include=".clang-format" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
-    <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
     <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime.dll" />
     <None Include="$(MSBuildThisFileDirectory)..\..\runtimes\win-x64\native\onnxruntime_providers_shared.dll" />
   </ItemGroup>

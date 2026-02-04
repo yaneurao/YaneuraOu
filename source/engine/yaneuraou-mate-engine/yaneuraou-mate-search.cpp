@@ -26,12 +26,10 @@ namespace Search {
 
 class YaneuraOuMateWorker: public Worker {
    public:
-    YaneuraOuMateWorker(OptionsMap&               options,
-                        ThreadPool&               threads,
-                        size_t                    threadIdx,
-                        NumaReplicatedAccessToken numaAccessToken) :
+    YaneuraOuMateWorker(Search::SharedState& sharedState,
+					 size_t threadIdx, size_t numaIdx, size_t numaTotal, NumaReplicatedAccessToken numaAccessToken) :
         // 基底classのconstructorの呼び出し
-        Worker(options, threads, threadIdx, numaAccessToken) {}
+        Worker(sharedState, threadIdx, numaIdx, numaTotal, numaAccessToken) {}
 
     // このworker(探索用の1つのスレッド)の初期化
     // 📝 これは、"usinewgame"のタイミングで、すべての探索スレッド(エンジンオプションの"Threads"で決まる)に対して呼び出される。
@@ -197,17 +195,23 @@ class YaneuraOuMateEngine: public Engine {
 
         // 💡　難しいことは考えずにコピペして使ってください。"Search::UserWorker"と書いてあるところに、
         //      あなたの作成したWorker派生classの名前を書きます。
-        auto worker_factory = [&](size_t threadIdx, NumaReplicatedAccessToken numaAccessToken) {
+		auto worker_factory = [&](Search::SharedState& sharedState,
+								  size_t threadIdx,
+								  size_t numaThreadIdx,
+								  size_t numaTotal,
+								  NumaReplicatedAccessToken numaAccessToken)
+		{
 
 			auto p = make_unique_large_page<Search::YaneuraOuMateWorker>(
 				// Worker基底classが渡して欲しいもの。
-				options, threads, threadIdx, numaAccessToken
+                sharedState, threadIdx, numaThreadIdx, numaTotal, numaAccessToken
 			);
 
 			return LargePagePtr<Worker>(p.release());  // Worker* に upcast
 		};
 
-        threads.set(numaContext.get_numa_config(), options, options["Threads"], worker_factory);
+        threads.set(numaContext.get_numa_config(), {options, threads, tt, sharedHists /*, networks*/ },
+					updateContext, options["Threads"], worker_factory);
 
         // 📌 NUMAの設定
 

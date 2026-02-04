@@ -25,7 +25,8 @@ constexpr auto BenchmarkCommand = "speedtest";
 
 #if STOCKFISH
 // 初期局面
-// 📝 やねうら王では、 types.h で定義しているStartSFENがそれ。
+// 📝 やねうら王では、 types.h で定義しているStartSFEN がこれに対応するもの。
+//     よって、ここでは書かない。
 constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 #else
 
