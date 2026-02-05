@@ -23,9 +23,9 @@ namespace Search {
 	{
 	public:
 
-		UserWorker(SharedState& sharedState, size_t threadIdx, size_t numaIdx, size_t numaTotal, NumaReplicatedAccessToken numaAccessToken):
+		UserWorker(SharedState& sharedState, const Search::ThreadIds& ids):
 			// 基底classのconstructorの呼び出し
-			Worker(sharedState, threadIdx, numaIdx, numaTotal, numaAccessToken){ }
+			Worker(sharedState, ids){ }
 
 		// このworker(探索用の1つのスレッド)の初期化
 		// 📝 これは、"usinewgame"のタイミングで、すべての探索スレッド(エンジンオプションの"Threads"で決まる)に対して呼び出される。
@@ -112,14 +112,11 @@ class UserEngine : public Engine
 		//      あなたの作成したWorker派生classの名前を書きます。
 
 		auto worker_factory = [&](Search::SharedState& sharedState,
-								  size_t threadIdx,
-								  size_t numaThreadIdx,
-								  size_t numaTotal,
-								  NumaReplicatedAccessToken numaAccessToken)
+								  const Search::ThreadIds& ids)
 		{
             auto p = make_unique_large_page<Search::UserWorker>(
                 // Worker基底classが渡して欲しいもの。
-                sharedState, threadIdx, numaThreadIdx, numaTotal, numaAccessToken);
+                sharedState, ids);
 
             return LargePagePtr<Worker>(p.release());  // Worker* に upcast
         };

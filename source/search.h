@@ -343,28 +343,24 @@ struct UpdateContext {
 		例として、USER_ENGINE である、user-engine.cpp のソースコードを見ると良い。
 */
 
-class Worker;
-typedef std::function<LargePagePtr<Worker>(
-	SharedState& sharedState,
-	size_t threadIdx,
-	size_t numaThreadIdx,
-	size_t numaTotal,
-	NumaReplicatedAccessToken numaAccessToken)>
-	WorkerFactory;
-
 class Worker
 {
 public:
 
 	Worker(SharedState& sharedState,
-		   #if STOCKFISH
-		   std::unique_ptr<ISearchManager> sm,
-		   #endif
-		   size_t threadIdx,
-		   size_t numaThreadIdx,
-		   size_t numaTotalThreads,
-		   NumaReplicatedAccessToken numaAccessToken);
-	 virtual ~Worker() { }
+#if STOCKFISH
+	,std::unique_ptr<ISearchManager> sm,
+	size_t threadIdx,
+	size_t numaThreadIdx,
+	size_t numaTotal,
+	NumaReplicatedAccessToken numaAccessToken)
+#else
+          // 🌈 上記の4つの引数を一纏めにした構造体
+          const ThreadIds& ids
+#endif
+	);
+
+	virtual ~Worker() { }
 
 	// Called at instantiation to initialize reductions tables.
     // Reset histories, usually before a new game.
@@ -498,14 +494,13 @@ protected:
     //Value rootDelta;
 #endif
 
-    // 📑コンストラクタで渡されたもの
-	// threadIdx     : threadのindex。0からの連番。0がmain thread
-	// numaThreadIdx : 何番目のNUMAを使うか。
-	// numaTotal     : NUMA内のThreadの合計個数。
+    // 📑 Stockfishではこれらはコンストラクタで渡される。
+	//     やねうら王では、set_thread_ids()で渡される。
+	// threadIdx       : threadのindex。0からの連番。0がmain thread
+	// numaThreadIdx   : 何番目のNUMAを使うか。
+	// numaTotal       : NUMA内のThreadの合計個数。
+	// numaAccessToken : このWorker threadに対応するNumaのtoken
     size_t                    threadIdx, numaThreadIdx, numaTotal;
-
-	// このWorker threadに対応るNumaのtoken
-    // 💡 コンストラクタで渡されたもの
     NumaReplicatedAccessToken numaAccessToken;
 
 	// 📝 派生class側で

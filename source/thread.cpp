@@ -52,7 +52,8 @@ Thread::Thread(Search::SharedState& sharedState,
           sharedState, std::move(sm), n, idxInNuma, totalNuma, this->numaAccessToken);
 #else
 		// 🌈 やねうら王では、ここでworker_factoryを使ってWorker派生classを生成する。
-		this->worker = std::move(worker_factory(sharedState, n, idxInNuma, totalNuma, this->numaAccessToken));
+		this->worker = std::move(worker_factory(sharedState,
+												{n, idxInNuma, totalNuma, this->numaAccessToken}));
 #endif
     });
 

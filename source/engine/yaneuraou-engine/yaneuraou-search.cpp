@@ -323,17 +323,13 @@ void YaneuraOuEngine::resize_threads() {
 
     // 📌 スレッド数のリサイズ
 
-    auto worker_factory = [&](SharedState& sharedState,
-							  size_t threadIdx,
-							  size_t numaThreadIdx,
-							  size_t numaTotal,
-							  NumaReplicatedAccessToken numaAccessToken)
+    auto worker_factory = [&](SharedState& sharedState, const ThreadIds& ids)
 	{
 
 		auto p = make_unique_large_page<Search::YaneuraOuWorker>(
-			// Worker基底classが渡して欲しいもの。
-			sharedState, threadIdx, numaThreadIdx, numaTotal, numaAccessToken,
-
+			// Workerのコンストラクタが渡して欲しいもの。
+			sharedState,
+			ids,
 			// 追加でYaneuraOuEngineからもらいたいもの
 			*this
 		);
@@ -627,19 +623,21 @@ Search::Worker::Worker(SharedState& sharedState,
 }
 #endif
 
-Search::YaneuraOuWorker::YaneuraOuWorker(SharedState&              sharedState,
-					#if STOCKFISH
-					std::unique_ptr<ISearchManager>,
-					#endif
+Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
+#if STOCKFISH
+                                         std::unique_ptr<ISearchManager>,
                                          size_t                    threadIdx,
-										 size_t                    numaThreadIdx,
-										 size_t                    numaTotal,
+                                         size_t                    numaThreadIdx,
+                                         size_t                    numaTotal,
                                          NumaReplicatedAccessToken token,
+#else
+                                         const ThreadIds& ids,
+#endif
 										 YaneuraOuEngine&          engine) :
 	// Unpack the SharedState struct into member variables
-    sharedHistory(sharedState.sharedHistories.at(token.get_numa_index())),
+    sharedHistory(sharedState.sharedHistories.at(ids.numaAccessToken.get_numa_index())),
 	// 残りは基底classであるSearch::Workerのほうでunpackする。
-	Search::Worker(sharedState, threadIdx, numaThreadIdx, numaTotal, token),
+	Search::Worker(sharedState, ids),
 	engine(engine),
 	manager(engine.manager)
 {

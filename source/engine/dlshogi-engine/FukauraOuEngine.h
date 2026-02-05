@@ -28,12 +28,9 @@ class FukauraOuWorker : public Worker {
    public:
 
 	FukauraOuWorker(Search::SharedState&     sharedState,
-                    size_t                    threadIdx,
-					size_t                    numaThreadIdx,
-					size_t                    numaTotal,
-                    NumaReplicatedAccessToken token,
-                    DlshogiSearcher&          searcher,
-                    FukauraOuEngine&          engine);
+                    const Search::ThreadIds& ids,
+                    DlshogiSearcher&         searcher,
+                    FukauraOuEngine&         engine);
 
 
 	// "go"コマンドの初期化時に呼び出される。

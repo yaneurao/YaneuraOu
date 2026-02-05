@@ -978,10 +978,10 @@ class TanukiMateWorker : public YaneuraOu::Search::Worker
 public:
 
 	TanukiMateWorker(Search::SharedState& sharedState,
-					 size_t threadIdx, size_t numaIdx, size_t numaTotal, NumaReplicatedAccessToken numaAccessToken,
+					 const Search::ThreadIds& ids,
 					 TanukiMate::TanukiMateClass& mateClass) :
 		// 基底classのconstructorの呼び出し
-		Worker(sharedState, threadIdx, numaIdx, numaTotal, numaAccessToken), mateClass(mateClass) {
+		Worker(sharedState, ids), mateClass(mateClass) {
 			
 	}
 
@@ -1079,15 +1079,12 @@ public:
 		// 💡　難しいことは考えずにコピペして使ってください。"Search::UserWorker"と書いてあるところに、
 		//      あなたの作成したWorker派生classの名前を書きます。
 		auto worker_factory = [&](Search::SharedState& sharedState,
-								  size_t threadIdx,
-								  size_t numaThreadIdx,
-								  size_t numaTotal,
-								  NumaReplicatedAccessToken numaAccessToken)
+								  const Search::ThreadIds& ids)
 		{
 
 			auto p = make_unique_large_page<TanukiMateWorker>(
 				// Worker基底classが渡して欲しいもの。
-                sharedState, threadIdx, numaThreadIdx, numaTotal, numaAccessToken,
+                sharedState, ids,
 
 				// 📌 WorkerからEngine側の何かにアクセスしたい時は、コンストラクタで渡してしまうのが簡単だと思う。
 				//     TODO : あとで他の方法を考える。

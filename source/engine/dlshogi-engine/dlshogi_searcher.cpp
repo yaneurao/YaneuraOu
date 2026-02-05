@@ -74,15 +74,12 @@ void DlshogiSearcher::InitGPU(const std::string& model_path , std::vector<int> t
 	*/ 
 
 	auto worker_factory = [&](Search::SharedState& sharedState,
-								size_t threadIdx,
-								size_t numaThreadIdx,
-								size_t numaTotal,
-								NumaReplicatedAccessToken numaAccessToken)
+								const Search::ThreadIds& ids)
 	{
             auto p = make_unique_large_page<FukauraOuWorker>(
 
               // Worker基底classが渡して欲しいもの。
-              sharedState, threadIdx, numaThreadIdx, numaTotal, numaAccessToken,
+              sharedState, ids,
 
               // 追加でFukauraOuEngineからもらいたいもの
               *this, engine);

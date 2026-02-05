@@ -88,17 +88,6 @@ private:
 // ⇨  探索時に用いる、それぞれのスレッド。これを探索用スレッド数だけ確保する。
 //    ただしメインスレッドはこのclassを継承してMainThreadにして使う。
 
-namespace Search {
-	class Worker;
-	typedef std::function<LargePagePtr<Worker>(
-		SharedState& sharedState,
-		size_t threadIdx,
-		size_t numaThreadIdx,
-		size_t numaTotal,
-		NumaReplicatedAccessToken numaAccessToken)>
-	  WorkerFactory;
-}
-
 class Thread {
 public:
 

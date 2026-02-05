@@ -406,14 +406,8 @@ class YaneuraOuWorker: public Worker {
    public:
     // 💡 コンストラクタでWorkerのコンストラクタを初期化しないといけないので、
     //     少なくともWorkerのコンストラクタと同じ引数が必要。
-    YaneuraOuWorker(SharedState&              sharedState,
-					#if STOCKFISH
-					std::unique_ptr<ISearchManager>,
-					#endif
-                    size_t                    threadIdx,
-					size_t                    numaThreadIdx,
-					size_t                    numaTotal,
-                    NumaReplicatedAccessToken numaAccessToken,
+    YaneuraOuWorker(SharedState&        sharedState,
+					const ThreadIds&	ids,
                     // 追加でYaneuraOuEngineからもらいたいもの
                     YaneuraOuEngine&    engine);
 

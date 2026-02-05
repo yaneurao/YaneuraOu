@@ -343,9 +343,8 @@ void Engine::resize_threads() {
 	if (!options.count("Threads"))
         return;
 
-	auto worker_factory = [&](Search::SharedState& sharedState, size_t threadIdx, size_t numaThreadIdx, size_t numaTotal, NumaReplicatedAccessToken numaAccessToken)
-		{ return make_unique_large_page<Search::Worker>(
-			sharedState, threadIdx, numaThreadIdx, numaTotal , numaAccessToken); };
+	auto worker_factory = [&](Search::SharedState& sharedState, const Search::ThreadIds& ids)
+		{ return make_unique_large_page<Search::Worker>(sharedState, ids); };
 
     threads.set(numaContext.get_numa_config(),
                 {options, threads, tt, sharedHists /*, networks*/ }, /* これはSharedState 相当 */
