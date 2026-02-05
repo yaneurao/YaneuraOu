@@ -1,4 +1,4 @@
-// NNUE評価関数の入力特徴量HalfKAの定義
+﻿// NNUE評価関数の入力特徴量HalfKAの定義
 
 #ifndef _NNUE_FEATURES_HALF_KA_H_
 #define _NNUE_FEATURES_HALF_KA_H_
@@ -15,11 +15,11 @@ namespace Eval::NNUE::Features {
 
 	// 特徴量HalfKP：自玉または敵玉の位置と、玉以外の駒の位置の組み合わせ
 	template <Side AssociatedKing>
-	class HalfKA {
+	class HalfKA1 {
 	public:
 		// 特徴量名
 		static constexpr const char* kName =
-			(AssociatedKing == Side::kFriend) ? "HalfKA(Friend)" : "HalfKA(Enemy)";
+			(AssociatedKing == Side::kFriend) ? "HalfKA1(Friend)" : "HalfKA(Enemy)";
 		// 評価関数ファイルに埋め込むハッシュ値
 		static constexpr std::uint32_t kHashValue =
 			0x5f134cb9u ^ (AssociatedKing == Side::kFriend);

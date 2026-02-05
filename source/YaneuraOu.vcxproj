@@ -617,8 +617,10 @@
     <ClInclude Include="eval\nnue\evaluate_nnue_learner.h" />
     <ClInclude Include="eval\nnue\features\features_common.h" />
     <ClInclude Include="eval\nnue\features\feature_set.h" />
-    <ClInclude Include="eval\nnue\features\half_ka.h" />
-    <ClInclude Include="eval\nnue\features\half_ka_hm.h" />
+    <ClInclude Include="eval\nnue\features\half_ka1.h" />
+    <ClInclude Include="eval\nnue\features\half_ka2.h" />
+    <ClInclude Include="eval\nnue\features\half_ka_hm1.h" />
+    <ClInclude Include="eval\nnue\features\half_ka_hm2.h" />
     <ClInclude Include="eval\nnue\features\half_kp.h" />
     <ClInclude Include="eval\nnue\features\half_kpe9.h" />
     <ClInclude Include="eval\nnue\features\half_kp_vm.h" />
@@ -722,8 +724,10 @@
     <ClCompile Include="eval\material\evaluate_material.cpp" />
     <ClCompile Include="eval\nnue\evaluate_nnue.cpp" />
     <ClCompile Include="eval\nnue\evaluate_nnue_learner.cpp" />
-    <ClCompile Include="eval\nnue\features\half_ka.cpp" />
-    <ClCompile Include="eval\nnue\features\half_ka_hm.cpp" />
+    <ClCompile Include="eval\nnue\features\half_ka1.cpp" />
+    <ClCompile Include="eval\nnue\features\half_ka2.cpp" />
+    <ClCompile Include="eval\nnue\features\half_ka_hm1.cpp" />
+    <ClCompile Include="eval\nnue\features\half_ka_hm2.cpp" />
     <ClCompile Include="eval\nnue\features\half_kp.cpp" />
     <ClCompile Include="eval\nnue\features\half_kpe9.cpp" />
     <ClCompile Include="eval\nnue\features\half_kp_vm.cpp" />

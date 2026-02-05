@@ -196,22 +196,28 @@ namespace {
 			pointer = make_unique_large_page<T>();
 		}
 
-            			// 評価関数パラメータを読み込む
-            			template <typename T>
-            			Tools::Result ReadParameters(std::istream& stream, const AlignedPtr<T>& pointer) {
-            				std::uint32_t header;
-            				stream.read(reinterpret_cast<char*>(&header), sizeof(header));
-            				if (!stream)                     return Tools::ResultCode::FileReadError;
-            				if (header != T::GetHashValue()) return Tools::ResultCode::FileMismatch;
-            				return pointer->ReadParameters(stream);
-            			}
+            // 評価関数パラメータを読み込む
+            template <typename T>
+            Tools::Result ReadParameters(std::istream& stream, const AlignedPtr<T>& pointer) {
+            	std::uint32_t header;
+            	stream.read(reinterpret_cast<char*>(&header), sizeof(header));
+            	if (!stream)                     return Tools::ResultCode::FileReadError;
+            	//if (header != T::GetHashValue()) return Tools::ResultCode::FileMismatch;
+				// 🤔 hash値、古い評価関数ファイルに対して一致するとは限らないので、警告に変更する。
+				if (header != T::GetHashValue())
+                    sync_cout << "info string Warning : nn.bin hash mismatch." << sync_endl;
+            	return pointer->ReadParameters(stream);
+            }
+
 			// 評価関数パラメータを読み込む
 			template <typename T>
 			Tools::Result ReadParameters(std::istream& stream, const LargePagePtr<T>& pointer) {
 				std::uint32_t header;
 				stream.read(reinterpret_cast<char*>(&header), sizeof(header));
 				if (!stream)                     return Tools::ResultCode::FileReadError;
-				if (header != T::GetHashValue()) return Tools::ResultCode::FileMismatch;
+				// 🤔 hash値、古い評価関数ファイルに対して一致するとは限らないので、警告に変更する。
+				if (header != T::GetHashValue())
+                    sync_cout << "info string Warning : nn.bin hash mismatch." << sync_endl;
 				return pointer->ReadParameters(stream);
 			}
 

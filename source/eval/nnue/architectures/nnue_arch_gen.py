@@ -95,35 +95,44 @@ else:
 # ============================================================
 
 # アーキテクチャ名のアンダースコアでsplitした1つ目は入力特徴量。
-# 現在サポートしている入力特徴量は、"halfkp" , "kp" , "halfkpe9", "halfkpvm", "halfka", "halfkahm"。
+# 現在サポートしている入力特徴量は、
+#   halfkp
+#   kp
+#   halfkpe9
+#   halfkpvm
+#   halfka1
+#   halfkahm1
+#   halfka2
+#   halfkahm2
+
 input_feature = arches[0].lower()
 
 print(f"input feature     : {input_feature}")
 
-header += """
+header += f"""
     #include "../features/feature_set.h"
-"""
+    """
 
 if input_feature == "halfkp":
 
-    header += """
+    header += f"""
     #include "../features/half_kp.h"
     """
 
-    raw_features = """
-    using RawFeatures = Features::FeatureSet<
-        Features::HalfKP<Features::Side::kFriend>>;
+    raw_features = f"""
+        using RawFeatures = Features::FeatureSet<
+            Features::HalfKP<Features::Side::kFriend>>;
     """
 
 elif input_feature == "kp":
 
-    header += """
+    header += f"""
     #include "../features/k.h"
     #include "../features/p.h"
     """
     
-    raw_features = """
-    using RawFeatures = Features::FeatureSet<Features::K, Features::P>;
+    raw_features = f"""
+        using RawFeatures = Features::FeatureSet<Features::K, Features::P>;
     """
 
 elif input_feature == "halfkpe9":
@@ -132,41 +141,64 @@ elif input_feature == "halfkpe9":
     #include "../features/half_kpe9.h"
     """
 
-    raw_features = """
-    using RawFeatures = Features::FeatureSet<
-        Features::HalfKPE9<Features::Side::kFriend>>;
+    raw_features = f"""
+        using RawFeatures = Features::FeatureSet<
+            Features::HalfKPE9<Features::Side::kFriend>>;
     """
 
 elif input_feature == "halfkpvm":
 
-    header += """
+    header += f"""
     #include "../features/half_kp_vm.h"
     """
 
-    raw_features = """
-    using RawFeatures = Features::FeatureSet<
-        Features::HalfKP_vm<Features::Side::kFriend>>;
+    raw_features = f"""
+        using RawFeatures = Features::FeatureSet<
+            Features::HalfKP_vm<Features::Side::kFriend>>;
     """
 
-elif input_feature == "halfka":
+elif input_feature == "halfka1":
 
-    header += """
-    #include "../features/half_ka.h"
+    header += f"""
+    #include "../features/half_ka1.h"
     """
 
-    raw_features = """
-    using RawFeatures = Features::FeatureSet<
-        Features::HalfKA<Features::Side::kFriend>>;
+    raw_features = f"""
+        using RawFeatures = Features::FeatureSet<
+            Features::HalfKA1<Features::Side::kFriend>>;
     """
 
-elif input_feature == "halfkahm":
-    header += """
-    #include "../features/half_ka_hm.h"
+elif input_feature == "halfkahm1":
+
+    header += f"""
+    #include "../features/half_ka_hm1.h"
     """
 
-    raw_features = """
-    using RawFeatures = Features::FeatureSet<
-        Features::HalfKA_hm<Features::Side::kFriend>>;
+    raw_features = f"""
+        using RawFeatures = Features::FeatureSet<
+            Features::HalfKA_hm1<Features::Side::kFriend>>;
+    """
+
+elif input_feature == "halfka2":
+
+    header += f"""
+    #include "../features/half_ka2.h"
+    """
+
+    raw_features = f"""
+        using RawFeatures = Features::FeatureSet<
+            Features::HalfKA2<Features::Side::kFriend>>;
+    """
+
+elif input_feature == "halfkahm2":
+
+    header += f"""
+    #include "../features/half_ka_hm2.h"
+    """
+
+    raw_features = f"""
+        using RawFeatures = Features::FeatureSet<
+            Features::HalfKA_hm2<Features::Side::kFriend>>;
     """
 
 else:
