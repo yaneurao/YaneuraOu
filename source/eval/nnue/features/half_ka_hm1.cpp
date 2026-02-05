@@ -25,8 +25,8 @@ namespace Eval::NNUE::Features {
 				p = static_cast<BonaPiece>(fe_hand_end + piece_index * static_cast<IndexType>(SQ_NB) + sq_p);
 			}
 		}
-		// 後手玉は自玉と同じPLANEに持っていく
-		return static_cast<IndexType>(e_king) * static_cast<IndexType>(sq_k) + static_cast<IndexType>(p >= e_king ? p - SQ_NB : p);
+		// 両玉を区別して含める
+		return static_cast<IndexType>(fe_end2) * static_cast<IndexType>(sq_k) + static_cast<IndexType>(p);
 	}
 
 	// 駒の情報を取得する

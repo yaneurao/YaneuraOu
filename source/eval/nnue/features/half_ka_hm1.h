@@ -25,8 +25,9 @@ namespace Eval::NNUE::Features {
 		static constexpr std::uint32_t kHashValue =
 			0x5f134cb9u ^ (AssociatedKing == Side::kFriend);
 		// 特徴量の次元数
+		// 両玉を区別して含める
 		static constexpr IndexType kDimensions =
-			5 * static_cast<IndexType>(FILE_NB) * static_cast<IndexType>(e_king);
+			5 * static_cast<IndexType>(FILE_NB) * static_cast<IndexType>(fe_end2);
 		// 特徴量のうち、同時に値が1となるインデックスの数の最大値
 		static constexpr IndexType kMaxActiveDimensions = PIECE_NUMBER_NB;
 		// 差分計算の代わりに全計算を行うタイミング
