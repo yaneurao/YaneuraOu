@@ -13,8 +13,8 @@ namespace Eval::NNUE::Features {
 	// 玉の位置とBonaPieceから特徴量のインデックスを求める
 	template <Side AssociatedKing>
 	inline IndexType HalfKA1<AssociatedKing>::MakeIndex(Square sq_k, BonaPiece p) {
-		// 後手玉は自玉と同じPLANEに持っていく
-		return static_cast<IndexType>(e_king) * static_cast<IndexType>(sq_k) + static_cast<IndexType>(p >= e_king ? p - SQ_NB : p);
+		// 両玉を区別して含める
+		return static_cast<IndexType>(fe_end2) * static_cast<IndexType>(sq_k) + static_cast<IndexType>(p);
 	}
 
 	// 駒の情報を取得する
