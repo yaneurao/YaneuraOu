@@ -23,7 +23,7 @@ namespace Eval::NNUE::Features {
 			(AssociatedKing == Side::kFriend) ? "HalfKA_hm2(Friend)" : "HalfKA_hm(Enemy)";
 		// 評価関数ファイルに埋め込むハッシュ値
 		static constexpr std::uint32_t kHashValue =
-			0x5f134cb9u ^ (AssociatedKing == Side::kFriend);
+			0x7f234cb9u ^ (AssociatedKing == Side::kFriend);
 		// 特徴量の次元数
 		static constexpr IndexType kDimensions =
 			5 * static_cast<IndexType>(FILE_NB) * static_cast<IndexType>(e_king);
