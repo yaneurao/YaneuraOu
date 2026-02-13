@@ -290,12 +290,12 @@ namespace {
     		Tools::Result result = ReadHeader(stream, &hash_value, &architecture, nullptr);
     		if (result.is_not_ok()) return result;
     		if (hash_value != kHashValue) {
-    			sync_cout << "info string NNUE hash mismatch: expected " << kHashValue
+    			// hash check廃止: 警告のみ出力して続行する
+    			sync_cout << "info string Warning: NNUE hash mismatch: expected " << kHashValue
     				<< " got " << hash_value
     				<< " arch_in_file=" << architecture
     				<< " arch_expected=" << GetArchitectureString()
     				<< sync_endl;
-    			return Tools::ResultCode::FileMismatch;
     		}
     
     		result = Detail::ReadParameters<FeatureTransformer>(stream, feature_transformer);
