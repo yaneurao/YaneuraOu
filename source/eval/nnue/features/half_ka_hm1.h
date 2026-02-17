@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の入力特徴量HalfKA_hmの定義
 
-#ifndef _NNUE_FEATURES_HALF_KA_HM_H_
-#define _NNUE_FEATURES_HALF_KA_HM_H_
+#ifndef _NNUE_FEATURES_HALF_KA_HM1_H_
+#define _NNUE_FEATURES_HALF_KA_HM1_H_
 
 #include "../../../config.h"
 
