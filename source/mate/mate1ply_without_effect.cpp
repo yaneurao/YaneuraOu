@@ -123,7 +123,7 @@ namespace {
 
 						// 成りによるものもあるからな..候補だけ列挙しておくか。
 						bb = lanceStepEffect(~c, sq);
-						if (enemy_field(c) ^ sq)
+						if (enemy_field(c) & sq)
 						{
 							// 敵陣なので成りで王手できるから、sqより下段の香も足さないと。
 							if (file_of(sq) != FILE_1)
