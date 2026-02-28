@@ -1010,7 +1010,7 @@ constexpr u32 hand_except_pawn_exists(Hand hand) { return hand & (HAND_BIT_MASK 
 static uint32_t hand_exists_7bit(Hand h) {
     // 枚数が1以上なら、引き算により HAND_BORROW_MASK の該当ビットが 0 になる。
     // それを反転 (~ ) して PEXT で集約すれば 7bit のフラグが得られる。
-    return _pext_u32(~(HAND_BORROW_MASK - h), HAND_BORROW_MASK);
+    return PEXT32(~(HAND_BORROW_MASK - h), HAND_BORROW_MASK);
 }
 
 // 手駒にpcを1枚加える。
