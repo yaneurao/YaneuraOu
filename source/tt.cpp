@@ -198,9 +198,6 @@ void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, V
 		ASSERT_LV3(-VALUE_MAX_EVAL <= ev && ev <= VALUE_MAX_EVAL || ev == VALUE_NONE);
 		
 	}
-	// depthが高くてBOUND_EXACTでないときは、BOUND_EXACTと差別化するためにdepthを1引いておく。
-	else if (depth8 + DEPTH_ENTRY_OFFSET >= 5 && Bound(genBound8 & 0x3) != BOUND_EXACT)
-		depth8--;
 }
 
 

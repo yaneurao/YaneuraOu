@@ -375,16 +375,10 @@ inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
 // --------------------
 
 // 📓 SFNNのバイナリに対してhash値を計算するためのヘルパー関数群。
+//     プロセス間でNNUEのパラメーター共有を行うときのチェック用。
 
 // 任意の byte streamをバイト列そのままのハッシュとして利用し、uint64_tで返す。
-inline std::uint64_t hash_bytes(const char* data, std::size_t size) {
-    // FNV-1a 64-bit
-    const char*   p = data;
-    std::uint64_t h = 14695981039346656037ull;
-    for (std::size_t i = 0; i < size; ++i)
-        h = (h ^ p[i]) * 1099511628211ull;
-    return h;
-}
+uint64_t hash_bytes(const char*, size_t);
 
 // 任意の POD ライクなデータ構造を、バイト列そのままのハッシュとして利用し、size_tで返す。
 // 📝 `reinterpret_cast` でメモリ内容を生のまま string_view にして hash を取る。

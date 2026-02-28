@@ -63,7 +63,7 @@ constexpr size_t  size_min  = (std::numeric_limits<size_t> ::min)();
 // --------------------
 
 // 手番
-enum Color : int8_t { BLACK = 0/*先手*/, WHITE = 1/*後手*/, COLOR_NB /* = 2 */ , COLOR_ZERO = 0,};
+enum Color : uint8_t { BLACK = 0/*先手*/, WHITE = 1/*後手*/, COLOR_NB /* = 2 */ , COLOR_ZERO = 0,};
 
 // 相手番を返す
 constexpr Color operator ~(Color c) { return (Color)(c ^ 1);  }
@@ -79,6 +79,7 @@ std::ostream& operator<<(std::ostream& os, Color c);
 // --------------------
 
 //  例) FILE_3なら3筋。
+// 📝 Stockfishではuint8_tに変更になっているが、それだとダウンカウントできないのであとで見直す。
 enum File : int8_t { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 , FILE_NB , FILE_ZERO=0 };
 
 // 正常な値であるかを検査する。assertで使う用。
@@ -100,6 +101,7 @@ static std::ostream& operator<<(std::ostream& os, File f) { os << (char)('1' + f
 // --------------------
 
 // 例) RANK_4なら4段目。
+// 📝 Stockfishではuint8_tに変更になっているが、それだとダウンカウントできないのであとで見直す。
 enum Rank : int8_t { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9 , RANK_NB , RANK_ZERO = 0};
 
 // 正常な値であるかを検査する。assertで使う用。
@@ -410,7 +412,7 @@ constexpr Depth DEPTH_ENTRY_OFFSET = -3;
 // searchで探索窓を設定するので、この窓の範囲外の値が返ってきた場合、
 // high fail時はこの値は上界(真の値はこれより小さい)、low fail時はこの値は下界(真の値はこれより大きい)
 // である。
-enum Bound : int8_t {
+enum Bound : uint8_t {
 	BOUND_NONE,  // 探索していない(DEPTH_NONE)ときに、最善手か、静的評価スコアだけを置換表に格納したいときに用いる。
 	BOUND_UPPER, // 上界(真の評価値はこれより小さい) = 詰みのスコアや、nonPVで評価値があまり信用ならない状態であることを表現する。
 	BOUND_LOWER, // 下界(真の評価値はこれより大きい)
@@ -520,7 +522,7 @@ constexpr bool is_decisive(Value value) { return is_win(value) || is_loss(value)
 extern const char* USI_PIECE;
 
 // 駒の種類(先後の区別なし)
-enum PieceType : int8_t
+enum PieceType : uint8_t
 {
 	// 金の順番を飛の後ろにしておく。KINGを8にしておく。
 	// こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
@@ -555,7 +557,7 @@ enum PieceType : int8_t
 };
 
 // 駒(先後の区別あり)
-enum Piece : int8_t
+enum Piece : uint8_t
 {
 	NO_PIECE = 0,
 
@@ -709,7 +711,7 @@ enum MoveEnum : uint32_t {
 
 // Stockfishとの互換性を保つために導入。
 // 普通の指し手か成りの指し手かを判定するのに用いる。
-enum MoveType {
+enum MoveType : uint16_t {
     NORMAL,
 #if STOCKFISH
     PROMOTION  = 1 << 14,
@@ -1002,6 +1004,14 @@ constexpr u32 hand_exists(Hand hand, PieceType pr) { /* ASSERT_LV2(PIECE_HAND_ZE
 
 // 歩以外の手駒を持っているか
 constexpr u32 hand_except_pawn_exists(Hand hand) { return hand & (HAND_BIT_MASK ^ PIECE_BIT_MASK2[PAWN]); }
+
+// 持っている駒種に対応する7bitの値を返す。
+// bit0..6 : 歩, 香 , 桂 , 銀 , 角 , 飛 , 金 の順番。
+static uint32_t hand_exists_7bit(Hand h) {
+    // 枚数が1以上なら、引き算により HAND_BORROW_MASK の該当ビットが 0 になる。
+    // それを反転 (~ ) して PEXT で集約すれば 7bit のフラグが得られる。
+    return _pext_u32(~(HAND_BORROW_MASK - h), HAND_BORROW_MASK);
+}
 
 // 手駒にpcを1枚加える。
 constexpr void add_hand(Hand &hand, PieceType pr) { hand = Hand(hand + PIECE_TO_HAND[pr]); }

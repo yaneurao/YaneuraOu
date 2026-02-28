@@ -290,7 +290,7 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
         threatByLesser[ROOK] =
           pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatByLesser[KNIGHT];
         threatByLesser[QUEEN] = pos.attacks_by<ROOK>(~us) | threatByLesser[ROOK];
-        threatByLesser[KING]  = pos.attacks_by<QUEEN>(~us) | threatByLesser[QUEEN];
+        threatByLesser[KING]  = 0;
 
 #else
 
@@ -381,7 +381,7 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 			//  📓 移動元の駒が安い駒で当たりになっている場合、
 			//      移動させることでそれを回避できるなら価値を上げておく。
 
-            int v = threatByLesser[pt] & to ? -19 : 20 * bool(threatByLesser[pt] & from);
+            int v = 20 * (bool(threatByLesser[pt] & from) - bool(threatByLesser[pt] & to));
             m.value += PieceValue[pt] * v;
 
 			// → Stockfishのコードそのままは書けない。
