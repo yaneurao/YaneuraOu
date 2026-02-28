@@ -18,6 +18,10 @@
 #include <utility>
 #include <variant>
 
+// 🌈 Stockfishはtypes.h で misc.hのincludeをしているが、
+//     やねうら王ではそこではやりたくないので…。
+#include "misc.h"
+
 #if defined(__linux__) && !defined(__ANDROID__)
     #include "shm_linux.h"
 #endif
