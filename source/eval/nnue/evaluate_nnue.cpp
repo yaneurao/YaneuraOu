@@ -57,6 +57,12 @@ void add_options(OptionsMap& options, ThreadPool& threads) {
 bool        eval_loaded   = false;
 std::string last_eval_dir = "None";
 
+#if defined(SFNNwoPSQT)
+constexpr int kDefaultFvScale = 28;
+#else
+constexpr int kDefaultFvScale = 16;
+#endif
+
 // 📌 この評価関数で追加したいエンジンオプションはここで追加する。
 void add_options_(OptionsMap& options, ThreadPool& threads) {
 
@@ -78,7 +84,8 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
                 }));
 
     // NNUEのFV_SCALEの値
-    Options.add("FV_SCALE", Option(16, 1, 128, [&](const Option& o) {
+    // SFNN系はeval_options.txtが欠けていても破綻しにくい既定値を使う。
+    Options.add("FV_SCALE", Option(kDefaultFvScale, 1, 128, [&](const Option& o) {
                     YaneuraOu::Eval::NNUE::FV_SCALE = int(o);
                     return std::nullopt;
                 }));
@@ -146,7 +153,7 @@ namespace YaneuraOu {
 namespace Eval {
 namespace NNUE {
 
-	int FV_SCALE = 16; // 水匠5では24がベストらしいのでエンジンオプション"FV_SCALE"で変更可能にした。
+	int FV_SCALE = kDefaultFvScale; // SFNN系は28、それ以外は16を既定値とする。
 
     // NNUE評価関数パラメーター（共有メモリまたはローカルメモリ上に配置）
     SystemWideSharedConstant<NnueNetworks> shared_networks;

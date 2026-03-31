@@ -8,6 +8,7 @@ on:
   pull_request:
     branches:
       - "**"
+  workflow_dispatch:
 
 jobs:
   build-android:
@@ -20,6 +21,7 @@ jobs:
       matrix:
         edition:
           - YANEURAOU_ENGINE_NNUE
+          - YANEURAOU_ENGINE_SFNN1536
           # - YANEURAOU_ENGINE_KPPT
           # - YANEURAOU_ENGINE_KPP_KKPT
           # - YANEURAOU_ENGINE_MATERIAL
@@ -44,7 +46,7 @@ jobs:
       - name: ndk-build
         run: ./main/script/android_build.sh -e ${{ matrix.edition }}
 
-      # - uses: actions/upload-artifact@v4
-      #   with:
-      #     name: build-android_${{ github.run_number }}_${{ matrix.edition }}_${{ github.sha }}
-      #     path: ./main/build/**/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-android_${{ matrix.edition }}_${{ github.sha }}
+          path: ./main/build/android/**/*
