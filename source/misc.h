@@ -1052,6 +1052,10 @@ namespace Path
 	// ファイルが存在するかの確認
 	bool Exists(const std::string& path);
 
+	// relative pathに対して、実行ファイル配置先とworking directoryの両方を探索候補として返す。
+	// absolute pathが渡された時は、そのpathだけを返す。
+	std::vector<std::string> ExpandPathCandidates(const std::string& path);
+
 };
 
 // --------------------

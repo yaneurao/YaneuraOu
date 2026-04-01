@@ -35,6 +35,7 @@ using fun8_t = bool(*)(HANDLE, BOOL, PTOKEN_PRIVILEGES, DWORD, PTOKEN_PRIVILEGES
 
 #include <fstream>
 #include <iomanip>
+#include <algorithm>
 //#include <iostream>
 #include <sstream>
 //#include <vector>
@@ -1547,6 +1548,46 @@ namespace Path
 
 		// openに成功したら存在する。
         return ifs.is_open();
+	}
+
+	vector<string> ExpandPathCandidates(const std::string& path)
+	{
+		vector<string> candidates;
+		auto push_unique = [&](const string& candidate) {
+			if (!candidate.empty() && std::find(candidates.begin(), candidates.end(), candidate) == candidates.end())
+				candidates.push_back(candidate);
+		};
+
+		if (IsAbsolute(path))
+		{
+			push_unique(path);
+			return candidates;
+		}
+
+		const auto binary_folder = Directory::GetBinaryFolder();
+		push_unique(Combine(binary_folder, path));
+		push_unique(Combine(CommandLine::get_working_directory(), path));
+#if defined(__ANDROID__)
+		// ShogiDroid copies the binary into app-private storage and keeps eval files
+		// under shared storage. When the linker wrapper loses the intended cwd, retry
+		// the shared-storage engine folder that matches the copied binary name.
+		if (binary_folder.find("/Documents/engine/") != string::npos)
+		{
+			auto engine_folder = binary_folder;
+			while (!engine_folder.empty() && (engine_folder.back() == '/' || engine_folder.back() == '\\'))
+				engine_folder.pop_back();
+
+			const auto pos = engine_folder.find_last_of("\\/");
+			if (pos != string::npos && pos + 1 < engine_folder.size())
+			{
+				const auto engine_name = engine_folder.substr(pos + 1);
+				push_unique(Combine(Combine("/storage/emulated/0/ShogiDroid/engine", engine_name), path));
+				push_unique(Combine(Combine("/sdcard/ShogiDroid/engine", engine_name), path));
+			}
+		}
+#endif
+		push_unique(path);
+		return candidates;
 	}
 
 };

@@ -418,14 +418,14 @@ void load_eval() {
     #endif
         const Tools::Result result = [&] {
             if (dir_name != "<internal>") {
-                auto abs_eval_path = Path::Combine(Directory::GetBinaryFolder(), dir_name);
-                const std::string file_path = Path::Combine(abs_eval_path, file_name);
-                std::ifstream stream(file_path, std::ios::binary);
-                sync_cout << "info string loading eval file : " << file_path << sync_endl;
-				if (!stream.is_open())
-					return Tools::Result(Tools::ResultCode::FileNotFound);
+                for (const auto& file_path : Path::ExpandPathCandidates(Path::Combine(dir_name, file_name))) {
+                    sync_cout << "info string loading eval file : " << file_path << sync_endl;
+                    std::ifstream stream(file_path, std::ios::binary);
+					if (stream.is_open())
+                        return NNUE::ReadParameters(stream);
+                }
 
-                return NNUE::ReadParameters(stream);
+				return Tools::Result(Tools::ResultCode::FileNotFound);
             }
             else {
                 // C++ way to prepare a buffer for a memory stream
