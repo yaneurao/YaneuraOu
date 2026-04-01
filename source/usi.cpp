@@ -21,6 +21,21 @@
 
 namespace YaneuraOu {
 
+namespace {
+
+void read_engine_options_from_candidates(OptionsMap& options, const std::string& filename) {
+    for (const auto& candidate : Path::ExpandPathCandidates(filename))
+    {
+        if (Path::Exists(candidate))
+        {
+            options.read_engine_options(candidate);
+            return;
+        }
+    }
+}
+
+}
+
 // benchmark用のコマンドその2
 constexpr auto BenchmarkCommand = "speedtest";
 
@@ -1362,8 +1377,7 @@ void USIEngine::isready() {
 	// "EvalDir"オプションが生えているなら..
 	if (options.count("EvalDir"))
     {
-        auto eval_options_path = Path::Combine(options["EvalDir"], "eval_options.txt");
-        options.read_engine_options(eval_options_path);
+        read_engine_options_from_candidates(options, Path::Combine(options["EvalDir"], "eval_options.txt"));
     }
 
 	// Engineの派生classのisready()を呼び出す。
