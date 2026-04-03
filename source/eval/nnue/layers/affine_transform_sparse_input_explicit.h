@@ -335,6 +335,42 @@ public:
         }
         else
 #endif
+
+#if defined(USE_NEON) && !defined(USE_NEON_DOTPROD)
+        if constexpr (kOutputDimensions % 4 == 0)
+        {
+            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumRegs   = kOutputDimensions / 4;
+            std::uint16_t       nnz[kNumChunks];
+            IndexType           count;
+
+            const auto input32 = reinterpret_cast<const std::int32_t*>(input);
+
+            find_nnz_explicit<kNumChunks>(input32, nnz, count);
+
+            const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases_);
+            int32x4_t        acc[kNumRegs];
+
+            for (IndexType k = 0; k < kNumRegs; ++k)
+                acc[k] = biasvec[k];
+
+            for (IndexType j = 0; j < count; ++j)
+            {
+                const auto      i  = nnz[j];
+                const int8x16_t in = vreinterpretq_s8_u32(vdupq_n_u32(input32[i]));
+                const auto     col =
+                reinterpret_cast<const int8x16_t*>(&weights_[i * kOutputDimensions * kChunkSize]);
+                for (IndexType k = 0; k < kNumRegs; ++k)
+                    Simd::neon_m128_add_dpbusd_epi32(acc[k], in, col[k]);
+            }
+
+            int32x4_t* outptr = reinterpret_cast<int32x4_t*>(output);
+
+            for (IndexType k = 0; k < kNumRegs; ++k)
+                outptr[k] = acc[k];
+        }
+        else
+#endif
             affine_transform_unaligned<kInputDimensions, kPaddedInputDimensions, kOutputDimensions>(
               output, weights_, biases_, input);
 

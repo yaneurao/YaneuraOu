@@ -1827,6 +1827,7 @@ void YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
 // 履歴をリセットする。通常は新しいゲームの前に実行される。
 void YaneuraOuWorker::clear() {
 
+	// TODO : あとで調整する。pawnHistory.fill(-1238@);も。
 	mainHistory.fill(mainHistoryDefault);
     captureHistory.fill(-689);
 
