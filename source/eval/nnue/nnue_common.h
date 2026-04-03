@@ -77,7 +77,9 @@ namespace Eval::NNUE {
 
   // SIMD width (in bytes)
   // SIMD幅（バイト単位）
-  #if defined(USE_AVX2)
+  #if defined(USE_AVX512)
+  constexpr std::size_t kSimdWidth = 64;
+  #elif defined(USE_AVX2)
   constexpr std::size_t kSimdWidth = 32;
   #elif defined(USE_SSE2)
   constexpr std::size_t kSimdWidth = 16;

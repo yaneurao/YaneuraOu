@@ -15,6 +15,11 @@ namespace Eval::NNUE {
 
 namespace {
 
+#if defined(USE_AVX512) && defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
+static_assert(kSimdWidth == 64,
+              "AVX512 NNUE paths require kSimdWidth=64 to avoid output buffer overruns.");
+#endif
+
 // 主に差分計算に関するRawFeaturesのテスト
 void TestFeatures(Position& pos) {
   const std::uint64_t num_games = 1000;
