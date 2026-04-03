@@ -211,8 +211,12 @@ class FeatureTransformer {
 #if defined(USE_ELEMENT_WISE_MULTIPLY)
 
 #if defined(VECTOR)
-			// Packed output is kSimdWidth bytes for each SIMD register
+			// Packed output is sizeof(vec_t) bytes for each SIMD register
+#if defined(USE_AVX512)
+			constexpr IndexType OutputChunkSize = 64;
+#else
 			constexpr IndexType OutputChunkSize = kSimdWidth;
+#endif
 		static_assert((kHalfDimensions / 2) % OutputChunkSize == 0);
 		constexpr IndexType NumOutputChunks = kHalfDimensions / 2 / OutputChunkSize;
 
