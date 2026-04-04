@@ -157,15 +157,8 @@ namespace NNUE {
 
 	int FV_SCALE = 16; // 水匠5では24がベストらしいのでエンジンオプション"FV_SCALE"で変更可能にした。
 
-    // 入力特徴量変換器
-	LargePagePtr<FeatureTransformer> feature_transformer;
-
-    // 評価関数
-#if defined(SFNNwoPSQT)
-    AlignedPtr<Network> network[kLayerStacks];
-#else
-    AlignedPtr<Network> network;
-#endif
+    // NNUE評価関数パラメーター（共有メモリまたはローカルメモリ上に配置）
+    SystemWideSharedConstant<NnueNetworks> shared_networks;
 
     // 評価関数ファイル名
     const char* const kFileName = EvalFileDefaultName;
@@ -184,74 +177,75 @@ namespace NNUE {
 namespace {
 	namespace Detail {
 
-		// 評価関数パラメータを初期化する
+		// 評価関数パラメータを読み込む（参照版）
 		template <typename T>
-		void Initialize(AlignedPtr<T>& pointer) {
-			pointer = make_unique_aligned<T>();
+		Tools::Result ReadParameters(std::istream& stream, T& obj) {
+			std::uint32_t header;
+			stream.read(reinterpret_cast<char*>(&header), sizeof(header));
+			if (!stream) return Tools::ResultCode::FileReadError;
+			// hash値、古い評価関数ファイルに対して一致するとは限らないので、警告に変更する。
+			if (header != T::GetHashValue())
+				sync_cout << "info string Warning : nn.bin hash mismatch." << sync_endl;
+			return obj.ReadParameters(stream);
 		}
 
+		// 評価関数パラメータを書き込む（参照版）
 		template <typename T>
-		void Initialize(LargePagePtr<T>& pointer) {
-			// →　メモリはLarge Pageから確保することで高速化する。
-			pointer = make_unique_large_page<T>();
+		bool WriteParameters(std::ostream& stream, const T& obj) {
+			constexpr std::uint32_t header = T::GetHashValue();
+			stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
+			return obj.WriteParameters(stream);
 		}
 
-            // 評価関数パラメータを読み込む
-            template <typename T>
-            Tools::Result ReadParameters(std::istream& stream, const AlignedPtr<T>& pointer) {
-            	std::uint32_t header;
-            	stream.read(reinterpret_cast<char*>(&header), sizeof(header));
-            	if (!stream)                     return Tools::ResultCode::FileReadError;
-            	//if (header != T::GetHashValue()) return Tools::ResultCode::FileMismatch;
-				// 🤔 hash値、古い評価関数ファイルに対して一致するとは限らないので、警告に変更する。
-				if (header != T::GetHashValue())
-                    sync_cout << "info string Warning : nn.bin hash mismatch." << sync_endl;
-            	return pointer->ReadParameters(stream);
-            }
+	}  // namespace Detail
 
-			// 評価関数パラメータを読み込む
-			template <typename T>
-			Tools::Result ReadParameters(std::istream& stream, const LargePagePtr<T>& pointer) {
-				std::uint32_t header;
-				stream.read(reinterpret_cast<char*>(&header), sizeof(header));
-				if (!stream)                     return Tools::ResultCode::FileReadError;
-				// 🤔 hash値、古い評価関数ファイルに対して一致するとは限らないので、警告に変更する。
-				if (header != T::GetHashValue())
-                    sync_cout << "info string Warning : nn.bin hash mismatch." << sync_endl;
-				return pointer->ReadParameters(stream);
-			}
+	// テンポラリにパラメータを読み込み、共有メモリに配置する。
+	// 同じパラメータを持つ他プロセスが既に共有メモリを作成済みなら、そちらを参照する。
+	Tools::Result LoadAndShare(std::istream& stream) {
+		// テンポラリ領域にパラメータを読み込む
+		auto tmp = make_unique_large_page<NnueNetworks>();
 
-			// 評価関数パラメータを書き込む
-            template <typename T>
-            bool WriteParameters(std::ostream& stream, const AlignedPtr<T>& pointer) {
-                constexpr std::uint32_t header = T::GetHashValue();
-                stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
-                return pointer->WriteParameters(stream);
-            }
-
-			// 評価関数パラメータを書き込む
-			template <typename T>
-			bool WriteParameters(std::ostream& stream, const LargePagePtr<T>& pointer) {
-				constexpr std::uint32_t header = T::GetHashValue();
-				stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
-				return pointer->WriteParameters(stream);
-			}
-
-		}  // namespace Detail
-	
-		// 評価関数パラメータを初期化する
-		void Initialize() {
-			Detail::Initialize<FeatureTransformer>(feature_transformer);
-#if defined(SFNNwoPSQT)
-			for (int i = 0; i < kLayerStacks; ++i) {
-				Detail::Initialize<Network>(network[i]);
-			}
-#else
-			Detail::Initialize<Network>(network);
-#endif
+		std::uint32_t hash_value;
+		std::string architecture;
+		Tools::Result result = ReadHeader(stream, &hash_value, &architecture, nullptr);
+		if (result.is_not_ok()) return result;
+		if (hash_value != kHashValue) {
+			sync_cout << "info string Warning: NNUE hash mismatch: expected " << kHashValue
+				<< " got " << hash_value
+				<< " arch_in_file=" << architecture
+				<< " arch_expected=" << GetArchitectureString()
+				<< sync_endl;
 		}
-	
-		}  // namespace
+
+		result = Detail::ReadParameters<FeatureTransformer>(stream, tmp->feature_transformer);
+		if (result.is_not_ok()) {
+			sync_cout << "info string NNUE feature params read failed: " << result.to_string() << sync_endl;
+			return result;
+		}
+		for (int i = 0; i < kLayerStacks; ++i) {
+			result = Detail::ReadParameters<Network>(stream, tmp->network[i]);
+			if (result.is_not_ok()) {
+				sync_cout << "info string NNUE network params read failed at stack " << i << ": " << result.to_string() << sync_endl;
+				return result;
+			}
+		}
+
+		if (!stream || stream.peek() != std::ios::traits_type::eof())
+			return Tools::ResultCode::FileCloseError;
+
+		// 共有メモリに配置（同一ハッシュの共有メモリが既に存在すればそちらを参照）
+		shared_networks = SystemWideSharedConstant<NnueNetworks>(*tmp);
+
+		auto status = shared_networks.get_status();
+		if (status == SystemWideSharedConstantAllocationStatus::SharedMemory)
+			sync_cout << "info string NNUE shared memory: using shared memory" << sync_endl;
+		else if (status == SystemWideSharedConstantAllocationStatus::LocalMemory)
+			sync_cout << "info string NNUE shared memory: fallback to local memory" << sync_endl;
+
+		return Tools::ResultCode::Ok;
+	}
+
+	}  // namespace
     // ヘッダを読み込む
     Tools::Result ReadHeader(std::istream& stream,
         std::uint32_t* hash_value, std::string* architecture, std::uint32_t* version_out) {
@@ -285,62 +279,21 @@ namespace {
 
     	// 評価関数パラメータを読み込む
     	Tools::Result ReadParameters(std::istream& stream) {
-    		std::uint32_t hash_value;
-    		std::string architecture;
-    		Tools::Result result = ReadHeader(stream, &hash_value, &architecture, nullptr);
-    		if (result.is_not_ok()) return result;
-    		if (hash_value != kHashValue) {
-    			// hash check廃止: 警告のみ出力して続行する
-    			sync_cout << "info string Warning: NNUE hash mismatch: expected " << kHashValue
-    				<< " got " << hash_value
-    				<< " arch_in_file=" << architecture
-    				<< " arch_expected=" << GetArchitectureString()
-    				<< sync_endl;
-    		}
-    
-    		result = Detail::ReadParameters<FeatureTransformer>(stream, feature_transformer);
-    		if (result.is_not_ok()) {
-    			sync_cout << "info string NNUE feature params read failed: " << result.to_string() << sync_endl;
-    			return result;
-    		}
-#if defined(SFNNwoPSQT)
-    		for (int i = 0; i < kLayerStacks; ++i) {
-    			result = Detail::ReadParameters<Network>(stream, network[i]);
-    			if (result.is_not_ok()) {
-    				sync_cout << "info string NNUE network params read failed at stack " << i << ": " << result.to_string() << sync_endl;
-    				return result;
-    			}
-    		}
-#else
-    		result = Detail::ReadParameters<Network>(stream, network);
-    		if (result.is_not_ok()) {
-    			sync_cout << "info string NNUE network params read failed: " << result.to_string() << sync_endl;
-    			return result;
-    		}
-#endif
-
-    		if (stream && stream.peek() == std::ios::traits_type::eof())
-    			return Tools::ResultCode::Ok;
-    		else
-    			return Tools::ResultCode::FileCloseError;
+    		return LoadAndShare(stream);
     	}
     // 評価関数パラメータを書き込む
     bool WriteParameters(std::ostream& stream) {
         if (!WriteHeader(stream, kHashValue, GetArchitectureString())) return false;
-        if (!Detail::WriteParameters<FeatureTransformer>(stream, feature_transformer)) return false;
-#if defined(SFNNwoPSQT)
+        if (!Detail::WriteParameters<FeatureTransformer>(stream, networks().feature_transformer)) return false;
         for (int i = 0; i < kLayerStacks; ++i) {
-            if (!Detail::WriteParameters<Network>(stream, network[i])) return false;
+            if (!Detail::WriteParameters<Network>(stream, networks().network[i])) return false;
         }
-#else
-        if (!Detail::WriteParameters<Network>(stream, network)) return false;
-#endif
         return !stream.fail();
     }
 
     // 差分計算ができるなら進める
     static void UpdateAccumulatorIfPossible(const Position& pos) {
-        feature_transformer->UpdateAccumulatorIfPossible(pos);
+        networks().feature_transformer.UpdateAccumulatorIfPossible(pos);
     }
 
 #if defined(SFNNwoPSQT)
@@ -369,13 +322,13 @@ namespace {
 
         alignas(kCacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
-        feature_transformer->Transform(pos, transformed_features, refresh);
+        networks().feature_transformer.Transform(pos, transformed_features, refresh);
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 #if defined(SFNNwoPSQT)
         const auto bucket = stack_index_for_nnue(pos);
-        const auto output = network[bucket]->Propagate(transformed_features, buffer);
+        const auto output = networks().network[bucket].Propagate(transformed_features, buffer);
 #else
-        const auto output = network->Propagate(transformed_features, buffer);
+        const auto output = networks().network[0].Propagate(transformed_features, buffer);
 #endif
 
         // VALUE_MAX_EVALより大きな値が返ってくるとaspiration searchがfail highして
@@ -462,9 +415,6 @@ void load_eval() {
     // 評価関数パラメーターを読み込み済みであるなら帰る。
     if (eval_loaded)
         return;
-
-	// 初期化もここでやる。
-	NNUE::Initialize();
 
 #if defined(EVAL_LEARN)
     if (!Options["SkipLoadingEval"])
