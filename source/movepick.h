@@ -88,7 +88,7 @@ class MovePicker {
     // GenType == QUIETS   : 捕獲しない指し手のオーダリング
     // GenType == EVASIONS : 王手回避の指し手のオーダリング
     template<GenType T>
-    ExtMove* score(MoveList<T>&);
+    ExtMove* score(const MoveList<T>&);
 
     // range-based forを使いたいので。
     // 現在の指し手から終端までの指し手が返る。

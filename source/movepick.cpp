@@ -263,7 +263,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
 
 // QUIETS、EVASIONS、CAPTURESの指し手のオーダリングのためのスコアリング。似た処理なので一本化。
 template<GenType Type>
-ExtMove* MovePicker::score(MoveList<Type>& ml) {
+ExtMove* MovePicker::score(const MoveList<Type>& ml) {
 
 #if STOCKFISH
 	static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
@@ -368,7 +368,7 @@ ExtMove* MovePicker::score(MoveList<Type>& ml) {
 			m.value +=      (*continuationHistory[5])[pc][to];
 
 			// bonus for checks
-			m.value += (bool(pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 16384;
+			m.value += ((pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 16384;
 			// これ、効果があるのか検証したほうが良さげ。
 
 #if STOCKFISH
