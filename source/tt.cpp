@@ -1,9 +1,10 @@
 ﻿#include "tt.h"
 
-//#include <cassert>
-//#include <cstdlib>
-//#include <cstring>
-//#include <iostream>
+#include <cassert>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 //#include <thread>
 //#include <vector>
 
@@ -27,27 +28,32 @@ namespace YaneuraOu {
 /// ※ cache line sizeは、IntelだとPentium4やPentiumMからでPentiumⅢ(3)までは32byte。
 ///    そこ以降64byte。AMDだとK8のときには既に64byte。
 
-// TTEntry struct is the 10 bytes transposition table entry, defined as below:
+// TTEntry struct is the 10 bytes transposition table entry, defined as:
 //
 // key        16 bit
 // depth       8 bit
-// generation  5 bit
 // pv node     1 bit
 // bound type  2 bit
+// generation  5 bit
 // move       16 bit
 // value      16 bit
 // evaluation 16 bit
 //
 // These fields are in the same order as accessed by TT::probe(), since memory is fastest sequentially.
 // Equally, the store order in save() matches this order.
+//
+// We use `bool(depth8)` as the cheap internal occupancy check, corresponding to `depth == DEPTH_NONE`
+// externally, so we offset the internal depth by DEPTH_NONE.
+//
+// Pv, bound and generation are packed in a single byte.
 
 // TTEntry 構造体は以下のように定義された10バイトのトランスポジションテーブルエントリです:
 //
 // key        16 bit
 // depth       8 bit
-// generation  5 bit
 // pv node     1 bit
 // bound type  2 bit
+// generation  5 bit
 // move       16 bit
 // value      16 bit
 // evaluation 16 bit
@@ -55,6 +61,11 @@ namespace YaneuraOu {
 // これらのフィールドは、メモリが順次アクセスされるときに最も高速であるため、
 // TT::probe()によってアクセスされる順序と同じ順序で配置されています。
 // 同様に、save()内の保存順序もこの順序に一致しています。
+//
+// bool(depth8)を安価な内部占有チェックとして使います。
+// 外部的にはdepth == DEPTH_NONEに対応するため、内部のdepthはDEPTH_NONEだけ下駄履きして保存します。
+//
+// pv, bound, generationは1バイトに詰め込まれています。
 
 // ■ 各メンバーの意味
 //
@@ -67,26 +78,34 @@ namespace YaneuraOu {
 // value      16 bit : このnodeでのsearch()の返し値
 // evaluation 16 bit : このnodeでのevaluate()の返し値
 //
-// generation , pv node , bound type をあわせると 5 + 1 + 2 bit = 8 bitとなる。
+// pv node , bound type , generation をあわせると 1 + 2 + 5 bit = 8 bitとなる。
 // TTEntryは、この3つを合わせた変数として generation8 が格納されている。
 //
 // ■ 補足
 //
-// Stockfishではkey16は16bit固定であるが、これをやねうら王では、HASH_KEYが64bit,128bit,256bitのときに、それぞれ16bit,64bit,64bitに拡張している。
+// Stockfishではkey16は16bit固定であるが、これをやねうら王では、HASH_KEYが64bit,128bit,256bitのときに
+// それぞれ16bit,64bit,64bitに拡張している。
+
+static constexpr uint8_t GENERATION_BITS = 5;                            // genBound8のうち、generationに使うbit数。
+static constexpr uint8_t GENERATION_MASK = (1 << GENERATION_BITS) - 1;   // genBound8からgenerationだけを取り出すためのマスク。
+static constexpr uint8_t BOUND_SHIFT     = GENERATION_BITS;              // Boundを格納するbit位置。generationの直後に置く。
+static constexpr uint8_t BOUND_MASK      = 0b11 << BOUND_SHIFT;          // genBound8からBoundの2bitだけを取り出すためのマスク。
+static constexpr uint8_t PV_SHIFT        = BOUND_SHIFT + 2;              // PV nodeフラグを格納するbit位置。Boundの直後に置く。
+static constexpr uint8_t PV_MASK         = 1 << PV_SHIFT;                // genBound8からPV nodeフラグだけを取り出すためのマスク。
 
 struct TTEntry {
 
     // Convert internal bitfields to external types
     // 内部ビットフィールドを外部型に変換します
 
-    TTData read() const {
-        return TTData{
-          Move(u32(move16.to_u16())),         Value(value16),         Value(eval16),
-          Depth(depth8 + DEPTH_ENTRY_OFFSET), Bound(genBound8 & 0x3), bool(genBound8 & 0x4)};
-    }
+	TTData read() const {
+		return TTData{
+		  Move(u32(move16.to_u16())), Value(value16), Value(eval16), Depth(DEPTH_NONE + depth8),
+		  Bound((genBound8 & BOUND_MASK) >> BOUND_SHIFT), bool(genBound8 & PV_MASK)};
+	}
 
-    // このEntryが使われているか？
-    bool is_occupied() const;
+	// このEntryが使われているか？
+	bool is_occupied() const { return bool(depth8); };
 
 #if STOCKFISH
     void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
@@ -95,11 +114,7 @@ struct TTEntry {
     save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
 #endif
 
-    // The returned age is a multiple of TranspositionTable::GENERATION_DELTA
-    // 返されるエイジは、TranspositionTable::GENERATION_DELTA の倍数です
-    // ⇨ 相対的なageに変換して返す。
-
-    uint8_t relative_age(const uint8_t generation8) const;
+	uint8_t relative_age(const uint8_t curr_generation) const;
 
    private:
     friend class TranspositionTable;
@@ -113,64 +128,21 @@ struct TTEntry {
 };
 
 
-// `genBound8` is where most of the details are. We use the following constants to manipulate 5 leading generation bits
-// and 3 trailing miscellaneous bits.
-// These bits are reserved for other things.
-
-// genBound8には大部分の詳細が含まれています。
-// 次の定数を使用して、5ビットの先頭世代ビットと3ビットの末尾のその他のビットを操作します。
-// これらのビットは他の用途のために予約されています。
-// ⇨ generation8の下位↓bitは、generation用ではなく、別の情報を格納するのに用いる。
-//   (PV nodeかどうかのフラグとBoundに用いている。)
-
-static constexpr unsigned GENERATION_BITS = 3;
-
-// increment for generation field
-// 世代フィールドをインクリメント
-// ⇨ 次のgenerationにするために加算する定数。2の↑乗。
-
-static constexpr int GENERATION_DELTA = (1 << GENERATION_BITS);
-
-// cycle length
-// サイクル長
-// ⇨ generationを加算していき、1周して戻ってくるまでの長さ。
-
-static constexpr int GENERATION_CYCLE = 255 + GENERATION_DELTA;
-
-// mask to pull out generation number
-// TTEntryから世代番号を抽出するためのマスク
-
-static constexpr int GENERATION_MASK = (0xFF << GENERATION_BITS) & 0xFF;
-
-
-// DEPTH_ENTRY_OFFSET exists because 1) we use `bool(depth8)` as the occupancy check, but
-// 2) we need to store negative depths for QS. (`depth8` is the only field with "spare bits":
-// we sacrifice the ability to store depths greater than 1<<8 less the offset, as asserted in `save`.)
-
-// DEPTH_ENTRY_OFFSETが存在する理由は、
-// 1) `bool(depth8)`を使用してエントリの占有状態を確認しますが、
-// 2) QSのために負の深さを保存する必要があるためです。(`depth8`は「予備のビット」を持つ唯一のフィールドです。
-// その結果、オフセットを引いた値が1<<8より大きな深さを保存する能力を犠牲にしています。このことは`save`で検証されます。)
-// ※ QS = 静止探索
-
-bool TTEntry::is_occupied() const { return bool(depth8); }
-
-
 // Populates the TTEntry with a new node's data, possibly
-// overwriting an old position. The update is not atomic and can be racy.
+// overwriting an old position. The update is non-atomic and can be racy.
 
 // TTEntryに新しいノードのデータを格納し、古い局面を上書きする可能性があります。
-// この更新はアトミックではなく、競合が発生する可能性があります。
+// この更新は非アトミックであり、競合が発生する可能性があります。
 
 // ⇨ 置換表のエントリーに対して与えられたデータを保存する。上書き動作
 //   v    : 探索のスコア
 //   eval : 評価関数 or 静止探索の値
 //   m    : ベストな指し手(指し手16bit ≒ Move16 , Moveの上位16bitは無視される)
-//   gen  : TT.generation()
+//   curr_generation : TT.generation()
 // 引数のgenは、Stockfishにはないが、やねうら王では学習時にスレッドごとに別の局面を探索させたいので
 // スレッドごとに異なるgenerationの値を指定したくてこのような作りになっている。
 
-void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t curr_generation) {
 
 	// Preserve the old ttmove if we don't have a new one
 	// 新しいttmoveがない場合、古いttmoveを保持します
@@ -181,15 +153,16 @@ void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, V
 	// Overwrite less valuable entries (cheapest checks first)
 	// より価値の低いエントリを上書きします（最も簡単にできるチェックを先に行う）
 
-	if (b == BOUND_EXACT || k != key || d - DEPTH_ENTRY_OFFSET + 2 * pv > depth8 - 4
-		|| relative_age(generation8))
+	if (b == BOUND_EXACT || k != key || d - DEPTH_NONE + 2 * pv > depth8 - 4
+		|| relative_age(curr_generation))
 	{
-		assert(d > DEPTH_ENTRY_OFFSET);
-		assert(d < 256 + DEPTH_ENTRY_OFFSET);
+		assert(d > DEPTH_NONE);
+		assert(d - DEPTH_NONE < 256);
+		assert(curr_generation <= GENERATION_MASK); // TT::new_search() plays nice
 
 		key       = TTE_KEY_TYPE(k);
-		depth8    = uint8_t(d - DEPTH_ENTRY_OFFSET);
-		genBound8 = uint8_t(generation8 | uint8_t(pv) << 2 | b);
+		depth8    = uint8_t(d - DEPTH_NONE);
+		genBound8 = uint8_t(curr_generation | b << BOUND_SHIFT | uint8_t(pv) << PV_SHIFT);
 		value16   = int16_t(v);
 		eval16    = int16_t(ev);
 
@@ -201,31 +174,16 @@ void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, V
 }
 
 
-uint8_t TTEntry::relative_age(const uint8_t generation8) const {
-	// Due to our packed storage format for generation and its cyclic
-	// nature we add GENERATION_CYCLE (256 is the modulus, plus what
-	// is needed to keep the unrelated lowest n bits from affecting
-	// the result) to calculate the entry age correctly even after
-	// generation8 overflows into the next cycle.
+uint8_t TTEntry::relative_age(const uint8_t curr_generation) const {
+	// Returns this entry's age. We count generations like clocks count hours,
+	// i.e. we require 0 - 1 == 31. Unsigned subtraction guarantees the required
+	// borrowing regardless of the upper pv/bound bits.
 
-	// 世代のパックされた保存形式とその循環的な性質により、
-	// 世代エイジを正しく計算するために、GENERATION_CYCLEを加えます
-	//  （256がモジュロとなり、関係のない下位nビットが
-	// 結果に影響を与えないようにするために必要な値も加えます）。
-	// これにより、generation8が次のサイクルにオーバーフローした後でも、
-	// エントリのエイジを正しく計算できます。
+	// このエントリのエイジを返します。世代を時計の時刻のように数えるため、
+	// 0 - 1 == 31 になる必要があります。符号なし減算により、上位のpv/boundビットに
+	// 関係なく必要な借り入れが保証されます。
 
-	// ■ 補足情報
-	//
-	// generationは256になるとオーバーフローして0になるのでそれをうまく処理できなければならない。
-	// a,bが8bitであるとき ( 256 + a - b ) & 0xff　のようにすれば、オーバーフローを考慮した引き算が出来る。
-	// このテクニックを用いる。
-	// いま、
-	//   a := generationは下位3bitは用いていないので0。
-	//   b := genBound8は下位3bitにはBoundが入っているのでこれはゴミと考える。
-	// ( 256 + a - b + c) & 0xfc として c = 7としても結果に影響は及ぼさない、かつ、このゴミを無視した計算が出来る。
-
-	return (GENERATION_CYCLE + generation8 - genBound8) & GENERATION_MASK;
+	return (curr_generation - genBound8) & GENERATION_MASK;
 }
 
 
@@ -396,45 +354,43 @@ void TranspositionTable::clear(ThreadPool& threads) {
 
 // Returns an approximation of the hashtable
 // occupation during a search. The hash is x permill full, as per UCI protocol.
-// Only counts entries which match the current generation.
+// Only counts entries which are younger than maxAge.
 
 // 検索中のハッシュテーブルの占有率を概算して返します。
 // ハッシュはUCIプロトコルに従って、xパーミルで満たされています。
-// 現在の世代と一致するエントリのみをカウントします。
+// maxAgeより若いエントリのみをカウントします。
 
 int TranspositionTable::hashfull(int maxAge) const {
-	int maxAgeInternal = maxAge << GENERATION_BITS;
 	int cnt = 0;
 	for (int i = 0; i < 1000; ++i)
 		for (int j = 0; j < ClusterSize; ++j)
 			cnt += table[i].entry[j].is_occupied()
-			&& table[i].entry[j].relative_age(generation8) <= maxAgeInternal;
+			&& table[i].entry[j].relative_age(generation8) <= maxAge;
 
 	return cnt / ClusterSize;
 }
 
 void TranspositionTable::new_search() {
 
-	// increment by delta to keep lower bits as is
-	// 下位ビットをそのままにして、デルタでインクリメントします
+	++generation8;
 
-	generation8 += GENERATION_DELTA;
+	// Don't overflow into the other bits of TTEntry::genBound8
+	// TTEntry::genBound8の他のビットへ溢れないようにします。
+	generation8 &= GENERATION_MASK;
 }
 
 
 uint8_t TranspositionTable::generation() const { return generation8; }
 
-// Looks up the current position in the transposition
-// table. It returns true if the position is found.
+// Looks up the current position in the transposition table.
+// It returns true if the key is found (which may be a collision), and has non-null data.
 // Otherwise, it returns false and a pointer to an empty or least valuable TTEntry
-// to be replaced later. The replace value of an entry is calculated as its depth
-// minus 8 times its relative age. TTEntry t1 is considered more valuable than
-// TTEntry t2 if its replace value is greater than that of t2.
+// to be replaced later. The value of an entry is its depth minus 8 times its relative age.
 
-// 現在の局面をトランスポジションテーブルで検索します。局面が見つかった場合、trueを返します。
+// 現在の局面をトランスポジションテーブルで検索します。
+// キーが見つかり(衝突の可能性はあります)、データが空でない場合、trueを返します。
 // そうでない場合、falseと、後で置き換えるための空または最も価値の低いTTEntryへのポインタを返します。
-// エントリの置き換え値は、その深さから相対的なエイジの8倍を引いたものとして計算されます。
-// TTEntry t1は、t2の置き換え値より大きい場合、t2よりも価値があると見なされます。
+// エントリの価値は、その深さから相対的なエイジの8倍を引いたものとして計算されます。
 
 // 🌈 やねうら王独自拡張
 //    probe()してhitしたときに ttData.moveは Move16のままなので ttData.move32(pos)を用いて取得する必要がある。
@@ -481,12 +437,12 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, cons
 
 	TTEntry* replace = tte;
 	for (int i = 1; i < ClusterSize; ++i)
-		if (replace->depth8 - replace->relative_age(generation8)
-			> tte[i].depth8 - tte[i].relative_age(generation8))
+		if (replace->depth8 - 8 * replace->relative_age(generation8)
+			> tte[i].depth8 - 8 * tte[i].relative_age(generation8))
 			replace = &tte[i];
 
 	return { false,
-			TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_ENTRY_OFFSET, BOUND_NONE, false},
+			TTData{Move::none(), VALUE_NONE, VALUE_NONE, DEPTH_NONE, BOUND_NONE, false},
 			TTWriter(replace) };
 }
 
@@ -589,7 +545,7 @@ void TranspositionTable::UnitTest(Test::UnitTester& unittest, IEngine& engine)
 			Depth d = 16 + i;
 			Move m = make_move(SQ_77, SQ_76, BLACK, PAWN);
 			Value ev = Value(i*200-1000);
-			int g = 8 * 5; /* 8の倍数でないと駄目 */
+			int g = 5;
 			ttWriter.write(posKey, v, pv, b, d, m, ev, g);
 
 			auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);

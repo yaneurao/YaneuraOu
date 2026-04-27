@@ -24,13 +24,9 @@ struct Cluster;
 // thus elo. As a hash table, collisions are possible and may cause chess playing issues (bizarre blunders, faulty mate
 // reports, etc). Fixing these also loses elo; however such risk decreases quickly with larger TT size.
 //
-// probe is the primary method: given a board position, we lookup its entry in the table, and return a tuple of:
-//   1) whether the entry already has this position
-//   2) a copy of the prior data (if any) (may be inconsistent due to read races)
-//   3) a writer object to this entry
-// The copied data and the writer are separated to maintain clear boundaries between local vs global objects.
+// We clearly separate TTData, a local copy of an entry, from TTWriter, which writes to the global table.
 
-//エンジンとそのすべてのスレッドに対して、グローバルなハッシュテーブルは1つだけ存在します。
+// エンジンとそのすべてのスレッドに対して、グローバルなハッシュテーブルは1つだけ存在します。
 // 特にチェスにおいては、TT（トランスポジションテーブル）間でのスレッド間の競合的な更新も許可しており、
 // アクセスを同期化するための時間を費やすと思考時間が減少し、それに伴いEloレーティングも下がるためです。
 //
@@ -38,18 +34,14 @@ struct Cluster;
 // それが原因でチェスプレイに問題が生じる場合があります（奇妙なミスや誤ったチェックメイト報告など）。
 // これらを修正することもEloレーティングを失うことにつながりますが、大きなTTサイズではそのリスクは急速に減少します。
 //
-// probeは主なメソッドであり、ボードの局面を与えられると、テーブル内のエントリを検索し、以下のタプルを返します：
-//
-// そのエントリがすでにこの局面を持っているかどうか
-// 以前のデータのコピー（あれば）（読み取り競合により不整合がある可能性があります）
-// このエントリへのライターオブジェクト
-// コピーされたデータとライターは、ローカルオブジェクトとグローバルオブジェクトの境界を明確にするために分離されています。
+// TTData(エントリのローカルコピー)と、グローバルな置換表へ書き込むTTWriterを明確に分離しています。
 
 
-// A copy of the data already in the entry (possibly collided). `probe` may be racy, resulting in inconsistent data.
+// A copy of the data already in an entry (possibly collided). Probes and reads are racy and non-atomic,
+// possibly resulting in inconsistent data.
 
 // すでにエントリに存在するデータのコピー（衝突している可能性があります）。
-// `probe` は競合が発生することがあり、不整合なデータを返す可能性があります。
+// probeやreadは競合することがあり、アトミックではないため、不整合なデータを返す可能性があります。
 
 // ■ 補足
 // 
@@ -77,9 +69,11 @@ struct TTData {
 	// clang-format on
 };
 
-// This is used to make racy writes to the global TT.
+// This is used to make racy, non-atomic writes to the global TT. Writes are not "guaranteed":
+// for chess reasons, we may decide the new data is less important than the old.
 
-// これはグローバルTTへの競合的な書き込みを行うために使用されます。
+// これはグローバルTTへの競合的で非アトミックな書き込みを行うために使用されます。
+// 書き込みは「必ず行われる」わけではなく、探索上の理由で新しいデータが古いデータより重要でないと判断されることがあります。
 
 struct TTWriter {
 public:
@@ -114,10 +108,10 @@ class TranspositionTable {
 public:
 	~TranspositionTable() { aligned_large_pages_free(table); }
 
-	// Set TT size
-	// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。[MB]単位。
+	// Set TT size in MiB
+	// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。[MiB]単位。
 
-	void resize(size_t mbSize,ThreadPool& threads);  // Set TT size
+	void resize(size_t mbSize,ThreadPool& threads);  // Set TT size in MiB
 
 	// Re-initialize memory, multithreaded
 	// メモリを再初期化、マルチスレッド対応
@@ -127,28 +121,34 @@ public:
 
 	void clear(ThreadPool& threads);                  // Re-initialize memory, multithreaded
 
-	// Approximate what fraction of entries (permille) have been written to during this root search
-	// このルート探索中に書き込まれたエントリの割合（パーミル単位）を概算します。
-	// ⇨ 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
-
-	int hashfull(int maxAge = 0) const;
-
 	// This must be called at the beginning of each root search to track entry aging
 	// エントリのエイジングを追跡するために、各ルート検索の開始時にこれを呼び出す必要があります。
 	// ⇨ 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
 
 	// USE_GLOBAL_OPTIONSが有効のときは、このタイミングで、Options["Threads"]の値を
 	// キャプチャして、探索スレッドごとの置換表と世代カウンターを用意する。
-	// ⇨ 下位3bitはPV nodeかどうかのフラグとBoundに用いている。
 	void new_search();
-	
+
 	// The current age, used when writing new data to the TT
 	// 新しいデータをTTに書き込む際に使用される現在のエイジ
 
 	uint8_t generation() const;
 
-	// The main method, whose retvals separate local vs global objects
-	// メインメソッドで、その戻り値はローカルオブジェクトとグローバルオブジェクトを区別します
+	// Approximate what fraction of entries (permille) have been written to during this root search
+	// このルート探索中に書き込まれたエントリの割合（パーミル単位）を概算します。
+	// ⇨ 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
+
+	int hashfull(int maxAge = 0) const;
+
+	// `probe` is the primary method: given a board position, we lookup its entry in the table, and return a tuple of:
+	//   1) whether the entry already had data on this position
+	//   2) a copy of the prior data, if any (may be self-inconsistent due to read races)
+	//   3) a writer object to the entry
+	//
+	// probeは主なメソッドであり、局面を与えられるとテーブル内のエントリを検索し、以下のタプルを返します。
+	//   1) そのエントリがすでにこの局面のデータを持っていたかどうか
+	//   2) 以前のデータのコピー(あれば)。読み取り競合により自己矛盾している可能性があります
+	//   3) このエントリへのライターオブジェクト
 
 	// 置換表のなかから与えられたkeyに対応するentryを探す。
 	// 見つかったならfound == trueにしてそのTT_ENTRY*を返す。
@@ -164,8 +164,8 @@ public:
 	std::tuple<bool, TTData, TTWriter> probe(const Key key, const Position& pos) const;
 #endif
 
-	// This is the hash function; its only external use is memory prefetching.
-	// これはハッシュ関数です。外部での唯一の使用目的はメモリのプリフェッチです。
+	// The hash function; its only external use is memory prefetching
+	// ハッシュ関数です。外部での唯一の使用目的はメモリのプリフェッチです。
 
 	/*
 		📓 first_entry()とは？
@@ -204,10 +204,8 @@ private:
 	// 不用意に使った場合に確実にアクセス保護違反で落ちるので都合が良い。
 	Cluster* table = nullptr;
 
-	// Size must be not bigger than TTEntry::genBound8
-	// サイズはTTEntry::genBound8を超えてはなりません。
-	// ⇨ 世代カウンター。new_search()のごとに8ずつ加算する。TTEntry::save()で用いる。
-	uint8_t generation8;
+	// ⇨ 世代カウンター。new_search()のごとに1ずつ加算する。TTEntry::save()で用いる。
+	uint8_t generation8 = 0;
 };
 
 } // namespace YaneuraOu

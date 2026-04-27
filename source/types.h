@@ -388,22 +388,34 @@ constexpr int MAX_PLY = MAX_PLY_NUM;
 // 探索深さを表現する型
 using Depth = int;
 
-// The following DEPTH_ constants are used for TT entries and QS movegen stages. In regular search,
-// TT depth is literal: the search depth (effort) used to make the corresponding TT value.
-// In qsearch, however, TT entries only store the current QS movegen stage (which should thus compare
+// The following DEPTH_ constants are used for transposition table entries
+// and quiescence search move generation stages. In regular search, the
+// depth stored in the transposition table is literal: the search depth
+// (effort) used to make the corresponding transposition table value. In
+// quiescence search, however, the transposition table entries only store
+// the current quiescence move generation stage (which should thus compare
 // lower than any regular search depth).
-// 静止探索で王手がかかっているときにこれより少ない残り探索深さでの探索した結果が置換表にあってもそれは信用しない
+//
+// 以下のDEPTH_定数は、置換表エントリと静止探索の指し手生成段階に用いる。
+// 通常探索では、置換表に保存されるdepthは文字通りその置換表の値を得るために
+// 使われた探索深さ(探索努力量)を表す。一方、静止探索では、置換表エントリには
+// 現在の静止探索の指し手生成段階だけを保存する。そのため、通常探索のどの深さよりも
+// 小さい値として比較される必要がある。
 constexpr Depth DEPTH_QS = 0;
 
-// For TT entries where no searching at all was done (whether regular or qsearch) we use
-// _UNSEARCHED, which should thus compare lower than any QS or regular depth. _ENTRY_OFFSET is used
-// only for the TT entry occupancy check (see tt.cpp), and should thus be lower than _UNSEARCHED.
+// For transposition table entries where no searching at all was done
+// (whether regular or qsearch) we use DEPTH_UNSEARCHED, which should thus
+// compare lower than any quiescence or regular depth. DEPTH_NONE is used
+// for the transposition table entry occupancy check (see tt.cpp), and
+// should thus be lower than DEPTH_UNSEARCHED.
+//
+// 通常探索か静止探索かにかかわらず、まったく探索せずに作られた置換表エントリには
+// DEPTH_UNSEARCHEDを用いる。これは、静止探索および通常探索のどの深さよりも
+// 小さい値として比較される必要がある。DEPTH_NONEは置換表エントリの空き判定
+// (tt.cpp参照)に用いる値であり、DEPTH_UNSEARCHEDよりも小さくなければならない。
 
-// DEPTH_NONEは探索せずに値を求めたという意味に使う。
 constexpr Depth DEPTH_UNSEARCHED   = -2;
-
-// TTの下駄履き用(TTEntryが使われているかどうかのチェックにのみ用いる)
-constexpr Depth DEPTH_ENTRY_OFFSET = -3;
+constexpr Depth DEPTH_NONE         = -3;
 
 // --------------------
 //     評価値の性質
