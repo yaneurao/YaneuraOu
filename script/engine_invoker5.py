@@ -120,7 +120,7 @@ def create_option(engines,engine_threads,evals,times,hashes,numa,PARAMETERS_LOG_
 				depth_time = t
 
 		option = []
-		if ("Yane" in engines[i]):
+		if ("yane" in engines[i].lower()):
 			if rtime:
 				option.append("go rtime " + str(rtime))
 			elif inc_time:
