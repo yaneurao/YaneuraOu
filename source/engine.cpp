@@ -223,7 +223,10 @@ void Engine::set_position(const std::string& sfen, const std::vector<std::string
 			break;
 
 		states->emplace_back();
-		pos.do_move(m, states->back());
+		if (m == Move::null())
+			pos.do_null_move(states->back());
+		else
+			pos.do_move(m, states->back());
 
 #if !STOCKFISH
 		moves0.emplace_back(m);
