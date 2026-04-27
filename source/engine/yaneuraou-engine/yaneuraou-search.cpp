@@ -227,6 +227,7 @@ void YaneuraOuEngine::add_options() {
 	options.add("Syzygy50MoveRule", Option(true));
 
 	options.add("SyzygyProbeLimit", Option(7, 0, 7));
+
 #endif
 
 	// 🌈 tune.pyによってここ以下に自動的にエンジンオプションが追加される。
@@ -576,7 +577,6 @@ Value value_draw(size_t nodes) { return VALUE_DRAW - 1 + Value(nodes & 0x2); }
 
 Value value_to_tt(Value v, int ply);
 Value value_from_tt(Value v, int ply /*, int r50c */);
-void  update_pv(Move* pv, Move move, const Move* childPv);
 void  update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
 void  update_quiet_histories(const Position&                pos,
                              Stack*                         ss,
@@ -1139,12 +1139,13 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     rootPos.set_ekr(search_options.enteringKingRule);
 #endif
 
-    Move pv[MAX_PLY + 1];
+    PVMoves pv;
 
     // 探索の安定性を評価するために前回のiteration時のbest PVを記録しておく。
     Depth lastBestMoveDepth = 0;
     Value lastBestScore     = -VALUE_INFINITE;
-    auto  lastBestPV        = std::vector{Move::none()};
+    PVMoves lastBestPV;
+    lastBestPV.push_back(Move::none());
 
     // alpha,beta         : aspiration searchの窓の範囲(alpha,beta)
     // delta              : apritation searchで窓を動かす大きさdelta
@@ -1194,7 +1195,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
         (ss + i)->ply = i;
 
     // 最善応手列(Principal Variation)
-    ss->pv = pv;
+    ss->pv = &pv;
 
     if (mainThread)
     {
@@ -1936,7 +1937,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 	// pv : このnodeからのPV line(読み筋)
     // st : do_move()するときに必要
 
-	Move      pv[MAX_PLY + 1];
+	PVMoves   pv;
 	StateInfo st;
 
 	// posKey       : このnodeのhash key
@@ -3682,8 +3683,8 @@ moves_loop:  // When in check, search starts here
         if (PvNode && (moveCount == 1 || value > alpha))
         {
             // 次のnodeのPVポインターはこのnodeのpvバッファを指すようにしておく。
-            (ss + 1)->pv    = pv;
-            (ss + 1)->pv[0] = Move::none();
+            (ss + 1)->pv = &pv;
+            (ss + 1)->pv->clear();
 
             // Extend move from transposition table if we are about to dive into qsearch.
             // decisive score handling improves mate finding and retrograde analysis.
@@ -3780,8 +3781,8 @@ moves_loop:  // When in check, search starts here
 				// 📝 RootでPVが変わるのは稀なのでここがちょっとぐらい重くても問題ない。
                 //     新しく変わった指し手の後続のpvをRootMoves::pvにコピーしてくる。
 
-                for (Move* m = (ss + 1)->pv; *m != Move::none(); ++m)
-                    rm.pv.push_back(*m);
+                for (Move pvMove : *(ss + 1)->pv)
+                    rm.pv.push_back(pvMove);
 
                 // We record how often the best move has been changed in each iteration.
                 // This information is used for time management. In MultiPV mode,
@@ -3843,7 +3844,7 @@ moves_loop:  // When in check, search starts here
 
                 if (PvNode && !rootNode)  // Update pv even in fail-high case
 					                      // fail-highのときにもPVをupdateする。
-                    update_pv(ss->pv, move, (ss + 1)->pv);
+                    ss->pv->update(move, (ss + 1)->pv);
 
                 if (value >= beta)
                 {
@@ -4134,7 +4135,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     // PV求める用のbuffer
     // 💡 これnonPVでは使わないので、参照しておらず削除される。
-    Move pv[MAX_PLY + 1];
+    PVMoves pv;
 
     // make_move()のときに必要
     StateInfo st;
@@ -4166,8 +4167,8 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     if (PvNode)
     {
-        (ss + 1)->pv = pv;
-        ss->pv[0]    = Move::none();
+        (ss + 1)->pv = &pv;
+        ss->pv->clear();
     }
 
     bestMove                    = Move::none();
@@ -4654,7 +4655,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
                 if (PvNode)  // Update pv even in fail-high case
 							 // fail-highの場合もPVは更新する。
-                    update_pv(ss->pv, move, (ss + 1)->pv);
+                    ss->pv->update(move, (ss + 1)->pv);
 
                 if (value < beta)  // Update alpha here!
                                    // alpha値の更新はこのタイミングで良い。
@@ -4907,22 +4908,6 @@ Value value_from_tt(Value v, int ply
     }
 
     return v;
-}
-
-// Adds current move and appends child pv[]
-// 現在の指し手を追加し、子pv[] を連結する。
-
-/*
-	📓 PV lineをコピーする。
-        pv に move(1手 現在の指し手) + childPv(複数手,末尾Move::none())をコピーする。
-	    番兵として末尾はMove::none()にすることになっている。
-*/
-
-void update_pv(Move* pv, Move move, const Move* childPv) {
-
-    for (*pv++ = move; childPv && *childPv != Move::none();)
-        *pv++ = *childPv++;
-    *pv = Move::none();
 }
 
 // -----------------------

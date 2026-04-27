@@ -2,6 +2,7 @@
 #define SEARCH_H_INCLUDED
 
 //#include <cstdint>
+#include <cstring>
 //#include <vector>
 
 #include "config.h"
@@ -39,7 +40,53 @@ class OptionsMap;
 // 探索関係
 namespace Search {
 
-// 💡 ここにあった"struct Stack"は、
+
+// -----------------------
+//  探索のときに使うPV
+// -----------------------
+
+struct PVMoves {
+    Move        moves[MAX_PLY + 1];
+    std::size_t length = 0;
+
+    Move*       begin() { return moves; }
+    const Move* begin() const { return moves; }
+    Move*       end() { return moves + length; }
+    const Move* end() const { return moves + length; }
+
+    Move&       operator[](std::size_t index) { return moves[index]; }
+    const Move& operator[](std::size_t index) const { return moves[index]; }
+
+    bool        empty() const { return length == 0; }
+    std::size_t size() const { return length; }
+
+    void clear() { length = 0; }
+
+    void push_back(Move move) {
+        assert(length < MAX_PLY + 1);
+        moves[length++] = move;
+    }
+
+    void resize(std::size_t newSize) {
+        assert(newSize <= length);
+        length = newSize;
+    }
+
+    void update(Move move, const PVMoves* childPv) {
+        assert(childPv == nullptr || childPv->size() <= MAX_PLY);
+        length = childPv ? childPv->length : 0;
+
+        if (childPv)
+        {
+            std::memcpy(moves + 1, childPv->moves, length * sizeof(Move));
+        }
+
+        moves[0] = move;
+        ++length;
+    }
+};
+
+// 💡 Stockfishのここにあった"struct Stack"は、
 //     engine/yaneuraou-engine/yaneuraou-search.h に移動させた。
 
 
@@ -53,7 +100,7 @@ namespace Search {
 struct RootMove
 {
 	// pv[0]には、このコンストラクタの引数で渡されたmを設定する。
-	explicit RootMove(Move m) : pv(1, m) {}
+    explicit RootMove(Move m) { pv.push_back(m); }
 
 	// Called in case we have no ponder move before exiting the search,
 	// for instance, in case we stop the search during a fail high at root.
@@ -115,7 +162,7 @@ struct RootMove
 #endif
 
 	// この指し手で進めたときのpv
-	std::vector<Move> pv;
+	PVMoves pv;
 };
 
 using RootMoves = std::vector<RootMove>;
