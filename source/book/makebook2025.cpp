@@ -686,7 +686,7 @@ namespace MakeBook2025
 
 				// 元ファイルの定跡DBに登録されていた指し手
 				SmallVector<BookMove> book_moves;
-				std::swap(book_node.moves, book_moves); // swapしていったんbook_move.movesはクリアしてしまう。
+				std::swap(book_node.moves, book_moves); // swapしていったんbook_node.movesはクリアしてしまう。
 
 				// ここから全合法手で一手進めて既知の(定跡ツリー上の他の)局面に行くかを調べる。
 				for (auto move : MoveList<LEGAL_ALL>(pos))
@@ -694,19 +694,19 @@ namespace MakeBook2025
 					// moveで進めた局面が存在する時のhash値。
 					Key next_hash = pos.key_after(move);
 
-					if (hashkey_to_index.count(next_hash) > 0)
+					auto it = hashkey_to_index.find(next_hash);
+					if (it != hashkey_to_index.end())
 					{
 						// 定跡局面が存在した。
 
-						BookNodeIndex next_book_node_index = hashkey_to_index[next_hash];
-						BookNode&     next_book_node       = book_nodes[next_book_node_index];
-
-						BookMove book_move(move.to_move16(), next_book_node_index);
+						BookNodeIndex next_book_node_index = it->second;
+						Move16        move16               = move.to_move16();
+						BookMove      book_move(move16, next_book_node_index);
 
 						// これが定跡DBのこの局面の指し手に登録されていないなら、
 						// これは(定跡DBにはなかった指し手で進めたら既知の局面に)合流したということだから
 						// 合流カウンターをインクリメントしておく。
-						if (std::find_if(book_node.moves.begin(), book_node.moves.end(), [&](auto& book_move) { return book_move.move == move; }) == book_node.moves.end())
+						if (std::find_if(book_moves.begin(), book_moves.end(), [&](const auto& bm) { return bm.move == move16; }) == book_moves.end())
 							converged_moves++;
 
 						book_node.moves.emplace_back(book_move);
