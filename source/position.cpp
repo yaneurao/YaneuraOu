@@ -415,7 +415,7 @@ void Position::set_state() const {
 // FENの正当性はGUI側の責任であると想定されています。
 
 // sfen文字列で盤面を設定する
-Position& Position::set(const std::string& sfen, StateInfo* si) {
+std::optional<PositionSetError> Position::set(const std::string& sfen, StateInfo* si) {
 #if STOCKFISH
 
 	std::memset(this, 0, sizeof(Position));
@@ -470,26 +470,61 @@ Position& Position::set(const std::string& sfen, StateInfo* si) {
     // 1. Piece placement
     // 1. 駒の配置
 
-    while ((ss >> token) && !isspace(token))
+    for (;;)
     {
+        if (!(ss >> token))
+            return PositionSetError("Invalid SFEN. Unexpected end of stream.");
+
+        if (isspace(token))
+            break;
+
         // 数字は、空の升の数なのでその分だけ筋(File)を進める
         if (isdigit(token))
-            f -= File(token - '0');
+        {
+            int skip = token - '0';
+            if (skip < 1 || skip > 9)
+                return PositionSetError("Invalid SFEN. Invalid number of squares to skip.");
+            if (int(f) - skip < int(FILE_1) - 1)
+                return PositionSetError("Invalid SFEN. Invalid file reached.");
+            if (promote)
+                return PositionSetError("Invalid SFEN. Unexpected promoted marker.");
+            f -= File(skip);
+        }
         // '/'は次の段を意味する
         else if (token == '/')
         {
+            if (f != File(int(FILE_1) - 1))
+                return PositionSetError("Invalid SFEN. Trying to end rank when not at the end of it.");
+            if (r == RANK_9)
+                return PositionSetError("Invalid SFEN. Invalid rank reached.");
+            if (promote)
+                return PositionSetError("Invalid SFEN. Unexpected promoted marker.");
+
             f = FILE_9;
             ++r;
         }
         // '+'は次の駒が成駒であることを意味する
         else if (token == '+')
+        {
+            if (promote)
+                return PositionSetError("Invalid SFEN. Unexpected promoted marker.");
             promote = true;
+        }
         // 駒文字列か？
         else if ((idx = PieceToCharBW.find(token)) != string::npos)
         {
+            if (!is_ok(f) || !is_ok(r))
+                return PositionSetError("Invalid SFEN. Invalid file reached.");
+
             // 盤面の(f,r)の駒を設定する
             auto sq = f | r;
-            auto pc = promote ? make_promoted_piece(Piece(idx)) : Piece(idx);
+            auto pc = Piece(idx);
+            if (promote)
+            {
+                if (is_non_promotable_piece(pc))
+                    return PositionSetError("Invalid SFEN. Invalid promoted piece.");
+                pc = make_promoted_piece(pc);
+            }
             put_piece(pc, sq);
 
 #if defined(USE_EVAL_LIST)
@@ -506,7 +541,16 @@ Position& Position::set(const std::string& sfen, StateInfo* si) {
             // 成りフラグ、戻しておく。
             promote = false;
         }
+        else
+            return PositionSetError(std::string("Invalid SFEN. Invalid piece: ")
+                                    + std::string(1, char(token)));
     }
+
+    if (r != RANK_9 || f != File(int(FILE_1) - 1))
+        return PositionSetError("Invalid SFEN. Board state encoding ended but cursor not at end.");
+
+    if (promote)
+        return PositionSetError("Invalid SFEN. Unexpected promoted marker.");
 
     // put_piece()を使ったので更新しておく。
     // set_state()で駒種別のbitboardを参照するのでそれまでにこの関数を呼び出す必要がある。
@@ -518,16 +562,34 @@ Position& Position::set(const std::string& sfen, StateInfo* si) {
     // 2. Active color
     // 2. 手番
 
-    ss >> token;
+    if (!(ss >> token))
+        return PositionSetError("Invalid SFEN. Unexpected end of stream.");
+    if (token != 'b' && token != 'w')
+        return PositionSetError(std::string("Invalid SFEN. Invalid side to move: ")
+                                + std::string(1, char(token)));
     sideToMove = (token == 'w' ? WHITE : BLACK);
-    ss >> token;  // 手番と手駒とを分かつスペース
+    if (!(ss >> token) || !isspace(token))
+        return PositionSetError("Invalid SFEN. Expected whitespace after side to move.");
 
     //    手駒
 
     hand[BLACK] = hand[WHITE] = (Hand) 0;
     int ct                    = 0;
-    while ((ss >> token) && !isspace(token))
+    bool hand_token_read      = false;
+    for (;;)
     {
+        if (!(ss >> token))
+        {
+            if (hand_token_read)
+                break;
+            return PositionSetError("Invalid SFEN. Unexpected end of stream.");
+        }
+
+        hand_token_read = true;
+
+        if (isspace(token))
+            break;
+
         // 手駒なし
         if (token == '-')
             break;
@@ -541,6 +603,9 @@ Position& Position::set(const std::string& sfen, StateInfo* si) {
             ct = max(ct, 1);
             Piece pc = Piece(idx);
             PieceType rpc = raw_type_of(Piece(idx));
+            if (rpc < PIECE_HAND_ZERO || PIECE_HAND_NB <= rpc || is_promoted(pc))
+                return PositionSetError(std::string("Invalid SFEN. Invalid hand piece: ")
+                                        + std::string(1, char(token)));
 
             // FV38などではこの個数分だけpieceListに突っ込まないといけない。
             for (int i = 0; i < ct; ++i)
@@ -556,7 +621,13 @@ Position& Position::set(const std::string& sfen, StateInfo* si) {
             }
             ct = 0;
         }
+        else
+            return PositionSetError(std::string("Invalid SFEN. Invalid hand piece: ")
+                                    + std::string(1, char(token)));
     }
+
+    if (ct != 0)
+        return PositionSetError("Invalid SFEN. Missing hand piece after count.");
 
 #if STOCKFISH
     // 3. Castling availability. Compatible with 3 standards: Normal FEN standard,
@@ -678,7 +749,7 @@ Position& Position::set(const std::string& sfen, StateInfo* si) {
 #endif
 #endif
 
-    return *this;
+    return std::nullopt;
 }
 
 // Returns a FEN representation of the position. In case of

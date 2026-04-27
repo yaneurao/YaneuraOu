@@ -140,7 +140,7 @@ public:
     // 新しい局面を設定する。手はUCI形式で指定される
     // 💡 "position"コマンドの下請け。
     //      sfen文字列 + movesのあとに書かれていた(USIの)指し手文字列から、現在の局面を設定する。
-    virtual void set_position(const std::string& sfen, const std::vector<std::string>& moves) = 0;
+    virtual std::optional<PositionSetError> set_position(const std::string& sfen, const std::vector<std::string>& moves) = 0;
 
     // modifiers
 
@@ -345,8 +345,8 @@ class Engine: public IEngine {
     virtual void stop() override;
 
     virtual void wait_for_search_finished() override;
-    virtual void set_position(const std::string&              sfen,
-                              const std::vector<std::string>& moves) override;
+    virtual std::optional<PositionSetError> set_position(const std::string&              sfen,
+                                                         const std::vector<std::string>& moves) override;
 
     virtual void set_numa_config_from_option(const std::string& o) override;
     virtual void resize_threads() override;
@@ -493,9 +493,9 @@ class EngineWrapper: public IEngine {
     virtual void stop() override { engine->stop(); }
 
     virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
-    virtual void set_position(const std::string&              sfen,
-                              const std::vector<std::string>& moves) override {
-        engine->set_position(sfen, moves);
+    virtual std::optional<PositionSetError> set_position(const std::string&              sfen,
+                                                         const std::vector<std::string>& moves) override {
+        return engine->set_position(sfen, moves);
     }
 
     virtual void set_numa_config_from_option(const std::string& o) override { engine->set_numa_config_from_option(o); }

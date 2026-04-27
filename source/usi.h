@@ -192,6 +192,10 @@ private:
 	//     このlistenerを変更して対応する。
     void init_search_update_listeners();
 
+    // 致命的なエラーが出たときにその内容を出力してプログラムを終了する。
+    [[noreturn]] void terminate_on_critical_error(const std::string& fullCommand,
+                                                  const std::string& message);
+
 #if !STOCKFISH
 	// 🌈 やねうら王独自拡張 🌈
 

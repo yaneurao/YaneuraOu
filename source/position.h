@@ -4,6 +4,8 @@
 #include <array>
 #include <deque>
 #include <memory> // For std::unique_ptr
+#include <optional>
+#include <stdexcept>
 
 #include "bitboard.h"
 #include "evaluate.h"
@@ -230,6 +232,12 @@ struct StateInfo {
 using StateList    = std::deque<StateInfo>;
 using StateListPtr = std::unique_ptr<StateList>;
 
+// このエラーは、局面設定時にエンジンが扱えない局面・指し手を検出した時に返す。
+// 特に不正な指し手を通常手として進めて盤面を壊すようなケースを避けるために用いる。
+struct PositionSetError : std::runtime_error {
+	using std::runtime_error::runtime_error;
+};
+
 // --------------------
 //       盤面
 // --------------------
@@ -315,11 +323,11 @@ public:
 	Position& set(const std::string& fenStr,bool isChess960, StateInfo* si);
     Position& set(const std::string& code, Color c, StateInfo* si);
 #else
-    Position& set(const std::string& sfenStr, StateInfo* si);
+    std::optional<PositionSetError> set(const std::string& sfenStr, StateInfo* si);
 
 	// 平手の初期盤面を設定する。
     // siについては、上記のset()にある説明を読むこと。
-    void set_hirate(StateInfo* si) { set(StartSFEN, si); }
+    std::optional<PositionSetError> set_hirate(StateInfo* si) { return set(StartSFEN, si); }
 #endif
 
 	// 局面のsfen文字列を取得する

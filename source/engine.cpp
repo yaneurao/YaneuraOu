@@ -203,13 +203,16 @@ void Engine::wait_for_search_finished() {
 
 // "position"コマンドの下請け。
 // sfen文字列 + movesのあとに書かれていた(USIの)指し手文字列から、現在の局面を設定する。
-void Engine::set_position(const std::string& sfen, const std::vector<std::string>& moves) {
+std::optional<PositionSetError> Engine::set_position(const std::string&              sfen,
+                                                     const std::vector<std::string>& moves) {
 
 	// Drop the old state and create a new one
 	// 古い状態を破棄して新しい状態を作成する
 
 	states = StateListPtr(new std::deque<StateInfo>(1));
-	pos.set(sfen /*, options["UCI_Chess960"]*/ , &states->back());
+	auto err = pos.set(sfen /*, options["UCI_Chess960"]*/ , &states->back());
+	if (err.has_value())
+		return err;
 
 #if !STOCKFISH
     std::vector<Move> moves0;
@@ -220,7 +223,7 @@ void Engine::set_position(const std::string& sfen, const std::vector<std::string
 		auto m = USIEngine::to_move(pos, move);
 
 		if (m == Move::none())
-			break;
+			return PositionSetError("Illegal move: " + move);
 
 		states->emplace_back();
 		if (m == Move::null())
@@ -239,6 +242,7 @@ void Engine::set_position(const std::string& sfen, const std::vector<std::string
 	moves_from_game_root = std::move(moves0);
 #endif
 
+	return std::nullopt;
 }
 
 

@@ -1,4 +1,5 @@
-﻿#include <sstream>
+﻿#include <cstdlib>
+#include <sstream>
 #include <queue>
 
 #include "types.h"
@@ -23,12 +24,7 @@ namespace YaneuraOu {
 // benchmark用のコマンドその2
 constexpr auto BenchmarkCommand = "speedtest";
 
-#if STOCKFISH
-// 初期局面
-// 📝 やねうら王では、 types.h で定義しているStartSFEN がこれに対応するもの。
-//     よって、ここでは書かない。
-constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-#else
+#if !STOCKFISH
 
 // Engine開発者が用いる"test"コマンド。
 namespace Test {
@@ -940,6 +936,8 @@ std::uint64_t USIEngine::perft(const Search::LimitsType& limits) {
 
 // "position"コマンドのhandler
 void USIEngine::position(std::istringstream& is) {
+    const std::string fullCommand = is.str();
+
 	std::string token, sfen;
 
     is >> token;
@@ -981,7 +979,11 @@ void USIEngine::position(std::istringstream& is) {
         moves.push_back(token);
 	}
 
-    engine.set_position(sfen, moves);
+    auto err = engine.set_position(sfen, moves);
+    if (err.has_value())
+    {
+        terminate_on_critical_error(fullCommand, err->what());
+    }
 }
 
 #if STOCKFISH
@@ -1316,6 +1318,14 @@ void USIEngine::on_bestmove(std::string_view bestmove, std::string_view ponder) 
     if (!ponder.empty())
         std::cout << " ponder " << ponder;
     std::cout << sync_endl;
+}
+
+void USIEngine::terminate_on_critical_error(const std::string& fullCommand,
+                                            const std::string& message) {
+    sync_cout << "info string CRITICAL ERROR: Command `" << fullCommand
+              << "` failed. Reason: " << message << '\n'
+              << sync_endl;
+    std::exit(1);
 }
 
 void USIEngine::on_update_string(std::string_view info) { sync_cout << "info string " << info << sync_endl; }
