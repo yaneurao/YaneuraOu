@@ -448,7 +448,7 @@ class YaneuraOuWorker: public Worker {
     // 反復深化
     // 💡 並列探索のentry point。
     //     start_searching()から呼び出される。
-    void iterative_deepening();
+    bool iterative_deepening();
 
     // 📌 do_move～undo_move
     // 📝 do_move()は、Worker::nodesをインクリメントする。
@@ -485,7 +485,7 @@ class YaneuraOuWorker: public Worker {
     //   d     : depth
     //   mn    : move_count
     //   delta : staticEvalとchildのeval(value)の差。これが低い時にreduction量を増やしたい。
-    Depth reduction(bool i, Depth d, int mn, int delta) const;
+    int reduction(bool i, Depth d, int mn, int delta) const;
 
 	// Pointer to the search manager, only allowed to be called by the main thread
     // 検索マネージャへのポインタ。メインスレッドからのみ呼び出すことが許可されています。

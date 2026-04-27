@@ -711,12 +711,15 @@ void Search::YaneuraOuWorker::start_searching() {
         return;
     }
 
-    // 📌 ここ以下のコードは、main threadで"go"に対して実行される。
-    //     "go"のごとに初期化しないといけないものはここで行う。
+	// 📌 ここ以下のコードは、main threadで"go"に対して実行される。
+	//     "go"のごとに初期化しないといけないものはここで行う。
 
-    // 📌 今回の思考時間の設定。
-    //     これは、ponderhitした時にponderhitにパラメーターが付随していれば
-    //     再計算するする必要性があるので、いずれにせよ呼び出しておく必要がある。
+    // iterative_deepening()内で最終PVをすでに出力したか。
+    bool uciPvSent = false;
+
+	// 📌 今回の思考時間の設定。
+	//     これは、ponderhitした時にponderhitにパラメーターが付随していれば
+	//     再計算するする必要性があるので、いずれにせよ呼び出しておく必要がある。
     // 💡 やねうら王では、originalTimeAdjustは用いない。
 
 #if STOCKFISH
@@ -881,7 +884,7 @@ void Search::YaneuraOuWorker::start_searching() {
     //    start_searching()の先頭には、main thread以外であれば即座に
     //    iterative_deepning()を呼び出すようになっているので、これにより並列探索が開始できる。
 
-    iterative_deepening();  // main thread start searching
+    uciPvSent = iterative_deepening();  // main thread start searching
     // 💡 main threadも並列探索に加わる。
 
     // When we reach the maximum depth, we can arrive here without a raise of
@@ -1018,9 +1021,30 @@ SKIP_SEARCH:
     //     ただし、一度もPVを出力していないなら、出力すべきだと思う。
 
 #else
-    // この時点で一度もPVを出力していないなら出力する。
-    // 💡 一度も出力していない場合、lastPvInfoTimeは、"go"された時刻であるstartTimeになっている。
-    if (search_options.lastPvInfoTime == limits.startTime)
+    // iterative_deepening()内で、採用する最終PVをすでに出力しているなら、
+    // bestmove直前に同じPVを重複して出力する必要はない。
+    //
+    // ただし、PVがbestmove 1手だけで終わっている場合、
+    // extract_ponder_from_tt() が置換表やponder_candidateからponder手を拾って、
+    // PVを bestmove + pondermove に伸ばすことがある。
+    // この場合、最後に出力済みのPVと内容が変わるので、uciPvSentをfalseに戻して
+    // 下のPV出力処理に入らせる。
+    //
+    // search_skippedの場合は、定跡・宣言勝ち・合法手なしなどで通常探索をしておらず、
+    // rootMovesではなくprobeResultから自前でPVを構築するので、このponder抽出は行わない。
+    if (!search_skipped && bestThread->rootMoves[0].pv.size() == 1
+        && bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos,
+                                                           main_manager()->ponder_candidate))
+        uciPvSent = false;
+
+    // bestmoveを返す前に現在のPVを出力する条件は次のいずれか。
+    //
+    // 1. iterative_deepening()で最終PVをまだ出力していない。
+    // 2. Lazy SMPで、最終採用するbestThreadがmain thread(this)ではない。
+    //
+    // 2. の場合、iterative_deepening()中に出力済みだったとしても、
+    // それはmain threadのPVなので、採用されたbestThreadのPVを改めて出力する。
+    if (!uciPvSent || bestThread != this)
     {
         if (search_skipped)
         {
@@ -1124,14 +1148,13 @@ SKIP_SEARCH:
 // 📝 探索本体。並列化している場合、ここが各threadの探索のentry point。
 //     Lazy SMPなので、置換表を共有しながらそれぞれのスレッドが勝手に探索しているだけ。
 
-void Search::YaneuraOuWorker::iterative_deepening() {
+bool Search::YaneuraOuWorker::iterative_deepening() {
 
     // もし自分がメインスレッドであるならmainThreadにmain_managerのポインタを代入。
     // 自分がサブスレッドのときは、これはnullptrになる。
     SearchManager* mainThread = (is_mainthread() ? main_manager() : nullptr);
 
-#if STOCKFISH
-#else
+#if !STOCKFISH
     // やねうら王では探索オプションは、main_managerが持っている。
     SearchOptions& search_options = main_manager()->search_options;
 
@@ -1253,6 +1276,9 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     // 💡 あまり同じ深さでつっかえている時は、aspiration windowの幅を大きくしてやるなどして回避する必要がある。
     int searchAgainCounter = 0;
 
+    // 反復深化内で、現在のiterationの最終PVをGUIへ出力済みか。
+    bool uciPvSent = false;
+
     // 💡 lowPlyHistoryは、試合開始時に1回だけではなく、"go"の度に初期化したほうが強い。
     lowPlyHistory.fill(97);
 
@@ -1292,7 +1318,10 @@ void Search::YaneuraOuWorker::iterative_deepening() {
         //     古い世代の情報として重みを低くしていく。
 
         if (mainThread)
+        {
             totBestMoveChanges /= 2;
+            uciPvSent = false;
+        }
 
         // Save the last iteration's scores before the first PV line is searched and
         // all the move scores except the (new) PV are set to -VALUE_INFINITE.
@@ -1547,6 +1576,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                 main_manager()->pv(*this, threads, tt, rootDepth);
                 // 最後にPVを出力した時刻を格納しておく。
                 search_options.lastPvInfoTime = now();
+                uciPvSent = (pvIdx + 1 == multiPV);
             }
 #endif
 
@@ -1576,6 +1606,9 @@ void Search::YaneuraOuWorker::iterative_deepening() {
                                                 const auto& rm) { return rm == lastBestPV[0]; });
             rootMoves[0].pv    = lastBestPV;
             rootMoves[0].score = rootMoves[0].uciScore = lastBestScore;
+
+            if (mainThread && lastBestPV[0] != Move::none())
+                uciPvSent = true;
         }
         else if (rootMoves[0].pv[0] != lastBestPV[0])
         {
@@ -1749,7 +1782,7 @@ void Search::YaneuraOuWorker::iterative_deepening() {
     }
 
     if (!mainThread)
-        return;
+        return false;
 
     mainThread->previousTimeReduction = timeReduction;
 
@@ -1758,6 +1791,8 @@ void Search::YaneuraOuWorker::iterative_deepening() {
         std::swap(rootMoves[0],
                   *std::find(rootMoves.begin(), rootMoves.end(),
                              skill.best ? skill.best : skill.pick_best(rootMoves, multiPV)));
+
+    return uciPvSent;
 }
 
 void Search::YaneuraOuWorker::do_move(Position & pos, const Move move, StateInfo& st,
@@ -4779,7 +4814,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 }
 
 // LMRのreductionの値を計算する。
-Depth Search::YaneuraOuWorker::reduction(bool i, Depth d, int mn, int delta) const {
+int Search::YaneuraOuWorker::reduction(bool i, Depth d, int mn, int delta) const {
     int reductionScale = reductions[d] * reductions[mn];
     return reductionScale - delta * 757 / rootDelta + !i * reductionScale * 218 / 512 + 1200;
 }

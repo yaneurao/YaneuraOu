@@ -469,7 +469,7 @@ protected:
 	//     これを仮想関数にしてしまうと、呼び出しのoverheadが気になる。
 
 #if STOCKFISH
-    //void iterative_deepening();
+    //bool iterative_deepening();
 
 	void do_move(Position& pos, const Move move, StateInfo& st);
 	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
