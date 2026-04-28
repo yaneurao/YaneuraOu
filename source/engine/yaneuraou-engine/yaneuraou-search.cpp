@@ -1341,8 +1341,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         // Lazy SMPのための初期化
         // ------------------------
 
-        // Age out PV variability metric
-        // PV変動メトリックを古く(期限切れに)する
+        // Age out PV variability metric and signal the start of a new iteration.
+        // PV変動メトリックを古くし、新しい反復の開始を示す。
 
         // 📝 bestMoveが変化した回数を記録しているが、反復深化の世代が一つ進むので、
         //     古い世代の情報として重みを低くしていく。
@@ -1626,11 +1626,13 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             lastIterationPV = rootMoves[0].pv;
         }
 
-        // We make sure not to pick an unproven mated-in score,
-        // in case this thread prematurely stopped search (aborted-search).
+        // A mated-in/TB-loss score from an aborted search cannot be trusted: the loss
+        // could be delayed or refuted upon exploring the remaining root-moves.
+        // Thus here we roll back to the score from the previous iteration.
 
-        // このスレッドが探索を早期に停止した（中断探索）場合に備えて、
-        // 証明されていない詰みスコアを選ばないように注意している。
+        // 中断された探索で得た詰み/TB負けのスコアは信頼できない。
+        // 残りのルート手を調べると、その負けが延びたり反証されたりする可能性がある。
+        // そのため、ここでは前回の反復深化で得たスコアに戻す。
 
         if (threads.abortedSearch && rootMoves[0].score != -VALUE_INFINITE
             && is_loss(rootMoves[0].score))
@@ -3308,8 +3310,8 @@ moves_loop:  // When in check, search starts here
             //&& pos.non_pawn_material(us)
             && !is_loss(bestValue))
         {
-            // Skip quiet moves if movecount exceeds our FutilityMoveCount threshold
-            // movecountがFutilityMoveCountの閾値を超えた場合、quietの手をスキップします
+            // Skip quiet moves if movecount exceeds our threshold
+            // movecountが閾値を超えた場合、quietの手をスキップします
 
             if (moveCount >= (3 + depth * depth) / (2 - improving))
                 mp.skip_quiet_moves();
@@ -5081,11 +5083,11 @@ void update_all_stats(const Position&          pos,
 }
 
 
-// Updates histories of the move pairs formed by moves
-// at ply -1, -2, -3, -4, and -6 with current move.
+// Updates the continuation histories for the move pairs formed by
+// the current move and the moves played in previous plies.
 
-// update_continuation_histories() は、形成された手のペアの履歴を更新します。
-// 1,2,4,6手前の指し手と現在の指し手との指し手ペアによってcontinuationHistoryを更新する。
+// 現在の指し手と過去のplyで指された手によって形成される指し手ペアについて、
+// continuation historyを更新する。
 
 /*
 	📓 1手前に対する現在の指し手 ≒ counterMove  (応手)
