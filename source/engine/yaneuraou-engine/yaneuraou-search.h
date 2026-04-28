@@ -295,6 +295,10 @@ struct Stack {
     // 置換表にhitしたかのフラグ
     bool ttHit;
 
+    // 前回の反復深化で得たPVを辿っているnodeか。
+    // Stockfishでは、このPV line上では一部の浅い枝刈りを抑制する。
+    bool followPV;
+
     // cut off(betaを超えたので枝刈りとしてreturn)した回数。
     int cutoffCnt;
 
@@ -541,6 +545,10 @@ class YaneuraOuWorker: public Worker {
     // aspiration searchで使う。
     Depth rootDepth, completedDepth;
     Value rootDelta;
+
+    // 前回の反復深化で確定したPV。
+    // 次の反復深化でこのPV lineを辿っている間は、IIRとquiet shallow pruningを抑制する。
+    PVMoves lastIterationPV;
 
 #if STOCKFISH
 	// 📓 やねうら王では、Engine classが持っている。

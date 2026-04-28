@@ -729,6 +729,9 @@ void Search::YaneuraOuWorker::start_searching() {
     accumulatorStack.reset();
 #endif
 
+    // 前回のgoで得たPVは今回の探索では使えないので、各Workerの探索開始時に破棄する。
+    lastIterationPV.clear();
+
     // Non-main threads go directly to iterative_deepening()
     // メインスレッド以外は直接 iterative_deepening() へ進む
 
@@ -1614,7 +1617,14 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         }  // multi pv loop
 
         if (!threads.stop)
-            completedDepth = rootDepth;
+        {
+            completedDepth  = rootDepth;
+
+            if (lastIterationPV.empty() || rootMoves[0].pv[0] != lastIterationPV[0])
+                lastBestMoveDepth = rootDepth;
+
+            lastIterationPV = rootMoves[0].pv;
+        }
 
         // We make sure not to pick an unproven mated-in score,
         // in case this thread prematurely stopped search (aborted-search).
@@ -2073,6 +2083,13 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // やねうら王探索で追加した思考エンジンオプション
     auto& search_options = main_manager()->search_options;
 #endif
+
+    // 前回の反復深化で得たPV lineを辿っているか。
+    // Stockfishでは、このline上でIIRとquiet shallow pruningを抑制して、
+    // 前回のPVを浅い枝刈りで壊しにくくしている。
+    ss->followPV = rootNode
+                || ((ss - 1)->followPV && static_cast<size_t>(ss->ply - 1) < lastIterationPV.size()
+                    && (ss - 1)->currentMove == lastIterationPV[ss->ply - 1]);
 
 #if defined(USE_CLASSIC_EVAL) && defined(USE_LAZY_EVALUATE)
 	// 📝 次のnodeに行くまでにevaluate()かevaluate_with_no_return()を呼び出すことを保証して
@@ -3020,7 +3037,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // 十分な探索深さがある場合、置換表（TTMove）に手がないPVノードやCutノードについては探索深さを削減する。
     //（*Scaler）IIR をよりアグレッシブにすると、スケーリング効率が悪化する。
 
-    if (!allNode && depth >= 6 && !ttData.move && priorReduction <= 3)
+    if (!ss->followPV && !allNode && depth >= 6 && !ttData.move && priorReduction <= 3)
         depth--;
 
 #if OLD_CODE
@@ -3345,7 +3362,7 @@ moves_loop:  // When in check, search starts here
                     continue;
 
             }
-            else
+            else if (!ss->followPV || !PvNode)
             {
                 int history = (*contHist[0])[movedPiece][move.to_sq()]
                             + (*contHist[1])[movedPiece][move.to_sq()]
