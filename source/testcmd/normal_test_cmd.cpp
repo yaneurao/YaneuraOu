@@ -191,6 +191,7 @@ namespace {
 
 				// 思考時間、nodes_limit、1～4倍の間でランダム化
 				Search::LimitsType lm;
+				lm.startTime = now();
 				lm.movetime = movetime * (1000 + prng.rand(3000)) / 1000;
 				lm.nodes    = nodes_limit * (1000 + prng.rand(3000)) / 1000;
 
