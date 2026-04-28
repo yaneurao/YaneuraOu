@@ -602,6 +602,33 @@ void update_all_stats(const Position&          pos,
                       int                      moveCount);
 
 
+bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
+#if STOCKFISH
+    if (pos.capture_stage(move) || pos.rule50_count() < 11)
+        return false;
+    if (pos.state()->pliesFromNull <= 6 || ss->ply < 18)
+        return false;
+    return move.from_sq() == (ss - 2)->currentMove.to_sq()
+        && (ss - 2)->currentMove.from_sq() == (ss - 4)->currentMove.to_sq();
+#else
+    // 将棋には50手ルールがなく、駒打ちは「往復手」ではないので除外する。
+    if (pos.capture_stage(move) || move.is_drop())
+        return false;
+
+    if (pos.state()->pliesFromNull <= 6 || ss->ply < 18)
+        return false;
+
+    const Move move2 = (ss - 2)->currentMove;
+    const Move move4 = (ss - 4)->currentMove;
+
+    if (!move2.is_ok() || !move4.is_ok() || move2.is_drop() || move4.is_drop())
+        return false;
+
+    return move.from_sq() == move2.to_sq() && move2.from_sq() == move4.to_sq();
+#endif
+}
+
+
 }  // namespace
 
 // 💡 やねうら王では、Workerを派生させて書くことにしたので、このコードは、派生classであるYaneuraOuWorkerのコンストラクタで書く。
@@ -3421,9 +3448,9 @@ moves_loop:  // When in check, search starts here
 		*/
 
 		// singular延長をするnodeであるか。
-		if (!rootNode && move == ttData.move && !excludedMove && depth >= 6 + ss->ttPv
+        if (!rootNode && move == ttData.move && !excludedMove && depth >= 6 + ss->ttPv
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
-            && ttData.depth >= depth - 3)
+            && ttData.depth >= depth - 3 && !is_shuffling(move, ss, pos))
         {
             /*
 				💡 このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != Move::none())
@@ -3613,6 +3640,10 @@ moves_loop:  // When in check, search starts here
 
         r -= ss->statScore * 794 / 8192;
 
+        // Scale up reductions for expected ALL nodes
+        if (allNode)
+            r += r * 273 / (256 * depth + 260);
+
 		// -----------------------
         // Step 17. Late moves reduction / extension (LMR)
         // Step 17. 遅い指し手の削減／延長（LMR)
@@ -3667,7 +3698,7 @@ moves_loop:  // When in check, search starts here
                 // LMRの結果に基づいて完全な探索深さを調整します -
                 // 結果が十分に良ければ深く探索し、十分に悪ければ浅く探索します。
 
-                const bool doDeeperSearch = d < newDepth && value > (bestValue + 43 + 2 * newDepth);
+                const bool doDeeperSearch    = d < newDepth && value > bestValue + 48;
                 const bool doShallowerSearch = value < bestValue + 9;
 
                 newDepth += doDeeperSearch - doShallowerSearch;
@@ -3728,7 +3759,7 @@ moves_loop:  // When in check, search starts here
 
 			if (move == ttData.move
                 && ((is_valid(ttData.value) && is_decisive(ttData.value) && ttData.depth > 0)
-                    || (ttData.depth > 1 && rootDepth > 8)))
+                    || ttData.depth > 1))
                 newDepth = std::max(newDepth, 1);
 
 			// 📝 full depthで探索するときはcutNodeにしてはいけない。
@@ -5267,9 +5298,8 @@ void syzygy_extend_pv(const OptionsMap&         options,
         for (const auto& m : MoveList<LEGAL>(pos))
             legalMoves.emplace_back(m);
 
-        Tablebases::Config config =
-          Tablebases::rank_root_moves(options, pos, legalMoves, false, time_abort);
-        RootMove& rm = *std::find(legalMoves.begin(), legalMoves.end(), pvMove);
+        TB::Config config = TB::rank_root_moves(options, pos, legalMoves, false, time_abort);
+        RootMove&  rm     = *std::find(legalMoves.begin(), legalMoves.end(), pvMove);
 
         if (legalMoves[0].tbRank != rm.tbRank)
             break;
@@ -5328,8 +5358,7 @@ void syzygy_extend_pv(const OptionsMap&         options,
           [](const Search::RootMove& a, const Search::RootMove& b) { return a.tbRank > b.tbRank; });
 
         // The winning side tries to minimize DTZ, the losing side maximizes it
-        Tablebases::Config config =
-          Tablebases::rank_root_moves(options, pos, legalMoves, true, time_abort);
+        TB::Config config = TB::rank_root_moves(options, pos, legalMoves, true, time_abort);
 
         // If DTZ is not available we might not find a mate, so we bail out
         if (!config.rootInTB || config.cardinality > 0)
@@ -5357,8 +5386,8 @@ void syzygy_extend_pv(const OptionsMap&         options,
         v = VALUE_DRAW;
 
     // Undo the PV moves
-    for (auto it = rootMove.pv.rbegin(); it != rootMove.pv.rend(); ++it)
-        pos.undo_move(*it);
+    for (size_t i = rootMove.pv.size(); i > 0; --i)
+        pos.undo_move(rootMove.pv[i - 1]);
 
     // Inform if we couldn't get a full extension in time
     if (time_abort())
