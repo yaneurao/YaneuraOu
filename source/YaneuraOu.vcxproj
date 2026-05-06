@@ -684,6 +684,7 @@
     <ClInclude Include="types.h" />
     <ClInclude Include="position.h" />
     <ClInclude Include="thread.h" />
+    <ClInclude Include="tanuki_progress.h" />
     <ClInclude Include="tt.h" />
     <ClInclude Include="usi.h" />
     <ClInclude Include="usioption.h" />
@@ -754,6 +755,7 @@
     <ClCompile Include="movepick.cpp" />
     <ClCompile Include="score.cpp" />
     <ClCompile Include="search.cpp" />
+    <ClCompile Include="tanuki_progress.cpp" />
     <ClCompile Include="testcmd\mate_test_cmd.cpp" />
     <ClCompile Include="testcmd\normal_test_cmd.cpp" />
     <ClCompile Include="testcmd\unit_test.cpp" />

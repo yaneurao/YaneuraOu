@@ -30,6 +30,7 @@
 #include "../../usi.h"
 #include "../../learn/learn.h"
 #include "../../mate/mate.h"
+#include "../../tanuki_progress.h"
 #include "../../tune.h"
 
 namespace YaneuraOu {
@@ -158,6 +159,7 @@ void YaneuraOuEngine::add_options() {
 	// 📌 SearchOptionsが用いるオプションの追加
 
 	manager.search_options.add_options(options);
+	Tanuki::Progress::add_options(options);
 
 #if defined(EVAL_LEARN)
     // 評価関数の学習を行なうときは、評価関数の保存先のフォルダを変更できる。
@@ -271,6 +273,7 @@ void YaneuraOuEngine::isready() {
 
 	// 定跡の読み込み
     book.read_book();
+	Tanuki::Progress::Load();
 
 	// 🌈 tune.pyによってここ以下に自動的にエンジンオプションが追加される。
     //                      %%TUNE_ISREADY%%
