@@ -150,12 +150,18 @@ void UctSearcherGroup::Initialize(const std::string& model_path, const std::stri
 	// (固定で確保しているので)
 	this->gpu_id = gpu_id;
 	const bool architecture_changed = this->model_architecture != model_architecture;
+#if defined(TENSOR_RT)
+	const bool slot_capacity_changed = nn && nn->slot_capacity() < new_thread;
+#else
+	constexpr bool slot_capacity_changed = false;
+#endif
 
 	// モデルpath名に変更があるなら、それを読み直す。
 	// ※　先にNNが構築されていないと、このあとNNからalloc()できないのでUctSearcherより先に構築する。
 	// batch sizeに変更があった場合も、このbatch size分だけGPU側にメモリを確保したいので、この時もNNのインスタンスを作りなおす。
 	if (this->model_path != model_path || architecture_changed
-	    || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
+	    || policy_value_batch_maxsize != this->policy_value_batch_maxsize
+	    || slot_capacity_changed)
 	{
 		std::lock_guard<std::mutex> lk(mutex_gpu);
 
@@ -163,16 +169,18 @@ void UctSearcherGroup::Initialize(const std::string& model_path, const std::stri
 		if (nn)
 			nn.reset();
 
-		nn = NN::build_nn(model_path, gpu_id, policy_value_batch_maxsize);
+		nn = NN::build_nn(model_path, gpu_id, policy_value_batch_maxsize, new_thread);
 
 		// 次回、このmodel_pathかalloced_policy_value_batch_maxsizeに変更があれば、再度NNをbuildする。
 		this->model_path = model_path;
 		this->model_architecture = model_architecture;
 	}
+	nn->prepare_slots(new_thread);
 
 	// スレッド数に変更があるか、batchサイズが前回から変更があったならばUctSearcherのインスタンス自体を生成しなおす。
 	if (searchers.size() != (size_t)new_thread || architecture_changed
-	    || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
+	    || policy_value_batch_maxsize != this->policy_value_batch_maxsize
+	    || slot_capacity_changed)
 	{
 		searchers.clear();
 		searchers.reserve(new_thread); // いまから追加する要素数はわかっているので事前に確保しておく。
@@ -181,6 +189,7 @@ void UctSearcherGroup::Initialize(const std::string& model_path, const std::stri
 			searchers.emplace_back(this, i, policy_value_batch_maxsize);
 
 		this->policy_value_batch_maxsize = policy_value_batch_maxsize;
+		this->threads = new_thread;
 	}
 
 	for (int i = 0; i < new_thread; ++i) {
@@ -384,8 +393,8 @@ void UctSearcher::DummyForward()
 	// このスレッドとGPUとを紐付ける。
 	grp->set_device();
 	// 最大バッチサイズ(policy_value_batch_maxsize) と 最小バッチサイズ(1) でそれぞれ推論を実行しておく
-	grp->nn_forward(policy_value_batch_maxsize, packed_features1, packed_features2, features1, features2, y1, y2);
-	grp->nn_forward(1, packed_features1, packed_features2, features1, features2, y1, y2);
+	grp->nn_forward(thread_id, policy_value_batch_maxsize, packed_features1, packed_features2, features1, features2, y1, y2);
+	grp->nn_forward(thread_id, 1, packed_features1, packed_features2, features1, features2, y1, y2);
 	// ダミー局面推論終了時間
 	TimePoint tpforwardend = now();
 
@@ -936,7 +945,7 @@ void UctSearcher::EvalNode() {
 
     // predict
     // policy_value_batch_sizeの数だけまとめて局面を評価する
-    grp->nn_forward(policy_value_batch_size, packed_features1, packed_features2, features1,
+    grp->nn_forward(thread_id, policy_value_batch_size, packed_features1, packed_features2, features1,
                     features2, y1, y2);
 
     //cout << *y2 << endl;

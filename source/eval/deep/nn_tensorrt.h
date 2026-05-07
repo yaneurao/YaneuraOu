@@ -16,6 +16,10 @@
 
 #include "nn.h"
 
+#include <memory>
+#include <mutex>
+#include <vector>
+
 namespace YaneuraOu {
 
 // CUDA APIの返し値のエラーチェックを行うヘルパ
@@ -54,13 +58,19 @@ namespace Eval::dlshogi
 
 	class NNTensorRT : public NN {
 	public:
-		virtual ~NNTensorRT() { release(); }
+		NNTensorRT();
+		virtual ~NNTensorRT();
 
 		// モデルファイルの読み込み。
 		virtual Tools::Result load(const std::string& model_path , int gpu_id , int max_batch_size);
 
 		// 推論
 		virtual void forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2);
+		virtual void forward(const int slot_id, const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2);
+
+		virtual void set_profile_count(int profile_count);
+		virtual int slot_capacity() const;
+		virtual void prepare_slots(int slot_count);
 
 		// 使用可能なデバイス数を取得する。
 		static int get_device_count();
@@ -70,14 +80,11 @@ namespace Eval::dlshogi
 		virtual void set_device(int gpu_id);
 
 	private:
+		struct InferenceSlot;
 
-		// host(GPU)側で確保されたbufferに対するポインタ
-		PType* p1_dev;
-		PType* p2_dev;
-		DType* x1_dev;
-		DType* x2_dev;
-		NN_Output_Policy* y1_dev;
-		NN_Output_Value * y2_dev;
+		std::unique_ptr<InferenceSlot> create_slot(int profile_index);
+		InferenceSlot* get_slot(int slot_id);
+		void forward_impl(InferenceSlot* slot, const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2);
 
 		// ↑で確保されたメモリを開放する。
 		void release();
@@ -88,12 +95,14 @@ namespace Eval::dlshogi
 		// load()が呼び出された時の値
 		int gpu_id;
 		int max_batch_size;
+		int profile_count = 1;
 
 		// build,forwardで必要
 		u32 unpack_size1;
 		u32 unpack_size2;
 		InferUniquePtr<nvinfer1::ICudaEngine> infer_engine;
-		InferUniquePtr<nvinfer1::IExecutionContext> infer_context;
+		std::vector<std::unique_ptr<InferenceSlot>> slots;
+		std::mutex slots_mutex;
 		nvinfer1::Dims inputDims1;
 		nvinfer1::Dims inputDims2;
 

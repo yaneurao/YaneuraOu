@@ -69,7 +69,8 @@ enum Color : uint8_t { BLACK = 0/*先手*/, WHITE = 1/*後手*/, COLOR_NB /* = 2
 constexpr Color operator ~(Color c) { return (Color)(c ^ 1);  }
 
 // 正常な値であるかを検査する。assertで使う用。
-constexpr bool is_ok(Color c) { return COLOR_ZERO <= c && c < COLOR_NB; }
+// 💡 Colorはunsignedなので 0 <= c のような条件は意味のない比較という警告がでる。
+constexpr bool is_ok(Color c) { return /* COLOR_ZERO <= c && */ c < COLOR_NB; }
 
 // 出力用(USI形式ではない)　デバッグ用。
 std::ostream& operator<<(std::ostream& os, Color c);

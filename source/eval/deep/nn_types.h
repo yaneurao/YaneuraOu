@@ -85,19 +85,19 @@ namespace Eval::dlshogi {
 	// ※　歩、香、桂、銀、金、角、飛の順。
 	constexpr u32 FEATURES2_NUM_WCSC28 = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
 
-		// WCSC35のdlshogiで追加された入玉特徴量。
-		constexpr u32 MAX_NYUGYOKU_OPP_FIELD = 10; // 敵陣三段目以内の駒(10枚までの残り枚数)
-		constexpr u32 MAX_NYUGYOKU_SCORE     = 20; // 点数(先手28点、後手27点までの残り枚数)
-		constexpr u32 MAX_FEATURES2_NYUGYOKU_NUM = 1/*入玉*/ + MAX_NYUGYOKU_OPP_FIELD + MAX_NYUGYOKU_SCORE;
-		constexpr u32 FEATURES2_NUM_WCSC35 = FEATURES2_NUM_WCSC28 + (int)COLOR_NB * MAX_FEATURES2_NYUGYOKU_NUM;
+	// WCSC35のdlshogiで追加された入玉特徴量。
+	constexpr u32 MAX_NYUGYOKU_OPP_FIELD = 10; // 敵陣三段目以内の駒(10枚までの残り枚数)
+	constexpr u32 MAX_NYUGYOKU_SCORE     = 20; // 点数(先手28点、後手27点までの残り枚数)
+	constexpr u32 MAX_FEATURES2_NYUGYOKU_NUM = 1/*入玉*/ + MAX_NYUGYOKU_OPP_FIELD + MAX_NYUGYOKU_SCORE;
+	constexpr u32 FEATURES2_NUM_WCSC35 = FEATURES2_NUM_WCSC28 + (int)COLOR_NB * MAX_FEATURES2_NYUGYOKU_NUM;
 
-		constexpr const char* MODEL_ARCHITECTURE_WCSC28 = "dlshogi-WCSC28";
-		constexpr const char* MODEL_ARCHITECTURE_WCSC35 = "dlshogi-WCSC35";
-		constexpr const char* DEFAULT_MODEL_ARCHITECTURE = MODEL_ARCHITECTURE_WCSC28;
+	constexpr const char* MODEL_ARCHITECTURE_WCSC28 = "dlshogi-WCSC28";
+	constexpr const char* MODEL_ARCHITECTURE_WCSC35 = "dlshogi-WCSC35";
+	constexpr const char* DEFAULT_MODEL_ARCHITECTURE = MODEL_ARCHITECTURE_WCSC28;
 
-		struct InputFeatureSpec
-		{
-			std::string architecture;
+	struct InputFeatureSpec
+	{
+		std::string architecture;
 		u32 features1_channels;
 		u32 features2_channels;
 		bool use_nyugyoku_features;

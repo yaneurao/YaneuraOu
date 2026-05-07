@@ -59,7 +59,7 @@ namespace Eval::dlshogi {
 	}
 
 	// モデルファイル名を渡すとそれに応じたNN派生クラスをbuildして返してくれる。デザパタで言うところのbuilder。
-	std::shared_ptr<NN> NN::build_nn(const std::string& model_path , int gpu_id , int batch_size)
+	std::shared_ptr<NN> NN::build_nn(const std::string& model_path, int gpu_id, int batch_size, int profile_count)
 	{
 		std::shared_ptr<NN> nn;
 
@@ -85,6 +85,7 @@ namespace Eval::dlshogi {
 		sync_cout << "info string Start loading the model file, path = " << model_path
 		          << ", gpu_id = " << gpu_id
 		          << ", batch_size = " << batch_size
+		          << ", profile_count = " << profile_count
 		          << ", ModelArchitecture = " << spec.architecture
 		          << sync_endl;
 		if (!nn)
@@ -92,6 +93,7 @@ namespace Eval::dlshogi {
 			sync_cout << "Error! : unknown model type." << sync_endl;
 			return nullptr;
 		}
+		nn->set_profile_count(profile_count);
 
 		if (nn->load(model_path , gpu_id , batch_size).is_not_ok())
 		{
@@ -101,6 +103,7 @@ namespace Eval::dlshogi {
 		sync_cout << "info string The model file has been loaded, path = " << model_path
 			<< ", gpu_id = " << gpu_id
 			<< ", batch_size = " << batch_size
+			<< ", profile_count = " << profile_count
 			<< ", ModelArchitecture = " << spec.architecture
 			<< sync_endl;
 

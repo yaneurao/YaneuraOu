@@ -73,22 +73,31 @@ void checkCudaErrors(cudaError_t status) {
 
 namespace Eval::dlshogi
 {
+	struct NNTensorRT::InferenceSlot {
+		PType* p1_dev = nullptr;
+		PType* p2_dev = nullptr;
+		DType* x1_dev = nullptr;
+		DType* x2_dev = nullptr;
+		NN_Output_Policy* y1_dev = nullptr;
+		NN_Output_Value* y2_dev = nullptr;
+		cudaStream_t stream = nullptr;
+		InferUniquePtr<nvinfer1::IExecutionContext> context;
+	};
+
+	NNTensorRT::NNTensorRT() = default;
+
+	NNTensorRT::~NNTensorRT()
+	{
+		release();
+	}
+
 	// モデルファイルの読み込み。
 	Tools::Result NNTensorRT::load(const std::string& model_path, int gpu_id, int max_batch_size)
 	{
 		this->gpu_id = gpu_id;
 		this->max_batch_size = max_batch_size;
 
-		// Create host and device buffers
-		// host(GPU側)に同じだけメモリを確保しておいて、CPU側からそこに転送する。
 		set_device(gpu_id);
-
-		checkCudaErrors(cudaMalloc((void**)&p1_dev, sizeof(PType)            * packed_input1_byte_count(max_batch_size)));
-		checkCudaErrors(cudaMalloc((void**)&p2_dev, sizeof(PType)            * packed_input2_byte_count(max_batch_size)));
-		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(DType)            * input1_element_count(max_batch_size)));
-		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(DType)            * input2_element_count(max_batch_size)));
-		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
-		checkCudaErrors(cudaMalloc((void**)&y2_dev, sizeof(NN_Output_Value)  * max_batch_size));
 
 		return load_model(model_path);
 	}
@@ -102,13 +111,22 @@ namespace Eval::dlshogi
 		// メモリを確保した時のCUDAデバイスを設定する。
 		set_device(gpu_id);
 
-		// メモリの開放
-		checkCudaErrors(cudaFree(p1_dev));
-		checkCudaErrors(cudaFree(p2_dev));
-		checkCudaErrors(cudaFree(x1_dev));
-		checkCudaErrors(cudaFree(x2_dev));
-		checkCudaErrors(cudaFree(y1_dev));
-		checkCudaErrors(cudaFree(y2_dev));
+		for (auto& slot : slots)
+		{
+			if (slot->stream)
+			{
+				checkCudaErrors(cudaStreamSynchronize(slot->stream));
+				checkCudaErrors(cudaStreamDestroy(slot->stream));
+			}
+			slot->context.reset();
+			checkCudaErrors(cudaFree(slot->p1_dev));
+			checkCudaErrors(cudaFree(slot->p2_dev));
+			checkCudaErrors(cudaFree(slot->x1_dev));
+			checkCudaErrors(cudaFree(slot->x2_dev));
+			checkCudaErrors(cudaFree(slot->y1_dev));
+			checkCudaErrors(cudaFree(slot->y2_dev));
+		}
+		slots.clear();
 	}
 
 	// 使用可能なデバイス数を取得する。
@@ -247,17 +265,19 @@ namespace Eval::dlshogi
 #endif
 
 
-		// Optimization Profiles
-		auto profile = builder->createOptimizationProfile();
 		const auto dims1 = inputDims[0].d;
-		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims1[1], dims1[2], dims1[3]));
-		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
-		profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
 		const auto dims2 = inputDims[1].d;
-		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims2[1], dims2[2], dims2[3]));
-		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
-		profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
-		config->addOptimizationProfile(profile);
+		for (int i = 0; i < profile_count; ++i)
+		{
+			auto profile = builder->createOptimizationProfile();
+			profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims1[1], dims1[2], dims1[3]));
+			profile->setDimensions("input1", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
+			profile->setDimensions("input1", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims1[1], dims1[2], dims1[3]));
+			profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMIN, nvinfer1::Dims4(1, dims2[1], dims2[2], dims2[3]));
+			profile->setDimensions("input2", nvinfer1::OptProfileSelector::kOPT, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
+			profile->setDimensions("input2", nvinfer1::OptProfileSelector::kMAX, nvinfer1::Dims4(max_batch_size, dims2[1], dims2[2], dims2[3]));
+			config->addOptimizationProfile(profile);
+		}
 		config->setMemoryPoolLimit(nvinfer1::MemoryPoolType::kWORKSPACE, 64_MiB);
 
 		// TensorRT 8 より nvinfer1::IBuilder::buildSerializedNetwork() が追加され、 nvinfer1::IBuilder::buildEngineWithConfig() は非推奨となった。
@@ -310,13 +330,14 @@ namespace Eval::dlshogi
 
 		std::string serialized_filename =
 			filename + "." +
-			// std::to_string(gpu_id) + "." +
-			std::regex_replace(std::string(device_prop.name), std::regex("[^A-Za-z0-9._-]"), std::string("_")) + "." +
-			// std::regex_replace(std::string(pciBusId), std::regex("[^A-Za-z0-9._-]"), std::string("_")) + "." +
-			std::to_string(max_batch_size) + "." +
-			"TRT" + std::to_string(getInferLibVersion()) + "." +
+				// std::to_string(gpu_id) + "." +
+				std::regex_replace(std::string(device_prop.name), std::regex("[^A-Za-z0-9._-]"), std::string("_")) + "." +
+				// std::regex_replace(std::string(pciBusId), std::regex("[^A-Za-z0-9._-]"), std::string("_")) + "." +
+				std::to_string(max_batch_size) + "." +
+				"profiles" + std::to_string(profile_count) + "." +
+				"TRT" + std::to_string(getInferLibVersion()) + "." +
 #if defined(TRT_NN_FP16)
-			"FP16." +
+				"FP16." +
 #endif
 			"serialized";
 
@@ -371,13 +392,6 @@ namespace Eval::dlshogi
 			}
 		}
 
-		infer_context = InferUniquePtr<nvinfer1::IExecutionContext>(infer_engine->createExecutionContext());
-		if (!infer_context)
-		{
-			//throw std::runtime_error("createExecutionContext");
-				return Tools::ResultCode::FileWriteError;
-		}
-
 		inputDims1 = infer_engine->getTensorShape("input1");
 		inputDims2 = infer_engine->getTensorShape("input2");
 		const auto& spec = input_feature_spec();
@@ -397,31 +411,105 @@ namespace Eval::dlshogi
 		return Tools::ResultCode::Ok;
 	}
 
+	void NNTensorRT::set_profile_count(int profile_count)
+	{
+		this->profile_count = profile_count > 0 ? profile_count : 1;
+	}
+
+	int NNTensorRT::slot_capacity() const
+	{
+		return infer_engine ? infer_engine->getNbOptimizationProfiles() : profile_count;
+	}
+
+	std::unique_ptr<NNTensorRT::InferenceSlot> NNTensorRT::create_slot(int profile_index)
+	{
+		if (!infer_engine || profile_index < 0 || profile_index >= infer_engine->getNbOptimizationProfiles())
+			FatalError("NNTensorRT::create_slot() : invalid profile_index");
+
+		auto slot = std::unique_ptr<InferenceSlot>(new InferenceSlot());
+		checkCudaErrors(cudaMalloc((void**)&slot->p1_dev, sizeof(PType)            * packed_input1_byte_count(max_batch_size)));
+		checkCudaErrors(cudaMalloc((void**)&slot->p2_dev, sizeof(PType)            * packed_input2_byte_count(max_batch_size)));
+		checkCudaErrors(cudaMalloc((void**)&slot->x1_dev, sizeof(DType)            * input1_element_count(max_batch_size)));
+		checkCudaErrors(cudaMalloc((void**)&slot->x2_dev, sizeof(DType)            * input2_element_count(max_batch_size)));
+		checkCudaErrors(cudaMalloc((void**)&slot->y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
+		checkCudaErrors(cudaMalloc((void**)&slot->y2_dev, sizeof(NN_Output_Value)  * max_batch_size));
+		checkCudaErrors(cudaStreamCreateWithFlags(&slot->stream, cudaStreamNonBlocking));
+
+		slot->context = InferUniquePtr<nvinfer1::IExecutionContext>(infer_engine->createExecutionContext());
+		if (!slot->context)
+			FatalError("NNTensorRT::create_slot() : createExecutionContext");
+
+		if (!slot->context->setOptimizationProfileAsync(profile_index, slot->stream))
+			FatalError("NNTensorRT::create_slot() : setOptimizationProfileAsync");
+
+		if (!slot->context->setTensorAddress("input1", slot->x1_dev)
+			|| !slot->context->setTensorAddress("input2", slot->x2_dev)
+			|| !slot->context->setTensorAddress("output_policy", slot->y1_dev)
+			|| !slot->context->setTensorAddress("output_value", slot->y2_dev))
+			FatalError("NNTensorRT::create_slot() : setTensorAddress");
+
+		return slot;
+	}
+
+	void NNTensorRT::prepare_slots(int slot_count)
+	{
+		std::lock_guard<std::mutex> lock(slots_mutex);
+		set_device(gpu_id);
+		if (slot_count > slot_capacity())
+			FatalError("NNTensorRT::prepare_slots() : slot_count exceeds optimization profile count");
+
+		while ((int)slots.size() < slot_count)
+			slots.emplace_back(create_slot((int)slots.size()));
+	}
+
+	NNTensorRT::InferenceSlot* NNTensorRT::get_slot(int slot_id)
+	{
+		if (slot_id < 0 || slot_id >= (int)slots.size())
+			FatalError("NNTensorRT::get_slot() : invalid slot_id");
+
+		return slots[slot_id].get();
+	}
+
 	void NNTensorRT::forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 	{
-		inputDims1.d[0] = batch_size;
-		inputDims2.d[0] = batch_size;
-		infer_context->setInputShape("input1", inputDims1);
-		infer_context->setInputShape("input2", inputDims2);
+		if (slots.empty())
+			prepare_slots(1);
+
+		forward_impl(get_slot(0), batch_size, p1, p2, x1, x2, y1, y2);
+	}
+
+	void NNTensorRT::forward(const int slot_id, const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
+	{
+		forward_impl(get_slot(slot_id), batch_size, p1, p2, x1, x2, y1, y2);
+	}
+
+	void NNTensorRT::forward_impl(InferenceSlot* slot, const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
+	{
 #if defined(UNPACK_CUDA)
-		checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(PType) * packed_input1_byte_count(batch_size), cudaMemcpyHostToDevice, cudaStreamPerThread));
-		checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(PType) * packed_input2_byte_count(batch_size), cudaMemcpyHostToDevice, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(slot->p1_dev, p1, sizeof(PType) * packed_input1_byte_count(batch_size), cudaMemcpyHostToDevice, slot->stream));
+		checkCudaErrors(cudaMemcpyAsync(slot->p2_dev, p2, sizeof(PType) * packed_input2_byte_count(batch_size), cudaMemcpyHostToDevice, slot->stream));
 		const auto& spec = input_feature_spec();
-		unpack_features1(batch_size, spec.features1_channels, p1_dev, x1_dev, cudaStreamPerThread);
-		unpack_features2(batch_size, spec.features2_channels, p2_dev, x2_dev, cudaStreamPerThread);
+		unpack_features1(batch_size, spec.features1_channels, slot->p1_dev, slot->x1_dev, slot->stream);
+		unpack_features2(batch_size, spec.features2_channels, slot->p2_dev, slot->x2_dev, slot->stream);
+		checkCudaErrors(cudaGetLastError());
 #else
-		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(DType) * input1_element_count(batch_size), cudaMemcpyHostToDevice, cudaStreamPerThread));
-		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(DType) * input2_element_count(batch_size), cudaMemcpyHostToDevice, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(slot->x1_dev, x1, sizeof(DType) * input1_element_count(batch_size), cudaMemcpyHostToDevice, slot->stream));
+		checkCudaErrors(cudaMemcpyAsync(slot->x2_dev, x2, sizeof(DType) * input2_element_count(batch_size), cudaMemcpyHostToDevice, slot->stream));
 #endif
-		infer_context->setTensorAddress("input1", x1_dev);
-		infer_context->setTensorAddress("input2", x2_dev);
-		infer_context->setTensorAddress("output_policy", y1_dev);
-		infer_context->setTensorAddress("output_value", y2_dev);
-		const bool status = infer_context->enqueueV3(cudaStreamPerThread);
+
+		auto dims1 = inputDims1;
+		auto dims2 = inputDims2;
+		dims1.d[0] = batch_size;
+		dims2.d[0] = batch_size;
+		if (!slot->context->setInputShape("input1", dims1)
+			|| !slot->context->setInputShape("input2", dims2))
+			FatalError("NNTensorRT::forward_impl() : setInputShape");
+
+		const bool status = slot->context->enqueueV3(slot->stream);
 		ASSERT_LV3(status);
-		checkCudaErrors(cudaMemcpyAsync(y1, y1_dev, sizeof(NN_Output_Policy) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
-		checkCudaErrors(cudaMemcpyAsync(y2, y2_dev, sizeof(NN_Output_Value ) * batch_size, cudaMemcpyDeviceToHost, cudaStreamPerThread));
-		checkCudaErrors(cudaStreamSynchronize(cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(y1, slot->y1_dev, sizeof(NN_Output_Policy) * batch_size, cudaMemcpyDeviceToHost, slot->stream));
+		checkCudaErrors(cudaMemcpyAsync(y2, slot->y2_dev, sizeof(NN_Output_Value ) * batch_size, cudaMemcpyDeviceToHost, slot->stream));
+		checkCudaErrors(cudaStreamSynchronize(slot->stream));
 	}
 
 } // namespace Eval::dlshogi
