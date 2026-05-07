@@ -81,7 +81,12 @@ namespace Eval::dlshogi {
 
 #endif
 
-		sync_cout << "info string Start loading the model file, path = " << model_path << ", gpu_id = " << gpu_id << ", batch_size = " << batch_size << sync_endl;
+		const auto& spec = input_feature_spec();
+		sync_cout << "info string Start loading the model file, path = " << model_path
+		          << ", gpu_id = " << gpu_id
+		          << ", batch_size = " << batch_size
+		          << ", ModelArchitecture = " << spec.architecture
+		          << sync_endl;
 		if (!nn)
 		{
 			sync_cout << "Error! : unknown model type." << sync_endl;
@@ -96,6 +101,7 @@ namespace Eval::dlshogi {
 		sync_cout << "info string The model file has been loaded, path = " << model_path
 			<< ", gpu_id = " << gpu_id
 			<< ", batch_size = " << batch_size
+			<< ", ModelArchitecture = " << spec.architecture
 			<< sync_endl;
 
 		return nn;

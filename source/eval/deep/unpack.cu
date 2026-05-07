@@ -12,9 +12,6 @@ typedef int FType;
 constexpr FType ftype_one = 0x3f800000;
 #endif
 
-constexpr int features1_size = 62;
-constexpr int features2_size = 57;
-
 __global__ void unpack_features1_kernel(char *p1, FType *x1, int max_tid) {
 	int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if(tid >= max_tid) return;
@@ -41,14 +38,14 @@ __global__ void unpack_features2_kernel(char *p2, FType *x2, int max_tid) {
 	}
 }
 
-void unpack_features1(const int batch_size, PType* p1, DType* x1, cudaStream_t stream)
+void unpack_features1(const int batch_size, const int features1_channels, PType* p1, DType* x1, cudaStream_t stream)
 {
-	unpack_features1_kernel<<<batch_size, features1_size, 0, stream>>>((char*)p1, (FType*)x1, batch_size * features1_size);
+	unpack_features1_kernel<<<batch_size, features1_channels, 0, stream>>>((char*)p1, (FType*)x1, batch_size * features1_channels);
 }
 
-void unpack_features2(const int batch_size, PType* p2, DType* x2, cudaStream_t stream)
+void unpack_features2(const int batch_size, const int features2_channels, PType* p2, DType* x2, cudaStream_t stream)
 {
-	unpack_features2_kernel<<<batch_size, features2_size, 0, stream>>>((char*)p2, (FType*)x2, batch_size * features2_size);
+	unpack_features2_kernel<<<batch_size, features2_channels, 0, stream>>>((char*)p2, (FType*)x2, batch_size * features2_channels);
 }
 
 } // namespace YaneuraOu

@@ -138,19 +138,24 @@ inline void UpdateResult(ChildNode* child, float result, Node* current)
 // 初期化
 // "isready"に対して呼び出される。
 // スレッド生成は、やねうら王フレームワーク側で行う。
+//   model_path                 : 読み込むmodel path
+//   model_architecture         : 読み込むmodelの入力特徴量仕様
 //   new_thread                 : このインスタンスが確保するUctSearcherの数
 //   gpu_id                     : このインスタンスに紐付けられているGPU ID
 //   policy_value_batch_maxsize : このインスタンスが生成したスレッドがNNのforward()を呼び出す時のbatchsize
-void UctSearcherGroup::Initialize(const std::string& model_path , const int new_thread , const int gpu_id, const int policy_value_batch_maxsize)
+void UctSearcherGroup::Initialize(const std::string& model_path, const std::string& model_architecture,
+                                  const int new_thread, const int gpu_id, const int policy_value_batch_maxsize)
 {
 	// gpu_idは呼び出しごとに変更される可能性はないと仮定してよい。
 	// (固定で確保しているので)
 	this->gpu_id = gpu_id;
+	const bool architecture_changed = this->model_architecture != model_architecture;
 
 	// モデルpath名に変更があるなら、それを読み直す。
 	// ※　先にNNが構築されていないと、このあとNNからalloc()できないのでUctSearcherより先に構築する。
 	// batch sizeに変更があった場合も、このbatch size分だけGPU側にメモリを確保したいので、この時もNNのインスタンスを作りなおす。
-	if (this->model_path != model_path || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
+	if (this->model_path != model_path || architecture_changed
+	    || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
 	{
 		std::lock_guard<std::mutex> lk(mutex_gpu);
 
@@ -162,10 +167,12 @@ void UctSearcherGroup::Initialize(const std::string& model_path , const int new_
 
 		// 次回、このmodel_pathかalloced_policy_value_batch_maxsizeに変更があれば、再度NNをbuildする。
 		this->model_path = model_path;
+		this->model_architecture = model_architecture;
 	}
 
 	// スレッド数に変更があるか、batchサイズが前回から変更があったならばUctSearcherのインスタンス自体を生成しなおす。
-	if (searchers.size() != (size_t)new_thread || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
+	if (searchers.size() != (size_t)new_thread || architecture_changed
+	    || policy_value_batch_maxsize != this->policy_value_batch_maxsize)
 	{
 		searchers.clear();
 		searchers.reserve(new_thread); // いまから追加する要素数はわかっているので事前に確保しておく。
@@ -919,11 +926,11 @@ void UctSearcher::EvalNode() {
 #if defined(LOG_PRINT)
     // 入力特徴量
     std::stringstream ss;
-    for (int i = 0; i < sizeof(NN_Input1) / sizeof(DType); ++i)
-        ss << ((DType*) features1)[i] << ",";
+    for (size_t i = 0; i < input1_element_count(1); ++i)
+        ss << features1[i] << ",";
     ss << endl << "Input2" << endl;
-    for (int i = 0; i < sizeof(NN_Input2) / sizeof(DType); ++i)
-        ss << ((DType*) features2)[i] << ",";
+    for (size_t i = 0; i < input2_element_count(1); ++i)
+        ss << features2[i] << ",";
     logger.print(ss.str());
 #endif
 

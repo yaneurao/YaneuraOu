@@ -74,8 +74,8 @@ namespace Eval::dlshogi
 		// host(GPU)側で確保されたbufferに対するポインタ
 		PType* p1_dev;
 		PType* p2_dev;
-		NN_Input1* x1_dev;
-		NN_Input2* x2_dev;
+		DType* x1_dev;
+		DType* x2_dev;
 		NN_Output_Policy* y1_dev;
 		NN_Output_Value * y2_dev;
 

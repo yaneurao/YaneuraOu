@@ -132,13 +132,14 @@ namespace Eval::dlshogi {
 	void NNOnnxRuntime::forward(const int batch_size, PType* p1, PType* p2, NN_Input1* x1, NN_Input2* x2, NN_Output_Policy* y1, NN_Output_Value* y2)
 	{
 		// input
+		const auto& spec = input_feature_spec();
 
-		std::array<int64_t, 4> input_shape1 { batch_size, (size_t)COLOR_NB * MAX_FEATURES1_NUM, 9, 9 };
-		std::array<int64_t, 4> input_shape2 { batch_size, MAX_FEATURES2_NUM, 9, 9 };
+		std::array<int64_t, 4> input_shape1 { batch_size, spec.features1_channels, 9, 9 };
+		std::array<int64_t, 4> input_shape2 { batch_size, spec.features2_channels, 9, 9 };
 
 		std::array<Ort::Value, 2> input_values{
-			Ort::Value::CreateTensor<float>(memory_info, (float*)x1, batch_size * sizeof(NN_Input1), input_shape1.data(), input_shape1.size()),
-			Ort::Value::CreateTensor<float>(memory_info, (float*)x2, batch_size * sizeof(NN_Input2), input_shape2.data(), input_shape2.size())
+			Ort::Value::CreateTensor<float>(memory_info, (float*)x1, input1_element_count(batch_size), input_shape1.data(), input_shape1.size()),
+			Ort::Value::CreateTensor<float>(memory_info, (float*)x2, input2_element_count(batch_size), input_shape2.data(), input_shape2.size())
 		};
 
 		// output

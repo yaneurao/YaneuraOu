@@ -6,6 +6,10 @@
 
 #include "../../position.h"
 
+#include <cstddef>
+#include <string>
+#include <vector>
+
 #if defined(TENSOR_RT)
 //#define TRT_NN_FP16
 #define UNPACK_CUDA
@@ -79,7 +83,45 @@ namespace Eval::dlshogi {
 	// 手駒に関する入力特徴量のチャンネルの数。
 	// 手駒は、AperyのHandPiece enumの順なので注意が必要。
 	// ※　歩、香、桂、銀、金、角、飛の順。
-	constexpr u32 MAX_FEATURES2_NUM = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
+	constexpr u32 FEATURES2_NUM_WCSC28 = MAX_FEATURES2_HAND_NUM + 1/*王手*/;
+
+		// WCSC35のdlshogiで追加された入玉特徴量。
+		constexpr u32 MAX_NYUGYOKU_OPP_FIELD = 10; // 敵陣三段目以内の駒(10枚までの残り枚数)
+		constexpr u32 MAX_NYUGYOKU_SCORE     = 20; // 点数(先手28点、後手27点までの残り枚数)
+		constexpr u32 MAX_FEATURES2_NYUGYOKU_NUM = 1/*入玉*/ + MAX_NYUGYOKU_OPP_FIELD + MAX_NYUGYOKU_SCORE;
+		constexpr u32 FEATURES2_NUM_WCSC35 = FEATURES2_NUM_WCSC28 + (int)COLOR_NB * MAX_FEATURES2_NYUGYOKU_NUM;
+
+		constexpr const char* MODEL_ARCHITECTURE_WCSC28 = "dlshogi-WCSC28";
+		constexpr const char* MODEL_ARCHITECTURE_WCSC35 = "dlshogi-WCSC35";
+		constexpr const char* DEFAULT_MODEL_ARCHITECTURE = MODEL_ARCHITECTURE_WCSC28;
+
+		struct InputFeatureSpec
+		{
+			std::string architecture;
+		u32 features1_channels;
+		u32 features2_channels;
+		bool use_nyugyoku_features;
+	};
+
+	const std::vector<std::string>& model_architecture_names();
+	bool set_model_architecture(const std::string& architecture);
+	const InputFeatureSpec& input_feature_spec();
+
+	inline size_t input1_element_count(const int batch_size) {
+		return (size_t)batch_size * input_feature_spec().features1_channels * (size_t)SQ_NB;
+	}
+
+	inline size_t input2_element_count(const int batch_size) {
+		return (size_t)batch_size * input_feature_spec().features2_channels * (size_t)SQ_NB;
+	}
+
+	inline size_t packed_input1_byte_count(const int batch_size) {
+		return (input1_element_count(batch_size) + 7) >> 3;
+	}
+
+	inline size_t packed_input2_byte_count(const int batch_size) {
+		return ((size_t)batch_size * input_feature_spec().features2_channels + 7) >> 3;
+	}
 
 	// 移動の定数
 	// 成らない移動。10方向 + 成る移動 10方向。= 20方向
@@ -129,13 +171,11 @@ namespace Eval::dlshogi {
 	}
 #endif
 
-	// NNの入力特徴量その1
-	// ※　dlshogiでは、features1_tという型名。
-	typedef DType NN_Input1[COLOR_NB][MAX_FEATURES1_NUM][SQ_NB];
-
-	// NNの入力特徴量その2
-	// ※　dlshogiでは、features2_tという型名。
-	typedef DType NN_Input2[MAX_FEATURES2_NUM][SQ_NB];
+	// NNの入力特徴量。実際の要素数は ModelArchitecture に依存する。
+	// dlshogi-WCSC28 : input1 = [62, 9, 9], input2 = [57, 9, 9]
+	// dlshogi-WCSC35 : input1 = [62, 9, 9], input2 = [119, 9, 9]
+	typedef DType NN_Input1;
+	typedef DType NN_Input2;
 
 	// NNの出力特徴量その1 (ValueNetwork) : 期待勝率
 	typedef DType NN_Output_Value;

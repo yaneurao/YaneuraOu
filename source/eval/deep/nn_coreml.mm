@@ -148,7 +148,7 @@ namespace Eval::dlshogi {
 		// 所有権をARCからプログラマに移す
 		this->model = (void*)CFBridgingRetain(model);
 
-		input_buf = new DType[(sizeof(NN_Input1) + sizeof(NN_Input2)) / sizeof(DType) * batch_size];
+		input_buf = new DType[(input1_element_count(1) + input2_element_count(1)) * batch_size];
 
 		return ResultCode::Ok;
 	}
@@ -172,14 +172,18 @@ namespace Eval::dlshogi {
 			// 所有権を移さない(プログラマのまま)
 			MLModel* model = (__bridge MLModel*)(this->model);
 
-			// x1: [batch_size, 62 (MAX_FEATURES1_NUM * COLOR_NB), 9, 9], x2: [batch_size, 57 (MAX_FEATURES2_NUM), 9, 9]として与えられたものを、[batch_size, 119, 9, 9]に詰め替える
+			const auto& spec = input_feature_spec();
+			const size_t input1_size = (size_t)spec.features1_channels * (size_t)SQ_NB;
+			const size_t input2_size = (size_t)spec.features2_channels * (size_t)SQ_NB;
+			const size_t input_size = input1_size + input2_size;
+			// x1, x2をCore ML用の単一入力 [batch_size, input1_channels + input2_channels, 9, 9] に詰め替える
 			// fixed_batch_sizeに関わらず、意味のある部分だけ更新
 			for (int i = 0; i < batch_size; i++) {
-				memcpy(&input_buf[(sizeof(NN_Input1) + sizeof(NN_Input2)) / sizeof(DType) * i], &x1[i], sizeof(NN_Input1));
-				memcpy(&input_buf[(sizeof(NN_Input1) + sizeof(NN_Input2)) / sizeof(DType) * i + sizeof(NN_Input1) / sizeof(DType)], &x2[i], sizeof(NN_Input2));
+				memcpy(&input_buf[input_size * i], &x1[input1_size * i], input1_size * sizeof(DType));
+				memcpy(&input_buf[input_size * i + input1_size], &x2[input2_size * i], input2_size * sizeof(DType));
 			}
 
-			MLMultiArray *model_input = [[MLMultiArray alloc] initWithDataPointer:input_buf shape:@[[NSNumber numberWithInt:fixed_batch_size], @((size_t)COLOR_NB * MAX_FEATURES1_NUM + MAX_FEATURES2_NUM), @9, @9] dataType:MLMultiArrayDataTypeFloat32 strides:@[@(((size_t)COLOR_NB * MAX_FEATURES1_NUM + MAX_FEATURES2_NUM) * 9 * 9), @(9 * 9), @9, @1] deallocator:NULL error:&error];
+			MLMultiArray *model_input = [[MLMultiArray alloc] initWithDataPointer:input_buf shape:@[[NSNumber numberWithInt:fixed_batch_size], @(spec.features1_channels + spec.features2_channels), @9, @9] dataType:MLMultiArrayDataTypeFloat32 strides:@[@((spec.features1_channels + spec.features2_channels) * 9 * 9), @(9 * 9), @9, @1] deallocator:NULL error:&error];
 			if (error) {
 				sync_cout << [[NSString stringWithFormat:@"info string CoreML inference array allocation failed, %@", error] UTF8String] << sync_endl;
 				Tools::exit();
@@ -204,6 +208,7 @@ namespace Eval::dlshogi {
 		// 所有権をARCに返す
 		MLModel *model = CFBridgingRelease(this->model);
 		// スコープを外れるので解放される
+		delete[] input_buf;
 	}
 
 } // namespace Eval::dlshogi

@@ -29,6 +29,60 @@ const DType dtype_zero = __float2half(0.0f);
 const DType dtype_one  = __float2half(1.0f);
 #endif
 
+namespace {
+
+const std::vector<std::string> MODEL_ARCHITECTURES = {
+    MODEL_ARCHITECTURE_WCSC28,
+    MODEL_ARCHITECTURE_WCSC35,
+};
+
+InputFeatureSpec current_input_feature_spec = {
+    DEFAULT_MODEL_ARCHITECTURE,
+    (u32)COLOR_NB * MAX_FEATURES1_NUM,
+    FEATURES2_NUM_WCSC28,
+    false,
+};
+
+inline void set_packed_feature(PType* packed_features, const int index) {
+    packed_features[index >> 3] |= (1 << (index & 7));
+}
+
+} // namespace
+
+const std::vector<std::string>& model_architecture_names() {
+    return MODEL_ARCHITECTURES;
+}
+
+bool set_model_architecture(const std::string& architecture) {
+    if (architecture == MODEL_ARCHITECTURE_WCSC28)
+    {
+        current_input_feature_spec = {
+            architecture,
+            (u32)COLOR_NB * MAX_FEATURES1_NUM,
+            FEATURES2_NUM_WCSC28,
+            false,
+        };
+        return true;
+    }
+
+    if (architecture == MODEL_ARCHITECTURE_WCSC35)
+    {
+        current_input_feature_spec = {
+            architecture,
+            (u32)COLOR_NB * MAX_FEATURES1_NUM,
+            FEATURES2_NUM_WCSC35,
+            true,
+        };
+        return true;
+    }
+
+    return false;
+}
+
+const InputFeatureSpec& input_feature_spec() {
+    return current_input_feature_spec;
+}
+
 #if 0  // dlshogiに忠実に書かれたコード
 
 	// 入力特徴量を生成する。
@@ -184,8 +238,9 @@ void make_input_features_sub(const Position& position,
                              int             batch_index,
                              PType*          packed_features1,
                              PType*          packed_features2) {
-    int f1idx_b = batch_index * ((int) COLOR_NB * (int) MAX_FEATURES1_NUM * (int) SQ_NB);
-    int f2idx_b = batch_index * ((int) MAX_FEATURES2_NUM);
+    const auto& spec = input_feature_spec();
+    int f1idx_b = batch_index * (int)(spec.features1_channels * (u32)SQ_NB);
+    int f2idx_b = batch_index * (int)spec.features2_channels;
     // set all zero
     // 特徴量の配列をゼロ初期化
     {
@@ -193,8 +248,8 @@ void make_input_features_sub(const Position& position,
         // std::fill_n((DType*)features2, sizeof(NN_Input2)/sizeof(DType) , dtype_zero );
         const PType bmask[8] = {0x00, 0x01, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f};
         const PType emask[8] = {0xfe, 0xfc, 0xf8, 0xf0, 0xe0, 0xc0, 0x80, 0x00};
-        int f1idx_e  = f1idx_b + ((int) COLOR_NB * (int) MAX_FEATURES1_NUM * (int) SQ_NB - 1);
-        int f2idx_e  = f2idx_b + ((int) MAX_FEATURES2_NUM - 1);
+        int f1idx_e  = f1idx_b + ((int) spec.features1_channels * (int) SQ_NB - 1);
+        int f2idx_e  = f2idx_b + ((int) spec.features2_channels - 1);
         int f1idx_bu = f1idx_b >> 3;
         int f1idx_bl = f1idx_b & 7;
         int f1idx_eu = f1idx_e >> 3;
@@ -245,7 +300,7 @@ void make_input_features_sub(const Position& position,
             // (*features1)[c][type_of(pc) - 1][sq] = dtype_one;
             int f1idx = f1idx_b + (int) c * ((int) MAX_FEATURES1_NUM * (int) SQ_NB)
                       + ((int) type_of(pc) - 1) * ((int) SQ_NB) + (int) sq;
-            packed_features1[f1idx >> 3] |= (1 << (f1idx & 7));
+            set_packed_feature(packed_features1, f1idx);
         }
 
         // この駒の利きを1にする
@@ -260,7 +315,7 @@ void make_input_features_sub(const Position& position,
                 int f1idx = f1idx_b + (int) c * ((int) MAX_FEATURES1_NUM * (int) SQ_NB)
                           + ((int) PIECETYPE_NUM + (int) type_of(pc) - 1) * ((int) SQ_NB)
                           + (int) to;
-                packed_features1[f1idx >> 3] |= (1 << (f1idx & 7));
+                set_packed_feature(packed_features1, f1idx);
             }
 
             // 各升の利きの数の集計用
@@ -280,7 +335,7 @@ void make_input_features_sub(const Position& position,
             // (*features1)[c][PAWN - 1][sq] = dtype_one;
             int f1idx = f1idx_b + (int) c * ((int) MAX_FEATURES1_NUM * (int) SQ_NB)
                       + ((int) PAWN - 1) * ((int) SQ_NB) + (int) sq;
-            packed_features1[f1idx >> 3] |= (1 << (f1idx & 7));
+            set_packed_feature(packed_features1, f1idx);
         }
 
         // 歩の利きのある升を1にする。
@@ -289,7 +344,7 @@ void make_input_features_sub(const Position& position,
             // (*features1)[c][PIECETYPE_NUM + PAWN - 1][to] = dtype_one;
             int f1idx = f1idx_b + (int) c * ((int) MAX_FEATURES1_NUM * (int) SQ_NB)
                       + ((int) PIECETYPE_NUM + (int) PAWN - 1) * ((int) SQ_NB) + (int) to;
-            packed_features1[f1idx >> 3] |= (1 << (f1idx & 7));
+            set_packed_feature(packed_features1, f1idx);
         }
 
         // 各升の利きの数の集計用
@@ -307,14 +362,14 @@ void make_input_features_sub(const Position& position,
             // (*features1)[c][PAWN - 1][sq] = dtype_one;
             int f1idx = f1idx_b + (int) c * ((int) MAX_FEATURES1_NUM * (int) SQ_NB)
                       + ((int) PAWN - 1) * ((int) SQ_NB) + (int) sq;
-            packed_features1[f1idx >> 3] |= (1 << (f1idx & 7));
+            set_packed_feature(packed_features1, f1idx);
         }
         Square to = (Square) (sq + (SideToMove == BLACK ? +1 : -1)) /*1升下*/;
         {
             // (*features1)[c][PIECETYPE_NUM + PAWN - 1][to] = dtype_one;
             int f1idx = f1idx_b + (int) c * ((int) MAX_FEATURES1_NUM * (int) SQ_NB)
                       + ((int) PIECETYPE_NUM + (int) PAWN - 1) * ((int) SQ_NB) + (int) to;
-            packed_features1[f1idx >> 3] |= (1 << (f1idx & 7));
+            set_packed_feature(packed_features1, f1idx);
         }
 
         effect_num[to][c]++;
@@ -332,7 +387,7 @@ void make_input_features_sub(const Position& position,
             // (*features1)[BLACK][PIECETYPE_NUM + PIECETYPE_NUM + k][sq] = dtype_one;
             int f1idx = f1idx_b + (int) BLACK * ((int) MAX_FEATURES1_NUM * (int) SQ_NB)
                       + ((int) PIECETYPE_NUM + (int) PIECETYPE_NUM + k) * ((int) SQ_NB) + (int) sq;
-            packed_features1[f1idx >> 3] |= (1 << (f1idx & 7));
+            set_packed_feature(packed_features1, f1idx);
         }
 
         // 後手も同様
@@ -342,7 +397,7 @@ void make_input_features_sub(const Position& position,
             // (*features1)[WHITE][PIECETYPE_NUM + PIECETYPE_NUM + k][sq] = dtype_one;
             int f1idx = f1idx_b + (int) WHITE * ((int) MAX_FEATURES1_NUM * (int) SQ_NB)
                       + ((int) PIECETYPE_NUM + (int) PIECETYPE_NUM + k) * ((int) SQ_NB) + (int) sq;
-            packed_features1[f1idx >> 3] |= (1 << (f1idx & 7));
+            set_packed_feature(packed_features1, f1idx);
         }
     }
 
@@ -366,8 +421,8 @@ void make_input_features_sub(const Position& position,
 				これ、あとでdlshogiのNNを自分の探索部で使おうとする人は、同じ問題でハマると思う。😥
 			*/
 
-        // NN_Input2は、[COLOR_NB * MAX_PIECES_IN_HAND_SUM + 王手か(1) ][SQ_NB]
-        // なので、この一つ目のindexを[COLOR_NB][MAX_PIECES_IN_HAND_SUM]と解釈しなおす。
+        // features2の先頭は手駒特徴量なので、ここではその部分だけ
+        // [COLOR_NB][MAX_PIECES_IN_HAND_SUM] として扱う。
         // ※　こうしたほうがコードが簡単になるので。
         // auto features2_hand = reinterpret_cast<DType(*)[COLOR_NB][MAX_PIECES_IN_HAND_SUM][SQ_NB]>(features2);
         Hand hand = position.hand_of(c);
@@ -381,7 +436,7 @@ void make_input_features_sub(const Position& position,
             int f2idx = f2idx_b + (int) c2 * ((int) MAX_PIECES_IN_HAND_SUM) + p;
             for (int i = 0; i < num; ++i)
             {
-                packed_features2[(f2idx + i) >> 3] |= (1 << ((f2idx + i) & 7));
+                set_packed_feature(packed_features2, f2idx + i);
             }
 
             // そこから後ろをゼロクリア
@@ -392,6 +447,45 @@ void make_input_features_sub(const Position& position,
             p += MAX_PIECES_IN_HAND
               [hp];  // 駒種ごとに割り当てられているlayer数が決まっているので、次の駒種用のlayerにいく。
         }
+
+        if (spec.use_nyugyoku_features)
+        {
+            const Bitboard ef = enemy_field(c);
+
+            int king_count = 0;
+            if (ef & position.square<KING>(c))
+            {
+                const int f2idx = f2idx_b + (int)MAX_FEATURES2_HAND_NUM + 1
+                                + (int)c2 * (int)MAX_FEATURES2_NYUGYOKU_NUM;
+                set_packed_feature(packed_features2, f2idx);
+                king_count = 1;
+            }
+
+            const int own_pieces_count = (position.pieces(c) & ef).pop_count() - king_count;
+            const int rest_opp_field_num = 10 - own_pieces_count;
+            if (rest_opp_field_num < (int)MAX_NYUGYOKU_OPP_FIELD)
+            {
+                const int f2idx = f2idx_b + (int)MAX_FEATURES2_HAND_NUM + 1
+                                + (int)c2 * (int)MAX_FEATURES2_NYUGYOKU_NUM
+                                + 1 + std::max(0, rest_opp_field_num);
+                set_packed_feature(packed_features2, f2idx);
+            }
+
+            const int own_big_pieces_count = (position.pieces(c, BISHOP_HORSE, ROOK_DRAGON) & ef).pop_count();
+            const int own_small_pieces_count = own_pieces_count - own_big_pieces_count;
+            const int val = own_small_pieces_count
+                          + hand_count(hand, PAWN) + hand_count(hand, LANCE) + hand_count(hand, KNIGHT)
+                          + hand_count(hand, SILVER) + hand_count(hand, GOLD)
+                          + (own_big_pieces_count + hand_count(hand, BISHOP) + hand_count(hand, ROOK)) * 5;
+            const int rest_point = (c == BLACK ? 28 : 27) - val;
+            if (rest_point < (int)MAX_NYUGYOKU_SCORE)
+            {
+                const int f2idx = f2idx_b + (int)MAX_FEATURES2_HAND_NUM + 1
+                                + (int)c2 * (int)MAX_FEATURES2_NYUGYOKU_NUM
+                                + 1 + (int)MAX_NYUGYOKU_OPP_FIELD + std::max(0, rest_point);
+                set_packed_feature(packed_features2, f2idx);
+            }
+        }
     }
 
     if (position.in_check())
@@ -399,7 +493,7 @@ void make_input_features_sub(const Position& position,
         // 王手がかかっているか(のlayerが1枚)
         // std::fill_n((*features2)[MAX_FEATURES2_HAND_NUM], SQ_NB, position.in_check() ? dtype_one : dtype_zero);
         int f2idx = f2idx_b + (int) MAX_FEATURES2_HAND_NUM;
-        packed_features2[f2idx >> 3] |= (1 << (f2idx & 7));
+        set_packed_feature(packed_features2, f2idx);
     }
 }
 
@@ -424,8 +518,9 @@ void extract_input_features(int        batch_size,
                             PType*     packed_features2,
                             NN_Input1* features1,
                             NN_Input2* features2) {
-    int    p1len = batch_size * ((int) COLOR_NB * (int) MAX_FEATURES1_NUM * (int) SQ_NB);
-    int    p2len = batch_size * ((int) MAX_FEATURES2_NUM);
+    const auto& spec = input_feature_spec();
+    int    p1len = batch_size * (int)(spec.features1_channels * (u32)SQ_NB);
+    int    p2len = batch_size * (int)spec.features2_channels;
     DType* f1    = (DType*) features1;
     DType* f2    = (DType*) features2;
     for (int i = 0; i < p1len; ++i)

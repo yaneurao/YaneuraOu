@@ -83,10 +83,10 @@ namespace Eval::dlshogi
 		// host(GPU側)に同じだけメモリを確保しておいて、CPU側からそこに転送する。
 		set_device(gpu_id);
 
-		checkCudaErrors(cudaMalloc((void**)&p1_dev, sizeof(PType)            * ((max_batch_size * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3)));
-		checkCudaErrors(cudaMalloc((void**)&p2_dev, sizeof(PType)            * ((max_batch_size * ((int)MAX_FEATURES2_NUM) + 7) >> 3)));
-		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(NN_Input1)        * max_batch_size));
-		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(NN_Input2)        * max_batch_size));
+		checkCudaErrors(cudaMalloc((void**)&p1_dev, sizeof(PType)            * packed_input1_byte_count(max_batch_size)));
+		checkCudaErrors(cudaMalloc((void**)&p2_dev, sizeof(PType)            * packed_input2_byte_count(max_batch_size)));
+		checkCudaErrors(cudaMalloc((void**)&x1_dev, sizeof(DType)            * input1_element_count(max_batch_size)));
+		checkCudaErrors(cudaMalloc((void**)&x2_dev, sizeof(DType)            * input2_element_count(max_batch_size)));
 		checkCudaErrors(cudaMalloc((void**)&y1_dev, sizeof(NN_Output_Policy) * max_batch_size));
 		checkCudaErrors(cudaMalloc((void**)&y2_dev, sizeof(NN_Output_Value)  * max_batch_size));
 
@@ -380,6 +380,19 @@ namespace Eval::dlshogi
 
 		inputDims1 = infer_engine->getTensorShape("input1");
 		inputDims2 = infer_engine->getTensorShape("input2");
+		const auto& spec = input_feature_spec();
+		if (inputDims1.nbDims != 4 || inputDims2.nbDims != 4
+			|| inputDims1.d[1] != (int64_t)spec.features1_channels
+			|| inputDims2.d[1] != (int64_t)spec.features2_channels)
+		{
+			sync_cout << "info string TensorRT input shape mismatch. ModelArchitecture = "
+			          << spec.architecture << ", expected input1 = " << spec.features1_channels
+			          << ", expected input2 = " << spec.features2_channels
+			          << ", model input1 = " << (inputDims1.nbDims == 4 ? inputDims1.d[1] : -1)
+			          << ", model input2 = " << (inputDims2.nbDims == 4 ? inputDims2.d[1] : -1)
+			          << sync_endl;
+			return Tools::ResultCode::SomeError;
+		}
 
 		return Tools::ResultCode::Ok;
 	}
@@ -391,13 +404,14 @@ namespace Eval::dlshogi
 		infer_context->setInputShape("input1", inputDims1);
 		infer_context->setInputShape("input2", inputDims2);
 #if defined(UNPACK_CUDA)
-		checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(PType) * ((batch_size * ((int)COLOR_NB * (int)MAX_FEATURES1_NUM * (int)SQ_NB) + 7) >> 3), cudaMemcpyHostToDevice, cudaStreamPerThread));
-		checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(PType) * ((batch_size * ((int)MAX_FEATURES2_NUM) + 7) >> 3), cudaMemcpyHostToDevice, cudaStreamPerThread));
-		unpack_features1(batch_size, p1_dev, (DType*)x1_dev, cudaStreamPerThread);
-		unpack_features2(batch_size, p2_dev, (DType*)x2_dev, cudaStreamPerThread);
+		checkCudaErrors(cudaMemcpyAsync(p1_dev, p1, sizeof(PType) * packed_input1_byte_count(batch_size), cudaMemcpyHostToDevice, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(p2_dev, p2, sizeof(PType) * packed_input2_byte_count(batch_size), cudaMemcpyHostToDevice, cudaStreamPerThread));
+		const auto& spec = input_feature_spec();
+		unpack_features1(batch_size, spec.features1_channels, p1_dev, x1_dev, cudaStreamPerThread);
+		unpack_features2(batch_size, spec.features2_channels, p2_dev, x2_dev, cudaStreamPerThread);
 #else
-		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(NN_Input1) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
-		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(NN_Input2) * batch_size, cudaMemcpyHostToDevice, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(x1_dev, x1, sizeof(DType) * input1_element_count(batch_size), cudaMemcpyHostToDevice, cudaStreamPerThread));
+		checkCudaErrors(cudaMemcpyAsync(x2_dev, x2, sizeof(DType) * input2_element_count(batch_size), cudaMemcpyHostToDevice, cudaStreamPerThread));
 #endif
 		infer_context->setTensorAddress("input1", x1_dev);
 		infer_context->setTensorAddress("input2", x2_dev);
