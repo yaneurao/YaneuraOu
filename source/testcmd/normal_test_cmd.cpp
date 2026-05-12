@@ -13,10 +13,6 @@
 #include "../search.h"
 #include "../movegen.h"
 
-#if defined(EVAL_LEARN)
-#include "../eval/evaluate_common.h"
-#endif
-
 namespace YaneuraOu {
 namespace {
 

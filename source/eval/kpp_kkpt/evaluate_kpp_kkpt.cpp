@@ -27,11 +27,6 @@
 #include <windows.h>
 #endif
 
-#if defined(EVAL_LEARN)
-#include "../../learn/learning_tools.h"
-using namespace YaneuraOu::EvalLearningTools;
-#endif
-
 using namespace std;
 
 // ============================================================
@@ -66,15 +61,6 @@ std::string last_eval_dir = "None";
 
 // 📌 この評価関数で追加したいエンジンオプションはここで追加する。
 void add_options_(OptionsMap& options, ThreadPool& threads) {
-
-#if defined(EVAL_LEARN)
-    // isreadyタイミングで評価関数を読み込まれると、新しい評価関数の変換のために
-    // test evalconvertコマンドを叩きたいのに、その新しい評価関数がないがために
-    // このコマンドの実行前に異常終了してしまう。
-    // そこでこの隠しオプションでisready時の評価関数の読み込みを抑制して、
-    // test evalconvertコマンドを叩く。
-    Options("SkipLoadingEval", Option(false));
-#endif
 
     const char* default_eval_dir = "eval";
     Options.add("EvalDir", Option(default_eval_dir, [](const Option& o) {
@@ -585,13 +571,8 @@ namespace Eval {
 		// 一つ前のnodeでevaluate()されているはず。
 		//
 		// root nodeではprevious == nullptrであるが、root nodeではPosition::set()でcompute_eval()
-		// を呼び出すので通常この関数が呼び出されることはないのだが、学習関係でこれが出来ないと
-		// コードが書きにくいのでEVAL_LEARNのときは、このチェックをする。
-		if (
-#if defined (EVAL_LEARN)
-			prev == nullptr ||
-#endif
-			!prev->sum.evaluated())
+		// を呼び出すので通常この関数が呼び出されることはない。
+		if (!prev->sum.evaluated())
 		{
 			// 全計算
 			compute_eval_impl(pos);
@@ -926,84 +907,6 @@ namespace Eval {
 #endif
 	}
 
-#if defined(EVAL_LEARN)
-	// KKのKの値を出力する実験的コード
-	void kk_stat()
-	{
-		EvalLearningTools::init();
-
-		auto for_all_sq = [](std::function<void(Square)> func) {
-			for (int r = RANK_1; r <= RANK_9; ++r)
-			{
-				for (int f = FILE_1; f <= FILE_9; ++f)
-				{
-					auto sq = (File)f | (Rank)r;
-					func(sq);
-				}
-				cout << endl;
-			}
-			cout << endl;
-		};
-
-		// 先手から。
-		cout << "BK = " << endl;
-		for_all_sq([](Square sq) {
-			array<float, 2> sum_kk = { 0,0 };
-			array<float, 2> sum_kkp = { 0,0 };
-			array<float, 2> sum_kpp = { 0,0 };
-			for (auto sq2 = 0; sq2 < SQ_NB; ++sq2)
-			{
-				sum_kk += kk[sq][sq2];
-				for (auto p = 0; p < fe_end; ++p)
-					sum_kkp += kkp[sq][sq2][p];
-			}
-			for (auto p1 = 0; p1 < fe_end; ++p1)
-				for (auto p2 = 0; p2 < fe_end; ++p2)
-					sum_kpp[0] += kpp[sq][p1][p2];
-
-			for (int i = 0; i < 2; ++i)
-			{
-				sum_kk[i] /= SQ_NB;
-				sum_kkp[i] = 38 * sum_kkp[i] / (fe_end * (int)SQ_NB);
-				sum_kpp[i] = (38 * 37 / 2) * sum_kpp[i] / (fe_end * (int)fe_end);
-			}
-			cout << "{" << (int)sum_kk[0] << ":" << (int)sum_kkp[0] << ":" << (int)sum_kpp[0] << ","
-				<< (int)sum_kk[1] << ":" << (int)sum_kkp[1] << ":" << (int)sum_kpp[1] << "} ";
-		});
-
-		// 後手から。
-		cout << "WK = " << endl;
-		for_all_sq([](Square sq) {
-			array<float, 2> sum_kk = { 0,0 };
-			array<float, 2> sum_kkp = { 0,0 };
-			array<float, 2> sum_kpp = { 0,0 };
-			for (Square sq2 = SQ_ZERO; sq2 < SQ_NB; ++sq2)
-			{
-				sum_kk += kk[sq2][sq];
-				for (BonaPiece p = BONA_PIECE_ZERO; p < fe_end; ++p)
-					sum_kkp += kkp[sq2][sq][p];
-			}
-			for (BonaPiece p1 = BONA_PIECE_ZERO; p1 < fe_end; ++p1)
-				for (BonaPiece p2 = BONA_PIECE_ZERO; p2 < fe_end; ++p2)
-				{
-					// kpp、invしたときも、手番は先手から見た値なので符号逆にしない
-					sum_kpp[0] -= kpp[Inv(sq)][inv_piece(p1)][inv_piece(p2)];
-
-					//sum_kpp[0] -= kpp[Inv(sq)][inv_piece(p1)][inv_piece(p2)][0];
-					//sum_kpp[1] += kpp[Inv(sq)][inv_piece(p1)][inv_piece(p2)][1];
-				}
-
-			for (int i = 0; i < 2; ++i)
-			{
-				sum_kk[i] /= SQ_NB;
-				sum_kkp[i] = 38 * sum_kkp[i] / (fe_end * (int)SQ_NB);
-				sum_kpp[i] = (38 * 37 / 2) * sum_kpp[i] / (fe_end * (int)fe_end);
-			}
-			cout << "{" << (int)sum_kk[0] << ":" << (int)sum_kkp[0] << ":" << (int)sum_kpp[0] << ","
-				        << (int)sum_kk[1] << ":" << (int)sum_kkp[1] << ":" << (int)sum_kpp[1] << "} ";
-		});
-	}
-#endif
 
 	// 現在の局面の評価値の内訳を表示する。
 	void print_eval_stat(Position& pos)
@@ -1017,46 +920,8 @@ namespace Eval {
 
 		auto& pos_ = *const_cast<Position*>(&pos);
 
-#if !defined (USE_EVAL_MAKE_LIST_FUNCTION)
-
 		auto list_fb = pos_.eval_list()->piece_list_fb();
 		auto list_fw = pos_.eval_list()->piece_list_fw();
-
-#else
-		// -----------------------------------
-		// USE_EVAL_MAKE_LIST_FUNCTIONが定義されているときは
-		// ここでeval_listをコピーして、組み替える。
-		// -----------------------------------
-
-		// バッファを確保してコピー
-		BonaPiece list_fb[40];
-		BonaPiece list_fw[40];
-		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * 40);
-		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * 40);
-
-		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
-		make_list_function(pos, list_fb, list_fw);
-
-		EvalLearningTools::init();
-		for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_NB; ++i)
-		{
-			// 組み替えて異なる番号になったものだけ出力。
-			auto fb = pos_.eval_list()->piece_list_fb()[i];
-			auto fw = pos_.eval_list()->piece_list_fw()[i];
-			auto fb_new = list_fb[i];
-			auto fw_new = list_fw[i];
-
-			// この変換後のfb,fwに対して、きちんと情報が設定されているかの確認。
-			if (fb != fb_new || fw != fw_new)
-				std::cout << "PieceNumber = " << i << " , fb = " << (int)fb << ":" << fb << " , fw = " << (int)fw << ":" << fw
-				<< " , fb_new = " << (int)fb_new << " , fw_new = " << (int)fw_new
-				<< " , mir(fb_new) = " << (int)EvalLearningTools::mir_piece(fb_new)
-				<< " , mir(fw_new) = " << (int)EvalLearningTools::mir_piece(fw_new)
-				<< " , inv(fb_new) = " << (int)EvalLearningTools::inv_piece(fb_new)
-				<< " , inv(fw_new) = " << (int)EvalLearningTools::inv_piece(fw_new)
-				<< std::endl;
-		}
-#endif
 
 		int i, j;
 		BonaPiece k0, k1, l0, l1;
@@ -1110,99 +975,6 @@ namespace Eval {
 		//		kk_stat();
 
 	}
-
-	// とりあえずここに書いておく。あとで移動させるかも。
-#if defined(EVAL_LEARN)
-
-	// regularize_kk()の下請け
-	void regularize_kk_impl()
-	{
-		EvalLearningTools::init();
-
-		typedef array<float, 2> kkt;
-
-		array<kkt, SQ_NB> kk_offset, kkp_offset, kpp_offset;
-
-		kkt zero = { 0, 0 };
-		kk_offset.fill(zero);
-		kkp_offset.fill(zero);
-		kpp_offset.fill(zero);
-
-		for (Square sq = SQ_ZERO; sq < SQ_NB; ++sq)
-		{
-			// sq2,p1,p2に依存しないkkの値を求める
-			kkt sum_kkp = zero;
-			kkt sum_kpp = zero;
-
-			for (Square sq2 = SQ_ZERO; sq2 < SQ_NB; ++sq2)
-			{
-				for (BonaPiece p = BONA_PIECE_ZERO; p < fe_end; ++p)
-				{
-					sum_kkp += kkp[sq][sq2][p];
-
-					//sum_kkp[0] -= kkp[Inv(sq2)][Inv(sq)][EvalLearningTools::inv_piece(p)][0];
-					//sum_kkp[1] += kkp[Inv(sq2)][Inv(sq)][EvalLearningTools::inv_piece(p)][1];
-				}
-			}
-			for (auto p1 = 0; p1 < fe_end; ++p1)
-				for (auto p2 = 0; p2 < fe_end; ++p2)
-					sum_kpp[0] += kpp[sq][p1][p2];
-
-			for (int i = 0; i < 2; ++i)
-			{
-				// kkpとkppの平均を求める。この分をあとでそれぞれの要素から引く。
-				kkp_offset[sq][i] = sum_kkp[i] / (fe_end * (int)SQ_NB);
-				kpp_offset[sq][i] = sum_kpp[i] / (fe_end * (int)fe_end);
-
-				// kkpの計算のときにこれが38枚分、重なってくる
-				// kppの計算のときにこれが38*37/2枚分、重なってくる
-				kk_offset[sq][i] = 38 * kkp_offset[sq][i] + (38 * 37 / 2) * kpp_offset[sq][i];
-			}
-		}
-
-		// offsetの計算が終わったので先後にこれを適用してやる。
-		for (Square sq = SQ_ZERO; sq < SQ_NB; ++sq)
-		{
-			for (Square sq2 = SQ_ZERO; sq2 < SQ_NB; ++sq2)
-			{
-				kk[sq][sq2] += kk_offset[sq];
-
-				// ここむっちゃ計算ややこしいが、これで合っとる。
-				kk[Inv(sq2)][Inv(sq)][0] -= (int)kk_offset[sq][0];
-				kk[Inv(sq2)][Inv(sq)][1] += (int)kk_offset[sq][1];
-
-				for (auto p = 0; p < fe_end; ++p)
-				{
-					// ゼロの要素は書き換えない。(本来値がつくべきでないところを破壊すると困るため)
-					if (kkp[sq][sq2][p][0])
-					{
-						kkp[sq][sq2][p] -= kkp_offset[sq];
-
-						kkp[Inv(sq2)][Inv(sq)][inv_piece(BonaPiece(p))][0] += (int)kkp_offset[sq][0];
-						kkp[Inv(sq2)][Inv(sq)][inv_piece(BonaPiece(p))][1] -= (int)kkp_offset[sq][1];
-					}
-				}
-			}
-
-			for (auto p1 = 0; p1 < fe_end; ++p1)
-				for (auto p2 = 0; p2 < fe_end; ++p2)
-					// ゼロの要素は書き換えない　またp1==0とかp2==0とかp1==p2のところは0になっているべき。
-					if (kpp[sq][p1][p2] && p1 != p2 && p1 && p2)
-						kpp[sq][p1][p2] = (ValueKpp)(kpp[sq][p1][p2] -  kpp_offset[sq][0]);
-		}
-
-	}
-
-	// KKを正規化する関数。元の評価関数と完全に等価にはならないので注意。
-	// kkp,kppの値をなるべくゼロに近づけることで、学習中に出現しなかった特徴因子の値(ゼロになっている)が
-	// 妥当であることを保証しようという考え。
-	void regularize_kk()
-	{
-		kk_stat();
-		regularize_kk_impl();
-		kk_stat();
-	}
-#endif
 
 	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。
 	// パラメーターの分析などに用いる。

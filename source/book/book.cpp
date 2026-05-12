@@ -10,7 +10,6 @@
 #include "../misc.h"
 #include "../search.h"
 #include "../thread.h"
-#include "../learn/multi_think.h"
 #include "../usi.h"
 #include "../movegen.h"
 

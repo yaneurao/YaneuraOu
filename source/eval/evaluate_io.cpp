@@ -84,18 +84,8 @@ namespace EvalIO {
 						return out_.file_or_memory.ptr;
 					}).is_not_ok() )
 					{
-#if defined(EVAL_LEARN)
-						if (Options["SkipLoadingEval"])
-						{
-							std::cout << "info string read file error , file = " << in_.file_or_memory.filename << " , but SkipLoadingEval == true , so ignore this." << std::endl;
-							memset(out_.file_or_memory.ptr, 0, input_block_size);
-						}
-						else
-#endif
-						{
-							std::cout << "info string Error! : read file error , file = " << in_.file_or_memory.filename << std::endl;
-							return false;
-						}
+						std::cout << "info string Error! : read file error , file = " << in_.file_or_memory.filename << std::endl;
+						return false;
 					}
 				}
 				// memory to file

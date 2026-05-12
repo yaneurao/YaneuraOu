@@ -28,10 +28,6 @@
       <Configuration>Debug-tanuki-mate</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug-NNUE-LEARN|x64">
-      <Configuration>Debug-NNUE-LEARN</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug-NNUE|x64">
       <Configuration>Debug-NNUE</Configuration>
       <Platform>x64</Platform>
@@ -70,10 +66,6 @@
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-Material|x64">
       <Configuration>Release-Material</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release-NNUE-LEARN|x64">
-      <Configuration>Release-NNUE-LEARN</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-NNUE-sse42|x64">
@@ -230,12 +222,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-TensorRT|x64'" Label="Configuration">
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'" Label="Configuration">
-    <PlatformToolset>v143</PlatformToolset>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-NNUE-LEARN|x64'" Label="Configuration">
-    <PlatformToolset>v143</PlatformToolset>
-  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -388,22 +374,6 @@
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="$(CUDA_PATH_V12_8)\extras\visual_studio_integration\MSBuildExtensions\CUDA 12.8.props" />
     <Import Project="props\YaneuraOuEdition-Deep-TensorRT.props" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'" Label="PropertySheets">
-    <Import Project="props\YaneuraOu-common.props" />
-    <Import Project="props\YaneuraOuSolution-release-x64.props" />
-    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-    <Import Project="props\YaneuraOu-EvalLearn.props" />
-    <Import Project="props\YaneuraOuEdition-NNUE.props" />
-    <Import Project="..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets" Condition="Exists('..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets')" />
-  </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-NNUE-LEARN|x64'" Label="PropertySheets">
-    <Import Project="props\YaneuraOu-common.props" />
-    <Import Project="props\YaneuraOuSolution-debug-x64.props" />
-    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-    <Import Project="props\YaneuraOu-EvalLearn.props" />
-    <Import Project="props\YaneuraOuEdition-NNUE.props" />
-    <Import Project="..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets" Condition="Exists('..\packages\OpenBLAS.0.2.14.1\build\native\openblas.targets')" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-tanuki-mate|x64'">
@@ -559,16 +529,6 @@
       <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release-NNUE-LEARN|x64'">
-    <ClCompile>
-      <PreprocessorDefinitions>_CONSOLE;_UNICODE;UNICODE;%(PreprocessorDefinitions);USE_BLAS</PreprocessorDefinitions>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug-NNUE-LEARN|x64'">
-    <ClCompile>
-      <PreprocessorDefinitions>_CONSOLE;_UNICODE;UNICODE;%(PreprocessorDefinitions);USE_BLAS</PreprocessorDefinitions>
-    </ClCompile>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <AdditionalOptions>/source-charset:utf-8 /execution-charset:utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -614,7 +574,6 @@
     <ClInclude Include="eval\nnue\architectures\kp_256x2-32-32.h" />
     <ClInclude Include="eval\nnue\architectures\sfnnwop-1536.h" />
     <ClInclude Include="eval\nnue\evaluate_nnue.h" />
-    <ClInclude Include="eval\nnue\evaluate_nnue_learner.h" />
     <ClInclude Include="eval\nnue\features\features_common.h" />
     <ClInclude Include="eval\nnue\features\feature_set.h" />
     <ClInclude Include="eval\nnue\features\half_ka1.h" />
@@ -643,27 +602,12 @@
     <ClInclude Include="eval\nnue\nnue_common.h" />
     <ClInclude Include="eval\nnue\nnue_feature_transformer.h" />
     <ClInclude Include="eval\nnue\nnue_test_command.h" />
-    <ClInclude Include="eval\nnue\trainer\features\factorizer.h" />
-    <ClInclude Include="eval\nnue\trainer\features\factorizer_feature_set.h" />
-    <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kp.h" />
-    <ClInclude Include="eval\nnue\trainer\features\factorizer_half_kpe9.h" />
-    <ClInclude Include="eval\nnue\trainer\trainer.h" />
-    <ClInclude Include="eval\nnue\trainer\trainer_affine_transform.h" />
-    <ClInclude Include="eval\nnue\trainer\trainer_affine_transform_sparse_input.h" />
-    <ClInclude Include="eval\nnue\trainer\trainer_clipped_relu.h" />
-    <ClInclude Include="eval\nnue\trainer\trainer_feature_transformer.h" />
-    <ClInclude Include="eval\nnue\trainer\trainer_input_slice.h" />
-    <ClInclude Include="eval\nnue\trainer\trainer_sum.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\macros.h" />
     <ClInclude Include="history.h" />
-    <ClInclude Include="learn\half_float.h" />
-    <ClInclude Include="learn\learn.h" />
-    <ClInclude Include="learn\learning_tools.h" />
-    <ClInclude Include="learn\multi_think.h" />
     <ClInclude Include="mate\mate.h" />
     <ClInclude Include="mate\mate_move_picker.h" />
     <ClInclude Include="memory.h" />
@@ -718,12 +662,9 @@
     <ClCompile Include="eval\evaluate.cpp" />
     <ClCompile Include="eval\evaluate_mir_inv_tools.cpp" />
     <ClCompile Include="eval\kppt\evaluate_kppt.cpp" />
-    <ClCompile Include="eval\kppt\evaluate_kppt_learner.cpp" />
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp" />
-    <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt_learner.cpp" />
     <ClCompile Include="eval\material\evaluate_material.cpp" />
     <ClCompile Include="eval\nnue\evaluate_nnue.cpp" />
-    <ClCompile Include="eval\nnue\evaluate_nnue_learner.cpp" />
     <ClCompile Include="eval\nnue\features\half_ka1.cpp" />
     <ClCompile Include="eval\nnue\features\half_ka2.cpp" />
     <ClCompile Include="eval\nnue\features\half_ka_hm1.cpp" />
@@ -739,9 +680,6 @@
     <ClCompile Include="extra\bitop.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\sfen_packer.cpp" />
-    <ClCompile Include="learn\learner.cpp" />
-    <ClCompile Include="learn\learning_tools.cpp" />
-    <ClCompile Include="learn\multi_think.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mate\mate.cpp" />
     <ClCompile Include="mate\mate1ply_without_effect.cpp" />

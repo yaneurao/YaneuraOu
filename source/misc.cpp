@@ -278,10 +278,6 @@ std::string engine_info(const std::string& engine_name,
 #if defined(FOR_TOURNAMENT)
 			+" TOURNAMENT"
 #endif
-
-#if defined(EVAL_LEARN)
-			+" EVAL_LEARN"
-#endif
 			;
 			engine_author_ = engine_author;
                 // やねうら王 "yaneurao";
@@ -493,14 +489,6 @@ string config_info()
 		false;
 #endif
 
-
-	bool eval_learn =
-#if defined(EVAL_LEARN)
-		true;
-#else
-		false;
-#endif
-
 	bool use_mate_dfpn =
 #if defined(USE_MATE_DFPN)
 		true;
@@ -512,7 +500,6 @@ string config_info()
 	config += o2("FOR_TOURNAMENT"           , for_tournament     );
 	config += o2("ENABLE_TEST_CMD"          , test_cmd           );
 	config += o2("ENABLE_MAKEBOOK_CMD"      , make_book_cmd      );
-	config += o2("EVAL_LEARN"               , eval_learn         );
 	config += o2("USE_MATE_DFPN"            , use_mate_dfpn      );
 
 	// コンパイラ情報もついでに出力する。

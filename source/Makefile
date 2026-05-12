@@ -2,7 +2,6 @@
 # === ビルドターゲット (build target) ===
 
 # normal     : 通常使用版(配布用の実行ファイルはこちら)
-# evallearn  : 教師局面からの学習用
 # tournament : 大会で使う用(通常版よりややEloが高いが使える機能に制限がある)
 
 # === ビルドオプション (build options) ===
@@ -135,10 +134,6 @@ LDFLAGS  += $(EXTRA_LDFLAGS)
 #  2 : …
 # cf.【連載】評価関数を作ってみよう！その1 : http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/
 MATERIAL_LEVEL = 1
-
-# evallearnで使用するBLASの種類を指定する。
-BLAS = OPENBLAS
-# BLAS = BLIS
 
 # NNUE評価関数を実行ファイルに内蔵する。 ビルドするときにsourceフォルダ直下に"nn.bin"を配置する。
 EVAL_EMBEDDING = OFF
@@ -367,26 +362,16 @@ CUDA_SOURCES =
 
 OBJC_SOURCES =
 
-#ifneq (,$(findstring evallearn,$@))
-# →これこの時点で$@を取得できないのか…。なんぞこれ。
-
-# 仕方ないので無条件で追加しておく。cppファイルのほうで、
-#  if!defined(EVAL_LEARN)..とか書いてあるのでとりあえずいいや。
-
 ifeq (,)
 	SOURCES  +=                                                                \
 		book/makebook.cpp                                                      \
 		book/makebook2015.cpp                                                  \
-		book/makebook2025.cpp                                                  \
-		learn/learner.cpp                                                      \
-		learn/learning_tools.cpp                                               \
-		learn/multi_think.cpp
+		book/makebook2025.cpp
 endif
 
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
 	SOURCES  +=                                                                \
 		eval/kppt/evaluate_kppt.cpp                                            \
-		eval/kppt/evaluate_kppt_learner.cpp                                    \
 		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
@@ -394,7 +379,6 @@ ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPP_KKPT)
 	SOURCES  +=                                                                \
 		eval/kppt/evaluate_kppt.cpp                                            \
 		eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                                    \
-		eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                            \
 		engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
@@ -507,7 +491,6 @@ ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))
 	# 大して大きなファイルではないので全部してしまう。
 	SOURCES += \
 		eval/nnue/evaluate_nnue.cpp                                     \
-		eval/nnue/evaluate_nnue_learner.cpp                             \
 		eval/nnue/nnue_test_command.cpp                                 \
 		eval/nnue/features/k.cpp                                        \
 		eval/nnue/features/p.cpp                                        \
@@ -657,7 +640,7 @@ OBJC_OBJECTS = $(addprefix $(OBJDIR)/, $(OBJC_SOURCES:.mm=.o))
 DEPENDS  = $(OBJECTS:.o=.d)
 
 all: clean $(TARGET)
-.PHONY : all normal evallearn tournament prof profgen profuse pgo clean
+.PHONY : all normal tournament prof profgen profuse pgo clean
 
 $(TARGET): $(OBJECTS) $(CUDA_OBJECTS) $(OBJC_OBJECTS)
 	$(COMPILER) -o $@ $^ $(LDFLAGS) $(CPPFLAGS) $(LIBS)
@@ -687,10 +670,6 @@ endif
 # 通常使用。
 normal: run_python_script
 	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS)' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
-
-# 学習用。openmp , openblasなどを有効にする。
-evallearn: run_python_script
-	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS) $(OPENMP) $(BLAS_CPPFLAGS) -DEVAL_LEARN' LDFLAGS='$(LDFLAGS) $(OPENMP_LDFLAGS) $(BLAS_LDFLAGS) $(LTOFLAGS)' $(TARGET)
 
 # トーナメント用
 tournament: run_python_script

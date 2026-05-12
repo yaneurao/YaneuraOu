@@ -28,7 +28,6 @@
 #include "../../book/book.h"
 #include "../../movepick.h"
 #include "../../usi.h"
-#include "../../learn/learn.h"
 #include "../../mate/mate.h"
 #include "../../tune.h"
 
@@ -158,13 +157,6 @@ void YaneuraOuEngine::add_options() {
 	// 📌 SearchOptionsが用いるオプションの追加
 
 	manager.search_options.add_options(options);
-
-#if defined(EVAL_LEARN)
-    // 評価関数の学習を行なうときは、評価関数の保存先のフォルダを変更できる。
-    // デフォルトではevalsave。このフォルダは事前に用意されているものとする。
-    // このフォルダ配下にフォルダを"0/","1/",…のように自動的に掘り、そこに評価関数ファイルを保存する。
-    options.add("EvalSaveDir", Option("evalsave"));
-#endif
 
 	// 📌 TimeManagementが用いるオプションの追加
 

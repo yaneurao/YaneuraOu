@@ -60,15 +60,6 @@ std::string last_eval_dir = "None";
 // 📌 この評価関数で追加したいエンジンオプションはここで追加する。
 void add_options_(OptionsMap& options, ThreadPool& threads) {
 
-#if defined(EVAL_LEARN)
-    // isreadyタイミングで評価関数を読み込まれると、新しい評価関数の変換のために
-    // test evalconvertコマンドを叩きたいのに、その新しい評価関数がないがために
-    // このコマンドの実行前に異常終了してしまう。
-    // そこでこの隠しオプションでisready時の評価関数の読み込みを抑制して、
-    // test evalconvertコマンドを叩く。
-    Options("SkipLoadingEval", Option(false));
-#endif
-
 #if defined(NNUE_EMBEDDING_OFF)
     const char* default_eval_dir = "eval";
 #else
@@ -416,9 +407,6 @@ void load_eval() {
     if (eval_loaded)
         return;
 
-#if defined(EVAL_LEARN)
-    if (!Options["SkipLoadingEval"])
-#endif
     {
         const std::string dir_name = Options["EvalDir"];
     #if !defined(__EMSCRIPTEN__)
