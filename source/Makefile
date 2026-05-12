@@ -264,52 +264,6 @@ endif
 # デバッグ情報を付加
 # CPPFLAGS  += -g3 -ggdb
 
-# OpenMPを使うときにCPPFLAGSとして指定するオプション
-# ※ 学習部ではOpenMpを用いるので、学習用のビルドではこのオプションを指定する。
-# clangでOPENMPを有効にしてビルドする方法については、解説.txtを参照のこと。
-
-
-ifneq (,$(findstring g++,$(COMPILER)))
-	OPENMP   = -fopenmp
-	OPENMP_LDFLAGS =
-endif
-ifneq (,$(findstring clang++,$(COMPILER)))
-		ifeq ($(MSYSTEM),MINGW64)
-		# MSYS2 MINGW64 env
-		# libgompを指定した場合、ビルドは通るがOpenMPは無効化される？
-		OPENMP = -fopenmp=libgomp
-		OPENMP_LDFLAGS =
-	else
-		ifneq (,$(findstring w64-mingw32,$(COMPILER)))
-			# Ubuntu mingw-w64 clang++ env (experimental)
-			OPENMP = -fopenmp=libgomp
-			OPENMP_LDFLAGS =
-		else
-			# Other (normal clang++/libomp env)
-			OPENMP = -fopenmp
-			OPENMP_LDFLAGS = -lomp
-		endif
-	endif
-endif
-
-# NNUE評価関数 学習バイナリ用 OpenBLAS
-ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))
-	ifeq ($(BLAS),OPENBLAS)
-		BLAS_CPPFLAGS = -DUSE_BLAS
-		BLAS_LDFLAGS = -lopenblas
-		ifeq ($(MSYSTEM),MINGW64)
-			BLAS_CPPFLAGS += -I$(shell cygpath -aw /mingw64/include/OpenBLAS)
-		endif
-	endif
-
-	ifeq ($(BLAS),BLIS)
-		BLAS_CPPFLAGS = -DUSE_BLAS
-		BLAS_CPPFLAGS += -I$(shell cygpath -aw /usr/local/include/blis)
-		BLAS_LDFLAGS = -lblis.dll
-		BLAS_LDFLAGS += -L$(shell cygpath -aw /usr/local/lib)
-	endif
-endif
-
 CPPFLAGS += -DNO_EXCEPTIONS
 LDFLAGS += -lpthread
 LDFLAGS += -v

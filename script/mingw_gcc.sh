@@ -1,7 +1,7 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
 # Ubuntu 上で Windows バイナリのビルド (gcc)
-# sudo apt install build-essential mingw-w64 libopenblas-dev
+# sudo apt install build-essential mingw-w64
 
 # Example 1: 全パターンのビルド
 # mingw_gcc.sh

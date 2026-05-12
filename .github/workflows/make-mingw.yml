@@ -31,30 +31,11 @@ jobs:
           # - i686-w64-mingw32-g++-posix
         target:
           - tournament
-          # - evallearn
         archcpu:
           # - AVX512VNNI
           - AVX2
           - NO_SSE
         exclude:
-          # NNUEの教師生成/機械学習ビルドにはBLASが必要だが、現状はUbuntuのMinGWでOpenBLASを扱えない
-          # NNUE's machine learning build requires BLAS, but currently Ubuntu's MinGW cannot handle OpenBLAS
-          - edition: YANEURAOU_ENGINE_NNUE
-            target: evallearn
-          - edition: YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
-            target: evallearn
-          - edition: YANEURAOU_ENGINE_NNUE_HALFKPE9
-            target: evallearn
-          - edition: YANEURAOU_ENGINE_NNUE_KP256
-            target: evallearn
-          # 以下のエディションには機械学習の実装が存在しない
-          # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_MATE_ENGINE
-            target: evallearn
-          - edition: TANUKI_MATE_ENGINE
-            target: evallearn
-          - edition: USER_ENGINE
-            target: evallearn
           # 32bit compiler x 64bit archcpu
           - compiler: i686-w64-mingw32-g++-posix
             archcpu: "AVX512VNNI,AVX512"

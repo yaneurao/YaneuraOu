@@ -32,22 +32,11 @@ jobs:
           # - g++
         target:
           - tournament
-          # - evallearn
         archcpu:
           - AVX2
           # - NO_SSE
           # - OTHER
         exclude:
-          # 以下のエディションには機械学習の実装が存在しない
-          # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_ENGINE_MATERIAL
-            target: evallearn
-          - edition: YANEURAOU_MATE_ENGINE
-            target: evallearn
-          - edition: TANUKI_MATE_ENGINE
-            target: evallearn
-          - edition: USER_ENGINE
-            target: evallearn
           # 自動ビルドチェックから除外
           # Build check exclude: archcpu ZEN3,AVXVNNI,OTHER
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
@@ -59,9 +48,6 @@ jobs:
           # https://gcc.gnu.org/pipermail/gcc-patches/2020-October/556110.html
           # https://twitter.com/herumi/status/1318418425295720448
           - archcpu: OTHER
-          # NO_SSEではevallearnビルドを除外
-          - target: evallearn
-            archcpu: NO_SSE
 
     steps:
       - name: Checkout own repository
@@ -75,7 +61,7 @@ jobs:
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu'
           C:\msys64\usr\bin\bash.exe -lc 'pacman --needed --noconfirm -Syuu pactoys'
-          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Syuu clang:x lld:x openblas:x llvm-openmp:x toolchain:x base-devel:'
+          C:\msys64\usr\bin\bash.exe -lc 'pacboy --needed --noconfirm -Syuu clang:x lld:x toolchain:x base-devel:'
           $ErrorActionPreference = 'Stop'
 
       - name: make

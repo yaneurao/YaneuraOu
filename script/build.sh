@@ -1,7 +1,7 @@
 #!/bin/bash
 # -*- coding: utf-8 -*-
 # Ubuntu 上で Linux バイナリのビルド
-# sudo apt install build-essential clang libomp-dev libopenblas-dev
+# sudo apt install build-essential clang
 
 # Example 1: 全パターンのビルド
 # build.sh
