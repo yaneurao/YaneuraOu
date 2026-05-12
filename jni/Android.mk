@@ -203,7 +203,6 @@ LOCAL_SRC_FILES := \
 ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPPT)
 LOCAL_SRC_FILES += \
   ../source/eval/kppt/evaluate_kppt.cpp                                \
-  ../source/eval/kppt/evaluate_kppt_learner.cpp                        \
   ../source/engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
@@ -211,7 +210,6 @@ ifeq ($(YANEURAOU_EDITION),YANEURAOU_ENGINE_KPP_KKPT)
 LOCAL_SRC_FILES += \
   ../source/eval/kppt/evaluate_kppt.cpp                                \
   ../source/eval/kpp_kkpt/evaluate_kpp_kkpt.cpp                        \
-  ../source/eval/kpp_kkpt/evaluate_kpp_kkpt_learner.cpp                \
   ../source/engine/yaneuraou-engine/yaneuraou-search.cpp
 endif
 
@@ -225,7 +223,6 @@ endif
 ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
 LOCAL_SRC_FILES += \
   ../source/eval/nnue/evaluate_nnue.cpp                                \
-  ../source/eval/nnue/evaluate_nnue_learner.cpp                        \
   ../source/eval/nnue/nnue_test_command.cpp                            \
   ../source/eval/nnue/features/k.cpp                                   \
   ../source/eval/nnue/features/p.cpp                                   \
