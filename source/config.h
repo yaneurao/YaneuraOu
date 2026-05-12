@@ -434,6 +434,7 @@ constexpr int MAX_PLY_NUM = 246;
 	// -- 各評価関数ごとのconfiguration
 
 	#if defined(YANEURAOU_ENGINE_MATERIAL)
+		#define EVAL_MATERIAL
 
 		#if !defined(MATERIAL_LEVEL)
 			#define MATERIAL_LEVEL 001
