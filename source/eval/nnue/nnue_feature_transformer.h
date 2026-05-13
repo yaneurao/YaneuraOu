@@ -605,10 +605,6 @@ class FeatureTransformer {
 	// parameter type
 	// パラメータの型
 
-	// Make the learning class a friend
-	// 学習用クラスをfriendにする
-	friend class Trainer<FeatureTransformer>;
-
 	// parameter
 	// パラメータ
 	alignas(kCacheLineSize) BiasType biases_[kHalfDimensions];

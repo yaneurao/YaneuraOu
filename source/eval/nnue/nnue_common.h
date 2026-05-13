@@ -122,10 +122,6 @@ namespace Eval::NNUE {
   // インデックスの型
   using IndexType = std::uint32_t;
 
-  // 学習用クラステンプレートの前方宣言
-  template <typename Layer>
-  class Trainer;
-
   // Round n up to be a multiple of base
   // n以上で最小のbaseの倍数を求める
   template <typename IntType>

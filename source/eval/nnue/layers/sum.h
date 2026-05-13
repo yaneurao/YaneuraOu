@@ -86,9 +86,6 @@ class Sum : public Sum<RemainingPreviousLayers...> {
     return Head::GetStructureString() + "," + Tail::GetSummandsString();
   }
 
-  // 学習用クラスをfriendにする
-  friend class Trainer<Sum>;
-
   // この層の直前の層
   FirstPreviousLayer previous_layer_;
 };
@@ -144,9 +141,6 @@ class Sum<PreviousLayer> {
   static std::string GetSummandsString() {
     return PreviousLayer::GetStructureString();
   }
-
-  // 学習用クラスをfriendにする
-  friend class Trainer<Sum>;
 
   // この層の直前の層
   PreviousLayer previous_layer_;

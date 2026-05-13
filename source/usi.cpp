@@ -1521,35 +1521,6 @@ void mate_cmd(Position& pos, std::istream& is);
 #endif
 
 
-// ----------------------------------
-//      USI拡張コマンド "learn"
-// ----------------------------------
-
-// 棋譜を自動生成するコマンド
-#if defined (EVAL_LEARN)
-namespace Learner
-{
-  // 教師局面の自動生成
-  void gen_sfen(Position& pos, istringstream& is);
-
-  // 生成した棋譜からの学習
-  void learn(Position& pos, istringstream& is);
-
-#if defined(GENSFEN2019)
-  // 開発中の教師局面の自動生成コマンド
-  void gen_sfen2019(Position& pos, istringstream& is);
-#endif
-
-  // 読み筋と評価値のペア。Learner::search(),Learner::qsearch()が返す。
-  typedef std::pair<Value, std::vector<Move> > ValuePV;
-
-  ValuePV qsearch(Position& pos);
-  ValuePV search(Position& pos, int depth_, size_t multiPV = 1 , u64 nodesLimit = 0 );
-
-}
-#endif
-
-
 // "gameover"コマンドに対するハンドラ
 #if defined(USE_GAMEOVER_HANDLER) || defined(YANEURAOU_ENGINE_DEEP)
 void gameover_handler(const string& cmd);
@@ -1593,42 +1564,6 @@ bool parse_ponderhit(istringstream& is, Search::LimitsType& limits)
 	}
 	return token_processed;
 }
-
-
-#if defined(EVAL_LEARN)
-void qsearch_cmd(Position& pos)
-{
-	cout << "qsearch : ";
-	auto pv = Learner::qsearch(pos);
-	cout << "Value = " << pv.first << " , PV = ";
-	for (auto m : pv.second)
-		cout << m << " ";
-	cout << endl;
-}
-
-void search_cmd(Position& pos, istringstream& is)
-{
-	string token;
-	int depth = 1;
-	int multi_pv = (int)Options["MultiPV"];
-	while (is >> token)
-	{
-		if (token == "depth")
-			is >> depth;
-		if (token == "multipv")
-			is >> multi_pv;
-	}
-
-	cout << "search depth = " << depth << " , multi_pv = " << multi_pv << " : ";
-	auto pv = Learner::search(pos, depth, multi_pv);
-	cout << "Value = " << pv.first << " , PV = ";
-	for (auto m : pv.second)
-		cout << m << " ";
-	cout << endl;
-}
-
-#endif
-
 
 
 // --------------------

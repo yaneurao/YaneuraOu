@@ -388,8 +388,6 @@ public:
         using BiasType   = OutputType;
         using WeightType = std::int8_t;
 
-        friend class Trainer<AffineTransformSparseInputExplicit>;
-
         alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
         alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
 };

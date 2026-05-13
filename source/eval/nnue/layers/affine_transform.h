@@ -462,9 +462,6 @@ class AffineTransform {
 	using BiasType   = OutputType;
 	using WeightType = std::int8_t;
 
-	// 学習用クラスをfriendにする
-	friend class Trainer<AffineTransform>;
-
 	// この層の直前の層
 	PreviousLayer previous_layer_;
 

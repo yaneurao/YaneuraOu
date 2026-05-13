@@ -175,8 +175,6 @@ class ClippedReLUExplicit {
     }
   }
 
- private:
-   friend class Trainer<ClippedReLUExplicit>;
 };
 
 }  // namespace Eval::NNUE::Layers

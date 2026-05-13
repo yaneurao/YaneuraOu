@@ -14,11 +14,6 @@
 #include "search.h"
 #include "thread_win32_osx.h"
 
-#if defined(EVAL_LEARN)
-// 学習用の実行ファイルでは、スレッドごとに置換表を持ちたい。
-#include "tt.h"
-#endif
-
 namespace YaneuraOu {
 
 // --------------------

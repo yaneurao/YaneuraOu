@@ -658,7 +658,7 @@ namespace Tools {
 	// ※ Stockfishのtt.cppのTranspositionTable::clear()にあるコードと同等のコード。
 	void memclear(ThreadPool& threads, const char* name_, void* table, size_t size)
 	{
-#if !defined(EVAL_LEARN) && !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__)
 
 		// Windows10では、このゼロクリアには非常に時間がかかる。
 		// malloc()時点ではメモリを実メモリに割り当てられておらず、
@@ -700,11 +700,6 @@ namespace Tools {
 		// yaneuraou.wasm
 		// pthread_joinによってブラウザのメインスレッドがブロックされるため、単一スレッドでメモリをクリアする処理に変更
 
-		// LEARN版のときは、
-		// 単一スレッドでメモリをクリアする。(他のスレッドは仕事をしているので..)
-		// 教師生成を行う時は、対局の最初にスレッドごとのTTに対して、
-		// このclear()が呼び出されるものとする。
-		// 例) th->tt.clear();
 		memset(table, 0, size);
 #endif
 

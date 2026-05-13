@@ -208,9 +208,6 @@ class ClippedReLU {
   }
 
  private:
-   // 学習用クラスをfriendにする
-   friend class Trainer<ClippedReLU>;
- 
    // この層の直前の層
    PreviousLayer previous_layer_;
 };

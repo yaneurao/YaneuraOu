@@ -94,9 +94,6 @@ namespace Eval::NNUE::Layers {
 			}
 		}
 
-	private:
-		friend class Trainer<SqrClippedReLU>;
-
 	};
 
 }  // namespace Eval::NNUE::Layers
