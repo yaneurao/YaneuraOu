@@ -5,22 +5,15 @@
 #include "book.h"
 #include "../position.h"
 #include "../misc.h"
-#include "../search.h"
-#include "../thread.h"
-#include "../tt.h"
-#include "apery_book.h"
 
 #include <sstream>
-#include <unordered_set>
-#include <iomanip>		// std::setprecision()
-#include <numeric>      // std::accumulate()
 
 using namespace std;
 namespace YaneuraOu {
 namespace Book {
 
 	// 2015年ごろに作ったmakebookコマンド
-	int makebook2015(Position& pos,istringstream& is,const std::string& token_)
+	int makebook2015(Position& pos,istringstream& is,const std::string& token_, OptionsMap& options)
 	{
 		// const外す
 		string token = token_;
@@ -28,25 +21,16 @@ namespace Book {
 		// sfenから生成する
 		bool from_sfen = token == "from_sfen";
 
-		// 自ら思考して生成する
-		// bool from_thinking = token == "think";
-		// 思考するコマンド、LEARN版の削除に伴い無効化。
-        const bool from_thinking = false;
-
 		// 定跡のマージ
 		bool book_merge = token == "merge";
 		// 定跡のsort
 		bool book_sort = token == "sort";
-		// 定跡の変換
-		bool convert_from_apery = token == "convert_from_apery";
-		// 定跡の変換
-		bool convert_to_apery = token == "convert_to_apery";
 		
 		// いずれのコマンドでもないなら、このtokenのコマンドを自分は処理できない。
-		if (!(from_sfen || from_thinking || book_merge || book_sort || convert_from_apery || convert_to_apery))
+		if (!(from_sfen || book_merge || book_sort))
 			return 0;
 
-		if (from_sfen || from_thinking)
+		if (from_sfen)
 		{
 			// sfenファイル名
 			is >> token;
@@ -77,24 +61,8 @@ namespace Book {
 			string book_name;
 			is >> book_name;
 
-			// 開始手数、終了手数、探索深さ、node数の指定
-			int start_moves = 1;
+			// 読み込む手数の指定
 			int moves = 16;
-			int depth = 24;
-			u64 nodes = 0;
-
-			// 分散生成用。
-			// 2/7なら、7個に分けて分散生成するときの2台目のPCの意味。
-			// cluster 2 7
-			// のように指定する。
-			// 1/1なら、分散させない。
-			// cluster 1 1
-			// のように指定する。
-			int cluster_id = 1;
-			int cluster_num = 1;
-
-			// "makebook think"コマンド時の自動保存の間隔。デフォルト15分。
-			u64 book_save_interval = 15 * 60;
 
 			while (true)
 			{
@@ -104,16 +72,6 @@ namespace Book {
 					break;
 				if (token == "moves")
 					is >> moves;
-				else if (token == "depth")
-					is >> depth;
-				else if (token == "nodes")
-					is >> nodes;
-				else if (from_thinking && token == "startmoves")
-					is >> start_moves;
-				else if (from_thinking && token == "cluster")
-					is >> cluster_id >> cluster_num;
-				else if (from_thinking && token == "book_save_interval")
-					is >> book_save_interval;
 				else
 				{
 					cout << "Error! : Illigal token = " << token << endl;
@@ -122,7 +80,7 @@ namespace Book {
 			}
 
 			// 処理対象ファイル名の出力
-			cout << "makebook think.." << endl;
+			cout << "makebook from_sfen.." << endl;
 
 			if (bw_files)
 			{
@@ -137,15 +95,7 @@ namespace Book {
 
 			cout << "book_name             = " << book_name << endl;
 
-			if (from_sfen)
-				cout << "read sfen moves " << moves << endl;
-
-			if (from_thinking)
-				cout << "read sfen moves from " << start_moves << " to " << moves << endl
-					 << " depth = " << depth << endl
-					 << " nodes = " << nodes << endl
-					 << " cluster = " << cluster_id << "/" << cluster_num << endl
-					 << " book_save_interval = " << book_save_interval << endl;
+			cout << "read sfen moves " << moves << endl;
 
 			// 解析対象とするsfen集合。
 			// 読み込むべきsfenファイル名が2つ指定されている時は、
@@ -187,23 +137,9 @@ namespace Book {
 			cout << "..done" << endl;
 
 			MemoryBook book;
-
-			if (from_thinking)
-			{
-				cout << "read book.." << endl;
-				// 初回はファイルがないので読み込みに失敗するが無視して続行。
-				if (book.read_book(book_name).is_not_ok())
-				{
-					cout << "..failed but , create new file." << endl;
-				}
-				else
-					cout << "..done" << endl;
-			}
+			book.set_options(options);
 
 			cout << "parse..";
-
-			// 思考すべき局面のsfen
-			unordered_set<string> thinking_sfens;
 
 			// 各行の局面をparseして読み込む(このときに重複除去も行なう)
 			for (size_t k = 0; k < sfens.size(); ++k)
@@ -296,7 +232,7 @@ namespace Book {
 				};
 
 				// sfenから直接生成するときはponderのためにmoves + 1の局面まで調べる必要がある。
-				for (int i = 0; i < moves + (from_sfen ? 1 : 0); ++i)
+				for (int i = 0; i < moves + 1; ++i)
 				{
 					// 初回は、↑でfeedしたtokenが入っているはず。
 					if (i != 0)
@@ -306,9 +242,6 @@ namespace Book {
 					}
 					if (token == "")
 					{
-						// この局面、未知の局面なのでpushしないといけないのでは..
-						if (!from_sfen)
-							append_to_sf();
 						break;
 					}
 
@@ -330,28 +263,16 @@ namespace Book {
 					pos.do_move(move, states[i]);
 				}
 
-				for (int i = 0; i < (int)sf.size() - (from_sfen ? 1 : 0); ++i)
+				for (int i = 0; i < (int)sf.size() - 1; ++i)
 				{
-					if (i < start_moves - 1)
-						continue;
-
 					// 現局面の手番が望むべきものではないので解析をskipする。
 					if (!sf[i].second /* sf[i].is_valid */)
 						continue;
 
 					const auto& sfen = sf[i].first;
-					if (from_sfen)
-					{
-						// この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
-						BookMove bp(m[i].to_move16(), m[i + 1].to_move16(), VALUE_ZERO, 32, 1);
-						book.insert(sfen, bp);
-					}
-					else if (from_thinking)
-					{
-						// posの局面で思考させてみる。(あとでまとめて)
-						if (thinking_sfens.count(sfen) == 0)
-							thinking_sfens.insert(sfen);
-					}
+					// この場合、m[i + 1]が必要になるので、m.size()-1までしかループできない。
+					BookMove bp(m[i].to_move16(), m[i + 1].to_move16(), VALUE_ZERO, 32, 1);
+					book.insert(sfen, bp);
 				}
 
 				// sfenから生成するモードの場合、1000棋譜処理するごとにドットを出力。
@@ -366,6 +287,8 @@ namespace Book {
 
 			// 定跡のマージ
 			MemoryBook book[3];
+			for (auto& b : book)
+				b.set_options(options);
 			string book_name[3];
 			is >> book_name[0] >> book_name[1] >> book_name[2];
 			if (book_name[2] == "")
@@ -444,6 +367,7 @@ namespace Book {
 		else if (book_sort) {
 			// 定跡のsort
 			MemoryBook book;
+			book.set_options(options);
 			string book_src, book_dst;
 			is >> book_src >> book_dst;
 			cout << "book sort from " << book_src << " , write to " << book_dst << endl;
@@ -451,24 +375,6 @@ namespace Book {
 
 			book.write_book(book_dst);
 
-		}
-		else if (convert_from_apery) {
-			MemoryBook book;
-			string book_src, book_dst;
-			is >> book_src >> book_dst;
-			cout << "convert apery book from " << book_src << " , write to " << book_dst << endl;
-			book.read_apery_book(book_src);
-
-			book.write_book(book_dst);
-		}
-		else if (convert_to_apery) {
-			MemoryBook book;
-			string book_src, book_dst;
-			is >> book_src >> book_dst;
-			cout << "convert book from " << book_src << " , write apery book to " << book_dst << endl;
-			book.read_book(book_src);
-
-			book.write_apery_book(book_dst);
 		}
 
 		return 1;
