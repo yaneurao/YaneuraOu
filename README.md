@@ -29,6 +29,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 # やねうら王エンジンの大会での戦績
 
+- 2026年 第36回 世界コンピュータ将棋選手権(WCSC36)『水匠』4位。(探索部やねうら王V9.30改)
 - 2025年 文部科学大臣杯第6回世界将棋AI電竜戦本戦 『水匠Concerto』準優勝。(探索部やねうら王V9.10改。やねうらおはチームメンバーとして参加)
 - 2025年 第35回 世界コンピュータ将棋選手権(WCSC35)『水匠』優勝。(探索部やねうら王V8.60改)
 - 2025年 第3回世界将棋AI電竜戦ハードウェア統一戦 『水匠』優勝。(探索部やねうら王V8.60改)
@@ -60,7 +61,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 - 定跡DBの様々なメンテナンス用コマンドをサポートしています。
 - 置換表の上限サイズは33TB(実質的に無限)まで対応しています。
 - Windows、Ubuntu、macOS、ARMなど様々なプラットフォームをサポートしています。
-- 評価関数として、KPPT、KPP_KKPT、NNUE(各種)に対応しています。
+- 評価関数として、KPPT、KPP_KKPT、NNUE(各種)、SFNN(各種)に対応しています。
 
 # ふかうら王の特徴
 
@@ -96,14 +97,9 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 |パラメーター自動調整フレームワーク|[パラメーター自動調整フレームワーク](https://github.com/yaneurao/YaneuraOu/wiki/パラメーター自動調整フレームワーク)|開発者|
 |探索部の計測資料|[探索部の計測資料](探索部の計測資料)|開発者|
 |廃止したコマンド・オプションなど| [過去の資料](https://github.com/yaneurao/YaneuraOu/wiki/過去の資料)|開発者|
+|過去のサブプロジェクト|[過去のサブプロジェクト](https://github.com/yaneurao/YaneuraOu/wiki/%E9%81%8E%E5%8E%BB%E3%81%AE%E3%82%B5%E3%83%96%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88)|初心者～開発者|
 |やねうら王の更新履歴|[やねうら王の更新履歴](https://github.com/yaneurao/YaneuraOu/wiki/やねうら王の更新履歴)|開発者|
 
-
-# 過去のサブプロジェクト
-
-過去のサブプロジェクトである、やねうら王nano , mini , classic、王手将棋、取る一手将棋、協力詰めsolver、連続自己対戦フレームワークなどはこちらからどうぞ。
-
-- [過去のサブプロジェクト](https://github.com/yaneurao/YaneuraOu/wiki/%E9%81%8E%E5%8E%BB%E3%81%AE%E3%82%B5%E3%83%96%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88)
 
 # やねうら王ニュース記事一覧
 
@@ -125,15 +121,22 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 |サイト | リンク| 内容 |
 |-----|-----|-----|
+|やねうら王公式GitHub | https://github.com/yaneurao/YaneuraOu | このリポジトリ |
 |やねうら王公式ブログ | https://yaneuraou.yaneu.com | やねうら王ブログ |
-|BulletOu | https://github.com/yaneurao/BulletOu | やねうら王評価関数の学習器 |
-|やねうら王mini | http://yaneuraou.yaneu.com/YaneuraOu_Mini | やねうら王miniを作ってみる連載記事 |
+|BulletOu | https://github.com/yaneurao/BulletOu | 評価関数の高速学習器 |
+|やねうら王ScriptCollection | https://github.com/yaneurao/YaneuraOu-ScriptCollection | やねうら王スクリプト集 |
 |やねうら王 X | https://x.com/yaneuraou| やねうら王のX |
 |やねうら王ちゃんねる(YouTube) | https://www.youtube.com/c/yanechan| YouTube動画 |
-|やねうら王公式GitHub | https://github.com/yaneurao/YaneuraOu | このリポジトリ |
-|やねうら王ScriptCollection | https://github.com/yaneurao/YaneuraOu-ScriptCollection | やねうら王スクリプト集 |
+|やねうら王mini | http://yaneuraou.yaneu.com/YaneuraOu_Mini | やねうら王miniを作ってみる連載記事 |
 
 上記のやねうら王公式ブログでは、コンピュータ将棋に関する情報を大量に発信していますので、やねうら王に興味がなくとも、コンピュータ将棋の開発をしたいなら、非常に参考になると思います。
+
+# 姉妹プロジェクト
+
+  BulletOu - GPUを用いたやねうら王評価関数の高速学習器<br/>
+<img src='https://github.com/yaneurao/YaneuraOu/wiki/images/BulletOu-banner-s.png'>
+
+
 
 # 質問箱
 
