@@ -2235,7 +2235,7 @@ Key Position::key_after(Move m) const {
 
         // Zobrist keyの更新
         k ^= Zobrist::psq[pc][to];
-        h -= Zobrist::hand[pr][Us];
+        h -= Zobrist::hand[Us][pr];
     }
     else
     {
