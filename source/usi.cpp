@@ -404,6 +404,10 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) {
     else if (token == "config")
         sync_cout << config_info() << sync_endl;
 
+    // .psv(PsvRecord列)の局面をqsearch PVのleafに置換する。
+    else if (token == "qsearch_psv")
+        qsearch_psv(is);
+
 #if defined(ENABLE_MAKEBOOK_CMD)
 	// 定跡コマンド
 	else if (token == "makebook")
@@ -1378,6 +1382,27 @@ void USIEngine::getoption(std::istringstream& is) {
     std::string option_name;
     is >> option_name;
     sync_cout << options.get_option(option_name) << sync_endl;
+}
+
+// USI拡張コマンド "qsearch_psv" のhandler。
+// input.psvの各PsvRecord局面をqsearchのPV leaf nodeで置換し、
+// output.psvへ同じPSV形式で書き出す処理をEngine側へ委譲する。
+void USIEngine::qsearch_psv(std::istringstream& is) {
+    std::string inputPath, outputPath;
+    size_t      workerCount = 0;
+
+    is >> inputPath >> outputPath;
+    if (!(is >> workerCount))
+        workerCount = 0;
+
+    std::string message;
+    const bool  ok = engine.qsearch_psv(inputPath, outputPath, workerCount, message);
+
+    if (!message.empty())
+        sync_cout << "info string " << message << sync_endl;
+
+    if (!ok)
+        sync_cout << "info string qsearch_psv failed" << sync_endl;
 }
 
 // "unittest"コマンドのhandler

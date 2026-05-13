@@ -257,6 +257,19 @@ public:
     virtual std::string thread_allocation_information_as_string() const { return ""; }
     virtual std::string thread_binding_information_as_string() const { return ""; }
 
+#if !STOCKFISH
+    // USI拡張コマンド "qsearch_psv" 用のhook。
+    // inputPathの.psv(PsvRecord列)を読み、各局面をqsearch PVのleaf nodeで置換して
+    // outputPathへ書き出す。対応していないEngine派生classではfalseを返す。
+    virtual bool qsearch_psv(const std::string& inputPath,
+                             const std::string& outputPath,
+                             size_t             workerCount,
+                             std::string&       message) {
+        message = "qsearch_psv is not supported by this engine.";
+        return false;
+    }
+#endif
+
 #if STOCKFISH
    private:
     const std::string binaryDirectory;
@@ -382,6 +395,18 @@ class Engine: public IEngine {
     virtual std::string numa_config_information_as_string() const override;
     virtual std::string thread_allocation_information_as_string() const override;
     virtual std::string thread_binding_information_as_string() const override;
+
+#if !STOCKFISH
+    // USI拡張コマンド "qsearch_psv" 用のhook。
+    // 標準Engine基底classは未対応扱いとし、標準探索部(YaneuraOuEngine)でoverrideする。
+    virtual bool qsearch_psv(const std::string& inputPath,
+                             const std::string& outputPath,
+                             size_t             workerCount,
+                             std::string&       message) override {
+        message = "qsearch_psv is not supported by this engine.";
+        return false;
+    }
+#endif
 
     virtual void              add_options() override;
     virtual ThreadPool&       get_threads() override { return threads; }
@@ -558,6 +583,15 @@ class EngineWrapper: public IEngine {
     virtual std::string thread_binding_information_as_string() const override {
         return engine->thread_binding_information_as_string();
     }
+
+#if !STOCKFISH
+    virtual bool qsearch_psv(const std::string& inputPath,
+                             const std::string& outputPath,
+                             size_t             workerCount,
+                             std::string&       message) override {
+        return engine->qsearch_psv(inputPath, outputPath, workerCount, message);
+    }
+#endif
 
     virtual void              add_options() override { return engine->add_options(); }
     virtual ThreadPool&       get_threads() override { return engine->get_threads(); }

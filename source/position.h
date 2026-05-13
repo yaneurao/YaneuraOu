@@ -273,6 +273,19 @@ struct PackedSfen {
 	}
 };
 
+// PSV形式(.psv)の1レコード。
+// PackedSfenに、手番側視点のscoreなどを付与した40 bytes固定長形式。
+struct PsvRecord {
+	PackedSfen sfen;
+	s16        score;
+	u16        move;
+	u16        gamePly;
+	s8         game_result;
+	u8         padding;
+};
+
+static_assert(sizeof(PsvRecord) == 40, "PsvRecord must be 40 bytes");
+
 // std::unordered_mapで使用できるようにhash関数を定義しておく。
 // std::unordered_map<PackedSfen,int,PackedSfenHash> packed_sfen_to_int;のようにtemplateの第3引数に指定する。
 struct PackedSfenHash {

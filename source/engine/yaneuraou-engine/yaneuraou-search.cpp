@@ -355,6 +355,230 @@ int YaneuraOuEngine::get_hashfull(int maxAge) const
 	return tt.hashfull(maxAge);
 }
 
+namespace {
+
+constexpr size_t QSEARCH_PSV_CHUNK_RECORDS = 65536;
+
+struct QSearchPsvStats {
+    u64 records       = 0;
+    u64 replaced      = 0;
+    u64 decodeErrors  = 0;
+    u64 illegalPv     = 0;
+    u64 maxLeafPly    = 0;
+
+    void merge(const QSearchPsvStats& rhs) {
+        records      += rhs.records;
+        replaced     += rhs.replaced;
+        decodeErrors += rhs.decodeErrors;
+        illegalPv    += rhs.illegalPv;
+        maxLeafPly    = std::max(maxLeafPly, rhs.maxLeafPly);
+    }
+};
+
+// PsvRecord 1件に対して qsearch<PV>() を実行し、
+// 得られたPVを実際に進めたleaf nodeの局面でrecord.sfenを置換する。
+// score/game_resultはPSVの規約に合わせて、leaf側の手番視点になるよう必要なら符号反転する。
+bool qsearch_psv_record(YaneuraOuWorker& worker, PsvRecord& record, QSearchPsvStats& stats) {
+    ++stats.records;
+
+    Position  pos;
+    StateInfo si;
+
+    if (pos.set_from_packed_sfen(record.sfen, &si, false, record.gamePly).is_not_ok())
+    {
+        ++stats.decodeErrors;
+        return false;
+    }
+
+    PVMoves pv;
+    worker.qsearch_pv(pos, pv);
+
+    if (pv.empty())
+        return true;
+
+    std::vector<StateInfo> states(pv.size());
+    size_t                 leafPly = 0;
+
+    for (Move move : pv)
+    {
+        if (!move.is_ok() || !(pos.pseudo_legal_s<true>(move) && pos.legal(move)))
+        {
+            ++stats.illegalPv;
+            return false;
+        }
+
+        pos.do_move(move, states[leafPly]);
+        ++leafPly;
+    }
+
+    pos.sfen_pack(record.sfen);
+
+    const int gamePly = pos.game_ply();
+    record.gamePly =
+      static_cast<u16>(std::min(gamePly, int((std::numeric_limits<u16>::max)())));
+
+    // PsvRecordのscore/game_resultは手番側視点なので、
+    // leafまで奇数手進んだ場合は視点を反転する。
+    if (leafPly & 1)
+    {
+        record.score = record.score == (std::numeric_limits<s16>::min)()
+                       ? (std::numeric_limits<s16>::max)()
+                       : s16(-record.score);
+        record.game_result = s8(-record.game_result);
+    }
+
+    // root局面用のbest moveはleaf局面では通常合法でない。
+    record.move = Move16::none().to_u16();
+
+    ++stats.replaced;
+    stats.maxLeafPly = std::max<u64>(stats.maxLeafPly, leafPly);
+    return true;
+}
+
+} // namespace
+
+// USI拡張コマンド "qsearch_psv input.psv output.psv [workers]" の実体。
+// .psv(PsvRecord列)をchunk単位で読み込み、各レコードの局面を
+// qsearchのPV leaf nodeに置換して、同じPSV形式でoutputPathへ書き出す。
+// qsearch自体を並列化するのではなく、独立したPSVレコードを既存の探索workerへ分配する。
+bool YaneuraOuEngine::qsearch_psv(const std::string& inputPath,
+                                  const std::string& outputPath,
+                                  size_t             workerCount,
+                                  std::string&       message) {
+
+#if !defined(USE_SFEN_PACKER)
+    message = "qsearch_psv requires USE_SFEN_PACKER.";
+    return false;
+#else
+    if (inputPath.empty() || outputPath.empty())
+    {
+        message = "usage: qsearch_psv input.psv output.psv [workers]";
+        return false;
+    }
+
+    if (inputPath == outputPath)
+    {
+        message = "input and output path must be different.";
+        return false;
+    }
+
+    wait_for_search_finished();
+
+    if (threads.empty())
+        resize_threads();
+
+    if (threads.empty())
+    {
+        message = "no search worker is available.";
+        return false;
+    }
+
+    if (workerCount == 0)
+        workerCount = threads.num_threads();
+    else if (workerCount > threads.num_threads())
+    {
+        message = "requested workers exceed current Threads option.";
+        return false;
+    }
+
+    std::ifstream input(inputPath, std::ios::binary);
+    if (!input)
+    {
+        message = "failed to open input file: " + inputPath;
+        return false;
+    }
+
+    std::ofstream output(outputPath, std::ios::binary);
+    if (!output)
+    {
+        message = "failed to open output file: " + outputPath;
+        return false;
+    }
+
+    tt.clear(threads);
+
+    std::vector<PsvRecord> records(QSEARCH_PSV_CHUNK_RECORDS);
+    QSearchPsvStats                 total;
+    u64                             nextProgress = 1000000;
+
+    const auto recordBytes = std::streamsize(sizeof(PsvRecord));
+    const auto chunkBytes  = std::streamsize(records.size() * sizeof(PsvRecord));
+
+    while (true)
+    {
+        input.read(reinterpret_cast<char*>(records.data()), chunkBytes);
+        const std::streamsize bytesRead = input.gcount();
+
+        if (bytesRead == 0)
+            break;
+
+        if ((bytesRead % recordBytes) != 0)
+        {
+            message = "truncated psv record at end of input.";
+            return false;
+        }
+
+        const size_t count = size_t(bytesRead / recordBytes);
+
+        std::atomic<size_t>         nextRecord(0);
+        std::vector<QSearchPsvStats> localStats(workerCount);
+
+        for (size_t threadId = 0; threadId < workerCount; ++threadId)
+        {
+            threads.run_on_thread(threadId, [&, threadId]() {
+                auto* worker =
+                  static_cast<YaneuraOuWorker*>(threads.threads[threadId]->worker.get());
+
+                while (true)
+                {
+                    const size_t index = nextRecord.fetch_add(1, std::memory_order_relaxed);
+                    if (index >= count)
+                        break;
+
+                    qsearch_psv_record(*worker, records[index], localStats[threadId]);
+                }
+            });
+        }
+
+        for (size_t threadId = 0; threadId < workerCount; ++threadId)
+            threads.wait_on_thread(threadId);
+
+        for (const auto& stats : localStats)
+            total.merge(stats);
+
+        output.write(reinterpret_cast<const char*>(records.data()), bytesRead);
+        if (!output)
+        {
+            message = "failed to write output file: " + outputPath;
+            return false;
+        }
+
+        if (total.records >= nextProgress)
+        {
+            sync_cout << "info string qsearch_psv processed " << total.records << " records"
+                      << sync_endl;
+            nextProgress += 1000000;
+        }
+    }
+
+    if (input.bad())
+    {
+        message = "failed to read input file: " + inputPath;
+        return false;
+    }
+
+    std::ostringstream ss;
+    ss << "qsearch_psv done: records=" << total.records
+       << " replaced=" << total.replaced
+       << " decode_errors=" << total.decodeErrors
+       << " illegal_pv=" << total.illegalPv
+       << " max_leaf_ply=" << total.maxLeafPly
+       << " workers=" << workerCount;
+    message = ss.str();
+    return total.decodeErrors == 0 && total.illegalPv == 0;
+#endif
+}
+
 // utility functions
 
 void YaneuraOuEngine::trace_eval() const {
@@ -1928,6 +2152,48 @@ void YaneuraOuWorker::clear() {
 #if defined(EVAL_SFNN)
     refreshTable.clear(networks[numaAccessToken]);
 #endif
+}
+
+// qsearch<PV>()を単独で呼び出すためのヘルパー。
+// qsearch内でStack::pvに構築されたPVをpvへ返すので、呼び出し側はこのPVをdo_move()して
+// qsearchのleaf node局面を得られる。通常探索のinfo pv表示のようにTTを辿ってPVを延長しない。
+Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
+
+#if defined(USE_SFNN)
+    // 探索開始時と同様、初回evaluate()で差分更新を使わない状態に戻す。
+    accumulatorStack.reset();
+#endif
+
+    nodes.store(0, std::memory_order_relaxed);
+    selDepth = 0;
+    lowPlyHistory.fill(98);
+    pv.clear();
+
+    // iterative_deepening()と同じ余白つきStack初期化。
+    Stack  stack[MAX_PLY + 10] = {};
+    Stack* ss                  = stack + 7;
+
+    for (int i = 7; i > 0; --i)
+    {
+        (ss - i)->continuationHistory =
+          &continuationHistory[0][0][NO_PIECE][0];
+        (ss - i)->continuationCorrectionHistory = &continuationCorrectionHistory[NO_PIECE][0];
+        (ss - i)->staticEval                    = VALUE_NONE;
+        (ss - i)->currentMove                   = Move::none();
+    }
+
+    for (int i = 0; i <= MAX_PLY + 2; ++i)
+        (ss + i)->ply = i;
+
+    ss->pv          = &pv;
+    ss->currentMove = Move::none();
+    ss->staticEval  = VALUE_NONE;
+    ss->ttPv        = false;
+    ss->ttHit       = false;
+
+    pos.set_ekr(main_manager()->search_options.enteringKingRule);
+
+    return qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 }
 
 // -----------------------

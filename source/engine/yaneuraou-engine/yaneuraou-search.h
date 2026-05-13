@@ -382,6 +382,13 @@ class YaneuraOuEngine: public Engine {
 	// 置換表の使用率を返す。
     virtual int get_hashfull(int maxAge) const override;
 
+    // USI拡張コマンド "qsearch_psv" の実体。
+    // .psv(PsvRecord列)の各局面をqsearch PVのleaf nodeで置換して書き出す。
+    virtual bool qsearch_psv(const std::string& inputPath,
+                             const std::string& outputPath,
+                             size_t             workerCount,
+                             std::string&       message) override;
+
 	// 現在の局面の評価値の詳細を出力する。
     virtual void trace_eval() const override;
 
@@ -426,6 +433,10 @@ class YaneuraOuWorker: public Worker {
 
     // 評価関数のパラメーターが各NUMAにコピーされているようにする。
     virtual void ensure_network_replicated() override;
+
+    // qsearch<PV>()を行い、この呼び出し中に得られたPVを返す。
+    // 返されたPVを進めた局面が、qsearchで到達したleaf nodeになる。
+    Value qsearch_pv(Position& pos, PVMoves& pv);
 
     // 📌 Stockfishのsearch.hで定義されているWorkerが持っているメンバ変数 📌
 
