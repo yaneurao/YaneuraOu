@@ -227,12 +227,6 @@ namespace {
 		// 共有メモリに配置（同一ハッシュの共有メモリが既に存在すればそちらを参照）
 		shared_networks = SystemWideSharedConstant<NnueNetworks>(*tmp);
 
-		auto status = shared_networks.get_status();
-		if (status == SystemWideSharedConstantAllocationStatus::SharedMemory)
-			sync_cout << "info string NNUE shared memory: using shared memory" << sync_endl;
-		else if (status == SystemWideSharedConstantAllocationStatus::LocalMemory)
-			sync_cout << "info string NNUE shared memory: fallback to local memory" << sync_endl;
-
 		return Tools::ResultCode::Ok;
 	}
 

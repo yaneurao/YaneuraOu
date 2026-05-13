@@ -159,12 +159,6 @@
 //#define USE_EVAL_LIST
 
 
-// 評価関数パラメーターを共有メモリを用いて他プロセスのものと共有する。
-// 少ないメモリのマシンで思考エンジンを何十個も立ち上げようとしたときにメモリ不足になるので
-// 評価関数をshared memoryを用いて他のプロセスと共有する機能。(対応しているのはいまのところKPPT評価関数のみ。かつWindows限定)
-// #define USE_SHARED_MEMORY_IN_EVAL
-
-
 // 評価関数で金と小駒の成りを区別する
 // 駒の特徴量はBonaPiece。これはBonanzaに倣っている。
 // このオプションを有効化すると、金と小駒の成りを区別する。(Bonanzaとは異なる特徴量になる)
@@ -399,12 +393,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define ENABLE_MAKEBOOK_CMD
 	#define USE_SFEN_PACKER
 
-	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT)
-
-		// 評価関数を共用して複数プロセス立ち上げたときのメモリを節約。(いまのところWindows限定)
-		#define USE_SHARED_MEMORY_IN_EVAL
-	#endif
-
 	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE)
 		#define USE_DIFF_EVAL
 	#endif
@@ -458,10 +446,6 @@ constexpr int MAX_PLY_NUM = 246;
 
 	#if defined(YANEURAOU_ENGINE_NNUE)
 		#define EVAL_NNUE
-
-		// 学習のためにOpenBLASを使う
-		// "../openblas/lib/libopenblas.dll.a"をlibとして追加すること。
-		//#define USE_BLAS
 
 		// NNUEの使いたい評価関数アーキテクチャの選択
 		//

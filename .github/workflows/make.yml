@@ -29,20 +29,11 @@ jobs:
           # - g++-10
         target:
           - tournament
-          # - evallearn
         archcpu:
           # - AVX512
           - AVX2
           # - NO_SSE
         exclude:
-          # 以下のエディションには機械学習の実装が存在しない
-          # There is no machine learning implementation for the following editions
-          - edition: YANEURAOU_MATE_ENGINE
-            target: evallearn
-          - edition: TANUKI_MATE_ENGINE
-            target: evallearn
-          - edition: USER_ENGINE
-            target: evallearn
           # Ubuntu-20.04 g++-10 は archcpu ZEN3,AVXVNNI のサポートを行わない
           # ubuntu-20.04 g++-10 will not support the archcpu ZEN3,AVXVNNI
           # `-march=cascadelake`: LLVM8, GCC9 support (AVX512VNNI)
@@ -77,7 +68,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev g++-8
+          sudo apt install build-essential g++-8
         if: ${{ matrix.compiler == 'g++-8' }}
       - name: install g++-9
         # Ubuntu 20.04
@@ -85,7 +76,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev g++-9
+          sudo apt install build-essential g++-9
         if: ${{ matrix.compiler == 'g++-9' }}
       - name: install g++-10
         # Ubuntu 20.04
@@ -93,7 +84,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev g++-10
+          sudo apt install build-essential g++-10
         if: ${{ matrix.compiler == 'g++-10' }}
       - name: install g++-11
         #
@@ -103,7 +94,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev g++-11
+          sudo apt install build-essential g++-11
         if: ${{ matrix.compiler == 'g++-11' }}
       - name: install clang-10
         # Ubuntu 18.04, Ubuntu 20.04
@@ -111,7 +102,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev clang-10 libstdc++-10-dev libomp-10-dev
+          sudo apt install build-essential clang-10 libstdc++-10-dev libomp-10-dev
         if: ${{ matrix.compiler == 'clang++-10' }}
       - name: install clang-11
         # Ubuntu 20.04
@@ -119,7 +110,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev clang-11 libomp-11-dev
+          sudo apt install build-essential clang-11 libomp-11-dev
         if: ${{ matrix.compiler == 'clang++-11' }}
       - name: install clang-12
         # Ubuntu 20.04 or LLVM APT
@@ -127,7 +118,7 @@ jobs:
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
           sudo apt update
-          sudo apt install build-essential libopenblas-dev clang-12 libomp-12-dev
+          sudo apt install build-essential clang-12 libomp-12-dev
         if: ${{ matrix.compiler == 'clang++-12' }}
       - name: install clang-13
         # LLVM APT
@@ -135,7 +126,7 @@ jobs:
           # install clang-13
           wget https://apt.llvm.org/llvm.sh
           sudo bash ./llvm.sh 13 all
-          sudo apt install build-essential libopenblas-dev
+          sudo apt install build-essential
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-13' }}
@@ -145,7 +136,7 @@ jobs:
           # install clang-14
           wget https://apt.llvm.org/llvm.sh
           sudo bash ./llvm.sh 14 all
-          sudo apt install build-essential libopenblas-dev
+          sudo apt install build-essential
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-14' }}
@@ -155,9 +146,9 @@ jobs:
           # install clang-15
           wget https://apt.llvm.org/llvm.sh
           # sudo bash ./llvm.sh 15 all
-          # sudo apt install build-essential libopenblas-dev
+          # sudo apt install build-essential
           sudo apt update
-          sudo apt install build-essential libopenblas-dev clang-15 libomp-15-dev
+          sudo apt install build-essential clang-15 libomp-15-dev
           sudo cat /etc/apt/sources.list
           sudo ls -R /etc/apt/sources.list.d
         if: ${{ matrix.compiler == 'clang++-15' }}

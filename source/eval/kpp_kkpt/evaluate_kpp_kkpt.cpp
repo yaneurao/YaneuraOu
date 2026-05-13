@@ -13,6 +13,7 @@
 #include "../../position.h"
 #include "../../misc.h"
 #include "../../memory.h"
+#include "../../shm.h"
 #include "../../usi.h"
 #include "../../extra/bitop.h"
 #include "../evaluate_io.h"
@@ -20,11 +21,6 @@
 
 #if defined (USE_EVAL_HASH)
 #include "../evalhash.h"
-#endif
-
-// EvalShareの機能を使うために必要
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
-#include <windows.h>
 #endif
 
 using namespace std;
@@ -74,7 +70,6 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
                     return std::nullopt;
                 }));
 
-    Options.add("EvalShare", Option(true));
 }
 #endif
 
@@ -82,12 +77,43 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
 namespace YaneuraOu {
 namespace Eval {
 
+	struct KppKkptEvalParameters {
+		// The eval files overwrite every byte, so avoid zero-filling this huge object.
+		KppKkptEvalParameters() noexcept {}
+
+		ValueKk  kk_body[SQ_NB][SQ_NB];
+		ValueKkp kkp_body[SQ_NB][SQ_NB][fe_end];
+		ValueKpp kpp_body[SQ_NB][fe_end][fe_end];
+	};
+
+	static_assert(std::is_trivially_copyable_v<KppKkptEvalParameters>,
+		"KppKkptEvalParameters must be trivially copyable for shared memory support");
+	static_assert(sizeof(KppKkptEvalParameters) == size_of_eval,
+		"KppKkptEvalParameters layout must match the existing contiguous eval layout");
+
 	// 評価関数パラメーター
 	// 2GBを超える配列は確保できないようなのでポインターにしておき、動的に確保する。
 
 	ValueKk(*kk_)[SQ_NB][SQ_NB];
 	ValueKkp(*kkp_)[SQ_NB][SQ_NB][fe_end];
 	ValueKpp(*kpp_)[SQ_NB][fe_end][fe_end];
+
+	SystemWideSharedConstant<KppKkptEvalParameters> shared_eval_parameters;
+	constexpr std::size_t KppKkptSharedMemoryDiscriminator = 0x4b504b54u; // "KPKT"
+
+} // namespace Eval
+} // namespace YaneuraOu
+
+template<>
+struct std::hash<YaneuraOu::Eval::KppKkptEvalParameters> {
+	std::size_t operator()(const YaneuraOu::Eval::KppKkptEvalParameters& p) const noexcept {
+		return static_cast<std::size_t>(
+			YaneuraOu::hash_bytes(reinterpret_cast<const char*>(&p), sizeof(p)));
+	}
+};
+
+namespace YaneuraOu {
+namespace Eval {
 
 	// 評価関数ファイルを読み込む
 	void load_eval_impl()
@@ -158,148 +184,30 @@ namespace Eval {
 		kpp_ = (ValueKpp(*)[SQ_NB][fe_end][fe_end]) (p + size_of_kk + size_of_kkp);
 	}
 
-	// 評価関数テーブルの読み込み用のメモリ
-	void* eval_memory;
-
-	void eval_malloc()
-	{
-		// benchコマンドなどでOptionsを保存して復元するのでこのときEvalDirが変更されたことになって、
-		// 評価関数の再読込の必要があるというフラグを立てるため、この関数は2度呼び出されることがある。
-
-		// メモリ確保は一回にして、連続性のある確保にする。
-		aligned_large_pages_free(eval_memory);
-		eval_memory = aligned_large_pages_alloc(size_of_eval);
-		eval_assign(eval_memory);
-	}
-
-#if defined (USE_SHARED_MEMORY_IN_EVAL) && defined(_WIN32)
-	// 評価関数の共有を行うための大掛かりな仕組み
-	// gccでコンパイルするときもWindows環境であれば、これが有効になって欲しいので defined(_WIN32) で判定。
-
-	void load_eval()
-	{
-		// 評価関数を共有するのか
-		if (!(bool)Options["EvalShare"])
-		{
-			eval_malloc();
-			load_eval_impl();
-
-			// 共有されていないメモリを用いる。
-			sync_cout << "info string use non-shared eval_memory." << sync_endl;
-
-			return;
-		}
-
-		// 評価関数ファイルが格納されているDirectory名をfull pathにて取得。
-		// それをMutex名にしておく。つまり同一フォルダの評価関数ファイルを参照している場合に限り、EvalShareで共有される。
-
-		// カレントフォルダに".."みたいなフォルダ駆け上がりが含まれていて、絶対pathは同じなのに同じ文字列にならないかも知れない。
-		// それはPath::Combine()が正規化して欲しい気はするが…面倒なのでやってない。
-
-		auto dir_name = Path::Combine(Directory::GetBinaryFolder(), (std::string)Options["EvalDir"]);
-		sync_cout << "info string EvalDirectory = " << dir_name << sync_endl;
-
-		// Mutex名,MMF(Memory Mapped File)名にbackslash文字は使えないらしいので、escapeする。念のため'/'もescapeする。
-		// (フォルダの絶対pathが同じなのに"/"と"\"とで合致しないと嫌なため)
-		replace(dir_name.begin(), dir_name.end(), '\\', '_');
-		replace(dir_name.begin(), dir_name.end(), '/', '_');
-		// フォルダ記号を"_"に置換しているので、たまたまpathに"_"が含まれているとややこしいことになるが、
-		// まあそんな運用普通しないと思うので気にしないことにする。
-
-		// Visual Studio 2019で「デバッグなしで実行」をしたとき、2回に一回ぐらい、shared memoryが使われない。
-		// VSのデバッガーが何か悪さをしているくさい。
-
-		// wchar_t*が必要なので変換する。
-
-		auto w_dir = Tools::MultiByteToWideChar(dir_name);
-
-// wstring化マクロ
-#define WIDEN(x) L##x
-#define TO_WSTRING(x) WIDEN(#x)
-
-		// Mutex名、MAX_PATH(==260)文字までなので、w_dir自体があまり深い階層だとこの制限を上回ってしまうが…。
-		// これは仕様だとする。PATH名が230文字超えるようなところに評価関数ファイル配置しないで。(´ω｀)
-		auto mapped_file_name = TEXT("YANEURAOU_KPP_KPPT_MMF"  ) + std::wstring(TO_WSTRING(ENGINE_VERSION)) + w_dir;
-		auto mutex_name       = TEXT("YANEURAOU_KPP_KPPT_MUTEX") + std::wstring(TO_WSTRING(ENGINE_VERSION)) + w_dir;
-
-
-		// プロセス間の排他用mutex
-		auto hMutex = CreateMutex(NULL, FALSE, mutex_name.c_str());
-
-		// ファイルマッピングオブジェクトの処理をプロセス間で排他したい。
-		WaitForSingleObject(hMutex, INFINITE);
-		{
-
-			// ファイルマッピングオブジェクトの作成
-			auto hMap = CreateFileMapping(INVALID_HANDLE_VALUE,
-				NULL,
-				PAGE_READWRITE, // | /**SEC_COMMIT/**/ /*SEC_RESERVE/**/,
-				(u32)(size_of_eval >> 32), (u32)size_of_eval,
-				mapped_file_name.c_str());
-
-			bool already_exists = (GetLastError() == ERROR_ALREADY_EXISTS);
-
-			// ビュー
-			auto shared_eval_ptr = (void *)MapViewOfFile(hMap, FILE_MAP_ALL_ACCESS, 0, 0, size_of_eval);
-
-			// メモリが確保できないときはshared_eval_ptr == null。このチェックをしたほうがいいような..。
-			if (shared_eval_ptr == nullptr)
-			{
-				sync_cout << "info string can't allocate shared eval memory." << sync_endl;
-				Tools::exit();
-			}
-			else
-			{
-				// shared_eval_ptrは、32bytesにalignされていると仮定している。
-				// Windows環境ではそうなっているっぽいし、このコードはWindows環境専用なので
-				// とりあえず、良しとする。
-				ASSERT_LV1(((u64)shared_eval_ptr & 0x1f) == 0);
-
-				eval_assign(shared_eval_ptr);
-
-				if (!already_exists)
-				{
-					// 新規作成されてしまった
-
-					// このタイミングで評価関数バイナリを読み込む
-					load_eval_impl();
-
-					sync_cout << "info string created shared eval memory." << sync_endl;
-
-				}
-				else {
-
-					// 評価関数バイナリを読み込む必要はない。ファイルマッピングが成功した時点で
-					// 評価関数バイナリは他のプロセスによって読み込まれていると考えられる。
-
-					sync_cout << "info string use shared eval memory." << sync_endl;
-				}
-			}
-		}
-		ReleaseMutex(hMutex);
-
-		// 終了時に本当ならば
-		// 1) ::ReleaseMutex()
-		// 2) ::UnmapVieOfFile()
-		// が必要であるが、1),2)がプロセスが解体されるときに自動でなされるので、この処理は特に入れない。
-	}
-
-#else
-
-	// 評価関数のプロセス間共有を行わないときは、普通に
-	// load_eval_impl()を呼び出すだけで良い。
 	void load_eval()
 	{
         if (eval_loaded)
             return;
         eval_loaded = true;  // 📌 読み込みに失敗したらプロセスが終了するだろうから..
 
-
-		eval_malloc();
+		auto tmp = make_unique_large_page<KppKkptEvalParameters>();
+		eval_assign(tmp.get());
 		load_eval_impl();
-	}
 
-#endif
+		shared_eval_parameters =
+			SystemWideSharedConstant<KppKkptEvalParameters>(*tmp, KppKkptSharedMemoryDiscriminator);
+
+		if (shared_eval_parameters == nullptr)
+		{
+			sync_cout << "info string KPP_KKPT shared memory: no eval memory allocated";
+			if (auto message = shared_eval_parameters.get_error_message())
+				sync_cout << " (" << *message << ")";
+			sync_cout << sync_endl;
+			Tools::exit();
+		}
+
+		eval_assign(const_cast<KppKkptEvalParameters*>(&*shared_eval_parameters));
+	}
 
 	// KP,KPP,KKPのスケール
 	const int FV_SCALE = 32;
