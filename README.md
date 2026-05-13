@@ -99,15 +99,6 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 |やねうら王の更新履歴|[やねうら王の更新履歴](https://github.com/yaneurao/YaneuraOu/wiki/やねうら王の更新履歴)|開発者|
 
 
-# 現在進行中のサブプロジェクト
-
-|プロジェクト名|進捗|
-|-|-|
-| やねうら王 | 現在進行形で改良しています。|
-| ふかうら王 | 現在進行形で改良しています。|
-| やねうら王詰将棋エンジンV2 | 省メモリで長手数の詰将棋が解ける詰将棋用のエンジン。|
-| やねうら王Script-Collection | やねうら王関連のスクリプト集です。|
-
 # 過去のサブプロジェクト
 
 過去のサブプロジェクトである、やねうら王nano , mini , classic、王手将棋、取る一手将棋、協力詰めsolver、連続自己対戦フレームワークなどはこちらからどうぞ。
@@ -132,14 +123,15 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 やねうら王関連の最新情報がキャッチできる主要なサイトです。
 
-|サイト | リンク|
-|-----|-----|
-|やねうら王公式ブログ | https://yaneuraou.yaneu.com |
-|やねうら王mini 公式 (解説記事等)| http://yaneuraou.yaneu.com/YaneuraOu_Mini |
-|やねうら王 X | https://x.com/yaneuraou|
-|やねうら王公式ちゃんねる(YouTube) | https://www.youtube.com/c/yanechan|
-|やねうら王公式GitHub | https://github.com/yaneurao/YaneuraOu |
-|やねうら王スクリプト集 | https://github.com/yaneurao/YaneuraOu-ScriptCollection |
+|サイト | リンク| 内容 |
+|-----|-----|-----|
+|やねうら王公式ブログ | https://yaneuraou.yaneu.com | やねうら王ブログ |
+|BulletOu | https://github.com/yaneurao/BulletOu | やねうら王評価関数の学習器 |
+|やねうら王mini | http://yaneuraou.yaneu.com/YaneuraOu_Mini | やねうら王miniを作ってみる連載記事 |
+|やねうら王 X | https://x.com/yaneuraou| やねうら王のX |
+|やねうら王ちゃんねる(YouTube) | https://www.youtube.com/c/yanechan| YouTube動画 |
+|やねうら王公式GitHub | https://github.com/yaneurao/YaneuraOu | このリポジトリ |
+|やねうら王ScriptCollection | https://github.com/yaneurao/YaneuraOu-ScriptCollection | やねうら王スクリプト集 |
 
 上記のやねうら王公式ブログでは、コンピュータ将棋に関する情報を大量に発信していますので、やねうら王に興味がなくとも、コンピュータ将棋の開発をしたいなら、非常に参考になると思います。
 

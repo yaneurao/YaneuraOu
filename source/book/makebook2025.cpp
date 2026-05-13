@@ -11,7 +11,7 @@
 // このペタショック化である。
 
 // コマンド例)
-//    makebook petashock book1.db user_book1.db
+//    makebook peta_shock book1.db user_book1.db
 // 
 // book1.dbをmin-max探索してuser_book1.dbを書き出す。
 // 
@@ -1366,8 +1366,7 @@ namespace MakeBook2025
 
 namespace Book
 {
-	// 2025年以降に作ったmakebook拡張コマンド
-	// "makebook XXX"コマンド。XXXの部分に"build_tree"や"extend_tree"が来る。
+	// 2025年以降に作ったmakebook拡張コマンド。
 	// この拡張コマンドを処理したら、この関数は非0を返す。
 	int makebook2025(std::istringstream& is, const std::string& token, const OptionsMap& options)
     {

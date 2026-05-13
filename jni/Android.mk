@@ -196,7 +196,6 @@ LOCAL_SRC_FILES := \
   ../source/testcmd/normal_test_cmd.cpp                                \
   ../source/testcmd/unit_test.cpp                                      \
   ../source/book/makebook.cpp                                          \
-  ../source/book/makebook2015.cpp                                      \
   ../source/book/makebook2025.cpp
 
 
