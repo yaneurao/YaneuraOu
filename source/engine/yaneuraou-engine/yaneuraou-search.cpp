@@ -995,7 +995,9 @@ void Search::YaneuraOuWorker::start_searching() {
     // go infiniteはShogiGUIなどの検討モードで動作させていると考えられるので
     // この場合は、PVを毎回出力しないと読み筋が出力されないことがある。
     search_options.computed_pv_interval =
-      (limits.infinite || search_options.consideration_mode) ? 0 : search_options.pv_interval;
+      (limits.infinite || limits.disablePvInterval || search_options.consideration_mode)
+        ? 0
+        : search_options.pv_interval;
 
     // 🌈 引き分けのスコア
 

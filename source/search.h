@@ -184,6 +184,9 @@ struct LimitsType {
 
         byoyomi[WHITE] = byoyomi[BLACK] = TimePoint(0);
         rtime                           = 0;
+#if !STOCKFISH
+        disablePvInterval               = false;
+#endif
     }
 
     // 時間制御を行うのか。
@@ -247,6 +250,9 @@ struct LimitsType {
 
     // "go rtime 100"とすると100～300msぐらい考える。
     TimePoint rtime;
+
+    // benchコマンド中はPV出力間隔の抑制を無効化して、最終info nodesを安定して取得する。
+    bool disablePvInterval;
 #endif
 };
 

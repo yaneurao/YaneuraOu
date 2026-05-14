@@ -703,6 +703,11 @@ void USIEngine::bench(std::istream& args) {
             {
                 Search::LimitsType limits = parse_limits(is);
 
+#if !STOCKFISH
+                // benchではPV出力間隔を無効化し、最後のinfo nodesを探索終了時点の値に揃える。
+                limits.disablePvInterval = true;
+#endif
+
                 if (limits.perft)
                     nodesSearched = perft(limits);
                 else
