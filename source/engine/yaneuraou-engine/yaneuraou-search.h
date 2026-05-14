@@ -434,7 +434,7 @@ class YaneuraOuWorker: public Worker {
     // 評価関数のパラメーターが各NUMAにコピーされているようにする。
     virtual void ensure_network_replicated() override;
 
-    // qsearch<PV>()を行い、この呼び出し中に得られたPVを返す。
+    // qsearch<PV>()をTT hitなし扱いで行い、この呼び出し中に得られたPVを返す。
     // 返されたPVを進めた局面が、qsearchで到達したleaf nodeになる。
     Value qsearch_pv(Position& pos, PVMoves& pv);
 
@@ -490,7 +490,7 @@ class YaneuraOuWorker: public Worker {
     // Quiescence search function, which is called by the main search
     // メイン探索から呼ばれる静止探索関数
     // 💡 search()から、残りdepthが小さくなった時に呼び出される。
-    template<NodeType nodeType>
+    template<NodeType nodeType, bool ReadTT = true>
     Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
 
 	// LMRのreductionの値を計算する。

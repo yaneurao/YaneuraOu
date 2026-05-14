@@ -495,8 +495,6 @@ bool YaneuraOuEngine::qsearch_psv(const std::string& inputPath,
         return false;
     }
 
-    tt.clear(threads);
-
     std::vector<PsvRecord> records(QSEARCH_PSV_CHUNK_RECORDS);
     QSearchPsvStats                 total;
     u64                             nextProgress = 1000000;
@@ -2154,7 +2152,7 @@ void YaneuraOuWorker::clear() {
 #endif
 }
 
-// qsearch<PV>()を単独で呼び出すためのヘルパー。
+// qsearch<PV>()をTT hitなし扱いで単独呼び出しするためのヘルパー。
 // qsearch内でStack::pvに構築されたPVをpvへ返すので、呼び出し側はこのPVをdo_move()して
 // qsearchのleaf node局面を得られる。通常探索のinfo pv表示のようにTTを辿ってPVを延長しない。
 Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
@@ -2193,7 +2191,7 @@ Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
 
     pos.set_ekr(main_manager()->search_options.enteringKingRule);
 
-    return qsearch<PV>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
+    return qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 }
 
 // -----------------------
@@ -4416,7 +4414,7 @@ moves_loop:  // When in check, search starts here
 // 詳細は https://www.chessprogramming.org/Horizon_Effect
 // および https://www.chessprogramming.org/Quiescence_Search を参照。
 
-template<NodeType nodeType>
+template<NodeType nodeType, bool ReadTT>
 Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta) {
 
     /*
@@ -4615,6 +4613,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     posKey                         = pos.key();
     auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
+
+#if !STOCKFISH
+    if constexpr (!ReadTT)
+        ttHit = false;
+#endif
 
     // Need further processing of the saved data
     // 保存されたデータのさらなる処理が必要です
@@ -4973,7 +4976,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
         do_move(pos, move, st, givesCheck, ss);
 
-        value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha);
+        value = -qsearch<nodeType, ReadTT>(pos, ss + 1, -beta, -alpha);
         undo_move(pos, move);
 
 		ASSERT_LV3(-VALUE_INFINITE < value && value < VALUE_INFINITE);
