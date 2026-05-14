@@ -3761,8 +3761,11 @@ moves_loop:  // When in check, search starts here
 
                 // 📝 2重延長を制限して探索の組合せ爆発を回避する必要がある。
 
-                extension =
-                  1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
+                if (pos.capture(move))
+                    extension = 1;
+                else
+                    extension =
+                      1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
 
                 depth++;
             }
