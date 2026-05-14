@@ -91,8 +91,8 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 |やねうら王のソースコード解説 |[やねうら王のソースコード解説](https://github.com/yaneurao/YaneuraOu/wiki/やねうら王のソースコード解説)|開発者向け|
 |AWSでやねうら王を動かす| [AWSでやねうら王](https://github.com/yaneurao/YaneuraOu/wiki/AWSでやねうら王)|中級~開発者|
 |大会に参加する時の設定|[大会に参加する時の設定](https://github.com/yaneurao/YaneuraOu/wiki/大会に参加する時の設定)|開発者|
-|やねうら王の学習手順|[やねうら王の学習手順](https://github.com/yaneurao/YaneuraOu/wiki/やねうら王の学習手順)|開発者|
-|ふかうら王の学習手順|[ふかうら王の学習手順](https://github.com/yaneurao/YaneuraOu/wiki/ふかうら王の学習手順)|開発者|
+|評価関数の学習|[評価関数の学習](評価関数の学習)|開発者|
+|ふかうら王の学習|[ふかうら王の学習](ふかうら王の学習)|開発者|
 |USI対応エンジンの自己対局|[USI対応エンジンの自己対局](https://github.com/yaneurao/YaneuraOu/wiki/USI対応エンジンの自己対局)|中級～開発者|
 |パラメーター自動調整フレームワーク|[パラメーター自動調整フレームワーク](https://github.com/yaneurao/YaneuraOu/wiki/パラメーター自動調整フレームワーク)|開発者|
 |探索部の計測資料|[探索部の計測資料](探索部の計測資料)|開発者|
