@@ -246,8 +246,9 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 			// 秒読み時間も残り手数に付随しているものとみなす。
 			+ limits.byoyomi[us] * MTG;
 
-		// 1秒ずつは絶対消費していくねんで！
-		remain_estimate -= (MTG + 1) * 1000;
+		// 秒単位切り捨てルールでは、各手で1秒未満を使う前提で予約しておく。
+		if (round_up_to_fullsecond)
+			remain_estimate -= (MTG + 1) * 1000;
 		remain_estimate = std::max(remain_estimate, TimePoint(0));
 
 		// -- optimumTime
