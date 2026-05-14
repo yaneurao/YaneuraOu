@@ -106,6 +106,7 @@ if(-not (Test-Path $Dir)){
 }
 
 $NdkArgs = @(
+  "NDK_PROJECT_PATH=$((Get-Location).Path)",
   "APP_BUILD_SCRIPT=$((Get-Location).Path)\script\jni\Android.mk",
   "NDK_APPLICATION_MK=$((Get-Location).Path)\script\jni\Application.mk"
 );

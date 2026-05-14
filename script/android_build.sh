@@ -97,7 +97,7 @@ for EDITION in ${EDITIONS[@]}; do
       echo "* edition: ${EDITION}"
       BUILDDIR=build/android/${DIRSTR[$EDITION]}
       mkdir -p ${BUILDDIR}
-      NDK_ARGS="APP_BUILD_SCRIPT=$(pwd)/script/jni/Android.mk NDK_APPLICATION_MK=$(pwd)/script/jni/Application.mk"
+      NDK_ARGS="NDK_PROJECT_PATH=$(pwd) APP_BUILD_SCRIPT=$(pwd)/script/jni/Android.mk NDK_APPLICATION_MK=$(pwd)/script/jni/Application.mk"
       ndk-build ${NDK_ARGS} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
       ndk-build ${NDK_ARGS} -j$(nproc) YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} V=1 ${EXTRA} >& >(tee ${BUILDDIR}/build.log) || exit $?
       bash -c "cp libs/**/* ${BUILDDIR}"
