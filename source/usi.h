@@ -128,6 +128,16 @@ public:
 	// 💡 ここにUSIコマンドを積むとそれが実行される。
 	StandardInput std_input;
 
+    // コマンドラインに書かれているUSIコマンドをstd_inputに積む。
+    // マルチインスタンス時に注入先を選べるよう、USIEngine::loop()からは呼び出さない。
+    void enqueue_command_line_commands(const CommandLine& cli);
+
+    // startup.txtなどのファイルに書かれているUSIコマンドをstd_inputに積む。
+    void enqueue_startup_file_commands(const std::string& filename);
+
+    // 単一エンジン起動用に、コマンドラインとstartup.txtのUSIコマンドをstd_inputに積む。
+    void enqueue_startup_commands(const CommandLine& cli);
+
 	// このclassのUnitTest。
 	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 #endif
@@ -199,9 +209,6 @@ private:
 
 #if !STOCKFISH
 	// 🌈 やねうら王独自拡張 🌈
-
-	// コマンドラインと"startup.txt"に書かれているUSIコマンドをstd_inputに積む。
-	void enqueue_startup_command();
 
 	// ファイルからUSIコマンドをstd_inputに積む。
 	void enqueue_command_from_file(std::istringstream& is);

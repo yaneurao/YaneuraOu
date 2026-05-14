@@ -138,8 +138,8 @@ void USIEngine::init_search_update_listeners() {
 // USI応答部ループ
 void USIEngine::loop()
 {
-	// コマンドラインと"startup.txt"に書かれているUSIコマンドをstd_inputに積む。
-	//enqueue_startup_command();
+    // 起動時コマンドは、マルチインスタンス時に注入先を選べるよう、
+    // 選択されたEngineのentry point側からstd_inputへ積む。
 
 #if !defined(__EMSCRIPTEN__)
 
@@ -1414,20 +1414,26 @@ void USIEngine::qsearch_psv(std::istringstream& is) {
 void USIEngine::unittest(std::istringstream& is) { Test::UnitTest(is, engine); }
 
 
-// コマンドラインと"startup.txt"に書かれているUSIコマンドをstd_inputに積む。
-void USIEngine::enqueue_startup_command() {
+// コマンドラインに書かれているUSIコマンドをstd_inputに積む。
+void USIEngine::enqueue_command_line_commands(const CommandLine& cli) {
     // コマンドラインから積まれたコマンドをstd_inputに積んでやる。
-    std_input.parse_args(CommandLine::g);
+    std_input.parse_args(cli);
+}
 
-    // "startup.txt"というファイルがあれば、この内容を実行してやる。
-    // そのため、std_inputにそこに書かれているコマンドを積んでやる。
-    const std::string   startup = "startup.txt";
+// startup.txtなどのファイルに書かれているUSIコマンドをstd_inputに積む。
+void USIEngine::enqueue_startup_file_commands(const std::string& filename) {
     std::vector<std::string> lines;
-    if (SystemIO::ReadAllLines(startup, lines).is_ok())
+    if (SystemIO::ReadAllLines(filename, lines).is_ok())
     {
         for (auto& line : lines)
             std_input.push(line);
     }
+}
+
+// 単一エンジン起動用に、コマンドラインとstartup.txtのUSIコマンドをstd_inputに積む。
+void USIEngine::enqueue_startup_commands(const CommandLine& cli) {
+    enqueue_command_line_commands(cli);
+    enqueue_startup_file_commands("startup.txt");
 }
 
 // ファイルからUSIコマンドをstd_inputに積む。

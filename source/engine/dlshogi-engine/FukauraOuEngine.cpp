@@ -7,6 +7,7 @@
 #include "../../position.h"
 #include "../../usi.h"
 #include "../../thread.h"
+#include "../../misc.h"
 
 #include "dlshogi_searcher.h"
 #include "UctSearch.h"
@@ -519,6 +520,7 @@ void engine_main() {
     // USIコマンドの応答部
 	auto usi = std::make_unique<USIEngine>();
     usi->set_engine(*engine);  // エンジン実装を差し替える。
+    usi->enqueue_startup_commands(CommandLine::g);
 
     // USIコマンドの応答のためのループ
     usi->loop();
