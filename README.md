@@ -91,11 +91,11 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 |やねうら王のソースコード解説 |[やねうら王のソースコード解説](https://github.com/yaneurao/YaneuraOu/wiki/やねうら王のソースコード解説)|開発者向け|
 |AWSでやねうら王を動かす| [AWSでやねうら王](https://github.com/yaneurao/YaneuraOu/wiki/AWSでやねうら王)|中級~開発者|
 |大会に参加する時の設定|[大会に参加する時の設定](https://github.com/yaneurao/YaneuraOu/wiki/大会に参加する時の設定)|開発者|
-|評価関数の学習|[評価関数の学習](評価関数の学習)|開発者|
-|ふかうら王の学習|[ふかうら王の学習](ふかうら王の学習)|開発者|
+|評価関数の学習|[評価関数の学習](https://github.com/yaneurao/YaneuraOu/wiki/評価関数の学習)|開発者|
+|ふかうら王の学習|[ふかうら王の学習](https://github.com/yaneurao/YaneuraOu/wiki/ふかうら王の学習)|開発者|
 |USI対応エンジンの自己対局|[USI対応エンジンの自己対局](https://github.com/yaneurao/YaneuraOu/wiki/USI対応エンジンの自己対局)|中級～開発者|
 |パラメーター自動調整フレームワーク|[パラメーター自動調整フレームワーク](https://github.com/yaneurao/YaneuraOu/wiki/パラメーター自動調整フレームワーク)|開発者|
-|探索部の計測資料|[探索部の計測資料](探索部の計測資料)|開発者|
+|探索部の計測資料|[探索部の計測資料](https://github.com/yaneurao/YaneuraOu/wiki/探索部の計測資料)|開発者|
 |廃止したコマンド・オプションなど| [過去の資料](https://github.com/yaneurao/YaneuraOu/wiki/過去の資料)|開発者|
 |過去のサブプロジェクト|[過去のサブプロジェクト](https://github.com/yaneurao/YaneuraOu/wiki/%E9%81%8E%E5%8E%BB%E3%81%AE%E3%82%B5%E3%83%96%E3%83%97%E3%83%AD%E3%82%B8%E3%82%A7%E3%82%AF%E3%83%88)|初心者～開発者|
 |やねうら王の更新履歴|[やねうら王の更新履歴](https://github.com/yaneurao/YaneuraOu/wiki/やねうら王の更新履歴)|開発者|
