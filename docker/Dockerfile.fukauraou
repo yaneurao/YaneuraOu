@@ -1,0 +1,25 @@
+FROM nvcr.io/nvidia/tensorrt:24.12-py3
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN ln -s -f /bin/true /usr/bin/chfn
+RUN echo "resolvconf resolvconf/linkify-resolvconf boolean false" | debconf-set-selections
+
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    libcurl4-openssl-dev \
+    wget \
+    zlib1g-dev \
+    pkg-config \
+    build-essential libopenblas-dev \
+    clang lld  && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY .. /tmp/YaneuraOu
+WORKDIR /tmp/YaneuraOu
+RUN cd /tmp/YaneuraOu/source && \
+    make -j $(nproc) tournament COMPILER=clang++ YANEURAOU_EDITION=YANEURAOU_ENGINE_DEEP_TENSOR_RT_UBUNTU ENGINE_NAME="FukauraOuV8.60" && \
+    cp ./YaneuraOu-by-gcc /usr/local/bin && \
+    rm -rf /tmp/YaneuraOu
+
+WORKDIR /root
+
