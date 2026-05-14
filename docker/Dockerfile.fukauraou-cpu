@@ -1,0 +1,60 @@
+FROM ubuntu:24.04 AS build
+
+ARG ONNXRUNTIME_VERSION=1.23.0
+ARG TARGET_CPU=AVX2
+ARG COMPILER=clang++
+ARG ENGINE_NAME=FukauraOu-ORT-CPU
+
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      build-essential \
+      ca-certificates \
+      clang \
+      lld \
+      make \
+      python3 \
+      wget \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /opt/onnxruntime \
+ && wget -q -O /tmp/onnxruntime.tgz "https://github.com/microsoft/onnxruntime/releases/download/v${ONNXRUNTIME_VERSION}/onnxruntime-linux-x64-${ONNXRUNTIME_VERSION}.tgz" \
+ && tar -xzf /tmp/onnxruntime.tgz --strip-components=1 -C /opt/onnxruntime \
+ && rm -f /tmp/onnxruntime.tgz
+
+WORKDIR /tmp/YaneuraOu
+COPY . .
+
+RUN cd source \
+ && make -j"$(nproc)" tournament \
+      COMPILER="${COMPILER}" \
+      YANEURAOU_EDITION=YANEURAOU_ENGINE_DEEP_ORT_CPU \
+      TARGET_CPU="${TARGET_CPU}" \
+      ENGINE_NAME="${ENGINE_NAME}" \
+      EXTRA_CPPFLAGS="-I/opt/onnxruntime/include" \
+      EXTRA_LDFLAGS="-L/opt/onnxruntime/lib -Wl,-rpath,/usr/local/lib" \
+ && mkdir -p /opt/yaneuraou \
+ && cp YaneuraOu-by-gcc /opt/yaneuraou/
+
+FROM ubuntu:24.04
+
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      libgcc-s1 \
+      libgomp1 \
+      libstdc++6 \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /opt/onnxruntime/lib/libonnxruntime*.so* /usr/local/lib/
+COPY --from=build /opt/yaneuraou/YaneuraOu-by-gcc /opt/yaneuraou/YaneuraOu-by-gcc
+
+RUN ldconfig \
+ && mkdir -p /opt/yaneuraou/eval /opt/yaneuraou/book
+WORKDIR /opt/yaneuraou
+
+ENTRYPOINT ["./YaneuraOu-by-gcc"]

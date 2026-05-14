@@ -1,0 +1,19 @@
+name: fukauraou-cpu
+
+services:
+  fukauraou-cpu:
+    image: fukauraou-cpu:local
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.fukauraou-cpu
+      args:
+        ONNXRUNTIME_VERSION: ${ONNXRUNTIME_VERSION:-1.23.0}
+        TARGET_CPU: ${TARGET_CPU:-AVX2}
+        COMPILER: ${COMPILER:-clang++}
+        ENGINE_NAME: ${ENGINE_NAME:-FukauraOu-ORT-CPU}
+    stdin_open: true
+    tty: true
+    init: true
+    volumes:
+      - ../eval:/opt/yaneuraou/eval
+      - ../book:/opt/yaneuraou/book

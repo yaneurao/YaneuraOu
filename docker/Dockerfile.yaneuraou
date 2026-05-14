@@ -1,0 +1,43 @@
+FROM ubuntu:24.04 AS build
+
+ARG YANEURAOU_EDITION=YANEURAOU_ENGINE_NNUE
+ARG TARGET_CPU=AVX2
+ARG COMPILER=clang++
+ARG ENGINE_NAME=YaneuraOu
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      build-essential \
+      ca-certificates \
+      clang \
+      lld \
+      make \
+      python3 \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp/YaneuraOu
+COPY . .
+
+RUN cd source \
+ && make -j"$(nproc)" tournament \
+      COMPILER="${COMPILER}" \
+      YANEURAOU_EDITION="${YANEURAOU_EDITION}" \
+      TARGET_CPU="${TARGET_CPU}" \
+      ENGINE_NAME="${ENGINE_NAME}" \
+ && mkdir -p /opt/yaneuraou \
+ && cp YaneuraOu-by-gcc /opt/yaneuraou/
+
+FROM ubuntu:24.04
+
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      libgcc-s1 \
+      libstdc++6 \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /opt/yaneuraou/YaneuraOu-by-gcc /opt/yaneuraou/YaneuraOu-by-gcc
+
+RUN mkdir -p /opt/yaneuraou/eval /opt/yaneuraou/book
+WORKDIR /opt/yaneuraou
+
+ENTRYPOINT ["./YaneuraOu-by-gcc"]

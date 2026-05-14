@@ -1,0 +1,19 @@
+name: fukauraou-tensorrt
+
+services:
+  fukauraou-tensorrt:
+    image: fukauraou-tensorrt:local
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.fukauraou-tensorrt
+      args:
+        TARGET_CPU: ${TARGET_CPU:-AVX2}
+        COMPILER: ${COMPILER:-clang++}
+        ENGINE_NAME: ${ENGINE_NAME:-FukauraOu-TensorRT}
+    stdin_open: true
+    tty: true
+    init: true
+    gpus: all
+    volumes:
+      - ../eval:/opt/yaneuraou/eval
+      - ../book:/opt/yaneuraou/book

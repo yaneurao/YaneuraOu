@@ -1,0 +1,180 @@
+name: yaneuraou
+
+x-yaneuraou-common: &yaneuraou-common
+  stdin_open: true
+  tty: true
+  init: true
+  shm_size: 1g
+  volumes:
+    - ../eval:/opt/yaneuraou/eval
+    - ../book:/opt/yaneuraou/book
+
+x-yaneuraou-build: &yaneuraou-build
+  context: ..
+  dockerfile: docker/Dockerfile.yaneuraou
+
+services:
+  yaneuraou:
+    <<: *yaneuraou-common
+    image: yaneuraou-nnue:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu
+
+  yaneuraou-nnue:
+    <<: *yaneuraou-common
+    image: yaneuraou-nnue:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-NNUE
+
+  yaneuraou-nnue-kp256:
+    <<: *yaneuraou-common
+    image: yaneuraou-nnue-kp256:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE_KP256
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-NNUE-KP256
+
+  yaneuraou-nnue-halfkpe9:
+    <<: *yaneuraou-common
+    image: yaneuraou-nnue-halfkpe9:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE_HALFKPE9
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-NNUE-HALFKPE9
+
+  yaneuraou-nnue-halfkp-512x2-16-32:
+    <<: *yaneuraou-common
+    image: yaneuraou-nnue-halfkp-512x2-16-32:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE_HALFKP_512X2_16_32
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-NNUE-HALFKP-512x2-16-32
+
+  yaneuraou-nnue-halfkp-1024x2-8-32:
+    <<: *yaneuraou-common
+    image: yaneuraou-nnue-halfkp-1024x2-8-32:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_32
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-NNUE-HALFKP-1024x2-8-32
+
+  yaneuraou-nnue-halfkp-1024x2-8-64:
+    <<: *yaneuraou-common
+    image: yaneuraou-nnue-halfkp-1024x2-8-64:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_64
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-NNUE-HALFKP-1024x2-8-64
+
+  yaneuraou-nnue-halfkp-vm-256x2-32-32:
+    <<: *yaneuraou-common
+    image: yaneuraou-nnue-halfkp-vm-256x2-32-32:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-NNUE-HALFKP-VM-256x2-32-32
+
+  yaneuraou-nnue-sfnnwop1536:
+    <<: *yaneuraou-common
+    image: yaneuraou-nnue-sfnnwop1536:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE_SFNNwoP1536
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-NNUE-SFNNwoP1536
+
+  yaneuraou-kppt:
+    <<: *yaneuraou-common
+    image: yaneuraou-kppt:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_KPPT
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-KPPT
+
+  yaneuraou-kpp-kkpt:
+    <<: *yaneuraou-common
+    image: yaneuraou-kpp-kkpt:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_KPP_KKPT
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-KPP-KKPT
+
+  yaneuraou-material:
+    <<: *yaneuraou-common
+    image: yaneuraou-material:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_MATERIAL
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOu-Material
+
+  tanuki-mate:
+    <<: *yaneuraou-common
+    image: tanuki-mate:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: TANUKI_MATE_ENGINE
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: TanukiMate
+
+  yaneuraou-mate:
+    <<: *yaneuraou-common
+    image: yaneuraou-mate:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: YANEURAOU_MATE_ENGINE
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: YaneuraOuMate
+
+  user-engine:
+    <<: *yaneuraou-common
+    image: user-engine:local
+    build:
+      <<: *yaneuraou-build
+      args:
+        YANEURAOU_EDITION: USER_ENGINE
+        TARGET_CPU: AVX2
+        COMPILER: clang++
+        ENGINE_NAME: UserEngine
