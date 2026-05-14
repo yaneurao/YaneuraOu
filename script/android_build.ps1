@@ -105,12 +105,17 @@ if(-not (Test-Path $Dir)){
   New-Item $Dir -ItemType Directory -Force;
 }
 
+$NdkArgs = @(
+  "APP_BUILD_SCRIPT=$((Get-Location).Path)\script\jni\Android.mk",
+  "NDK_APPLICATION_MK=$((Get-Location).Path)\script\jni\Application.mk"
+);
+
 "`n* Clean Build"|Out-Host;
-ndk-build.cmd clean YANEURAOU_EDITION=$_Edition $Extra;
+ndk-build.cmd $NdkArgs clean YANEURAOU_EDITION=$_Edition $Extra;
 
 "`n* Build Binary"|Out-Host;
 $log = $null;
-ndk-build.cmd -j $Jobs YANEURAOU_EDITION=$_Edition NNUE_EVAL_ARCH=$($_.Nnue) V=1 $Extra|Tee-Object -Variable log;
+ndk-build.cmd $NdkArgs -j $Jobs YANEURAOU_EDITION=$_Edition NNUE_EVAL_ARCH=$($_.Nnue) V=1 $Extra|Tee-Object -Variable log;
 $log|Out-File -Encoding utf8 -Force (Join-Path $Dir "build.log");
 
 "`n* Copy Binary"|Out-Host;
@@ -120,7 +125,7 @@ ForEach-Object{
 };
 
 "`n* Clean Build"|Out-Host;
-ndk-build.cmd clean YANEURAOU_EDITION=$_Edition $Extra;
+ndk-build.cmd $NdkArgs clean YANEURAOU_EDITION=$_Edition $Extra;
 
 }
 

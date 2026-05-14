@@ -97,10 +97,11 @@ for EDITION in ${EDITIONS[@]}; do
       echo "* edition: ${EDITION}"
       BUILDDIR=build/android/${DIRSTR[$EDITION]}
       mkdir -p ${BUILDDIR}
-      ndk-build clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
-      ndk-build -j$(nproc) YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} V=1 ${EXTRA} >& >(tee ${BUILDDIR}/build.log) || exit $?
+      NDK_ARGS="APP_BUILD_SCRIPT=$(pwd)/script/jni/Android.mk NDK_APPLICATION_MK=$(pwd)/script/jni/Application.mk"
+      ndk-build ${NDK_ARGS} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
+      ndk-build ${NDK_ARGS} -j$(nproc) YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} V=1 ${EXTRA} >& >(tee ${BUILDDIR}/build.log) || exit $?
       bash -c "cp libs/**/* ${BUILDDIR}"
-      ndk-build clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
+      ndk-build ${NDK_ARGS} clean YANEURAOU_EDITION=${EDITIONSTR[$EDITION]} ${EXTRA}
       break
     fi
     set -f
