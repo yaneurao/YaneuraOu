@@ -6,12 +6,15 @@
 //      通常のtestコマンド
 // ----------------------------------
 
+#include <fstream>
+#include <iomanip>
 #include <sstream>
 #include "../position.h"
 #include "../usi.h"
 #include "../thread.h"
 #include "../search.h"
 #include "../movegen.h"
+#include "../evaluate.h"
 
 namespace YaneuraOu {
 namespace {
@@ -228,6 +231,121 @@ namespace {
 				std::cout << result;
 		}
 	}
+
+	// "test eval_accuracy <psv_path>" : 検証用 PSV ファイルに対し evaluate() を
+	// 呼び、sign 一致率 (= dlshogi の binary_accuracy と同じ慣例) を計算する。
+	//
+	// 慣例:
+	//   pred  = (evaluate(pos) >= 0)        側面から見て勝ち予測
+	//   truth = (game_result   >= 0)        STM が負けなかった (Win or Draw)
+	//   match = (pred == truth)
+	//
+	// この定義は dlshogi の `binary_accuracy` (drawをWin側にバケットする) に
+	// 準拠しているため、BulletOu の `test_value_accuracy` と数値を直接比較できる。
+	void eval_accuracy(IEngine& engine, std::istringstream& is)
+	{
+		std::string psv_path;
+		is >> psv_path;
+
+		if (psv_path.empty())
+		{
+			std::cout << "Error: usage: test eval_accuracy <psv_path>" << std::endl;
+			return;
+		}
+
+		std::ifstream f(psv_path, std::ios::binary);
+		if (!f)
+		{
+			std::cout << "Error: cannot open " << psv_path << std::endl;
+			return;
+		}
+
+		// PsvRecord 固定長 (40 byte)。size が割り切れない = corrupted/truncated。
+		f.seekg(0, std::ios::end);
+		auto file_size = (uint64_t)f.tellg();
+		f.seekg(0, std::ios::beg);
+		if (file_size % sizeof(PsvRecord) != 0)
+		{
+			std::cout << "Error: file size " << file_size
+					  << " is not a multiple of " << sizeof(PsvRecord)
+					  << " byte (PsvRecord size) — possibly corrupted/truncated"
+					  << std::endl;
+			return;
+		}
+		const uint64_t total_records = file_size / sizeof(PsvRecord);
+
+		std::cout << "test eval_accuracy: " << psv_path << std::endl
+				  << "  records = " << total_records << std::endl;
+
+		// nn.bin の load を保証 (= "isready" 相当処理を先に走らせる)
+		engine.isready();
+
+		auto& pos = engine.get_position();
+		StateInfo si;
+
+		uint64_t compared = 0;
+		uint64_t sign_match = 0;
+		uint64_t drawn = 0;
+		uint64_t skipped = 0;
+
+		auto start_time = now();
+		auto last_report = start_time;
+
+		PsvRecord rec;
+		while (f.read(reinterpret_cast<char*>(&rec), sizeof(PsvRecord)))
+		{
+			if (pos.set_from_packed_sfen(rec.sfen, &si, false, rec.gamePly).is_not_ok())
+			{
+				skipped++;
+				continue;
+			}
+
+			// IEngine::evaluate() は内部で verify_networks() + Eval::evaluate(pos) を
+			// 呼ぶ。NNUE accumulator は set_from_packed_sfen 後に invalid 状態に
+			// なっているはずなので、Eval::evaluate 側で full refresh される (= 通常の
+			// 探索開始時と同じ経路)。
+			Value v = engine.evaluate();
+
+			bool pred  = v >= VALUE_ZERO;
+			bool truth = rec.game_result >= 0;
+			if (pred == truth) sign_match++;
+			if (rec.game_result == 0) drawn++;
+			compared++;
+
+			// 5 秒ごとに進捗
+			auto cur = now();
+			if (cur - last_report >= 5000)
+			{
+				last_report = cur;
+				double pct = (total_records > 0)
+					? 100.0 * (double)compared / (double)total_records
+					: 0.0;
+				std::cout << "  processed " << compared << " / " << total_records
+						  << " (" << std::fixed << std::setprecision(1) << pct
+						  << "%)" << std::endl;
+			}
+		}
+
+		auto elapsed_ms = now() - start_time;
+		double accuracy = (compared > 0)
+			? (double)sign_match / (double)compared
+			: 0.0;
+
+		std::cout << "----" << std::endl;
+		std::cout << "test eval_accuracy result:" << std::endl;
+		std::cout << "  positions  = " << compared
+				  << " (skipped " << skipped << " malformed records)" << std::endl;
+		std::cout << "  accuracy   = " << std::fixed << std::setprecision(4)
+				  << (accuracy * 100.0) << "% (" << sign_match << "/" << compared
+				  << " matches, dlshogi-style binary_accuracy)" << std::endl;
+		std::cout << "  drawn      = " << drawn
+				  << " (counted as truth=1, dlshogi convention)" << std::endl;
+		std::cout << "  elapsed    = " << elapsed_ms << " ms ("
+				  << (elapsed_ms > 0
+					  ? (compared * 1000) / (uint64_t)elapsed_ms
+					  : 0)
+				  << " positions/sec)" << std::endl;
+	}
 } // namespace
 
 // ----------------------------------
@@ -239,9 +357,10 @@ namespace Test
 	// 通常のテストコマンド。コマンドを処理した時 trueが返る。
 	bool normal_test_cmd(IEngine& engine , std::istringstream& is, const std::string& token)
 	{
-		if (token == "genmoves")         gen_moves(engine, is);       // 現在の局面に対して指し手生成のテストを行う。
-		else if (token == "autoplay")    auto_play(engine, is);       // 連続自己対局を行う。
-		else return false;									          // どのコマンドも処理することがなかった
+		if (token == "genmoves")              gen_moves(engine, is);       // 現在の局面に対して指し手生成のテストを行う。
+		else if (token == "autoplay")         auto_play(engine, is);       // 連続自己対局を行う。
+		else if (token == "eval_accuracy")    eval_accuracy(engine, is);   // PSV に対し evaluate() の sign 一致率を測る。
+		else return false;									               // どのコマンドも処理することがなかった
 			
 		// いずれかのコマンドを処理した。
 		return true;
