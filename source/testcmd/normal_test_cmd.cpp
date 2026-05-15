@@ -232,6 +232,7 @@ namespace {
 		}
 	}
 
+#if defined(YANEURAOU_ENGINE)
 	// "test eval_accuracy <psv_path>" : 検証用 PSV ファイルに対し evaluate() を
 	// 呼び、sign 一致率 (= dlshogi の binary_accuracy と同じ慣例) を計算する。
 	//
@@ -242,6 +243,15 @@ namespace {
 	//
 	// この定義は dlshogi の `binary_accuracy` (drawをWin側にバケットする) に
 	// 準拠しているため、BulletOu の `test_value_accuracy` と数値を直接比較できる。
+	//
+	// YANEURAOU_ENGINE ガード: このコマンドは「engine.evaluate() が局面ごとに
+	// 意味のある Value を返す」ことに依存する。これを満たすのは YaneuraOuEngine
+	// を継承する NNUE / KPPT / KPP_KKPT / Material 系のみ (= YANEURAOU_ENGINE が
+	// 定義される構成)。ふかうら王 (Deep)、tanuki/yaneuraou-mate、user-engine は
+	// Engine::evaluate() の基底実装 (VALUE_NONE を返す) のままで accuracy 算出が
+	// 無意味なため除外する。また YANEURAOU_ENGINE 配下では USE_SFEN_PACKER も
+	// 同時に定義されるので、PsvRecord / Position::set_from_packed_sfen への参照も
+	// このガード内で安全に行える。
 	void eval_accuracy(IEngine& engine, std::istringstream& is)
 	{
 		std::string psv_path;
@@ -346,6 +356,7 @@ namespace {
 					  : 0)
 				  << " positions/sec)" << std::endl;
 	}
+#endif // defined(YANEURAOU_ENGINE)
 } // namespace
 
 // ----------------------------------
@@ -359,7 +370,9 @@ namespace Test
 	{
 		if (token == "genmoves")              gen_moves(engine, is);       // 現在の局面に対して指し手生成のテストを行う。
 		else if (token == "autoplay")         auto_play(engine, is);       // 連続自己対局を行う。
+#if defined(YANEURAOU_ENGINE)
 		else if (token == "eval_accuracy")    eval_accuracy(engine, is);   // PSV に対し evaluate() の sign 一致率を測る。
+#endif
 		else return false;									               // どのコマンドも処理することがなかった
 			
 		// いずれかのコマンドを処理した。
