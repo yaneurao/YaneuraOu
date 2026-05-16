@@ -234,15 +234,19 @@ namespace {
 
 #if defined(YANEURAOU_ENGINE)
 	// "test eval_accuracy <psv_path>" : 検証用 PSV ファイルに対し evaluate() を
-	// 呼び、sign 一致率 (= dlshogi の binary_accuracy と同じ慣例) を計算する。
+	// 呼び、決着のついた局面 (= W/L) のみを対象に sign 一致率を計算する。
 	//
 	// 慣例:
 	//   pred  = (evaluate(pos) >= 0)        側面から見て勝ち予測
-	//   truth = (game_result   >= 0)        STM が負けなかった (Win or Draw)
-	//   match = (pred == truth)
+	//   truth = (game_result   >  0)        STM が勝った
+	//   match = (pred == truth)            game_result == 0 (引き分け) は両側から除外
 	//
-	// この定義は dlshogi の `binary_accuracy` (drawをWin側にバケットする) に
-	// 準拠しているため、BulletOu の `test_value_accuracy` と数値を直接比較できる。
+	// 引き分け除外の理由: dlshogi の旧 binary_accuracy は draw を win 側にバケット
+	// していたが、dlshogi 作者が実際に検証に使っている局面集には引き分けが含まれて
+	// いない。draw を含めると「model_output ≈ 0 を出すモデル」が draw + win に対し
+	// 機械的に正解扱いされる構造的バイアス (= --scale を小さくして 0 に寄せると
+	// 単調に accuracy が上がる現象の一因) を持つため、これを排し W vs L の純粋な
+	// 符号一致率を測る。BulletOu 側の test_value_accuracy も同じ定義に揃えてある。
 	//
 	// YANEURAOU_ENGINE ガード: このコマンドは「engine.evaluate() が局面ごとに
 	// 意味のある Value を返す」ことに依存する。これを満たすのは YaneuraOuEngine
@@ -310,6 +314,13 @@ namespace {
 				continue;
 			}
 
+			// 引き分けは accuracy 算出から除外。位置数のカウントだけ別途行う。
+			if (rec.game_result == 0)
+			{
+				drawn++;
+				continue;
+			}
+
 			// IEngine::evaluate() は内部で verify_networks() + Eval::evaluate(pos) を
 			// 呼ぶ。NNUE accumulator は set_from_packed_sfen 後に invalid 状態に
 			// なっているはずなので、Eval::evaluate 側で full refresh される (= 通常の
@@ -317,9 +328,8 @@ namespace {
 			Value v = engine.evaluate();
 
 			bool pred  = v >= VALUE_ZERO;
-			bool truth = rec.game_result >= 0;
+			bool truth = rec.game_result > 0;
 			if (pred == truth) sign_match++;
-			if (rec.game_result == 0) drawn++;
 			compared++;
 
 			// 5 秒ごとに進捗
@@ -343,16 +353,16 @@ namespace {
 
 		std::cout << "----" << std::endl;
 		std::cout << "test eval_accuracy result:" << std::endl;
-		std::cout << "  positions  = " << compared
+		std::cout << "  decisive   = " << compared
 				  << " (skipped " << skipped << " malformed records)" << std::endl;
 		std::cout << "  accuracy   = " << std::fixed << std::setprecision(4)
 				  << (accuracy * 100.0) << "% (" << sign_match << "/" << compared
-				  << " matches, dlshogi-style binary_accuracy)" << std::endl;
+				  << " matches; W vs L sign agreement)" << std::endl;
 		std::cout << "  drawn      = " << drawn
-				  << " (counted as truth=1, dlshogi convention)" << std::endl;
+				  << " (excluded from accuracy)" << std::endl;
 		std::cout << "  elapsed    = " << elapsed_ms << " ms ("
 				  << (elapsed_ms > 0
-					  ? (compared * 1000) / (uint64_t)elapsed_ms
+					  ? ((compared + drawn) * 1000) / (uint64_t)elapsed_ms
 					  : 0)
 				  << " positions/sec)" << std::endl;
 	}
