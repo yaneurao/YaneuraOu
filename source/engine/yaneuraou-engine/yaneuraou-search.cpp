@@ -1862,7 +1862,16 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             rootMoves[0].score = rootMoves[0].uciScore = lastBestScore;
 
             if (mainThread && lastBestPV[0] != Move::none())
+            {
+#if STOCKFISH
                 uciPvSent = true;
+#else
+                // 前回iterationのPVへロールバックしただけで、そのPVをUSIへ出力したとは限らない。
+                // やねうら王ではPV出力間隔によって途中PVが抑制されるため、ここでtrueにすると
+                // bestmove直前の最終PV出力がスキップされることがある。
+                uciPvSent = false;
+#endif
+            }
         }
         else if (rootMoves[0].pv[0] != lastBestPV[0])
         {
