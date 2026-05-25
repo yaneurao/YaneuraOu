@@ -447,6 +447,7 @@ ifneq (,$(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)))
 		eval/nnue/nnue_test_command.cpp                                 \
 		eval/nnue/features/k.cpp                                        \
 		eval/nnue/features/p.cpp                                        \
+		eval/nnue/features/a2.cpp                                       \
 		eval/nnue/features/half_kp.cpp                                  \
 		eval/nnue/features/half_ka1.cpp                                 \
 		eval/nnue/features/half_ka_hm1.cpp                              \
