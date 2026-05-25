@@ -98,6 +98,7 @@ else:
 # 現在サポートしている入力特徴量は、
 #   halfkp
 #   kp
+#   ka2
 #   halfkpe9
 #   halfkpvm
 #   halfka1
@@ -130,9 +131,20 @@ elif input_feature == "kp":
     #include "../features/k.h"
     #include "../features/p.h"
     """
-    
+
     raw_features = f"""
         using RawFeatures = Features::FeatureSet<Features::K, Features::P>;
+    """
+
+elif input_feature == "ka2":
+
+    header += f"""
+    #include "../features/k.h"
+    #include "../features/a2.h"
+    """
+
+    raw_features = f"""
+        using RawFeatures = Features::FeatureSet<Features::K, Features::A2>;
     """
 
 elif input_feature == "halfkpe9":
