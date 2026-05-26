@@ -905,7 +905,9 @@ void Search::YaneuraOuWorker::pre_start_searching() {
 
     // 📝 StockfishではThreadPool::start_thinking()で行っているが、
     //     やねうら王では、派生classのpre_start_thinking()以降で行う。
+#if STOCKFISH
     nmpMinPly       = 0;
+#endif
     bestMoveChanges = 0;
     rootDepth = completedDepth = 0;
 
@@ -3768,7 +3770,9 @@ moves_loop:  // When in check, search starts here
 
             if (value < singularBeta)
             {
-                int corrValAdj   = std::abs(correctionValue) / 210590;
+				#if STOCKFISH
+
+				int corrValAdj   = std::abs(correctionValue) / 210590;
                 int doubleMargin = -4 + 212 * PvNode - 182 * !ttCapture - corrValAdj
                                  - 906 * ttMoveHistory / 116517 - (ss->ply > rootDepth) * 44;
                 int tripleMargin = 73 + 320 * PvNode - 218 * !ttCapture + 92 * ss->ttPv - corrValAdj
@@ -3776,11 +3780,17 @@ moves_loop:  // When in check, search starts here
 
                 // 📝 2重延長を制限して探索の組合せ爆発を回避する必要がある。
 
-                if (pos.capture(move))
+                extension =
+                    1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
+				#else
+
+				// 将棋では、Stockfishの延長はやりすぎ。captureだけでいい。
+				// https://github.com/yaneurao/YaneuraOu/commit/db295b894df4fe685bcacdee434c0312d2d8826a
+
+				if (pos.capture(move))
                     extension = 1;
-                else
-                    extension =
-                      1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
+
+				#endif
 
                 depth++;
             }
