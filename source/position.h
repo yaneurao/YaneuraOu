@@ -82,6 +82,13 @@ struct StateInfo {
     int continuousCheck[COLOR_NB];
 #endif
 
+	// Tanuki::Progress の差分計算用キャッシュ
+	Key tanuki_progress_key;
+	int32_t tanuki_progress_sum;
+	Square tanuki_progress_sq_bk;
+	Square tanuki_progress_sq_wk;
+	bool tanuki_progress_valid;
+
 
 	// 📌 ここまではdo_move()のなかでmemcpy()でコピーされる 📌
 
