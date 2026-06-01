@@ -444,8 +444,8 @@ string config_info()
 		"halfkp_1024x2_8_32";
 	#elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_64)
 		"halfkp_1024x2_8_64";
-	#elif defined(YANEURAOU_ENGINE_NNUE_SFNNwoP1536)
-		"sfnnwop-1536";
+	#elif defined(YANEURAOU_ENGINE_SFNN1536)
+		"sfnn-1536";
 	#elif defined(EVAL_NNUE_HALFKP_VM_256X2_32_32)
 		"halfkpvm_256x2_32_32";
 	#else

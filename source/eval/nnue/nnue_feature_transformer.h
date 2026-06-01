@@ -105,7 +105,7 @@ static constexpr IndexType kNumRegs = 16;
 #endif
 
 /*
- 例) SFNNwop-1536のときのkNumChunksの計算
+ 例) SFNN1536のときのkNumChunksの計算
 
 ┌─────────┬───────────────┬─────────────────┬────────────┐
 │  SIMD            │ sizeof(vec_t)                │ / sizeof(int16)                  │ kNumChunks             │

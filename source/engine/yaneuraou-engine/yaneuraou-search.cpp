@@ -3293,7 +3293,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
 #else
             // null move pruningの検証探索は、パス (null move) した方が有利になる局面での誤った枝刈り防止のために存在するが、
             // 将棋ではそのようなことはチェスよりはるかに少ないため不要。
-            return is_win(nullValue) ? beta : nullValue;
+            return nullValue;
 #endif
     }
 
@@ -3770,8 +3770,6 @@ moves_loop:  // When in check, search starts here
 
             if (value < singularBeta)
             {
-				#if STOCKFISH
-
 				int corrValAdj   = std::abs(correctionValue) / 210590;
                 int doubleMargin = -4 + 212 * PvNode - 182 * !ttCapture - corrValAdj
                                  - 906 * ttMoveHistory / 116517 - (ss->ply > rootDepth) * 44;
@@ -3782,15 +3780,6 @@ moves_loop:  // When in check, search starts here
 
                 extension =
                     1 + (value < singularBeta - doubleMargin) + (value < singularBeta - tripleMargin);
-				#else
-
-				// 将棋では、Stockfishの延長はやりすぎ。captureだけでいい。
-				// https://github.com/yaneurao/YaneuraOu/commit/db295b894df4fe685bcacdee434c0312d2d8826a
-
-				if (pos.capture(move))
-                    extension = 1;
-
-				#endif
 
                 depth++;
             }

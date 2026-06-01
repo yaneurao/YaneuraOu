@@ -14,7 +14,7 @@
 // ただし、この値を数値として使用することがあるので数値化できる文字列にしておく必要がある。
 #if !defined(ENGINE_VERSION)
 
-#define ENGINE_VERSION "9.30git"
+#define ENGINE_VERSION "9.40git"
 
 #endif
 // --------------------
@@ -530,7 +530,6 @@ constexpr int MAX_PLY_NUM = 246;
 #if defined(FOR_TOURNAMENT)
 	#undef ASSERT_LV
 	#undef ENABLE_TEST_CMD
-	#undef USE_GLOBAL_OPTIONS
 	#undef KEEP_LAST_MOVE
 
 	// 千日手検出を簡略化する

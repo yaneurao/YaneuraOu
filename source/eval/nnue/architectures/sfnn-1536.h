@@ -1,7 +1,7 @@
 ﻿// SFNN without PSQT 1536 architecture
 
-#ifndef CLASSIC_NNUE_SFNNWOP_1536_H_INCLUDED
-#define CLASSIC_NNUE_SFNNWOP_1536_H_INCLUDED
+#ifndef CLASSIC_NNUE_SFNN_1536_H_INCLUDED
+#define CLASSIC_NNUE_SFNN_1536_H_INCLUDED
 
 #include "../features/feature_set.h"
 #include "../features/half_ka_hm2.h"
@@ -110,4 +110,4 @@ struct Network {
 }  // namespace Eval::NNUE
 }  // namespace YaneuraOu
 
-#endif // CLASSIC_NNUE_SFNNWOP_1536_H_INCLUDED
+#endif // CLASSIC_NNUE_SFNN_1536_H_INCLUDED

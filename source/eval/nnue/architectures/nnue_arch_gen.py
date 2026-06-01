@@ -24,12 +24,21 @@ args = parser.parse_args()
 arch    : str = args.arch
 out_dir : str = args.out_dir
 
-# SFNNで末尾のls9が省略されているっぽいので足しておく。
-if arch.startswith("SFNN") and not "ls" in arch.lower():
-    arch += "_ls9"
+def strip_prefix_ci(text: str, prefix: str) -> str:
+    return text[len(prefix):] if text.upper().startswith(prefix) else text
 
-# makefileで指定したエディション名そのままかも知れないので削除
-arch   = arch.replace("YANEURAOU_ENGINE_NNUE_","")
+# makefileで指定したエディション名そのままかも知れないので削除。
+arch = strip_prefix_ci(arch, "YANEURAOU_ENGINE_")
+arch = strip_prefix_ci(arch, "NNUE_")
+
+arch_upper_for_validation = arch.replace('-', '_').upper()
+if "SFNNWOP" in arch_upper_for_validation:
+    print("Error! : SFNNWOP architecture names are no longer supported. Use SFNN1536 or SFNN_..._k3k3 / SFNN_..._king3_by_king3.")
+    raise SystemExit(1)
+
+if "LS9" in arch_upper_for_validation.split('_'):
+    print("Error! : ls9 is no longer supported. Use k3k3 or king3_by_king3.")
+    raise SystemExit(1)
 
 # 出力ファイル名
 filename = arch + ".h"
@@ -54,22 +63,26 @@ arches = arch.split('_')
 if len(arches) <= 3 :
     # アーキテクチャ名は、アンダースコアは3つ以上ないと駄目。
     print("Error! : architecture name must be like halfkp_256x2-32-32 or kp_256x2-32-32 halfkpvm_256x2_32_32")
-    exit()
+    raise SystemExit(1)
 
-# 📝 SFNNwoPSQT_halfkahm_1536-15-32-ls9のように指定されていれば、SFNNのheaderを生成する。
+# 📝 SFNN_halfkahm2_1536-15-32-k3k3のように指定されていれば、SFNNのheaderを生成する。
 SFNN = False
+layer_stack_name = ""
 if arches[0].startswith("SFNN"):
     SFNN = True
-    if len(arches) <= 5 or not arches[5].startswith("LS"):
-        # 最後、"LS9"のような文字でないとおかしい。あるいは省略されているか。
-        print("Error! : SFNNwoPSQT architecture name must be like SFNNwoPSQT_halfkahm_1536-15-32-ls9 or SFNNwoPSQT_halfkahm_1536-15-32")
-        exit()
+    if len(arches) < 6:
+        print("Error! : SFNN architecture name must be like SFNN_halfkahm2_1536-15-32-k3k3")
+        raise SystemExit(1)
+
+    layer_stack_spec = "_".join(arches[5:])
+    if layer_stack_spec == "K3K3" or layer_stack_spec == "KING3_BY_KING3":
+        layer_stack_name = "K3K3"
+        layer_stack_count = "9"
     else:
-        # 先頭の"LS"を削除。
-        arches[5] = arches[5][2:]
-    
-    # 先頭の"SFNNWOPSQT"削除
-    arches.pop(0)
+        print("Error! : SFNN layer stack must be k3k3 or king3_by_king3")
+        raise SystemExit(1)
+
+    arches = [arches[1], arches[2], arches[3], arches[4], layer_stack_count]
 
 # ============================================================
 #                        includes
@@ -79,8 +92,8 @@ if SFNN:
     header = f"""
     // SFNN without PSQT 1536 architecture
 
-    #ifndef CLASSIC_NNUE_SFNNWOP_{arch}_H_INCLUDED
-    #define CLASSIC_NNUE_SFNNWOP_{arch}_H_INCLUDED
+    #ifndef CLASSIC_NNUE_SFNN_{arch}_H_INCLUDED
+    #define CLASSIC_NNUE_SFNN_{arch}_H_INCLUDED
     """
 else:
     header = f"""
@@ -216,7 +229,7 @@ elif input_feature == "halfkahm2":
 else:
     # 知らない入力特徴量だった。
     print(f"Error : input feature {input_feature} is not supported.")
-    exit()
+    raise SystemExit(1)
 
 if SFNN:
     header += """
@@ -257,14 +270,14 @@ header += raw_features
 
 # レイヤ情報
 # 例えば、"256x2_32_32" ならば ["256x2","32","32"]のように分解される。
-#   (SFNNで) "1536-15-32-ls9" なら ["1536","15","32","9"]のように分解される。(はず)
+#   (SFNNで) "1536-15-32-k3k3" なら ["1536","15","32","9"]のように分解される。(はず)
 layers = arches[1:]
 layers[0] = layers[0].lower()
 
 if SFNN:
     if len(layers) != 4:
-        print(f"Error : layers must be like 1536-15-32-ls9 , layers = {layers}.")
-        exit()
+        print(f"Error : layers must be like 1536-15-32-k3k3 , layers = {layers}.")
+        raise SystemExit(1)
 
     print(f"layers feature    : {layers}")
 
@@ -287,7 +300,7 @@ else:
 
     if len(layers) != 3 or len(layers[0].split('x')) != 2:
         print(f"Error : layers must be like 256x2-32-32 , layers = {layers}.")
-        exit()
+        raise SystemExit(1)
 
     first_layer = layers[0].split('x')
 
@@ -315,7 +328,7 @@ else:
 # ============================================================
 
 if SFNN:
-    # `sfnnwop-1536.h`からそのままコピペ。
+    # `sfnn-1536.h`からそのままコピペ。
     header += f"""
         struct Network {{
 
@@ -339,7 +352,7 @@ if SFNN:
             }}
 
             static std::string GetStructureString() {{
-                return "{'SFNN-1536' if arch == 'SFNNWOPSQT_HALFKAHM_1536_15_32_LS9' else arch}";
+                return "{'SFNN-1536' if input_feature == 'halfkahm2' and layers == ['1536', '15', '32', '9'] and layer_stack_name == 'K3K3' else arch}";
             }}
 
             Tools::Result ReadParameters(std::istream& stream) {{
