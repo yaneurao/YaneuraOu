@@ -1,11 +1,12 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <YaneuraOuUseDeepNuGetPackages Condition="'$(Configuration)'=='Debug-Deep-ORT-CPU' Or '$(Configuration)'=='Debug-Deep-ORT-DML' Or '$(Configuration)'=='Debug-Deep-ORT-TRT' Or '$(Configuration)'=='Debug-Deep-TensorRT' Or '$(Configuration)'=='Release-Deep-ORT-CPU' Or '$(Configuration)'=='Release-Deep-ORT-DML' Or '$(Configuration)'=='Release-Deep-ORT-TRT' Or '$(Configuration)'=='Release-Deep-TensorRT'">true</YaneuraOuUseDeepNuGetPackages>
+    <YaneuraOuUseOnnxRuntimeNuGetPackage Condition="'$(Configuration)'=='Debug-Deep-ORT-CPU' Or '$(Configuration)'=='Debug-Deep-ORT-DML' Or '$(Configuration)'=='Release-Deep-ORT-CPU' Or '$(Configuration)'=='Release-Deep-ORT-DML'">true</YaneuraOuUseOnnxRuntimeNuGetPackage>
+    <YaneuraOuUseDirectMLNuGetPackages Condition="'$(Configuration)'=='Debug-Deep-ORT-DML' Or '$(Configuration)'=='Release-Deep-ORT-DML'">true</YaneuraOuUseDirectMLNuGetPackages>
   </PropertyGroup>
-  <Import Project="..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.props" Condition="'$(YaneuraOuUseDeepNuGetPackages)'=='true' And Exists('..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.props')" />
-  <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props" Condition="'$(YaneuraOuUseDeepNuGetPackages)'=='true' And Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" />
-  <Import Project="..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.props" Condition="'$(YaneuraOuUseDeepNuGetPackages)'=='true' And Exists('..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.props')" />
+  <Import Project="..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.props" Condition="'$(YaneuraOuUseOnnxRuntimeNuGetPackage)'=='true' And Exists('..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.props')" />
+  <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props" Condition="'$(YaneuraOuUseDirectMLNuGetPackages)'=='true' And Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" />
+  <Import Project="..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.props" Condition="'$(YaneuraOuUseDirectMLNuGetPackages)'=='true' And Exists('..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.props')" />
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug-Deep-ORT-CPU|x64">
       <Configuration>Debug-Deep-ORT-CPU</Configuration>
@@ -13,10 +14,6 @@
     </ProjectConfiguration>
     <ProjectConfiguration Include="Debug-Deep-ORT-DML|x64">
       <Configuration>Debug-Deep-ORT-DML</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug-Deep-ORT-TRT|x64">
-      <Configuration>Debug-Deep-ORT-TRT</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Debug-Deep-TensorRT|x64">
@@ -49,10 +46,6 @@
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-Deep-ORT-DML|x64">
       <Configuration>Release-Deep-ORT-DML</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release-Deep-ORT-TRT|x64">
-      <Configuration>Release-Deep-ORT-TRT</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Release-Deep-TensorRT|x64">
@@ -207,9 +200,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-ORT-DML|x64'" Label="Configuration">
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-ORT-TRT|x64'" Label="Configuration">
-    <PlatformToolset>v143</PlatformToolset>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-TensorRT|x64'" Label="Configuration">
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
@@ -217,9 +207,6 @@
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-ORT-DML|x64'" Label="Configuration">
-    <PlatformToolset>v143</PlatformToolset>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-ORT-TRT|x64'" Label="Configuration">
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-TensorRT|x64'" Label="Configuration">
@@ -340,17 +327,11 @@
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="props\YaneuraOuEdition-Deep-ORT-DML.props" />
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-ORT-TRT|x64'" Label="PropertySheets">
-    <Import Project="props\YaneuraOu-common.props" />
-    <Import Project="props\YaneuraOuSolution-debug-x64.props" />
-    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-    <Import Project="props\YaneuraOuEdition-Deep-ORT-TRT.props" />
-  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-TensorRT|x64'" Label="PropertySheets">
     <Import Project="props\YaneuraOu-common.props" />
     <Import Project="props\YaneuraOuSolution-debug-x64.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-    <Import Project="$(CUDA_PATH_V12_8)\extras\visual_studio_integration\MSBuildExtensions\CUDA 12.8.props" />
+    <Import Project="$(CUDA_PATH_V13_1)\extras\visual_studio_integration\MSBuildExtensions\CUDA 13.1.props" />
     <Import Project="props\YaneuraOuEdition-Deep-TensorRT.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-ORT-CPU|x64'" Label="PropertySheets">
@@ -365,17 +346,11 @@
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
     <Import Project="props\YaneuraOuEdition-Deep-ORT-DML.props" />
   </ImportGroup>
-  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-ORT-TRT|x64'" Label="PropertySheets">
-    <Import Project="props\YaneuraOu-common.props" />
-    <Import Project="props\YaneuraOuSolution-release-x64.props" />
-    <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-    <Import Project="props\YaneuraOuEdition-Deep-ORT-TRT.props" />
-  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release-Deep-TensorRT|x64'" Label="PropertySheets">
     <Import Project="props\YaneuraOu-common.props" />
     <Import Project="props\YaneuraOuSolution-release-x64.props" />
     <Import Project="props\YaneuraOuCpu-x64-avx2.props" />
-    <Import Project="$(CUDA_PATH_V12_8)\extras\visual_studio_integration\MSBuildExtensions\CUDA 12.8.props" />
+    <Import Project="$(CUDA_PATH_V13_1)\extras\visual_studio_integration\MSBuildExtensions\CUDA 13.1.props" />
     <Import Project="props\YaneuraOuEdition-Deep-TensorRT.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
@@ -691,9 +666,9 @@
     <None Include="..\script\engine_invoker5.py" />
     <CustomBuild Include="eval\deep\unpack.cu">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release-Deep-TensorRT|x64'">"$(CUDA_PATH_V12_8)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64)" -std=c++17 -x cu --keep-dir ..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -DYANEURAOU_ENGINE_DEEP -DTENSOR_RT -Xcompiler "/EHsc /W3 /nologo /O2 /Fd..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\vc143.pdb /FS /MT" -o "..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release-Deep-TensorRT|x64'">"$(CUDA_PATH_V13_1)\bin\nvcc.exe" --use-local-env -std=c++17 -x cu --keep-dir ..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget) -maxrregcount=0 --machine 64 --compile -cudart static -DNDEBUG -D_CONSOLE -D_UNICODE -DUNICODE -DYANEURAOU_ENGINE_DEEP -DTENSOR_RT -Xcompiler "/utf-8 /EHsc /W3 /nologo /O2 /Fd..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\vc143.pdb /FS /MT" -o "..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release-Deep-TensorRT|x64'">..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\%(Filename)%(Extension).obj</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-TensorRT|x64'">"$(CUDA_PATH_V12_8)\bin\nvcc.exe" --use-local-env -ccbin "$(VC_ExecutablePath_x64)" -std=c++17 -x cu -G --keep-dir ..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -DUNICODE -DYANEURAOU_ENGINE_DEEP -DTENSOR_RT -Xcompiler "/EHsc /W3 /nologo /Od /Fd..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\vc143.pdb /FS /Zi /RTC1 /MTd" -o "..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-TensorRT|x64'">"$(CUDA_PATH_V13_1)\bin\nvcc.exe" --use-local-env -std=c++17 -x cu -G --keep-dir ..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget) -maxrregcount=0 --machine 64 --compile -cudart static -g -D_DEBUG -D_CONSOLE -D_UNICODE -DUNICODE -DYANEURAOU_ENGINE_DEEP -DTENSOR_RT -Xcompiler "/utf-8 /EHsc /W3 /nologo /Od /Fd..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\vc143.pdb /FS /Zi /RTC1 /MTd" -o "..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\%(Filename)%(Extension).obj" "%(FullPath)"</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug-Deep-TensorRT|x64'">..\$(Platform)\$(Configuration)\obj\$(YaneuraOuDbgPrefix)$(YaneuraOuCpuTarget)\%(Filename)%(Extension).obj</Outputs>
     </CustomBuild>
     <None Include=".clang-format" />
@@ -705,11 +680,18 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.targets" Condition="'$(YaneuraOuUseDeepNuGetPackages)'=='true' And Exists('..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.targets')" />
-    <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets" Condition="'$(YaneuraOuUseDeepNuGetPackages)'=='true' And Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
-    <Import Project="..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.targets" Condition="'$(YaneuraOuUseDeepNuGetPackages)'=='true' And Exists('..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.targets')" />
+    <Import Project="..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.targets" Condition="'$(YaneuraOuUseDirectMLNuGetPackages)'=='true' And Exists('..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.targets')" />
+    <Import Project="..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets" Condition="'$(YaneuraOuUseDirectMLNuGetPackages)'=='true' And Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" />
+    <Import Project="..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.targets" Condition="'$(YaneuraOuUseOnnxRuntimeNuGetPackage)'=='true' And Exists('..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.targets')" />
   </ImportGroup>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild" Condition="'$(Configuration)'=='Debug-Deep-ORT-CPU' Or '$(Configuration)'=='Debug-Deep-ORT-DML' Or '$(Configuration)'=='Debug-Deep-ORT-TRT' Or '$(Configuration)'=='Debug-Deep-TensorRT' Or '$(Configuration)'=='Release-Deep-ORT-CPU' Or '$(Configuration)'=='Release-Deep-ORT-DML' Or '$(Configuration)'=='Release-Deep-ORT-TRT' Or '$(Configuration)'=='Release-Deep-TensorRT'">
+  <Target Name="EnsureOnnxRuntimeNuGetPackageBuildImports" BeforeTargets="PrepareForBuild" Condition="'$(YaneuraOuUseOnnxRuntimeNuGetPackage)'=='true'">
+    <PropertyGroup>
+      <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細については、http://go.microsoft.com/fwlink/?LinkID=322105 を参照してください。見つからないファイルは {0} です。</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.props'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.targets'))" />
+  </Target>
+  <Target Name="EnsureDirectMLNuGetPackageBuildImports" BeforeTargets="PrepareForBuild" Condition="'$(YaneuraOuUseDirectMLNuGetPackages)'=='true'">
     <PropertyGroup>
       <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細については、http://go.microsoft.com/fwlink/?LinkID=322105 を参照してください。見つからないファイルは {0} です。</ErrorText>
     </PropertyGroup>
@@ -717,7 +699,5 @@
     <Error Condition="!Exists('..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.AI.DirectML.1.15.4\build\Microsoft.AI.DirectML.targets'))" />
     <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.props'))" />
     <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.DirectML.1.23.0\build\native\Microsoft.ML.OnnxRuntime.DirectML.targets'))" />
-    <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.props'))" />
-    <Error Condition="!Exists('..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.ML.OnnxRuntime.1.23.0\build\native\Microsoft.ML.OnnxRuntime.targets'))" />
   </Target>
 </Project>

@@ -52,7 +52,7 @@ void FukauraOuEngine::add_nn_options()
                 Option(Eval::dlshogi::model_architecture_names(),
                        Eval::dlshogi::DEFAULT_MODEL_ARCHITECTURE));
 
-#if defined(TENSOR_RT) || defined(ORT_TRT)
+#if defined(TENSOR_RT)
     // 通常時の推奨128 , 検討の時は推奨256。
     options.add("DNN_Batch_Size", Option(128, 1, 1024));
 #elif defined(ONNXRUNTIME)
