@@ -13,7 +13,11 @@ services:
     stdin_open: true
     tty: true
     init: true
-    gpus: all
+    gpus:
+      - driver: nvidia
+        count: all
+        capabilities:
+          - gpu
     volumes:
       - ../eval:/opt/yaneuraou/eval
       - ../book:/opt/yaneuraou/book

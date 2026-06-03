@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorrt:24.12-py3 AS build
+FROM nvcr.io/nvidia/tensorrt:26.05-py3 AS build
 
 ARG TARGET_CPU=AVX2
 ARG COMPILER=clang++
@@ -26,7 +26,7 @@ RUN cd source \
  && mkdir -p /opt/yaneuraou \
  && cp YaneuraOu-by-gcc /opt/yaneuraou/
 
-FROM nvcr.io/nvidia/tensorrt:24.12-py3
+FROM nvcr.io/nvidia/tensorrt:26.05-py3
 
 COPY --from=build /opt/yaneuraou/YaneuraOu-by-gcc /opt/yaneuraou/YaneuraOu-by-gcc
 
