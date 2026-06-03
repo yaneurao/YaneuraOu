@@ -59,7 +59,7 @@ cp /path/to/model.onnx eval/model.onnx
 | `yaneuraou-nnue-halfkp-1024x2-8-32` | `YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_32` |
 | `yaneuraou-nnue-halfkp-1024x2-8-64` | `YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_64` |
 | `yaneuraou-nnue-halfkp-vm-256x2-32-32` | `YANEURAOU_ENGINE_NNUE_HALFKP_VM_256X2_32_32` |
-| `yaneuraou-nnue-sfnnwop1536` | `YANEURAOU_ENGINE_NNUE_SFNNwoP1536` |
+| `yaneuraou-nnue-sfnn1536` | `YANEURAOU_ENGINE_SFNN1536` |
 | `yaneuraou-kppt` | `YANEURAOU_ENGINE_KPPT` |
 | `yaneuraou-kpp-kkpt` | `YANEURAOU_ENGINE_KPP_KKPT` |
 | `yaneuraou-material` | `YANEURAOU_ENGINE_MATERIAL` |
@@ -88,15 +88,15 @@ bench
 quit
 ```
 
-NNUE_SFNNwoP1536 版をビルドして、そのまま起動する場合:
+SFNN1536 版をビルドして、そのまま起動する場合:
 
 ```bash
-docker compose -f docker/compose.yaneuraou.yaml run --rm --build yaneuraou-nnue-sfnnwop1536
+docker compose -f docker/compose.yaneuraou.yaml run --rm --build yaneuraou-sfnn1536
 ```
 
 起動後は同様に `usi`, `isready`, `bench`, `quit` を入力して確認します。
 
-NNUE_SFNNwoP1536, KPPT, KPP_KKPT など大きな評価関数ファイルを読み込むため、`compose.yaneuraou.yaml` では `/dev/shm` を `1g` に設定しています。`docker compose run` には `--shm-size` を指定できないので、変更したい場合は compose ファイルの `shm_size` を変更してください。
+SFNN1536, KPPT, KPP_KKPT など大きな評価関数ファイルを読み込むため、`compose.yaneuraou.yaml` では `/dev/shm` を `1g` に設定しています。`docker compose run` には `--shm-size` を指定できないので、変更したい場合は compose ファイルの `shm_size` を変更してください。
 
 ## ふかうら王 CPU 版
 

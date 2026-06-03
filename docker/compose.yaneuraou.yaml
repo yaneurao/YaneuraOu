@@ -102,16 +102,16 @@ services:
         COMPILER: clang++
         ENGINE_NAME: YaneuraOu-NNUE-HALFKP-VM-256x2-32-32
 
-  yaneuraou-nnue-sfnnwop1536:
+  yaneuraou-nnue-sfnn1536:
     <<: *yaneuraou-common
-    image: yaneuraou-nnue-sfnnwop1536:local
+    image: yaneuraou-nnue-sfnn1536:local
     build:
       <<: *yaneuraou-build
       args:
-        YANEURAOU_EDITION: YANEURAOU_ENGINE_NNUE_SFNNwoP1536
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_SFNN1536
         TARGET_CPU: AVX2
         COMPILER: clang++
-        ENGINE_NAME: YaneuraOu-NNUE-SFNNwoP1536
+        ENGINE_NAME: YaneuraOu-SFNN1536
 
   yaneuraou-kppt:
     <<: *yaneuraou-common
