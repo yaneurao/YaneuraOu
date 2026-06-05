@@ -519,18 +519,18 @@ void Engine::run_heavy_job(std::function<void()> job) {
     // 確認してから処理を行う。
 
     // スレッドが起動したことを通知するためのフラグ
-    auto thread_started = false;
+    std::atomic_bool thread_started{ false };
 
     // この関数を抜ける時に立つフラグ(スレッドを停止させる用)
-    auto thread_end = false;
+    std::atomic_bool thread_end{ false };
 
     // 定期的な改行送信用のスレッド
     auto th = std::thread([&] {
         // スレッドが起動した
-        thread_started = true;
+        thread_started.store(true, std::memory_order_release);
 
         int count = 0;
-        while (!thread_end)
+        while (!thread_end.load(std::memory_order_acquire))
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             if (++count >= 50 /* 5秒 */)
@@ -545,12 +545,12 @@ void Engine::run_heavy_job(std::function<void()> job) {
         }
     });
     SCOPE_EXIT({
-        thread_end = true;
+        thread_end.store(true, std::memory_order_release);
         th.join();
     });
 
     // スレッド起動待ち
-    while (!thread_started)
+    while (!thread_started.load(std::memory_order_acquire))
         Tools::sleep(100);
 
     // --- Keep Alive的な処理ここまで ---

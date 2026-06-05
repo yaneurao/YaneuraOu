@@ -234,19 +234,11 @@ class SharedMemoryBackend {
         pMap(other.pMap),
         hMapFile(other.hMapFile),
         status(other.status),
-        last_error_message(std::move(other.last_error_message))
-#if !STOCKFISH
-        ,
-        reused_existing_shared_memory(other.reused_existing_shared_memory)
-#endif
-    {
+        last_error_message(std::move(other.last_error_message)) {
 
         other.pMap     = nullptr;
         other.hMapFile = 0;
         other.status   = Status::NotInitialized;
-#if !STOCKFISH
-        other.reused_existing_shared_memory = false;
-#endif
     }
 
     SharedMemoryBackend& operator=(SharedMemoryBackend&& other) noexcept {
@@ -257,16 +249,10 @@ class SharedMemoryBackend {
             hMapFile           = other.hMapFile;
             status             = other.status;
             last_error_message = std::move(other.last_error_message);
-#if !STOCKFISH
-            reused_existing_shared_memory = other.reused_existing_shared_memory;
-#endif
 
             other.pMap     = nullptr;
             other.hMapFile = 0;
             other.status   = Status::NotInitialized;
-#if !STOCKFISH
-            other.reused_existing_shared_memory = false;
-#endif
         }
         return *this;
     }
@@ -276,25 +262,9 @@ class SharedMemoryBackend {
                                          : SystemWideSharedConstantAllocationStatus::NoAllocation;
     }
 
-#if !STOCKFISH
-    bool reused_existing() const { return is_valid() && reused_existing_shared_memory; }
-#endif
-
    private:
     void initialize(const std::string& shm_name, const T& value) {
         const size_t total_size = sizeof(T) + sizeof(IS_INITIALIZED_VALUE);
-#if !STOCKFISH
-        reused_existing_shared_memory = false;
-
-        auto create_file_mapping = [&](DWORD protect, DWORD total_size_high,
-                                       DWORD total_size_low) {
-            HANDLE handle = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, protect,
-                                               total_size_high, total_size_low, shm_name.c_str());
-            if (handle && GetLastError() == ERROR_ALREADY_EXISTS)
-                reused_existing_shared_memory = true;
-            return handle;
-        };
-#endif
 
         // Try allocating with large pages first.
         hMapFile = windows_try_with_large_page_priviliges(
@@ -310,26 +280,17 @@ class SharedMemoryBackend {
               DWORD total_size_high = 0;
     #endif
 
-#if !STOCKFISH
-              return create_file_mapping(PAGE_READWRITE | SEC_COMMIT | SEC_LARGE_PAGES,
-                                         total_size_high, total_size_low);
-#else
               return CreateFileMappingA(INVALID_HANDLE_VALUE, NULL,
                                         PAGE_READWRITE | SEC_COMMIT | SEC_LARGE_PAGES,
                                         total_size_high, total_size_low, shm_name.c_str());
-#endif
           },
           []() { return (void*) nullptr; });
 
         // Fallback to normal allocation if no large pages available.
         if (!hMapFile)
         {
-#if !STOCKFISH
-            hMapFile = create_file_mapping(PAGE_READWRITE, 0, static_cast<DWORD>(total_size));
-#else
             hMapFile = CreateFileMappingA(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0,
                                           static_cast<DWORD>(total_size), shm_name.c_str());
-#endif
         }
 
         if (!hMapFile)
@@ -430,9 +391,6 @@ class SharedMemoryBackend {
     HANDLE      hMapFile = 0;
     Status      status   = Status::NotInitialized;
     std::string last_error_message;
-#if !STOCKFISH
-    bool        reused_existing_shared_memory = false;
-#endif
 };
 
 #elif defined(__linux__) && !defined(__ANDROID__)
@@ -456,10 +414,6 @@ class SharedMemoryBackend {
         return is_valid() ? SystemWideSharedConstantAllocationStatus::SharedMemory
                           : SystemWideSharedConstantAllocationStatus::NoAllocation;
     }
-
-#if !STOCKFISH
-    bool reused_existing() const { return is_valid() && shm1->reused_existing(); }
-#endif
 
     std::optional<std::string> get_error_message() const {
         if (!shm1)
@@ -499,10 +453,6 @@ class SharedMemoryBackend {
         return SystemWideSharedConstantAllocationStatus::NoAllocation;
     }
 
-#if !STOCKFISH
-    bool reused_existing() const { return false; }
-#endif
-
     std::optional<std::string> get_error_message() const { return "Dummy SharedMemoryBackend"; }
 };
 
@@ -532,10 +482,6 @@ struct SharedMemoryBackendFallback {
         return fallback_object == nullptr ? SystemWideSharedConstantAllocationStatus::NoAllocation
                                           : SystemWideSharedConstantAllocationStatus::LocalMemory;
     }
-
-#if !STOCKFISH
-    bool reused_existing() const { return false; }
-#endif
 
     std::optional<std::string> get_error_message() const {
         if (fallback_object == nullptr)
@@ -594,34 +540,11 @@ struct SystemWideSharedConstant {
 
         if (shm_backend.is_valid())
         {
-#if !STOCKFISH
-            const bool reused_existing = shm_backend.reused_existing();
             backend = std::move(shm_backend);
-            if (reused_existing)
-            {
-                sync_cout << "info string shared memory: reusing existing shared object ("
-                          << sizeof(T) << " bytes)" << sync_endl;
-            }
-#else
-            backend = std::move(shm_backend);
-#endif
         }
         else
         {
-#if !STOCKFISH
-            const auto error_message = shm_backend.get_error_message();
-            SharedMemoryBackendFallback<T> fallback_backend(shm_name, value);
-            if (fallback_backend.get_status() == SystemWideSharedConstantAllocationStatus::LocalMemory)
-            {
-                sync_cout << "info string shared memory: fallback to local memory";
-                if (error_message)
-                    sync_cout << " (" << *error_message << ")";
-                sync_cout << sync_endl;
-            }
-            backend = std::move(fallback_backend);
-#else
             backend = SharedMemoryBackendFallback<T>(shm_name, value);
-#endif
         }
     }
 
@@ -656,23 +579,6 @@ struct SystemWideSharedConstant {
           },
           backend);
     }
-
-#if !STOCKFISH
-    bool reused_existing() const {
-        return std::visit(
-          [](const auto& end) -> bool {
-              if constexpr (std::is_same_v<std::decay_t<decltype(end)>, std::monostate>)
-              {
-                  return false;
-              }
-              else
-              {
-                  return end.reused_existing();
-              }
-          },
-          backend);
-    }
-#endif
 
     std::optional<std::string> get_error_message() const {
         return std::visit(
