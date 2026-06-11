@@ -258,21 +258,98 @@ struct SfenPacker
 		ASSERT_LV3(stream.get_cursor() == 256);
 	}
 
-	// data[32]をsfen化して返す。
-	std::string unpack()
+	void pack_rawdata(const Piece board[81], const Hand hand[2], Color turn)
+	{
+		// 以下の書き出し順が、GOLD,BISHOP,ROOKの順になるように調整しておく。
+		// (cshogiの変換例とバイナリレベルで一致させたいため)
+		constexpr PieceType to_apery_pieces[]     = { NO_PIECE_TYPE , PAWN, LANCE, KNIGHT, SILVER, GOLD, BISHOP , ROOK };
+
+		// 駒箱枚数
+		int32_t hp_count[8] =
+		{
+			0,
+			18/*PAWN*/, 4/*LANCE*/, 4/*KNIGHT*/, 4/*SILVER*/,
+			2/*BISHOP*/, 2/*ROOK*/, 4/*GOLD*/
+		};
+
+		memset(data, 0, 32 /* 256bit */);
+		stream.set_data(data);
+
+		// 手番
+		stream.write_one_bit((int)turn);
+
+		// 先手玉、後手玉の位置、それぞれ7bit
+		for (auto c : COLOR)
+		{
+			Square king_sq = SQ_NB;
+			for (auto sq : SQ)
+			{
+				if (board[sq] == make_piece(c, KING))
+				{
+					king_sq = sq;
+					break;
+				}
+			}
+			stream.write_n_bit(king_sq, 7);
+		}
+
+		// 盤面の駒は王以外はそのまま書き出して良し！
+		for (auto sq : SQ)
+		{
+			Piece pc = board[sq];
+			if (type_of(pc) == KING)
+				continue;
+			write_board_piece_to_stream(pc);
+
+			// 駒箱から減らす
+			hp_count[type_of(raw_of(pc))]--;
+		}
+
+		// 手駒をハフマン符号化して書き出し
+		for (auto c : COLOR)
+			for (PieceType pr = PAWN; pr < KING; ++pr)
+			{
+				PieceType pr2 = to_apery_pieces[pr];
+
+				int n = hand_count(hand[c], pr2);
+
+				for (int i = 0; i < n; ++i)
+					write_hand_piece_to_stream(make_piece(c, pr2));
+
+				hp_count[pr2] -= n;
+			}
+
+		// 最後に駒箱の分を出力
+		for (PieceType pr = PAWN ; pr < KING ; ++pr)
+		{
+			PieceType pr2 = to_apery_pieces[pr];
+
+			int n = hp_count[pr2];
+
+			for (int i = 0; i < n ; ++i)
+				write_piecebox_piece_to_stream(pr2);
+		}
+
+		ASSERT_LV3(stream.get_cursor() == 256);
+	}
+
+	void unpack_rawdata(Piece board[81], Hand hand[2], Color& turn)
 	{
 		stream.set_data(data);
 
-		// 盤上の81升
-		Piece board[81];
-		memset(board, 0, sizeof(Piece)*81);
+		memset(board, 0, sizeof(Piece) * 81);
+		hand[BLACK] = hand[WHITE] = HAND_ZERO;
 
 		// 手番
-		Color turn = (Color)stream.read_one_bit();
-    
+		turn = (Color)stream.read_one_bit();
+
 		// まず玉の位置
 		for (auto c : COLOR)
-			board[stream.read_n_bit(7)] = make_piece(c, KING);
+		{
+			Square king_sq = (Square)stream.read_n_bit(7);
+			if (king_sq < SQ_NB)
+				board[king_sq] = make_piece(c, KING);
+		}
 
 		// 盤上の駒
 		for (auto sq : SQ)
@@ -283,25 +360,30 @@ struct SfenPacker
 
 			board[sq] = read_board_piece_from_stream();
 
-			//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
-
 			ASSERT_LV3(stream.get_cursor() <= 256);
 		}
 
 		// 手駒
-		Hand hand[2] = { HAND_ZERO,HAND_ZERO };
 		while (stream.get_cursor() != 256)
 		{
 			// 256になるまで手駒か駒箱の駒が格納されているはず
 			auto pc = read_hand_piece_from_stream();
 
 			// 成り駒が返ってきたら、これは駒箱の駒。
-			// 例) 駒箱の金 = 後手の成銀
 			if (is_promoted(pc))
 				continue;
 
 			add_hand(hand[(int)color_of(pc)], type_of(pc));
 		}
+	}
+
+	// data[32]をsfen化して返す。
+	std::string unpack()
+	{
+		Piece board[81];
+		Hand hand[2];
+		Color turn;
+		unpack_rawdata(board, hand, turn);
 
 		// boardとhandが確定した。これで局面を構築できる…かも。
 		// Position::sfen()は、board,hand,side_to_move,game_plyしか参照しないので
@@ -443,6 +525,45 @@ struct SfenPacker
 // -----------------------------------
 //        Positionクラスに追加
 // -----------------------------------
+
+PackedSfen PackedSfen::flipped() const
+{
+	PackedSfen result;
+
+	Piece board[81];
+	Hand hand[2];
+	Color turn;
+
+	SfenPacker unpacker;
+	unpacker.data = const_cast<u8*>(data);
+	unpacker.unpack_rawdata(board, hand, turn);
+
+	Piece flipped_board[81];
+	memset(flipped_board, 0, sizeof(flipped_board));
+
+	for (auto sq : SQ)
+	{
+		Piece pc = board[sq];
+		if (pc == NO_PIECE)
+			continue;
+		flipped_board[Flip(sq)] = Piece(pc ^ PIECE_WHITE);
+	}
+
+	Hand flipped_hand[2];
+	flipped_hand[BLACK] = hand[WHITE];
+	flipped_hand[WHITE] = hand[BLACK];
+
+	SfenPacker packer;
+	packer.data = result.data;
+	packer.pack_rawdata(flipped_board, flipped_hand, ~turn);
+
+	return result;
+}
+
+void PackedSfen::flip()
+{
+	*this = flipped();
+}
 
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。

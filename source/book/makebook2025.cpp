@@ -35,6 +35,9 @@
 	あと、連続王手の千日手の処理については、その実装箇所にコメントがあるようにそこだけDFSしています。
 */
 
+#include <array>
+#include <cstring>
+#include <fstream>
 #include <sstream>
 #include <vector>
 #include <unordered_map>
@@ -44,7 +47,6 @@
 #include <random>
 #include <utility> // For std::forward
 #include <new>
-#include <stdexcept>
 
 #include "book.h"
 #include "../thread.h"
@@ -247,6 +249,122 @@ namespace MakeBook2025
 	// 乱数を入れているので、実際の手数はこれより少し少ないかも。
 	const u16 BOOK_MAX_PLY = 256;
 
+	static constexpr std::array<char, 16> YBB_MAGIC = {
+		'Y', 'A', 'N', 'E', '-', 'B', 'I', 'N',
+		'B', 'O', 'O', 'K', '-', 'V', '1', '\0',
+	};
+	static constexpr u64 YBB_HEADER_SIZE = 32;
+	static constexpr u64 YBB_INDEX_RECORD_SIZE = 44;
+	static constexpr u64 YBB_FLAG_MOVE_DEPTH = 1;
+	static constexpr u64 YBB_KNOWN_FLAGS = YBB_FLAG_MOVE_DEPTH;
+
+	struct YbbIndexEntry
+	{
+		PackedSfen packed_sfen{};
+		u64 moves_offset = 0;
+		u16 ply = 0;
+		u16 move_count = 0;
+	};
+
+	static bool ends_with(const string& text, const string& suffix)
+	{
+		return text.size() >= suffix.size() && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+	}
+
+	static bool is_ybb_index_book(const string& filename)
+	{
+		return ends_with(filename, "-index.ybb");
+	}
+
+	static string ybb_moves_book_name(const string& index_filename)
+	{
+		string moves_filename = index_filename;
+		moves_filename.resize(moves_filename.size() - string("-index.ybb").size());
+		moves_filename += "-moves.ybb";
+		return moves_filename;
+	}
+
+	static string ybb_index_book_name_from_db_name(const string& db_filename)
+	{
+		if (!ends_with(db_filename, ".db"))
+			return string();
+		string index_filename = db_filename;
+		index_filename.resize(index_filename.size() - string(".db").size());
+		index_filename += "-index.ybb";
+		return index_filename;
+	}
+
+	static bool ybb_book_pair_exists(const string& index_filename)
+	{
+		if (!is_ybb_index_book(index_filename))
+			return false;
+		return Path::Exists(index_filename) && Path::Exists(ybb_moves_book_name(index_filename));
+	}
+
+	static string resolve_book_filename_with_ybb_fallback(const string& filename)
+	{
+		if (Path::Exists(filename))
+			return filename;
+
+		const auto index_filename = ybb_index_book_name_from_db_name(filename);
+		if (!index_filename.empty() && ybb_book_pair_exists(index_filename))
+			return index_filename;
+
+		return filename;
+	}
+
+	static bool read_u16_le(istream& is, u16& value)
+	{
+		array<unsigned char, 2> bytes{};
+		is.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+		if (!is)
+			return false;
+		value = u16(bytes[0] | (bytes[1] << 8));
+		return true;
+	}
+
+	static bool read_u64_le(istream& is, u64& value)
+	{
+		array<unsigned char, 8> bytes{};
+		is.read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+		if (!is)
+			return false;
+		value = 0;
+		for (int i = 7; i >= 0; --i)
+		{
+			value <<= 8;
+			value |= bytes[size_t(i)];
+		}
+		return true;
+	}
+
+	static bool read_ybb_header(istream& is, u64& record_count, u64& flags)
+	{
+		array<char, 16> magic{};
+		is.read(magic.data(), magic.size());
+		if (!is || magic != YBB_MAGIC)
+			return false;
+		if (!read_u64_le(is, record_count))
+			return false;
+		if (!read_u64_le(is, flags))
+			return false;
+		return (flags & ~YBB_KNOWN_FLAGS) == 0;
+	}
+
+	static bool read_ybb_index_entry(istream& is, YbbIndexEntry& entry)
+	{
+		is.read(reinterpret_cast<char*>(entry.packed_sfen.data), 32);
+		if (!is)
+			return false;
+		if (!read_u64_le(is, entry.moves_offset))
+			return false;
+		if (!read_u16_le(is, entry.ply))
+			return false;
+		if (!read_u16_le(is, entry.move_count))
+			return false;
+		return true;
+	}
+
 	// 定跡の評価値とその時のdepthをひとまとめにした構造体
 	struct ValueDepth
 	{
@@ -444,6 +562,13 @@ namespace MakeBook2025
 			writebook_path = Path::Combine(BOOK_DIR, writebook_path);
 			sfen_temp_path = Path::Combine(BOOK_DIR, SFEN_TEMP_FILENAME);
 
+			const auto actual_readbook_path = resolve_book_filename_with_ybb_fallback(readbook_path);
+			if (actual_readbook_path != readbook_path)
+			{
+				cout << "readbook fallback   : " << readbook_path << " -> " << actual_readbook_path << endl;
+				readbook_path = actual_readbook_path;
+			}
+
 			cout << "[ PetaShock makebook CONFIGURATION ]" << endl;
 
 			cout << "readbook_path      : " << readbook_path << endl;
@@ -485,6 +610,132 @@ namespace MakeBook2025
 
 			// MemoryBookに読み込むと時間かかる + メモリ消費量が大きくなるので
 			// 直接自前でbook_nodesに読み込む。
+
+			if (is_ybb_index_book(readbook_path))
+			{
+				const auto moves_path = ybb_moves_book_name(readbook_path);
+				ifstream index_reader(readbook_path, ios::binary);
+				if (!index_reader)
+				{
+					sync_cout << "info string Error! : can't read file : " + readbook_path << sync_endl;
+					return Tools::ResultCode::FileNotFound;
+				}
+				ifstream moves_reader(moves_path, ios::binary);
+				if (!moves_reader)
+				{
+					sync_cout << "info string Error! : can't read file : " + moves_path << sync_endl;
+					return Tools::ResultCode::FileNotFound;
+				}
+
+				u64 noe = 0;
+				u64 ybb_flags = 0;
+				if (!read_ybb_header(index_reader, noe, ybb_flags))
+				{
+					sync_cout << "info string Error! : invalid ybb file : " << readbook_path << sync_endl;
+					return Tools::ResultCode::FileReadError;
+				}
+
+				cout << "Number Of Elements : " << noe << endl;
+				book_nodes.reserve(size_t(noe));
+				hashkey_to_index.reserve(size_t(noe));
+				if (fast)
+					original_sfens.reserve(size_t(noe));
+
+				SystemIO::TextWriter sfen_writer;
+				if (!fast)
+					sfen_writer.Open(sfen_temp_path);
+
+				progress.reset(noe == 0 ? 0 : noe - 1);
+				Position pos;
+
+				for (u64 i = 0; i < noe; ++i)
+				{
+					progress.check(i);
+
+					YbbIndexEntry entry;
+					if (!read_ybb_index_entry(index_reader, entry))
+					{
+						if (!fast)
+							sfen_writer.Close();
+						sync_cout << "info string Error! : invalid ybb file : " << readbook_path << sync_endl;
+						return Tools::ResultCode::FileReadError;
+					}
+					string sfen = Position::sfen_unpack(entry.packed_sfen);
+					StringExtension::trim_number_inplace(sfen);
+					sfen += " " + std::to_string(entry.ply);
+
+					if (fast)
+						original_sfens.push_back(sfen);
+					else
+						sfen_writer.WriteLine(sfen);
+
+					StringExtension::trim_number_inplace(sfen);
+					Color stm = (sfen.find('w') != std::string::npos) ? WHITE : BLACK;
+					string white_sfen = stm == WHITE ? sfen : Position::sfen_to_flipped_sfen(sfen);
+
+					StateInfo si;
+					pos.set(white_sfen, &si);
+					Key white_hash_key = pos.key();
+
+					auto book_node_index = BookNodeIndex(book_nodes.size());
+					hashkey_to_index[white_hash_key] = book_node_index;
+
+					bool checked = pos.checkers();
+					book_nodes.emplace_back(BookNode());
+					auto& book_node = book_nodes.back();
+
+					book_node.color       = stm;
+					book_node.checked     = checked;
+					book_node.check_loop  = checked;
+					in_check_counter     += checked;
+
+					moves_reader.clear();
+					moves_reader.seekg(std::streamoff(entry.moves_offset), ios::beg);
+					if (!moves_reader)
+					{
+						if (!fast)
+							sfen_writer.Close();
+						sync_cout << "info string Error! : invalid ybb moves file : " << moves_path << sync_endl;
+						return Tools::ResultCode::FileReadError;
+					}
+
+					for (u16 move_index = 0; move_index < entry.move_count; ++move_index)
+					{
+						u16 move16_value = 0;
+						u16 eval_value = 0;
+						if (!read_u16_le(moves_reader, move16_value) || !read_u16_le(moves_reader, eval_value))
+						{
+							if (!fast)
+								sfen_writer.Close();
+							sync_cout << "info string Error! : invalid ybb moves file : " << moves_path << sync_endl;
+							return Tools::ResultCode::FileReadError;
+						}
+						if (ybb_flags & YBB_FLAG_MOVE_DEPTH)
+						{
+							u16 ignored_depth = 0;
+							if (!read_u16_le(moves_reader, ignored_depth))
+							{
+								if (!fast)
+									sfen_writer.Close();
+								sync_cout << "info string Error! : invalid ybb moves file : " << moves_path << sync_endl;
+								return Tools::ResultCode::FileReadError;
+							}
+						}
+						Move16 move16 = Move16(move16_value);
+						auto value = (s16)std::clamp((int)(s16)eval_value, BOOK_VALUE_MIN, BOOK_VALUE_MAX);
+
+						if (book_node.color == WHITE)
+							move16 = flip_move(move16);
+
+						book_node.moves.emplace_back(BookMove(move16, value, 0 /*depth*/));
+					}
+				}
+
+				if (!fast)
+					sfen_writer.Close();
+
+				return Tools::Result::Ok();
+			}
 
 			SystemIO::TextReader reader;
 			// ReadLine()の時に行の末尾のスペース、タブを自動トリム。空行は自動スキップ。

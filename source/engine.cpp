@@ -1,4 +1,6 @@
-﻿#include "engine.h"
+﻿#include <atomic>
+
+#include "engine.h"
 #include "thread.h"
 #include "perft.h"
 #include "usioption.h"
