@@ -323,6 +323,7 @@ namespace Book
 		return true;
 	}
 
+#if defined(USE_SFEN_PACKER)
 	struct YbbIndexEntry
 	{
 		PackedSfen packed_sfen{};
@@ -465,6 +466,7 @@ namespace Book
 		book_moves->sort_moves();
 		return book_moves;
 	}
+#endif
 
 	void MemoryBook::set_options(OptionsMap& options)
 	{
@@ -541,9 +543,18 @@ namespace Book
 			// やねうら王定跡データベースを読み込む
 			const bool ybb_book_file = is_ybb_index_book(actual_pure_filename);
 
+#if !defined(USE_SFEN_PACKER)
+			if (ybb_book_file)
+			{
+				sync_cout << "info string Error! : ybb book requires USE_SFEN_PACKER : " << actual_filename << sync_endl;
+				return Tools::Result(Tools::ResultCode::FileReadError);
+			}
+#endif
+
 			// ファイルだけオープンして読み込んだことにする。
 			if (on_the_fly_)
 			{
+#if defined(USE_SFEN_PACKER)
 				if (ybb_book_file)
 				{
 					const auto moves_filename = ybb_moves_book_name(actual_filename);
@@ -573,6 +584,7 @@ namespace Book
 					this->pure_book_name = actual_pure_filename;
 					return Tools::Result::Ok();
 				}
+#endif
 
 				if (fs.is_open())
 					fs.close();
@@ -593,6 +605,7 @@ namespace Book
 
 			sync_cout << "info string read book file : " << actual_filename << sync_endl;
 
+#if defined(USE_SFEN_PACKER)
 			if (ybb_book_file)
 			{
 				const auto moves_filename = ybb_moves_book_name(actual_filename);
@@ -626,6 +639,7 @@ namespace Book
 
 				return Tools::Result::Ok();
 			}
+#endif
 
 			SystemIO::TextReader reader;
 			// ReadLine()の時に行の末尾のスペース、タブを自動トリム。空行は自動スキップ。
@@ -1035,6 +1049,7 @@ namespace Book
 		return pml_entry;
 	}
 
+#if defined(USE_SFEN_PACKER)
 	BookMovesPtr MemoryBook::find_ybb_bookmoves_on_the_fly(const Position& pos)
 	{
 		PackedSfen target{};
@@ -1101,6 +1116,7 @@ namespace Book
 
 		return BookMovesPtr();
 	}
+#endif
 
 	BookMovesPtr MemoryBook::find(const Position& pos)
 	{
@@ -1167,6 +1183,7 @@ namespace Book
 
 			if (on_the_fly)
 			{
+#if defined(USE_SFEN_PACKER)
 				if (ybb_book)
 				{
 					PackedSfen target{};
@@ -1181,6 +1198,7 @@ namespace Book
 					}
 					return entry;
 				}
+#endif
 
 				auto sfen = pos.sfen();
 				auto entry = find_bookmoves_on_the_fly(sfen);
@@ -1200,6 +1218,7 @@ namespace Book
 			} else {
 
 				// on the flyではない場合
+#if defined(USE_SFEN_PACKER)
 				if (ybb_memory_book)
 				{
 					PackedSfen target{};
@@ -1214,6 +1233,7 @@ namespace Book
 					}
 					return entry;
 				}
+#endif
 
 				auto sfen = pos.sfen();
 				it = book_body.find(trim(sfen));

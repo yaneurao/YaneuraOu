@@ -411,7 +411,7 @@ constexpr int MAX_PLY_NUM = 246;
 	//#define USE_DEBUG_ASSERT
 
 	#define ENABLE_TEST_CMD
-	// 学習絡みのオプション
+	// 学習絡みのオプション。ybb形式の定跡読み込みでも使う。
 	#define USE_SFEN_PACKER
 
 	// 定跡生成絡み
@@ -475,6 +475,8 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_DFPN
 	#define USE_PIECE_VALUE
 	#define ENABLE_TEST_CMD
+	// 学習絡みのオプション。ybb形式の定跡読み込みでも使う。
+	#define USE_SFEN_PACKER
 
 	// 勝率の集計を行う型としてdouble型を用いる。
 	#define WIN_TYPE_DOUBLE
@@ -494,6 +496,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_1PLY
 	//#define LONG_EFFECT_LIBRARY
 	#define ENABLE_TEST_CMD
+	#define USE_SFEN_PACKER
 #endif
 
 // --- やねうら王詰将棋エンジンとして実行ファイルを公開するとき用の設定集
@@ -510,6 +513,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_DFPN
 	#define USE_PIECE_VALUE
 	#define ENABLE_TEST_CMD
+	#define USE_SFEN_PACKER
 #endif
 
 
@@ -520,6 +524,7 @@ constexpr int MAX_PLY_NUM = 246;
 	//#define USE_EVAL
 	//#define EVAL_MATERIAL
 	//#define USE_PIECE_VALUE
+	//#define USE_SFEN_PACKER
 #endif
 
 // --------------------

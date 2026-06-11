@@ -241,9 +241,11 @@ protected:
 
 	// sfenで指定された局面の情報を定跡DBファイルにon the flyで探して、それを返すヘルパー関数。
 	BookMovesPtr find_bookmoves_on_the_fly(std::string sfen);
+#if defined(USE_SFEN_PACKER)
 	BookMovesPtr find_ybb_bookmoves_on_the_fly(const Position& pos);
 	BookMovesPtr find_ybb_bookmoves_on_the_fly(const PackedSfen& target, uint16_t game_ply);
 	BookMovesPtr find_ybb_bookmoves_in_memory(const PackedSfen& target, uint16_t game_ply);
+#endif
 
 	// メモリに丸読みせずにfind()のごとにファイルを調べにいくのか。
 	// これは思考エンジン設定のOptions["BookOnTheFly"]の値を反映したもの。
