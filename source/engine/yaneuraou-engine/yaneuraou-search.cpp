@@ -446,10 +446,6 @@ bool YaneuraOuEngine::qsearch_psv(const std::string& inputPath,
                                   size_t             workerCount,
                                   std::string&       message) {
 
-#if !defined(USE_SFEN_PACKER)
-    message = "qsearch_psv requires USE_SFEN_PACKER.";
-    return false;
-#else
     if (inputPath.empty() || outputPath.empty())
     {
         message = "usage: qsearch_psv input.psv output.psv [workers]";
@@ -574,7 +570,6 @@ bool YaneuraOuEngine::qsearch_psv(const std::string& inputPath,
        << " workers=" << workerCount;
     message = ss.str();
     return total.decodeErrors == 0 && total.illegalPv == 0;
-#endif
 }
 
 // utility functions

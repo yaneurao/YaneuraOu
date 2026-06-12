@@ -1,7 +1,5 @@
 ﻿#include "../config.h"
 
-#if defined (USE_SFEN_PACKER)
-
 #include "../misc.h"
 #include "../position.h"
 
@@ -705,8 +703,11 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 
 	// --- evaluate
 
+#if defined(USE_PIECE_VALUE)
+	st->materialValue = Eval::material(*this);
+#endif
+
 #if defined(USE_CLASSIC_EVAL)
-    st->materialValue = Eval::material(*this);
 	Eval::compute_eval(*this);
 #endif
 
@@ -758,6 +759,3 @@ std::string Position::sfen_unpack(const PackedSfen& sfen)
 }
 
 } // namespace YaneuraOu
-
-#endif // USE_SFEN_PACKER
-

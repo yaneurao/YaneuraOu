@@ -3744,7 +3744,6 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         tester.test("pos_is_ok()", pos.pos_is_ok());
     }
 
-#if defined(USE_SFEN_PACKER)
     {
         // packed sfenのテスト
         auto section = tester.section("PackedSfen");
@@ -3794,7 +3793,6 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         }
         tester.test("handicapped sfen", success);
     }
-#endif
 
 #if defined(USE_PARTIAL_KEY)
     {
@@ -3904,7 +3902,6 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
 
     // packed sfenのtest
     auto extra_test1 = [&](Position& pos) {
-#if defined(USE_SFEN_PACKER)
         PackedSfen ps;
         StateInfo  si;
         string     sfen     = pos.sfen();
@@ -3916,14 +3913,10 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         string sfen2 = pos2.sfen(game_ply);
 
         return sfen == sfen2;
-#else
-        return true;
-#endif
     };
 
     // 駒落ちのpacked sfenのテスト
     auto extra_test2 = [&](Position& pos) {
-#if defined(USE_SFEN_PACKER)
         PackedSfen ps;
         StateInfo  si;
         string     sfen     = pos.sfen();
@@ -3953,9 +3946,6 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         string sfen3 = pos3.sfen(game_ply);
 
         return sfen2 == sfen3;
-#else
-        return true;
-#endif
     };
 
     {

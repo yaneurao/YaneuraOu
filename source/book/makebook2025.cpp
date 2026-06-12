@@ -258,7 +258,6 @@ namespace MakeBook2025
 	static constexpr u64 YBB_FLAG_MOVE_DEPTH = 1;
 	static constexpr u64 YBB_KNOWN_FLAGS = YBB_FLAG_MOVE_DEPTH;
 
-#if defined(USE_SFEN_PACKER)
 	struct YbbIndexEntry
 	{
 		PackedSfen packed_sfen{};
@@ -266,7 +265,6 @@ namespace MakeBook2025
 		u16 ply = 0;
 		u16 move_count = 0;
 	};
-#endif
 
 	static bool ends_with(const string& text, const string& suffix)
 	{
@@ -353,7 +351,6 @@ namespace MakeBook2025
 		return (flags & ~YBB_KNOWN_FLAGS) == 0;
 	}
 
-#if defined(USE_SFEN_PACKER)
 	static bool read_ybb_index_entry(istream& is, YbbIndexEntry& entry)
 	{
 		is.read(reinterpret_cast<char*>(entry.packed_sfen.data), 32);
@@ -367,7 +364,6 @@ namespace MakeBook2025
 			return false;
 		return true;
 	}
-#endif
 
 	// 定跡の評価値とその時のdepthをひとまとめにした構造体
 	struct ValueDepth
@@ -617,10 +613,6 @@ namespace MakeBook2025
 
 			if (is_ybb_index_book(readbook_path))
 			{
-#if !defined(USE_SFEN_PACKER)
-				sync_cout << "info string Error! : ybb input requires USE_SFEN_PACKER : " << readbook_path << sync_endl;
-				return Tools::ResultCode::FileReadError;
-#else
 				const auto moves_path = ybb_moves_book_name(readbook_path);
 				ifstream index_reader(readbook_path, ios::binary);
 				if (!index_reader)
@@ -743,7 +735,6 @@ namespace MakeBook2025
 					sfen_writer.Close();
 
 				return Tools::Result::Ok();
-#endif
 			}
 
 			SystemIO::TextReader reader;

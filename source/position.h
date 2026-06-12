@@ -242,8 +242,6 @@ struct PositionSetError : std::runtime_error {
 //       盤面
 // --------------------
 
-#if defined(USE_SFEN_PACKER)
-
 // packされたsfen
 struct PackedSfen {
 	u8 data[32];
@@ -307,7 +305,6 @@ struct PackedSfenHash {
 		return s;
 	}
 };
-#endif
 
 // 盤面
 class Position
@@ -975,7 +972,6 @@ public:
     }
 
 	// -- sfen化ヘルパ
-#if defined(USE_SFEN_PACKER)
   // packされたsfenを得る。引数に指定したバッファに返す。
   // gamePlyはpackに含めない。
 	void sfen_pack(PackedSfen& sfen);
@@ -992,7 +988,6 @@ public:
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
-#endif
 
 	// -- 利き
 #if defined(LONG_EFFECT_LIBRARY)

@@ -253,9 +253,7 @@ namespace {
 	// を継承する NNUE / KPPT / KPP_KKPT / Material 系のみ (= YANEURAOU_ENGINE が
 	// 定義される構成)。ふかうら王 (Deep)、tanuki/yaneuraou-mate、user-engine は
 	// Engine::evaluate() の基底実装 (VALUE_NONE を返す) のままで accuracy 算出が
-	// 無意味なため除外する。また YANEURAOU_ENGINE 配下では USE_SFEN_PACKER も
-	// 同時に定義されるので、PsvRecord / Position::set_from_packed_sfen への参照も
-	// このガード内で安全に行える。
+	// 無意味なため除外する。
 	void eval_accuracy(IEngine& engine, std::istringstream& is)
 	{
 		std::string psv_path;

@@ -125,8 +125,6 @@ public:
 	// エントリのエイジングを追跡するために、各ルート検索の開始時にこれを呼び出す必要があります。
 	// ⇨ 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
 
-	// USE_GLOBAL_OPTIONSが有効のときは、このタイミングで、Options["Threads"]の値を
-	// キャプチャして、探索スレッドごとの置換表と世代カウンターを用意する。
 	void new_search();
 
 	// The current age, used when writing new data to the TT
