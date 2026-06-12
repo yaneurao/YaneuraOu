@@ -271,34 +271,19 @@ namespace MakeBook2025
 		return text.size() >= suffix.size() && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
 	}
 
-	static bool is_ybb_index_book(const string& filename)
+	static bool is_ybb_book(const string& filename)
 	{
-		return ends_with(filename, "-index.ybb");
+		return ends_with(filename, ".ybb");
 	}
 
-	static string ybb_moves_book_name(const string& index_filename)
-	{
-		string moves_filename = index_filename;
-		moves_filename.resize(moves_filename.size() - string("-index.ybb").size());
-		moves_filename += "-moves.ybb";
-		return moves_filename;
-	}
-
-	static string ybb_index_book_name_from_db_name(const string& db_filename)
+	static string ybb_book_name_from_db_name(const string& db_filename)
 	{
 		if (!ends_with(db_filename, ".db"))
 			return string();
-		string index_filename = db_filename;
-		index_filename.resize(index_filename.size() - string(".db").size());
-		index_filename += "-index.ybb";
-		return index_filename;
-	}
-
-	static bool ybb_book_pair_exists(const string& index_filename)
-	{
-		if (!is_ybb_index_book(index_filename))
-			return false;
-		return Path::Exists(index_filename) && Path::Exists(ybb_moves_book_name(index_filename));
+		string ybb_filename = db_filename;
+		ybb_filename.resize(ybb_filename.size() - string(".db").size());
+		ybb_filename += ".ybb";
+		return ybb_filename;
 	}
 
 	static string resolve_book_filename_with_ybb_fallback(const string& filename)
@@ -306,9 +291,9 @@ namespace MakeBook2025
 		if (Path::Exists(filename))
 			return filename;
 
-		const auto index_filename = ybb_index_book_name_from_db_name(filename);
-		if (!index_filename.empty() && ybb_book_pair_exists(index_filename))
-			return index_filename;
+		const auto ybb_filename = ybb_book_name_from_db_name(filename);
+		if (!ybb_filename.empty() && Path::Exists(ybb_filename))
+			return ybb_filename;
 
 		return filename;
 	}
@@ -349,6 +334,14 @@ namespace MakeBook2025
 		if (!read_u64_le(is, flags))
 			return false;
 		return (flags & ~YBB_KNOWN_FLAGS) == 0;
+	}
+
+	static bool ybb_index_size(u64 record_count, u64& index_size)
+	{
+		if (record_count > (std::numeric_limits<u64>::max() - YBB_HEADER_SIZE) / YBB_INDEX_RECORD_SIZE)
+			return false;
+		index_size = YBB_HEADER_SIZE + record_count * YBB_INDEX_RECORD_SIZE;
+		return true;
 	}
 
 	static bool read_ybb_index_entry(istream& is, YbbIndexEntry& entry)
@@ -611,25 +604,30 @@ namespace MakeBook2025
 			// MemoryBookに読み込むと時間かかる + メモリ消費量が大きくなるので
 			// 直接自前でbook_nodesに読み込む。
 
-			if (is_ybb_index_book(readbook_path))
+			if (is_ybb_book(readbook_path))
 			{
-				const auto moves_path = ybb_moves_book_name(readbook_path);
 				ifstream index_reader(readbook_path, ios::binary);
 				if (!index_reader)
 				{
 					sync_cout << "info string Error! : can't read file : " + readbook_path << sync_endl;
 					return Tools::ResultCode::FileNotFound;
 				}
-				ifstream moves_reader(moves_path, ios::binary);
+				ifstream moves_reader(readbook_path, ios::binary);
 				if (!moves_reader)
 				{
-					sync_cout << "info string Error! : can't read file : " + moves_path << sync_endl;
+					sync_cout << "info string Error! : can't read file : " + readbook_path << sync_endl;
 					return Tools::ResultCode::FileNotFound;
 				}
 
 				u64 noe = 0;
 				u64 ybb_flags = 0;
 				if (!read_ybb_header(index_reader, noe, ybb_flags))
+				{
+					sync_cout << "info string Error! : invalid ybb file : " << readbook_path << sync_endl;
+					return Tools::ResultCode::FileReadError;
+				}
+				u64 moves_base = 0;
+				if (!ybb_index_size(noe, moves_base))
 				{
 					sync_cout << "info string Error! : invalid ybb file : " << readbook_path << sync_endl;
 					return Tools::ResultCode::FileReadError;
@@ -690,12 +688,12 @@ namespace MakeBook2025
 					in_check_counter     += checked;
 
 					moves_reader.clear();
-					moves_reader.seekg(std::streamoff(entry.moves_offset), ios::beg);
+					moves_reader.seekg(std::streamoff(moves_base + entry.moves_offset), ios::beg);
 					if (!moves_reader)
 					{
 						if (!fast)
 							sfen_writer.Close();
-						sync_cout << "info string Error! : invalid ybb moves file : " << moves_path << sync_endl;
+						sync_cout << "info string Error! : invalid ybb moves area : " << readbook_path << sync_endl;
 						return Tools::ResultCode::FileReadError;
 					}
 
@@ -707,7 +705,7 @@ namespace MakeBook2025
 						{
 							if (!fast)
 								sfen_writer.Close();
-							sync_cout << "info string Error! : invalid ybb moves file : " << moves_path << sync_endl;
+							sync_cout << "info string Error! : invalid ybb moves area : " << readbook_path << sync_endl;
 							return Tools::ResultCode::FileReadError;
 						}
 						if (ybb_flags & YBB_FLAG_MOVE_DEPTH)
@@ -717,7 +715,7 @@ namespace MakeBook2025
 							{
 								if (!fast)
 									sfen_writer.Close();
-								sync_cout << "info string Error! : invalid ybb moves file : " << moves_path << sync_endl;
+								sync_cout << "info string Error! : invalid ybb moves area : " << readbook_path << sync_endl;
 								return Tools::ResultCode::FileReadError;
 							}
 						}

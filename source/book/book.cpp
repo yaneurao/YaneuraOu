@@ -215,36 +215,19 @@ namespace Book
 		return text.size() >= suffix.size() && text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
 	}
 
-	static bool is_ybb_index_book(const std::string& filename)
+	static bool is_ybb_book(const std::string& filename)
 	{
-		return ends_with(filename, "-index.ybb");
+		return ends_with(filename, ".ybb");
 	}
 
-	static std::string ybb_moves_book_name(const std::string& index_filename)
-	{
-		if (!is_ybb_index_book(index_filename))
-			return std::string();
-		std::string moves_filename = index_filename;
-		moves_filename.resize(moves_filename.size() - std::string("-index.ybb").size());
-		moves_filename += "-moves.ybb";
-		return moves_filename;
-	}
-
-	static std::string ybb_index_book_name_from_db_name(const std::string& db_filename)
+	static std::string ybb_book_name_from_db_name(const std::string& db_filename)
 	{
 		if (!ends_with(db_filename, ".db"))
 			return std::string();
-		std::string index_filename = db_filename;
-		index_filename.resize(index_filename.size() - std::string(".db").size());
-		index_filename += "-index.ybb";
-		return index_filename;
-	}
-
-	static bool ybb_book_pair_exists(const std::string& index_filename)
-	{
-		if (!is_ybb_index_book(index_filename))
-			return false;
-		return Path::Exists(index_filename) && Path::Exists(ybb_moves_book_name(index_filename));
+		std::string ybb_filename = db_filename;
+		ybb_filename.resize(ybb_filename.size() - std::string(".db").size());
+		ybb_filename += ".ybb";
+		return ybb_filename;
 	}
 
 	static std::string resolve_book_filename_with_ybb_fallback(const std::string& filename)
@@ -252,9 +235,9 @@ namespace Book
 		if (Path::Exists(filename))
 			return filename;
 
-		const auto index_filename = ybb_index_book_name_from_db_name(filename);
-		if (!index_filename.empty() && ybb_book_pair_exists(index_filename))
-			return index_filename;
+		const auto ybb_filename = ybb_book_name_from_db_name(filename);
+		if (!ybb_filename.empty() && Path::Exists(ybb_filename))
+			return ybb_filename;
 
 		return filename;
 	}
@@ -336,6 +319,14 @@ namespace Book
 		return (flags & YbbFlagMoveDepth) ? 6 : 4;
 	}
 
+	static bool ybb_index_size(uint64_t record_count, uint64_t& index_size)
+	{
+		if (record_count > (std::numeric_limits<uint64_t>::max() - YbbHeaderSize) / YbbIndexRecordSize)
+			return false;
+		index_size = YbbHeaderSize + record_count * YbbIndexRecordSize;
+		return true;
+	}
+
 	static bool read_ybb_header(std::istream& is, uint64_t& record_count, uint64_t& flags)
 	{
 		std::array<char, 16> magic{};
@@ -375,7 +366,10 @@ namespace Book
 			return false;
 		if ((flags & ~YbbKnownFlags) != 0)
 			return false;
-		if ((data.size() - YbbHeaderSize) / YbbIndexRecordSize < record_count)
+		uint64_t index_size = 0;
+		if (!ybb_index_size(record_count, index_size))
+			return false;
+		if (data.size() < index_size)
 			return false;
 		return true;
 	}
@@ -412,11 +406,11 @@ namespace Book
 		return std::memcmp(lhs.data, rhs.data, 32);
 	}
 
-	static BookMovesPtr read_ybb_moves(std::istream& moves_fs, const YbbIndexEntry& entry, uint64_t flags)
+	static BookMovesPtr read_ybb_moves(std::istream& moves_fs, const YbbIndexEntry& entry, uint64_t flags, uint64_t moves_base)
 	{
 		BookMovesPtr book_moves(new BookMoves());
 		moves_fs.clear();
-		moves_fs.seekg(std::streamoff(entry.moves_offset), std::ios::beg);
+		moves_fs.seekg(std::streamoff(moves_base + entry.moves_offset), std::ios::beg);
 		if (!moves_fs)
 			return BookMovesPtr();
 		for (uint16_t i = 0; i < entry.move_count; ++i)
@@ -437,19 +431,20 @@ namespace Book
 		return book_moves;
 	}
 
-	static BookMovesPtr read_ybb_moves_from_memory(const std::vector<unsigned char>& moves_data, const YbbIndexEntry& entry, uint64_t flags)
+	static BookMovesPtr read_ybb_moves_from_memory(const std::vector<unsigned char>& moves_data, const YbbIndexEntry& entry, uint64_t flags, uint64_t moves_base)
 	{
-		if (entry.moves_offset > moves_data.size())
+		if (moves_base > moves_data.size() || entry.moves_offset > moves_data.size() - moves_base)
 			return BookMovesPtr();
 		const uint64_t move_record_size = ybb_move_record_size(flags);
 		const uint64_t moves_size = uint64_t(entry.move_count) * move_record_size;
-		if (moves_data.size() - entry.moves_offset < moves_size)
+		const uint64_t absolute_moves_offset = moves_base + entry.moves_offset;
+		if (moves_data.size() - absolute_moves_offset < moves_size)
 			return BookMovesPtr();
 
 		BookMovesPtr book_moves(new BookMoves());
 		for (uint16_t i = 0; i < entry.move_count; ++i)
 		{
-			const uint64_t offset = entry.moves_offset + uint64_t(i) * move_record_size;
+			const uint64_t offset = absolute_moves_offset + uint64_t(i) * move_record_size;
 			uint16_t move16_value = 0;
 			uint16_t eval_value = 0;
 			uint16_t depth_value = 0;
@@ -503,9 +498,9 @@ namespace Book
 		this->ybb_memory_book = false;
 		this->ybb_record_count = 0;
 		this->ybb_flags = 0;
+		this->ybb_moves_base = 0;
 		this->ybb_moves_name.clear();
 		this->ybb_index_data.clear();
-		this->ybb_moves_data.clear();
 		if (ybb_index_fs.is_open())
 			ybb_index_fs.close();
 		if (ybb_moves_fs.is_open())
@@ -538,24 +533,23 @@ namespace Book
 				sync_cout << "info string book file fallback : " << filename << " -> " << actual_filename << sync_endl;
 
 			// やねうら王定跡データベースを読み込む
-			const bool ybb_book_file = is_ybb_index_book(actual_pure_filename);
+			const bool ybb_book_file = is_ybb_book(actual_pure_filename);
 
 			// ファイルだけオープンして読み込んだことにする。
 			if (on_the_fly_)
 			{
 				if (ybb_book_file)
 				{
-					const auto moves_filename = ybb_moves_book_name(actual_filename);
 					ybb_index_fs.open(actual_filename, std::ios::in | std::ios::binary);
 					if (ybb_index_fs.fail())
 					{
 						sync_cout << "info string Error! : can't read file : " + actual_filename << sync_endl;
 						return Tools::Result(Tools::ResultCode::FileNotFound);
 					}
-					ybb_moves_fs.open(moves_filename, std::ios::in | std::ios::binary);
+					ybb_moves_fs.open(actual_filename, std::ios::in | std::ios::binary);
 					if (ybb_moves_fs.fail())
 					{
-						sync_cout << "info string Error! : can't read file : " + moves_filename << sync_endl;
+						sync_cout << "info string Error! : can't read file : " + actual_filename << sync_endl;
 						return Tools::Result(Tools::ResultCode::FileNotFound);
 					}
 
@@ -565,8 +559,14 @@ namespace Book
 						return Tools::Result(Tools::ResultCode::FileReadError);
 					}
 
+					if (!ybb_index_size(ybb_record_count, ybb_moves_base))
+					{
+						sync_cout << "info string Error! : invalid ybb file : " << actual_filename << sync_endl;
+						return Tools::Result(Tools::ResultCode::FileReadError);
+					}
+
 					this->ybb_book = true;
-					this->ybb_moves_name = moves_filename;
+					this->ybb_moves_name = actual_filename;
 					this->on_the_fly = true;
 					this->book_name = filename;
 					this->pure_book_name = actual_pure_filename;
@@ -594,15 +594,9 @@ namespace Book
 
 			if (ybb_book_file)
 			{
-				const auto moves_filename = ybb_moves_book_name(actual_filename);
 				if (!read_file_to_memory(actual_filename, ybb_index_data))
 				{
 					sync_cout << "info string Error! : can't read file : " + actual_filename << sync_endl;
-					return Tools::Result(Tools::ResultCode::FileNotFound);
-				}
-				if (!read_file_to_memory(moves_filename, ybb_moves_data))
-				{
-					sync_cout << "info string Error! : can't read file : " + moves_filename << sync_endl;
 					return Tools::Result(Tools::ResultCode::FileNotFound);
 				}
 
@@ -614,10 +608,16 @@ namespace Book
 					return Tools::Result(Tools::ResultCode::FileReadError);
 				}
 
+				if (!ybb_index_size(record_count, ybb_moves_base))
+				{
+					sync_cout << "info string Error! : invalid ybb file : " << actual_filename << sync_endl;
+					return Tools::Result(Tools::ResultCode::FileReadError);
+				}
+
 				this->ybb_memory_book = true;
 				this->ybb_record_count = record_count;
 				this->ybb_flags = flags;
-				this->ybb_moves_name = moves_filename;
+				this->ybb_moves_name = actual_filename;
 				this->book_name = filename;
 				this->pure_book_name = actual_pure_filename;
 
@@ -1064,7 +1064,7 @@ namespace Book
 			{
 				if (!ignoreBookPly && entry.ply != game_ply)
 					return BookMovesPtr();
-				return read_ybb_moves(ybb_moves_fs, entry, ybb_flags);
+				return read_ybb_moves(ybb_moves_fs, entry, ybb_flags, ybb_moves_base);
 			}
 		}
 
@@ -1094,7 +1094,7 @@ namespace Book
 			{
 				if (!ignoreBookPly && entry.ply != game_ply)
 					return BookMovesPtr();
-				return read_ybb_moves_from_memory(ybb_moves_data, entry, ybb_flags);
+				return read_ybb_moves_from_memory(ybb_index_data, entry, ybb_flags, ybb_moves_base);
 			}
 		}
 
@@ -1280,12 +1280,11 @@ namespace Book
 		//  user_book1.db    ユーザー定跡1
 		//  user_book2.db    ユーザー定跡2
 		//  user_book3.db    ユーザー定跡3
-		//  user_book-index.ybb  ユーザー定跡(binary book)
 		//  book.bin         Apery型の定跡DB
 
 		std::vector<std::string> book_list = { "no_book" , "standard_book.db"
 			, "yaneura_book1.db" , "yaneura_book2.db" , "yaneura_book3.db", "yaneura_book4.db"
-			, "user_book1.db", "user_book2.db", "user_book3.db", "user_book-index.ybb", "book.bin" };
+			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 
 #if !defined(__EMSCRIPTEN__)
 		options.add("BookFile", Option(book_list, book_list[1]));

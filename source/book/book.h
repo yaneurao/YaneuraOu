@@ -258,17 +258,20 @@ protected:
 	// 上のon_the_fly == trueのときに、開いている従来形式(.db)の定跡ファイルハンドル。
 	std::fstream fs;
 
-	// ybb_book == trueのときに開いている、やねうら王 バイナリ定跡DBのindex file。
+	// ybb_book == trueのときに開いている、やねうら王 バイナリ定跡DBのindex領域読み込み用file。
+	// 同じ .ybb を index / moves 用に2つ開く。
 	std::fstream ybb_index_fs;
 
-	// ybb_book == trueのときに開いている、やねうら王 バイナリ定跡DBのmoves file。
+	// ybb_book == trueのときに開いている、やねうら王 バイナリ定跡DBのmoves領域読み込み用file。
+	// 同じ .ybb を index / moves 用に2つ開く。
 	std::fstream ybb_moves_fs;
 
-	// ybb_memory_book == trueのときに、-index.ybbを丸読みして保持するバッファ。
+	// ybb_memory_book == trueのときに、.ybb 全体を丸読みして保持するバッファ。
 	std::vector<unsigned char> ybb_index_data;
 
-	// ybb_memory_book == trueのときに、-moves.ybbを丸読みして保持するバッファ。
-	std::vector<unsigned char> ybb_moves_data;
+	// moves record の先頭位置。
+	// .ybb の index 領域の直後。
+	uint64_t ybb_moves_base = 0;
 
 	// .ybbのindex file headerに書かれている局面レコード数。
 	uint64_t ybb_record_count = 0;
@@ -283,7 +286,7 @@ protected:
 	// BookOnTheFly=falseで.ybbをメモリに丸読みしている状態ならtrue。
 	bool ybb_memory_book = false;
 
-	// 開いている/丸読みしている.ybbのmoves file名。エラー表示やデバッグ用。
+	// 開いている/丸読みしている.ybb名。エラー表示やデバッグ用。
 	std::string ybb_moves_name;
 
 	// read_book()のときに読み込んだbookの名前
