@@ -36,6 +36,7 @@
 */
 
 #include <array>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -452,7 +453,7 @@ namespace MakeBook2025
 	struct BookMove
 	{
 		// moveの指し手がleaf nodeである場合。
-		BookMove(Move16 move, s16 value, s16 depth) :
+		BookMove(Move16 move, s16 value, u16 depth) :
 			move(move), vd(ValueDepth(value, depth)), leaf(true) {
 		}
 
@@ -541,7 +542,8 @@ namespace MakeBook2025
 				return;
 
 			// 局面の合流チェック
-			convergence_check();
+			if (convergence_check().is_not_ok())
+				return;
 
 			// 後退解析その1 : 出次数0の局面を定跡ツリーから削除
 			remove_const_nodes();
@@ -561,6 +563,9 @@ namespace MakeBook2025
 
 			// 結果出力
 			output_result();
+
+			if (!fast)
+				std::remove(sfen_temp_path.c_str());
 		}
 
 	protected:
@@ -603,7 +608,7 @@ namespace MakeBook2025
 
 			readbook_path  = Path::Combine(BOOK_DIR, readbook_path);
 			writebook_path = Path::Combine(BOOK_DIR, writebook_path);
-			sfen_temp_path = Path::Combine(BOOK_DIR, SFEN_TEMP_FILENAME);
+			sfen_temp_path = writebook_path + "." + SFEN_TEMP_FILENAME;
 
 			const auto actual_readbook_path = resolve_book_filename_with_ybb_fallback(readbook_path);
 			if (actual_readbook_path != readbook_path)
@@ -705,7 +710,13 @@ namespace MakeBook2025
 
 				SystemIO::TextWriter sfen_writer;
 				if (!fast)
-					sfen_writer.Open(sfen_temp_path);
+				{
+					if (sfen_writer.Open(sfen_temp_path).is_not_ok())
+					{
+						sync_cout << "info string Error! : can't write file : " + sfen_temp_path << sync_endl;
+						return Tools::ResultCode::FileOpenError;
+					}
+				}
 
 				progress.reset(noe == 0 ? 0 : noe - 1);
 				Position pos;
@@ -772,16 +783,17 @@ namespace MakeBook2025
 							sync_cout << "info string Error! : invalid ybb moves area : " << readbook_path << sync_endl;
 							return Tools::ResultCode::FileReadError;
 						}
+						u16 depth = 0;
 						if (ybb_flags & YBB_FLAG_MOVE_DEPTH)
 						{
-							u16 ignored_depth = 0;
-							if (!read_u16_le(moves_reader, ignored_depth))
+							if (!read_u16_le(moves_reader, depth))
 							{
 								if (!fast)
 									sfen_writer.Close();
 								sync_cout << "info string Error! : invalid ybb moves area : " << readbook_path << sync_endl;
 								return Tools::ResultCode::FileReadError;
 							}
+							depth = std::min(depth, BOOK_DEPTH_MAX);
 						}
 						Move16 move16 = Move16(move16_value);
 						auto value = (s16)std::clamp((int)(s16)eval_value, BOOK_VALUE_MIN, BOOK_VALUE_MAX);
@@ -789,7 +801,7 @@ namespace MakeBook2025
 						if (book_node.color == WHITE)
 							move16 = flip_move(move16);
 
-						book_node.moves.emplace_back(BookMove(move16, value, 0 /*depth*/));
+						book_node.moves.emplace_back(BookMove(move16, value, depth));
 					}
 				}
 
@@ -866,7 +878,13 @@ namespace MakeBook2025
 			// sfen文字列はファイルに書き出す。
 			SystemIO::TextWriter sfen_writer;
 			if (!fast)
-				sfen_writer.Open(sfen_temp_path);
+			{
+				if (sfen_writer.Open(sfen_temp_path).is_not_ok())
+				{
+					sync_cout << "info string Error! : can't write file : " + sfen_temp_path << sync_endl;
+					return Tools::ResultCode::FileOpenError;
+				}
+			}
 
 			Position pos;
 
@@ -940,7 +958,7 @@ namespace MakeBook2025
 				auto move_str   = scanner.get_text();
 				auto ponder_str = scanner.get_text(); // 使わないがskipはしないといけない。
 				auto value      = (s16)std::clamp((int)scanner.get_number(0), BOOK_VALUE_MIN, BOOK_VALUE_MAX);
-				auto depth      = (s16)scanner.get_number(0);
+				auto depth      = (u16)std::clamp((int)scanner.get_number(0), 0, int(BOOK_DEPTH_MAX));
 				Move16 move16 = (move_str == "none" || move_str == "None" || move_str == "resign") ? Move16::none() : USIEngine::to_move16(move_str);
 				//Move16 ponder = (ponder_str == "none" || ponder_str == "None" || ponder_str == "resign") ? Move16::none() : USI::to_move16(ponder_str);
 
@@ -949,7 +967,7 @@ namespace MakeBook2025
 				if (book_node.color == WHITE)
 					move16 = flip_move(move16);
 
-				book_node.moves.emplace_back(BookMove(move16, value, 0 /*depth*/));
+				book_node.moves.emplace_back(BookMove(move16, value, depth));
 				// あとで合流のチェックをしてleaf nodeであるかを確認する。
 			}
 			if (!fast)
@@ -959,7 +977,7 @@ namespace MakeBook2025
 		}
 
 		// 局面の合流チェック
-		void convergence_check()
+		Tools::Result convergence_check()
 		{
 			cout << "Convergence Check   :" << endl;
 
@@ -967,7 +985,13 @@ namespace MakeBook2025
 			// これは、元の定跡ファイルに出現したsfen文字列がそのまま書き出されている。
 			SystemIO::TextReader sfen_reader;
 			if (!fast)
-				sfen_reader.Open(sfen_temp_path);
+			{
+				if (sfen_reader.Open(sfen_temp_path).is_not_ok())
+				{
+					sync_cout << "info string Error! : can't read file : " + sfen_temp_path << sync_endl;
+					return Tools::ResultCode::FileOpenError;
+				}
+			}
 
 			Tools::ProgressBar progress;
 			progress.reset(book_nodes.size() - 1);
@@ -987,7 +1011,13 @@ namespace MakeBook2025
 				if (fast)
 					sfen = original_sfens[i];
 				else
-					sfen_reader.ReadLine(sfen);
+				{
+					if (sfen_reader.ReadLine(sfen).is_not_ok())
+					{
+						sync_cout << "info string Error! : can't read sfen temp file : " + sfen_temp_path << sync_endl;
+						return Tools::ResultCode::FileReadError;
+					}
+				}
 
 				// この局面が後手番なら、sfenを先手の局面化する。
 				// 💡: BookNodeは先手の局面で考えている。hashkeyは後手の局面で考えている。
@@ -1050,6 +1080,7 @@ namespace MakeBook2025
 				sfen_reader.Close();
 
 			//cout << "converged_moves : " << converged_moves << endl;
+			return Tools::Result::Ok();
 		}
 
 		// 親に伝播するためのVDを作る。(評価値を反転させて、depthを1加算)
@@ -1583,7 +1614,13 @@ namespace MakeBook2025
 
 			SystemIO::TextReader sfen_reader;
 			if (!fast)
-				sfen_reader.Open(sfen_temp_path);
+			{
+				if (sfen_reader.Open(sfen_temp_path).is_not_ok())
+				{
+					sync_cout << "info string Error! : can't read file : " + sfen_temp_path << sync_endl;
+					return Tools::ResultCode::FileOpenError;
+				}
+			}
 
 			for(BookNodeIndex i = 0 ; i < BookNodeIndex(book_nodes.size()) ; ++i)
 			{
@@ -1592,7 +1629,13 @@ namespace MakeBook2025
 				if (fast)
 					sfen = original_sfens[i];
 				else
-					sfen_reader.ReadLine(sfen); // 元のsfen(手番を含め)通りにしておく。
+				{
+					if (sfen_reader.ReadLine(sfen).is_not_ok())
+					{
+						sync_cout << "info string Error! : can't read sfen temp file : " + sfen_temp_path << sync_endl;
+						return Tools::ResultCode::FileReadError;
+					}
+				}
 
 				if (writer.WriteLine("sfen " + sfen).is_not_ok())
 					return Tools::ResultCode::FileWriteError;
