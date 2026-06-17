@@ -54,7 +54,9 @@ YANEURAOU_EDITION = YANEURAOU_ENGINE_NNUE
 # AMDのRyzen(Zen/Zen2)はZEN1/ZEN2を選択するとBMI2命令が使わずに速くなる。(10%程度高速化)
 # Ryzen Zen3シリーズはZEN3を選択。(clang/llvm 13.0.0以降、gcc 11.2以降)
 #
-# ARM系はGraviton2ならGRAVITON2、これ以外ならOTHERを指定する。
+# ARM系は汎用ARMv8ならARMV8、dot product対応ならARMV8_DOTPRODを指定する。
+# Windows ARM64の汎用targetとしてWINARM64も指定できる。WINARM64はARMV8と同等。
+# AWS Graviton2ならGRAVITON2を指定する。
 # Windows x86(32bit環境)用はNO_SSEを指定する。
 #
 # AVX-512対応(サーバー向けSkylake以降)ならAVX512を指定する。
@@ -80,6 +82,9 @@ TARGET_CPU = AVX2
 #TARGET_CPU = ZEN3
 # -- ARMとか
 #TARGET_CPU = OTHER
+#TARGET_CPU = WINARM64
+#TARGET_CPU = ARMV8
+#TARGET_CPU = ARMV8_DOTPROD
 #TARGET_CPU = GRAVITON2
 #TARGET_CPU = WASM
 # -- macOS for Intel
@@ -581,6 +586,15 @@ else ifeq ($(TARGET_CPU),GRAVITON2)
 	# for Amazon Web Servece EC2, the Graviton2 CPU [M6g/M6gd, C6g/C6gd/C6gn, R6g/R6gd, T4g, X2gd] instances
 	# https://github.com/aws/aws-graviton-getting-started/blob/main/c-c++.md
 	CPPFLAGS += -DIS_64BIT -DUSE_NEON=8 -march=armv8.2-a+fp16+rcpc+dotprod+crypto
+else ifeq ($(TARGET_CPU),WINARM64)
+	# Windows ARM64 baseline. Stockfishのarmv8相当。
+	CPPFLAGS += -DIS_64BIT -DUSE_NEON=8
+else ifeq ($(TARGET_CPU),ARMV8)
+	# Generic AArch64 baseline. Stockfishのarmv8相当。
+	CPPFLAGS += -DIS_64BIT -DUSE_NEON=8
+else ifeq ($(TARGET_CPU),ARMV8_DOTPROD)
+	# ARMv8 + Int8 dot product. Stockfishのarmv8-dotprod相当。
+	CPPFLAGS += -DIS_64BIT -DUSE_NEON=8 -DUSE_NEON_DOTPROD -march=armv8.2-a+dotprod
 else ifeq ($(TARGET_CPU),APPLEAVX2)
 	CPPFLAGS += -DIS_64BIT -DUSE_AVX2 -DUSE_BMI2 -target x86_64-apple-macos11 -mbmi -mbmi2 -mavx2 -mpopcnt
 else ifeq ($(TARGET_CPU),APPLESSE42)
