@@ -52,7 +52,7 @@ class AffineTransformExplicit {
 
     static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
-        return get_weight_index_scrambled(i);
+        return kOutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;
 #else
         return i;
 #endif
@@ -186,10 +186,11 @@ class AffineTransformExplicit {
 #endif
 
 #if defined(USE_NEON_DOTPROD)
-                        if constexpr (kOutputDimensions % 4 == 0)
+                        if constexpr (kOutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
                         {
                                 constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
-                                constexpr IndexType kNumRegs = kOutputDimensions / 4;
+                                constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
+                                constexpr IndexType kNumRegs = kOutputDimensions / kOutputSimdWidth;
 
                                 const auto       input32 = reinterpret_cast<const std::int32_t*>(input);
                                 const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases_);
@@ -215,7 +216,8 @@ class AffineTransformExplicit {
                         else
 #endif
 
-                        {}
+                        affine_transform_unaligned<kInputDimensions, kPaddedInputDimensions, kOutputDimensions>(
+                          output, weights_, biases_, input);
                 }
                 else if constexpr (kOutputDimensions == 1)
                 {

@@ -282,7 +282,6 @@ if SFNN:
     print(f"layers feature    : {layers}")
 
     header += f"""
-
         // Number of input feature dimensions after conversion
         // 変換後の入力特徴量の次元数
         constexpr IndexType kTransformedFeatureDimensions = {layers[0]};
@@ -387,6 +386,7 @@ if SFNN:
 
             const OutputType* Propagate(const TransformedFeatureType* transformedFeatures, char* buffer) const {{
                 auto& buf = *reinterpret_cast<Buffer*>(buffer);
+                std::memset(buf.ac_sqr_0_out, 0, sizeof(buf.ac_sqr_0_out));
 
                 fc_0.Propagate(transformedFeatures, buf.fc_0_out);
                 ac_0.Propagate(buf.fc_0_out, buf.ac_0_out);

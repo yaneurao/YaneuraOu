@@ -151,7 +151,7 @@ public:
 
     static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || USE_NEON >= 8
-        return get_weight_index_scrambled(i);
+        return kOutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;
 #else
         return i;
 #endif
@@ -301,10 +301,11 @@ public:
 #endif
 
 #if defined(USE_NEON_DOTPROD)
-        if constexpr (kOutputDimensions % 4 == 0)
+        if constexpr (kOutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
         {
             constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
-            constexpr IndexType kNumRegs   = kOutputDimensions / 4;
+            constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
+            constexpr IndexType kNumRegs   = kOutputDimensions / kOutputSimdWidth;
             std::uint16_t       nnz[kNumChunks];
             IndexType           count;
 
@@ -337,10 +338,11 @@ public:
 #endif
 
 #if defined(USE_NEON) && !defined(USE_NEON_DOTPROD)
-        if constexpr (kOutputDimensions % 4 == 0)
+        if constexpr (kOutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
         {
             constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
-            constexpr IndexType kNumRegs   = kOutputDimensions / 4;
+            constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
+            constexpr IndexType kNumRegs   = kOutputDimensions / kOutputSimdWidth;
             std::uint16_t       nnz[kNumChunks];
             IndexType           count;
 

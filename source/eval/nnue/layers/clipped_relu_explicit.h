@@ -173,6 +173,9 @@ class ClippedReLUExplicit {
       output[i] = static_cast<OutputType>(
           std::max(0, std::min(127, input[i] >> kWeightScaleBits)));
     }
+    if constexpr (PaddedOutputDimensions > kOutputDimensions) {
+      std::fill(output + kOutputDimensions, output + PaddedOutputDimensions, OutputType{0});
+    }
   }
 
 };

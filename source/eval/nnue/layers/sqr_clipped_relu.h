@@ -92,6 +92,9 @@ namespace Eval::NNUE::Layers {
 				output[i] = static_cast<OutputType>(
 					std::min(127ll, ((long long)(input[i]) * input[i]) >> (2 * kWeightScaleBits + 7)));
 			}
+			if constexpr (PaddedOutputDimensions > kOutputDimensions) {
+				std::fill(output + kOutputDimensions, output + PaddedOutputDimensions, OutputType{0});
+			}
 		}
 
 	};

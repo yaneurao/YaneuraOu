@@ -90,6 +90,7 @@ struct Network {
 
 	const OutputType* Propagate(const TransformedFeatureType* transformedFeatures, char* buffer) const {
 		auto& buf = *reinterpret_cast<Buffer*>(buffer);
+		std::memset(buf.ac_sqr_0_out, 0, sizeof(buf.ac_sqr_0_out));
 
 		fc_0.Propagate(transformedFeatures, buf.fc_0_out);
 		ac_0.Propagate(buf.fc_0_out, buf.ac_0_out);

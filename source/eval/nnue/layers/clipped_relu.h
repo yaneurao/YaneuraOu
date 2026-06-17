@@ -28,6 +28,8 @@ class ClippedReLU {
   static constexpr IndexType kInputDimensions =
       PreviousLayer::kOutputDimensions;
   static constexpr IndexType kOutputDimensions = kInputDimensions;
+  static constexpr IndexType kPaddedOutputDimensions =
+      CeilToMultiple<IndexType>(kOutputDimensions, kMaxSimdWidth);
 
   // Size of forward propagation buffer used in this layer
   // この層で使用する順伝播用バッファのサイズ
@@ -203,6 +205,9 @@ class ClippedReLU {
     for (IndexType i = 0; i < kInputDimensions; ++i) {
       output[i] = static_cast<OutputType>(
           std::max(0, std::min(127, input[i] >> kWeightScaleBits)));
+    }
+    if constexpr (kPaddedOutputDimensions > kOutputDimensions) {
+      std::fill(output + kOutputDimensions, output + kPaddedOutputDimensions, OutputType{0});
     }
     return output;
   }
