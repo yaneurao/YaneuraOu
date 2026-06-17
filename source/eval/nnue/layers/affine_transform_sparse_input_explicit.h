@@ -301,10 +301,10 @@ public:
 #endif
 
 #if defined(USE_NEON_DOTPROD)
-        if constexpr (kOutputDimensions % 8 == 0)
+        if constexpr (kOutputDimensions % 4 == 0)
         {
             constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
-            constexpr IndexType kNumRegs   = kOutputDimensions / 8;
+            constexpr IndexType kNumRegs   = kOutputDimensions / 4;
             std::uint16_t       nnz[kNumChunks];
             IndexType           count;
 
