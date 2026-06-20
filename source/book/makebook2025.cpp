@@ -1611,6 +1611,7 @@ namespace MakeBook2025
 
 			// バージョン識別用文字列
 			writer.WriteLine(YaneuraOu::Book::BookDBHeader2016_100);
+			writer.WriteLine("# NOE:" + to_string(book_nodes.size()));
 
 			SystemIO::TextReader sfen_reader;
 			if (!fast)
