@@ -522,9 +522,19 @@ Search::LimitsType USIEngine::parse_limits(std::istream& is) {
 
 		if (token == "searchmoves")  // Needs to be the last command on the line
 			                         // この行の最後のコマンドである必要がある
+		{
 			// 残りの指し手すべてをsearchMovesに突っ込む。
 			while (is >> token)
+			{
+#if STOCKFISH
 				limits.searchmoves.push_back(to_lower(token));
+#else
+				// チェスUCIではsearchmovesを小文字化しても問題ないが、将棋USIでは
+				// "P*5e"のように打ち駒の駒種を大文字で表すので、大文字小文字を保持する。
+				limits.searchmoves.push_back(token);
+#endif
+			}
+		}
 
 		// 先手、後手の残り時間。[ms]
         else if (token == "wtime")
