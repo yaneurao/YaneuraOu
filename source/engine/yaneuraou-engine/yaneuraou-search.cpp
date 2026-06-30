@@ -1279,14 +1279,33 @@ SKIP_SEARCH:
                                                            main_manager()->ponder_candidate))
         uciPvSent = false;
 
+    // 🌈 投了スコアが設定されていて、GUIへ出力する評価値と同じスケールの値がそれを下回るなら投了。
+    //
+    //    ResignValueはwiki上、「自分から見て -ResignValue 以下になったら投了」と説明している。
+    //    したがって、内部評価値そのものではなく、info scoreとして出力するuciScoreを歩=100のcpに
+    //    正規化して判定する。
+    //
+    //    定跡の指し手にhitした場合など、通常探索をskipした経路ではResignValueでは投了しない。
+    bool resign_by_value = false;
+    auto resign_value    = (int) options["ResignValue"];
+    if (!search_skipped && bestThread->rootMoves[0].score != -VALUE_INFINITE)
+    {
+        Value resign_score = bestThread->rootMoves[0].uciScore;
+        if (resign_score == -VALUE_INFINITE)
+            resign_score = VALUE_ZERO;
+
+        resign_by_value = USIEngine::to_cp(resign_score) <= -resign_value;
+    }
+
     // bestmoveを返す前に現在のPVを出力する条件は次のいずれか。
     //
     // 1. iterative_deepening()で最終PVをまだ出力していない。
     // 2. Lazy SMPで、最終採用するbestThreadがmain thread(this)ではない。
+    // 3. ResignValueによって投了するので、その判断に使った評価値を明示したい。
     //
     // 2. の場合、iterative_deepening()中に出力済みだったとしても、
     // それはmain threadのPVなので、採用されたbestThreadのPVを改めて出力する。
-    if (!uciPvSent || bestThread != this)
+    if (!uciPvSent || bestThread != this || resign_by_value)
     {
         if (search_skipped)
         {
@@ -1315,11 +1334,7 @@ SKIP_SEARCH:
         }
     }
 
-    // 🌈 投了スコアが設定されていて、歩の価値を100として正規化した値がそれを下回るなら投了。
-    //    ただし定跡の指し手にhitした場合などはrootMoves[0].score == -VALUE_INFINITEになっているのでそれは除外。
-    auto resign_value = (int) options["ResignValue"];
-    if (bestThread->rootMoves[0].score != -VALUE_INFINITE
-        && USIEngine::to_cp(bestThread->rootMoves[0].score) <= -resign_value)
+    if (resign_by_value)
     {
         // 探索がskipされた扱いにして、resignを積む。
         search_skipped = true;
