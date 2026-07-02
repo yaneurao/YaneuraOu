@@ -147,6 +147,7 @@ EXTRA_LDFLAGS  =
 
 CPPFLAGS += $(EXTRA_CPPFLAGS)
 LDFLAGS  += $(EXTRA_LDFLAGS)
+COMPILER_MACHINE := $(shell $(COMPILER) -dumpmachine 2>/dev/null)
 
 # YANEURAOU_EDITION = YANEURAOU_ENGINE_MATERIALのときに指定できる、評価関数の通し番号
 #  1 : 普通の駒得のみの評価関数
@@ -252,9 +253,13 @@ ifneq (,$(findstring em++,$(COMPILER)))
 else
 	ifeq ($(OS),Windows_NT)
 		CPPFLAGS += $(WCPPFLAGS)
+		LDFLAGS += -static -Wl,--stack,25000000
 		# 32bit Windows版はworker/history/TT/NNUEで仮想アドレス空間を多く使う。
 		# 64bit Windows上で2GB制限に当たらないよう large-address-aware を付ける。
-		LDFLAGS += -static -Wl,--large-address-aware -Wl,--stack,25000000
+		# 64bitビルドでは不要で、古いMSYS2/GCCのldでは未対応なので付けない。
+		ifneq (,$(findstring i686,$(COMPILER_MACHINE) $(COMPILER)))
+			LDFLAGS += -Wl,--large-address-aware
+		endif
 		TARGET = $(TARGETDIR)/YaneuraOu-by-gcc.exe
 	else
 		CPPFLAGS += -D_LINUX
