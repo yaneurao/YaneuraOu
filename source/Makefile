@@ -252,7 +252,9 @@ ifneq (,$(findstring em++,$(COMPILER)))
 else
 	ifeq ($(OS),Windows_NT)
 		CPPFLAGS += $(WCPPFLAGS)
-		LDFLAGS += -static -Wl,--stack,25000000
+		# 32bit Windows版はworker/history/TT/NNUEで仮想アドレス空間を多く使う。
+		# 64bit Windows上で2GB制限に当たらないよう large-address-aware を付ける。
+		LDFLAGS += -static -Wl,--large-address-aware -Wl,--stack,25000000
 		TARGET = $(TARGETDIR)/YaneuraOu-by-gcc.exe
 	else
 		CPPFLAGS += -D_LINUX

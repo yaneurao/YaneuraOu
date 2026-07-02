@@ -274,7 +274,7 @@ template <int n>
 inline u64 Bitboard::extract64() const
 {
 	static_assert(n == 0 || n == 1, "");
-#if defined(USE_SSE41)
+#if defined(USE_SSE41) && defined(IS_64BIT)
 	return (u64)(_mm_extract_epi64(m, n));
 #else
 	return p[n];
