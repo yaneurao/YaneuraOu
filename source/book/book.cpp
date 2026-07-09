@@ -1299,6 +1299,7 @@ namespace Book
 	{
         // あとで使いたいから参照をコピーしておく。
         set_options(o);
+		const bool book_options_v2 = options.book_options_v2();
 
 		// エンジン側の定跡を有効化するか
 		// USI原案にこのオプションがあり、ShogiGUI、ShogiDroidで対応しているらしいので
@@ -1306,10 +1307,11 @@ namespace Book
 		options.add("USI_OwnBook", Option(true));
 
 		// 実現確率の低い狭い定跡を選択しない
-        options.add("NarrowBook", Option(false));
+		if (!book_options_v2)
+			options.add("NarrowBook", Option(false));
 
 		// 定跡の指し手を何手目まで用いるか
-        options.add("BookMoves", Option(16, 0, 10000));
+        options.add("BookMoves", Option(book_options_v2 ? 200 : 16, 0, 10000));
 
 		// 一定の確率で定跡を無視して自力で思考させる
         options.add("BookIgnoreRate", Option(0, 0, 100));
@@ -1350,17 +1352,25 @@ namespace Book
 		//  BookEvalBlackLimit : 定跡の指し手のうち、先手のときの評価値の下限。これより評価値が低くなる指し手は選択しない。
 		//  BookEvalWhiteLimit : 同じく後手の下限。
 		//  BookDepthLimit : 定跡に登録されている指し手のdepthがこれを下回るなら採用しない。0を指定するとdepth無視。
+		//  BOOK_OPTIONS=V2では、depthの下限を先後別に指定する。
 
 		options.add("BookEvalDiff", Option(30, 0, 99999));
         options.add("BookEvalBlackLimit", Option(0, -99999, 99999));
         options.add("BookEvalWhiteLimit", Option(-140, -99999, 99999));
-        options.add("BookDepthLimit", Option(16, 0, 99999));
+		if (book_options_v2)
+		{
+			options.add("BookDepthBlackLimit", Option(0, 0, 99999));
+			options.add("BookDepthWhiteLimit", Option(5, 0, 99999));
+		}
+		else
+			options.add("BookDepthLimit", Option(16, 0, 99999));
 
 		// 定跡をメモリに丸読みしないオプション。(default = false)
         options.add("BookOnTheFly", Option(false));
 
 		// 定跡データベースの採択率に比例して指し手を選択するオプション
-        options.add("ConsiderBookMoveCount", Option(false));
+		if (!book_options_v2)
+			options.add("ConsiderBookMoveCount", Option(false));
 
 		// 定跡にヒットしたときにPVを何手目まで表示するか。あまり長いと時間がかかりうる。
         options.add("BookPvMoves", Option(8, 1, MAX_PLY));
@@ -1368,7 +1378,7 @@ namespace Book
 		// 定跡データベース上のply(開始局面からの手数)を無視するオプション。
 		// 例) 局面図が同じなら、DBの36手目の局面に40手目でもヒットする。
 		// これ変更したときに定跡ファイルの読み直しが必要になるのだが…(´ω｀)
-        options.add("IgnoreBookPly", Option(false));
+        options.add("IgnoreBookPly", Option(book_options_v2));
 
 		// 反転させた局面が定跡DBに登録されていたら、それにヒットするようになるオプション。
         options.add("FlippedBook", Option(true));
@@ -1661,8 +1671,11 @@ namespace Book
 
 		} else {
 
+			const bool book_options_v2 = options.book_options_v2();
+
 			// 狭い定跡を用いるのか？
-			bool narrowBook = options["NarrowBook"];
+			// BOOK_OPTIONS=V2ではNarrowBookを廃止し、常にfalse相当とする。
+			bool narrowBook = book_options_v2 ? false : bool(options["NarrowBook"]);
 
 			// この局面における定跡の指し手のうち、条件に合わないものを取り除いたあとの指し手の数
 			if (narrowBook && has_move_count)
@@ -1687,7 +1700,11 @@ namespace Book
 			// 評価値の差などを反映。
 
 			// 定跡として採用するdepthの下限。0 = 無視。
-			auto depth_limit = int(options["BookDepthLimit"]);
+			// BOOK_OPTIONS=V2では、先手局面/後手局面で別々の下限を持つ。
+			const auto depth_limit_name = book_options_v2
+				? (rootPos.side_to_move() == BLACK ? std::string("BookDepthBlackLimit") : std::string("BookDepthWhiteLimit"))
+				: std::string("BookDepthLimit");
+			auto depth_limit = int(options[depth_limit_name]);
 
 			// 同じ評価値のDepth違いの指し手があると片側が無いこと扱いされてしまうとまずい。(そんな定跡DBがおかしいと言う話はあるが…)
 			// そこで、bestmoveのdepthがdepth_limit未満の時にだけ、この定跡局面を無視する。
@@ -1699,7 +1716,7 @@ namespace Book
 				)
 			{
                 updates.onUpdateString(std::string_view(
-                    "info string BookDepthLimit is lower than the depth of this node."));
+                    "info string " + depth_limit_name + " is lower than the depth of this node."));
 				move_list.clear();
 			}
 			else {
@@ -1738,7 +1755,10 @@ namespace Book
 			auto bestBookMove = move_list[prng.rand(move_list.size())];
 
 			// 定跡ファイルの採択率に応じて指し手を選択するか
-			if (forceHit || options["ConsiderBookMoveCount"])
+			// BOOK_OPTIONS=V2ではConsiderBookMoveCountを廃止し、常にfalse相当とする。
+			const bool consider_book_move_count =
+				options.book_options_v2() ? false : bool(options["ConsiderBookMoveCount"]);
+			if (forceHit || consider_book_move_count)
 			{
 				// 1-passで採択率に従って指し手を決めるオンラインアルゴリズム
 				// http://yaneuraou.yaneu.com/2015/01/03/stockfish-dd-book-%E5%AE%9A%E8%B7%A1%E9%83%A8/

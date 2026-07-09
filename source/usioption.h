@@ -147,6 +147,14 @@ class OptionsMap {
 
     // 📌 やねうら王独自拡張 📌
 
+    // カレントフォルダにfilename(例えば"engine_option_profile.txt")が
+    // あればそれを読み込み、どのエンジンオプション群を生やすかを決定する。
+    // このファイルは"usi"応答より前に読む必要があるため、読み込みログは出力しない。
+    void read_engine_option_profile(const std::string& filename);
+
+    // engine_option_profile.txtでBOOK_OPTIONS=V2が指定されているか。
+    bool book_options_v2() const { return book_options_version == 2; }
+
     // カレントフォルダにfilename(例えば"engine_options.txt")が
     // あればそれをオプションとしてOptions[]の値をオーバーライドする機能。
     // ここで設定した値は、そのあとfixedフラグが立ち、その後、
@@ -185,6 +193,9 @@ class OptionsMap {
     OptionsStore options_map;
     InfoListener info;
 
+    // 指定がなければ従来互換のV1。
+    int book_options_version = 1;
+
 #if !STOCKFISH
     // 思考エンジンがGUIからの"usi"に対して返す"option ..."文字列から
     // Optionオブジェクトを構築して、それを *this に突っ込む。
@@ -212,6 +223,8 @@ public:
 
 	const Option& operator[](const std::string& option_name) const { return (*options)[option_name]; };
 	void add(const std::string& option_name, const Option& option) { return (*options).add(option_name, option); }
+	std::size_t count(const std::string& option_name) const { return (*options).count(option_name); }
+	bool book_options_v2() const { return (*options).book_options_v2(); }
 
 private:
 	OptionsMap* options = nullptr;
