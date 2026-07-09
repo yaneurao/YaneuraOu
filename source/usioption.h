@@ -206,7 +206,7 @@ class OptionsMapRef
 public:
 	// 参照のsetter/getter
 	void set_ref(OptionsMap& o) { options = &o; }
-	//OptionsMap& get_ref() const { return *options; }
+	OptionsMap& get_ref() const { return *options; }
 
 	// -- 以下のmethodはOptionsMapの同名methodに委譲する。
 

@@ -220,6 +220,11 @@ namespace Book
 		return ends_with(filename, ".ybb");
 	}
 
+	static bool is_db_book(const std::string& filename)
+	{
+		return ends_with(filename, ".db");
+	}
+
 	static std::string ybb_book_name_from_db_name(const std::string& db_filename)
 	{
 		if (!ends_with(db_filename, ".db"))
@@ -240,6 +245,46 @@ namespace Book
 			return ybb_filename;
 
 		return filename;
+	}
+
+	static std::string book_name_without_extension(const std::string& filename)
+	{
+		if (is_db_book(filename))
+			return filename.substr(0, filename.size() - std::string(".db").size());
+		if (is_ybb_book(filename))
+			return filename.substr(0, filename.size() - std::string(".ybb").size());
+		return std::string();
+	}
+
+	static std::string priority_book_filename(const std::string& stem, int index, const std::string& extension)
+	{
+		auto number = std::to_string(index);
+		while (number.size() < 3)
+			number = "0" + number;
+		return stem + "-" + number + extension;
+	}
+
+	static std::string resolve_priority_book_filename(const std::string& base_filename, int index)
+	{
+		const auto stem = book_name_without_extension(base_filename);
+		if (stem.empty())
+			return std::string();
+
+		const auto primary_extension   = is_ybb_book(base_filename) ? std::string(".ybb") : std::string(".db");
+		const auto secondary_extension = is_ybb_book(base_filename) ? std::string(".db") : std::string(".ybb");
+		const auto primary_filename    = priority_book_filename(stem, index, primary_extension);
+		const auto secondary_filename  = priority_book_filename(stem, index, secondary_extension);
+
+		if (Path::Exists(primary_filename))
+		{
+			if (Path::Exists(secondary_filename))
+				sync_cout << "info string priority book file exists twice. use : " << primary_filename << sync_endl;
+			return primary_filename;
+		}
+		if (Path::Exists(secondary_filename))
+			return secondary_filename;
+
+		return std::string();
 	}
 
 	static bool read_u16_le(std::istream& is, uint16_t& value)
@@ -1246,8 +1291,8 @@ namespace Book
 
 	void BookMoveSelector::set_options(OptionsMap& o) {
         options.set_ref(o);
-        // memory_bookのほうにもセットしておく。
-        memory_book.set_options(o);
+		for (auto& memory_book : memory_books)
+			memory_book->set_options(o);
     }
 
 	void BookMoveSelector::add_options(OptionsMap& o)
@@ -1332,7 +1377,31 @@ namespace Book
 	// 定跡ファイルの読み込み。
 	void BookMoveSelector::read_book()
 	{
-		memory_book.read_book(get_book_name(), bool(options["BookOnTheFly"]));
+		const auto new_book_names    = get_book_names();
+		const bool new_on_the_fly    = bool(options["BookOnTheFly"]);
+		const bool new_ignoreBookPly = bool(options["IgnoreBookPly"]);
+
+		if (book_names == new_book_names
+			&& book_on_the_fly == new_on_the_fly
+			&& ignoreBookPly == new_ignoreBookPly)
+			return;
+
+		memory_books.clear();
+		book_names.clear();
+		book_on_the_fly = new_on_the_fly;
+		ignoreBookPly = new_ignoreBookPly;
+
+		for (const auto& book_name : new_book_names)
+		{
+			auto memory_book = std::unique_ptr<MemoryBook>(new MemoryBook());
+			memory_book->set_options(options.get_ref());
+
+			if (memory_book->read_book(book_name, new_on_the_fly).is_ok())
+			{
+				memory_books.push_back(std::move(memory_book));
+				book_names.push_back(book_name);
+			}
+		}
 	}
 
 	// 定跡ファイル名を返す。
@@ -1342,6 +1411,35 @@ namespace Book
         std::string abs_book_dir =
             Path::Combine(Directory::GetBinaryFolder(), std::string(options["BookDir"]));
 		return Path::Combine( abs_book_dir , std::string(options["BookFile"]));
+	}
+
+	std::vector<std::string> BookMoveSelector::get_book_names() const
+	{
+		const auto base_book_name = get_book_name();
+		std::vector<std::string> names;
+
+		for (int index = 0;; ++index)
+		{
+			const auto priority_book_name = resolve_priority_book_filename(base_book_name, index);
+			if (priority_book_name.empty())
+				break;
+			names.push_back(priority_book_name);
+		}
+
+		names.push_back(base_book_name);
+		return names;
+	}
+
+	BookMovesPtr BookMoveSelector::find_in_books(Position& pos)
+	{
+		for (auto& memory_book : memory_books)
+		{
+			auto book_moves = memory_book->find(pos);
+			if (book_moves != nullptr && book_moves->size() != 0)
+				return book_moves;
+		}
+
+		return BookMovesPtr();
 	}
 
 
@@ -1441,7 +1539,7 @@ namespace Book
 				return false;
 		}
 
-		auto it = memory_book.find(rootPos);
+		auto it = find_in_books(rootPos);
 		if (it == nullptr || it->size()==0)
 			return false;
 
@@ -1680,7 +1778,7 @@ namespace Book
 					StateInfo si;
 					rootPos.do_move(best,si);
 
-					auto it = memory_book.find(rootPos);
+					auto it = find_in_books(rootPos);
 					if (it != nullptr && it->size())
 						// 1つ目に登録されている指し手が一番いい指し手であろう。
 						ponderMove = (*it)[0].move;

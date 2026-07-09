@@ -7,7 +7,9 @@
 #include "../usi.h"
 #include "../testcmd/unit_test.h"
 
+#include <memory>
 #include <unordered_map>
+#include <vector>
 
 namespace YaneuraOu {
 
@@ -331,15 +333,27 @@ struct BookMoveSelector
     ProbeResult probe(Position& pos, const Search::UpdateContext& updates);
 
 protected:
-	// メモリに読み込んだ定跡ファイル
-	MemoryBook memory_book;
+	// メモリに読み込んだ定跡ファイル。
+	// user_book1-000.db, user_book1-001.ybb, user_book1.db のように、
+	// 優先定跡を複数持つことがあるので優先順に保持する。
+	std::vector<std::unique_ptr<MemoryBook>> memory_books;
 
-	// 読み込んだ定跡ファイル名
-	std::string book_name;
+	// 読み込んだ定跡ファイル名。memory_books と同じ順番。
+	std::vector<std::string> book_names;
+
+	// read_book()の再読み込み判定用。
+	bool book_on_the_fly = false;
+	bool ignoreBookPly = false;
 
 	// 定跡ファイル名を返す。
 	// Option["BookDir"]が定跡ファイルの入っているフォルダなのでこれを連結した定跡ファイルのファイル名を返す。
 	std::string get_book_name() const;
+
+	// 優先定跡を含む定跡ファイル名を返す。先頭ほど優先度が高い。
+	std::vector<std::string> get_book_names() const;
+
+	// 優先度の高い定跡から順にprobeする。
+	BookMovesPtr find_in_books(Position& pos);
 
 	// probe()の下請け
 	// forceHit == trueのときは、設定オプションの値を無視して強制的に定跡にhitさせる。(BookPvMovesの実装で用いる)
