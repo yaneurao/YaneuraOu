@@ -1334,7 +1334,7 @@ namespace Book
 			, "user_book1.db", "user_book2.db", "user_book3.db", "book.bin" };
 
 #if !defined(__EMSCRIPTEN__)
-		options.add("BookFile", Option(book_list, book_list[1]));
+		options.add("BookFile", Option(book_list, book_options_v2 ? "user_book1.db" : book_list[1]));
 #else
 		// WASM では no_book をデフォルトにする
         options.add("BookFile", Option(book_list, book_list[0]));
@@ -1354,7 +1354,7 @@ namespace Book
 		//  BookDepthLimit : 定跡に登録されている指し手のdepthがこれを下回るなら採用しない。0を指定するとdepth無視。
 		//  BOOK_OPTIONS=V2では、depthの下限を先後別に指定する。
 
-		options.add("BookEvalDiff", Option(30, 0, 99999));
+		options.add("BookEvalDiff", Option(book_options_v2 ? 0 : 30, 0, 99999));
         options.add("BookEvalBlackLimit", Option(0, -99999, 99999));
         options.add("BookEvalWhiteLimit", Option(-140, -99999, 99999));
 		if (book_options_v2)
