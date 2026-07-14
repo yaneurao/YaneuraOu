@@ -1349,12 +1349,19 @@ namespace Book
 
 		//  BookEvalDiff: 定跡の指し手で1番目の候補の指し手と、2番目以降の候補の指し手との評価値の差が、
 		//    この範囲内であれば採用する。(1番目の候補の指し手しか選ばれて欲しくないときは0を指定する)
+		//  BOOK_OPTIONS=V2では、BookEvalDiffの代わりにBookEvalBlackDiff/BookEvalWhiteDiffで先後別に指定する。
 		//  BookEvalBlackLimit : 定跡の指し手のうち、先手のときの評価値の下限。これより評価値が低くなる指し手は選択しない。
 		//  BookEvalWhiteLimit : 同じく後手の下限。
 		//  BookDepthLimit : 定跡に登録されている指し手のdepthがこれを下回るなら採用しない。0を指定するとdepth無視。
 		//  BOOK_OPTIONS=V2では、depthの下限を先後別に指定する。
 
-		options.add("BookEvalDiff", Option(book_options_v2 ? 0 : 30, 0, 99999));
+		if (book_options_v2)
+		{
+			options.add("BookEvalBlackDiff", Option(0, 0, 99999));
+			options.add("BookEvalWhiteDiff", Option(0, 0, 99999));
+		}
+		else
+			options.add("BookEvalDiff", Option(30, 0, 99999));
         options.add("BookEvalBlackLimit", Option(0, -99999, 99999));
         options.add("BookEvalWhiteLimit", Option(-140, -99999, 99999));
 		if (book_options_v2)
@@ -1721,7 +1728,11 @@ namespace Book
 			}
 			else {
 				// ベストな評価値の候補手から、この差に収まって欲しい。
-				auto eval_diff = int(options["BookEvalDiff"]);
+				// BOOK_OPTIONS=V2では先手局面/後手局面で別々の差分を持つ。
+				const auto eval_diff_name = book_options_v2
+					? (rootPos.side_to_move() == BLACK ? std::string("BookEvalBlackDiff") : std::string("BookEvalWhiteDiff"))
+					: std::string("BookEvalDiff");
+				auto eval_diff = int(options[eval_diff_name]);
 				auto value_limit1 = move_list[0].value - eval_diff;
 				// 先手・後手の評価値下限の指し手を採用するわけにはいかない。
 				auto stm_string = (rootPos.side_to_move() == BLACK) ? "BookEvalBlackLimit" : "BookEvalWhiteLimit";
@@ -1741,7 +1752,7 @@ namespace Book
 
 				// 候補手が1手でも減ったなら減った理由を出力
 				if (n != move_list.size())
-                    updates.onUpdateString(std::string_view("BookEvalDiff = " + std::to_string(eval_diff)
+                    updates.onUpdateString(std::string_view(eval_diff_name + " = " + std::to_string(eval_diff)
 						+ " , " + stm_string + " = " + std::to_string(value_limit2)
 						+ " , " + std::to_string(n) + " moves to " + std::to_string(move_list.size()) + " moves."));
 			}
