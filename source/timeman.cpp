@@ -149,9 +149,11 @@ void TimeManagement::init_(const Search::LimitsType& limits,
     search_end                = 0;
 
 	// 今回の最大残り時間(これを超えてはならない)
-	// byoyomiとincの指定は残り時間にこの時点で加算して考える。
+	// byoyomiの指定は残り時間にこの時点で加算して考える。
+	// inctimeは、この指し手のあとに加算される時間であるから、ここでは足さない。
     remain_time =
-      limits.time[us] + limits.byoyomi[us] + limits.inc[us] - (TimePoint) options["NetworkDelay2"];
+      limits.time[us]
+      + limits.byoyomi[us] /* + limits.inc[us] */ -(TimePoint) options["NetworkDelay2"];
 
 	// remain_timeを0にすると時間切れのあと自爆するのでとりあえず100はあることにしておく。
 	// round_up_to_fullsecond == falseのときは秒未満での戦いなので、1にしておく。

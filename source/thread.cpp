@@ -443,6 +443,7 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
         {
             auto move = USIEngine::to_move(pos, usiMove);
 
+			// これだと角不成のような指し手が GenerateAllLegalMoves == falseだと rootMovesにないから除外されてしまう..
             if (std::find(moveList.begin(), moveList.end(), move) != moveList.end())
                 rootMoves.emplace_back(move);
         }
