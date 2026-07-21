@@ -216,12 +216,16 @@ class FeatureTransformer {
 		return false;
 	}
 
-	// Convert input features
-	// 入力特徴量を変換する
-	void Transform(const Position& pos, OutputType* output, bool refresh) const {
+	void EnsureAccumulator(const Position& pos, bool refresh) const {
 		if (refresh || !UpdateAccumulatorIfPossible(pos)) {
 			refresh_accumulator(pos);
 		}
+	}
+
+	// Convert input features
+	// 入力特徴量を変換する
+	void Transform(const Position& pos, OutputType* output, bool refresh) const {
+		EnsureAccumulator(pos, refresh);
 		const auto& accumulation = pos.state()->accumulator.accumulation;
 
 #if defined(USE_ELEMENT_WISE_MULTIPLY)

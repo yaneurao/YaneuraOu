@@ -305,14 +305,25 @@ namespace {
             return accumulator.score;
         }
 
-        alignas(kCacheLineSize) TransformedFeatureType
-            transformed_features[FeatureTransformer::kBufferSize];
-        networks().feature_transformer.Transform(pos, transformed_features, refresh);
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 #if defined(SFNNwoPSQT)
         const auto bucket = stack_index_for_nnue(pos);
-        const auto output = networks().network[bucket].Propagate(transformed_features, buffer);
+#if defined(USE_AVX512) \
+    && (defined(NNUE_HAS_GROUPED_SFNN_ACCUMULATOR_PROPAGATE) \
+        || defined(NNUE_HAS_COMMON_SHARD_SFNN_ACCUMULATOR_PROPAGATE))
+        networks().feature_transformer.EnsureAccumulator(pos, refresh);
+        const auto output = networks().network[bucket].PropagateFromAccumulator(
+            accumulator.accumulation, pos.side_to_move(), buffer);
 #else
+        alignas(kCacheLineSize) TransformedFeatureType
+            transformed_features[FeatureTransformer::kBufferSize];
+        networks().feature_transformer.Transform(pos, transformed_features, refresh);
+        const auto output = networks().network[bucket].Propagate(transformed_features, buffer);
+#endif
+#else
+        alignas(kCacheLineSize) TransformedFeatureType
+            transformed_features[FeatureTransformer::kBufferSize];
+        networks().feature_transformer.Transform(pos, transformed_features, refresh);
         const auto output = networks().network[0].Propagate(transformed_features, buffer);
 #endif
 
