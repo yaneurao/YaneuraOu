@@ -219,9 +219,14 @@ if len(arches) <= 3 :
 #     fc_0をN groupに分割する。
 #     SFNN_ka2_3072_7_64_c1024_s256x8_k3k3 のように、cN_sMxG を置くと
 #     fc_0を common N + shard M x G に分割する。
+#     SFNN_halfka2_1024_7_64_hand64 のように、hand64を指定すると
+#     手番側/非手番側の手駒点を8段階ずつに分けた64 bucketを用いる。
+#     SFNN_halfka2_1024_7_64_hand64_k3k3 のように、k3k3と複合できる。
 SFNN = False
 layer_stack_name = ""
 layer_stack_count = ""
+layer_stack_hand_buckets = "1"
+layer_stack_king_buckets = "1"
 sfnn_group_count = "1"
 sfnn_common_dims = "0"
 sfnn_shard_dims = "0"
@@ -269,8 +274,18 @@ if arches[0].startswith("SFNN"):
     if layer_stack_spec == "K3K3" or layer_stack_spec == "KING3_BY_KING3":
         layer_stack_name = "K3K3"
         layer_stack_count = "9"
+        layer_stack_king_buckets = "9"
+    elif layer_stack_spec == "HAND64":
+        layer_stack_name = "HAND64"
+        layer_stack_count = "64"
+        layer_stack_hand_buckets = "64"
+    elif layer_stack_spec == "HAND64_K3K3" or layer_stack_spec == "HAND64_KING3_BY_KING3":
+        layer_stack_name = "HAND64_K3K3"
+        layer_stack_count = str(64 * 9)
+        layer_stack_hand_buckets = "64"
+        layer_stack_king_buckets = "9"
     else:
-        print("Error! : SFNN layer stack must be k3k3 or king3_by_king3")
+        print("Error! : SFNN layer stack must be k3k3, king3_by_king3, hand64, or hand64_k3k3")
         raise SystemExit(1)
 
     arches = [arches[1], arches[2], arches[3], arches[4], layer_stack_count]
@@ -519,6 +534,9 @@ if SFNN:
 
         // Number of networks stored in the evaluation file
         constexpr int LayerStacks = {layers[3]};
+
+        #define NNUE_SFNN_HAND_BUCKETS {layer_stack_hand_buckets}
+        #define NNUE_SFNN_KING_BUCKETS {layer_stack_king_buckets}
 
         // Number of groups for the first affine layer of SFNN.
         // 1なら従来のdense fc_0、2以上ならgrouped/common+shard fc_0。

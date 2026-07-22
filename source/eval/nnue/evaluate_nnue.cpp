@@ -23,6 +23,15 @@
 
 #include "evaluate_nnue.h"
 
+#if defined(SFNNwoPSQT)
+#ifndef NNUE_SFNN_HAND_BUCKETS
+#define NNUE_SFNN_HAND_BUCKETS 1
+#endif
+#ifndef NNUE_SFNN_KING_BUCKETS
+#define NNUE_SFNN_KING_BUCKETS 9
+#endif
+#endif
+
 namespace YaneuraOu::Eval::NNUE {
 extern int FV_SCALE;
 }
@@ -282,8 +291,15 @@ namespace {
     }
 
 #if defined(SFNNwoPSQT)
+    static_assert(NNUE_SFNN_HAND_BUCKETS == 1 || NNUE_SFNN_HAND_BUCKETS == 64,
+        "unsupported NNUE_SFNN_HAND_BUCKETS");
+    static_assert(NNUE_SFNN_KING_BUCKETS == 1 || NNUE_SFNN_KING_BUCKETS == 9,
+        "unsupported NNUE_SFNN_KING_BUCKETS");
+    static_assert(kLayerStacks == NNUE_SFNN_HAND_BUCKETS * NNUE_SFNN_KING_BUCKETS,
+        "LayerStacks must match the SFNN bucket product");
+
     // レイヤースタックの選択。双方の玉の段に応じて9通りに分岐させる。
-    static int stack_index_for_nnue(const Position& pos) {
+    static int king3_by_king3_bucket(const Position& pos) {
         constexpr int kFToIndex[] = { 0, 0, 0, 3, 3, 3, 6, 6, 6 };
         constexpr int kEToIndex[] = { 0, 0, 0, 1, 1, 1, 2, 2, 2 };
         const auto stm = pos.side_to_move();
@@ -292,6 +308,42 @@ namespace {
         const auto f_rank = stm == BLACK ? rank_of(f_king) : rank_of(Inv(f_king));
         const auto e_rank = stm == BLACK ? rank_of(Inv(e_king)) : rank_of(e_king);
         int idx = kFToIndex[f_rank] + kEToIndex[e_rank];
+        if (idx < 0) idx = 0;
+        if (idx > 8) idx = 8;
+        return idx;
+    }
+
+    static int hand64_single_bucket(Hand hand) {
+        const int score =
+              hand_count(hand, PAWN)
+            + (hand_count(hand, LANCE) + hand_count(hand, KNIGHT)) * 2
+            + (hand_count(hand, SILVER) + hand_count(hand, GOLD)) * 3
+            + (hand_count(hand, BISHOP) + hand_count(hand, ROOK)) * 5;
+
+        int bucket = (score + 4) / 5;
+        if (bucket < 0) bucket = 0;
+        if (bucket > 7) bucket = 7;
+        return bucket;
+    }
+
+    // 手番側/非手番側の手駒点を8段階ずつに分け、64通りに分岐させる。
+    static int hand64_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        return hand64_single_bucket(pos.hand_of(stm)) * 8
+            + hand64_single_bucket(pos.hand_of(~stm));
+    }
+
+    static int stack_index_for_nnue(const Position& pos) {
+        int idx = 0;
+
+#if NNUE_SFNN_HAND_BUCKETS == 64
+        idx = hand64_bucket(pos);
+#endif
+
+#if NNUE_SFNN_KING_BUCKETS == 9
+        idx = idx * 9 + king3_by_king3_bucket(pos);
+#endif
+
         if (idx < 0) idx = 0;
         if (idx >= kLayerStacks) idx = kLayerStacks - 1;
         return idx;
