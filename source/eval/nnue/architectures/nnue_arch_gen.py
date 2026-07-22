@@ -235,8 +235,8 @@ if arches[0].startswith("SFNN"):
     layer_stack_start = 5
     if arches[5].startswith("C"):
         common_raw = arches[5][1:]
-        if not common_raw.isdigit() or int(common_raw) <= 0:
-            print(f"Error! : SFNN common token must be like c1024 , got {arches[5]}.")
+        if not common_raw.isdigit():
+            print(f"Error! : SFNN common token must be like c0 or c1024 , got {arches[5]}.")
             raise SystemExit(1)
         if len(arches) <= 6 or not arches[6].startswith("S"):
             print("Error! : SFNN common+shard architecture requires shard token like s256x8.")
