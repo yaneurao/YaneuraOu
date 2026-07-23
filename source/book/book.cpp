@@ -1372,8 +1372,9 @@ namespace Book
 		else
 			options.add("BookDepthLimit", Option(16, 0, 99999));
 
-		// 定跡をメモリに丸読みしないオプション。(default = false)
-        options.add("BookOnTheFly", Option(false));
+		// 定跡をメモリに丸読みしないオプション。
+		// BOOK_OPTIONS=V2では巨大定跡運用を想定し、デフォルトで有効にする。
+        options.add("BookOnTheFly", Option(book_options_v2));
 
 		// 定跡データベースの採択率に比例して指し手を選択するオプション
 		if (!book_options_v2)
@@ -1617,6 +1618,8 @@ namespace Book
 		const u64 move_count_total = std::accumulate(move_list.begin(), move_list.end(), (u64)0, [](u64 acc, BookMove& b) { return acc + b.move_count; });
 		const bool has_move_count = move_count_total != 0;
 
+		const bool book_options_v2 = options.book_options_v2();
+
 		// "info ..."と出力するのは、rootでだけ。
         if (isRoot)
         {
@@ -1677,8 +1680,6 @@ namespace Book
 			move_list.erase(it_end, move_list.end());
 
 		} else {
-
-			const bool book_options_v2 = options.book_options_v2();
 
 			// 狭い定跡を用いるのか？
 			// BOOK_OPTIONS=V2ではNarrowBookを廃止し、常にfalse相当とする。
