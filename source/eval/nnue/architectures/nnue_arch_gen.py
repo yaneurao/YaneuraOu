@@ -221,7 +221,9 @@ if len(arches) <= 3 :
 #     fc_0を common N + shard M x G に分割する。
 #     SFNN_halfka2_1024_7_64_hand64 のように、hand64を指定すると
 #     手番側/非手番側の手駒点を8段階ずつに分けた64 bucketを用いる。
-#     SFNN_halfka2_1024_7_64_hand64_k3k3 のように、k3k3と複合できる。
+#     SFNN_halfka2_1024_7_64_k9k9 のように指定すると、
+#     手番側/非手番側の玉の段を9段階ずつに分けた81 bucketを用いる。
+#     SFNN_halfka2_1024_7_64_hand64_k3k3 / hand64_k9k9 のように、hand64と複合できる。
 SFNN = False
 layer_stack_name = ""
 layer_stack_count = ""
@@ -267,7 +269,7 @@ if arches[0].startswith("SFNN"):
         layer_stack_start = 6
 
     if len(arches) <= layer_stack_start:
-        print("Error! : SFNN architecture name must end with k3k3 or king3_by_king3.")
+        print("Error! : SFNN architecture name must end with k3k3, k9k9, hand64, or their long names.")
         raise SystemExit(1)
 
     layer_stack_spec = "_".join(arches[layer_stack_start:])
@@ -275,6 +277,10 @@ if arches[0].startswith("SFNN"):
         layer_stack_name = "K3K3"
         layer_stack_count = "9"
         layer_stack_king_buckets = "9"
+    elif layer_stack_spec == "K9K9" or layer_stack_spec == "KING9_BY_KING9":
+        layer_stack_name = "K9K9"
+        layer_stack_count = "81"
+        layer_stack_king_buckets = "81"
     elif layer_stack_spec == "HAND64":
         layer_stack_name = "HAND64"
         layer_stack_count = "64"
@@ -284,8 +290,13 @@ if arches[0].startswith("SFNN"):
         layer_stack_count = str(64 * 9)
         layer_stack_hand_buckets = "64"
         layer_stack_king_buckets = "9"
+    elif layer_stack_spec == "HAND64_K9K9" or layer_stack_spec == "HAND64_KING9_BY_KING9":
+        layer_stack_name = "HAND64_K9K9"
+        layer_stack_count = str(64 * 81)
+        layer_stack_hand_buckets = "64"
+        layer_stack_king_buckets = "81"
     else:
-        print("Error! : SFNN layer stack must be k3k3, king3_by_king3, hand64, or hand64_k3k3")
+        print("Error! : SFNN layer stack must be k3k3, k9k9, hand64, hand64_k3k3, or hand64_k9k9")
         raise SystemExit(1)
 
     arches = [arches[1], arches[2], arches[3], arches[4], layer_stack_count]

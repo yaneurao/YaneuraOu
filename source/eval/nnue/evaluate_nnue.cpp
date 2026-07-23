@@ -293,7 +293,7 @@ namespace {
 #if defined(SFNNwoPSQT)
     static_assert(NNUE_SFNN_HAND_BUCKETS == 1 || NNUE_SFNN_HAND_BUCKETS == 64,
         "unsupported NNUE_SFNN_HAND_BUCKETS");
-    static_assert(NNUE_SFNN_KING_BUCKETS == 1 || NNUE_SFNN_KING_BUCKETS == 9,
+    static_assert(NNUE_SFNN_KING_BUCKETS == 1 || NNUE_SFNN_KING_BUCKETS == 9 || NNUE_SFNN_KING_BUCKETS == 81,
         "unsupported NNUE_SFNN_KING_BUCKETS");
     static_assert(kLayerStacks == NNUE_SFNN_HAND_BUCKETS * NNUE_SFNN_KING_BUCKETS,
         "LayerStacks must match the SFNN bucket product");
@@ -313,6 +313,20 @@ namespace {
         return idx;
     }
 
+    // レイヤースタックの選択。双方の玉の段に応じて81通りに分岐させる。
+    static int king9_by_king9_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        const auto f_king = pos.square<KING>(stm);
+        const auto e_king = pos.square<KING>(~stm);
+        int f_rank = int(stm == BLACK ? rank_of(f_king) : rank_of(Inv(f_king)));
+        int e_rank = int(stm == BLACK ? rank_of(Inv(e_king)) : rank_of(e_king));
+        if (f_rank < 0) f_rank = 0;
+        if (f_rank > 8) f_rank = 8;
+        if (e_rank < 0) e_rank = 0;
+        if (e_rank > 8) e_rank = 8;
+        return f_rank * 9 + e_rank;
+    }
+
     static int hand64_single_bucket(Hand hand) {
         const int score =
               hand_count(hand, PAWN)
@@ -320,7 +334,7 @@ namespace {
             + (hand_count(hand, SILVER) + hand_count(hand, GOLD)) * 3
             + (hand_count(hand, BISHOP) + hand_count(hand, ROOK)) * 5;
 
-        int bucket = (score + 4) / 5;
+        int bucket = (score + 3) / 4;
         if (bucket < 0) bucket = 0;
         if (bucket > 7) bucket = 7;
         return bucket;
@@ -342,6 +356,8 @@ namespace {
 
 #if NNUE_SFNN_KING_BUCKETS == 9
         idx = idx * 9 + king3_by_king3_bucket(pos);
+#elif NNUE_SFNN_KING_BUCKETS == 81
+        idx = idx * 81 + king9_by_king9_bucket(pos);
 #endif
 
         if (idx < 0) idx = 0;
