@@ -119,7 +119,7 @@ IS_NNUE_EDITION   := $(filter NNUE NNUE_% SFNN%,$(ENGINE_ARCH_UPPER))
 INVALID_ENGINE_ARCH := $(strip $(findstring SFNNWOP,$(ENGINE_ARCH_UPPER)) $(findstring LS9,$(ENGINE_ARCH_UPPER)))
 
 ifneq (,$(INVALID_ENGINE_ARCH))
-$(error Unsupported YANEURAOU_EDITION '$(YANEURAOU_EDITION)'. Use SFNN1536 or SFNN_..._k3k3 / SFNN_..._king3_by_king3)
+$(error Unsupported YANEURAOU_EDITION '$(YANEURAOU_EDITION)'. Use SFNN1536 or SFNN_..._k3k3 / SFNN_..._k9k9 / SFNN_..._hand64)
 endif
 
 # エンジンの表示名 (engine displayname)

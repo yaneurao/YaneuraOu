@@ -164,7 +164,7 @@ def write_affine_explicit(stream, input_dims: int, output_dims: int, rng: random
     write_int8_values(stream, output_dims * ceil_to_multiple(input_dims, 32), rng, mode)
 
 def write_sfnn_network(stream, transformed_dims: int, hidden1: int, hidden2: int, group_count: int, rng: random.Random, mode: str) -> None:
-    del group_count  # file layoutはgroupedでもdense fc_0互換。
+    del group_count  # file layoutはcommon+shardでもdense fc_0互換。
     write_u32(stream, SFNN_NETWORK_HASH)
     write_affine_explicit(stream, transformed_dims, hidden1 + 1, rng, mode)
     write_affine_explicit(stream, hidden1 * 2, hidden2, rng, mode)
@@ -215,12 +215,11 @@ if len(arches) <= 3 :
     raise SystemExit(1)
 
 # 📝 SFNN_halfkahm2_1536-15-32-k3k3のように指定されていれば、SFNNのheaderを生成する。
-#     SFNN_ka2_8192_7_64_g8_k3k3 のように、k3k3の直前に gN を置くと
-#     fc_0をN groupに分割する。
 #     SFNN_ka2_3072_7_64_c1024_s256x8_k3k3 のように、cN_sMxG を置くと
 #     fc_0を common N + shard M x G に分割する。
 #     SFNN_halfka2_1024_7_64_hand64 のように、hand64を指定すると
 #     手番側/非手番側の手駒点を8段階ずつに分けた64 bucketを用いる。
+#     hand256 / hand1024も同様に、手番側/非手番側の手駒状態で256/1024 bucketを用いる。
 #     SFNN_halfka2_1024_7_64_k9k9 のように指定すると、
 #     手番側/非手番側の玉の段を9段階ずつに分けた81 bucketを用いる。
 #     SFNN_halfka2_1024_7_64_hand64_k3k3 / hand64_k9k9 のように、hand64と複合できる。
@@ -236,7 +235,7 @@ sfnn_common_shard = False
 if arches[0].startswith("SFNN"):
     SFNN = True
     if len(arches) < 6:
-        print("Error! : SFNN architecture name must be like SFNN_halfkahm2_1536-15-32-k3k3 , SFNN_ka2_8192_7_64_g8_k3k3 , or SFNN_ka2_3072_7_64_c1024_s256x8_k3k3")
+        print("Error! : SFNN architecture name must be like SFNN_halfkahm2_1536-15-32-k3k3 or SFNN_ka2_3072_7_64_c1024_s256x8_k3k3")
         raise SystemExit(1)
 
     layer_stack_start = 5
@@ -260,14 +259,6 @@ if arches[0].startswith("SFNN"):
         sfnn_group_count = shard_parts[1]
         sfnn_common_shard = True
         layer_stack_start = 7
-    elif arches[5].startswith("G"):
-        group_raw = arches[5][1:]
-        if not group_raw.isdigit() or int(group_raw) <= 1:
-            print(f"Error! : SFNN group token must be like g8 , got {arches[5]}.")
-            raise SystemExit(1)
-        sfnn_group_count = group_raw
-        layer_stack_start = 6
-
     if len(arches) <= layer_stack_start:
         print("Error! : SFNN architecture name must end with k3k3, k9k9, hand64, or their long names.")
         raise SystemExit(1)
@@ -285,6 +276,14 @@ if arches[0].startswith("SFNN"):
         layer_stack_name = "HAND64"
         layer_stack_count = "64"
         layer_stack_hand_buckets = "64"
+    elif layer_stack_spec == "HAND256":
+        layer_stack_name = "HAND256"
+        layer_stack_count = "256"
+        layer_stack_hand_buckets = "256"
+    elif layer_stack_spec == "HAND1024":
+        layer_stack_name = "HAND1024"
+        layer_stack_count = "1024"
+        layer_stack_hand_buckets = "1024"
     elif layer_stack_spec == "HAND64_K3K3" or layer_stack_spec == "HAND64_KING3_BY_KING3":
         layer_stack_name = "HAND64_K3K3"
         layer_stack_count = str(64 * 9)
@@ -295,8 +294,28 @@ if arches[0].startswith("SFNN"):
         layer_stack_count = str(64 * 81)
         layer_stack_hand_buckets = "64"
         layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "HAND256_K3K3" or layer_stack_spec == "HAND256_KING3_BY_KING3":
+        layer_stack_name = "HAND256_K3K3"
+        layer_stack_count = str(256 * 9)
+        layer_stack_hand_buckets = "256"
+        layer_stack_king_buckets = "9"
+    elif layer_stack_spec == "HAND256_K9K9" or layer_stack_spec == "HAND256_KING9_BY_KING9":
+        layer_stack_name = "HAND256_K9K9"
+        layer_stack_count = str(256 * 81)
+        layer_stack_hand_buckets = "256"
+        layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "HAND1024_K3K3" or layer_stack_spec == "HAND1024_KING3_BY_KING3":
+        layer_stack_name = "HAND1024_K3K3"
+        layer_stack_count = str(1024 * 9)
+        layer_stack_hand_buckets = "1024"
+        layer_stack_king_buckets = "9"
+    elif layer_stack_spec == "HAND1024_K9K9" or layer_stack_spec == "HAND1024_KING9_BY_KING9":
+        layer_stack_name = "HAND1024_K9K9"
+        layer_stack_count = str(1024 * 81)
+        layer_stack_hand_buckets = "1024"
+        layer_stack_king_buckets = "81"
     else:
-        print("Error! : SFNN layer stack must be k3k3, k9k9, hand64, hand64_k3k3, or hand64_k9k9")
+        print("Error! : SFNN layer stack must be k3k3, k9k9, hand64/256/1024, or hand*_k3k3/k9k9")
         raise SystemExit(1)
 
     arches = [arches[1], arches[2], arches[3], arches[4], layer_stack_count]
@@ -456,7 +475,6 @@ if SFNN:
 
     #include "../layers/affine_transform_explicit.h"
     #include "../layers/affine_transform_common_shard_input_explicit.h"
-    #include "../layers/affine_transform_grouped_input_explicit.h"
     #include "../layers/affine_transform_sparse_input_explicit.h"
     #include "../layers/clipped_relu_explicit.h"
     #include "../layers/sqr_clipped_relu.h"
@@ -522,19 +540,6 @@ if SFNN:
         if shard_dims % 64 != 0:
             print(f"Error : common+shard SFNN requires shard dimensions to be a multiple of 64. shard={shard_dims}.")
             raise SystemExit(1)
-    elif int(sfnn_group_count) > 1:
-        transformed_dims = int(layers[0])
-        hidden1_out_dims = int(layers[1]) + 1
-        group_count = int(sfnn_group_count)
-        if transformed_dims % group_count != 0:
-            print(f"Error : grouped SFNN requires transformed dimensions divisible by group count. dims={transformed_dims}, group={group_count}.")
-            raise SystemExit(1)
-        if hidden1_out_dims % group_count != 0:
-            print(f"Error : grouped SFNN requires hidden1+1 divisible by group count. hidden1+1={hidden1_out_dims}, group={group_count}.")
-            raise SystemExit(1)
-        if (transformed_dims // group_count) % 32 != 0:
-            print(f"Error : grouped SFNN requires each input group to be a multiple of 32. group input={transformed_dims // group_count}.")
-            raise SystemExit(1)
 
     print(f"layers feature    : {layers}")
 
@@ -550,7 +555,7 @@ if SFNN:
         #define NNUE_SFNN_KING_BUCKETS {layer_stack_king_buckets}
 
         // Number of groups for the first affine layer of SFNN.
-        // 1なら従来のdense fc_0、2以上ならgrouped/common+shard fc_0。
+        // common+shard fc_0でのみ2以上になる。
         constexpr IndexType kHidden1GroupCount = {sfnn_group_count};
 
         // common+shard fc_0 settings. kHidden1ShardDimensions is per shard.
@@ -598,20 +603,18 @@ else:
 if SFNN:
     # `sfnn-1536.h`からそのままコピペ。
     fc_0_type = "Layers::AffineTransformSparseInputExplicit<kInputDims, kHidden1Dims + 1>"
-    grouped_sfnn_macro = ""
-    grouped_sfnn_accumulator_propagate = ""
+    common_shard_sfnn_macro = ""
+    common_shard_sfnn_accumulator_propagate = ""
     group_count = int(sfnn_group_count)
     if sfnn_common_shard:
         fc_0_type = "Layers::AffineTransformCommonShardInputExplicit<kInputDims, kHidden1Dims + 1, kHidden1CommonDimensions, kHidden1ShardDimensions, kHidden1GroupCount>"
-    elif group_count > 1:
-        fc_0_type = "Layers::AffineTransformGroupedInputExplicit<kInputDims, kHidden1Dims + 1, kHidden1GroupCount>"
-    group_input_dims = int(sfnn_shard_dims) if sfnn_common_shard else (int(layers[0]) // group_count if group_count > 1 else 0)
-    enable_grouped_sfnn_accumulator_propagate = (
-        group_count > 1 and group_count % 2 == 0 and group_input_dims % 64 == 0
+    group_input_dims = int(sfnn_shard_dims) if sfnn_common_shard else 0
+    enable_common_shard_sfnn_accumulator_propagate = (
+        sfnn_common_shard and group_count % 2 == 0 and group_input_dims % 64 == 0
     )
-    if enable_grouped_sfnn_accumulator_propagate:
-        grouped_sfnn_macro = "#define NNUE_HAS_COMMON_SHARD_SFNN_ACCUMULATOR_PROPAGATE" if sfnn_common_shard else "#define NNUE_HAS_GROUPED_SFNN_ACCUMULATOR_PROPAGATE"
-        grouped_sfnn_accumulator_propagate = """
+    if enable_common_shard_sfnn_accumulator_propagate:
+        common_shard_sfnn_macro = "#define NNUE_HAS_COMMON_SHARD_SFNN_ACCUMULATOR_PROPAGATE"
+        common_shard_sfnn_accumulator_propagate = """
             #if defined(USE_AVX512)
             template <typename AccumulationType>
             const OutputType* PropagateFromAccumulator(const AccumulationType& accumulation,
@@ -638,7 +641,7 @@ if SFNN:
         """
 
     header += f"""
-        {grouped_sfnn_macro}
+        {common_shard_sfnn_macro}
 
         struct Network {{
 
@@ -713,7 +716,7 @@ if SFNN:
 
                 return buf.fc_2_out;
             }}
-{grouped_sfnn_accumulator_propagate}
+{common_shard_sfnn_accumulator_propagate}
         }};
 
     }}  // namespace Eval::NNUE

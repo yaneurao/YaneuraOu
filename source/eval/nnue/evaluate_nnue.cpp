@@ -291,7 +291,8 @@ namespace {
     }
 
 #if defined(SFNNwoPSQT)
-    static_assert(NNUE_SFNN_HAND_BUCKETS == 1 || NNUE_SFNN_HAND_BUCKETS == 64,
+    static_assert(NNUE_SFNN_HAND_BUCKETS == 1 || NNUE_SFNN_HAND_BUCKETS == 64
+        || NNUE_SFNN_HAND_BUCKETS == 256 || NNUE_SFNN_HAND_BUCKETS == 1024,
         "unsupported NNUE_SFNN_HAND_BUCKETS");
     static_assert(NNUE_SFNN_KING_BUCKETS == 1 || NNUE_SFNN_KING_BUCKETS == 9 || NNUE_SFNN_KING_BUCKETS == 81,
         "unsupported NNUE_SFNN_KING_BUCKETS");
@@ -340,6 +341,34 @@ namespace {
         return bucket;
     }
 
+    static int hand256_single_bucket(Hand hand) {
+        int bucket = 0;
+        if (hand_count(hand, PAWN) + hand_count(hand, LANCE) + hand_count(hand, KNIGHT) > 0)
+            bucket |= 1;
+        if (hand_count(hand, SILVER) + hand_count(hand, GOLD) > 0)
+            bucket |= 2;
+        if (hand_count(hand, BISHOP) > 0)
+            bucket |= 4;
+        if (hand_count(hand, ROOK) > 0)
+            bucket |= 8;
+        return bucket;
+    }
+
+    static int hand1024_single_bucket(Hand hand) {
+        int bucket = 0;
+        if (hand_count(hand, PAWN) > 0)
+            bucket |= 1;
+        if (hand_count(hand, LANCE) + hand_count(hand, KNIGHT) > 0)
+            bucket |= 2;
+        if (hand_count(hand, SILVER) + hand_count(hand, GOLD) > 0)
+            bucket |= 4;
+        if (hand_count(hand, BISHOP) > 0)
+            bucket |= 8;
+        if (hand_count(hand, ROOK) > 0)
+            bucket |= 16;
+        return bucket;
+    }
+
     // 手番側/非手番側の手駒点を8段階ずつに分け、64通りに分岐させる。
     static int hand64_bucket(const Position& pos) {
         const auto stm = pos.side_to_move();
@@ -347,11 +376,27 @@ namespace {
             + hand64_single_bucket(pos.hand_of(~stm));
     }
 
+    static int hand256_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        return hand256_single_bucket(pos.hand_of(stm)) * 16
+            + hand256_single_bucket(pos.hand_of(~stm));
+    }
+
+    static int hand1024_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        return hand1024_single_bucket(pos.hand_of(stm)) * 32
+            + hand1024_single_bucket(pos.hand_of(~stm));
+    }
+
     static int stack_index_for_nnue(const Position& pos) {
         int idx = 0;
 
 #if NNUE_SFNN_HAND_BUCKETS == 64
         idx = hand64_bucket(pos);
+#elif NNUE_SFNN_HAND_BUCKETS == 256
+        idx = hand256_bucket(pos);
+#elif NNUE_SFNN_HAND_BUCKETS == 1024
+        idx = hand1024_bucket(pos);
 #endif
 
 #if NNUE_SFNN_KING_BUCKETS == 9
@@ -376,9 +421,7 @@ namespace {
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 #if defined(SFNNwoPSQT)
         const auto bucket = stack_index_for_nnue(pos);
-#if defined(USE_AVX512) \
-    && (defined(NNUE_HAS_GROUPED_SFNN_ACCUMULATOR_PROPAGATE) \
-        || defined(NNUE_HAS_COMMON_SHARD_SFNN_ACCUMULATOR_PROPAGATE))
+#if defined(USE_AVX512) && defined(NNUE_HAS_COMMON_SHARD_SFNN_ACCUMULATOR_PROPAGATE)
         networks().feature_transformer.EnsureAccumulator(pos, refresh);
         const auto output = networks().network[bucket].PropagateFromAccumulator(
             accumulator.accumulation, pos.side_to_move(), buffer);
