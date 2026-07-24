@@ -39,14 +39,17 @@ SFNN_<feature>_<FT>_<H1>_<H2>[_cC_sSxG][_<layer_stack>]
 
 ```text
 SFNN_halfka2_1024_7_64_k3k3
+SFNN_halfka2_1024_7_64
 SFNN_halfka2_1024_7_64_hand64_k3k3
+SFNN_halfka2_1024_7_64_k29k29
 SFNN_ka2_8192_7_64_c0_s1024x8_k3k3
 SFNN_halfka2_3072_7_64_c1024_s256x8_k3k3
 ```
 
 `feature`は入力特徴量、`FT`はSFNN後段に渡す変換後特徴量の次元数、`H1`と`H2`は
 SFNN後段の次元数。通常NNUEと違って、SFNNの名前には`x2`を書かない。
-`layer_stack`は局面ごとに切り替える後段networkのbucket方式。
+`layer_stack`は局面ごとに切り替える後段networkのbucket方式。省略するとbucketなしで、
+後段networkは1つだけになる。
 `cC_sSxG`はSFNNの`fc_0`を軽くするためのcommon+shard分割指定で、詳細は後述する。
 
 ## Normal NNUE
@@ -102,7 +105,8 @@ sparse input features
 このshortcut項を含む。
 
 SFNNでは`LayerStacks`個の後段networkを`nn.bin`に持ち、局面ごとに1つを選んで使う。
-例えば`k3k3`なら9個、`hand64_k3k3`なら576個の後段networkを持つ。
+例えば`k3k3`なら9個、`k29k29`なら841個、`hand64_k3k3`なら576個の
+後段networkを持つ。
 FeatureTransformerはLayerStackごとに増えないが、`fc_0`以降の後段パラメータは
 基本的にLayerStack数に比例して増える。
 
@@ -253,18 +257,23 @@ MAC数だけでは決まらない。
 ## LayerStack Name
 
 SFNN architecture名の末尾でLayerStackの分岐方式を指定する。
+suffixを付けない場合は、LayerStackを分岐させず、1個の後段networkだけを使う。
 
 ```text
+SFNN_halfka2_1024_7_64
 SFNN_halfka2_1024_7_64_k3k3
 SFNN_halfka2_1024_7_64_k9k9
+SFNN_halfka2_1024_7_64_k29k29
 SFNN_halfka2_1024_7_64_hand64
 SFNN_halfka2_1024_7_64_hand256
 SFNN_halfka2_1024_7_64_hand1024
 SFNN_halfka2_1024_7_64_hand64_k3k3
 SFNN_halfka2_1024_7_64_hand256_k9k9
+SFNN_halfka2_1024_7_64_hand64_k29k29
 ```
 
-`king3_by_king3`は`k3k3`、`king9_by_king9`は`k9k9`の別名として使える。
+`king3_by_king3`は`k3k3`、`king9_by_king9`は`k9k9`、
+`king29_by_king29`は`k29k29`の別名として使える。
 同様に、`hand64_king3_by_king3`なども対応する。
 
 ## King Buckets
@@ -302,6 +311,33 @@ king_bucket = f_rank * 9 + e_rank; // 0..80
 
 `k9k9`は`k3k3`より細かい局面分類になるが、LayerStack数が9倍になる。
 教師密度、ファイルサイズ、メモリ使用量とのトレードオフを確認すること。
+
+### k29k29
+
+`k29k29`は、玉1つを29 bucketに分ける。手番側玉と非手番側玉の組み合わせなので、
+合計は`29 * 29 = 841` bucket。
+
+玉1つのbucketは、玉側から見た正規化後の座標で次のように決める。
+
+```text
+1段目から3段目: 0
+4段目から6段目: 1
+7段目から9段目: 2..28
+```
+
+7段目から9段目は、3段 x 9筋 = 27マスをそのまま区別する。
+実装上は、正規化後の`rank`と`file`を使って次の番号にする。
+
+```cpp
+if (rank < 3) single = 0;
+else if (rank < 6) single = 1;
+else single = 2 + (rank - 6) * 9 + file; // 2..28
+
+king_bucket = stm_single * 29 + non_stm_single; // 0..840
+```
+
+`k9k9`より自陣付近の玉位置を細かく分ける一方、敵陣側と中央は粗くまとめる。
+自玉が自陣にいる通常局面の差を見たい場合に使う。
 
 ## Hand Buckets
 
@@ -389,10 +425,13 @@ final_bucket = hand_bucket * king_bucket_count + king_bucket;
 ```text
 hand64_k3k3     : 64 * 9     = 576 buckets
 hand64_k9k9     : 64 * 81    = 5184 buckets
+hand64_k29k29   : 64 * 841   = 53824 buckets
 hand256_k3k3    : 256 * 9    = 2304 buckets
 hand256_k9k9    : 256 * 81   = 20736 buckets
+hand256_k29k29  : 256 * 841  = 215296 buckets
 hand1024_k3k3   : 1024 * 9   = 9216 buckets
 hand1024_k9k9   : 1024 * 81  = 82944 buckets
+hand1024_k29k29 : 1024 * 841 = 861184 buckets
 ```
 
 手駒bucketを使わない場合は`hand_bucket = 0`相当、玉位置bucketを使わない場合は

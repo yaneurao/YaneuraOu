@@ -182,11 +182,11 @@ arch = strip_prefix_ci(arch, "NNUE_")
 
 arch_upper_for_validation = arch.replace('-', '_').upper()
 if "SFNNWOP" in arch_upper_for_validation:
-    print("Error! : SFNNWOP architecture names are no longer supported. Use SFNN1536 or SFNN_..._k3k3 / SFNN_..._king3_by_king3.")
+    print("Error! : SFNNWOP architecture names are no longer supported. Use SFNN1536, SFNN_... without suffix, or SFNN_..._k3k3 / SFNN_..._king3_by_king3.")
     raise SystemExit(1)
 
 if "LS9" in arch_upper_for_validation.split('_'):
-    print("Error! : ls9 is no longer supported. Use k3k3 or king3_by_king3.")
+    print("Error! : ls9 is no longer supported. Use no suffix, k3k3, k9k9, k29k29, or their long names.")
     raise SystemExit(1)
 
 # 出力ファイル名
@@ -217,12 +217,14 @@ if len(arches) <= 3 :
 # 📝 SFNN_halfkahm2_1536-15-32-k3k3のように指定されていれば、SFNNのheaderを生成する。
 #     SFNN_ka2_3072_7_64_c1024_s256x8_k3k3 のように、cN_sMxG を置くと
 #     fc_0を common N + shard M x G に分割する。
+#     SFNN_halfka2_1024_7_64 のようにsuffixを省略すると、単一LayerStackになる。
 #     SFNN_halfka2_1024_7_64_hand64 のように、hand64を指定すると
 #     手番側/非手番側の手駒点を8段階ずつに分けた64 bucketを用いる。
 #     hand256 / hand1024も同様に、手番側/非手番側の手駒状態で256/1024 bucketを用いる。
-#     SFNN_halfka2_1024_7_64_k9k9 のように指定すると、
-#     手番側/非手番側の玉の段を9段階ずつに分けた81 bucketを用いる。
-#     SFNN_halfka2_1024_7_64_hand64_k3k3 / hand64_k9k9 のように、hand64と複合できる。
+#     SFNN_halfka2_1024_7_64_k9k9 / k29k29 のように指定すると、
+#     手番側/非手番側の玉位置でbucketを分ける。
+#     SFNN_halfka2_1024_7_64_hand64_k3k3 / hand64_k9k9 / hand64_k29k29 のように、
+#     hand64と複合できる。
 SFNN = False
 layer_stack_name = ""
 layer_stack_count = ""
@@ -234,12 +236,12 @@ sfnn_shard_dims = "0"
 sfnn_common_shard = False
 if arches[0].startswith("SFNN"):
     SFNN = True
-    if len(arches) < 6:
-        print("Error! : SFNN architecture name must be like SFNN_halfkahm2_1536-15-32-k3k3 or SFNN_ka2_3072_7_64_c1024_s256x8_k3k3")
+    if len(arches) < 5:
+        print("Error! : SFNN architecture name must be like SFNN_halfka2_1024_7_64, SFNN_halfkahm2_1536-15-32-k3k3, or SFNN_ka2_3072_7_64_c1024_s256x8_k3k3")
         raise SystemExit(1)
 
     layer_stack_start = 5
-    if arches[5].startswith("C"):
+    if len(arches) > 5 and arches[5].startswith("C"):
         common_raw = arches[5][1:]
         if not common_raw.isdigit():
             print(f"Error! : SFNN common token must be like c0 or c1024 , got {arches[5]}.")
@@ -259,12 +261,11 @@ if arches[0].startswith("SFNN"):
         sfnn_group_count = shard_parts[1]
         sfnn_common_shard = True
         layer_stack_start = 7
-    if len(arches) <= layer_stack_start:
-        print("Error! : SFNN architecture name must end with k3k3, k9k9, hand64, or their long names.")
-        raise SystemExit(1)
-
-    layer_stack_spec = "_".join(arches[layer_stack_start:])
-    if layer_stack_spec == "K3K3" or layer_stack_spec == "KING3_BY_KING3":
+    layer_stack_spec = "_".join(arches[layer_stack_start:]) if len(arches) > layer_stack_start else ""
+    if layer_stack_spec == "":
+        layer_stack_name = "NONE"
+        layer_stack_count = "1"
+    elif layer_stack_spec == "K3K3" or layer_stack_spec == "KING3_BY_KING3":
         layer_stack_name = "K3K3"
         layer_stack_count = "9"
         layer_stack_king_buckets = "9"
@@ -272,6 +273,10 @@ if arches[0].startswith("SFNN"):
         layer_stack_name = "K9K9"
         layer_stack_count = "81"
         layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "K29K29" or layer_stack_spec == "KING29_BY_KING29":
+        layer_stack_name = "K29K29"
+        layer_stack_count = str(29 * 29)
+        layer_stack_king_buckets = str(29 * 29)
     elif layer_stack_spec == "HAND64":
         layer_stack_name = "HAND64"
         layer_stack_count = "64"
@@ -294,6 +299,11 @@ if arches[0].startswith("SFNN"):
         layer_stack_count = str(64 * 81)
         layer_stack_hand_buckets = "64"
         layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "HAND64_K29K29" or layer_stack_spec == "HAND64_KING29_BY_KING29":
+        layer_stack_name = "HAND64_K29K29"
+        layer_stack_count = str(64 * 29 * 29)
+        layer_stack_hand_buckets = "64"
+        layer_stack_king_buckets = str(29 * 29)
     elif layer_stack_spec == "HAND256_K3K3" or layer_stack_spec == "HAND256_KING3_BY_KING3":
         layer_stack_name = "HAND256_K3K3"
         layer_stack_count = str(256 * 9)
@@ -304,6 +314,11 @@ if arches[0].startswith("SFNN"):
         layer_stack_count = str(256 * 81)
         layer_stack_hand_buckets = "256"
         layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "HAND256_K29K29" or layer_stack_spec == "HAND256_KING29_BY_KING29":
+        layer_stack_name = "HAND256_K29K29"
+        layer_stack_count = str(256 * 29 * 29)
+        layer_stack_hand_buckets = "256"
+        layer_stack_king_buckets = str(29 * 29)
     elif layer_stack_spec == "HAND1024_K3K3" or layer_stack_spec == "HAND1024_KING3_BY_KING3":
         layer_stack_name = "HAND1024_K3K3"
         layer_stack_count = str(1024 * 9)
@@ -314,8 +329,13 @@ if arches[0].startswith("SFNN"):
         layer_stack_count = str(1024 * 81)
         layer_stack_hand_buckets = "1024"
         layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "HAND1024_K29K29" or layer_stack_spec == "HAND1024_KING29_BY_KING29":
+        layer_stack_name = "HAND1024_K29K29"
+        layer_stack_count = str(1024 * 29 * 29)
+        layer_stack_hand_buckets = "1024"
+        layer_stack_king_buckets = str(29 * 29)
     else:
-        print("Error! : SFNN layer stack must be k3k3, k9k9, hand64/256/1024, or hand*_k3k3/k9k9")
+        print("Error! : SFNN layer stack must be k3k3, k9k9, k29k29, hand64/256/1024, or hand*_k3k3/k9k9/k29k29")
         raise SystemExit(1)
 
     arches = [arches[1], arches[2], arches[3], arches[4], layer_stack_count]

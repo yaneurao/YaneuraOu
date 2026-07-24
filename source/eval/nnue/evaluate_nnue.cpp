@@ -294,7 +294,8 @@ namespace {
     static_assert(NNUE_SFNN_HAND_BUCKETS == 1 || NNUE_SFNN_HAND_BUCKETS == 64
         || NNUE_SFNN_HAND_BUCKETS == 256 || NNUE_SFNN_HAND_BUCKETS == 1024,
         "unsupported NNUE_SFNN_HAND_BUCKETS");
-    static_assert(NNUE_SFNN_KING_BUCKETS == 1 || NNUE_SFNN_KING_BUCKETS == 9 || NNUE_SFNN_KING_BUCKETS == 81,
+    static_assert(NNUE_SFNN_KING_BUCKETS == 1 || NNUE_SFNN_KING_BUCKETS == 9
+        || NNUE_SFNN_KING_BUCKETS == 81 || NNUE_SFNN_KING_BUCKETS == 841,
         "unsupported NNUE_SFNN_KING_BUCKETS");
     static_assert(kLayerStacks == NNUE_SFNN_HAND_BUCKETS * NNUE_SFNN_KING_BUCKETS,
         "LayerStacks must match the SFNN bucket product");
@@ -326,6 +327,29 @@ namespace {
         if (e_rank < 0) e_rank = 0;
         if (e_rank > 8) e_rank = 8;
         return f_rank * 9 + e_rank;
+    }
+
+    static int king29_single_bucket(Square sq) {
+        int rank = int(rank_of(sq));
+        int file = int(file_of(sq));
+        if (rank < 0) rank = 0;
+        if (rank > 8) rank = 8;
+        if (file < 0) file = 0;
+        if (file > 8) file = 8;
+
+        if (rank < 3) return 0;
+        if (rank < 6) return 1;
+        return 2 + (rank - 6) * 9 + file;
+    }
+
+    // レイヤースタックの選択。玉1つを29通りに分け、双方の玉で841通りに分岐させる。
+    static int king29_by_king29_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        const auto f_king = pos.square<KING>(stm);
+        const auto e_king = pos.square<KING>(~stm);
+        const auto f_sq = stm == BLACK ? f_king : Inv(f_king);
+        const auto e_sq = stm == BLACK ? Inv(e_king) : e_king;
+        return king29_single_bucket(f_sq) * 29 + king29_single_bucket(e_sq);
     }
 
     static int hand64_single_bucket(Hand hand) {
@@ -403,6 +427,8 @@ namespace {
         idx = idx * 9 + king3_by_king3_bucket(pos);
 #elif NNUE_SFNN_KING_BUCKETS == 81
         idx = idx * 81 + king9_by_king9_bucket(pos);
+#elif NNUE_SFNN_KING_BUCKETS == 841
+        idx = idx * 841 + king29_by_king29_bucket(pos);
 #endif
 
         if (idx < 0) idx = 0;
