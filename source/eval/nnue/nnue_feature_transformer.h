@@ -496,6 +496,59 @@ class FeatureTransformer {
 			b[i] = read ? b[i] * 2 : b[i] / 2;
 	}
 
+#if defined(VECTOR)
+	// 変更された各特徴量ごとにaccumulator全体を読み書きするのを避けるため、
+	// SIMDレジスタに収まるタイル単位で差分をまとめて適用する。
+	static constexpr IndexType kVectorHeight = sizeof(vec_t) / sizeof(BiasType);
+	static_assert(kHalfDimensions % kVectorHeight == 0, "kVectorHeight must divide kHalfDimensions");
+	static constexpr IndexType kNumVectorChunks = kHalfDimensions / kVectorHeight;
+	static constexpr IndexType kTileRegs = [] {
+		IndexType regs = std::min(kNumRegs, kNumVectorChunks);
+		while (kNumVectorChunks % regs != 0)
+			--regs;
+		return regs;
+	}();
+	static constexpr IndexType kTileHeight = kTileRegs * kVectorHeight;
+
+	template <typename ApplyChanges>
+	void update_accumulator_tiled(
+		const BiasType* source, BiasType* destination,
+		ApplyChanges apply_changes) const {
+		for (IndexType tile_offset = 0; tile_offset < kHalfDimensions; tile_offset += kTileHeight) {
+			vec_t acc[kTileRegs];
+
+			if (source) {
+				const auto* source_tile = reinterpret_cast<const vec_t*>(source + tile_offset);
+				for (IndexType k = 0; k < kTileRegs; ++k)
+					acc[k] = vec_load(source_tile + k);
+			} else {
+				for (IndexType k = 0; k < kTileRegs; ++k)
+					acc[k] = vec_zero();
+			}
+
+			apply_changes(acc, tile_offset);
+
+			auto* destination_tile = reinterpret_cast<vec_t*>(destination + tile_offset);
+			for (IndexType k = 0; k < kTileRegs; ++k)
+				vec_store(destination_tile + k, acc[k]);
+		}
+	}
+
+	void add_weight_to_tile(vec_t* acc, IndexType index, IndexType tile_offset) const {
+		const auto* column = reinterpret_cast<const vec_t*>(
+			&weights_[kHalfDimensions * index + tile_offset]);
+		for (IndexType k = 0; k < kTileRegs; ++k)
+			acc[k] = vec_add_16(acc[k], vec_load(column + k));
+	}
+
+	void sub_weight_from_tile(vec_t* acc, IndexType index, IndexType tile_offset) const {
+		const auto* column = reinterpret_cast<const vec_t*>(
+			&weights_[kHalfDimensions * index + tile_offset]);
+		for (IndexType k = 0; k < kTileRegs; ++k)
+			acc[k] = vec_sub_16(acc[k], vec_load(column + k));
+	}
+#endif
+
 	// Calculate cumulative value without using difference calculation
 	// 差分計算を用いずに累積値を計算する
 	void refresh_accumulator(const Position& pos) const {
@@ -503,22 +556,17 @@ class FeatureTransformer {
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList active_indices[2];
 			RawFeatures::AppendActiveIndices(pos, kRefreshTriggers[i], active_indices);
-			for (Color perspective : {BLACK, WHITE}) {
+			for (int c = 0; c < COLOR_NB; ++c) {
+				const Color perspective = static_cast<Color>(c);
 #if defined(VECTOR)
-				if (i == 0) {
-					std::memcpy(accumulator.accumulation[perspective][i], biases_, kHalfDimensions * sizeof(BiasType));
-				} else {
-					std::memset(accumulator.accumulation[perspective][i], 0, kHalfDimensions * sizeof(BiasType));
-				}
-				for (const auto index : active_indices[perspective]) {
-					const IndexType offset = kHalfDimensions * index;
-					auto accumulation      = reinterpret_cast<vec_t*>(&accumulator.accumulation[perspective][i][0]);
-					auto column            = reinterpret_cast<const vec_t*>(&weights_[offset]);
-					constexpr IndexType kNumChunks = kHalfDimensions / (sizeof(vec_t) / sizeof(BiasType));
-					for (IndexType j = 0; j < kNumChunks; ++j) {
-						accumulation[j] = vec_add_16(accumulation[j], column[j]);
-					}
-				}
+				auto* current = accumulator.accumulation[perspective][i];
+				const auto* source = i == 0 ? biases_ : nullptr;
+				update_accumulator_tiled(
+					source, current,
+					[&](vec_t* acc, IndexType tile_offset) {
+						for (const auto index : active_indices[perspective])
+							add_weight_to_tile(acc, index, tile_offset);
+					});
 #else
 				if (i == 0) {
 					std::memcpy(accumulator.accumulation[perspective][i], biases_, kHalfDimensions * sizeof(BiasType));
@@ -544,17 +592,36 @@ class FeatureTransformer {
 	// Calculate cumulative value using difference calculation
 	// 差分計算を用いて累積値を計算する
 	void update_accumulator(const Position& pos) const {
-		const auto prev_accumulator = pos.state()->previous->accumulator;
+		const auto& prev_accumulator = pos.state()->previous->accumulator;
 		auto&      accumulator      = pos.state()->accumulator;
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList removed_indices[2], added_indices[2];
 			bool                reset[2];
 			RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset);
-			for (Color perspective : {BLACK, WHITE}) {
+			for (int c = 0; c < COLOR_NB; ++c) {
+				const Color perspective = static_cast<Color>(c);
 #if defined(VECTOR)
-				constexpr IndexType kNumChunks = kHalfDimensions / (sizeof(vec_t) / sizeof(BiasType));
-				auto accumulation              = reinterpret_cast<vec_t*>(&accumulator.accumulation[perspective][i][0]);
-#endif
+				auto* current = accumulator.accumulation[perspective][i];
+				if (reset[perspective]) {
+					const auto* source = i == 0 ? biases_ : nullptr;
+					update_accumulator_tiled(
+						source, current,
+						[&](vec_t* acc, IndexType tile_offset) {
+							for (const auto index : added_indices[perspective])
+								add_weight_to_tile(acc, index, tile_offset);
+						});
+				} else {
+					update_accumulator_tiled(
+						prev_accumulator.accumulation[perspective][i],
+						current,
+						[&](vec_t* acc, IndexType tile_offset) {
+							for (const auto index : removed_indices[perspective])
+								sub_weight_from_tile(acc, index, tile_offset);
+							for (const auto index : added_indices[perspective])
+								add_weight_to_tile(acc, index, tile_offset);
+						});
+				}
+#else
 				if (reset[perspective]) {
 					if (i == 0) {
 						std::memcpy(accumulator.accumulation[perspective][i], biases_,
@@ -569,35 +636,20 @@ class FeatureTransformer {
 					            kHalfDimensions * sizeof(BiasType));
 					for (const auto index : removed_indices[perspective]) {
 						const IndexType offset = kHalfDimensions * index;
-#if defined(VECTOR)
-						auto column = reinterpret_cast<const vec_t*>(&weights_[offset]);
-						for (IndexType j = 0; j < kNumChunks; ++j) {
-							accumulation[j] = vec_sub_16(accumulation[j], column[j]);
-						}
-#else
 						for (IndexType j = 0; j < kHalfDimensions; ++j) {
 							accumulator.accumulation[perspective][i][j] -= weights_[offset + j];
 						}
-#endif
 					}
 				}
-				{
-					// Difference calculation for features that changed from 0 to 1
-					// 0から1に変化した特徴量に関する差分計算
-					for (const auto index : added_indices[perspective]) {
-						const IndexType offset = kHalfDimensions * index;
-#if defined(VECTOR)
-						auto column = reinterpret_cast<const vec_t*>(&weights_[offset]);
-						for (IndexType j = 0; j < kNumChunks; ++j) {
-							accumulation[j] = vec_add_16(accumulation[j], column[j]);
-						}
-#else
-						for (IndexType j = 0; j < kHalfDimensions; ++j) {
+				// Difference calculation for features that changed from 0 to 1
+				// 0から1に変化した特徴量に関する差分計算
+				for (const auto index : added_indices[perspective]) {
+					const IndexType offset = kHalfDimensions * index;
+					for (IndexType j = 0; j < kHalfDimensions; ++j) {
 							accumulator.accumulation[perspective][i][j] += weights_[offset + j];
-						}
-#endif
 					}
 				}
+#endif
 			}
 		}
 

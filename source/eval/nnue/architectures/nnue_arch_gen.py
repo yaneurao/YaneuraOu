@@ -5,8 +5,8 @@
 
 import argparse
 import os
-import random
-import struct
+import subprocess
+import sys
 
 def dedent4(text: str) -> str:
     # 各行の先頭4文字（スペース4つ）を削除して結合し直す
@@ -29,16 +29,10 @@ args = parser.parse_args()
 arch    : str = args.arch
 out_dir : str = args.out_dir or os.path.dirname(os.path.abspath(__file__))
 dummy_nn_path : str = args.write_dummy_nn
+original_arch : str = arch
 
 def strip_prefix_ci(text: str, prefix: str) -> str:
     return text[len(prefix):] if text.upper().startswith(prefix) else text
-
-U32_MASK = 0xFFFFFFFF
-NNUE_FILE_VERSION = 0x7AF32F16
-SFNN_HASH_VALUE = 0x3C203B32
-SFNN_FEATURE_TRANSFORMER_HASH = 0x5F134AB8
-SFNN_NETWORK_HASH = 0x6333718A
-LEB128_MAGIC = b"COMPRESSED_LEB128"
 
 SQ_NB = 81
 FILE_NB = 9
@@ -49,8 +43,8 @@ FE_END2 = E_KING + SQ_NB
 
 FEATURE_INFO = {
     "halfkp": ("HalfKP(Friend)", 0x5D69D5B8, SQ_NB * FE_END),
-    "kp": ("K+P", 0xD3CEE169 ^ ((0x764CFB4B << 1) & U32_MASK) ^ (0x764CFB4B >> 31), SQ_NB * 2 + FE_END),
-    "ka2": ("K+A2", 0xD3CEE169 ^ ((0xA20DCB9B << 1) & U32_MASK) ^ (0xA20DCB9B >> 31), SQ_NB * 2 + E_KING),
+    "kp": ("K+P", 0, SQ_NB * 2 + FE_END),
+    "ka2": ("K+A2", 0, SQ_NB * 2 + E_KING),
     "halfkpe9": ("HalfKPE9(Friend)", 0x5D69D5B8, SQ_NB * FE_END * 3 * 3),
     "halfkpvm": ("HalfKP_vm(Friend)", 0x0B6B1D9A, 5 * FILE_NB * FE_END),
     "halfka1": ("HalfKA1(Friend)", 0x5F134CB8, SQ_NB * FE_END2),
@@ -58,123 +52,6 @@ FEATURE_INFO = {
     "halfka2": ("HalfKA2(Friend)", 0x5F234CB8, SQ_NB * E_KING),
     "halfkahm2": ("HalfKA_hm2(Friend)", 0x7F234CB8, 5 * FILE_NB * E_KING),
 }
-
-def u32(value: int) -> int:
-    return value & U32_MASK
-
-def ceil_to_multiple(n: int, base: int) -> int:
-    return (n + base - 1) // base * base
-
-def feature_transformer_hash(raw_feature_hash: int, output_dimensions: int, *, sfnn: bool) -> int:
-    if sfnn:
-        return SFNN_FEATURE_TRANSFORMER_HASH
-    return u32(raw_feature_hash ^ output_dimensions)
-
-def input_slice_hash(output_dimensions: int, offset: int = 0) -> int:
-    return u32(0xEC42E90D ^ output_dimensions ^ (offset << 10))
-
-def affine_hash(prev_hash: int, output_dimensions: int) -> int:
-    return u32((0xCC03DAE4 + output_dimensions) ^ (prev_hash >> 1) ^ u32(prev_hash << 31))
-
-def clipped_relu_hash(prev_hash: int) -> int:
-    return u32(0x538D24C7 + prev_hash)
-
-def normal_network_hash(transformed_dims: int, first_layer_multiplier: int, hidden1: int, hidden2: int) -> int:
-    h = input_slice_hash(transformed_dims * first_layer_multiplier)
-    h = affine_hash(h, hidden1)
-    h = clipped_relu_hash(h)
-    h = affine_hash(h, hidden2)
-    h = clipped_relu_hash(h)
-    h = affine_hash(h, 1)
-    return h
-
-def write_u32(stream, value: int) -> None:
-    stream.write(struct.pack("<I", u32(value)))
-
-def write_i32_zeros(stream, count: int) -> None:
-    stream.write(b"\x00\x00\x00\x00" * count)
-
-def write_header(stream, hash_value: int, architecture: str) -> None:
-    encoded = architecture.encode("utf-8")
-    write_u32(stream, NNUE_FILE_VERSION)
-    write_u32(stream, hash_value)
-    write_u32(stream, len(encoded))
-    stream.write(encoded)
-
-def write_zero_bytes(stream, count: int) -> None:
-    chunk = b"\x00" * min(count, 1 << 20)
-    while count:
-        n = min(count, len(chunk))
-        stream.write(chunk[:n])
-        count -= n
-
-def write_random_small_bytes(stream, count: int, rng: random.Random, *, negative_byte: int) -> None:
-    table = bytes((0, 1, negative_byte)[i % 3] for i in range(256))
-    chunk_size = 1 << 20
-    while count:
-        n = min(count, chunk_size)
-        stream.write(rng.randbytes(n).translate(table))
-        count -= n
-
-def write_int8_values(stream, count: int, rng: random.Random, mode: str) -> None:
-    if mode == "zero":
-        write_zero_bytes(stream, count)
-    else:
-        write_random_small_bytes(stream, count, rng, negative_byte=0xFF)
-
-def write_int16_values(stream, count: int, rng: random.Random, mode: str) -> None:
-    if mode == "zero":
-        write_zero_bytes(stream, count * 2)
-        return
-
-    chunk_values = 1 << 19
-    patterns = (b"\x00\x00", b"\x01\x00", b"\xff\xff")
-    table = bytes((0, 1, 2)[i % 3] for i in range(256))
-    while count:
-        n = min(count, chunk_values)
-        selector = rng.randbytes(n).translate(table)
-        out = bytearray(n * 2)
-        for i, s in enumerate(selector):
-            out[i * 2:i * 2 + 2] = patterns[s]
-        stream.write(out)
-        count -= n
-
-def write_sleb128_block_small(stream, count: int, rng: random.Random, mode: str) -> None:
-    # zero/random-smallの -1,0,+1 はsigned LEB128で必ず1byteになる。
-    if count > U32_MASK:
-        raise ValueError(f"LEB128 block is too large: {count} bytes")
-    stream.write(LEB128_MAGIC)
-    write_u32(stream, count)
-    if mode == "zero":
-        write_zero_bytes(stream, count)
-    else:
-        write_random_small_bytes(stream, count, rng, negative_byte=0x7F)
-
-def write_feature_transformer(stream, input_dims: int, transformed_dims: int, raw_feature_hash: int, rng: random.Random, mode: str, *, sfnn: bool) -> None:
-    write_u32(stream, feature_transformer_hash(raw_feature_hash, transformed_dims if sfnn else transformed_dims * 2, sfnn=sfnn))
-    if sfnn:
-        write_sleb128_block_small(stream, transformed_dims, rng, "zero")
-        write_sleb128_block_small(stream, transformed_dims * input_dims, rng, mode)
-    else:
-        write_int16_values(stream, transformed_dims, rng, "zero")
-        write_int16_values(stream, transformed_dims * input_dims, rng, mode)
-
-def write_affine_explicit(stream, input_dims: int, output_dims: int, rng: random.Random, mode: str) -> None:
-    write_i32_zeros(stream, output_dims)
-    write_int8_values(stream, output_dims * ceil_to_multiple(input_dims, 32), rng, mode)
-
-def write_sfnn_network(stream, transformed_dims: int, hidden1: int, hidden2: int, group_count: int, rng: random.Random, mode: str) -> None:
-    del group_count  # file layoutはcommon+shardでもdense fc_0互換。
-    write_u32(stream, SFNN_NETWORK_HASH)
-    write_affine_explicit(stream, transformed_dims, hidden1 + 1, rng, mode)
-    write_affine_explicit(stream, hidden1 * 2, hidden2, rng, mode)
-    write_affine_explicit(stream, hidden2, 1, rng, mode)
-
-def write_normal_network(stream, transformed_dims: int, first_layer_multiplier: int, hidden1: int, hidden2: int, rng: random.Random, mode: str) -> None:
-    write_u32(stream, normal_network_hash(transformed_dims, first_layer_multiplier, hidden1, hidden2))
-    write_affine_explicit(stream, transformed_dims * first_layer_multiplier, hidden1, rng, mode)
-    write_affine_explicit(stream, hidden1, hidden2, rng, mode)
-    write_affine_explicit(stream, hidden2, 1, rng, mode)
 
 # makefileで指定したエディション名そのままかも知れないので削除。
 arch = strip_prefix_ci(arch, "YANEURAOU_ENGINE_")
@@ -491,13 +368,7 @@ else:
 
 if SFNN:
     header += """
-    #include <cstring>
-
-    #include "../layers/affine_transform_explicit.h"
-    #include "../layers/affine_transform_common_shard_input_explicit.h"
-    #include "../layers/affine_transform_sparse_input_explicit.h"
-    #include "../layers/clipped_relu_explicit.h"
-    #include "../layers/sqr_clipped_relu.h"
+    #include "sfnn_network.h"
 
     namespace YaneuraOu {
     namespace Eval::NNUE {
@@ -621,122 +492,45 @@ else:
 # ============================================================
 
 if SFNN:
-    # `sfnn-1536.h`からそのままコピペ。
     fc_0_type = "Layers::AffineTransformSparseInputExplicit<kInputDims, kHidden1Dims + 1>"
-    common_shard_sfnn_macro = ""
-    common_shard_sfnn_accumulator_propagate = ""
     group_count = int(sfnn_group_count)
     if sfnn_common_shard:
         fc_0_type = "Layers::AffineTransformCommonShardInputExplicit<kInputDims, kHidden1Dims + 1, kHidden1CommonDimensions, kHidden1ShardDimensions, kHidden1GroupCount>"
     group_input_dims = int(sfnn_shard_dims) if sfnn_common_shard else 0
+    hidden1_output_dims = int(layers[1]) + 1
     enable_common_shard_sfnn_accumulator_propagate = (
         sfnn_common_shard and group_count % 2 == 0 and group_input_dims % 64 == 0
     )
+    enable_sparse_sfnn_accumulator_propagate = (
+        False
+        and not sfnn_common_shard
+        and hidden1_output_dims == 8
+        and int(layers[0]) % 128 == 0
+    )
+    sfnn_accumulator_propagate_macro = ""
     if enable_common_shard_sfnn_accumulator_propagate:
-        common_shard_sfnn_macro = "#define NNUE_HAS_COMMON_SHARD_SFNN_ACCUMULATOR_PROPAGATE"
-        common_shard_sfnn_accumulator_propagate = """
-            #if defined(USE_AVX512)
-            template <typename AccumulationType>
-            const OutputType* PropagateFromAccumulator(const AccumulationType& accumulation,
-                                                       Color sideToMove,
-                                                       char* buffer) const {
-                auto& buf = *reinterpret_cast<Buffer*>(buffer);
-                std::memset(buf.ac_sqr_0_out, 0, sizeof(buf.ac_sqr_0_out));
+        sfnn_accumulator_propagate_macro = "#define NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE"
+    elif enable_sparse_sfnn_accumulator_propagate:
+        sfnn_accumulator_propagate_macro = "#define NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE"
 
-                fc_0.PropagateSfnnFromAccumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
-                ac_0.Propagate(buf.fc_0_out, buf.ac_0_out);
-                ac_sqr_0.Propagate(buf.fc_0_out, buf.ac_sqr_0_out);
-                std::memcpy(buf.ac_sqr_0_out + kHidden1Dims, buf.ac_0_out,
-                    kHidden1Dims * sizeof(typename decltype(ac_0)::OutputType));
-                fc_1.Propagate(buf.ac_sqr_0_out, buf.fc_1_out);
-                ac_1.Propagate(buf.fc_1_out, buf.ac_1_out);
-                fc_2.Propagate(buf.ac_1_out, buf.fc_2_out);
-
-                // add shortcut term
-                buf.fc_2_out[0] += buf.fc_0_out[kHidden1Dims];
-
-                return buf.fc_2_out;
-            }
-            #endif
-        """
+    structure_string = (
+        "SFNN-1536"
+        if input_feature == "halfkahm2"
+        and layers == ["1536", "15", "32", "9"]
+        and layer_stack_name == "K3K3"
+        else arch
+    )
 
     header += f"""
-        {common_shard_sfnn_macro}
+        {sfnn_accumulator_propagate_macro}
 
-        struct Network {{
+        using Fc0Layer = {fc_0_type};
+        using NetworkBase = SfnnNetwork<Fc0Layer, kInputDims, kHidden1Dims, kHidden2Dims>;
 
-            // Define network structure
-            // ネットワーク構造の定義
-            {fc_0_type} fc_0;
-            Layers::ClippedReLUExplicit<kHidden1Dims + 1> ac_0;
-            Layers::SqrClippedReLU<kHidden1Dims + 1> ac_sqr_0;
-
-            Layers::AffineTransformExplicit<kHidden1Dims * 2, kHidden2Dims> fc_1;
-            Layers::ClippedReLUExplicit<kHidden2Dims> ac_1;
-            
-        Layers::AffineTransformExplicit<kHidden2Dims, 1> fc_2;
-
-            using OutputType = std::int32_t;
-            static constexpr IndexType kOutputDimensions = 1;
-
-            // Hash値などは適宜実装
-            static constexpr std::uint32_t GetHashValue() {{
-                return 0x6333718Au;
-            }}
-
+        struct Network : NetworkBase {{
             static std::string GetStructureString() {{
-                return "{'SFNN-1536' if input_feature == 'halfkahm2' and layers == ['1536', '15', '32', '9'] and layer_stack_name == 'K3K3' else arch}";
+                return "{structure_string}";
             }}
-
-            Tools::Result ReadParameters(std::istream& stream) {{
-                bool result = fc_0.ReadParameters(stream).is_ok()
-                    && ac_0.ReadParameters(stream).is_ok()
-                    && ac_sqr_0.ReadParameters(stream).is_ok()
-                    && fc_1.ReadParameters(stream).is_ok()
-                    && ac_1.ReadParameters(stream).is_ok()
-                    && fc_2.ReadParameters(stream).is_ok();
-                return result ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
-            }}
-
-            bool WriteParameters(std::ostream& stream) const {{
-                return fc_0.WriteParameters(stream)
-                    && ac_0.WriteParameters(stream)
-                    && ac_sqr_0.WriteParameters(stream)
-                    && fc_1.WriteParameters(stream)
-                    && ac_1.WriteParameters(stream)
-                    && fc_2.WriteParameters(stream);
-            }}
-
-            struct alignas(kCacheLineSize) Buffer {{
-                alignas(kCacheLineSize) typename decltype(fc_0)::OutputBuffer fc_0_out;
-                alignas(kCacheLineSize) typename decltype(ac_0)::OutputBuffer ac_0_out;
-                alignas(kCacheLineSize) typename decltype(ac_sqr_0)::OutputType ac_sqr_0_out[CeilToMultiple<IndexType>(kHidden1Dims * 2, 32)];
-                alignas(kCacheLineSize) typename decltype(fc_1)::OutputBuffer fc_1_out;
-                alignas(kCacheLineSize) typename decltype(ac_1)::OutputBuffer ac_1_out;
-                alignas(kCacheLineSize) typename decltype(fc_2)::OutputBuffer fc_2_out;
-            }};
-
-            static constexpr std::size_t kBufferSize = sizeof(Buffer);
-
-            const OutputType* Propagate(const TransformedFeatureType* transformedFeatures, char* buffer) const {{
-                auto& buf = *reinterpret_cast<Buffer*>(buffer);
-                std::memset(buf.ac_sqr_0_out, 0, sizeof(buf.ac_sqr_0_out));
-
-                fc_0.Propagate(transformedFeatures, buf.fc_0_out);
-                ac_0.Propagate(buf.fc_0_out, buf.ac_0_out);
-                ac_sqr_0.Propagate(buf.fc_0_out, buf.ac_sqr_0_out);
-                std::memcpy(buf.ac_sqr_0_out + kHidden1Dims, buf.ac_0_out,
-                    kHidden1Dims * sizeof(typename decltype(ac_0)::OutputType));
-                fc_1.Propagate(buf.ac_sqr_0_out, buf.fc_1_out);
-                ac_1.Propagate(buf.fc_1_out, buf.ac_1_out);
-                fc_2.Propagate(buf.ac_1_out, buf.fc_2_out);
-
-                // add shortcut term
-                buf.fc_2_out[0] += buf.fc_0_out[kHidden1Dims];
-
-                return buf.fc_2_out;
-            }}
-{common_shard_sfnn_accumulator_propagate}
         }};
 
     }}  // namespace Eval::NNUE
@@ -765,67 +559,15 @@ with open(out_path, "w", encoding = 'utf-8') as f:
 
 print("..done!")
 
-def normal_network_structure_string(transformed_dims: int, first_layer_multiplier: int, hidden1: int, hidden2: int) -> str:
-    input_dims = transformed_dims * first_layer_multiplier
-    s = f"InputSlice[{input_dims}(0:{input_dims})]"
-    s = f"AffineTransformSparseInput[{hidden1}<-{input_dims}]({s})"
-    s = f"ClippedReLU[{hidden1}]({s})"
-    s = f"AffineTransform[{hidden2}<-{hidden1}]({s})"
-    s = f"ClippedReLU[{hidden2}]({s})"
-    s = f"AffineTransform[1<-{hidden2}]({s})"
-    return s
-
-def write_dummy_nn(path: str) -> None:
-    rng = random.Random(args.dummy_seed)
-    mode = args.dummy_mode
-    dir_name = os.path.dirname(path)
-    if dir_name:
-        os.makedirs(dir_name, exist_ok=True)
-
-    with open(path, "wb") as stream:
-        if SFNN:
-            transformed_dims = int(layers[0])
-            hidden1 = int(layers[1])
-            hidden2 = int(layers[2])
-            layer_stacks = int(layers[3])
-            group_count = int(sfnn_group_count)
-            network_name = (
-                "SFNN-1536"
-                if input_feature == "halfkahm2"
-                and layers == ["1536", "15", "32", "9"]
-                and layer_stack_name == "K3K3"
-                else arch
-            )
-            architecture_string = (
-                f"ModelType=SFNNWithoutPsqt;Features={raw_feature_name}"
-                f"[{raw_feature_dims}->{transformed_dims}x2],Network={network_name}"
-                f"{{LayerStack={layer_stacks}}}"
-            )
-
-            write_header(stream, SFNN_HASH_VALUE, architecture_string)
-            write_feature_transformer(stream, raw_feature_dims, transformed_dims, raw_feature_hash, rng, mode, sfnn=True)
-            for _ in range(layer_stacks):
-                write_sfnn_network(stream, transformed_dims, hidden1, hidden2, group_count, rng, mode)
-        else:
-            transformed_dims = int(first_layer[0])
-            first_layer_multiplier = int(first_layer[1])
-            hidden1 = int(layers[1])
-            hidden2 = int(layers[2])
-            ft_hash = feature_transformer_hash(raw_feature_hash, transformed_dims * 2, sfnn=False)
-            net_hash = normal_network_hash(transformed_dims, first_layer_multiplier, hidden1, hidden2)
-            architecture_string = (
-                f"Features={raw_feature_name}[{raw_feature_dims}->{transformed_dims}x2],"
-                f"Network={normal_network_structure_string(transformed_dims, first_layer_multiplier, hidden1, hidden2)}"
-            )
-
-            write_header(stream, ft_hash ^ net_hash, architecture_string)
-            write_feature_transformer(stream, raw_feature_dims, transformed_dims, raw_feature_hash, rng, mode, sfnn=False)
-            write_normal_network(stream, transformed_dims, first_layer_multiplier, hidden1, hidden2, rng, mode)
-
-    print(f"dummy nn.bin path : {path}")
-    print(f"dummy mode        : {mode}")
-    print(f"dummy seed        : {args.dummy_seed}")
-    print(f"dummy nn.bin size : {os.path.getsize(path)} bytes")
-
 if dummy_nn_path:
-    write_dummy_nn(dummy_nn_path)
+    dummy_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nnue_dummy_gen.py")
+    subprocess.run([
+        sys.executable,
+        dummy_script,
+        original_arch,
+        dummy_nn_path,
+        "--dummy-mode",
+        args.dummy_mode,
+        "--dummy-seed",
+        str(args.dummy_seed),
+    ], check=True)

@@ -91,6 +91,7 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
                     YaneuraOu::Eval::NNUE::FV_SCALE = int(o);
                     return std::nullopt;
                 }));
+
 }
 #endif
 
@@ -302,17 +303,16 @@ namespace {
 
     // レイヤースタックの選択。双方の玉の段に応じて9通りに分岐させる。
     static int king3_by_king3_bucket(const Position& pos) {
-        constexpr int kFToIndex[] = { 0, 0, 0, 3, 3, 3, 6, 6, 6 };
-        constexpr int kEToIndex[] = { 0, 0, 0, 1, 1, 1, 2, 2, 2 };
         const auto stm = pos.side_to_move();
-        const auto f_king = pos.square<KING>(stm);
-        const auto e_king = pos.square<KING>(~stm);
-        const auto f_rank = stm == BLACK ? rank_of(f_king) : rank_of(Inv(f_king));
-        const auto e_rank = stm == BLACK ? rank_of(Inv(e_king)) : rank_of(e_king);
-        int idx = kFToIndex[f_rank] + kEToIndex[e_rank];
-        if (idx < 0) idx = 0;
-        if (idx > 8) idx = 8;
-        return idx;
+        int f_rank = int(pos.square<KING>(stm)) % 9;
+        int e_rank = int(pos.square<KING>(~stm)) % 9;
+
+        if (stm == BLACK)
+            e_rank = 8 - e_rank;
+        else
+            f_rank = 8 - f_rank;
+
+        return (f_rank / 3) * 3 + e_rank / 3;
     }
 
     // レイヤースタックの選択。双方の玉の段に応じて81通りに分岐させる。
@@ -413,6 +413,9 @@ namespace {
     }
 
     static int stack_index_for_nnue(const Position& pos) {
+#if NNUE_SFNN_HAND_BUCKETS == 1 && NNUE_SFNN_KING_BUCKETS == 9
+        return king3_by_king3_bucket(pos);
+#else
         int idx = 0;
 
 #if NNUE_SFNN_HAND_BUCKETS == 64
@@ -434,6 +437,7 @@ namespace {
         if (idx < 0) idx = 0;
         if (idx >= kLayerStacks) idx = kLayerStacks - 1;
         return idx;
+#endif
     }
 #endif
 
@@ -447,7 +451,7 @@ namespace {
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 #if defined(SFNNwoPSQT)
         const auto bucket = stack_index_for_nnue(pos);
-#if defined(USE_AVX512) && defined(NNUE_HAS_COMMON_SHARD_SFNN_ACCUMULATOR_PROPAGATE)
+#if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
         networks().feature_transformer.EnsureAccumulator(pos, refresh);
         const auto output = networks().network[bucket].PropagateFromAccumulator(
             accumulator.accumulation, pos.side_to_move(), buffer);

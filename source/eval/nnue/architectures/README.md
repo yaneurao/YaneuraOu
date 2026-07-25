@@ -471,5 +471,15 @@ dummyのデフォルトは`random-small`である。完全に0で初期化した
 `stack_index_for_nnue()`に実装されている。
 
 architecture headerの生成は`source/eval/nnue/architectures/nnue_arch_gen.py`が行う。
+このスクリプトはarchitecture名の解析、入力特徴量、次元数、LayerStack数、
+bucket数、`Fc0Layer`と`Network`型の選択だけを生成する。
+
+SFNNの具体的な推論処理は`source/eval/nnue/architectures/sfnn_network.h`に置く。
+`Propagate()`や`PropagateFromAccumulator()`など、探索速度に影響する処理を
+`nnue_arch_gen.py`の文字列生成に埋め込まない。
+
+dummy `nn.bin`の生成処理は`source/eval/nnue/architectures/nnue_dummy_gen.py`に置く。
+互換のため、`nnue_arch_gen.py --write-dummy-nn`からも呼び出せる。
+
 新しい入力特徴量やLayerStack方式を追加するときは、生成器、探索時bucket計算、
 学習器側のbucket計算を同時に更新すること。

@@ -34,8 +34,8 @@ template<const IndexType kInputDimensions>
 static void find_nnz_explicit(const std::int32_t* input, std::uint16_t* out, IndexType& count_out) {
 #if defined(USE_SSSE3)
 #if defined(USE_AVX512)
-    using vec_t = __m512i;
-#define vec_nnz(a) _mm512_cmpgt_epi32_mask(a, _mm512_setzero_si512())
+	using vec_t = __m512i;
+	#define vec_nnz(a) _mm512_cmpgt_epi32_mask(a, _mm512_setzero_si512())
 #elif defined(USE_AVX2)
     using vec_t = __m256i;
 #if defined(USE_VNNI) && !defined(USE_AVXVNNI)
@@ -173,6 +173,81 @@ public:
                              kOutputDimensions * kPaddedInputDimensions * sizeof(WeightType));
                 return !stream.fail();
         }
+
+#if defined(USE_AVX512) && defined(SFNNwoPSQT)
+        // SFNNのEWM Transform()で一度 uint8_t 配列を作らず、accumulatorからfc_0へ直接流す。
+        // 現状は kHidden1Dims + 1 == 8 のSFNNで使う。
+        template <IndexType HalfDimensions, typename AccumulationType>
+        void PropagateSfnnFromAccumulator(const AccumulationType& accumulation,
+                                          Color sideToMove,
+                                          OutputType* output) const {
+                static_assert(kInputDimensions == HalfDimensions);
+                static_assert(kOutputDimensions == 8);
+                static_assert((HalfDimensions / 2) % 64 == 0);
+
+                constexpr IndexType kChunksPerPerspective = (HalfDimensions / 2) / 64;
+                constexpr IndexType kInput32PerVector = 16;
+                constexpr int shift =
+#if defined(USE_SSE2)
+                    7;
+#else
+                    6;
+#endif
+
+                const __m512i zero = _mm512_setzero_si512();
+                const __m512i one = _mm512_set1_epi16(127 * 2);
+                const Color perspectives[2] = { sideToMove, ~sideToMove };
+
+                const auto biasvec = reinterpret_cast<const __m256i*>(biases_);
+                __m256i acc = _mm256_load_si256(biasvec);
+                alignas(kCacheLineSize) std::uint32_t input32[kInput32PerVector];
+
+                for (IndexType p = 0; p < 2; ++p) {
+                        const auto perspective = perspectives[p];
+                        const auto acc0 = reinterpret_cast<const __m512i*>(&accumulation[perspective][0][0]);
+                        const auto acc1 = reinterpret_cast<const __m512i*>(&accumulation[perspective][0][HalfDimensions / 2]);
+
+                        for (IndexType chunk = 0; chunk < kChunksPerPerspective; ++chunk) {
+                                const __m512i sum0a =
+                                    _mm512_slli_epi16(_mm512_max_epi16(_mm512_min_epi16(acc0[chunk * 2 + 0], one), zero), shift);
+                                const __m512i sum0b =
+                                    _mm512_slli_epi16(_mm512_max_epi16(_mm512_min_epi16(acc0[chunk * 2 + 1], one), zero), shift);
+                                const __m512i sum1a = _mm512_min_epi16(acc1[chunk * 2 + 0], one);
+                                const __m512i sum1b = _mm512_min_epi16(acc1[chunk * 2 + 1], one);
+                                const __m512i pa = _mm512_mulhi_epi16(sum0a, sum1a);
+                                const __m512i pb = _mm512_mulhi_epi16(sum0b, sum1b);
+                                const __m512i transformed = _mm512_packus_epi16(pa, pb);
+
+                                unsigned nnz = _mm512_cmpneq_epi32_mask(transformed, zero);
+                                if (!nnz)
+                                        continue;
+
+                                _mm512_store_si512(reinterpret_cast<__m512i*>(input32), transformed);
+                                const IndexType base = (p * kChunksPerPerspective + chunk) * kInput32PerVector;
+
+                                for (IndexType half = 0; half < 2; ++half) {
+                                        const unsigned lookup = (nnz >> (half * 8)) & 0xff;
+                                        const auto& offsets = lookup_indices_explicit[lookup];
+                                        const IndexType offset_base = half * 8;
+                                        const IndexType count = POPCNT32(lookup);
+
+                                        for (IndexType j = 0; j < count; ++j) {
+                                                const IndexType bit = offset_base + offsets[j];
+                                                const IndexType i = base + bit;
+                                                const __m256i in = _mm256_set1_epi32(static_cast<int>(input32[bit]));
+                                                const auto col =
+                                                    reinterpret_cast<const __m256i*>(&weights_[i * kOutputDimensions * kChunkSize]);
+                                                Simd::m256_add_dpbusd_epi32(acc, in, col[0]);
+                                        }
+                                }
+                        }
+                }
+
+                _mm256_store_si256(reinterpret_cast<__m256i*>(output), acc);
+                for (IndexType out = kOutputDimensions; out < kPaddedOutputDimensions; ++out)
+                        output[out] = OutputType{};
+        }
+#endif
 
         // Forward propagation
         void Propagate(const InputType* input, OutputType* output) const {

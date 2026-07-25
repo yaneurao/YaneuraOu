@@ -18,6 +18,9 @@ namespace Eval::NNUE::Layers {
 // Affine transformation layer (Explicit Dimensions)
 template<IndexType InputDimensions, IndexType OutputDimensions>
 class AffineTransformExplicit {
+        template<IndexType, IndexType>
+        friend class AffineTransformExplicit;
+
    public:
         // Input/output type
         using InputType = std::uint8_t;
@@ -28,6 +31,10 @@ class AffineTransformExplicit {
         static constexpr IndexType kOutputDimensions      = OutputDimensions;
         static constexpr IndexType kPaddedInputDimensions = CeilToMultiple<IndexType>(kInputDimensions, kMaxSimdWidth);
         static constexpr IndexType kPaddedOutputDimensions = CeilToMultiple<IndexType>(kOutputDimensions, kMaxSimdWidth);
+        static constexpr bool kHasClippedReLUPackedWeights =
+                kInputDimensions == 64 && kOutputDimensions == 1;
+        static constexpr IndexType kClippedReLUPackedWeightDimensions =
+                kHasClippedReLUPackedWeights ? kPaddedInputDimensions : 1;
 
         using OutputBuffer = OutputType[kPaddedOutputDimensions];
 
@@ -64,6 +71,19 @@ class AffineTransformExplicit {
                         biases_[i] = read_little_endian<BiasType>(stream);
                 for (std::size_t i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
                         weights_[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
+                if constexpr (kHasClippedReLUPackedWeights) {
+                        constexpr IndexType kDwordCount = kPaddedInputDimensions / 4;
+                        constexpr IndexType kPerm[kDwordCount] = {
+                                0, 4, 8, 12, 1, 5, 9, 13,
+                                2, 6, 10, 14, 3, 7, 11, 15};
+                        for (IndexType lane = 0; lane < kDwordCount; ++lane) {
+                                const IndexType src_lane = kPerm[lane];
+                                for (IndexType b = 0; b < 4; ++b) {
+                                        weights_clipped_relu_packed_[src_lane * 4 + b] =
+                                                weights_[lane * 4 + b];
+                                }
+                        }
+                }
                 return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
         }
 
@@ -275,12 +295,72 @@ class AffineTransformExplicit {
 #endif
         }
 
+#if defined(USE_AVX512)
+        void PropagateClippedReLUPackedToOutput(
+            const std::uint32_t* input32,
+            const AffineTransformExplicit<kOutputDimensions, 1>& next_layer,
+            OutputType* output) const {
+                if constexpr (kOutputDimensions == 64) {
+                        constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+                        constexpr IndexType kNumRegs = kOutputDimensions / 16;
+
+                        const auto biasvec = reinterpret_cast<const __m512i*>(biases_);
+                        __m512i acc[kNumRegs];
+
+                        for (IndexType k = 0; k < kNumRegs; ++k)
+                                acc[k] = biasvec[k];
+
+                        for (IndexType i = 0; i < kNumChunks; ++i) {
+                                const __m512i in = _mm512_set1_epi32(static_cast<int>(input32[i]));
+                                const auto col = reinterpret_cast<const __m512i*>(
+                                        &weights_[i * kOutputDimensions * 4]);
+
+                                for (IndexType k = 0; k < kNumRegs; ++k)
+                                        Simd::m512_add_dpbusd_epi32(acc[k], in, col[k]);
+                        }
+
+                        const __m512i kZero = _mm512_setzero_si512();
+                        const __m512i words0 = _mm512_srai_epi16(
+                                _mm512_packs_epi32(acc[0], acc[1]), kWeightScaleBits);
+                        const __m512i words1 = _mm512_srai_epi16(
+                                _mm512_packs_epi32(acc[2], acc[3]), kWeightScaleBits);
+                        const __m512i clipped =
+                                _mm512_max_epi8(_mm512_packs_epi16(words0, words1), kZero);
+
+                        __m512i sum = _mm512_setzero_si512();
+                        const auto row0 =
+                                reinterpret_cast<const __m512i*>(&next_layer.weights_clipped_relu_packed_[0]);
+                        Simd::m512_add_dpbusd_epi32(sum, clipped, row0[0]);
+                        const __m256i sum_lo = _mm512_castsi512_si256(sum);
+                        const __m256i sum_hi = _mm512_extracti64x4_epi64(sum, 1);
+                        output[0] = Simd::m256_hadd(_mm256_add_epi32(sum_lo, sum_hi),
+                                                     next_layer.biases_[0]);
+                } else {
+                        static_assert(kOutputDimensions == 64,
+                                "PropagateClippedReLUPackedToOutput currently supports 64 hidden units.");
+                }
+        }
+
+        // Fused path for SFNN's tiny tail: Affine(14->64) -> ClippedReLU(64)
+        // -> Affine(64->1).  This avoids writing and re-reading the 64-byte
+        // activation buffer while preserving ClippedReLUExplicit's byte order.
+        void PropagateClippedReLUToOutput(
+            const InputType* input,
+            const AffineTransformExplicit<kOutputDimensions, 1>& next_layer,
+            OutputType* output) const {
+                PropagateClippedReLUPackedToOutput(
+                    reinterpret_cast<const std::uint32_t*>(input), next_layer, output);
+        }
+#endif
+
    private:
         using BiasType   = OutputType;
         using WeightType = std::int8_t;
 
         alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
         alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
+        alignas(kCacheLineSize) WeightType
+                weights_clipped_relu_packed_[kClippedReLUPackedWeightDimensions];
 };
 
 }  // namespace Eval::NNUE::Layers
