@@ -63,7 +63,7 @@ if "SFNNWOP" in arch_upper_for_validation:
     raise SystemExit(1)
 
 if "LS9" in arch_upper_for_validation.split('_'):
-    print("Error! : ls9 is no longer supported. Use no suffix, k3k3, k9k9, k29k29, or their long names.")
+    print("Error! : ls9 is no longer supported. Use no suffix, k3k3, k9k9, k21k21, k29k29, or their long names.")
     raise SystemExit(1)
 
 # 出力ファイル名
@@ -98,9 +98,9 @@ if len(arches) <= 3 :
 #     SFNN_halfka2_1024_7_64_hand64 のように、hand64を指定すると
 #     手番側/非手番側の手駒点を8段階ずつに分けた64 bucketを用いる。
 #     hand256 / hand1024も同様に、手番側/非手番側の手駒状態で256/1024 bucketを用いる。
-#     SFNN_halfka2_1024_7_64_k9k9 / k29k29 のように指定すると、
+#     SFNN_halfka2_1024_7_64_k9k9 / k21k21 / k29k29 のように指定すると、
 #     手番側/非手番側の玉位置でbucketを分ける。
-#     SFNN_halfka2_1024_7_64_hand64_k3k3 / hand64_k9k9 / hand64_k29k29 のように、
+#     SFNN_halfka2_1024_7_64_hand64_k3k3 / hand64_k9k9 / hand64_k21k21 / hand64_k29k29 のように、
 #     hand64と複合できる。
 SFNN = False
 layer_stack_name = ""
@@ -150,6 +150,10 @@ if arches[0].startswith("SFNN"):
         layer_stack_name = "K9K9"
         layer_stack_count = "81"
         layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "K21K21" or layer_stack_spec == "KING21_BY_KING21":
+        layer_stack_name = "K21K21"
+        layer_stack_count = str(21 * 21)
+        layer_stack_king_buckets = str(21 * 21)
     elif layer_stack_spec == "K29K29" or layer_stack_spec == "KING29_BY_KING29":
         layer_stack_name = "K29K29"
         layer_stack_count = str(29 * 29)
@@ -176,6 +180,11 @@ if arches[0].startswith("SFNN"):
         layer_stack_count = str(64 * 81)
         layer_stack_hand_buckets = "64"
         layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "HAND64_K21K21" or layer_stack_spec == "HAND64_KING21_BY_KING21":
+        layer_stack_name = "HAND64_K21K21"
+        layer_stack_count = str(64 * 21 * 21)
+        layer_stack_hand_buckets = "64"
+        layer_stack_king_buckets = str(21 * 21)
     elif layer_stack_spec == "HAND64_K29K29" or layer_stack_spec == "HAND64_KING29_BY_KING29":
         layer_stack_name = "HAND64_K29K29"
         layer_stack_count = str(64 * 29 * 29)
@@ -191,6 +200,11 @@ if arches[0].startswith("SFNN"):
         layer_stack_count = str(256 * 81)
         layer_stack_hand_buckets = "256"
         layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "HAND256_K21K21" or layer_stack_spec == "HAND256_KING21_BY_KING21":
+        layer_stack_name = "HAND256_K21K21"
+        layer_stack_count = str(256 * 21 * 21)
+        layer_stack_hand_buckets = "256"
+        layer_stack_king_buckets = str(21 * 21)
     elif layer_stack_spec == "HAND256_K29K29" or layer_stack_spec == "HAND256_KING29_BY_KING29":
         layer_stack_name = "HAND256_K29K29"
         layer_stack_count = str(256 * 29 * 29)
@@ -206,13 +220,18 @@ if arches[0].startswith("SFNN"):
         layer_stack_count = str(1024 * 81)
         layer_stack_hand_buckets = "1024"
         layer_stack_king_buckets = "81"
+    elif layer_stack_spec == "HAND1024_K21K21" or layer_stack_spec == "HAND1024_KING21_BY_KING21":
+        layer_stack_name = "HAND1024_K21K21"
+        layer_stack_count = str(1024 * 21 * 21)
+        layer_stack_hand_buckets = "1024"
+        layer_stack_king_buckets = str(21 * 21)
     elif layer_stack_spec == "HAND1024_K29K29" or layer_stack_spec == "HAND1024_KING29_BY_KING29":
         layer_stack_name = "HAND1024_K29K29"
         layer_stack_count = str(1024 * 29 * 29)
         layer_stack_hand_buckets = "1024"
         layer_stack_king_buckets = str(29 * 29)
     else:
-        print("Error! : SFNN layer stack must be k3k3, k9k9, k29k29, hand64/256/1024, or hand*_k3k3/k9k9/k29k29")
+        print("Error! : SFNN layer stack must be k3k3, k9k9, k21k21, k29k29, hand64/256/1024, or hand*_k3k3/k9k9/k21k21/k29k29")
         raise SystemExit(1)
 
     arches = [arches[1], arches[2], arches[3], arches[4], layer_stack_count]
