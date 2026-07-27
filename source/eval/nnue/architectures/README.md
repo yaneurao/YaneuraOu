@@ -3,7 +3,7 @@
 このディレクトリにはNNUE/SFNN評価関数のarchitecture headerを置く。
 `nnue_arch_gen.py`で生成されるSFNN headerは、LayerStackのbucket数を
 `LayerStacks`、手駒bucket数を`NNUE_SFNN_HAND_BUCKETS`、玉位置bucket数を
-`NNUE_SFNN_KING_BUCKETS`として出力する。
+`NNUE_SFNN_KING_BUCKETS`、進行度bucket数を`NNUE_SFNN_PROGRESS_BUCKETS`として出力する。
 
 学習器側も、ここに書かれている入力特徴量、network形状、bucket番号と完全に同じものを
 使う必要がある。どれか1つでもずれると、学習した`nn.bin`と探索時の評価関数が一致しない。
@@ -41,6 +41,8 @@ SFNN_<feature>_<FT>_<H1>_<H2>[_cC_sSxG][_<layer_stack>]
 SFNN_halfka2_1024_7_64_k3k3
 SFNN_halfka2_1024_7_64
 SFNN_halfka2_1024_7_64_hand64_k3k3
+SFNN_halfka2_1024_7_64_k3k3_progress8
+SFNN_halfka2_1024_7_64_hand256_k3k3_progress16
 SFNN_halfka2_1024_7_64_k21k21
 SFNN_halfka2_1024_7_64_k29k29
 SFNN_ka2_8192_7_64_c0_s1024x8_k3k3
@@ -106,10 +108,107 @@ sparse input features
 このshortcut項を含む。
 
 SFNNでは`LayerStacks`個の後段networkを`nn.bin`に持ち、局面ごとに1つを選んで使う。
-例えば`k3k3`なら9個、`k21k21`なら441個、`k29k29`なら841個、`hand64_k3k3`なら576個の
-後段networkを持つ。
+例えば`k3k3`なら9個、`k21k21`なら441個、`k29k29`なら841個、`hand64_k3k3`なら576個、
+`k3k3_progress8`なら72個の後段networkを持つ。
 FeatureTransformerはLayerStackごとに増えないが、`fc_0`以降の後段パラメータは
 基本的にLayerStack数に比例して増える。
+
+### LayerStack Bucket
+
+LayerStackのsuffixは、手駒bucket、玉位置bucket、進行度bucketを直交合成できる。
+
+```text
+SFNN_halfka2_1024_7_64_hand256_k3k3_progress16
+```
+
+この例では、手駒256通り、玉位置9通り、進行度16通りなので、
+`LayerStacks = 256 * 9 * 16 = 36864`となる。実行時のindexは次の順で合成する。
+
+```text
+idx = hand_bucket
+idx = idx * king_bucket_count + king_bucket
+idx = idx * progress_bucket_count + progress_bucket
+```
+
+名前上は`k3k3_hand256_progress16`のような順でも受け付けるが、生成されるindexの合成順は
+常に手駒、玉位置、進行度で固定する。学習器側もこの順序に合わせる必要がある。
+
+玉位置bucketは次の種類を使える。
+
+| suffix | bucket数 | 内容 |
+| --- | ---: | --- |
+| 省略 | 1 | 玉位置で分けない。 |
+| `k3k3` / `king3_by_king3` | 9 | 手番側玉と相手側玉の段を1-3、4-6、7-9段に丸める。 |
+| `k9k9` / `king9_by_king9` | 81 | 手番側玉と相手側玉の段を9通りずつ使う。 |
+| `k21k21` / `king21_by_king21` | 441 | 玉1つを21通りに分ける。1-3段、4-6段、7段、自陣8-9段の各マス。 |
+| `k29k29` / `king29_by_king29` | 841 | 玉1つを29通りに分ける。1-3段、4-6段、7-9段の各マス。 |
+
+手駒bucketは次の種類を使える。
+
+| suffix | bucket数 | 内容 |
+| --- | ---: | --- |
+| 省略 | 1 | 手駒で分けない。 |
+| `hand64` | 64 | 手番側/非手番側の手駒点を8段階ずつに丸める。 |
+| `hand256` | 256 | 歩香桂、銀金、角、飛の有無4bitを手番側/非手番側で見る。 |
+| `hand1024` | 1024 | 歩、香桂、銀金、角、飛の有無5bitを手番側/非手番側で見る。 |
+
+進行度bucketは`progress2`、`progress3`、`progress4`、`progress8`、`progress16`、
+`progress32`を指定できる。進行度は進行度用パラメータから`0..255`の整数として計算し、
+次の式でbucket化する。
+
+```text
+progress_bucket = min(progress * progress_bucket_count / 256, progress_bucket_count - 1)
+```
+
+進行度パラメータは別ファイルではなく、`nn.bin`の中に格納する。SFNNで`progressN`を使う場合、
+`nn.bin`のセクション順は次の通り。
+
+```text
+NNUE header
+FeatureTransformer section
+Progress section
+LayerStack network section 0
+LayerStack network section 1
+...
+```
+
+Progress sectionは、section hash、`int32 bias_q16`、`int32 weights_q16[81][1548]`の順に
+little-endianで保存する。`progress.bin`のような外部ファイルは使わない。
+
+### Progress 実装上の注意
+
+`progressN`は評価関数の一部なので、進行度計算用の型や読み書き処理は
+`source/eval/nnue/evaluate_nnue.h`と`source/eval/nnue/evaluate_nnue.cpp`に置く。
+`source/nnue_progress.h`や`source/nnue_progress.cpp`のような評価関数外の専用ファイルは
+作らない。
+
+また、従来のSFNN/NNUEのNPSを落とさないために、progress bucket用の処理は必ず次の条件で
+囲む。
+
+```cpp
+#if defined(SFNNwoPSQT) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+```
+
+特に`StateInfo`に進行度計算キャッシュを追加する場合、progressを使わないarchitectureで
+メンバーが増えてはいけない。`StateInfo`は`do_move()`時にコピーされるため、従来archで
+余分なフィールドが入るとコピー量やcache footprintが増えてNPSが下がる。
+
+そのため、`position.h`側のprogress cacheも次のようにprogress有効時だけ定義する。
+
+```cpp
+#if defined(SFNNwoPSQT) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+    Key nnue_progress_key;
+    int64_t nnue_progress_sum;
+    Square nnue_progress_sq_bk;
+    Square nnue_progress_sq_wk;
+    bool nnue_progress_valid;
+#endif
+```
+
+同じ理由で、Makefileでprogress専用の`.cpp`を追加する設計にはしない。progress未使用時は
+`NNUE_SFNN_PROGRESS_BUCKETS`が`1`になり、progress用の読み書き、hash変更、bucket計算、
+`NnueNetworks`内の追加パラメータ、`StateInfo`内のcacheがすべてコンパイル対象外になる
+必要がある。
 
 ## SFNN Common+Shard fc_0
 

@@ -11,6 +11,7 @@ NNUE_FILE_VERSION = 0x7AF32F16
 SFNN_HASH_VALUE = 0x3C203B32
 SFNN_FEATURE_TRANSFORMER_HASH = 0x5F134AB8
 SFNN_NETWORK_HASH = 0x6333718A
+PROGRESS_HASH_VALUE = 0x6F50524F
 LEB128_MAGIC = b"COMPRESSED_LEB128"
 
 SQ_NB = 81
@@ -69,6 +70,23 @@ def write_u32(stream, value: int) -> None:
 
 def write_i32_zeros(stream, count: int) -> None:
     stream.write(b"\x00\x00\x00\x00" * count)
+
+def write_i32_values(stream, count: int, rng: random.Random, mode: str) -> None:
+    if mode == "zero":
+        write_i32_zeros(stream, count)
+        return
+
+    chunk_values = 1 << 18
+    patterns = (b"\x00\x00\x00\x00", b"\x01\x00\x00\x00", b"\xff\xff\xff\xff")
+    table = bytes((0, 1, 2)[i % 3] for i in range(256))
+    while count:
+        n = min(count, chunk_values)
+        selector = rng.randbytes(n).translate(table)
+        out = bytearray(n * 4)
+        for i, s in enumerate(selector):
+            out[i * 4:i * 4 + 4] = patterns[s]
+        stream.write(out)
+        count -= n
 
 def write_header(stream, hash_value: int, architecture: str) -> None:
     encoded = architecture.encode("utf-8")
@@ -144,6 +162,61 @@ def write_sfnn_network(stream, transformed_dims: int, hidden1: int, hidden2: int
     write_affine_explicit(stream, hidden1 * 2, hidden2, rng, mode)
     write_affine_explicit(stream, hidden2, 1, rng, mode)
 
+def write_progress_parameters(stream, rng: random.Random, mode: str) -> None:
+    write_u32(stream, PROGRESS_HASH_VALUE)
+    write_i32_zeros(stream, 1)
+    write_i32_values(stream, SQ_NB * FE_END, rng, mode)
+
+def parse_sfnn_layer_stack_spec(layer_stack_spec: str):
+    if layer_stack_spec == "":
+        return 1, 1, 1, 1
+
+    normalized = layer_stack_spec
+    for long_name, short_name in {
+        "KING3_BY_KING3": "K3K3",
+        "KING9_BY_KING9": "K9K9",
+        "KING21_BY_KING21": "K21K21",
+        "KING29_BY_KING29": "K29K29",
+    }.items():
+        normalized = normalized.replace(long_name, short_name)
+
+    hand_buckets = 1
+    king_buckets = 1
+    progress_buckets = 1
+    hand_map = {
+        "HAND64": 64,
+        "HAND256": 256,
+        "HAND1024": 1024,
+    }
+    king_map = {
+        "K3K3": 9,
+        "K9K9": 81,
+        "K21K21": 21 * 21,
+        "K29K29": 29 * 29,
+    }
+    progress_values = {2, 3, 4, 8, 16, 32}
+
+    for token in [t for t in normalized.split("_") if t]:
+        if token in hand_map:
+            if hand_buckets != 1:
+                raise ValueError(f"duplicate SFNN hand bucket in {layer_stack_spec}")
+            hand_buckets = hand_map[token]
+        elif token in king_map:
+            if king_buckets != 1:
+                raise ValueError(f"duplicate SFNN king bucket in {layer_stack_spec}")
+            king_buckets = king_map[token]
+        elif token.startswith("PROGRESS"):
+            raw = token[len("PROGRESS"):]
+            if not raw.isdigit() or int(raw) not in progress_values:
+                raise ValueError(f"progress bucket must be progress2/3/4/8/16/32, got {token}")
+            if progress_buckets != 1:
+                raise ValueError(f"duplicate SFNN progress bucket in {layer_stack_spec}")
+            progress_buckets = int(raw)
+        else:
+            raise ValueError(f"unsupported SFNN layer stack token: {token}")
+
+    return hand_buckets * king_buckets * progress_buckets, hand_buckets, king_buckets, progress_buckets
+
 def write_normal_network(stream, transformed_dims: int, first_layer_multiplier: int, hidden1: int, hidden2: int, rng: random.Random, mode: str) -> None:
     write_u32(stream, normal_network_hash(transformed_dims, first_layer_multiplier, hidden1, hidden2))
     write_affine_explicit(stream, transformed_dims * first_layer_multiplier, hidden1, rng, mode)
@@ -165,46 +238,7 @@ def parse_arch(arch: str):
         if len(parts) > 5 and parts[5].startswith("C"):
             layer_stack_start = 7
         layer_stack_spec = "_".join(parts[layer_stack_start:]) if len(parts) > layer_stack_start else ""
-        layer_stack_count = {
-            "": 1,
-            "K3K3": 9,
-            "KING3_BY_KING3": 9,
-            "K9K9": 81,
-            "KING9_BY_KING9": 81,
-            "K21K21": 21 * 21,
-            "KING21_BY_KING21": 21 * 21,
-            "K29K29": 29 * 29,
-            "KING29_BY_KING29": 29 * 29,
-            "HAND64": 64,
-            "HAND256": 256,
-            "HAND1024": 1024,
-            "HAND64_K3K3": 64 * 9,
-            "HAND64_KING3_BY_KING3": 64 * 9,
-            "HAND64_K9K9": 64 * 81,
-            "HAND64_KING9_BY_KING9": 64 * 81,
-            "HAND64_K21K21": 64 * 21 * 21,
-            "HAND64_KING21_BY_KING21": 64 * 21 * 21,
-            "HAND64_K29K29": 64 * 29 * 29,
-            "HAND64_KING29_BY_KING29": 64 * 29 * 29,
-            "HAND256_K3K3": 256 * 9,
-            "HAND256_KING3_BY_KING3": 256 * 9,
-            "HAND256_K9K9": 256 * 81,
-            "HAND256_KING9_BY_KING9": 256 * 81,
-            "HAND256_K21K21": 256 * 21 * 21,
-            "HAND256_KING21_BY_KING21": 256 * 21 * 21,
-            "HAND256_K29K29": 256 * 29 * 29,
-            "HAND256_KING29_BY_KING29": 256 * 29 * 29,
-            "HAND1024_K3K3": 1024 * 9,
-            "HAND1024_KING3_BY_KING3": 1024 * 9,
-            "HAND1024_K9K9": 1024 * 81,
-            "HAND1024_KING9_BY_KING9": 1024 * 81,
-            "HAND1024_K21K21": 1024 * 21 * 21,
-            "HAND1024_KING21_BY_KING21": 1024 * 21 * 21,
-            "HAND1024_K29K29": 1024 * 29 * 29,
-            "HAND1024_KING29_BY_KING29": 1024 * 29 * 29,
-        }.get(layer_stack_spec)
-        if layer_stack_count is None:
-            raise ValueError(f"unsupported SFNN layer stack: {layer_stack_spec}")
+        layer_stack_count, hand_buckets, king_buckets, progress_buckets = parse_sfnn_layer_stack_spec(layer_stack_spec)
         return {
             "arch": arch,
             "sfnn": True,
@@ -213,6 +247,9 @@ def parse_arch(arch: str):
             "hidden1": int(parts[3]),
             "hidden2": int(parts[4]),
             "layer_stacks": layer_stack_count,
+            "hand_buckets": hand_buckets,
+            "king_buckets": king_buckets,
+            "progress_buckets": progress_buckets,
             "network_name": "SFNN-1536" if parts[1].lower() == "halfkahm2" and parts[2:5] == ["1536", "15", "32"] and layer_stack_count == 9 else arch,
         }
 
@@ -264,8 +301,13 @@ def main() -> None:
                 f"[{feature_dims}->{spec['transformed_dims']}x2],Network={spec['network_name']}"
                 f"{{LayerStack={spec['layer_stacks']}}}"
             )
-            write_header(stream, SFNN_HASH_VALUE, architecture_string)
+            hash_value = SFNN_HASH_VALUE
+            if spec["progress_buckets"] != 1:
+                hash_value = u32(hash_value ^ PROGRESS_HASH_VALUE)
+            write_header(stream, hash_value, architecture_string)
             write_feature_transformer(stream, feature_dims, spec["transformed_dims"], feature_hash, rng, args.dummy_mode, sfnn=True)
+            if spec["progress_buckets"] != 1:
+                write_progress_parameters(stream, rng, args.dummy_mode)
             for _ in range(spec["layer_stacks"]):
                 write_sfnn_network(stream, spec["transformed_dims"], spec["hidden1"], spec["hidden2"], rng, args.dummy_mode)
         else:

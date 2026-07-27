@@ -102,15 +102,86 @@ if len(arches) <= 3 :
 #     手番側/非手番側の玉位置でbucketを分ける。
 #     SFNN_halfka2_1024_7_64_hand64_k3k3 / hand64_k9k9 / hand64_k21k21 / hand64_k29k29 のように、
 #     hand64と複合できる。
+#     SFNN_halfka2_1024_7_64_k3k3_progress8 のようにprogress2/3/4/8/16/32とも複合できる。
 SFNN = False
 layer_stack_name = ""
 layer_stack_count = ""
 layer_stack_hand_buckets = "1"
 layer_stack_king_buckets = "1"
+layer_stack_progress_buckets = "1"
 sfnn_group_count = "1"
 sfnn_common_dims = "0"
 sfnn_shard_dims = "0"
 sfnn_common_shard = False
+
+def parse_sfnn_layer_stack_spec(layer_stack_spec):
+    if layer_stack_spec == "":
+        return "NONE", "1", "1", "1", "1"
+
+    normalized = layer_stack_spec
+    for long_name, short_name in {
+            "KING3_BY_KING3": "K3K3",
+            "KING9_BY_KING9": "K9K9",
+            "KING21_BY_KING21": "K21K21",
+            "KING29_BY_KING29": "K29K29",
+        }.items():
+        normalized = normalized.replace(long_name, short_name)
+
+    hand_buckets = 1
+    king_buckets = 1
+    progress_buckets = 1
+    hand_name = ""
+    king_name = ""
+    progress_name = ""
+
+    hand_map = {
+        "HAND64": 64,
+        "HAND256": 256,
+        "HAND1024": 1024,
+    }
+    king_map = {
+        "K3K3": 9,
+        "K9K9": 81,
+        "K21K21": 21 * 21,
+        "K29K29": 29 * 29,
+    }
+    progress_values = {2, 3, 4, 8, 16, 32}
+
+    for token in [t for t in normalized.split("_") if t]:
+        if token in hand_map:
+            if hand_buckets != 1:
+                print(f"Error! : duplicate SFNN hand bucket in {layer_stack_spec}.")
+                raise SystemExit(1)
+            hand_name = token
+            hand_buckets = hand_map[token]
+        elif token in king_map:
+            if king_buckets != 1:
+                print(f"Error! : duplicate SFNN king bucket in {layer_stack_spec}.")
+                raise SystemExit(1)
+            king_name = token
+            king_buckets = king_map[token]
+        elif token.startswith("PROGRESS"):
+            raw = token[len("PROGRESS"):]
+            if not raw.isdigit() or int(raw) not in progress_values:
+                print(f"Error! : progress bucket must be progress2/3/4/8/16/32 , got {token}.")
+                raise SystemExit(1)
+            if progress_buckets != 1:
+                print(f"Error! : duplicate SFNN progress bucket in {layer_stack_spec}.")
+                raise SystemExit(1)
+            progress_name = token
+            progress_buckets = int(raw)
+        else:
+            print(f"Error! : unknown SFNN layer stack token {token} in {layer_stack_spec}.")
+            print("Error! : SFNN layer stack tokens are hand64/256/1024, k3k3/k9k9/k21k21/k29k29, and progress2/3/4/8/16/32.")
+            raise SystemExit(1)
+
+    canonical = "_".join([name for name in [hand_name, king_name, progress_name] if name])
+    if canonical == "":
+        canonical = "NONE"
+
+    layer_count = hand_buckets * king_buckets * progress_buckets
+    return canonical, str(layer_count), str(hand_buckets), str(king_buckets), str(progress_buckets)
+
 if arches[0].startswith("SFNN"):
     SFNN = True
     if len(arches) < 5:
@@ -139,100 +210,8 @@ if arches[0].startswith("SFNN"):
         sfnn_common_shard = True
         layer_stack_start = 7
     layer_stack_spec = "_".join(arches[layer_stack_start:]) if len(arches) > layer_stack_start else ""
-    if layer_stack_spec == "":
-        layer_stack_name = "NONE"
-        layer_stack_count = "1"
-    elif layer_stack_spec == "K3K3" or layer_stack_spec == "KING3_BY_KING3":
-        layer_stack_name = "K3K3"
-        layer_stack_count = "9"
-        layer_stack_king_buckets = "9"
-    elif layer_stack_spec == "K9K9" or layer_stack_spec == "KING9_BY_KING9":
-        layer_stack_name = "K9K9"
-        layer_stack_count = "81"
-        layer_stack_king_buckets = "81"
-    elif layer_stack_spec == "K21K21" or layer_stack_spec == "KING21_BY_KING21":
-        layer_stack_name = "K21K21"
-        layer_stack_count = str(21 * 21)
-        layer_stack_king_buckets = str(21 * 21)
-    elif layer_stack_spec == "K29K29" or layer_stack_spec == "KING29_BY_KING29":
-        layer_stack_name = "K29K29"
-        layer_stack_count = str(29 * 29)
-        layer_stack_king_buckets = str(29 * 29)
-    elif layer_stack_spec == "HAND64":
-        layer_stack_name = "HAND64"
-        layer_stack_count = "64"
-        layer_stack_hand_buckets = "64"
-    elif layer_stack_spec == "HAND256":
-        layer_stack_name = "HAND256"
-        layer_stack_count = "256"
-        layer_stack_hand_buckets = "256"
-    elif layer_stack_spec == "HAND1024":
-        layer_stack_name = "HAND1024"
-        layer_stack_count = "1024"
-        layer_stack_hand_buckets = "1024"
-    elif layer_stack_spec == "HAND64_K3K3" or layer_stack_spec == "HAND64_KING3_BY_KING3":
-        layer_stack_name = "HAND64_K3K3"
-        layer_stack_count = str(64 * 9)
-        layer_stack_hand_buckets = "64"
-        layer_stack_king_buckets = "9"
-    elif layer_stack_spec == "HAND64_K9K9" or layer_stack_spec == "HAND64_KING9_BY_KING9":
-        layer_stack_name = "HAND64_K9K9"
-        layer_stack_count = str(64 * 81)
-        layer_stack_hand_buckets = "64"
-        layer_stack_king_buckets = "81"
-    elif layer_stack_spec == "HAND64_K21K21" or layer_stack_spec == "HAND64_KING21_BY_KING21":
-        layer_stack_name = "HAND64_K21K21"
-        layer_stack_count = str(64 * 21 * 21)
-        layer_stack_hand_buckets = "64"
-        layer_stack_king_buckets = str(21 * 21)
-    elif layer_stack_spec == "HAND64_K29K29" or layer_stack_spec == "HAND64_KING29_BY_KING29":
-        layer_stack_name = "HAND64_K29K29"
-        layer_stack_count = str(64 * 29 * 29)
-        layer_stack_hand_buckets = "64"
-        layer_stack_king_buckets = str(29 * 29)
-    elif layer_stack_spec == "HAND256_K3K3" or layer_stack_spec == "HAND256_KING3_BY_KING3":
-        layer_stack_name = "HAND256_K3K3"
-        layer_stack_count = str(256 * 9)
-        layer_stack_hand_buckets = "256"
-        layer_stack_king_buckets = "9"
-    elif layer_stack_spec == "HAND256_K9K9" or layer_stack_spec == "HAND256_KING9_BY_KING9":
-        layer_stack_name = "HAND256_K9K9"
-        layer_stack_count = str(256 * 81)
-        layer_stack_hand_buckets = "256"
-        layer_stack_king_buckets = "81"
-    elif layer_stack_spec == "HAND256_K21K21" or layer_stack_spec == "HAND256_KING21_BY_KING21":
-        layer_stack_name = "HAND256_K21K21"
-        layer_stack_count = str(256 * 21 * 21)
-        layer_stack_hand_buckets = "256"
-        layer_stack_king_buckets = str(21 * 21)
-    elif layer_stack_spec == "HAND256_K29K29" or layer_stack_spec == "HAND256_KING29_BY_KING29":
-        layer_stack_name = "HAND256_K29K29"
-        layer_stack_count = str(256 * 29 * 29)
-        layer_stack_hand_buckets = "256"
-        layer_stack_king_buckets = str(29 * 29)
-    elif layer_stack_spec == "HAND1024_K3K3" or layer_stack_spec == "HAND1024_KING3_BY_KING3":
-        layer_stack_name = "HAND1024_K3K3"
-        layer_stack_count = str(1024 * 9)
-        layer_stack_hand_buckets = "1024"
-        layer_stack_king_buckets = "9"
-    elif layer_stack_spec == "HAND1024_K9K9" or layer_stack_spec == "HAND1024_KING9_BY_KING9":
-        layer_stack_name = "HAND1024_K9K9"
-        layer_stack_count = str(1024 * 81)
-        layer_stack_hand_buckets = "1024"
-        layer_stack_king_buckets = "81"
-    elif layer_stack_spec == "HAND1024_K21K21" or layer_stack_spec == "HAND1024_KING21_BY_KING21":
-        layer_stack_name = "HAND1024_K21K21"
-        layer_stack_count = str(1024 * 21 * 21)
-        layer_stack_hand_buckets = "1024"
-        layer_stack_king_buckets = str(21 * 21)
-    elif layer_stack_spec == "HAND1024_K29K29" or layer_stack_spec == "HAND1024_KING29_BY_KING29":
-        layer_stack_name = "HAND1024_K29K29"
-        layer_stack_count = str(1024 * 29 * 29)
-        layer_stack_hand_buckets = "1024"
-        layer_stack_king_buckets = str(29 * 29)
-    else:
-        print("Error! : SFNN layer stack must be k3k3, k9k9, k21k21, k29k29, hand64/256/1024, or hand*_k3k3/k9k9/k21k21/k29k29")
-        raise SystemExit(1)
+    (layer_stack_name, layer_stack_count, layer_stack_hand_buckets,
+        layer_stack_king_buckets, layer_stack_progress_buckets) = parse_sfnn_layer_stack_spec(layer_stack_spec)
 
     arches = [arches[1], arches[2], arches[3], arches[4], layer_stack_count]
 
@@ -463,6 +442,7 @@ if SFNN:
 
         #define NNUE_SFNN_HAND_BUCKETS {layer_stack_hand_buckets}
         #define NNUE_SFNN_KING_BUCKETS {layer_stack_king_buckets}
+        #define NNUE_SFNN_PROGRESS_BUCKETS {layer_stack_progress_buckets}
 
         // Number of groups for the first affine layer of SFNN.
         // common+shard fc_0でのみ2以上になる。
