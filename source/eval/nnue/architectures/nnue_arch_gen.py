@@ -63,7 +63,7 @@ if "SFNNWOP" in arch_upper_for_validation:
     raise SystemExit(1)
 
 if "LS9" in arch_upper_for_validation.split('_'):
-    print("Error! : ls9 is no longer supported. Use no suffix, k3k3, k9k9, k21k21, k29k29, or their long names.")
+    print("Error! : ls9 is no longer supported. Use no suffix, k3k3, k9k9, k9k9z, k13k13z, k21k21, k29k29, or their long names.")
     raise SystemExit(1)
 
 # 出力ファイル名
@@ -98,9 +98,9 @@ if len(arches) <= 3 :
 #     SFNN_halfka2_1024_7_64_hand64 のように、hand64を指定すると
 #     手番側/非手番側の手駒点を8段階ずつに分けた64 bucketを用いる。
 #     hand256 / hand1024も同様に、手番側/非手番側の手駒状態で256/1024 bucketを用いる。
-#     SFNN_halfka2_1024_7_64_k9k9 / k21k21 / k29k29 のように指定すると、
+#     SFNN_halfka2_1024_7_64_k9k9 / k9k9z / k13k13z / k21k21 / k29k29 のように指定すると、
 #     手番側/非手番側の玉位置でbucketを分ける。
-#     SFNN_halfka2_1024_7_64_hand64_k3k3 / hand64_k9k9 / hand64_k21k21 / hand64_k29k29 のように、
+#     SFNN_halfka2_1024_7_64_hand64_k3k3 / hand64_k9k9 / hand64_k13k13z / hand64_k21k21 / hand64_k29k29 のように、
 #     hand64と複合できる。
 #     SFNN_halfka2_1024_7_64_k3k3_progress8 のようにprogress2/3/4/8/16/32とも複合できる。
 SFNN = False
@@ -108,6 +108,7 @@ layer_stack_name = ""
 layer_stack_count = ""
 layer_stack_hand_buckets = "1"
 layer_stack_king_buckets = "1"
+layer_stack_king_bucket_type = "0"
 layer_stack_progress_buckets = "1"
 sfnn_group_count = "1"
 sfnn_common_dims = "0"
@@ -122,6 +123,10 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
     for long_name, short_name in {
             "KING3_BY_KING3": "K3K3",
             "KING9_BY_KING9": "K9K9",
+            "KING9Z_BY_KING9Z": "K9K9Z",
+            "KING9ZONE_BY_KING9ZONE": "K9K9Z",
+            "KING13Z_BY_KING13Z": "K13K13Z",
+            "KING13ZONE_BY_KING13ZONE": "K13K13Z",
             "KING21_BY_KING21": "K21K21",
             "KING29_BY_KING29": "K29K29",
         }.items():
@@ -132,6 +137,7 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
     progress_buckets = 1
     hand_name = ""
     king_name = ""
+    king_type = 0
     progress_name = ""
 
     hand_map = {
@@ -140,10 +146,12 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
         "HAND1024": 1024,
     }
     king_map = {
-        "K3K3": 9,
-        "K9K9": 81,
-        "K21K21": 21 * 21,
-        "K29K29": 29 * 29,
+        "K3K3": (9, 1),
+        "K9K9": (81, 2),
+        "K21K21": (21 * 21, 3),
+        "K29K29": (29 * 29, 4),
+        "K9K9Z": (81, 5),
+        "K13K13Z": (13 * 13, 6),
     }
     progress_values = {2, 3, 4, 8, 16, 32}
 
@@ -159,7 +167,7 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
                 print(f"Error! : duplicate SFNN king bucket in {layer_stack_spec}.")
                 raise SystemExit(1)
             king_name = token
-            king_buckets = king_map[token]
+            king_buckets, king_type = king_map[token]
         elif token.startswith("PROGRESS"):
             raw = token[len("PROGRESS"):]
             if not raw.isdigit() or int(raw) not in progress_values:
@@ -172,7 +180,7 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
             progress_buckets = int(raw)
         else:
             print(f"Error! : unknown SFNN layer stack token {token} in {layer_stack_spec}.")
-            print("Error! : SFNN layer stack tokens are hand64/256/1024, k3k3/k9k9/k21k21/k29k29, and progress2/3/4/8/16/32.")
+            print("Error! : SFNN layer stack tokens are hand64/256/1024, k3k3/k9k9/k9k9z/k13k13z/k21k21/k29k29, and progress2/3/4/8/16/32.")
             raise SystemExit(1)
 
     canonical = "_".join([name for name in [hand_name, king_name, progress_name] if name])
@@ -180,7 +188,7 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
         canonical = "NONE"
 
     layer_count = hand_buckets * king_buckets * progress_buckets
-    return canonical, str(layer_count), str(hand_buckets), str(king_buckets), str(progress_buckets)
+    return canonical, str(layer_count), str(hand_buckets), str(king_buckets), str(king_type), str(progress_buckets)
 
 if arches[0].startswith("SFNN"):
     SFNN = True
@@ -211,7 +219,8 @@ if arches[0].startswith("SFNN"):
         layer_stack_start = 7
     layer_stack_spec = "_".join(arches[layer_stack_start:]) if len(arches) > layer_stack_start else ""
     (layer_stack_name, layer_stack_count, layer_stack_hand_buckets,
-        layer_stack_king_buckets, layer_stack_progress_buckets) = parse_sfnn_layer_stack_spec(layer_stack_spec)
+        layer_stack_king_buckets, layer_stack_king_bucket_type,
+        layer_stack_progress_buckets) = parse_sfnn_layer_stack_spec(layer_stack_spec)
 
     arches = [arches[1], arches[2], arches[3], arches[4], layer_stack_count]
 
@@ -442,6 +451,7 @@ if SFNN:
 
         #define NNUE_SFNN_HAND_BUCKETS {layer_stack_hand_buckets}
         #define NNUE_SFNN_KING_BUCKETS {layer_stack_king_buckets}
+        #define NNUE_SFNN_KING_BUCKET_TYPE {layer_stack_king_bucket_type}
         #define NNUE_SFNN_PROGRESS_BUCKETS {layer_stack_progress_buckets}
 
         // Number of groups for the first affine layer of SFNN.

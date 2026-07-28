@@ -175,6 +175,10 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec: str):
     for long_name, short_name in {
         "KING3_BY_KING3": "K3K3",
         "KING9_BY_KING9": "K9K9",
+        "KING9Z_BY_KING9Z": "K9K9Z",
+        "KING9ZONE_BY_KING9ZONE": "K9K9Z",
+        "KING13Z_BY_KING13Z": "K13K13Z",
+        "KING13ZONE_BY_KING13ZONE": "K13K13Z",
         "KING21_BY_KING21": "K21K21",
         "KING29_BY_KING29": "K29K29",
     }.items():
@@ -191,6 +195,8 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec: str):
     king_map = {
         "K3K3": 9,
         "K9K9": 81,
+        "K9K9Z": 81,
+        "K13K13Z": 13 * 13,
         "K21K21": 21 * 21,
         "K29K29": 29 * 29,
     }

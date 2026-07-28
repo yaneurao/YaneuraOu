@@ -391,9 +391,18 @@ namespace {
         || NNUE_SFNN_HAND_BUCKETS == 256 || NNUE_SFNN_HAND_BUCKETS == 1024,
         "unsupported NNUE_SFNN_HAND_BUCKETS");
     static_assert(NNUE_SFNN_KING_BUCKETS == 1 || NNUE_SFNN_KING_BUCKETS == 9
-        || NNUE_SFNN_KING_BUCKETS == 81 || NNUE_SFNN_KING_BUCKETS == 441
-        || NNUE_SFNN_KING_BUCKETS == 841,
+        || NNUE_SFNN_KING_BUCKETS == 81 || NNUE_SFNN_KING_BUCKETS == 169
+        || NNUE_SFNN_KING_BUCKETS == 441 || NNUE_SFNN_KING_BUCKETS == 841,
         "unsupported NNUE_SFNN_KING_BUCKETS");
+    static_assert(
+        (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_NONE && NNUE_SFNN_KING_BUCKETS == 1)
+        || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K3K3 && NNUE_SFNN_KING_BUCKETS == 9)
+        || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K9K9 && NNUE_SFNN_KING_BUCKETS == 81)
+        || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K21K21 && NNUE_SFNN_KING_BUCKETS == 441)
+        || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K29K29 && NNUE_SFNN_KING_BUCKETS == 841)
+        || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K9K9Z && NNUE_SFNN_KING_BUCKETS == 81)
+        || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K13K13Z && NNUE_SFNN_KING_BUCKETS == 169),
+        "NNUE_SFNN_KING_BUCKET_TYPE does not match NNUE_SFNN_KING_BUCKETS");
     static_assert(NNUE_SFNN_PROGRESS_BUCKETS == 1 || NNUE_SFNN_PROGRESS_BUCKETS == 2
         || NNUE_SFNN_PROGRESS_BUCKETS == 3 || NNUE_SFNN_PROGRESS_BUCKETS == 4
         || NNUE_SFNN_PROGRESS_BUCKETS == 8 || NNUE_SFNN_PROGRESS_BUCKETS == 16
@@ -428,6 +437,54 @@ namespace {
         if (e_rank < 0) e_rank = 0;
         if (e_rank > 8) e_rank = 8;
         return f_rank * 9 + e_rank;
+    }
+
+    static int file3_bucket(int file) {
+        if (file < 0) file = 0;
+        if (file > 8) file = 8;
+        return file / 3;
+    }
+
+    static int king9_zone_single_bucket(Square sq) {
+        int rank = int(rank_of(sq));
+        int file = int(file_of(sq));
+        if (rank < 0) rank = 0;
+        if (rank > 8) rank = 8;
+
+        if (rank < 3) return 0;
+        if (rank < 6) return 1;
+        if (rank == 6) return 2;
+        return 3 + (rank - 7) * 3 + file3_bucket(file);
+    }
+
+    // レイヤースタックの選択。玉1つを9 zoneに分け、双方の玉で81通りに分岐させる。
+    static int king9_zone_by_king9_zone_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        const auto f_king = pos.square<KING>(stm);
+        const auto e_king = pos.square<KING>(~stm);
+        const auto f_sq = stm == BLACK ? f_king : Inv(f_king);
+        const auto e_sq = stm == BLACK ? Inv(e_king) : e_king;
+        return king9_zone_single_bucket(f_sq) * 9 + king9_zone_single_bucket(e_sq);
+    }
+
+    static int king13_zone_single_bucket(Square sq) {
+        int rank = int(rank_of(sq));
+        int file = int(file_of(sq));
+        if (rank < 0) rank = 0;
+        if (rank > 8) rank = 8;
+
+        if (rank < 7) return rank;
+        return 7 + (rank - 7) * 3 + file3_bucket(file);
+    }
+
+    // レイヤースタックの選択。玉1つを13 zoneに分け、双方の玉で169通りに分岐させる。
+    static int king13_zone_by_king13_zone_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        const auto f_king = pos.square<KING>(stm);
+        const auto e_king = pos.square<KING>(~stm);
+        const auto f_sq = stm == BLACK ? f_king : Inv(f_king);
+        const auto e_sq = stm == BLACK ? Inv(e_king) : e_king;
+        return king13_zone_single_bucket(f_sq) * 13 + king13_zone_single_bucket(e_sq);
     }
 
     static int king21_single_bucket(Square sq) {
@@ -546,7 +603,7 @@ namespace {
     }
 
     static int stack_index_for_nnue(const Position& pos) {
-#if NNUE_SFNN_HAND_BUCKETS == 1 && NNUE_SFNN_KING_BUCKETS == 9 && NNUE_SFNN_PROGRESS_BUCKETS == 1
+#if NNUE_SFNN_HAND_BUCKETS == 1 && NNUE_SFNN_KING_BUCKETS == 9 && NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K3K3 && NNUE_SFNN_PROGRESS_BUCKETS == 1
         return king3_by_king3_bucket(pos);
 #else
         int idx = 0;
@@ -559,13 +616,17 @@ namespace {
         idx = hand1024_bucket(pos);
 #endif
 
-#if NNUE_SFNN_KING_BUCKETS == 9
+#if NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K3K3
         idx = idx * 9 + king3_by_king3_bucket(pos);
-#elif NNUE_SFNN_KING_BUCKETS == 81
+#elif NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K9K9
         idx = idx * 81 + king9_by_king9_bucket(pos);
-#elif NNUE_SFNN_KING_BUCKETS == 441
+#elif NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K9K9Z
+        idx = idx * 81 + king9_zone_by_king9_zone_bucket(pos);
+#elif NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K13K13Z
+        idx = idx * 169 + king13_zone_by_king13_zone_bucket(pos);
+#elif NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K21K21
         idx = idx * 441 + king21_by_king21_bucket(pos);
-#elif NNUE_SFNN_KING_BUCKETS == 841
+#elif NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K29K29
         idx = idx * 841 + king29_by_king29_bucket(pos);
 #endif
 

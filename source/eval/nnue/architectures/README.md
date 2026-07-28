@@ -43,6 +43,8 @@ SFNN_halfka2_1024_7_64
 SFNN_halfka2_1024_7_64_hand64_k3k3
 SFNN_halfka2_1024_7_64_k3k3_progress8
 SFNN_halfka2_1024_7_64_hand256_k3k3_progress16
+SFNN_halfka2_1024_7_64_k9k9z
+SFNN_halfka2_1024_7_64_k13k13z
 SFNN_halfka2_1024_7_64_k21k21
 SFNN_halfka2_1024_7_64_k29k29
 SFNN_ka2_8192_7_64_c0_s1024x8_k3k3
@@ -140,6 +142,8 @@ idx = idx * progress_bucket_count + progress_bucket
 | 省略 | 1 | 玉位置で分けない。 |
 | `k3k3` / `king3_by_king3` | 9 | 手番側玉と相手側玉の段を1-3、4-6、7-9段に丸める。 |
 | `k9k9` / `king9_by_king9` | 81 | 手番側玉と相手側玉の段を9通りずつ使う。 |
+| `k9k9z` | 81 | 玉1つを9 zoneに分ける。1-3段、4-6段、7段、8段の筋3分割、9段の筋3分割。 |
+| `k13k13z` | 169 | 玉1つを13 zoneに分ける。1-7段は段ごと、8段と9段は筋3分割。 |
 | `k21k21` / `king21_by_king21` | 441 | 玉1つを21通りに分ける。1-3段、4-6段、7段、自陣8-9段の各マス。 |
 | `k29k29` / `king29_by_king29` | 841 | 玉1つを29通りに分ける。1-3段、4-6段、7-9段の各マス。 |
 
@@ -363,6 +367,8 @@ suffixを付けない場合は、LayerStackを分岐させず、1個の後段net
 SFNN_halfka2_1024_7_64
 SFNN_halfka2_1024_7_64_k3k3
 SFNN_halfka2_1024_7_64_k9k9
+SFNN_halfka2_1024_7_64_k9k9z
+SFNN_halfka2_1024_7_64_k13k13z
 SFNN_halfka2_1024_7_64_k21k21
 SFNN_halfka2_1024_7_64_k29k29
 SFNN_halfka2_1024_7_64_hand64
@@ -370,6 +376,8 @@ SFNN_halfka2_1024_7_64_hand256
 SFNN_halfka2_1024_7_64_hand1024
 SFNN_halfka2_1024_7_64_hand64_k3k3
 SFNN_halfka2_1024_7_64_hand256_k9k9
+SFNN_halfka2_1024_7_64_hand256_k9k9z
+SFNN_halfka2_1024_7_64_hand64_k13k13z
 SFNN_halfka2_1024_7_64_hand64_k21k21
 SFNN_halfka2_1024_7_64_hand64_k29k29
 ```
@@ -413,6 +421,65 @@ king_bucket = f_rank * 9 + e_rank; // 0..80
 
 `k9k9`は`k3k3`より細かい局面分類になるが、LayerStack数が9倍になる。
 教師密度、ファイルサイズ、メモリ使用量とのトレードオフを確認すること。
+
+### k9k9z
+
+`k9k9z`は、`k9k9`と同じく合計`9 * 9 = 81` bucketだが、玉1つの9分類の意味が違う。
+末尾の`z`はzone分類を表し、単純な段分類ではなく、自陣深くの段だけ筋方向を3分割する。
+
+玉1つのbucketは、玉側から見た正規化後の座標で次のように決める。
+
+```text
+1段目から3段目: 0
+4段目から6段目: 1
+7段目          : 2
+8段目 左/中/右: 3, 4, 5
+9段目 左/中/右: 6, 7, 8
+```
+
+実装上は、8段目と9段目だけ`file / 3`で左・中・右に分ける。
+
+```cpp
+if (rank < 3) single = 0;
+else if (rank < 6) single = 1;
+else if (rank == 6) single = 2;
+else single = 3 + (rank - 7) * 3 + file / 3; // 3..8
+
+king_bucket = stm_single * 9 + non_stm_single; // 0..80
+```
+
+`k9k9`より終盤で重要になりやすい自陣8-9段の横位置を見たいが、bucket数を増やしたくない
+場合に使う。
+
+### k13k13z
+
+`k13k13z`は、玉1つを13 zoneに分ける。手番側玉と非手番側玉の組み合わせなので、
+合計は`13 * 13 = 169` bucket。
+
+玉1つのbucketは、玉側から見た正規化後の座標で次のように決める。
+
+```text
+1段目: 0
+2段目: 1
+3段目: 2
+4段目: 3
+5段目: 4
+6段目: 5
+7段目: 6
+8段目 左/中/右: 7, 8, 9
+9段目 左/中/右: 10, 11, 12
+```
+
+実装上は、1-7段目は段だけを使い、8段目と9段目だけ`file / 3`で左・中・右に分ける。
+
+```cpp
+if (rank < 7) single = rank;                 // 0..6
+else single = 7 + (rank - 7) * 3 + file / 3; // 7..12
+
+king_bucket = stm_single * 13 + non_stm_single; // 0..168
+```
+
+`k9k9`より細かく、`k21k21`よりLayerStack数を抑えたい場合の中間案として使う。
 
 ### k21k21
 
@@ -555,14 +622,20 @@ final_bucket = hand_bucket * king_bucket_count + king_bucket;
 ```text
 hand64_k3k3     : 64 * 9     = 576 buckets
 hand64_k9k9     : 64 * 81    = 5184 buckets
+hand64_k9k9z    : 64 * 81    = 5184 buckets
+hand64_k13k13z  : 64 * 169   = 10816 buckets
 hand64_k21k21   : 64 * 441   = 28224 buckets
 hand64_k29k29   : 64 * 841   = 53824 buckets
 hand256_k3k3    : 256 * 9    = 2304 buckets
 hand256_k9k9    : 256 * 81   = 20736 buckets
+hand256_k9k9z   : 256 * 81   = 20736 buckets
+hand256_k13k13z : 256 * 169  = 43264 buckets
 hand256_k21k21  : 256 * 441  = 112896 buckets
 hand256_k29k29  : 256 * 841  = 215296 buckets
 hand1024_k3k3   : 1024 * 9   = 9216 buckets
 hand1024_k9k9   : 1024 * 81  = 82944 buckets
+hand1024_k9k9z  : 1024 * 81  = 82944 buckets
+hand1024_k13k13z: 1024 * 169 = 173056 buckets
 hand1024_k21k21 : 1024 * 441 = 451584 buckets
 hand1024_k29k29 : 1024 * 841 = 861184 buckets
 ```
