@@ -387,9 +387,19 @@ namespace {
     }
 
 #if defined(SFNNwoPSQT)
-    static_assert(NNUE_SFNN_HAND_BUCKETS == 1 || NNUE_SFNN_HAND_BUCKETS == 64
+    static_assert(NNUE_SFNN_HAND_BUCKETS == 1 || NNUE_SFNN_HAND_BUCKETS == 4
+        || NNUE_SFNN_HAND_BUCKETS == 16 || NNUE_SFNN_HAND_BUCKETS == 64
         || NNUE_SFNN_HAND_BUCKETS == 256 || NNUE_SFNN_HAND_BUCKETS == 1024,
         "unsupported NNUE_SFNN_HAND_BUCKETS");
+    static_assert(
+        (NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_NONE && NNUE_SFNN_HAND_BUCKETS == 1)
+        || (NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND4 && NNUE_SFNN_HAND_BUCKETS == 4)
+        || (NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND16 && NNUE_SFNN_HAND_BUCKETS == 16)
+        || (NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND64 && NNUE_SFNN_HAND_BUCKETS == 64)
+        || (NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND64Z && NNUE_SFNN_HAND_BUCKETS == 64)
+        || (NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND256 && NNUE_SFNN_HAND_BUCKETS == 256)
+        || (NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND1024 && NNUE_SFNN_HAND_BUCKETS == 1024),
+        "NNUE_SFNN_HAND_BUCKET_TYPE does not match NNUE_SFNN_HAND_BUCKETS");
     static_assert(NNUE_SFNN_KING_BUCKETS == 1 || NNUE_SFNN_KING_BUCKETS == 9
         || NNUE_SFNN_KING_BUCKETS == 81 || NNUE_SFNN_KING_BUCKETS == 169
         || NNUE_SFNN_KING_BUCKETS == 441 || NNUE_SFNN_KING_BUCKETS == 841,
@@ -534,7 +544,31 @@ namespace {
         return king29_single_bucket(f_sq) * 29 + king29_single_bucket(e_sq);
     }
 
+    static int hand4_single_bucket(Hand hand) {
+        return hand_count(hand, BISHOP) > 0 ? 1 : 0;
+    }
+
+    static int hand16_single_bucket(Hand hand) {
+        int bucket = 0;
+        if (hand_count(hand, PAWN) > 0)
+            bucket |= 1;
+        if (hand_count(hand, BISHOP) > 0)
+            bucket |= 2;
+        return bucket;
+    }
+
     static int hand64_single_bucket(Hand hand) {
+        int bucket = 0;
+        if (hand_count(hand, PAWN) + hand_count(hand, LANCE) + hand_count(hand, KNIGHT) > 0)
+            bucket |= 1;
+        if (hand_count(hand, GOLD) + hand_count(hand, SILVER) + hand_count(hand, ROOK) > 0)
+            bucket |= 2;
+        if (hand_count(hand, BISHOP) > 0)
+            bucket |= 4;
+        return bucket;
+    }
+
+    static int hand64z_single_bucket(Hand hand) {
         const int score =
               hand_count(hand, PAWN)
             + (hand_count(hand, LANCE) + hand_count(hand, KNIGHT)) * 2
@@ -575,11 +609,30 @@ namespace {
         return bucket;
     }
 
-    // 手番側/非手番側の手駒点を8段階ずつに分け、64通りに分岐させる。
+    static int hand4_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        return hand4_single_bucket(pos.hand_of(stm)) * 2
+            + hand4_single_bucket(pos.hand_of(~stm));
+    }
+
+    static int hand16_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        return hand16_single_bucket(pos.hand_of(stm)) * 4
+            + hand16_single_bucket(pos.hand_of(~stm));
+    }
+
+    // 手番側/非手番側の手駒有無を3bitずつ見て、64通りに分岐させる。
     static int hand64_bucket(const Position& pos) {
         const auto stm = pos.side_to_move();
         return hand64_single_bucket(pos.hand_of(stm)) * 8
             + hand64_single_bucket(pos.hand_of(~stm));
+    }
+
+    // 手番側/非手番側の手駒点zoneを8段階ずつに分け、64通りに分岐させる。
+    static int hand64z_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        return hand64z_single_bucket(pos.hand_of(stm)) * 8
+            + hand64z_single_bucket(pos.hand_of(~stm));
     }
 
     static int hand256_bucket(const Position& pos) {
@@ -608,11 +661,17 @@ namespace {
 #else
         int idx = 0;
 
-#if NNUE_SFNN_HAND_BUCKETS == 64
+#if NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND4
+        idx = hand4_bucket(pos);
+#elif NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND16
+        idx = hand16_bucket(pos);
+#elif NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND64
         idx = hand64_bucket(pos);
-#elif NNUE_SFNN_HAND_BUCKETS == 256
+#elif NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND64Z
+        idx = hand64z_bucket(pos);
+#elif NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND256
         idx = hand256_bucket(pos);
-#elif NNUE_SFNN_HAND_BUCKETS == 1024
+#elif NNUE_SFNN_HAND_BUCKET_TYPE == NNUE_SFNN_HAND_BUCKET_TYPE_HAND1024
         idx = hand1024_bucket(pos);
 #endif
 

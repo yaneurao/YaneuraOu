@@ -188,7 +188,10 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec: str):
     king_buckets = 1
     progress_buckets = 1
     hand_map = {
+        "HAND4": 4,
+        "HAND16": 16,
         "HAND64": 64,
+        "HAND64Z": 64,
         "HAND256": 256,
         "HAND1024": 1024,
     }

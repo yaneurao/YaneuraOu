@@ -2,8 +2,9 @@
 
 このディレクトリにはNNUE/SFNN評価関数のarchitecture headerを置く。
 `nnue_arch_gen.py`で生成されるSFNN headerは、LayerStackのbucket数を
-`LayerStacks`、手駒bucket数を`NNUE_SFNN_HAND_BUCKETS`、玉位置bucket数を
-`NNUE_SFNN_KING_BUCKETS`、進行度bucket数を`NNUE_SFNN_PROGRESS_BUCKETS`として出力する。
+`LayerStacks`、手駒bucket数を`NNUE_SFNN_HAND_BUCKETS`、手駒bucket種別を
+`NNUE_SFNN_HAND_BUCKET_TYPE`、玉位置bucket数を`NNUE_SFNN_KING_BUCKETS`、
+進行度bucket数を`NNUE_SFNN_PROGRESS_BUCKETS`として出力する。
 
 学習器側も、ここに書かれている入力特徴量、network形状、bucket番号と完全に同じものを
 使う必要がある。どれか1つでもずれると、学習した`nn.bin`と探索時の評価関数が一致しない。
@@ -40,7 +41,10 @@ SFNN_<feature>_<FT>_<H1>_<H2>[_cC_sSxG][_<layer_stack>]
 ```text
 SFNN_halfka2_1024_7_64_k3k3
 SFNN_halfka2_1024_7_64
+SFNN_halfka2_1024_7_64_hand4_k13k13z
+SFNN_halfka2_1024_7_64_hand16_k13k13z
 SFNN_halfka2_1024_7_64_hand64_k3k3
+SFNN_halfka2_1024_7_64_hand64z_k3k3
 SFNN_halfka2_1024_7_64_k3k3_progress8
 SFNN_halfka2_1024_7_64_hand256_k3k3_progress16
 SFNN_halfka2_1024_7_64_k9k9z
@@ -152,7 +156,10 @@ idx = idx * progress_bucket_count + progress_bucket
 | suffix | bucket数 | 内容 |
 | --- | ---: | --- |
 | 省略 | 1 | 手駒で分けない。 |
-| `hand64` | 64 | 手番側/非手番側の手駒点を8段階ずつに丸める。 |
+| `hand4` | 4 | 角を1枚以上持っているかを手番側/非手番側で見る。 |
+| `hand16` | 16 | 歩と角を1枚以上持っているかを手番側/非手番側で見る。 |
+| `hand64` | 64 | 歩香桂、金銀飛、角の有無3bitを手番側/非手番側で見る。 |
+| `hand64z` | 64 | 手番側/非手番側の手駒点zoneを8段階ずつに丸める。 |
 | `hand256` | 256 | 歩香桂、銀金、角、飛の有無4bitを手番側/非手番側で見る。 |
 | `hand1024` | 1024 | 歩、香桂、銀金、角、飛の有無5bitを手番側/非手番側で見る。 |
 
@@ -371,20 +378,26 @@ SFNN_halfka2_1024_7_64_k9k9z
 SFNN_halfka2_1024_7_64_k13k13z
 SFNN_halfka2_1024_7_64_k21k21
 SFNN_halfka2_1024_7_64_k29k29
+SFNN_halfka2_1024_7_64_hand4
+SFNN_halfka2_1024_7_64_hand16
 SFNN_halfka2_1024_7_64_hand64
+SFNN_halfka2_1024_7_64_hand64z
 SFNN_halfka2_1024_7_64_hand256
 SFNN_halfka2_1024_7_64_hand1024
+SFNN_halfka2_1024_7_64_hand4_k13k13z
+SFNN_halfka2_1024_7_64_hand16_k13k13z
 SFNN_halfka2_1024_7_64_hand64_k3k3
+SFNN_halfka2_1024_7_64_hand64z_k3k3
 SFNN_halfka2_1024_7_64_hand256_k9k9
 SFNN_halfka2_1024_7_64_hand256_k9k9z
-SFNN_halfka2_1024_7_64_hand64_k13k13z
-SFNN_halfka2_1024_7_64_hand64_k21k21
-SFNN_halfka2_1024_7_64_hand64_k29k29
+SFNN_halfka2_1024_7_64_hand64z_k13k13z
+SFNN_halfka2_1024_7_64_hand64z_k21k21
+SFNN_halfka2_1024_7_64_hand64z_k29k29
 ```
 
 `king3_by_king3`は`k3k3`、`king9_by_king9`は`k9k9`、
 `king21_by_king21`は`k21k21`、`king29_by_king29`は`k29k29`の別名として使える。
-同様に、`hand64_king3_by_king3`なども対応する。
+同様に、`hand64_king3_by_king3`や`hand64z_king3_by_king3`なども対応する。
 
 ## King Buckets
 
@@ -540,9 +553,55 @@ king_bucket = stm_single * 29 + non_stm_single; // 0..840
 
 手駒bucketは、手番側の手駒bucketを上位側、非手番側の手駒bucketを下位側に置く。
 
+### hand4
+
+`hand4`は、角を1枚以上手駒に持っているかだけを見る。
+片側2通り、合計は`2 * 2 = 4` bucket。
+
+```cpp
+single = bishop_count > 0 ? 1 : 0;
+hand_bucket = stm_single * 2 + non_stm_single; // 0..3
+```
+
+角持ちは局面の性質を大きく変える一方、bucket数は非常に少ない。
+`k13k13z`などの玉位置bucketと組み合わせてもLayerStack数を抑えたい場合に使う。
+
+### hand16
+
+`hand16`は、歩と角を1枚以上手駒に持っているかを2bitで表す。
+片側4通り、合計は`4 * 4 = 16` bucket。
+
+```cpp
+single = 0;
+if (pawn_count > 0)   single |= 1;
+if (bishop_count > 0) single |= 2;
+
+hand_bucket = stm_single * 4 + non_stm_single; // 0..15
+```
+
+`hand4`より少し細かく、歩持ちによる攻防の自由度も見たい場合に使う。
+`hand64/64z/256/1024`よりはかなり軽い。
+
 ### hand64
 
-`hand64`は、手駒を点数化して片側8段階に分ける。
+`hand64`は、手駒の種類グループの有無を3bitで表す。
+片側8通り、合計は`8 * 8 = 64` bucket。
+
+```cpp
+single = 0;
+if (pawn_count + lance_count + knight_count > 0) single |= 1;
+if (gold_count + silver_count + rook_count > 0)  single |= 2;
+if (bishop_count > 0)                            single |= 4;
+
+hand_bucket = stm_single * 8 + non_stm_single; // 0..63
+```
+
+`hand64`は、角持ちを独立に扱いながら、細かすぎる手駒分類を避けたい場合に使う。
+同じ64 bucketでも、駒点zoneで分ける`hand64z`とは互換性がない。
+
+### hand64z
+
+`hand64z`は、手駒を点数化して片側8段階のzoneに分ける。
 合計は`8 * 8 = 64` bucket。
 
 ```cpp
@@ -569,7 +628,7 @@ single 6: score 21..24
 single 7: score 25以上
 ```
 
-`hand64`は手駒量による粗い進行度分類である。手駒の種類を細かく区別しないので、
+`hand64z`は手駒量による粗い進行度分類である。手駒の種類を細かく区別しないので、
 bucket数を抑えながら序盤/中盤/終盤の違いを後段に渡したい場合に使う。
 
 ### hand256
@@ -620,12 +679,26 @@ final_bucket = hand_bucket * king_bucket_count + king_bucket;
 例:
 
 ```text
+hand4_k3k3      : 4 * 9      = 36 buckets
+hand4_k9k9      : 4 * 81     = 324 buckets
+hand4_k9k9z     : 4 * 81     = 324 buckets
+hand4_k13k13z   : 4 * 169    = 676 buckets
+hand16_k3k3     : 16 * 9     = 144 buckets
+hand16_k9k9     : 16 * 81    = 1296 buckets
+hand16_k9k9z    : 16 * 81    = 1296 buckets
+hand16_k13k13z  : 16 * 169   = 2704 buckets
 hand64_k3k3     : 64 * 9     = 576 buckets
 hand64_k9k9     : 64 * 81    = 5184 buckets
 hand64_k9k9z    : 64 * 81    = 5184 buckets
 hand64_k13k13z  : 64 * 169   = 10816 buckets
 hand64_k21k21   : 64 * 441   = 28224 buckets
 hand64_k29k29   : 64 * 841   = 53824 buckets
+hand64z_k3k3    : 64 * 9     = 576 buckets
+hand64z_k9k9    : 64 * 81    = 5184 buckets
+hand64z_k9k9z   : 64 * 81    = 5184 buckets
+hand64z_k13k13z : 64 * 169   = 10816 buckets
+hand64z_k21k21  : 64 * 441   = 28224 buckets
+hand64z_k29k29  : 64 * 841   = 53824 buckets
 hand256_k3k3    : 256 * 9    = 2304 buckets
 hand256_k9k9    : 256 * 81   = 20736 buckets
 hand256_k9k9z   : 256 * 81   = 20736 buckets
