@@ -783,17 +783,17 @@ namespace MakeBook2025
 							sync_cout << "info string Error! : invalid ybb moves area : " << readbook_path << sync_endl;
 							return Tools::ResultCode::FileReadError;
 						}
-						u16 depth = 0;
 						if (ybb_flags & YBB_FLAG_MOVE_DEPTH)
 						{
-							if (!read_u16_le(moves_reader, depth))
+							// depthフィールドは読み飛ばすが、入力値は後退解析に使用しない。
+							u16 ignored_depth;
+							if (!read_u16_le(moves_reader, ignored_depth))
 							{
 								if (!fast)
 									sfen_writer.Close();
 								sync_cout << "info string Error! : invalid ybb moves area : " << readbook_path << sync_endl;
 								return Tools::ResultCode::FileReadError;
 							}
-							depth = std::min(depth, BOOK_DEPTH_MAX);
 						}
 						Move16 move16 = Move16(move16_value);
 						auto value = (s16)std::clamp((int)(s16)eval_value, BOOK_VALUE_MIN, BOOK_VALUE_MAX);
@@ -801,7 +801,8 @@ namespace MakeBook2025
 						if (book_node.color == WHITE)
 							move16 = flip_move(move16);
 
-						book_node.moves.emplace_back(BookMove(move16, value, depth));
+						// 入力側の指し手はleaf候補なので、入力depthを引き継がず0として後退解析する。
+						book_node.moves.emplace_back(BookMove(move16, value, 0));
 					}
 				}
 
@@ -958,7 +959,6 @@ namespace MakeBook2025
 				auto move_str   = scanner.get_text();
 				auto ponder_str = scanner.get_text(); // 使わないがskipはしないといけない。
 				auto value      = (s16)std::clamp((int)scanner.get_number(0), BOOK_VALUE_MIN, BOOK_VALUE_MAX);
-				auto depth      = (u16)std::clamp((int)scanner.get_number(0), 0, int(BOOK_DEPTH_MAX));
 				Move16 move16 = (move_str == "none" || move_str == "None" || move_str == "resign") ? Move16::none() : USIEngine::to_move16(move_str);
 				//Move16 ponder = (ponder_str == "none" || ponder_str == "None" || ponder_str == "resign") ? Move16::none() : USI::to_move16(ponder_str);
 
@@ -967,7 +967,8 @@ namespace MakeBook2025
 				if (book_node.color == WHITE)
 					move16 = flip_move(move16);
 
-				book_node.moves.emplace_back(BookMove(move16, value, depth));
+				// 入力側の指し手はleaf候補なので、入力depthを引き継がず0として後退解析する。
+				book_node.moves.emplace_back(BookMove(move16, value, 0));
 				// あとで合流のチェックをしてleaf nodeであるかを確認する。
 			}
 			if (!fast)
