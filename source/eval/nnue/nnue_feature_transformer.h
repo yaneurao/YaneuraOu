@@ -181,7 +181,7 @@ class FeatureTransformer {
 		read_leb_128<BiasType>(stream, biases_, kHalfDimensions);
 		read_leb_128<WeightType>(stream, weights_, kHalfDimensions * kInputDimensions);
 
-#if defined(VECTOR)
+#if defined(VECTOR) && !defined(NNUE_SMALL_SFNN_FT)
 		permute_weights(inverse_order_packs);
 #endif
 		scale_weights(true);
@@ -230,7 +230,7 @@ class FeatureTransformer {
 
 #if defined(USE_ELEMENT_WISE_MULTIPLY)
 
-#if defined(VECTOR)
+#if defined(VECTOR) && !defined(NNUE_SMALL_SFNN_FT)
 			// Packed output is sizeof(vec_t) bytes for each SIMD register
 #if defined(USE_AVX512)
 			constexpr IndexType OutputChunkSize = 64;
@@ -276,6 +276,13 @@ class FeatureTransformer {
 		}
 
 #else
+		constexpr int shift =
+#if defined(VECTOR) && !defined(USE_SSE2)
+			6;
+#else
+			7;
+#endif
+
 		const Color perspectives[2] = { pos.side_to_move(), ~pos.side_to_move() };
 		for (IndexType p = 0; p < 2; ++p) {
 			const IndexType offset = (kHalfDimensions / 2) * p;
@@ -286,7 +293,9 @@ class FeatureTransformer {
 				BiasType sum1 = accumulation[perspectives[p]][0][j + kHalfDimensions / 2];
 				sum0 = std::clamp<BiasType>(sum0, 0, 127 * 2);
 				sum1 = std::clamp<BiasType>(sum1, 0, 127 * 2);
-				output[offset + j] = static_cast<OutputType>(unsigned(sum0 * sum1) / 512);
+				const int product = (int(sum0) << shift) * int(sum1);
+				const int value = product >> 16;
+				output[offset + j] = static_cast<OutputType>(std::clamp(value, 0, 255));
 			}
 
 		}

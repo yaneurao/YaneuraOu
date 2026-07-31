@@ -447,10 +447,17 @@ if SFNN:
 
     print(f"layers feature    : {layers}")
 
+    small_sfnn_ft_macro = ""
+    if int(layers[0]) < 128:
+        small_sfnn_ft_macro = "#define NNUE_SMALL_SFNN_FT"
+
     header += f"""
         // Number of input feature dimensions after conversion
         // 変換後の入力特徴量の次元数
         constexpr IndexType kTransformedFeatureDimensions = {layers[0]};
+
+        // 小幅SFNN専用。従来幅のSFNNでは定義せず、既存の高速経路をそのまま使う。
+        {small_sfnn_ft_macro}
 
         // Number of networks stored in the evaluation file
         constexpr int LayerStacks = {layers[3]};

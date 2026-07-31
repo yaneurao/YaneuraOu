@@ -119,6 +119,10 @@ SFNNでは`LayerStacks`個の後段networkを`nn.bin`に持ち、局面ごとに
 FeatureTransformerはLayerStackごとに増えないが、`fc_0`以降の後段パラメータは
 基本的にLayerStack数に比例して増える。
 
+`kTransformedFeatureDimensions`が128未満の小幅SFNNでは、生成ヘッダが
+`NNUE_SMALL_SFNN_FT`を定義する。この場合だけFeatureTransformerのEWM変換で小幅専用経路を
+使う。従来幅のSFNNではこのマクロを定義せず、既存のAVX2/AVX512高速経路をそのまま使う。
+
 ### LayerStack Bucket
 
 LayerStackのsuffixは、手駒bucket、玉位置bucket、進行度bucketを直交合成できる。
