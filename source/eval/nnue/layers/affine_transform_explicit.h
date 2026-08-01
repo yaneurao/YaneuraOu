@@ -121,25 +121,57 @@ class AffineTransformExplicit {
                                 constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
                                 constexpr IndexType kNumRegs = kOutputDimensions / 16;
 
+                                constexpr IndexType kNumAccums = kNumRegs;
+#if defined(USE_VNNI)
+                                constexpr IndexType kActualNumRegs = 2 * kNumAccums;
+#else
+                                constexpr IndexType kActualNumRegs = kNumAccums;
+#endif
+
                                 const auto   input32 = reinterpret_cast<const std::int32_t*>(input);
                                 const __m512i* biasvec = reinterpret_cast<const __m512i*>(biases_);
-                                __m512i        acc[kNumRegs];
+                                __m512i        acc[kActualNumRegs];
 
-                                for (IndexType k = 0; k < kNumRegs; ++k)
+                                for (IndexType k = 0; k < kNumAccums; ++k)
                                         acc[k] = biasvec[k];
+#if defined(USE_VNNI)
+                                for (IndexType k = kNumAccums; k < kActualNumRegs; ++k)
+                                        acc[k] = _mm512_setzero_si512();
+#endif
 
+#if defined(USE_VNNI)
+                                IndexType i = 0;
+                                for (; i + 1 < kNumChunks; i += 2)
+                                {
+                                        const __m512i in0 = _mm512_set1_epi32(input32[i]);
+                                        const __m512i in1 = _mm512_set1_epi32(input32[i + 1]);
+                                        const auto col0 = reinterpret_cast<const __m512i*>(&weights_[i * kOutputDimensions * 4]);
+                                        const auto col1 = reinterpret_cast<const __m512i*>(&weights_[(i + 1) * kOutputDimensions * 4]);
+
+                                        for (IndexType k = 0; k < kNumAccums; ++k) {
+                                                Simd::m512_add_dpbusd_epi32(acc[k], in0, col0[k]);
+                                                Simd::m512_add_dpbusd_epi32(acc[k + kNumAccums], in1, col1[k]);
+                                        }
+                                }
+
+                                for (IndexType k = 0; k < kNumAccums; ++k)
+                                        acc[k] = _mm512_add_epi32(acc[k], acc[k + kNumAccums]);
+
+                                for (; i < kNumChunks; ++i)
+#else
                                 for (IndexType i = 0; i < kNumChunks; ++i)
+#endif
                                 {
                                         const __m512i in = _mm512_set1_epi32(input32[i]);
                                         const auto  col  = reinterpret_cast<const __m512i*>(&weights_[i * kOutputDimensions * 4]);
 
-                                        for (IndexType k = 0; k < kNumRegs; ++k)
+                                        for (IndexType k = 0; k < kNumAccums; ++k)
                                                 Simd::m512_add_dpbusd_epi32(acc[k], in, col[k]);
                                 }
 
                                 __m512i* outptr = reinterpret_cast<__m512i*>(output);
 
-                                for (IndexType k = 0; k < kNumRegs; ++k)
+                                for (IndexType k = 0; k < kNumAccums; ++k)
                                         outptr[k] = acc[k];
                         }
                         else
@@ -151,25 +183,57 @@ class AffineTransformExplicit {
                                 constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
                                 constexpr IndexType kNumRegs = kOutputDimensions / 8;
 
+                                constexpr IndexType kNumAccums = kNumRegs;
+#if defined(USE_AVXVNNI)
+                                constexpr IndexType kActualNumRegs = 2 * kNumAccums;
+#else
+                                constexpr IndexType kActualNumRegs = kNumAccums;
+#endif
+
                                 const auto   input32 = reinterpret_cast<const std::int32_t*>(input);
                                 const __m256i* biasvec = reinterpret_cast<const __m256i*>(biases_);
-                                __m256i        acc[kNumRegs];
+                                __m256i        acc[kActualNumRegs];
 
-                                for (IndexType k = 0; k < kNumRegs; ++k)
+                                for (IndexType k = 0; k < kNumAccums; ++k)
                                         acc[k] = biasvec[k];
+#if defined(USE_AVXVNNI)
+                                for (IndexType k = kNumAccums; k < kActualNumRegs; ++k)
+                                        acc[k] = _mm256_setzero_si256();
+#endif
 
+#if defined(USE_AVXVNNI)
+                                IndexType i = 0;
+                                for (; i + 1 < kNumChunks; i += 2)
+                                {
+                                        const __m256i in0 = _mm256_set1_epi32(input32[i]);
+                                        const __m256i in1 = _mm256_set1_epi32(input32[i + 1]);
+                                        const auto col0 = reinterpret_cast<const __m256i*>(&weights_[i * kOutputDimensions * 4]);
+                                        const auto col1 = reinterpret_cast<const __m256i*>(&weights_[(i + 1) * kOutputDimensions * 4]);
+
+                                        for (IndexType k = 0; k < kNumAccums; ++k) {
+                                                Simd::m256_add_dpbusd_epi32(acc[k], in0, col0[k]);
+                                                Simd::m256_add_dpbusd_epi32(acc[k + kNumAccums], in1, col1[k]);
+                                        }
+                                }
+
+                                for (IndexType k = 0; k < kNumAccums; ++k)
+                                        acc[k] = _mm256_add_epi32(acc[k], acc[k + kNumAccums]);
+
+                                for (; i < kNumChunks; ++i)
+#else
                                 for (IndexType i = 0; i < kNumChunks; ++i)
+#endif
                                 {
                                         const __m256i in = _mm256_set1_epi32(input32[i]);
                                         const auto  col  = reinterpret_cast<const __m256i*>(&weights_[i * kOutputDimensions * 4]);
 
-                                        for (IndexType k = 0; k < kNumRegs; ++k)
+                                        for (IndexType k = 0; k < kNumAccums; ++k)
                                                 Simd::m256_add_dpbusd_epi32(acc[k], in, col[k]);
                                 }
 
                                 __m256i* outptr = reinterpret_cast<__m256i*>(output);
 
-                                for (IndexType k = 0; k < kNumRegs; ++k)
+                                for (IndexType k = 0; k < kNumAccums; ++k)
                                         outptr[k] = acc[k];
                         }
                         else
@@ -304,18 +368,51 @@ class AffineTransformExplicit {
                         constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
                         constexpr IndexType kNumRegs = kOutputDimensions / 16;
 
+                        constexpr IndexType kNumAccums = kNumRegs;
+#if defined(USE_VNNI)
+                        constexpr IndexType kActualNumRegs = 2 * kNumAccums;
+#else
+                        constexpr IndexType kActualNumRegs = kNumAccums;
+#endif
+
                         const auto biasvec = reinterpret_cast<const __m512i*>(biases_);
-                        __m512i acc[kNumRegs];
+                        __m512i acc[kActualNumRegs];
 
-                        for (IndexType k = 0; k < kNumRegs; ++k)
+                        for (IndexType k = 0; k < kNumAccums; ++k)
                                 acc[k] = biasvec[k];
+#if defined(USE_VNNI)
+                        for (IndexType k = kNumAccums; k < kActualNumRegs; ++k)
+                                acc[k] = _mm512_setzero_si512();
+#endif
 
+#if defined(USE_VNNI)
+                        IndexType i = 0;
+                        for (; i + 1 < kNumChunks; i += 2) {
+                                const __m512i in0 = _mm512_set1_epi32(static_cast<int>(input32[i]));
+                                const __m512i in1 = _mm512_set1_epi32(static_cast<int>(input32[i + 1]));
+                                const auto col0 = reinterpret_cast<const __m512i*>(
+                                        &weights_[i * kOutputDimensions * 4]);
+                                const auto col1 = reinterpret_cast<const __m512i*>(
+                                        &weights_[(i + 1) * kOutputDimensions * 4]);
+
+                                for (IndexType k = 0; k < kNumAccums; ++k) {
+                                        Simd::m512_add_dpbusd_epi32(acc[k], in0, col0[k]);
+                                        Simd::m512_add_dpbusd_epi32(acc[k + kNumAccums], in1, col1[k]);
+                                }
+                        }
+
+                        for (IndexType k = 0; k < kNumAccums; ++k)
+                                acc[k] = _mm512_add_epi32(acc[k], acc[k + kNumAccums]);
+
+                        for (; i < kNumChunks; ++i) {
+#else
                         for (IndexType i = 0; i < kNumChunks; ++i) {
+#endif
                                 const __m512i in = _mm512_set1_epi32(static_cast<int>(input32[i]));
                                 const auto col = reinterpret_cast<const __m512i*>(
                                         &weights_[i * kOutputDimensions * 4]);
 
-                                for (IndexType k = 0; k < kNumRegs; ++k)
+                                for (IndexType k = 0; k < kNumAccums; ++k)
                                         Simd::m512_add_dpbusd_epi32(acc[k], in, col[k]);
                         }
 
