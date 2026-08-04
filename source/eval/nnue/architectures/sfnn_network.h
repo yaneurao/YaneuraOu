@@ -28,7 +28,7 @@ struct SfnnNetworkBuffer;
 template <typename Fc0Layer, IndexType Hidden1Dims, IndexType Hidden2Dims>
 struct alignas(kCacheLineSize) SfnnNetworkBuffer<Fc0Layer, Hidden1Dims, Hidden2Dims, false> {
 	alignas(kCacheLineSize) typename Fc0Layer::OutputBuffer fc_0_out;
-	alignas(kCacheLineSize) typename Layers::SqrClippedReLU<Hidden1Dims + 1>::OutputType
+	alignas(kCacheLineSize) typename Layers::SqrClippedReLU<Hidden1Dims>::OutputType
 	    ac_sqr_0_out[CeilToMultiple<IndexType>(Hidden1Dims * 2, 32)];
 	alignas(kCacheLineSize) typename Layers::AffineTransformExplicit<Hidden1Dims * 2, Hidden2Dims>::OutputBuffer fc_1_out;
 	alignas(kCacheLineSize) typename Layers::ClippedReLUExplicit<Hidden2Dims>::OutputBuffer ac_1_out;
@@ -41,11 +41,12 @@ struct alignas(kCacheLineSize) SfnnNetworkBuffer<Fc0Layer, Hidden1Dims, Hidden2D
 	alignas(kCacheLineSize) typename Layers::AffineTransformExplicit<Hidden2Dims, 1>::OutputBuffer fc_2_out;
 };
 
-template <typename Fc0Layer, IndexType InputDims, IndexType Hidden1Dims, IndexType Hidden2Dims>
+template <typename Fc0Layer, IndexType InputDims, IndexType Hidden1Dims, IndexType Hidden2Dims,
+          bool UseShortcut = (Hidden1Dims % 8 == 7)>
 struct SfnnNetwork {
 	Fc0Layer fc_0;
-	Layers::ClippedReLUExplicit<Hidden1Dims + 1> ac_0;
-	Layers::SqrClippedReLU<Hidden1Dims + 1> ac_sqr_0;
+	Layers::ClippedReLUExplicit<Hidden1Dims> ac_0;
+	Layers::SqrClippedReLU<Hidden1Dims> ac_sqr_0;
 	Layers::AffineTransformExplicit<Hidden1Dims * 2, Hidden2Dims> fc_1;
 	Layers::ClippedReLUExplicit<Hidden2Dims> ac_1;
 	Layers::AffineTransformExplicit<Hidden2Dims, 1> fc_2;
@@ -55,6 +56,13 @@ struct SfnnNetwork {
 	static constexpr IndexType kInputDims = InputDims;
 	static constexpr IndexType kHidden1Dims = Hidden1Dims;
 	static constexpr IndexType kHidden2Dims = Hidden2Dims;
+	static constexpr bool kUseShortcut = UseShortcut;
+	static constexpr IndexType kHidden1OutputDims = kHidden1Dims + (kUseShortcut ? 1 : 0);
+
+	static_assert(kHidden1Dims % 8 == 0 || kHidden1Dims % 8 == 7,
+	              "SFNN H1 must be 8n without shortcut, or 8n-1 with shortcut.");
+	static_assert(kUseShortcut == (kHidden1Dims % 8 == 7),
+	              "SFNN shortcut is enabled only when H1 is 8n-1.");
 
 #if defined(USE_AVX512)
 	static constexpr bool kUsePackedTail = kHidden2Dims == 64;
@@ -155,7 +163,8 @@ struct SfnnNetwork {
 			fc_2.Propagate(buf.ac_1_out, buf.fc_2_out);
 		}
 
-		buf.fc_2_out[0] += buf.fc_0_out[kHidden1Dims];
+		if constexpr (kUseShortcut)
+			buf.fc_2_out[0] += buf.fc_0_out[kHidden1Dims];
 		return buf.fc_2_out;
 	}
 

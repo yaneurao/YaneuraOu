@@ -99,19 +99,26 @@ sparse input features
   -> FeatureTransformer
   -> transformed features
   -> selected LayerStack network
-       fc_0: FT -> H1 + 1
+       fc_0: FT -> H1 or H1 + 1
        ClippedReLU(fc_0[0..H1))
        SqrClippedReLU(fc_0[0..H1))
        concat: H1 * 2
        fc_1: H1 * 2 -> H2
        ClippedReLU
        fc_2: H2 -> 1
-       output += fc_0[H1]
+       if shortcut enabled: output += fc_0[H1]
 ```
 
-`H1 + 1`の最後の1次元は、`fc_2`の出力に加算されるshortcut項である。
-`SFNNwoPSQT`という古い名前が残っている箇所があるが、このarchitecture headerでは
-このshortcut項を含む。
+SFNNの`H1`は、shortcutの有無を次の規則で決める。
+
+```text
+H1 が 8n - 1: shortcutあり。fc_0出力は H1 + 1。
+H1 が 8n    : shortcutなし。fc_0出力は H1。
+```
+
+例えば`SFNN_halfka2_1024_7_64_k3k3`は`7`個のhidden出力と`1`個のshortcut出力を持つ。
+一方、`SFNN_halfka2_1024_8_64_k3k3`は`8`個のhidden出力だけを持ち、shortcutは使わない。
+`SFNNwoPSQT`という古い名前が残っている箇所があるが、shortcutの有無はこの`H1`規則で決まる。
 
 SFNNでは`LayerStacks`個の後段networkを`nn.bin`に持ち、局面ごとに1つを選んで使う。
 例えば`k3k3`なら9個、`k21k21`なら441個、`k29k29`なら841個、`hand64_k3k3`なら576個、
@@ -242,7 +249,7 @@ total  = 1024 + 256 * 8 = 3072
 ```
 
 全ての`fc_0`出力はcommon 1024次元を見る。一方、各出力groupは対応するshard
-256次元だけを見る。`H1 + 1 = 8`、`G = 8`なら、各出力は
+256次元だけを見る。fc0出力次元が8、`G = 8`なら、各出力は
 `common 1024 + shard 256 = 1280`次元だけを使う。
 
 `c0_s1024x8`のように`common = 0`も指定できる。この場合は、共通入力なしで、
@@ -252,7 +259,7 @@ total  = 1024 + 256 * 8 = 3072
 
 ```text
 C + S * G == FT
-(H1 + 1) % G == 0
+fc0出力次元 % G == 0
 C は64の倍数
 S は64の倍数
 G > 1

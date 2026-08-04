@@ -156,9 +156,16 @@ def write_affine_explicit(stream, input_dims: int, output_dims: int, rng: random
     write_i32_zeros(stream, output_dims)
     write_int8_values(stream, output_dims * ceil_to_multiple(input_dims, 32), rng, mode)
 
+def sfnn_hidden1_output_dims(hidden1: int) -> int:
+    if hidden1 % 8 == 7:
+        return hidden1 + 1
+    if hidden1 % 8 == 0:
+        return hidden1
+    raise ValueError(f"SFNN H1 must be 8n with no shortcut, or 8n-1 with shortcut: {hidden1}")
+
 def write_sfnn_network(stream, transformed_dims: int, hidden1: int, hidden2: int, rng: random.Random, mode: str) -> None:
     write_u32(stream, SFNN_NETWORK_HASH)
-    write_affine_explicit(stream, transformed_dims, hidden1 + 1, rng, mode)
+    write_affine_explicit(stream, transformed_dims, sfnn_hidden1_output_dims(hidden1), rng, mode)
     write_affine_explicit(stream, hidden1 * 2, hidden2, rng, mode)
     write_affine_explicit(stream, hidden2, 1, rng, mode)
 
