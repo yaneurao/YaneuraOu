@@ -17,10 +17,10 @@
     #include <arm_neon.h>
 #endif
 
-// SFNNwoPSQTの小さな全結合層では、AVX512VNNIのdot product経路より
-// AVX512のmaddubs/madd経路のほうが速い環境があるため、NNUE内部では
-// VNNI対応CPUでもAVX512+SFNNwoPSQTだけVNNI経路を使わない。
-#if defined(USE_VNNI) && !(defined(USE_AVX512) && defined(SFNNwoPSQT))
+// CPU capability switch for NNUE dot-product code. For SFNN H1=7 networks
+// (fc0: ->8, packed tail: 14->64->1), measured AVX512VNNI was slower than
+// AVX512 maddubs/madd, so only that NNUE shape uses the fallback.
+#if defined(USE_VNNI) && !defined(NNUE_SFNN_HIDDEN1_7)
     #define USE_NNUE_VNNI
 #endif
 
@@ -35,13 +35,17 @@ namespace Simd
     return _mm512_reduce_add_epi32(sum) + bias;
 }
 
+[[maybe_unused]] static void m512_add_maddubs_epi32(__m512i& acc, __m512i a, __m512i b) {
+    __m512i product0 = _mm512_maddubs_epi16(a, b);
+    product0         = _mm512_madd_epi16(product0, _mm512_set1_epi16(1));
+    acc              = _mm512_add_epi32(acc, product0);
+}
+
 [[maybe_unused]] static void m512_add_dpbusd_epi32(__m512i& acc, __m512i a, __m512i b) {
     #if defined(USE_NNUE_VNNI)
     acc = _mm512_dpbusd_epi32(acc, a, b);
     #else
-    __m512i product0 = _mm512_maddubs_epi16(a, b);
-    product0         = _mm512_madd_epi16(product0, _mm512_set1_epi16(1));
-    acc              = _mm512_add_epi32(acc, product0);
+    m512_add_maddubs_epi32(acc, a, b);
     #endif
 }
 
@@ -56,13 +60,17 @@ namespace Simd
     return _mm_cvtsi128_si32(sum128) + bias;
 }
 
+[[maybe_unused]] static void m256_add_maddubs_epi32(__m256i& acc, __m256i a, __m256i b) {
+    __m256i product0 = _mm256_maddubs_epi16(a, b);
+    product0         = _mm256_madd_epi16(product0, _mm256_set1_epi16(1));
+    acc              = _mm256_add_epi32(acc, product0);
+}
+
 [[maybe_unused]] static void m256_add_dpbusd_epi32(__m256i& acc, __m256i a, __m256i b) {
     #if defined(USE_NNUE_VNNI)
     acc = _mm256_dpbusd_epi32(acc, a, b);
     #else
-    __m256i product0 = _mm256_maddubs_epi16(a, b);
-    product0         = _mm256_madd_epi16(product0, _mm256_set1_epi16(1));
-    acc              = _mm256_add_epi32(acc, product0);
+    m256_add_maddubs_epi32(acc, a, b);
     #endif
 }
 

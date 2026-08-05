@@ -460,6 +460,9 @@ ifneq (,$(IS_NNUE_EDITION))
 			# SFNN_* はPSQTなしSFNNなので、シンボル SFNNwoPSQT 定義しておく。
 			ifneq (,$(filter SFNN%,$(NNUE_ARCH_UPPER)))
 				CPPFLAGS += -DSFNNwoPSQT
+				ifneq (,$(findstring _7_,$(NNUE_ARCH_UPPER)))
+					CPPFLAGS += -DNNUE_SFNN_HIDDEN1_7
+				endif
 			endif
 		endif
 	endif
@@ -560,15 +563,9 @@ else ifeq ($(TARGET_CPU),ZEN3AVX512VNNI)
 
 else ifeq ($(TARGET_CPU),AVX512VNNI)
 
-	ifneq (,$(filter SFNN%,$(NNUE_ARCH_UPPER) $(ENGINE_ARCH_UPPER)))
-		# SFNNwoPSQTでは小さな全結合層が中心で、AVX512VNNI経路より
-		# AVX512経路のほうが速いことがあるため、AVX512相当でビルドする。
-		CPPFLAGS += -DUSE_AVX512 -DUSE_BMI2 -march=skylake-avx512
-	else
-		CPPFLAGS += -DUSE_AVX512 -DUSE_BMI2 -DUSE_VNNI -march=cascadelake
-		# NNUEのコード、USE_VNNIが指定されているとVNNI対応のコードになる。
-		# cascadelakeとicelakeとの違いがあるのかは知らないので、cascadelakeのみでいいや。
-	endif
+	CPPFLAGS += -DUSE_AVX512 -DUSE_BMI2 -DUSE_VNNI -march=cascadelake
+	# NNUEのコード、USE_VNNIが指定されているとVNNI対応のコードになる。
+	# cascadelakeとicelakeとの違いがあるのかは知らないので、cascadelakeのみでいいや。
 
 else ifeq ($(TARGET_CPU),AVXVNNI)
 	CPPFLAGS += -DUSE_AVX2 -DUSE_BMI2 -DUSE_VNNI -DUSE_AVXVNNI -march=alderlake
