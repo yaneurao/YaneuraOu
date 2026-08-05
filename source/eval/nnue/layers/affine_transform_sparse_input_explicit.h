@@ -38,7 +38,7 @@ static void find_nnz_explicit(const std::int32_t* input, std::uint16_t* out, Ind
 	#define vec_nnz(a) _mm512_cmpgt_epi32_mask(a, _mm512_setzero_si512())
 #elif defined(USE_AVX2)
     using vec_t = __m256i;
-#if defined(USE_VNNI) && !defined(USE_AVXVNNI)
+#if defined(USE_NNUE_VNNI) && !defined(USE_AVXVNNI)
 #define vec_nnz(a) _mm256_cmpgt_epi32_mask(a, _mm256_setzero_si256())
 #else
 #define vec_nnz(a) \
@@ -199,7 +199,7 @@ public:
                 const Color perspectives[2] = { sideToMove, ~sideToMove };
 
                 const auto biasvec = reinterpret_cast<const __m256i*>(biases_);
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
                 // Stockfishと同じ方針で、VNNIの高レイテンシなdot productを
                 // 複数の依存チェーンに分け、最後にmergeする。
                 __m256i out_acc0 = _mm256_load_si256(biasvec);
@@ -233,7 +233,7 @@ public:
                                 _mm512_store_si512(reinterpret_cast<__m512i*>(input32), transformed);
                                 const IndexType base = (p * kChunksPerPerspective + chunk) * kInput32PerVector;
 
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
                                 unsigned bits = nnz;
                                 while (bits) {
                                         const IndexType bit0 = pop_lsb(bits);
@@ -281,7 +281,7 @@ public:
                         }
                 }
 
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
                 const __m256i acc = _mm256_add_epi32(_mm256_add_epi32(out_acc0, out_acc1), out_acc2);
 #endif
                 _mm256_store_si256(reinterpret_cast<__m256i*>(output), acc);
@@ -321,7 +321,7 @@ public:
             find_nnz_explicit<kNumChunks>(input32, nnz, count);
 
             constexpr IndexType kNumAccums = kNumRegs;
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
             constexpr IndexType kActualNumRegs = 3 * kNumAccums;
 #else
             constexpr IndexType kActualNumRegs = kNumAccums;
@@ -332,12 +332,12 @@ public:
 
             for (IndexType k = 0; k < kNumAccums; ++k)
                 acc[k] = biasvec[k];
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
             for (IndexType k = kNumAccums; k < kActualNumRegs; ++k)
                 acc[k] = _mm512_setzero_si512();
 #endif
 
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
             IndexType j = 0;
             for (; j + 2 < count; j += 3)
             {

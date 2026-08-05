@@ -122,7 +122,7 @@ class AffineTransformExplicit {
                                 constexpr IndexType kNumRegs = kOutputDimensions / 16;
 
                                 constexpr IndexType kNumAccums = kNumRegs;
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
                                 constexpr IndexType kActualNumRegs = 2 * kNumAccums;
 #else
                                 constexpr IndexType kActualNumRegs = kNumAccums;
@@ -134,12 +134,12 @@ class AffineTransformExplicit {
 
                                 for (IndexType k = 0; k < kNumAccums; ++k)
                                         acc[k] = biasvec[k];
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
                                 for (IndexType k = kNumAccums; k < kActualNumRegs; ++k)
                                         acc[k] = _mm512_setzero_si512();
 #endif
 
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
                                 IndexType i = 0;
                                 for (; i + 1 < kNumChunks; i += 2)
                                 {
@@ -369,7 +369,7 @@ class AffineTransformExplicit {
                         constexpr IndexType kNumRegs = kOutputDimensions / 16;
 
                         constexpr IndexType kNumAccums = kNumRegs;
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
                         constexpr IndexType kActualNumRegs = 2 * kNumAccums;
 #else
                         constexpr IndexType kActualNumRegs = kNumAccums;
@@ -380,12 +380,12 @@ class AffineTransformExplicit {
 
                         for (IndexType k = 0; k < kNumAccums; ++k)
                                 acc[k] = biasvec[k];
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
                         for (IndexType k = kNumAccums; k < kActualNumRegs; ++k)
                                 acc[k] = _mm512_setzero_si512();
 #endif
 
-#if defined(USE_VNNI)
+#if defined(USE_NNUE_VNNI)
                         IndexType i = 0;
                         for (; i + 1 < kNumChunks; i += 2) {
                                 const __m512i in0 = _mm512_set1_epi32(static_cast<int>(input32[i]));
