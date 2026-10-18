@@ -22,12 +22,12 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 # やねうら王プロジェクトを支援する
 
-[![やねうら王プロジェクトを支援する](docs/yaneuraou-sponsors-banner.png "支援バナー")](https://github.com/sponsors/yaneurao)
+[![やねうら王プロジェクトを支援する](docs/yaneuraou-sponsors-banner640x360.png "支援バナー")](https://yaneurao.fanbox.cc/)
 
 - GitHub Sponsors : https://github.com/sponsors/yaneurao
 - FANBOX : https://yaneurao.fanbox.cc/
 
-やねうら王プロジェクトに支援すると、開発版のやねうら王(Windows/macOS)、評価関数ファイル、最新定跡ファイルなどのダウンロードURLが書かれたニュースレターが受け取れます。
+やねうら王プロジェクトに支援すると、開発版のやねうら王(Windows x64/x86/ARM, macOS)、評価関数ファイル、最新定跡ファイルなどのダウンロードURLが書かれたニュースレターが受け取れます。これから支援される方には、過去のニュースレターも読めるFANBOXからの支援をお勧めしています。
 
 
 # やねうら王エンジンの大会での戦績
