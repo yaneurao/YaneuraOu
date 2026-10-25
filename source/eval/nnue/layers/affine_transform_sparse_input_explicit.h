@@ -175,6 +175,63 @@ public:
         }
 
 #if defined(USE_AVX512) && defined(SFNNwoPSQT)
+        // Fused EWM + sparse affine for 16 outputs (H1=15 with shortcut or H1=16).
+        // Keep the existing on-disk and in-memory weight ordering.
+        template <IndexType HalfDimensions, typename AccumulationType>
+        void PropagateSfnn16FromAccumulator(const AccumulationType& accumulation,
+                                            Color sideToMove, OutputType* output) const {
+                static_assert(kInputDimensions == HalfDimensions);
+                static_assert(kOutputDimensions == 16);
+                static_assert((HalfDimensions / 2) % 64 == 0);
+                constexpr IndexType chunks = (HalfDimensions / 2) / 64;
+                constexpr int shift =
+#if defined(USE_SSE2)
+                    7;
+#else
+                    6;
+#endif
+                const __m512i zero = _mm512_setzero_si512();
+                const __m512i one = _mm512_set1_epi16(254);
+                __m512i sum0 = _mm512_load_si512(reinterpret_cast<const __m512i*>(biases_));
+                __m512i sum1 = zero, sum2 = zero;
+                const Color perspectives[2] = {sideToMove, ~sideToMove};
+                alignas(kCacheLineSize) std::uint32_t input32[16];
+                for (IndexType p = 0; p < 2; ++p) {
+                        const auto* in0 = reinterpret_cast<const __m512i*>(&accumulation[perspectives[p]][0][0]);
+                        const auto* in1 = reinterpret_cast<const __m512i*>(&accumulation[perspectives[p]][0][HalfDimensions / 2]);
+                        for (IndexType chunk = 0; chunk < chunks; ++chunk) {
+                                const __m512i a = _mm512_slli_epi16(_mm512_max_epi16(_mm512_min_epi16(in0[chunk * 2], one), zero), shift);
+                                const __m512i b = _mm512_slli_epi16(_mm512_max_epi16(_mm512_min_epi16(in0[chunk * 2 + 1], one), zero), shift);
+                                const __m512i c = _mm512_min_epi16(in1[chunk * 2], one);
+                                const __m512i d = _mm512_min_epi16(in1[chunk * 2 + 1], one);
+                                const __m512i transformed = _mm512_packus_epi16(_mm512_mulhi_epi16(a, c), _mm512_mulhi_epi16(b, d));
+                                unsigned bits = _mm512_cmpneq_epi32_mask(transformed, zero);
+                                if (!bits) continue;
+                                _mm512_store_si512(reinterpret_cast<__m512i*>(input32), transformed);
+                                const IndexType base = (p * chunks + chunk) * 16;
+                                auto add = [&](__m512i& sum) {
+                                        const IndexType bit = pop_lsb(bits);
+                                        const __m512i input = _mm512_set1_epi32(static_cast<int>(input32[bit]));
+                                        const auto* column = reinterpret_cast<const __m512i*>(
+                                            &weights_[(base + bit) * kOutputDimensions * kChunkSize]);
+                                        Simd::m512_add_dpbusd_epi32(sum, input, column[0]);
+                                };
+                                while (bits) {
+                                        // Three independent VNNI chains hide dot-product latency.
+                                        add(sum0);
+                                        if (!bits) break;
+                                        add(sum1);
+                                        if (!bits) break;
+                                        add(sum2);
+                                }
+                        }
+                }
+                const __m512i result = _mm512_add_epi32(_mm512_add_epi32(sum0, sum1), sum2);
+                _mm512_store_si512(reinterpret_cast<__m512i*>(output), result);
+                for (IndexType out = kOutputDimensions; out < kPaddedOutputDimensions; ++out)
+                        output[out] = OutputType{};
+        }
+
         // SFNNのEWM Transform()で一度 uint8_t 配列を作らず、accumulatorからfc_0へ直接流す。
         // 現状は kHidden1Dims + 1 == 8 のSFNNで使う。
         template <IndexType HalfDimensions, typename AccumulationType>

@@ -15,6 +15,9 @@
 #include "../search.h"
 #include "../movegen.h"
 #include "../evaluate.h"
+#if defined(EVAL_NNUE)
+#include "../eval/nnue/nnue_test_command.h"
+#endif
 
 namespace YaneuraOu {
 namespace {
@@ -377,6 +380,9 @@ namespace Test
 	bool normal_test_cmd(IEngine& engine , std::istringstream& is, const std::string& token)
 	{
 		if (token == "genmoves")              gen_moves(engine, is);       // 現在の局面に対して指し手生成のテストを行う。
+#if defined(EVAL_NNUE)
+		else if (token == "nn")              Eval::NNUE::TestCommand(engine.get_position(), is);
+#endif
 		else if (token == "autoplay")         auto_play(engine, is);       // 連続自己対局を行う。
 #if defined(YANEURAOU_ENGINE)
 		else if (token == "eval_accuracy")    eval_accuracy(engine, is);   // PSV に対し evaluate() の sign 一致率を測る。

@@ -9,14 +9,110 @@
 #include "nnue_test_command.h"
 
 #include <set>
+#include <cstring>
+#include <memory>
 
 namespace YaneuraOu {
 namespace Eval::NNUE {
 
 namespace {
 
+// Check the actual int16 accumulator, not only the rounded final score.
+// Exercise both perspectives, promotions, captures, fallback paths and undo.
+void TestAccumulator(Position&, std::istream& stream) {
+  int games = 100;
+  stream >> games;
+  if (games <= 0) {
+    std::cout << "test_accumulator: games must be positive" << std::endl;
+    return;
+  }
+  constexpr int max_ply = 256;
+  Position pos;
+  auto states = std::make_unique<StateInfo[]>(max_ply);
+  StateInfo root;
+  PRNG prng(20261025);
+  std::uint64_t moves = 0, pawn_moves = 0, pawn_captures = 0, promotions = 0, king_moves = 0, checksum = 0;
+  for (int game = 0; game < games; ++game) {
+    pos.set_hirate(&root);
+    Eval::compute_eval(pos);
+    for (int ply = 0; ply < max_ply; ++ply) {
+      MoveList<LEGAL_ALL> legal(pos);
+      if (legal.size() == 0) break;
+      const Move move = legal.begin()[prng.rand(legal.size())];
+      const auto parent = pos.state()->accumulator;
+      pos.do_move(move, states[ply]);
+      const auto& dirty = pos.state()->dirtyPiece;
+      if (dirty.pieceNo[0] >= PIECE_NUMBER_KING) ++king_moves;
+      for (int n = 0; n < dirty.dirty_num; ++n) {
+        const int before = dirty.changed_piece[n].old_piece.fb;
+        const int after = dirty.changed_piece[n].new_piece.fb;
+        if (before >= f_pawn && before < f_pawn + 162) {
+          if (after >= f_hand_pawn && after < f_hand_lance) ++pawn_captures;
+          else {
+            ++pawn_moves;
+            if (after < f_pawn || after >= f_pawn + 162) ++promotions;
+          }
+        }
+      }
+      Eval::evaluate_with_no_return(pos);
+#if defined(USE_AVX512) && defined(NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE)
+      // Check raw fc_0 outputs, including values hidden by FV_SCALE rounding.
+      alignas(kCacheLineSize) TransformedFeatureType features[FeatureTransformer::kBufferSize];
+      networks().feature_transformer.Transform(pos, features, false);
+      const auto& fc = networks().network[moves % kLayerStacks].fc_0;
+      using Fc = std::remove_cv_t<std::remove_reference_t<decltype(fc)>>;
+      alignas(kCacheLineSize) typename Fc::OutputBuffer separate, fused;
+      fc.Propagate(features, separate);
+      fc.template PropagateSfnn16FromAccumulator<kTransformedFeatureDimensions>(
+          pos.state()->accumulator.accumulation, pos.side_to_move(), fused);
+      if (std::memcmp(separate, fused, sizeof(typename Fc::OutputType) * Fc::kOutputDimensions) != 0) {
+        std::cout << "test_accumulator FAILED fused fc_0 game " << game << " ply " << ply << std::endl;
+        return;
+      }
+#endif
+      const auto incremental = pos.state()->accumulator;
+      const Value score = Eval::evaluate(pos);
+      const Value cached_reference = Eval::compute_eval(pos);
+      if (score != cached_reference || std::memcmp(incremental.accumulation,
+          pos.state()->accumulator.accumulation, sizeof(incremental.accumulation)) != 0) {
+        std::cout << "test_accumulator FAILED cached refresh game " << game << " ply " << ply << std::endl;
+        return;
+      }
+      networks().feature_transformer.RefreshAccumulatorForTest(pos);
+      const Value reference = Eval::evaluate(pos);
+      if (score != reference || std::memcmp(incremental.accumulation,
+          pos.state()->accumulator.accumulation, sizeof(incremental.accumulation)) != 0) {
+        std::cout << "test_accumulator FAILED game " << game << " ply " << ply
+                  << " sfen " << pos.sfen() << std::endl;
+        return;
+      }
+      checksum = checksum * 6364136223846793005ULL + static_cast<std::uint64_t>(score);
+      pos.undo_move(move);
+      if (std::memcmp(parent.accumulation, pos.state()->accumulator.accumulation,
+                      sizeof(parent.accumulation)) != 0) {
+        std::cout << "test_accumulator FAILED undo" << std::endl;
+        return;
+      }
+      pos.do_move(move, states[ply]);
+      Eval::evaluate_with_no_return(pos);
+      if (std::memcmp(incremental.accumulation, pos.state()->accumulator.accumulation,
+                      sizeof(incremental.accumulation)) != 0) {
+        std::cout << "test_accumulator FAILED redo" << std::endl;
+        return;
+      }
+      ++moves;
+    }
+  }
+  pos.set_hirate(&root);
+  std::cout << "test_accumulator passed: " << games << " games, " << moves
+            << " moves, pawn moves " << pawn_moves << ", pawn captures " << pawn_captures
+            << ", promotions " << promotions << ", king moves " << king_moves
+            << ", checksum " << checksum << std::endl;
+}
+
 // 主に差分計算に関するRawFeaturesのテスト
-void TestFeatures(Position& pos) {
+void TestFeatures(Position&) {
+  Position pos;
   const std::uint64_t num_games = 1000;
   StateInfo si;
   pos.set_hirate(&si);
@@ -180,11 +276,14 @@ void TestCommand(Position& pos, std::istream& stream) {
 
   if (sub_command == "test_features") {
     TestFeatures(pos);
+  } else if (sub_command == "test_accumulator") {
+    TestAccumulator(pos, stream);
   } else if (sub_command == "info") {
     PrintInfo(stream);
   } else {
     std::cout << "usage:" << std::endl;
     std::cout << " test nn test_features" << std::endl;
+    std::cout << " test nn test_accumulator [games=100]" << std::endl;
     std::cout << " test nn info [path/to/" << kFileName << "...]" << std::endl;
   }
 }

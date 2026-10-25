@@ -755,6 +755,79 @@ python3 source/eval/nnue/architectures/nnue_arch_gen.py \
 dummyのデフォルトは`random-small`である。完全に0で初期化したい場合は
 `--dummy-mode zero`を指定する。
 
+## Finny reset updates
+
+`-DUSE_LAZY_EVALUATE -DUSE_FINNY_TABLES`を指定すると、FT幅4096以下で
+玉位置別・視点別・スレッド別のFinnyキャッシュを使う。
+追加で`-DUSE_FINNY_RESET`を指定した場合のみ、通常の差分更新でresetになった視点も、
+`refresh_accumulator()`と同じキャッシュを参照する。
+`USE_FINNY_RESET`未定義時は従来のreset処理を使う。
+resetしない視点は従来どおり直前局面から差分更新する。
+
+キャッシュが未初期化の場合はbiasから全再計算する。`USE_FINNY_RESET`定義時は、
+remove/addする重み列の合計が全特徴量の加算本数以上になる場合も全再計算する。
+それ以外ではキャッシュから変化した特徴量だけを更新する。
+追加の重みテーブルやモデル形式の変更は不要である。
+
+`isready`後の`test nn test_accumulator 100`では、通常差分更新とFinnyによるrefreshを、
+キャッシュを通さない全再計算と比較する。accumulator全要素、評価値、undo/redoを検証する。
+
+変更前後の比較は、リポジトリルートから次のように実行できる。
+
+```sh
+python3 script/bench_finny_reset.py --build \
+  --extra-cppflags='-DUSE_LAZY_EVALUATE -DUSE_FINNY_TABLES' \
+  --eval-dir ../inbox/evalTuyo12-20261025 \
+  --arch SFNN_halfka2_2304_15_64_progress8 \
+  --nodes 2000000 --warmup-nodes 500000 --rounds 4
+```
+
+`finny_reset`だけに`USE_FINNY_RESET`を定義する。
+`baseline`には定義せず、従来のreset処理とFinny更新条件を使う。
+両方ともAVX512VNNI、Lazy Evaluate、Finny Tablesを有効にしてビルドする。
+オブジェクトと実行ファイルは構成ごとに分離する。
+
+`bench`標準4局面を使い、実行順を交互に入れ替える。モデル読み込み後に
+ウォームアップし、実測ノード数と時間からNPSを集計する。
+`build/finny-reset/`にバイナリ、生ログ、モデルとバイナリのハッシュ、`results.json`を保存する。
+4・8スレッドでは`--threads`と`--pin`を変更し、同じバイナリを`--bin-dir`で再利用する。
+`--checks-from build/finny-reset/results.json`で同じバイナリ・モデルの検証を再利用できる。
+再利用時も同じ`--extra-cppflags`を指定すること。
+
+## Additional SFNN experiments
+
+AVX512（`USE_AVX512`定義時）かつFT幅2304の場合は、FTタイルに24レジスタを使う。
+その他のFT幅・SIMDでは従来の本数を使う。次元数はC++の定数式で判定する。
+
+次の実験用指定で候補を個別に比較できる。モデル形式と評価値は変更しない。
+専用化・相殺・融合はデフォルトでは無効である。
+
+| EXTRA_CPPFLAGS | 対象 |
+| --- | --- |
+| `-DNNUE_FT_SPECIALIZED` | 通常更新のremove 1/add 1とremove 2/add 2を固定本数のループで処理する。 |
+| `-DNNUE_FT_REGS=8` / `12` / `24` | AVX512かつFT幅2304のFTタイル用レジスタ数を上書きする。 |
+| `-DNNUE_FINNY_CANCEL` | Finnyで発生したremove/addを多重集合として比較し、相殺分を除く。 |
+| `-DNNUE_SFNN_FUSED_FT` | EWM変換と疎入力の第1層を融合する。生成architectureの16出力・FT幅128の倍数・8bit重み向け。 |
+
+融合版は、既存の8出力用カーネルとは別にAVX512VNNIの16出力用カーネルを使う。
+`test nn test_accumulator`では、融合前後の第1層の生の整数出力も比較する。
+Finnyの相殺除去は重複する特徴量の個数を保ち、駒落ちなどの重複にも対応する。
+
+```sh
+python3 script/bench_sfnn_experiments.py --build \
+  --eval-dir ../inbox/evalTuyo12-20261025 \
+  --arch SFNN_halfka2_2304_15_64_progress8 \
+  --threads 1 --pin 2 --nodes 2000000 --warmup-nodes 500000 --rounds 4
+```
+
+全構成で`-DUSE_LAZY_EVALUATE -DUSE_FINNY_TABLES -DUSE_FINNY_RESET`とAVX512VNNIを使う。
+実験の基準は8レジスタに固定し、レジスタ数以外の候補も8レジスタで比較する。
+各バイナリをロードしたまま保持し、探索は1構成ずつ実行する。
+`bench`標準4局面を使い、各測定にウォームアップを付け、順序を入れ替えて比較する。
+`build/sfnn-experiments/`にバイナリ・生ログ・検証結果・`results.json`を保存する。
+8・32スレッドは同じバイナリを`--bin-dir`で指定し、`--checks-from`に
+最初の`results.json`を指定して検証を再利用する。CPU listとノード数も変更すること。
+
 ## Implementation
 
 探索時のbucket計算は`source/eval/nnue/evaluate_nnue.cpp`の
