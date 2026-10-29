@@ -1,7 +1,8 @@
 探索部不具合の処理台帳
 更新日: 2026-10-29
 
-この文書は調査結果の記録。修正はまだ行っていない。
+この文書は調査結果の記録。探索部・その他の本体実装は修正していない。
+文書のみをcommitした。初回調査の記録は当時の状態を記し、追加調査は末尾に追記する。
 チェック欄は「対策の実装と検証が完了したとき」にだけ埋める。
 再現確認済み・静的確認・未再現候補・テスト側の問題を区別して扱う。
 
@@ -16,8 +17,17 @@
 [ ] SA-08 深い階層のLMR延長の連鎖                    Stockfish修正未反映 / 将棋では未再現
 [ ] SA-09 Position::UnitTestのスタック使用量          再現済み / テスト側
 [ ] SA-10 部分キーUnitTestのStateInfo添字超過         ASanで再現済み / テスト側
+[ ] SA-11 共有TTEntryの非atomicアクセス              静的確認 / C++データ競合 / 本体
+[ ] SA-12 CPU番号欠番時のL3/NUMA構成欠落             模擬sysfsで再現済み / Linux
+[ ] SA-13 大容量メモリ確保失敗時のNULL書込み          失敗注入+UBSanで再現済み / 基盤
+[ ] SA-14 hash_bytes末尾の符号拡張                   実関数で衝突再現済み / TTキーとは別
+[ ] SA-15 LEB128の左シフトUB・assert依存の入力検査    関数単位で再現 / 評価ファイル読込
+[ ] SA-16 cctype関数への負のchar引数                 静的確認 / 高bit文字列の入力条件
+[ ] PC-01 malloc arenaのNUMA間再利用                 性能候補 / 複数物理NUMAで未計測
 
-SA-01〜SA-05を先に処理し、SA-08は移植前に将棋での再現・棋力検証を行う。
+SA-01〜SA-05を先に処理し、その後SA-11〜SA-13を並行せず順番に検討する。
+SA-06〜SA-10と周辺処理SA-14〜SA-16は対象環境・運用に応じて順番を決める。
+SA-08は移植前に将棋での再現・棋力検証を行う。PC-01は不具合確定項目に数えない。
 この順序は作業提案であり、自動的に修正へ着手する許可を意味しない。
 Stockfishの修正は、同じ原因・同じ実行経路があることを確認してから適用する。
 
@@ -258,3 +268,187 @@ Mac/MinGW実機でのエンジン全体のハング再現は未実施。
 ・ThreadSanitizerによる全共有データの検証、Mac/Windows実機、長時間の棋力対戦は未実施。
 ・深い再帰の候補とMultiPV中断時の全corner caseは、再現確認済みの問題と区別した。
 ・原因の特定と再現まで。元のソース修正、commit、pushは行っていない。
+
+
+追加調査（第2巡、2026-10-29）
+
+調査範囲と分類
+・前回の127件の抽出から範囲を広げ、期間内全280コミットの題名と変更パスを
+  一覧化した。全パッチはround2/all-commits.patchに保存（約2.3MB）。
+・不具合修正・その導入元・関連する整理等57コミットは個別に理由を記して照合した。
+  全280件の一覧はdocs/search-audit-20261029-stockfish.tsv。
+・一覧の「一次分類」は対象範囲の分類であり、そのコミットの全変更行を検証して
+  不具合がないと証明したという意味ではない。棋力調整やNNUE構成差を、単に
+  未移植だからという理由で「未反映のバグ」とは扱わない。
+・探索本体に加えて、メモリ/NUMA/ハッシュ/評価ファイル読込/文字列処理まで調査を
+  拡張した。このためSA-14〜SA-16は初回の探索不具合リストとは分けて読むこと。
+・以下の行番号は本体ソース0f421391のもの。docsの追加以外、本体に変更なし。
+
+SA-11: 共有TTEntryの各フィールドが非atomicで読み書きされる【静的確認】
+場所: source/tt.cpp:100-136、同:149-167、同:399-440。
+Stockfish: 0111d11e2356147bad21c1f890b271a30d10a580 (2026-06-09)
+https://github.com/official-stockfish/Stockfish/commit/0111d11e2356147bad21c1f890b271a30d10a580
+
+key / depth8 / genBound8 / move16 / value16 / eval16 が通常の整数/Move16のまま。
+同じTTを複数Workerが共有し、probe/readとsaveを同期せず実行するため、C++の
+メモリモデル上はデータ競合となる。Stockfishは該当フィールドをrelaxed atomicに
+しており、その修正が未反映。TT全体のエントリーを一括atomicにする話ではない。
+
+注意: 複数フィールドを異なる世代から読んでしまうTTの仕様上の不整合と、
+非atomicアクセス自体のC++未定義動作は別問題。ハードウェアで個々の値が
+分断されずに読めても、C++の競合が解消されるわけではない。
+現行historyの共有要素には既にstd::atomicを使う仕組みがあるため、Stockfishの
+ラッパー全体を無条件に移す必要があるとは結論していない。
+
+検証の限界: 最小の2スレッドプログラムでもThreadSanitizerが
+「FATAL: ThreadSanitizer: unexpected memory mapping」で起動できなかった。
+non-PIEでの再試行も失敗。エンジンをTSanで検証済みとはしていない。
+特定の誤bestmoveやクラッシュの再現結果ではなく、共有アクセスの静的な指摘。
+証拠: round2/tsan-probe.log、round2/tsan-probe-nopie.log。
+修正時はTTE_KEY_TYPEの64bit拡張、Move16の格納形式、TTEntry/Clusterのサイズと
+アラインメントを保ち、性能を再計測する必要がある。
+
+SA-12: CPU番号の欠番で後続CPUをL3/NUMA構成から落とす【模擬入力で再現】
+場所: source/numa.h:1429-1467。
+Stockfish: 564f9f9c858ce8bc7af47a7b7763c11b1b0a467c (2026-05-27)
+https://github.com/official-stockfish/Stockfish/commit/564f9f9c858ce8bc7af47a7b7763c11b1b0a467c
+
+nextUnseenCpuがCPU 0から連続した番号を探し、最初のcacheファイル欠落でbreakする。
+その時点でL3ドメインが1件でもあれば、後ろのCPUを含まない構成を採用できてしまう。
+Stockfishは既知のsystemConfig.nodeByCpuのCPU番号を列挙するよう修正している。
+
+再現: 実numa.hを使用し、read_file_to_stringだけをリンク時の--wrapで差し替えた。
+実際のsysfs、CPU online状態、アフィニティ設定は変更していない。
+  node/online = 0
+  node0/cpulist = 0-1,4-5
+  cpu0,1のL3 shared_cpu_list = 0-1
+  cpu4,5のL3 shared_cpu_list = 4-5
+  cpu2のcacheファイル = 存在しない
+結果:
+  SYSTEM cpus=4 map=0-1,4-5
+  L3 cpus=2 map=0-1 expected_cpus=4
+影響: CPU番号が疎な構成で利用CPUの欠落、偏ったWorker binding/性能低下。
+現在のPCでCPUが実際に欠落しているという報告ではない。
+証拠: round2/numa_gap_probe.cpp、round2/numa-gap.log。
+
+SA-13: 大容量メモリ確保失敗時にNULLへplacement newする【失敗注入で再現】
+場所: source/memory.h:120-145、source/memory.cpp:137-151。
+使用先例: source/history.h:156、source/thread.cpp:51、
+source/engine/yaneuraou-engine/yaneuraou-search.cpp:322。
+Stockfish: 7c37212ec7eba49be3c89887640f646215269526 (2026-08-19)
+https://github.com/official-stockfish/Stockfish/commit/7c37212ec7eba49be3c89887640f646215269526
+
+memory_allocatorはalloc_funcの返値を検査せず、そのアドレスへ構築する。
+配列版では要素数をNULLの先頭へ書き込む。Linuxの大容量アロケータも、
+std_aligned_alloc失敗時のnullptrをそのまま返す。
+
+再現コード（実ヘッダーのテンプレートに失敗を注入）:
+  memory_allocator<int[]>([](size_t)->void* { return nullptr; }, size_t(4));
+UBSan: memory.h:142:22「constructor call on null pointer of type 'size_t'」。
+通常のメモリ不足時に、理由を表示して終了せず未定義動作/クラッシュへ進みうる。
+メモリを大量に消費させてOS全体をOOMにするテストは行っていない。
+証拠: round2/utility_probe.cpp、round2/utility-allocation.log。
+
+SA-14: hash_bytes末尾のsigned charが上位バイトを消す【実関数で再現】
+場所: source/misc.cpp:557-594、特に583行。
+Stockfish: d68041e3201e6c5fc37d1219168f568647f0f93c (2026-08-19)
+https://github.com/official-stockfish/Stockfish/commit/d68041e3201e6c5fc37d1219168f568647f0f93c
+
+末尾の処理が k=(k<<8)|(uint64_t)end[i] となっている。
+charがsignedの環境で0x80以上の値をuint64_tへ直接変換すると符号拡張され、
+既に組み立てた上位バイトがORで消える。
+実際のhash_bytesに2バイトの配列を渡した結果:
+  入力A = 80 01
+  入力B = 80 02
+  hash(A) = hash(B) = 817358306566259125
+  std::numeric_limits<char>::is_signed = true
+ハッシュなので一般に衝突はありうるが、これは符号拡張で末尾の情報が失われる
+系統的な衝突。Stockfishはunsigned byteとして読み取るよう修正済み。
+
+影響範囲: misc.hのhash_string/hash/combine等、およびNNUE等の構造体ハッシュ。
+探索のTT/Position用Zobristキーとは別なので、これをSA-01やTT誤ヒットの
+直接の原因とはしていない。具体的な探索結果変更・棋力差は未検証。
+証拠: round2/utility-hash.log。
+
+SA-15: LEB128デコードの左シフトUBとassertだけの形式検査【関数単位で再現】
+場所: source/eval/nnue/nnue_common.h:166-214。
+Stockfish: 49f8e667c0ebf146f3ce5a1ea2d49ac78b9f777e (2026-08-19)
+https://github.com/official-stockfish/Stockfish/commit/49f8e667c0ebf146f3ce5a1ea2d49ac78b9f777e
+
+a) IntType=int32_tの実関数へ、INT32_MINの正当なsigned LEB128である
+   80 80 80 80 78を渡すと、195行の(byte & 0x7f)<<shiftで
+   「left shift of 120 by 28 places cannot be represented in type 'int'」。
+   UBSanが検出して終了した。
+   指定SFNNモデルのFTのBiasType/WeightTypeはint16_tであるため、このint32の
+   プローブを根拠に「指定モデルの通常ロードでUBが発生する」とはしていない。
+b) magic文字列とbytes_leftの検査がassertだけ。外部プローブのみNDEBUGで
+   実テンプレートをコンパイルし、magic先頭をCからXへ変えても
+   int16_tの0を読み出し、stream.fail()==falseのまま返った。
+   出力: LEB_BAD_MAGIC result=0 fail=0 expected_fail=1。
+c) バッファ読み込みの実際のgcountを追跡していない。短い/壊れたファイルに
+   対する防御もStockfishと差がある。短いファイルが全て受理されると主張する
+   ものではない（stream.read自体がfailbitを設定する場合もある）。
+
+通常探索時のFT演算そのものの問題とは分けること。指定モデルは変更していない。
+証拠: round2/utility-leb-0.log、round2/utility-lebmagic-0.log。
+初回の空ログSIGSEGVだけでは原因を特定できず、証拠に数えていない。
+修正方向: unsigned中間値、明示的なstreamエラー、読み込めたバイト数の検査。
+
+SA-16: cctypeへの負のchar引数【静的確認・条件付き】
+場所: source/misc.cpp:1949,1954、source/usioption.cpp:19。
+Stockfish: 01d71fc9a735a13d84402ac9bee8d54b6b5669cd (2026-09-03)
+https://github.com/official-stockfish/Stockfish/commit/01d71fc9a735a13d84402ac9bee8d54b6b5669cd
+
+isspace/tolowerへplain charをそのまま渡している。charがsignedで、引数がEOFでも
+unsigned charで表せる値でもない場合はC/C++の要求する引数範囲を外れる。
+UTF8等の高bitのある文字列を扱う条件で問題になる。
+通常のASCIIだけのUSIオプション名・sysfs入力ではこの条件にならない。
+この環境のlibcでクラッシュすることや、通常探索が誤ることは確認していない。
+unsigned charに変換してから渡す修正の候補として記録する。
+
+PC-01: 大容量malloc arenaのNUMA間再利用【性能候補・未計測】
+場所: source/memory.cpp:137-151。
+Stockfish: 7ab49b9bda97a608e500762c1fd1d1c5857936f0 (2026-08-25)
+https://github.com/official-stockfish/Stockfish/commit/7ab49b9bda97a608e500762c1fd1d1c5857936f0
+
+Linuxの大きいaligned allocationをmallocに任せると、Threads変更後に別NUMAの
+arena/メモリを再利用し、remote memory accessを増やす可能性がある。
+将棋側はmalloc系のまま。現在のPCは複数物理NUMAを再現できる検証環境ではなく、
+NPS改善を計測したわけではない。採用を勧める確定バグには数えない。
+移植する場合は後続の5cae0fab（MAP_FAILEDの検査）も併せて扱う必要がある。
+
+追加検証で否定できた候補・適用条件が異なるもの
+・86f1df71のmaterial key修正:
+  将棋はチェスのpieceCountを使った同じ式ではない。実Position::do_move/undo_moveを
+  200局、計48,322手実行し、各手後のSFENから再構築した状態と照合。
+  board_key/hand_key/pawnKey/nonPawnKey[両色]/materialKey/minorPieceKeyが全て一致。
+  捕獲8,090手、成り2,267手、駒打ち7,369手を含む。undo後も親SFEN/キーが一致。
+  指定モデルをロードしたASan/UBSanビルド。StateInfoはプローブ側でheapに置き、
+  標準UnitTestのSA-09/SA-10を回避した。本体テストの修正ではない。
+  証拠: round2/partial_keys_probe.cpp、round2/partial-keys.log。
+・50221673の共有continuationHistory初期化:
+  将棋のcontinuationHistoryはWorkerごとの配列（search.h:456）。全Workerで初期化する
+  現行処理が必要であり、SFのNUMA先頭Workerだけの初期化を移すと逆に壊れる。
+・b4ea9205のsysfs末尾改行:
+  SFはstrtoull末尾検査の厳格化で問題を導入した。将棋のstoullは末尾改行を許容する。
+・23df8290の負の時間入力:
+  将棋のparse_limitsも負数を受理する。ただしSFの新しい時間優位計算は存在せず、
+  将棋側はremain_timeの下限を設けている。movetimeは別経路なので堅牢化余地はある。
+  同じタイムアウト不具合を確認したという判定にはしない。
+・4d65257bのcyclic time control、各nodestime修正:
+  該当するmovestogo/Stockfish時間管理経路が将棋側では無効。
+・5cae0fab/MADV_POPULATE_WRITE/shm_unix関連:
+  元となるLinux mmap/shm backendが未導入。同じ原因の不具合と数えない。
+・WindowsのANSIパス、旧macOS、各ISAのコンパイル/配布問題:
+  実行経路の違いと実機不足を一覧に明示した。未検証を「問題なし」に置き換えない。
+
+第2巡の結論と未完了範囲
+・新しいSA-11〜SA-16を追記し、候補PC-01を分離した。実装は全て未修正。
+・SA-12/SA-13/SA-14/SA-15は模擬入力または関数単位の再現。
+  SA-11/SA-16は静的確認であり、動的再現済みの項目と混同しない。
+・初回の236通常探索ケース・bench・perft・accumulatorに加え、48,322手の部分キー検証。
+  標準unittestがSA-09/SA-10で失敗する状態は変わっていない。
+・SA-08、MultiPV中断時の残りのmate PV corner case、Windows/Mac実機、TSan、
+  複数物理NUMA、長時間の棋力対戦は未完了。全不具合を洗い出した保証ではない。
+・保存対象はdocsの台帳と280件一覧。再現プローブとログは引き続きGit管理外の
+  build/search-audit-20261029/にあるため、必要ならそのまま別途保存すること。
