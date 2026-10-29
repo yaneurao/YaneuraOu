@@ -1,6 +1,10 @@
 探索部不具合の処理台帳
 更新日: 2026-10-29
 
+最新の全280件の移植可否レビュー: docs/stockfish-port-review-20261029.txt
+一覧: docs/search-audit-20261029-stockfish.tsv（一次分類を全件個別判定へ更新）。
+SA-17/18を追加。Linux共有メモリとspeedtestの前回記述を第3巡で訂正した。
+
 この文書は調査結果の記録。探索部・その他の本体実装は修正していない。
 文書のみをcommitした。初回調査の記録は当時の状態を記し、追加調査は末尾に追記する。
 チェック欄は「対策の実装と検証が完了したとき」にだけ埋める。
@@ -23,6 +27,8 @@
 [ ] SA-14 hash_bytes末尾の符号拡張                   実関数で衝突再現済み / TTキーとは別
 [ ] SA-15 LEB128の左シフトUB・assert依存の入力検査    関数単位で再現 / 評価ファイル読込
 [ ] SA-16 cctype関数への負のchar引数                 静的確認 / 高bit文字列の入力条件
+[ ] SA-17 spinの不正・過大入力で未処理例外終了       通常releaseで再現済み / 入力処理
+[ ] SA-18 speedtestの秒→ms変換でint overflow         実関数+UBSanで再現済み / 計測基盤
 [ ] PC-01 malloc arenaのNUMA間再利用                 性能候補 / 複数物理NUMAで未計測
 
 SA-01〜SA-05を先に処理し、その後SA-11〜SA-13を並行せず順番に検討する。
@@ -437,8 +443,11 @@ NPS改善を計測したわけではない。採用を勧める確定バグに�
   同じタイムアウト不具合を確認したという判定にはしない。
 ・4d65257bのcyclic time control、各nodestime修正:
   該当するmovestogo/Stockfish時間管理経路が将棋側では無効。
-・5cae0fab/MADV_POPULATE_WRITE/shm_unix関連:
-  元となるLinux mmap/shm backendが未導入。同じ原因の不具合と数えない。
+・5cae0fab/MADV_POPULATE_WRITE/shm_unix関連（第3巡で理由を訂正）:
+  現行にも旧shm_linux.hはありLinuxで有効。MADV_POPULATE_WRITEと新shm_unixは未導入。
+  5cae0fabの対象となる大容量malloc代替mmap経路も未導入。
+  旧backendが存在しないという理由で一括して非該当とした前回の説明は誤り。
+  6a50807eのTHP化には適用余地があるため、全件レビューで実験候補へ分類した。
 ・WindowsのANSIパス、旧macOS、各ISAのコンパイル/配布問題:
   実行経路の違いと実機不足を一覧に明示した。未検証を「問題なし」に置き換えない。
 
@@ -452,3 +461,85 @@ NPS改善を計測したわけではない。採用を勧める確定バグに�
   複数物理NUMA、長時間の棋力対戦は未完了。全不具合を洗い出した保証ではない。
 ・保存対象はdocsの台帳と280件一覧。再現プローブとログは引き続きGit管理外の
   build/search-audit-20261029/にあるため、必要ならそのまま別途保存すること。
+
+
+全280件の個別レビュー（第3巡、2026-10-29）
+
+成果物
+・docs/stockfish-port-review-20261029.txt: 全280件の移植可否、対応実装、理由、条件。
+・docs/search-audit-20261029-stockfish.tsv: 同じ280件の検索/比較用一覧。
+・前回の「一次分類」から、全件を個別の判定へ更新した。
+・修正推奨14件、条件付き推奨43件、実験候補66件、見送り34件、適用不要122件、
+  同種機構の対応済み1件。これはcommit数で、独立した不具合数ではない。
+・同じ系列の中間版やrevertを順番に全部適用する提案ではない。特にMultiPV、
+  TT aging、Linux共有メモリ、NMP/seekMate、NNUE architectureの依存を明記した。
+・本体のコードは引き続き未修正。今回の実行はSA-17/18の追加再現であり、
+  280通りを移植して棋力/NPSを測定したものではない。
+
+訂正・重要な区別
+1) Linux共有メモリ:
+   旧shm_linux.hはsource/shm.hからincludeされ、LinuxのSharedMemoryBackendで有効。
+   未導入なのは新しいmemfd/socket型shm_unix等の経路。旧backendのTHP化は候補になる。
+2) speedtest:
+   現行にもUSIEngine::benchmark → Benchmark::setup_benchmarkの経路がある。
+   「将棋benchは別なので30290aa0は対象外」とした前回判定を訂正。SA-18を再現した。
+3) TT照合key幅:
+   TTE_KEY_TYPEを決める条件はTT_CLUSTER_SIZE。3ならuint16_t、その他の対応構成はuint64_t。
+   HASH_KEY_BITSだけで21bit SWAR化の適用可否を決めない。
+4) No functional change表記:
+   73826352は説明がbehaviour-identicalでも実際の数式は同値でない。
+   depth=1で旧bonus=41、新bonus=114。単純整理として無検証採用しない。
+5) 既試行のFT/NNZ融合、specialized等は以前の比較と重複する。
+   上流との差を具体化しない再実験は優先しない。TT/historyのprefetchは別の案。
+
+SA-17: spin optionの不正値・過大値で未処理例外終了【通常releaseで再現】
+場所: source/usioption.cpp:215-220付近、Option::operator=(const std::string&)。
+Stockfish: cd75d31127b2d351edde4a1eac33bb2ccbac0db2 (2026-07-10)、全件一覧SF-109。
+https://github.com/official-stockfish/Stockfish/commit/cd75d31127b2d351edde4a1eac33bb2ccbac0db2
+
+範囲検査でstd::stollを直接呼び、invalid_argument/out_of_rangeを処理しない。
+通常releaseの実行ファイルbuild/finny-gates/avx512-onで確認:
+  setoption name Threads value abc
+    → std::invalid_argument / what(): stoll / SIGABRT (returncode=-6)
+  setoption name Threads value 999999999999999999999999999999
+    → std::out_of_range / what(): stoll / SIGABRT (returncode=-6)
+評価関数ロード前の入力処理で失敗するため、この再現にはモデルを必要としない。
+通常の合法な数値入力の探索結果を誤るという指摘ではなく、入力の堅牢化。
+
+修正方向: 非例外の数値変換と全桁/範囲検査。不正値は従来設定を維持して拒否する。
+将棋のspinはint64_tなので、Stockfishのint min/maxをそのまま移植しない。
+同commitのNUMA文字列/範囲の入力検査も対象となるが、実メモリを枯渇させる試験は未実施。
+後続b4ea9205の末尾空白許容、01d71fc9のunsigned charを合わせて検討。
+証拠: round3/invalid-spin-0.log、round3/invalid-spin-1.log。
+
+SA-18: speedtestの時間引数でsigned int overflow【実関数+UBSanで再現】
+場所: source/benchmark.cpp:142-211、特に198行のdesiredTimeS * 1000。
+呼出し: source/usi.cpp:342のspeedtest → 同:802のsetup_benchmark。
+Stockfish: 30290aa0fffa491046ca95a285ce2a505d9c34cc (2026-08-19)、全件一覧SF-179。
+https://github.com/official-stockfish/Stockfish/commit/30290aa0fffa491046ca95a285ce2a505d9c34cc
+
+desiredTimeSはintで、floatへ変換する前にintの掛け算が起きる。
+外部プローブから元の実オブジェクトの関数を呼んだ:
+  std::istringstream args("1 1 2147484");
+  auto setup = Benchmark::setup_benchmark(args);
+UBSan: benchmark.cpp:198:58
+  signed integer overflow: 2147484 * 1000 cannot be represented in type 'int'
+正常対照の"1 1 1"はThreads=1/Hash=1と4局面の正のgo movetime列を生成し成功。
+モデルや巨大なメモリを確保せず、引数解析/コマンド生成関数だけで確認した。
+
+注意: threads/ttSizeは将棋ではsize_tへ拡張済み。threads=20000000を関数だけへ渡す
+検査ではHash=2560000000を生成し、int overflowは起きていない。
+上流で説明される全てのoverflow箇所がそのまま同じではない。
+空ログの初回SIGSEGVは原因未特定で、この件の再現証拠に数えない。
+
+修正方向: 時間引数を広い型で読み、ms変換可能範囲へclamp/拒否し、threads/hashも
+実際のUSI option上限と整合させる。秒→msの乗算は広い型で行う。
+これはユーザーが従来NPS測定に使った標準benchの通常引数で起きたという報告ではない。
+証拠: round3/benchmark_args_probe.cpp、round3/benchmark-args-seconds-0.log、
+round3/benchmark-args-normal-0.log、round3/benchmark-args-threads-1.log。
+
+第3巡でも未実施のもの
+・本体修正、280案の対局/NPS比較、全ISA/全OSのビルド、Windows/Mac/BSD実機、
+  複数物理NUMA、TSan、長時間の棋力試験は行っていない。
+・標準unittestのSA-09/10は未修正であり、全テスト合格とはしていない。
+・モデルを使う探索検証は前回記録の指定SFNNモデルの結果を引き継ぐ。

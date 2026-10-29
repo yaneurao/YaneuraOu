@@ -1,0 +1,2640 @@
+Stockfish 直近半年・全280コミットの移植可否レビュー
+更新日: 2026-10-29
+
+対象
+やねうら王: 7d974364（実装は0f421391と同一）、source/は変更していない。
+Stockfish: ff7cee4244ec96ea488c402669e3674c0574dce6。
+期間: 2026-04-29〜2026-10-29に抽出した既存280件を固定して照合。
+SF-001〜SF-280は旧一覧の順番を固定した参照番号。日付だけの厳密な昇順ではない。
+指定モデル: ../inbox/evalTuyo12-20261025
+SFNN_halfka2_2304_15_64_progress8 / FV_SCALE=24。
+
+読み方
+各コミットに、移植可否、対応する将棋側実装、理由、依存条件と必要な検証を記した。
+題名だけの「一次分類」は廃止。上流差分と対応実装・有効な#if経路を照合した判定。
+「修正推奨」は将棋にも同じ不具合/可搬性の欠陥があるもの。commit全体のcherry-pickや
+全関連機構の導入を勧める意味ではない。将棋用の最小差分にする。
+「条件付き推奨」は対象platform/前提機構/保守方針が合えば採用価値があるもの。
+「実験候補」は性能・棋力が変わる案で、移植すれば速い/強いとの確認ではない。
+「見送り」は現在の構成では大きな再設計・新モデル・未確認の前提が必要なもの。
+「適用不要」は対象がない、導入元を採っていない、revert済み、または別projectの運用。
+「対応済み」は同種の機構が現行に存在し、二重に追加すべきでないもの。
+コードはまだ修正していない。文書の判定は修正実行の許可ではない。
+
+判定の集計
+  修正推奨: 14件
+  条件付き推奨: 43件
+  実験候補: 66件
+  見送り: 34件
+  適用不要: 122件
+  対応済み: 1件
+
+この件数はコミットの数。新しい不具合の数でも、必要なpatchの数でもない。
+例えばMultiPVの修正は複数コミットをまとめて一つの最終仕様として移植する。
+
+先に処理するもの
+・既存台帳SA-01（1手詰めTT正規化）、SA-02（明示searchmoves）、SA-03（ponderのNONE）を
+  優先する。SA-01/03は将棋固有経路の問題で、上流280件中の独立commitとは対応しない。
+・以下の14コミットは将棋側の修正を推奨。安全性/出力/異常入力/可搬性を区別して読む。
+  SF-004 3e3e976f [bugfix] Respect bound flags for searched moves in multiPV analysis
+  SF-018 944bee71 Fix calculation of searched nodes (effort)
+  SF-048 564f9f9c Fix sloppy L3 cache detection code
+  SF-067 0111d11e Add ability to disable performance-sensitive relaxed atomic operations at compile time
+  SF-086 782852b2 Clear capturedPiece in do_null_move
+  SF-109 cd75d311 Improve CLI error handling a bit
+  SF-140 a03ac5a6 avoid duplicate legal move check
+  SF-172 7c37212e Refuse a failed large-page allocation
+  SF-175 49f8e667 Avoid UB decoding LEB128, and guard against corrupted files
+  SF-176 d68041e3 Read hash_bytes tail bytes as unsigned
+  SF-179 30290aa0 Clamp speedtest inputs to valid ranges
+  SF-183 3512dea6 Native thread fixes
+  SF-202 01d71fc9 Fix UB when passing plain char to <cctype> functions
+  SF-224 86433ca7 Add iterator header to numa.h
+
+系列ごとの扱い
+・MultiPV/忘れた詰み:
+  3e3e976f → fcbd160d → 1cebdafc → 1eff8b03 → 74a0a737を最終仕様にまとめる。
+  途中版だけではpreviousScore/previousPVの世代問題が残る。再現済みSA-04と
+  まだ通常USIで再現していない残りのcorner caseを区別する。
+・TT aging/penalize:
+  94beadff / 319d61efはバグ修正ではなく探索実験。導入するならc67c1ec6と
+  db11ca42の検査、0111d11eのatomic、最終条件も必要。6a477d56のassert削除だけで済ませない。
+・TT atomicとSWAR:
+  0111d11eは現行にあるC++データ競合への対応。718a001eの型修正も参照する。
+  ff3a6c50の21bit化は別の性能/衝突実験。現行で照合key幅を決めるのは
+  HASH_KEY_BITSではなくTT_CLUSTER_SIZE。3なら16bit、他の対応構成なら64bit。
+  64bit照合keyを21bitへ狭めない。手番によるcluster選択とkey抽出も将棋の仕様を保つ。
+・Linux共有メモリ:
+  現行には旧shm_linux.hが存在し、Linuxで有効。前回の「Linux共有メモリ未導入」は訂正。
+  6a50807eのTHP化はこの旧backendにも対象がある。採るなら05f48577もセット。
+  fd3c762f以降の新memfd/socket backendは未導入で、そのSIGPIPE/FD所有権等の修正は
+  新backend導入時に必要。現行の確定不具合と混同しない。
+・大容量mmap:
+  7ab49b9bはmalloc arena再利用による複数NUMAの性能問題への候補。
+  導入するなら5cae0fabのMAP_FAILED検査と7c37212eのNULL検査を含める。
+・NMP/seekMate:
+  9d4090e8は9a8dd81dでrevert。採用しない。再導入356d7c5cはbeta条件を強めた別案。
+  seekMateを実験するなら598ae2c4/a35e229e/513ce075だけで終えず、
+  72d52bbe/2035ddedのMultiPV sentinel対策まで含めて将棋向けに設計する。
+・新NNUE:
+  SFNNv15〜v19、QAT、K32Q2/K32H3、int8 FTは指定モデルと非互換。
+  重みの交換やコードの差替えだけでは動かない。学習器/exporterと新モデルが必要。
+
+実験候補を後で選ぶ場合
+小さい共通変更からなら、AVX512 MoveSorter（04ce2c04/32619a02）、TT先行prefetch
+（6f97594e）、continuation correction prefetch（4150d22b）、MovePicker local累積
+（8f6a95de）、capture_stage再計算削減（1bf75bb3）が検討しやすい。
+いずれもこの監査ではNPS改善を計測していない。複数案を一度に入れず比較する。
+将棋の大きなhistoryを共有するf9b002cfは、初期化50221673とlarge-page確保まで含める。
+
+既試行案との重複
+FT/NNZ融合はfff35786と同種の案を以前NNUE_FT_NNZで試し、32threadで改善を確認できず。
+以前の平均は-0.73%でばらつきもあり、上流と完全に同一実装を検証したという意味ではない。
+NNUE_FT_SPECIALIZED、multi_ply、act15等も既存比較と照合し、未試行の新案として数えない。
+FT重みprefetchの既試行案と、今回挙げたTT/history prefetchは対象が異なる。
+
+追加で確認した不具合
+SA-17: spin入力が非数値/過大整数だと未処理stoll例外でSIGABRT。
+  通常releaseに setoption name Threads value abc を送るとinvalid_argument。
+  999999999999999999999999999999ではout_of_range。評価関数ロード前の入力処理で起きる。
+  cd75d311の入力検査部分が対応。spin値の将棋独自int64範囲を維持する。
+SA-18: speedtestの秒→msでsigned int overflow。
+  実Benchmark::setup_benchmarkへ "1 1 2147484" を渡すと、benchmark.cpp:198で
+  「2147484 * 1000 cannot be represented in type 'int'」をUBSanが検出。
+  正常入力 "1 1 1" は正常な4局面のgo movetime列を生成した。
+  30290aa0を前回「対象外」とした判定は訂正。現行にもspeedtestが存在する。
+  threads/ttSizeは将棋ではsize_tへ拡張済みで、上流と違い128*threadsのint overflowは
+  今回再現していない。残ったint desiredTimeSの乗算と入力範囲を修正対象とする。
+
+根拠と検証の限界
+・前回の指定モデルでのASan/UBSan探索236ケース、追加4ケース、bench、perft6局面、
+  accumulator 23,442手、部分キー48,322手の結果は既存台帳を参照。
+・今回の追加実行は上記SA-17/18の再現。280件を280通り移植して対局/NPS測定したもの
+  ではない。本体変更は禁じられているため行っていない。
+・TSanは最小プログラムでも起動不可。Windows/Mac/BSD/LoongArch/RVV/複数物理NUMAの
+  実機検証や長期棋力試験は未実施。条件付き判定にその前提を記した。
+・標準unittestがSA-09/10で失敗する状態は変わっていない。
+・証拠と作業用全patchはGit管理外build/search-audit-20261029/に保存。
+  docsの280件レビュー自体には、commit全SHA、対応実装、判断理由、必要検証を保存した。
+
+個別レビュー（280件）
+
+SF-001  04ce2c04d7e6b50d41123f67f286f59d1766790e  2026-05-04
+Faster movepick sorting on AVX512ICL
+判定: 実験候補
+上流変更: src/movepick.cpp
+将棋側: source/movepick.cpp:partial_insertion_sort; source/types.h:ExtMove
+理由: 16手までのAVX512ベクトル挿入ソートは将棋にも移植可能。現行はscalarで、将棋の多い合法手でも残りをscalarに戻す設計は使える。
+条件・必要検証: 32619a02のAVX512条件緩和まで参照。Move32/ExtMoveの配置・同点順・空配列を確認し、1/8/32threadのNPSと棋力を比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/04ce2c04d7e6b50d41123f67f286f59d1766790e
+
+SF-002  7bd32a51f5410cc0eab2f1ef44ceb7f650677c02  2026-05-04
+Replacing the futility margin static value with a continuous transition
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:Worker::search futility_margin
+理由: 深さ1～10のfutility倍率を40→76で補間する変更。現行は76-21*!ttHitの定数であり未反映。将棋の評価値尺度と枝数で効果は別。
+条件・必要検証: 将棋の係数を再調整して対局検証。バグ修正として無条件に採用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/7bd32a51f5410cc0eab2f1ef44ceb7f650677c02
+
+SF-003  2be0b2cdb4073a23c85f9848256c8f2d6f2ff462  2026-05-04
+Change ttmove reduction logic, and values
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:Worker::search LMR
+理由: TT手の減縮をcutoffCnt調整のelse ifにし、下限とcutNode項を追加。現行の独立ifとは意味が異なる探索変更。
+条件・必要検証: 関連LMR調整f8aa78e0/78d8f09bで一度簡略化がrevertされる点も確認。探索手数・棋力検証が必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/2be0b2cdb4073a23c85f9848256c8f2d6f2ff462
+
+SF-004  3e3e976fdf54adf6fce636ff21f7c0f4ce66a70a  2026-05-04
+[bugfix] Respect bound flags for searched moves in multiPV analysis
+判定: 修正推奨
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:SearchManager::pv / iterative_deepening
+理由: SA-04。i!=pvIdxを理由にboundを消す現行処理で誤表示を再現済み。中断時のexact loss巻戻し・最終infoも同じ系列。
+条件・必要検証: 将棋のPV補完と宣言勝ちを保ち移植。fcbd160d/1cebdafc/1eff8b03/74a0a737と一緒に最終仕様を設計し、MultiPV/stopの回帰検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/3e3e976fdf54adf6fce636ff21f7c0f4ce66a70a
+
+SF-005  4055a9fb2765a7724cf9fc3a7577561ecc11f9be  2026-05-04
+Remove the limit from the formula
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:ttMoveHistory更新
+理由: singular検索fail highの負ボーナスから-3375の下限を外す。現行はmaxによる制限が残る。正しさの修正ではなくhistoryの学習強度変更。
+条件・必要検証: StatsEntryのDと入力範囲を確認。長時間・多thread対局で比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/4055a9fb2765a7724cf9fc3a7577561ecc11f9be
+
+SF-006  7e754e17dd37491745b20970a7acce6bc27d4708  2026-05-04
+Simplify away completedDepth
+判定: 見送り
+上流変更: src/search.cpp, src/search.h, src/thread.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:get_best_thread / time management; source/thread.cpp
+理由: completedDepthを消すとthread投票の重みが1増える。将棋側は最終PV深さ、時間制御、stop条件にもcompletedDepthを利用し、同じ単純化は成立しない。
+条件・必要検証: 必要なら別実験。今の完了深さの意味を保つ方針とし、このcommitをそのまま適用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/7e754e17dd37491745b20970a7acce6bc27d4708
+
+SF-007  fe1d2b456c9c94b39b2b32a906ace718e8b5ae7d  2026-05-04
+Update CI Binaries
+判定: 適用不要
+上流変更: .github/ci/macos_matrix.json, .github/ci/matrix.json, .github/ci/windows_arm_matrix.json, .github/workflows/arm_compilation.yml, .github/workflows/compilation.yml, .github/workflows/stockfish.yml, .github/workflows/universal_compilation.yml
+将棋側: .github/workflows/make.yml / make-macos.yml / make-msys2.yml
+理由: Stockfishの配布matrixを分割しuniversal版との重複を除くCI変更。やねうら王は別名workflowと別のarchitecture配布体系。
+条件・必要検証: 配布構成を変更する要求がある場合に設計だけ参考。探索・NPSへの変更なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/fe1d2b456c9c94b39b2b32a906ace718e8b5ae7d
+
+SF-008  dc1686345cf29789cdb823441bf198928a5f0d66  2026-05-04
+Hyperbola quintessence for ARM
+判定: 見送り
+上流変更: src/bitboard.cpp, src/bitboard.h
+将棋側: source/bitboard.h / source/bitboard.cpp
+理由: ARM向けHyperbola Quintessenceでチェス64bitのrook/bishop攻撃を計算。将棋は81マス・128bit bitboard・香車/成り駒を含む別の利き実装。
+条件・必要検証: ARM向け利き生成の新実装としてなら研究可能だが、同じ式の移植は不可。perftと全占有照合が必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/dc1686345cf29789cdb823441bf198928a5f0d66
+
+SF-009  ab8f901d25def6c17f83b7a1b4b84eaec404c0f4  2026-05-04
+Remove small net
+判定: 適用不要
+上流変更: scripts/net.sh, src/engine.cpp, src/engine.h, src/evaluate.cpp, src/evaluate.h, src/nnue/network.cpp, src/nnue/network.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_accumulator.h, src/nnue/nnue_architecture.h, src/nnue/nnue_feature_transformer.h, src/nnue/nnue_misc.cpp, src/nnue/nnue_misc.h, src/position.cpp, src/search.cpp, src/search.h, src/uci.cpp, src/universal/nnue_embed.cpp
+将棋側: source/eval/nnue/evaluate_nnue.cpp; source/eval/nnue/nnue_accumulator.h
+理由: 大/小2ネットの切替を取り除く大規模整理。将棋側には同じsmallnet切替も両ネット用accumulator stackもない。
+条件・必要検証: 単一SFNNの既存構成を保持。個別の共通最適化は後続commitで別判定する。
+原文: https://github.com/official-stockfish/Stockfish/commit/ab8f901d25def6c17f83b7a1b4b84eaec404c0f4
+
+SF-010  1554a2ca0b85c8fa94cfe8f4b68bd85e62107d6c  2026-05-04
+Precompute moves and use magics index as compress mask on AVX512ICL
+判定: 見送り
+上流変更: src/bitboard.h, src/movegen.cpp, src/nnue/layers/affine_transform_sparse_input.h
+将棋側: source/movegen.cpp; source/bitboard.h; source/eval/nnue/layers/affine_transform_sparse_input.h
+理由: 64マスの事前Move表とmagic indexをcompress maskとして使う変更。将棋の81マス・Move32・成/不成/打ちには表形状もmaskも適合しない。
+条件・必要検証: 将棋専用の事前表/SIMD生成を設計する場合の参考。末尾constexpr_lsbの移動だけを目的に適用する必要もない。
+原文: https://github.com/official-stockfish/Stockfish/commit/1554a2ca0b85c8fa94cfe8f4b68bd85e62107d6c
+
+SF-011  5095cd16c97e7596f2d2a02eb05ed8e030af991f  2026-04-30
+Update main network to nn-fcf986aea78a.nnue
+判定: 適用不要
+上流変更: AUTHORS, src/evaluate.h
+将棋側: source/eval/nnue/nnue_architecture.h; inbox/evalTuyo12-20261025/tag.txt
+理由: チェス用既定ネット名をnn-fcf986aea78aへ変更するだけ。将棋の入力特徴量、盤面、重み形式と互換ではない。
+条件・必要検証: 指定の将棋モデルを継続使用。ネット名の置換やダウンロードは行わない。
+原文: https://github.com/official-stockfish/Stockfish/commit/5095cd16c97e7596f2d2a02eb05ed8e030af991f
+
+SF-012  6127bf711e8fbd4e98a215347558797acb755a5e  2026-05-10
+[CI] Upgrade SDE action
+判定: 適用不要
+上流変更: .github/workflows/compilation.yml, .github/workflows/universal_compilation.yml
+将棋側: .github/workflows/make.yml / make-msys2.yml
+理由: Intel SDE actionのNode依存と9.58版への更新。やねうら王CIはこのSDE actionを呼んでいない。
+条件・必要検証: SDEを新設するなら対応版を別途選ぶ。現行workflowにpatchする対象なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/6127bf711e8fbd4e98a215347558797acb755a5e
+
+SF-013  fcbd160d26f998e8b5a6bfbda8190a605f51b549  2026-05-10
+[refactor] Add helper functions and simplify thread selection
+判定: 条件付き推奨
+上流変更: src/search.cpp, src/search.h, src/thread.cpp, src/types.h
+将棋側: source/types.h:is_win/is_loss; source/engine/yaneuraou-engine/yaneuraou-search.h:RootMove
+理由: score_is_bound/unset_bound_flagsとmate判定helperはSA-04系列の移植を明瞭にできる。thread選択の参照整理も適用可能。
+条件・必要検証: Stockfishのassert(is_valid)と将棋の勝ち宣言/詰み定数を合わせる。単独の速度・棋力改善として数えない。
+原文: https://github.com/official-stockfish/Stockfish/commit/fcbd160d26f998e8b5a6bfbda8190a605f51b549
+
+SF-014  ea48d382839ceb58fe615af468390a6fdc50adaa  2026-05-10
+remove simple eval
+判定: 適用不要
+上流変更: src/evaluate.cpp, src/evaluate.h
+将棋側: source/eval/evaluate.cpp; source/eval/nnue/evaluate_nnue.cpp
+理由: smallnet選択に使ったチェスのsimple_eval APIと表示を削除。将棋のmaterial計算とeval表示は別で、同じ死んだAPIはない。
+条件・必要検証: 将棋の駒得・進行度・学習用materialまで削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/ea48d382839ceb58fe615af468390a6fdc50adaa
+
+SF-015  c2500b116523ed61946ed512067bc9060f3f2e36  2026-05-10
+Add Prerelease Notes
+判定: 適用不要
+上流変更: .github/workflows/stockfish.yml
+将棋側: .github/workflows/make.yml
+理由: Stockfish prereleaseの説明文生成・更新であり、やねうら王は同じprerelease jobを持たない。
+条件・必要検証: リリース自動化を再設計する時だけ参考。
+原文: https://github.com/official-stockfish/Stockfish/commit/c2500b116523ed61946ed512067bc9060f3f2e36
+
+SF-016  6a50807e01773951e727d897cdd3549e8e4249ce  2026-05-10
+On Linux, allow shared-memory network weights to be backed by huge pages
+判定: 実験候補
+上流変更: src/shm_linux.h
+将棋側: source/shm.h:Linux SharedMemoryBackend; source/shm_linux.h:setup_new_region/setup_existing_region
+理由: 旧Linux共有メモリは現行でも有効。fallocate先行をmadvise(HUGEPAGE/POPULATE_WRITE)へ変え、共有重みのTHP化を狙う変更は適用対象がある。
+条件・必要検証: 必ず05f48577のpartial population対策込みで設計。shmem THP設定と/dev/shm容量、OOM/fallbackを検証しNPS実測。前回の『Linux共有メモリなし』は訂正。
+原文: https://github.com/official-stockfish/Stockfish/commit/6a50807e01773951e727d897cdd3549e8e4249ce
+
+SF-017  bcd5b6ccb391d66242026c629c50fb9c4b386f29  2026-05-10
+[CI] Add a mutiPV run for matetrack
+判定: 条件付き推奨
+上流変更: .github/workflows/matetrack.yml
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:SearchManager::pv; script/engine_invoker*.py
+理由: MultiPVでも詰みスコアと終端PVを検査するCIの発想は有効。StockfishのFEN corpus/matetrack workflowはそのまま使えない。
+条件・必要検証: SFENと千日手・宣言勝ちに対応する検査器を用意。3e3e976f/1cebdafc/1eff8b03/74a0a737の修正検証に利用。
+原文: https://github.com/official-stockfish/Stockfish/commit/bcd5b6ccb391d66242026c629c50fb9c4b386f29
+
+SF-018  944bee71177601649150f44f4d2eee91418594ff  2026-05-10
+Fix calculation of searched nodes (effort)
+判定: 修正推奨
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:do_moveとroot effort更新
+理由: SA-05。nodeCount記録がdo_moveより後でrootの1ノードを落とす。同じ原因が現行にもある。
+条件・必要検証: nodeCountをdo_move前へ移す。総nodes、各root effort、時間配分の整合を確認。
+原文: https://github.com/official-stockfish/Stockfish/commit/944bee71177601649150f44f4d2eee91418594ff
+
+SF-019  a12dc6cc1fdf754fd061780548d57fa89d92f59d  2026-05-10
+VVLTC parameter's tune
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:search/qsearch/history/time management
+理由: aspiration、LMR、NMP、history、qsearch等の広範なVVLTC数値調整。将棋に同じ係数を入れる根拠にはならず、一括反映は追跡不能になる。
+条件・必要検証: 機構ごとに分割して将棋で再tune。SA-05など正しさの修正とは別の実験にする。
+原文: https://github.com/official-stockfish/Stockfish/commit/a12dc6cc1fdf754fd061780548d57fa89d92f59d
+
+SF-020  dd321af5dfc0789de07c4e5c64915073995eb818  2026-05-10
+Updated main network to nn-83a0d6daf7e5.nnue
+判定: 適用不要
+上流変更: src/evaluate.h
+将棋側: source/eval/nnue/nnue_architecture.h; inbox/evalTuyo12-20261025/tag.txt
+理由: 既定チェスネットをnn-83a0d6daf7e5へ交換する変更で、将棋モデルには互換性がない。
+条件・必要検証: 将棋学習器で生成した対応architectureの重み以外は読み込まない。
+原文: https://github.com/official-stockfish/Stockfish/commit/dd321af5dfc0789de07c4e5c64915073995eb818
+
+SF-021  0366d092a86c4d05b5ddde308d77bb6839f6d827  2026-05-17
+Shorten Prerelease Binary Window
+判定: 適用不要
+上流変更: .github/workflows/stockfish.yml
+将棋側: .github/workflows/make.yml
+理由: Stockfish prereleaseを削除する時点を全asset生成後へ遅らせる配布運用変更。やねうら王に同じprerelease jobはない。
+条件・必要検証: 探索コードや既存リリース手順へそのまま適用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/0366d092a86c4d05b5ddde308d77bb6839f6d827
+
+SF-022  ffffe1bdb593553baf6aac484d917e42f66ea030  2026-05-17
+Add intrinsics for LSX and LASX
+判定: 見送り
+上流変更: .github/workflows/tests.yml, src/Makefile, src/misc.cpp, src/nnue/layers/affine_transform.h, src/nnue/layers/affine_transform_sparse_input.h, src/nnue/layers/clipped_relu.h, src/nnue/layers/sqr_clipped_relu.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_common.h, src/nnue/nnue_feature_transformer.h, src/nnue/simd.h
+将棋側: source/Makefile; source/eval/nnue/layers/simd.h / affine_transform*.h
+理由: LoongArchのLSX/LASX intrinsic backend追加。現行はこのbackendを持たず、FTと旧NNUE/explicit SFNNの両層に適応が必要。
+条件・必要検証: LoongArch対応を行う場合に90890c5f/db6cba47/8e3b5b13まで一組で検討。現PCのAVX512では効果なし。実機/エミュレーション照合が必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/ffffe1bdb593553baf6aac484d917e42f66ea030
+
+SF-023  1cebdafc1473484f47d11786e734983d47edab14  2026-05-17
+Help aborted searches remember mate scores
+判定: 条件付き推奨
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:iterative_deepening
+理由: 一度確定した短い詰みとPVを後の中断・boundで忘れないよう保持する変更。現行はlastIterationPVだけで対のscore保持が不足。
+条件・必要検証: 3e3e976f/fcbd160d/1eff8b03/74a0a737の最終形をまとめて将棋へ移す。実症状は未再現なので詰み/千日手/stop回帰検証を先行。
+原文: https://github.com/official-stockfish/Stockfish/commit/1cebdafc1473484f47d11786e734983d47edab14
+
+SF-024  57f3a2bfbe9448082acdf0f15a8932d8c875eaea  2026-05-17
+Replace directory == "<internal>" with a simple "else"
+判定: 適用不要
+上流変更: src/nnue/network.cpp
+将棋側: source/eval/nnue/evaluate_nnue.cpp:評価ファイル読込
+理由: Stockfish Network::loadで<internal>分岐の重複判定をelseにするだけ。将棋のEvalDir/組込ネット読込は別の構造。
+条件・必要検証: 同名のdirectory分岐がないためpatch対象なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/57f3a2bfbe9448082acdf0f15a8932d8c875eaea
+
+SF-025  94beadffb3e9d93ebfe05d5366878ffb68ab67c9  2026-05-17
+Reintroduce Secondary TT Aging
+判定: 実験候補
+上流変更: src/tt.cpp
+将棋側: source/tt.cpp:TTEntry::save
+理由: 古い深い非exact決着スコアのdepthを減らすsecondary aging。現行に該当機能はなく、不具合の修正ではない。
+条件・必要検証: c67c1ec6/db11ca42の競合対策と0111d11eのatomicが前提。多threadの悪化もあり、将棋で棋力/探索爆発を検証するまで採用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/94beadffb3e9d93ebfe05d5366878ffb68ab67c9
+
+SF-026  91736f7b4f2d137f933ce44e68d8abe9ef0f3732  2026-05-17
+Compute correction_value before TT lookup
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:Worker::search correction_value
+理由: correction_valueの計算をTT lookup前へ移し命令順を変える。論理結果の変更を目的としないが、TT cutoffするnodeにも計算コストを追加する。
+条件・必要検証: 共有history読取りの時点も変わるため単純な同値変換と決めつけず、bench NPSと棋力を比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/91736f7b4f2d137f933ce44e68d8abe9ef0f3732
+
+SF-027  d6469b398073bde6847b724e4e3b4158972f158a  2026-05-17
+arm64 universal binaries redux
+判定: 見送り
+上流変更: .github/ci/universal_matrix.json, .github/workflows/universal_compilation.yml, scripts/check_universal_arm.sh, src/Makefile, src/main.cpp, src/universal/entry_arm64.cpp, src/universal/rewrite_asm_sections.awk
+将棋側: source/Makefile; .github/workflows/make-macos.yml / ndk.yml
+理由: ARM64 dotprod可否をOSごとに検出しuniversal binaryを作る新配布機構。現行はCPU別ターゲットを個別ビルド。
+条件・必要検証: ARM単一バイナリ配布を望む場合に別案件で設計。24abab9f/8cbca11aとentry/PGO/埋込を含めセットで必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/d6469b398073bde6847b724e4e3b4158972f158a
+
+SF-028  3fcd374ad4306abf8a83b5c30227be6dc2716d52  2026-05-17
+Simplify and refactor clipped_relu.h
+判定: 実験候補
+上流変更: src/nnue/layers/clipped_relu.h
+将棋側: source/eval/nnue/layers/clipped_relu.h / clipped_relu_explicit.h
+理由: AVX2特別分岐を除いて変換経路を単純化する性能整理。将棋は旧NNUEとSFNN explicitで別実装を持つ。
+条件・必要検証: 片方だけの変更では対象SFNNで効かない可能性。飽和・shift・tail・pack順を一致検証しAVX2/AVX512双方で測定。
+原文: https://github.com/official-stockfish/Stockfish/commit/3fcd374ad4306abf8a83b5c30227be6dc2716d52
+
+SF-029  f8aa78e0a7e8853370e5989fc23783f3b244ac42  2026-05-17
+Simplify ttMove reduction formula
+判定: 適用不要
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:LMR ttMove補正
+理由: TT手減縮からmax下限を外す変更は78d8f09bでrevert済み。上流の最終形を反映する目的でこの中間commitを採用すべきでない。
+条件・必要検証: 元の形を保つ。独立した将棋実験として扱う場合もrevert理由を明示。
+原文: https://github.com/official-stockfish/Stockfish/commit/f8aa78e0a7e8853370e5989fc23783f3b244ac42
+
+SF-030  c67c1ec603d22202cc35e1ddfa685a705d9b4b3c  2026-05-19
+[bugfix] Guard is_decisive() to avoid assert triggers
+判定: 適用不要
+上流変更: src/tt.cpp, tests/instrumented.py
+将棋側: source/tt.cpp:TTEntry::save
+理由: SA台帳で照合済み。secondary aging導入後のis_decisive引数検査であり、現行にはその呼出しがない。
+条件・必要検証: 94beadffを実装するなら必須。共有TTの一般的なraceであるSA-11は別途修正対象。
+原文: https://github.com/official-stockfish/Stockfish/commit/c67c1ec603d22202cc35e1ddfa685a705d9b4b3c
+
+SF-031  fff35786bf4a5941a017066842f6977398ddac7e  2026-05-19
+Use bitset representation for nnz and move computation into feature transformer
+判定: 見送り（同種案で改善未確認）
+上流変更: src/Makefile, src/nnue/layers/affine_transform_sparse_input.h, src/nnue/network.cpp, src/nnue/nnue_architecture.h, src/nnue/nnue_feature_transformer.h, src/nnue/nnz_helper.h, src/nnue/simd.h
+将棋側: source/eval/nnue/nnue_feature_transformer.h:transform; source/eval/nnue/layers/affine_transform_sparse_input_explicit.h
+理由: FT変換と同時に非ゼロchunkのbitset/indexを生成し、fc_0での再走査を省く。将棋でも適用可能な性能案だが現行にNNZInfoの受渡しはない。 同種のFT/NNZ融合を以前試し、32threadで平均-0.73%、改善を確認できなかった。上流実装を完全に同じ形で試した証拠ではない。
+条件・必要検証: 再試行するなら以前のNNUE_FT_NNZとの差を具体化する。FT2304の順序/paddingと各fc_0 APIを合わせ、1ab9a11aの後続修正も含めて比較する。
+原文: https://github.com/official-stockfish/Stockfish/commit/fff35786bf4a5941a017066842f6977398ddac7e
+
+SF-032  b82f5b59f7c1717502b2add6852d11ff89f0e9ba  2026-05-19
+Port sqr_clipped_relu.h to NEON
+判定: 条件付き推奨
+上流変更: src/nnue/layers/sqr_clipped_relu.h
+将棋側: source/eval/nnue/layers/sqr_clipped_relu.h
+理由: SqrClippedReLUのNEON変換を追加。現行のNEON対応有無・端数次元を確認してARM用に適応でき、x86には効果なし。
+条件・必要検証: WeightScaleBits==6、int32飽和と負数/32767境界、H1=7/15のscalar tailを照合。ARM実機未検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/b82f5b59f7c1717502b2add6852d11ff89f0e9ba
+
+SF-033  319d61effdad40ac633425d6504a98f6d2ad0cd2  2026-05-19
+Penalize TTEs whose inexact value mismatches the current window
+判定: 実験候補
+上流変更: src/search.cpp, src/tt.cpp, src/tt.h, tests/testing.py
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:TT cutoff; source/tt.cpp:TTWriter
+理由: TTが十分深いのにboundの向きだけでcutoffできない場合、格納depthを減らす機能。現行にpenalizeはない。
+条件・必要検証: 6a477d56だけのassert除去で済ませずdb11ca42の競合修正と0111d11eのatomic化が前提。多thread性能/棋力を検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/319d61effdad40ac633425d6504a98f6d2ad0cd2
+
+SF-034  24abab9f6c517ebf02b232e2adf110f2b62355c4  2026-05-19
+Universal builds for Android armv8 and compatibility with older compilers
+判定: 適用不要
+上流変更: .github/ci/arm_matrix.json, .github/ci/windows_arm_matrix.json, .github/workflows/arm_compilation.yml, .github/workflows/compilation.yml, .github/workflows/stockfish.yml, .github/workflows/universal_compilation.yml, .gitignore, scripts/net.sh, src/Makefile, src/nnue/network.cpp, src/universal/nnue_embed.cpp
+将棋側: source/Makefile; .github/workflows/ndk.yml; source/eval/nnue/evaluate_nnue.cpp
+理由: d6469b39のuniversal用#embed非対応コンパイラ向け代替とAndroid配布統合。現行はuniversal/network_dump.incを使わない。
+条件・必要検証: universal機構を新設する場合のみ必要。個別Androidビルドには不要。
+原文: https://github.com/official-stockfish/Stockfish/commit/24abab9f6c517ebf02b232e2adf110f2b62355c4
+
+SF-035  90890c5f1f75811370aa2e37691244a1c35cd34a  2026-05-19
+Loongarch opts
+判定: 見送り
+上流変更: src/bitboard.h, src/nnue/nnue_accumulator.cpp, src/nnue/simd.h
+将棋側: source/bitboard.h; source/eval/nnue/layers/simd.h
+理由: LoongArch bitrev.dによる64マスHQ利きとLSX/LASXの不要mask除去。将棋には同じHQもLoongArch SIMDもない。
+条件・必要検証: ffffe1bdのLoongArch backendを作る時にSIMD部分を参照。利き部分は81マス向け再設計が必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/90890c5f1f75811370aa2e37691244a1c35cd34a
+
+SF-036  78d8f09bc8280e1f7343d0941d466fa5b6c9a559  2026-05-19
+Revert f8aa78e0a7e8853370e5989fc23783f3b244ac42
+判定: 適用不要
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:LMR ttMove補正
+理由: f8aa78e0を元に戻すcommit。f8aa78e0を採用していない現行へ重ねて反映する必要はない。
+条件・必要検証: 2be0b2cdに関する実験では上流の最終式を参照し、中間の簡略化を選ばない。
+原文: https://github.com/official-stockfish/Stockfish/commit/78d8f09bc8280e1f7343d0941d466fa5b6c9a559
+
+SF-037  94984fe5cbe198559a54b6f5ebfb2c737f621f42  2026-05-19
+Simplify Mated Conditions in Iterative Deepening
+判定: 適用不要
+上流変更: src/search.cpp
+将棋側: source/usi.cpp:parse_limits; source/engine/yaneuraou-engine/yaneuraou-search.cpp:limits.mate
+理由: UCI go mateは詰み手数だが、USI go mateは詰み探索の時間[ms]。将棋側の通常探索に同じ停止条件を移すと意味を壊す。
+条件・必要検証: 数学的なmate helperの整理だけならfcbd160dで検討。USIのmate時間指定を維持。
+原文: https://github.com/official-stockfish/Stockfish/commit/94984fe5cbe198559a54b6f5ebfb2c737f621f42
+
+SF-038  133731f33166afcde7fb7a76c41e47c3cddcee8b  2026-05-19
+Simplify away unused CorrHistType variants
+判定: 条件付き推奨
+上流変更: AUTHORS, src/history.h
+将棋側: source/history.h:CorrHistType / Detail::CorrHistTypedef
+理由: 統合correctionHistoryへ移行した後の未使用Pawn/Minor/NonPawnタグと汎用templateを削除する整理は適用可能。
+条件・必要検証: repo全体と学習エンジンで各タグの使用箇所を確認してから削除。速度改善やバグ修正とは数えない。
+原文: https://github.com/official-stockfish/Stockfish/commit/133731f33166afcde7fb7a76c41e47c3cddcee8b
+
+SF-039  6a477d5610b052ce7df31c02c053e6b540f3ffc8  2026-05-24
+Unblock CI
+判定: 適用不要
+上流変更: src/tt.cpp
+将棋側: source/tt.cpp:TTWriter
+理由: 319d61efで導入したpenalizeのassertを一時的に外すだけの回避策。現行にpenalizeがないため不要。
+条件・必要検証: 319d61efを移植するならこの中間対応ではなくdb11ca42のload/境界検査を使う。
+原文: https://github.com/official-stockfish/Stockfish/commit/6a477d5610b052ce7df31c02c053e6b540f3ffc8
+
+SF-040  be9df38f271f0c69bd5adbd2ba34fd9a90b6fe1b  2026-05-24
+Add 1GB page support on x86 Linux
+判定: 実験候補
+上流変更: src/memory.cpp, src/memory.h, src/thread.cpp, src/thread.h, src/tt.cpp
+将棋側: source/memory.cpp; source/tt.cpp:resize/clear; source/thread.cpp
+理由: Linux x86の1GiB huge pageをTTで利用し、NUMA順にfirst-touchする性能案。現行は2MiB aligned allocationのみで適用余地あり。
+条件・必要検証: 8GiB/NUMA以上のTTとhugetlb予約が条件。割当失敗fallback・munmap・NUMA分配を一体実装し、通常の小Hashは従来経路を保つ。未実測。
+原文: https://github.com/official-stockfish/Stockfish/commit/be9df38f271f0c69bd5adbd2ba34fd9a90b6fe1b
+
+SF-041  24d639849017e61c98e6eea40e6a38af302a0080  2026-05-24
+Move Attacks out of Bitboard File
+判定: 適用不要
+上流変更: src/Makefile, src/attacks.cpp, src/attacks.h, src/bitboard.cpp, src/bitboard.h, src/main.cpp, src/movegen.cpp, src/nnue/features/full_threats.cpp, src/position.cpp, src/position.h, src/syzygy/tbprobe.cpp
+将棋側: source/bitboard.cpp / bitboard.h; source/main.cpp
+理由: チェスの利きテーブルを新設Attacks名前空間/ファイルへ移す整理。将棋のBitboardsと利き処理は別構成で、分離による同じ依存改善は示されない。
+条件・必要検証: 保守上の分離が必要になった時に将棋の設計として行う。探索改善のための移植対象ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/24d639849017e61c98e6eea40e6a38af302a0080
+
+SF-042  1ab9a11afeaa4cb1e9273190bb13b4e5bba62555  2026-05-24
+fix avx512icl variable shadows warning
+判定: 適用不要
+上流変更: src/nnue/nnz_helper.h
+将棋側: source/eval/nnue/layers/affine_transform_sparse_input_explicit.h
+理由: NNZInfoのnnz配列とローカルnnzのshadow警告を変数名で解消。現行にNNZInfoがないため単独では対象なし。
+条件・必要検証: fff35786のNNZ生成案を試す場合は修正後のnnzIndices名を使用。
+原文: https://github.com/official-stockfish/Stockfish/commit/1ab9a11afeaa4cb1e9273190bb13b4e5bba62555
+
+SF-043  50cf901c33dda055989f5141b0f8caaa8c2294a9  2026-05-24
+drop old macos binaries
+判定: 適用不要
+上流変更: .github/ci/macos_matrix.json
+将棋側: .github/workflows/make-macos.yml
+理由: Stockfishの古いIntel Mac向け配布を廃止する方針変更。バグ修正でも普遍的な対応方針でもない。
+条件・必要検証: やねうら王の対象ユーザー/対応OSを決める別案件。既存配布を勝手に削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/50cf901c33dda055989f5141b0f8caaa8c2294a9
+
+SF-044  5b068c96d286fa350baf426ee9f2e9e20ebc8313  2026-05-24
+Play the optimal DTM move if we can
+判定: 適用不要
+上流変更: src/syzygy/tbprobe.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:STOCKFISH tablebase分岐
+理由: SyzygyのDTZから特定の3/4駒終盤で最短詰み手を選ぶ変更。将棋にはSyzygy、50手ルール、チェスの該当終盤がない。
+条件・必要検証: 通常の将棋詰み探索へそのまま適用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/5b068c96d286fa350baf426ee9f2e9e20ebc8313
+
+SF-045  05f48577e15beb15b72363a36ecb4ca6ec40a6f9  2026-05-25
+Fix partial MADV_POPULATE_WRITE
+判定: 適用不要（前提導入時は必須）
+上流変更: src/shm_linux.h
+将棋側: source/shm_linux.h:setup_new_region
+理由: 現行旧backendはfallocateを先に完了し、MADV_POPULATE_WRITEを使わないので直接の部分populateバグは未導入。
+条件・必要検証: 6a50807eのTHP化を採るなら失敗時ftruncate(fd,0)もセットにする。旧backendが存在しないという理由ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/05f48577e15beb15b72363a36ecb4ca6ec40a6f9
+
+SF-046  41f3557db9387e648d61a15027aadc4cc8242781  2026-05-25
+Further binary releases fixes
+判定: 適用不要
+上流変更: .github/ci/arm_matrix.json, .github/ci/macos_matrix.json
+将棋側: .github/workflows/ndk.yml / make-macos.yml
+理由: Stockfish配布をtar.gzへ揃え、非NEON armv7を廃止する変更。やねうら王の圧縮/ターゲット方針とは独立。
+条件・必要検証: 配布容量を改善する別要求がある時だけ参考。
+原文: https://github.com/official-stockfish/Stockfish/commit/41f3557db9387e648d61a15027aadc4cc8242781
+
+SF-047  77a8f6ccf31846d63452f79e143fbc6dc62ae3a8  2026-05-25
+HQ attacks for AVX2
+判定: 見送り
+上流変更: src/attacks.cpp, src/attacks.h, src/misc.h
+将棋側: source/bitboard.h / bitboard.cpp
+理由: AVX2かつ非PEXT向けdual HQ利き計算。64マスのrank表と64bit反転に依存し、将棋のBitboardへ直接移せない。
+条件・必要検証: 新しい81マス利きアルゴリズムとして設計・全占有/perft検証が必要。現PCのPEXT経路にもそのまま効かない。
+原文: https://github.com/official-stockfish/Stockfish/commit/77a8f6ccf31846d63452f79e143fbc6dc62ae3a8
+
+SF-048  564f9f9c858ce8bc7af47a7b7763c11b1b0a467c  2026-05-27
+Fix sloppy L3 cache detection code
+判定: 修正推奨
+上流変更: src/numa.h
+将棋側: source/numa.h:NumaConfig::try_get_l3_aware_config
+理由: SA-12。CPU番号0-1,4-5の模擬sysfsで後半2 CPUが欠落することを確認済み。既知CPUを列挙してcache欠落で全体を打ち切らない修正が適合する。
+条件・必要検証: Linux疎CPU、affinity制限、cache情報欠落時のfallbackを検証。Windows分岐は維持。
+原文: https://github.com/official-stockfish/Stockfish/commit/564f9f9c858ce8bc7af47a7b7763c11b1b0a467c
+
+SF-049  313ea4ab0410872e99f0668c74edc7e49e9a0b6a  2026-05-27
+Update main network to nn-71d6d32cb962.nnue
+判定: 見送り
+上流変更: src/evaluate.h, src/nnue/layers/clipped_relu.h, src/nnue/layers/sqr_clipped_relu.h, src/nnue/nnue_architecture.h, src/nnue/nnue_common.h, src/nnue/nnue_feature_transformer.h
+将棋側: source/eval/nnue/nnue_feature_transformer.h; source/eval/nnue/architectures/sfnn_network.h
+理由: ネット名変更だけでなくQATの量子化scale/FT重み順/出力変換を変更する非互換commit。現行FTは127*2上限、既存モデルは旧scale。
+条件・必要検証: 将棋学習器・exporterと同時に新architectureを定義し再学習する場合のみ。出力int64化など安全化部分は別差分で検討。
+原文: https://github.com/official-stockfish/Stockfish/commit/313ea4ab0410872e99f0668c74edc7e49e9a0b6a
+
+SF-050  24a551899ed5be1533e7a01f65d649469f81bb51  2026-05-29
+Speed up feature transform on neon
+判定: 実験候補
+上流変更: src/nnue/nnue_feature_transformer.h
+将棋側: source/eval/nnue/nnue_feature_transformer.h:transform NEON
+理由: NEONで先にunsigned byteへ飽和し、vmull_u8とunzipで積を作る案。現行FT最大254と上流QAT最大255の差を含め、同じ数値になるよう適応が必要。
+条件・必要検証: 指定SFNNの要素積と全境界値をscalar比較。ARMでNPS計測。x86には適用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/24a551899ed5be1533e7a01f65d649469f81bb51
+
+SF-051  8cbca11a5374c1c2de43be416188bf79f1a88302  2026-05-29
+macOS universal binary, take 2
+判定: 見送り
+上流変更: .github/ci/arm_matrix.json, .github/ci/macos_matrix.json, .github/ci/universal_matrix.json, .github/workflows/compilation.yml, .github/workflows/stockfish.yml, .github/workflows/universal_compilation.yml, scripts/check_universal_macos.sh, src/Makefile, src/nnue/network.cpp, src/universal/entry_arm64.cpp, src/universal/entry_x86.cpp, src/universal/nnue_embed.cpp, src/universal/patch_x86_slice.sh, src/universal/rewrite_asm_sections.awk
+将棋側: source/Makefile; .github/workflows/make-macos.yml; source/eval/nnue/evaluate_nnue.cpp
+理由: macOSのx86/ARM fat binaryで重みを共有し、自身のMach-Oをmmapする新配布方式。現行は別バイナリ配布で、そのoffset注入機構はない。
+条件・必要検証: 単一配布の要件がある時の別案件。ARM/x86実機、codesign、埋込失敗fallbackまで必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/8cbca11a5374c1c2de43be416188bf79f1a88302
+
+SF-052  b1053e60b7e0fe3187006c4d7f38dbd22eaff763  2026-05-29
+Simplify Internal Iterative Reductions (IIR) Condition
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:Internal Iterative Reductions
+理由: IIR条件からpriorReduction<=3を削除し発動範囲を広げる。現行にも同じ条件が残り適用可能だが、棋力変更。
+条件・必要検証: 将棋のNMP/減縮との相互作用を含め長短時間の対局検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/b1053e60b7e0fe3187006c4d7f38dbd22eaff763
+
+SF-053  91045b2ff62526d30ed7eed0f1469ae7cbd2be47  2026-06-06
+[CI] Update SDE action
+判定: 適用不要
+上流変更: .github/workflows/universal_compilation.yml
+将棋側: .github/workflows/make.yml
+理由: Stockfish universal CIでのSDEインストールaction更新。対応するactionを現行CIで使用していない。
+条件・必要検証: SDEを新設する場合だけ依存版を選ぶ。
+原文: https://github.com/official-stockfish/Stockfish/commit/91045b2ff62526d30ed7eed0f1469ae7cbd2be47
+
+SF-054  0c1001c93e694bc84845006ed0ebf452ff208eef  2026-06-06
+Disable PEXT on AMD Excavator CPUs
+判定: 条件付き推奨
+上流変更: scripts/get_native_properties.sh, src/universal/entry_x86.cpp
+将棋側: source/Makefile; script/build.sh / mingw_gcc.sh
+理由: AMD ExcavatorのPEXTを遅いと判定するnative CPU選択。現行はStockfishの自動dispatcherを持たないが、CPU推奨ビルドの選択には応用できる。
+条件・必要検証: Excavator/Zen1/2へBMI2版を自動推奨する経路を作る場合の条件。Zen5の今回のビルドには変更不要。
+原文: https://github.com/official-stockfish/Stockfish/commit/0c1001c93e694bc84845006ed0ebf452ff208eef
+
+SF-055  8416ccafff69698e2edd99ec08488147f8f37e34  2026-06-06
+fix Makefile universal build selection
+判定: 適用不要
+上流変更: .github/workflows/universal_compilation.yml, AUTHORS, src/Makefile
+将棋側: source/Makefile
+理由: universalという部分文字列ではなく具体的target名で判定する修正。現行にそのuniversal判定式はない。
+条件・必要検証: d6469b39/8cbca11aのuniversal構築を導入する場合に取り込む。
+原文: https://github.com/official-stockfish/Stockfish/commit/8416ccafff69698e2edd99ec08488147f8f37e34
+
+SF-056  db6cba47d60f92cfb39be1423936b75647800ce7  2026-06-06
+More loongarch optimizations
+判定: 見送り
+上流変更: src/nnue/nnue_feature_transformer.h, src/nnue/simd.h
+将棋側: source/eval/nnue/layers/simd.h; source/eval/nnue/nnue_feature_transformer.h
+理由: LoongArch向けbyte乗算とshiftでFT変換を短縮。現行にLSX/LASX backendがないので単独適用不可。
+条件・必要検証: ffffe1bdとQATの演算前提を合わせ、LoongArch対応を新設する際に検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/db6cba47d60f92cfb39be1423936b75647800ce7
+
+SF-057  9eb836b3b5302483319daa83e6d58749ab2e31c0  2026-06-06
+Compute simplified HQ r/rr at runtime
+判定: 適用不要
+上流変更: src/attacks.cpp, src/attacks.h
+将棋側: source/bitboard.h / bitboard.cpp
+理由: HQのr/rrを表から読む代わりにsquare_bbから生成する。現行の将棋利き計算にHQの同じMagicは存在しない。
+条件・必要検証: HQ方式を新設しない限り対象なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/9eb836b3b5302483319daa83e6d58749ab2e31c0
+
+SF-058  645b636dfa83648b1b5fdd79d9616e78c2316a0d  2026-06-06
+Tweak best move history updates.
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:update_all_stats
+理由: 非PV nodeで探索済み手の個数に比例してbest moveのhistory bonusを増やす。将棋は合法手が多く、同じ1/256係数だと増幅度が変わる。
+条件・必要検証: 捕獲/非捕獲の配列数とoverflowを確認し将棋向け再tune。NPSだけで採用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/645b636dfa83648b1b5fdd79d9616e78c2316a0d
+
+SF-059  db11ca42d586f4eb23670ee3581036faf5a03620  2026-06-06
+Guard tt depth edits from racy underflows
+判定: 適用不要（前提導入時は必須）
+上流変更: src/tt.cpp
+将棋側: source/tt.cpp:TTEntry::save / TTWriter
+理由: depth減算のrace underflow修正。現行にsecondary aging/penalizeの減算がないため同じバグはない。
+条件・必要検証: 94beadff/319d61efを導入するなら必須。SA-11のatomic化だけでは減算時の境界問題は別途残りうる。
+原文: https://github.com/official-stockfish/Stockfish/commit/db11ca42d586f4eb23670ee3581036faf5a03620
+
+SF-060  73826352d4ecdf09d7380fc37d79e1df088f429a  2026-06-06
+Simplify quiet history update expression
+判定: 実験候補
+上流変更: AUTHORS, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:TT quiet fail-high bonus
+理由: 説明はbehaviour-identicalだが式は同値でない。depth=1でmin(114d-73,797)=41に対しmin(114d,724)=114。現行のhistory更新量を変える。
+条件・必要検証: 単純整理として適用しない。将棋の値と対局で検証する。上流のNo functional change表記を採否の根拠にしない。
+原文: https://github.com/official-stockfish/Stockfish/commit/73826352d4ecdf09d7380fc37d79e1df088f429a
+
+SF-061  92fe6b6f4cf081c12d00ad4feba2868af491baf1  2026-06-06
+Simplify RankAttacks initialization
+判定: 適用不要
+上流変更: src/attacks.cpp
+将棋側: source/bitboard.cpp:将棋利きテーブル初期化
+理由: AVX2 HQ向け8×256 RankAttacksをsliding_attackで初期化する整理。将棋にこの64マスHQ表はない。
+条件・必要検証: 81マスの別テーブルへ直接移さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/92fe6b6f4cf081c12d00ad4feba2868af491baf1
+
+SF-062  e4a635486ab50df77b15563c23488dcd3025a498  2026-06-06
+Simplify margin formula
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:SEE pruning margin
+理由: SEE pruning閾値からmax(...,0)を外す。現行にも下限があり、負marginが許されると枝刈り条件が変わる。
+条件・必要検証: 将棋のcaptureHistory範囲と駒価値で条件を計算し棋力検証。無条件の同値整理ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/e4a635486ab50df77b15563c23488dcd3025a498
+
+SF-063  dd3e1c4a50fd358c8bf8051c9ef73219669ff6c0  2026-06-08
+Consistent Integer Types
+判定: 見送り
+上流変更: src/attacks.cpp, src/attacks.h, src/bitboard.cpp, src/bitboard.h, src/engine.cpp, src/engine.h, src/history.h, src/misc.cpp, src/misc.h, src/movegen.cpp, src/movepick.cpp, src/nnue/features/full_threats.cpp, src/nnue/features/full_threats.h, src/nnue/features/half_ka_v2_hm.cpp, src/nnue/features/half_ka_v2_hm.h, src/nnue/layers/affine_transform.h, src/nnue/layers/affine_transform_sparse_input.h, src/nnue/layers/clipped_relu.h, src/nnue/layers/sqr_clipped_relu.h, src/nnue/network.cpp, src/nnue/network.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_accumulator.h, src/nnue/nnue_architecture.h, src/nnue/nnue_common.h, src/nnue/nnue_feature_transformer.h, src/nnue/nnue_misc.cpp, src/nnue/nnue_misc.h, src/nnue/nnz_helper.h, src/nnue/simd.h, src/numa.h, src/perft.h, src/position.cpp, src/search.cpp, src/search.h, src/shm.h, src/shm_linux.h, src/syzygy/tbprobe.cpp, src/thread.cpp, src/thread.h, src/timeman.cpp, src/timeman.h, src/tt.cpp, src/tt.h, src/types.h, src/uci.cpp, src/uci.h, src/ucioption.cpp, src/ucioption.h, src/universal/nnue_embed.cpp
+将棋側: source/types.h; source/misc.h; source全域の整数型
+理由: 固定幅型をu8/i32/usize等へ統一する大規模rename。将棋には既に独自の短縮型とMSVC/学習器の依存があり、探索改善の利益はない。
+条件・必要検証: 将来の保守方針として行うなら全platformをビルド。後続修正を移すためだけに一括renameしない。
+原文: https://github.com/official-stockfish/Stockfish/commit/dd3e1c4a50fd358c8bf8051c9ef73219669ff6c0
+
+SF-064  8e711c29fe7d5d9b317de46ec5f0cd848e56fbaf  2026-06-09
+Add wasm32 and wasm32-relaxed-simd targets, and light optimizations
+判定: 見送り
+上流変更: .github/workflows/stockfish.yml, .github/workflows/wasm_compilation.yml, src/Makefile, src/history.h, src/misc.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_feature_transformer.h, src/nnue/nnz_helper.h, src/nnue/simd.h, src/syzygy/tbprobe.cpp, tests/signature.sh
+将棋側: source/Makefile; script/wasm_build.sh; source/eval/nnue/layers/simd.h
+理由: wasm32/relaxed SIMDのtarget・検出をStockfish側へ整備。将棋は既に独自wasm buildとwasm_simd実装がある。
+条件・必要検証: Emscriptenの現行flagと照合して不足分だけ別途適応。上流Makefile全体を重ねない。
+原文: https://github.com/official-stockfish/Stockfish/commit/8e711c29fe7d5d9b317de46ec5f0cd848e56fbaf
+
+SF-065  1eff8b0389d740c7e5b8b2edeacd1acd7f3afa0d  2026-06-09
+Guarantee complete mate PVs in multiPV analysis
+判定: 条件付き推奨
+上流変更: .github/workflows/matetrack.yml, src/search.cpp, src/search.h
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.h:RootMove; yaneuraou-search.cpp:pv
+理由: previousPVを保存しpreviousScoreと同じiterationのPVを出す修正。現行にはこのpair保持がない。MultiPVの途中更新でscoreとPVの世代がずれうる。
+条件・必要検証: 3e3e976f/1cebdafc/74a0a737の最終形とまとめる。将棋のPV補完とbound、stopの回帰検証が前提。
+原文: https://github.com/official-stockfish/Stockfish/commit/1eff8b0389d740c7e5b8b2edeacd1acd7f3afa0d
+
+SF-066  415ff793a09ec8d029b6253c0eba4c8c106e61e7  2026-06-09
+Fix test harness timeout enforcement
+判定: 適用不要（現行benchは対策方式あり）
+上流変更: AUTHORS, tests/testing.py
+将棋側: script/engine_invoker1.py / engine_invoker5.py; script/bench*.py
+理由: 上流のThreadPoolExecutor+readline待ちtimeout修正。現行bench_sfnn_experiments.pyは既にreader threadとqueue/deadline、bench_finny_reset.pyはsubprocess.run(timeout)を使うので、その不具合はない。
+条件・必要検証: 現行runnerへ上流patchを重ねる必要はない。古いengine_invokerの対局server待ちは別実装として検討。
+原文: https://github.com/official-stockfish/Stockfish/commit/415ff793a09ec8d029b6253c0eba4c8c106e61e7
+
+SF-067  0111d11e2356147bad21c1f890b271a30d10a580  2026-06-09
+Add ability to disable performance-sensitive relaxed atomic operations at compile time
+判定: 修正推奨（TT部分）
+上流変更: src/Makefile, src/history.h, src/misc.h, src/search.cpp, src/search.h, src/thread.h, src/tt.cpp, tests/instrumented.py, tests/testing.py
+将棋側: source/tt.cpp:TTEntry; source/history.h:StatsEntry; source/engine/yaneuraou-engine/yaneuraou-search.h
+理由: SA-11。共有TTの非atomicアクセスは現行にもある。historyは既にatomicを使うため、上流ラッパーと全counter変更を丸ごと入れる必要はない。
+条件・必要検証: RelaxedAtomicを使う場合は718a001eの型修正込み。Move16/64bit key/entryサイズを保つ。WASMのsloppy化は別判断、通常nativeで無効化しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/0111d11e2356147bad21c1f890b271a30d10a580
+
+SF-068  7c7fe322eae6fa3a594c036eb4fc2553fd4e6a11  2026-06-10
+Merge HalfKA and Threats accumulators
+判定: 適用不要
+上流変更: src/nnue/nnue_accumulator.cpp, src/nnue/nnue_accumulator.h, src/nnue/nnue_feature_transformer.h
+将棋側: source/eval/nnue/nnue_accumulator.h; source/eval/nnue/nnue_feature_transformer.h
+理由: HalfKAとFullThreatsの2系統accumulatorを統合。現行指定SFNNはFullThreatsの重み/dirty更新を持たず、この二重蓄積そのものがない。
+条件・必要検証: Finnyやlazy評価を削除する根拠にはならない。将棋Threat特徴量の新設時のみ再検討。
+原文: https://github.com/official-stockfish/Stockfish/commit/7c7fe322eae6fa3a594c036eb4fc2553fd4e6a11
+
+SF-069  278a755fb552131b7e2a5da24256b6a4b13246fc  2026-06-10
+Reorder operations in do_move
+判定: 見送り
+上流変更: src/position.cpp
+将棋側: source/position.cpp:Position::do_move
+理由: チェスの駒配置更新とkey/material計算の順を入れ替えTT prefetchを早める。将棋の手駒/成り/差分更新は別で、上流自身も直後86f1df71でmaterial key不具合を修正。
+条件・必要検証: prefetchの早期化だけなら6f97594eを将棋向けに検討。盤面更新順全体を移さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/278a755fb552131b7e2a5da24256b6a4b13246fc
+
+SF-070  7b37032885b20d95472ef08fd38bad16f07ada25  2026-06-10
+Stop searching if we cannot find a better move
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:時間管理による停止
+理由: 時間管理下でmate-in-1/2または即詰まされが確定し改善余地がなければ止める案。将棋でも有用だが詰み/勝ち宣言のスコアとMultiPV最下位を考慮する必要。
+条件・必要検証: SA-01とmate表示系列を先に直す。ponder/infinite/検討モードでは勝手に停止しないこと、短詰みPVの妥当性を検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/7b37032885b20d95472ef08fd38bad16f07ada25
+
+SF-071  5595cb20ea51aedf1c1ddcf852fa62d3b1d6e5c7  2026-06-10
+Fix FEN validation of pawns on first or eighth rank
+判定: 適用不要
+上流変更: AUTHORS, src/position.cpp
+将棋側: source/position.cpp:Position::set
+理由: チェスFENのRANK_1とRANK_8のenum ORをbitboard定数のORへ直す変更。同じ式はSFEN読込に存在せず、将棋の行き所のない歩は色別1/9段の別規則。
+条件・必要検証: チェスの両端rank拒否を将棋に転用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/5595cb20ea51aedf1c1ddcf852fa62d3b1d6e5c7
+
+SF-072  86f1df7134fa54fe93e90dc086d978e917256c2f  2026-06-10
+Fix material key computation error
+判定: 適用不要
+上流変更: src/position.cpp
+将棋側: source/position.cpp:materialKey / do_move
+理由: 278a755fの操作順変更で生じたpieceCount添字±1を修正。将棋は駒数indexのXORではなく別の加減算。48,322手で全部分キーの再構築/undo一致を確認済み。
+条件・必要検証: std unittestのFast=false化だけなら将棋のテスト設計で検討。修正済みと誤認してSA-09/10を放置しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/86f1df7134fa54fe93e90dc086d978e917256c2f
+
+SF-073  0dc19b61ae4d2f361787b043228191403bec8c22  2026-06-14
+More stable matetrack CI
+判定: 条件付き推奨
+上流変更: .github/workflows/matetrack.yml
+将棋側: script/engine_invoker*.py; .github/workflows/make.yml
+理由: 詰みPVテストでabortされた子プロセスを回収し、事前のengine smoke testを入れる設計は有効。上流matetrack jobそのものは未導入。
+条件・必要検証: SFENの独自matetrackを新設する時にbcd5b6ccの方針と合わせる。
+原文: https://github.com/official-stockfish/Stockfish/commit/0dc19b61ae4d2f361787b043228191403bec8c22
+
+SF-074  718a001e6a962242b36172ebd0f478ee35b55288  2026-06-14
+Fixup RelaxedAtomic operator Types
+判定: 適用不要（ラッパー導入時は必須）
+上流変更: src/misc.h
+将棋側: source/misc.h; source/tt.cpp
+理由: RelaxedAtomicの+=/-=引数がintで64bit値を狭める問題。現行にラッパー自体がない。
+条件・必要検証: 0111d11eからラッパーを移植するなら引数Tの最終形を使用。TT atomic化の必須確認項目。
+原文: https://github.com/official-stockfish/Stockfish/commit/718a001e6a962242b36172ebd0f478ee35b55288
+
+SF-075  6e4e03fd282d5e1cba514197bf1ef326c990f0d2  2026-06-14
+Replace Remaining Types
+判定: 見送り
+上流変更: src/benchmark.cpp, src/memory.cpp, src/memory.h, src/misc.h, src/movegen.h, src/nnue/nnz_helper.h, src/nnue/simd.h, src/search.h, src/thread_win32_osx.h, src/tune.h
+将棋側: source/types.h; source/memory.h; source/thread_win32_osx.h
+理由: dd3e1c4a後に残ったsize_t等のrename。将棋では全体renameを選んでおらず、単独でこの後処理を行う利益はない。
+条件・必要検証: 型の幅/符号を変える安全化とは別。保守方針として統一する時だけ実施。
+原文: https://github.com/official-stockfish/Stockfish/commit/6e4e03fd282d5e1cba514197bf1ef326c990f0d2
+
+SF-076  ed8e35d759ed7953ab0e4543ed6d6d496067bfa0  2026-06-14
+Remove unused code from the post NNUE accumulator merge
+判定: 適用不要
+上流変更: src/nnue/features/full_threats.cpp, src/nnue/features/full_threats.h, src/nnue/features/half_ka_v2_hm.cpp, src/nnue/features/half_ka_v2_hm.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_common.h, src/position.cpp, src/types.h
+将棋側: source/eval/nnue/features/; source/eval/nnue/nnue_feature_transformer.h
+理由: HalfKA/Threat accumulator統合後に死んだfused/refresh APIを削除する整理。将棋は別のfeature set/差分経路で、append_active_indices等が現用。
+条件・必要検証: 将棋のFinny/lazyで使う関数を名前だけで削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/ed8e35d759ed7953ab0e4543ed6d6d496067bfa0
+
+SF-077  f9beec5fa56540ee088a9c9e03a6444b4ec26af6  2026-06-14
+Reuse computed ray bitboard in update_piece_threats
+判定: 適用不要
+上流変更: src/position.cpp
+将棋側: source/position.cpp
+理由: FullThreats用update_piece_threats内の同じray計算を再利用。将棋にはその関数/dirty threat更新がない。
+条件・必要検証: 将棋の利き計算全般が重複しているという指摘ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/f9beec5fa56540ee088a9c9e03a6444b4ec26af6
+
+SF-078  f9b002cf7db4a6ec53dd5f06d72601638e326b82  2026-06-14
+Share continuation history between threads
+判定: 実験候補
+上流変更: src/history.h, src/search.cpp, src/search.h
+将棋側: source/history.h:PieceToHistory/SharedHistories; source/engine/yaneuraou-engine/yaneuraou-search.h:Worker
+理由: Worker専用continuationHistoryをNUMA内共有しatomic化する案。将棋では81マス/駒種数で配列が大きく、メモリ削減とcache競合の双方がありうる。
+条件・必要検証: 50221673のNUMA先頭だけのclearもセット。1/8/32threadのメモリ/NPS/棋力を比較。共有せずclearだけ変更しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/f9b002cf7db4a6ec53dd5f06d72601638e326b82
+
+SF-079  74a0a73715322608332038f7c0151ddf0609a59a  2026-06-14
+Final fix for MultiPV mate PV corner cases
+判定: 条件付き推奨
+上流変更: src/search.cpp, src/search.h
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.h:RootMove; yaneuraou-search.cpp:iterative_deepening
+理由: previousPVの信頼性フラグ、未完了sidelineのloss bound、忘れた詰みのscore/PV対を直す最終修正。現行にも同じ旧世代管理の不足がある。
+条件・必要検証: 1cebdafc/1eff8b03を別々に完了扱いせず、この最終形へ統合。通常USIの全corner case再現はまだなので回帰テストを先行。
+原文: https://github.com/official-stockfish/Stockfish/commit/74a0a73715322608332038f7c0151ddf0609a59a
+
+SF-080  31e89adf70d56477e7b2ed3c8009eed7f76087e3  2026-06-25
+[RfC] Make CI faster
+判定: 適用不要
+上流変更: .github/workflows/tests.yml, scripts/check_universal.sh
+将棋側: .github/workflows/make.yml; script/
+理由: SDEで複数CPUのuniversal版を並列検査するCI高速化。現行には同じuniversal/SDE試験がない。
+条件・必要検証: 導入する場合もNPS測定と並列実行を混ぜず、機能検査だけ並列化。
+原文: https://github.com/official-stockfish/Stockfish/commit/31e89adf70d56477e7b2ed3c8009eed7f76087e3
+
+SF-081  6f97594eda9e50dd22e237abcb636d426727ef07  2026-06-25
+prefetch the TT entry as soon as the move is known
+判定: 実験候補
+上流変更: AUTHORS, src/position.cpp, src/position.h, src/search.cpp
+将棋側: source/position.cpp:Position::key_after; source/engine/yaneuraou-engine/yaneuraou-search.cpp:YaneuraOuWorker::do_move
+理由: 手を指す前に次局面keyでTTをprefetchする案。将棋はkey_afterを既に持つがWorker冒頭では使っていない。打ち/成り/捕獲/手駒を扱う既存関数を使える。
+条件・必要検証: チェスのrule50近似式は移さない。key_afterと実do_moveの一致、余分なkey計算コスト、NPSを確認。
+原文: https://github.com/official-stockfish/Stockfish/commit/6f97594eda9e50dd22e237abcb636d426727ef07
+
+SF-082  d64835051e9752ad1d9e8ebfb4655753da76741b  2026-06-25
+Do more aggressive probCut when improving.
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:ProbCut
+理由: improving時にprobCutDepthをさらに1減らす。現行depth-4との差は枝刈り成功率と誤判定に関わる。
+条件・必要検証: 将棋の評価値と詰み探索の相互作用を含め対局検証。単なる高速化と扱わない。
+原文: https://github.com/official-stockfish/Stockfish/commit/d64835051e9752ad1d9e8ebfb4655753da76741b
+
+SF-083  9fcd47a717cfdf8c44127710fdb3325218a12259  2026-06-25
+Update main network to nn-f8a759c05f9f.nnue
+判定: 適用不要
+上流変更: src/evaluate.h
+将棋側: source/eval/nnue/nnue_architecture.h; inbox/evalTuyo12-20261025/tag.txt
+理由: チェスのBT4再ラベル学習ネットnn-f8a759c05f9fへの交換。将棋の入力/規則/重みと互換性なし。
+条件・必要検証: 蒸留という学習手法だけなら学習器側の別課題。今回のモデルは維持。
+原文: https://github.com/official-stockfish/Stockfish/commit/9fcd47a717cfdf8c44127710fdb3325218a12259
+
+SF-084  1ece3c030daebd9fb49870688de73dff10ba6052  2026-06-25
+Simplify Evasion Logic
+判定: 見送り
+上流変更: src/position.cpp
+将棋側: source/position.cpp:Position::pseudo_legal_s; source/movegen.cpp:EVASIONS
+理由: 王手回避判定をEVASIONSリストへの包含検査に置き換える。将棋は打ち/成不成/打歩詰を持ち、LEGALとALLの生成範囲も異なる。
+条件・必要検証: 後続a255ad59で再び直接判定へ最適化される中間形。将棋の全合法手を落とさない保証なく移さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/1ece3c030daebd9fb49870688de73dff10ba6052
+
+SF-085  5b87bc48cd73995f02bc790e50239a83d622f838  2026-06-25
+Remove unused search-layer APIs
+判定: 条件付き推奨
+上流変更: src/movepick.h, src/search.cpp, src/search.h
+将棋側: source/movepick.h:begin/end; source/engine/yaneuraou-engine/yaneuraou-search.h:SearchManager::id/elapsed_time
+理由: 上流で未使用だったAPIの削除。現行にも同名のid/MovePicker accessorが残るが、Worker::elapsed_timeはSTOCKFISH分岐に置かれている。
+条件・必要検証: 学習器/他エンジンも含めcall siteを再確認した範囲だけ削除。TimeManagement::elapsed_timeは現用で削除不可。
+原文: https://github.com/official-stockfish/Stockfish/commit/5b87bc48cd73995f02bc790e50239a83d622f838
+
+SF-086  782852b26a5bd22eb0ea6a834cbeb48d4356a07b  2026-06-25
+Clear capturedPiece in do_null_move
+判定: 修正推奨
+上流変更: src/position.cpp
+将棋側: source/position.cpp:Position::do_null_move
+理由: SA-06。直前のcaptureがnull move後にも残る状態不整合を実関数で再現。NO_PIECEで初期化する変更は将棋にも正しい。
+条件・必要検証: 現行の探索実害は未確認。null undoで元のcapturedPieceが戻ること、NMP/history挙動を検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/782852b26a5bd22eb0ea6a834cbeb48d4356a07b
+
+SF-087  3c858c19e6ea0c284ea6f4ca4e7bce3fd329a38e  2026-06-25
+Two small simplifications
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:mainHistory減衰/LMR
+理由: mainHistoryの+5補正とTT手減縮のcutNode項/下限を変える。式が変わる機能変更で、将棋側の既存係数へそのまま重ねない。
+条件・必要検証: 減衰とLMRを分けて棋力検証。73826352と同様にタイトルのsimplificationだけで同値と扱わない。
+原文: https://github.com/official-stockfish/Stockfish/commit/3c858c19e6ea0c284ea6f4ca4e7bce3fd329a38e
+
+SF-088  47575ebd8bc092b091e496ea776dc56d22972487  2026-06-25
+Deduplicating Color-Specific Piece Validation
+判定: 適用不要
+上流変更: src/position.cpp
+将棋側: source/position.cpp:Position::set
+理由: チェスFENの先後別pawn/昇格駒数検査をloopへ整理。将棋の持駒・総駒数・成駒の規則に同じ検査式は使えない。
+条件・必要検証: 将棋のSFEN検証を整理するなら独立のテストと設計で実施。
+原文: https://github.com/official-stockfish/Stockfish/commit/47575ebd8bc092b091e496ea776dc56d22972487
+
+SF-089  feb932533d909172d241b5f7619a9a0f48ee7d77  2026-06-27
+Update bug report template
+判定: 適用不要
+上流変更: .github/ISSUE_TEMPLATE/BUG-REPORT.yml
+将棋側: .github/CONTRIBUTING.md
+理由: Stockfishの報告先/確認項目をbug report templateへ追加する運用変更。現行に同じtemplateはない。
+条件・必要検証: やねうら王用の再現SFEN/評価関数情報を整備する際に参考にする程度。
+原文: https://github.com/official-stockfish/Stockfish/commit/feb932533d909172d241b5f7619a9a0f48ee7d77
+
+SF-090  9d2ba2bed507057425559aaefc5e1a14441e8d6d  2026-06-27
+Update main network to nn-1b6a82263149.nnue
+判定: 適用不要
+上流変更: src/evaluate.h
+将棋側: source/eval/nnue/nnue_architecture.h; inbox/evalTuyo12-20261025/tag.txt
+理由: チェス蒸留データを追加学習したnn-1b6a82263149へ既定重みを交換するだけ。将棋に使用できない。
+条件・必要検証: 指定モデルを維持。
+原文: https://github.com/official-stockfish/Stockfish/commit/9d2ba2bed507057425559aaefc5e1a14441e8d6d
+
+SF-091  4488343cf67b39b68c8dc41c91f26796b98df673  2026-06-29
+Update main network to nn-af1339a6dea3.nnue
+判定: 適用不要
+上流変更: src/evaluate.h
+将棋側: source/eval/nnue/nnue_architecture.h; inbox/evalTuyo12-20261025/tag.txt
+理由: チェス74B再ラベルデータのnn-af1339a6dea3へ交換するだけ。将棋のfeature set/重みと非互換。
+条件・必要検証: 学習レシピの研究とエンジンへのcommit適用を分ける。
+原文: https://github.com/official-stockfish/Stockfish/commit/4488343cf67b39b68c8dc41c91f26796b98df673
+
+SF-092  6088838797d6333711c17fe2c0962fa0858517ec  2026-06-30
+Yeet psqt weights
+判定: 適用不要
+上流変更: src/evaluate.cpp
+将棋側: source/eval/nnue/architectures/sfnn_network.h; source/eval/nnue/evaluate_nnue.cpp
+理由: PSQTとpositionalを125:131から単純和へ変える。指定SFNNはPSQT枝を持たず、同じmix計算がない。
+条件・必要検証: 将棋のmaterial補正やshortcutをPSQTと混同して削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/6088838797d6333711c17fe2c0962fa0858517ec
+
+SF-093  e33bb26ee7320629dd9114a936a38e6f4d43d52a  2026-07-03
+Update nnue-architecture to SFNNv15
+判定: 見送り
+上流変更: src/evaluate.h, src/nnue/nnue_architecture.h
+将棋側: source/eval/nnue/architectures/sfnn_network.h; source/eval/nnue/architectures/nnue_arch_gen.py
+理由: SFNNv15はL2=32、二段目SqrReLU、concat/skipで最終入力も変更する新architecture。指定将棋モデル2304_15_64と非互換。
+条件・必要検証: 将棋学習器/exporterを含む新architecture実験と再学習が必要。既存重みにコードだけ適用不可。
+原文: https://github.com/official-stockfish/Stockfish/commit/e33bb26ee7320629dd9114a936a38e6f4d43d52a
+
+SF-094  d91c7f6eac385faa68d12d46eaf91ea6909a2f52  2026-07-02
+Update main network to nn-0ee0657fb25e.nnue
+判定: 条件付き推奨（安全化部分のみ）
+上流変更: src/evaluate.cpp, src/evaluate.h
+将棋側: source/eval/nnue/evaluate_nnue.cpp; source/eval/nnue/architectures/sfnn_network.h
+理由: ネット交換に加えてoptimism/complexity/material乗算をint64へ拡張する。現行に同じscale_evaluation式はないが、整数積の幅を点検する方針は有効。
+条件・必要検証: チェスの式/重みは移さず、将棋の実際の中間値範囲で必要な箇所だけ拡張。既存モデルの値が変わらないか照合。
+原文: https://github.com/official-stockfish/Stockfish/commit/d91c7f6eac385faa68d12d46eaf91ea6909a2f52
+
+SF-095  83514e4970194da7ef40630ec7df7d9c32cc5bdc  2026-07-03
+Filter invalid threat pairs early
+判定: 適用不要
+上流変更: src/nnue/features/full_threats.cpp, src/position.cpp
+将棋側: source/position.cpp; source/eval/nnue/features/half_ka2.cpp
+理由: FullThreatsの無効な駒ペアを早く除く最適化。現行のhalfka2はチェスの駒対脅威featureを持たない。
+条件・必要検証: 将棋で新しい脅威特徴量を導入しない限り対象なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/83514e4970194da7ef40630ec7df7d9c32cc5bdc
+
+SF-096  32619a0294fe1899948e3ccbb7407625a7db8ded  2026-07-03
+Enable MoveSorter for AVX512
+判定: 実験候補
+上流変更: src/movepick.cpp
+将棋側: source/movepick.cpp:partial_insertion_sort; source/Makefile
+理由: 04ce2c04のMoveSorterをAVX512ICLからAVX512へ条件緩和。使用命令がAVX512F/BW等で足りる範囲を調べ、将棋へも適応可能。
+条件・必要検証: 元のMoveSorter導入と一体。Move32/ExtMoveの配置を保ち、対象ISAごとのビルド・NPS・同点順を検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/32619a0294fe1899948e3ccbb7407625a7db8ded
+
+SF-097  9449162d588b2a185471501ad8ebea1ec8864f87  2026-07-03
+Simplify thread selection
+判定: 実験候補
+上流変更: src/thread.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:get_best_thread
+理由: thread投票から深さ依存を外し、同票時をPV長で選ぶ。現行はcompletedDepthの重みを持ち、採用すると最善手選択が変わる。
+条件・必要検証: 1threadではなく8/32threadの棋力検証が必須。単にcompletedDepth削除のために採用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/9449162d588b2a185471501ad8ebea1ec8864f87
+
+SF-098  3e1e8e38a44777cae69844fe1fdea18830f94657  2026-07-03
+Fix Clang-Format Action Inputs
+判定: 適用不要
+上流変更: .github/workflows/clang-format.yml
+将棋側: .github/workflows/
+理由: clang-formatのPR comment action引数名を直すCI修正。現行にそのworkflow/actionはない。
+条件・必要検証: format CIを作る場合に正しいaction APIを利用。
+原文: https://github.com/official-stockfish/Stockfish/commit/3e1e8e38a44777cae69844fe1fdea18830f94657
+
+SF-099  46428b93461ee0c0e9e76f27866ddf502372d62a  2026-07-03
+Allow cross-compilation of Android version on Mac
+判定: 適用不要
+上流変更: AUTHORS, src/Makefile
+将棋側: source/Makefile; script/android_build.sh / android_build.ps1
+理由: 上流はhost KERNEL=DarwinでNDKへmacOS flagを混入した。現行Makefileに同じhost-Darwin判定/-mdynamic-no-picはなく、Apple用flagは明示APPLE targetに限定される。
+条件・必要検証: 将来host依存のOS判定を追加する場合はtarget OSと分離する。今回その修正を適用する対象はない。
+原文: https://github.com/official-stockfish/Stockfish/commit/46428b93461ee0c0e9e76f27866ddf502372d62a
+
+SF-100  99489f57dddb121e1db887d35561ea58abd4158a  2026-07-03
+Simplify out pext attacks
+判定: 適用不要
+上流変更: src/attacks.cpp, src/attacks.h, src/movegen.cpp
+将棋側: source/bitboard.h / bitboard.cpp; source/movegen.cpp
+理由: 上流のPEXT圧縮攻撃表と事前Move表を捨てHQへ統一する変更。将棋のPEXT/利き表は独自81マス実装で、この整理は対応しない。
+条件・必要検証: 1554a2caの方式は上流でも最終的に撤去された点を記録。将棋のPEXTを無条件に削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/99489f57dddb121e1db887d35561ea58abd4158a
+
+SF-101  d5bbc6b67d3184fc39fa87a18596e77e92af990c  2026-07-03
+[RfC] RISC-V port and universal binary
+判定: 見送り
+上流変更: .github/ci/universal_matrix.json, .github/workflows/tests.yml, .github/workflows/universal_compilation.yml, scripts/check_universal_riscv.sh, scripts/get_native_properties.sh, src/Makefile, src/memory.h, src/nnue/layers/affine_transform.h, src/nnue/layers/affine_transform_sparse_input.h, src/nnue/layers/clipped_relu.h, src/nnue/layers/sqr_clipped_relu.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_feature_transformer.h, src/nnue/nnz_helper.h, src/nnue/simd.h, src/universal/entry_riscv64.cpp
+将棋側: source/Makefile; source/eval/nnue/layers/simd.h / affine_transform*.h
+理由: RVVの可変長SIMD推論とRISC-V universal dispatcherを追加。現行には同じRVV backend/nnz bitset/dispatch機構がなく大規模対応になる。
+条件・必要検証: RISC-V高速化を対象にする別案件。halfka2_2304とtailをRVV長ごとに照合し、後続43d4d0efも参照。x86へ効果なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/d5bbc6b67d3184fc39fa87a18596e77e92af990c
+
+SF-102  22548cb0c0197079e0c6337b370061addf1d09fa  2026-07-06
+S人ving Privàte Ryän
+判定: 条件付き推奨（パス処理の設計）
+上流変更: .github/workflows/avx2_compilers.yml, src/engine.cpp, src/engine.h, src/main.cpp, src/misc.cpp, src/misc.h, src/nnue/network.cpp, src/nnue/network.h, src/nnue/nnue_misc.cpp, src/nnue/nnue_misc.h, src/syzygy/tbprobe.cpp, src/types.h, src/uci.cpp, src/uci.h
+将棋側: source/misc.cpp:CommandLine/Path; source/eval/evaluate_io.cpp; source/usi.cpp
+理由: Windows非ASCIIパス対応は有用だが、Networkからpathを分離しfilesystemへ全面移行するcommitで、将棋のDirectory/EvalDir/ProgressFile経路と構造が違う。
+条件・必要検証: 057e9bf4と7d9276c6の後続修正込みで、GUIのANSI/UTF8、Unicode起動パスをWindows実機検証。固定文字列削除だけを一括移植しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/22548cb0c0197079e0c6337b370061addf1d09fa
+
+SF-103  4436524a3e6f37b68d0f23683681b249a4edcf52  2026-07-06
+add rbit fallback
+判定: 適用不要
+上流変更: src/attacks.h, src/misc.h
+将棋側: source/bitboard.h; source/misc.h
+理由: ARM HQのreverse_bbに古いGCC用rbit asm fallbackを追加。将棋は同じHQ/reverse_bbを使わない。
+条件・必要検証: 独自HQを導入する時にコンパイラ互換性として参照。
+原文: https://github.com/official-stockfish/Stockfish/commit/4436524a3e6f37b68d0f23683681b249a4edcf52
+
+SF-104  bc079c46a9b231457e21c75a0887e64e2e756418  2026-07-06
+Fix Clang 22 codegen regression
+判定: 適用不要
+上流変更: src/position.h
+将棋側: source/position.h:Position::capture/capture_stage
+理由: Clang22のチェスCASTLING/EN_PASSANT/PROMOTION分岐のcodegen回避。将棋のcaptureは打ち判定と移動先駒だけで、同じMoveType分岐がない。
+条件・必要検証: Clang22の将棋コードに退行があるかは別途計測する。チェスの分岐を移さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/bc079c46a9b231457e21c75a0887e64e2e756418
+
+SF-105  7da31a1f1d8e16721ca2fd430c44fcb4b99b0bec  2026-07-06
+Simplify futility multiplier
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:futility_margin
+理由: 補間倍率をmin(40+4*depth,80)へ変更し枝刈り挙動も変える。現行の定数倍率には適用余地があるが、前提のQAT評価scaleは異なる。
+条件・必要検証: 7bd32a51の初期案より最終式を参考に、将棋で再tune。単純な計算短縮と扱わない。
+原文: https://github.com/official-stockfish/Stockfish/commit/7da31a1f1d8e16721ca2fd430c44fcb4b99b0bec
+
+SF-106  2cbf39f845a036456402bfbe00a51126872825f3  2026-07-06
+Split NEON sparse affine accumulation three ways
+判定: 実験候補（ARM）
+上流変更: src/nnue/layers/affine_transform_sparse_input.h
+将棋側: source/eval/nnue/layers/affine_transform_sparse_input_explicit.h; layers/simd.h
+理由: NEON dotprodの依存鎖を3本に分けILPを増やす。現行のSFNN層は別API/出力次元なので、そのままのNumRegsは合わない。
+条件・必要検証: ARM実機で入力残数1/2/3と全zeroを含め評価値一致、レジスタspillとNPSを検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/2cbf39f845a036456402bfbe00a51126872825f3
+
+SF-107  eca43a97efd2cf0c9b7153c71b85f35e0fd1f5ca  2026-07-06
+Remove unnecessary memset(), memcpy() from NetworkArcitecture::propagate()
+判定: 条件付き推奨
+上流変更: src/nnue/nnue_architecture.h
+将棋側: source/eval/nnue/architectures/sfnn_network.h:SfnnNetworkBuffer/MakeHidden1Input
+理由: concat先へactivationを直接書き一時配列とmemcpyを除く発想は現行にも既に一部反映。指定SFNNはtail/paddingを明示的にzero化する必要がある。
+条件・必要検証: 上流SFNNv15の寸法保証を持たないのでmemset/末尾fillだけを削除しない。対応済み部分に重複適用不要。
+原文: https://github.com/official-stockfish/Stockfish/commit/eca43a97efd2cf0c9b7153c71b85f35e0fd1f5ca
+
+SF-108  48a9118251609a0902df7889f7fe241921ac358f  2026-07-10
+Minor cleanups June 2026
+判定: 条件付き推奨（共通安全化のみ）
+上流変更: .git-blame-ignore-revs, AUTHORS, src/attacks.cpp, src/attacks.h, src/benchmark.cpp, src/bitboard.cpp, src/bitboard.h, src/engine.cpp, src/history.h, src/movepick.cpp, src/nnue/features/full_threats.cpp, src/nnue/network.h, src/nnue/nnue_architecture.h, src/nnue/nnue_feature_transformer.h, src/nnue/nnz_helper.h, src/nnue/simd.h, src/position.cpp, src/position.h, src/search.cpp, src/search.h, src/shm.h, src/syzygy/tbprobe.cpp, src/types.h
+将棋側: source/history.h:StatsEntry; source/timeman.cpp; source/bitboard.h
+理由: 多数の整理のうちStatsEntryの符号付き整数/積範囲static_assertは有用。将棋の単一合法手500msは既存TimeManagement側にもあり、チェスの距離表削除は独立。
+条件・必要検証: 項目ごとに分割。D/全template利用を確認してassertを移す。SquareDistance等は将棋の利用を調べず削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/48a9118251609a0902df7889f7fe241921ac358f
+
+SF-109  cd75d31127b2d351edde4a1eac33bb2ccbac0db2  2026-07-10
+Improve CLI error handling a bit
+判定: 修正推奨（入力検査部分）
+上流変更: src/engine.cpp, src/engine.h, src/misc.cpp, src/misc.h, src/numa.h, src/perft.h, src/position.cpp, src/position.h, src/uci.cpp, src/uci.h, src/ucioption.cpp, tests/instrumented.py
+将棋側: source/usioption.cpp:Option::operator=; source/numa.h:from_string; source/misc.cpp:str_to_size_t; source/usi.cpp:parse_limits
+理由: 現行spinはstollを無保護で呼び、不正/過大入力で例外終了しうる。NUMA範囲も無制限列挙で、非例外の検査・不正設定拒否は適合する。 通常releaseへThreads=abc/過大整数を渡し、invalid_argument/out_of_rangeによるSIGABRTを再現した（SA-17）。
+条件・必要検証: b4ea9205の末尾改行許容と01d71fc9のunsigned char込み。将棋のint64 spin範囲を維持。FEN/flipのAPI変更は別実装なので移さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/cd75d31127b2d351edde4a1eac33bb2ccbac0db2
+
+SF-110  2d239de4604f4b7ff3679d4c31ccc8249fde3d00  2026-07-10
+Split NEON dense affine accumulation two ways
+判定: 実験候補（ARM）
+上流変更: src/nnue/layers/affine_transform.h
+将棋側: source/eval/nnue/layers/affine_transform_explicit.h / affine_transform.h
+理由: NEON dense dotprodを2鎖に分ける性能案。将棋の64→1等のサイズ、packed tail経路では影響範囲が異なる。
+条件・必要検証: ARM dotprod実機で評価値一致とNPS。NumAccumsとzero初期化/加算を一体で移す。
+原文: https://github.com/official-stockfish/Stockfish/commit/2d239de4604f4b7ff3679d4c31ccc8249fde3d00
+
+SF-111  9700f6f206da5102c5dfb2414c5e7e13d844fcbf  2026-07-10
+Fix crash with UCI_LimitStrength and tablebases at the root
+判定: 適用不要
+上流変更: AUTHORS, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:Skill / tablebase分岐
+理由: SyzygyのtbRank順rootMovesとSkillのscore順前提が衝突する修正。将棋はSkillを固定20で無効化し、Syzygyもない。
+条件・必要検証: 将来の棋力調整機能を有効化する時は最小/最大スコアの探索を取り入れる。
+原文: https://github.com/official-stockfish/Stockfish/commit/9700f6f206da5102c5dfb2414c5e7e13d844fcbf
+
+SF-112  93ed4b53c4f602c4cc41dbdb67961a2a4712c60b  2026-07-10
+Dynamic root score ema2
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:root averageScore/meanSquaredScore
+理由: rootスコア移動平均の重みを今回と累積effortで決める。現行は単純1/2で、時間配分/aspirationが変わる。
+条件・必要検証: SA-05のeffortを先に修正。符号付きvalueとu64重みの演算・負scoreの丸めを検証して将棋対局比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/93ed4b53c4f602c4cc41dbdb67961a2a4712c60b
+
+SF-113  fb1d777250c77532cf9a7d0f11598ed309b49c34  2026-07-10
+Split AVX-VNNI sparse affine accumulation two ways
+判定: 実験候補（AVX-VNNI）
+上流変更: src/nnue/layers/affine_transform_sparse_input.h
+将棋側: source/eval/nnue/layers/affine_transform_sparse_input_explicit.h
+理由: 256bit AVX-VNNIで疎行列積を2鎖に分ける案。今回の512bit AVX512VNNI向けの変更ではなく、現行のmacro分岐も異なる。
+条件・必要検証: AVX-VNNI targetを作る場合にISAを厳密に分離し、fc_0出力16の数値一致/NPSを比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/fb1d777250c77532cf9a7d0f11598ed309b49c34
+
+SF-114  9d4090e82685cca447265dcd7093d617cb34a107  2026-07-10
+Scale Null Move Pruning reduction dynamically based on evaluation margin
+判定: 適用不要
+上流変更: AUTHORS, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:NMP R
+理由: staticEval-betaでNMP減縮を無制限に増やす案は9a8dd81dでrevert済み。詰み探索の極端な悪化が理由。
+条件・必要検証: この中間版は採用せず、後の356d7c5cのbeta条件を強化した案を別実験として検討。
+原文: https://github.com/official-stockfish/Stockfish/commit/9d4090e82685cca447265dcd7093d617cb34a107
+
+SF-115  924d29d3cab85f45a877a5da0eeeb73a52cb4b62  2026-07-10
+Simplify Reduction formula for first picked move (ttMove)
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:ttMove LMR補正
+理由: TT手減縮のmax(0,...)を外し負reductionを許す。現行のmax(-10,...+cutNode)からは複数段階の変更が必要で、同値でない。
+条件・必要検証: 3c858c19との関係を踏まえ最終案を一つの将棋実験として評価。深い再帰guardも先に検討。
+原文: https://github.com/official-stockfish/Stockfish/commit/924d29d3cab85f45a877a5da0eeeb73a52cb4b62
+
+SF-116  c18feef187a519c9c8a7e65a5d66535bc8ca8bdf  2026-07-11
+Enhance version string
+判定: 条件付き推奨
+上流変更: .gitignore, src/Makefile, src/misc.cpp
+将棋側: source/Makefile; source/misc.cpp:engine_info/compiler_info
+理由: dirty treeからのビルドをversion stringで識別する案は監査/ベンチ再現性に役立つ。現行は別のversion生成なので最小適応が必要。
+条件・必要検証: generated archや無関係docsのdirtyをどう表示するか決め、余計な全再buildを避ける。探索結果には影響させない。
+原文: https://github.com/official-stockfish/Stockfish/commit/c18feef187a519c9c8a7e65a5d66535bc8ca8bdf
+
+SF-117  9a8dd81dd7f98cbf02f16c59b4377d174d6eb4b5  2026-07-11
+Revert "Scale Null Move Pruning reduction"
+判定: 適用不要
+上流変更: AUTHORS, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:NMP
+理由: 9d4090e8のrevert。現行にその無制限の加算項はないため打ち消す対象がない。
+条件・必要検証: 9d4090e8の未採用を維持。詰み回帰を持つrevert理由は356d7c5cの検証条件へ引き継ぐ。
+原文: https://github.com/official-stockfish/Stockfish/commit/9a8dd81dd7f98cbf02f16c59b4377d174d6eb4b5
+
+SF-118  ca11d43709446e2cd12400d67b6ffad9da49d786  2026-07-16
+Remove dead code left over from earlier refactors
+判定: 適用不要
+上流変更: AUTHORS, src/misc.h
+将棋側: source/misc.h:PipeDeleter; source/types.h:Move
+理由: 現行のmisc.h/types.hにはPipeDeleterもto_sq_uncheckedもない。上流の削除対象は既に存在しないため、削除を移植する必要はない。
+条件・必要検証: std::FILEや他のLSB helperは別用途なので削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/ca11d43709446e2cd12400d67b6ffad9da49d786
+
+SF-119  057e9bf4da72df5f00bb1a1ae6de3f9154de234b  2026-07-16
+Fix an MSVC debug break
+判定: 適用不要
+上流変更: src/misc.cpp
+将棋側: source/misc.cpp:CommandLine::get_binary_directory
+理由: 上流22548cb0で導入した_get_wpgmptrがnarrow mainでassertする問題。現行は_get_pgmptrで同じ原因はない。
+条件・必要検証: Unicode path対応を行う場合はGetModuleFileNameWの最終形を使用。Windows実機未検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/057e9bf4da72df5f00bb1a1ae6de3f9154de234b
+
+SF-120  a255ad59e3ab9bc0e806954e1ee0205da13b4030  2026-07-16
+Optimize evasions in Position::pseudo_legal()
+判定: 適用不要
+上流変更: src/position.cpp
+将棋側: source/position.cpp:Position::pseudo_legal_s
+理由: EVASIONS全生成を直接の二重王手/合駒判定へ戻すチェス最適化。将棋側は既に直接判定し、打ち/成りの別条件を持つ。
+条件・必要検証: 1ece3c03を移植する必要もない。将棋の玉移動の安全判定は合法性チェックとの役割分担を保持。
+原文: https://github.com/official-stockfish/Stockfish/commit/a255ad59e3ab9bc0e806954e1ee0205da13b4030
+
+SF-121  8ddea729178845b309d409fe762aced71d9d95e0  2026-07-16
+Add -fno-ipa-cp-clone for mingw
+判定: 実験候補（MinGW GCC）
+上流変更: src/Makefile
+将棋側: source/Makefile:コンパイラ別CPPFLAGS; script/mingw_gcc.sh
+理由: MinGW GCCのIPA cloneを抑制してcodegenを改善するflag。Clang14/AVX512VNNIの今回のビルドには効果がない。
+条件・必要検証: MinGW GCCだけへ条件付きで試し、PGO/LTOの有無ごとにNPSとbinary sizeを比較。compiler未対応flagを共通指定しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/8ddea729178845b309d409fe762aced71d9d95e0
+
+SF-122  4c78ba892049d5cb4faafd41de8443d37474ed63  2026-07-16
+AVX-512 squared clipped ReLU
+判定: 実験候補
+上流変更: src/nnue/layers/sqr_clipped_relu.h
+将棋側: source/eval/nnue/layers/sqr_clipped_relu.h:Propagate/PropagatePair
+理由: 単独SqrClippedReLUへ32次元単位AVX512を追加する案。現行PropagateはSSE、PropagatePairは既にAVX512対応。指定H1=15では単独32次元loopが発火しない。
+条件・必要検証: H1の大きいarchitecture向け候補。指定モデルのNPS向上と主張しない。int16飽和とtailを照合。
+原文: https://github.com/official-stockfish/Stockfish/commit/4c78ba892049d5cb4faafd41de8443d37474ed63
+
+SF-123  1c384d3a8774ec9906e2e85b5005b22e27489044  2026-07-16
+AVX2 fused SqrClippedReLU + ClippedReLU
+判定: 実験候補
+上流変更: src/nnue/layers/affine_transform.h, src/nnue/layers/sqr_clipped_relu.h, src/nnue/nnue_architecture.h, src/nnue/simd.h
+将棋側: source/eval/nnue/layers/sqr_clipped_relu.h:PropagatePair; source/eval/nnue/layers/affine_transform_explicit.h
+理由: AVX2のsqr/clip対生成は現行にもある。上流は更にpack後の並び替えを省き、次層の重みをscrambleする点が追加の性能案。
+条件・必要検証: read/write時の重みpermuteと逆変換、H1=7/15の非32倍数tailを合わせる。現AVX512モデルと別のAVX2実験。
+原文: https://github.com/official-stockfish/Stockfish/commit/1c384d3a8774ec9906e2e85b5005b22e27489044
+
+SF-124  151e204cc83460d5fbfb2248616fd9115c709646  2026-07-16
+Simplify bitboards
+判定: 見送り
+上流変更: src/bitboard.cpp, src/bitboard.h, src/main.cpp, src/types.h
+将棋側: source/bitboard.cpp:Bitboards::init; source/bitboard.h
+理由: Stockfishのpopcount初期化をconstexprへ移す整理。将棋のBitboards::initは多数の利き/升関係表を初期化し、削除できない。
+条件・必要検証: 汎用popcount helperだけ必要なら別抽出。mainからinit呼出しを消す移植は不可。
+原文: https://github.com/official-stockfish/Stockfish/commit/151e204cc83460d5fbfb2248616fd9115c709646
+
+SF-125  3e3ee33a75022e763bcd7ee8ce56ec2457fe9d69  2026-07-16
+Simplify HalfKAv2_hm::write_indices()
+判定: 適用不要
+上流変更: src/nnue/features/half_ka_v2_hm.cpp, src/nnue/features/half_ka_v2_hm.h
+将棋側: source/eval/nnue/features/half_ka2.cpp / half_ka_hm*.cpp
+理由: 64マスHalfKAv2_hmのAVX512 indices生成でorientationをoffsetに畳む。64の倍数/下位6bitという証明が81マスや手駒特徴量には成立しない。
+条件・必要検証: 将棋のindex算出をbitwise XORへ単純変換しない。別の算術最適化なら全駒/玉/手駒組合せを照合。
+原文: https://github.com/official-stockfish/Stockfish/commit/3e3ee33a75022e763bcd7ee8ce56ec2457fe9d69
+
+SF-126  86beb0f5406b5e4c110c1890ec88c4a86ff6103a  2026-07-16
+Remove some dead fused code
+判定: 適用不要
+上流変更: src/nnue/simd.h, src/types.h
+将棋側: source/eval/nnue/layers/simd.h; source/eval/nnue/nnue_feature_transformer.h
+理由: 上流の統合accumulator後に死んだVec16Wrapper/Vec32Wrapper/is_all_sameを削除。将棋に同じ未使用のfused補助構造はない。
+条件・必要検証: 独自FTの差分/Finny機構を削除する理由にはならない。
+原文: https://github.com/official-stockfish/Stockfish/commit/86beb0f5406b5e4c110c1890ec88c4a86ff6103a
+
+SF-127  ebcea3efe9c1b8748e080111c727c33c544d7e06  2026-07-16
+VVLTC parameters tweak
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:探索/補正history/時間制御
+理由: VVLTCで多数のhistory・aspiration・LMR係数を変更するtune。将棋の独自時間制御と駒価値/評価scaleに同じ値は保証されない。
+条件・必要検証: 機構別に分割して将棋で再tune。まとめてbugfixとして移植しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/ebcea3efe9c1b8748e080111c727c33c544d7e06
+
+SF-128  b4ea9205a67abeb749fcbec0004ccaa44ba7bc26  2026-07-20
+Allow trailing whitespace in str_to_size_t
+判定: 適用不要（入力検査移植時は必須）
+上流変更: src/misc.cpp
+将棋側: source/misc.cpp:str_to_size_t; source/numa.h:sysfs読込
+理由: 現行stoullは末尾改行を許容し、Stockfishの厳格化で生じたNUMA誤検出はない。
+条件・必要検証: cd75d311の非例外parserを採る場合は末尾空白対応とunsigned char検査を一緒に入れる。
+原文: https://github.com/official-stockfish/Stockfish/commit/b4ea9205a67abeb749fcbec0004ccaa44ba7bc26
+
+SF-129  d70dec7d6f132b0038c00d9b36c3ba4b97292275  2026-07-20
+Optimize attacks
+判定: 見送り
+上流変更: src/Makefile, src/attacks.cpp, src/attacks.h, src/position.cpp
+将棋側: source/bitboard.h / bitboard.cpp; source/position.cpp:attackers_to
+理由: HQの角/飛車攻撃をまとめて計算しtable accessorをinline化。将棋は別の81マス利き計算で、同じDualMagicsはない。
+条件・必要検証: 将棋にも角/飛車の共通計算があるか性能調査はできるが、このpatch自体は適合しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/d70dec7d6f132b0038c00d9b36c3ba4b97292275
+
+SF-130  4d75fd4f70b811d6f454d2d4cf7cbbd0759cda18  2026-07-20
+Always use pthread
+判定: 見送り
+上流変更: src/Makefile, src/thread.h, src/thread_win32_osx.h
+将棋側: source/thread_win32_osx.h; source/thread.h; source/Makefile
+理由: 上流は既にpthreadを常用していたための整理。将棋Linuxはstd::threadを使うことがあり、強制変更するとスタックサイズ/失敗処理も変わる。
+条件・必要検証: 3512dea6のpthread_create失敗検査を先に適応。統一するならLinux/MinGW/Mac/MSVC/WASMごとに検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/4d75fd4f70b811d6f454d2d4cf7cbbd0759cda18
+
+SF-131  f4bcd40409f94bd397a083c5d6243bac6dcc6d85  2026-07-20
+Update nnue architecture to SFNNv16 and net nn-89cb98a217f7.nnue
+判定: 見送り
+上流変更: src/Makefile, src/bitboard.h, src/evaluate.h, src/nnue/features/full_threats.cpp, src/nnue/features/full_threats.h, src/nnue/features/pp_3wide.cpp, src/nnue/features/pp_3wide.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_accumulator.h, src/nnue/nnue_architecture.h, src/nnue/nnue_common.h, src/nnue/nnue_feature_transformer.h, src/position.cpp, src/position.h, src/search.cpp, src/types.h
+将棋側: source/eval/nnue/features/; source/eval/nnue/nnue_feature_transformer.h; architectures/nnue_arch_gen.py
+理由: SFNNv16でPP_3Wideの歩ペアと脅威特徴量/dirty更新を追加し、重み構成も変える。将棋の半KA2/手駒モデルとは非互換。
+条件・必要検証: 将棋向け歩ペア特徴量を学習器/exporter込みで新規設計する場合のみ。既存LEB関数の安全化は49f8e667を別途採る。
+原文: https://github.com/official-stockfish/Stockfish/commit/f4bcd40409f94bd397a083c5d6243bac6dcc6d85
+
+SF-132  c0771d343e31dbd0d148828d5b4d88b25fc70bd7  2026-07-26
+Improve Speedtest Speed Timing
+判定: 条件付き推奨（計測基盤）
+上流変更: src/engine.cpp, src/engine.h, src/search.cpp, src/search.h, src/uci.cpp
+将棋側: source/benchmark.cpp; source/usi.cpp:bench; script/bench*.py
+理由: 探索開始callback～bestmove間だけをsteady_clock高精度で計測する案は有用。ただし現行benchの計測範囲とは異なり、値の直接比較を壊す。
+条件・必要検証: 現行benchを黙って置換せず新指標/別モードとして検討。局面準備/評価ロードを除く範囲を明記。
+原文: https://github.com/official-stockfish/Stockfish/commit/c0771d343e31dbd0d148828d5b4d88b25fc70bd7
+
+SF-133  01a799416eca45991bc13227e9c4141875f3ca4f  2026-07-26
+Add a standard .gitattributes
+判定: 条件付き推奨
+上流変更: .gitattributes, src/Makefile
+将棋側: .gitattributes:* text=auto; source/Makefile
+理由: 現行.gitattributesにも* text=autoはあるが、上流のeol=lfはない。LF固定の方針はWindows/Linuxで役立つ一方、BOM/CRLFを含む既存資産への影響確認が必要。
+条件・必要検証: 既存の属性を確認し、導入とrenormalizeを分離。dirty判定のupdate-index処理はversion機構を導入する場合だけ。
+原文: https://github.com/official-stockfish/Stockfish/commit/01a799416eca45991bc13227e9c4141875f3ca4f
+
+SF-134  43d4d0ef8bf905b0516422048500ec643333d1ca  2026-07-26
+Optimize RVV affine transforms
+判定: 見送り
+上流変更: AUTHORS, src/nnue/layers/affine_transform.h, src/nnue/layers/affine_transform_sparse_input.h, src/nnue/nnue_feature_transformer.h, src/nnue/nnz_helper.h, src/nnue/simd.h
+将棋側: source/eval/nnue/layers/affine_transform*.h; source/Makefile
+理由: RVV sparseのChunkSize=1化とdenseの全体1レジスタ最適化。現行にRVV backend/bitsetがない。
+条件・必要検証: d5bbc6b6のRVV対応を作る場合に最終案として参照。複数VL/残数を実機で比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/43d4d0ef8bf905b0516422048500ec643333d1ca
+
+SF-135  db98633b1f8bbcad850bee892ec143ff8723ba80  2026-07-26
+Avoid recomputing threat/pp accumulation for some king moves.
+判定: 適用不要
+上流変更: src/nnue/nnue_accumulator.cpp
+将棋側: source/eval/nnue/nnue_feature_transformer.h:Finny reset; nnue_accumulator.h
+理由: 玉移動時にHalfKAだけFinny差分で入れ替え、Threat/PP蓄積を残すhybrid更新。現行は残せるThreat/PP accumulatorがなく同じ節約が成立しない。
+条件・必要検証: 採用済みUSE_FINNY_RESETの改良と同じ案とは数えない。脅威特徴量導入後なら再検討。
+原文: https://github.com/official-stockfish/Stockfish/commit/db98633b1f8bbcad850bee892ec143ff8723ba80
+
+SF-136  c8b91a2b9a770f3e9bddbe7863fcf2358d462f05  2026-07-26
+Update main net to nn-ab28990d4ea3.nnue
+判定: 適用不要
+上流変更: src/evaluate.h
+将棋側: source/eval/nnue/nnue_architecture.h; inbox/evalTuyo12-20261025/tag.txt
+理由: 既定ネットをチェスのnn-ab28990d4ea3へ更新するだけ。指定将棋モデルに読み替えできない。
+条件・必要検証: 将棋用の重みを維持。
+原文: https://github.com/official-stockfish/Stockfish/commit/c8b91a2b9a770f3e9bddbe7863fcf2358d462f05
+
+SF-137  453f220763fc756b846187358231566f8dbe46d7  2026-07-26
+AVX-512 paired activations
+判定: 対応済み（同種機構）
+上流変更: src/nnue/layers/sqr_clipped_relu.h, src/nnue/nnue_architecture.h, src/nnue/simd.h
+将棋側: source/eval/nnue/layers/sqr_clipped_relu.h:PropagatePair; architectures/sfnn_network.h:MakeHidden1Input
+理由: AVX512でsqr/clipを一度の入力ロードから作る機構は現行に既にある。ただし指定H1=15/packed tailでは上流の32倍数loopと実行経路が異なる。
+条件・必要検証: 同じコードを追加しても改善しない。未対応の寸法/standalone経路を別途測る場合だけ参考。
+原文: https://github.com/official-stockfish/Stockfish/commit/453f220763fc756b846187358231566f8dbe46d7
+
+SF-138  356d7c5c12b982e10f400d35d2dffac62613f60e  2026-07-26
+Reintroduce static evaluation based NMP reduction
+判定: 実験候補
+上流変更: AUTHORS, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:NMP
+理由: eval marginで減縮を増やす案をbeta>=-2000という強い条件付きで再導入。9d4090e8と違いbetaの領域を制限するが、将棋のscaleでは-2000を流用できない。
+条件・必要検証: 短詰み/受けの効く局面でmatetrack回帰と将棋の再tuneが必要。上流のrevert失敗例も検証条件に含める。
+原文: https://github.com/official-stockfish/Stockfish/commit/356d7c5c12b982e10f400d35d2dffac62613f60e
+
+SF-139  ee72cf49fe161aeb3be8e191eca7293f338cdfc9  2026-07-26
+Optimize RankAttacks
+判定: 適用不要
+上流変更: src/attacks.cpp, src/attacks.h
+将棋側: source/bitboard.cpp / bitboard.h
+理由: チェスHQのrank表を端の占有不要性から8×256→8×64へ縮小しconstexpr化。将棋の9筋盤面と表の構造は異なる。
+条件・必要検証: 将棋の表縮小を行うなら独自証明と全占有照合が必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/ee72cf49fe161aeb3be8e191eca7293f338cdfc9
+
+SF-140  a03ac5a63f3e87f1cae98a4f47c7e01a0e5ddd82  2026-07-26
+avoid duplicate legal move check
+判定: 修正推奨（将棋向け適応）
+上流変更: AUTHORS, src/thread.cpp
+将棋側: source/thread.cpp:setup_rootMoves; source/usi.cpp:USIEngine::to_move; source/movepick.cpp
+理由: SA-02。冗長なLEGALリスト照合が明示された合法な不成を落とし、全手検索へfallbackする。上流の整理は将棋では機能上の修正に相当する。
+条件・必要検証: to_moveの合法性保証と根のGenerateAllLegalMovesも一体で対応。8h2b等のsearchmovesで指定外bestmoveを出さないことを検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/a03ac5a63f3e87f1cae98a4f47c7e01a0e5ddd82
+
+SF-141  23cf5d827388e84d4389b40025ef401db4925f25  2026-07-26
+Remove Unused Option Constructor
+判定: 条件付き推奨
+上流変更: src/ucioption.cpp, src/ucioption.h
+将棋側: source/usioption.h / usioption.cpp:Option(const OptionsMap*)
+理由: 親pointerを受け取る未使用constructorは現行にも残る。登録時にparentを設定する設計なので削除は可能。
+条件・必要検証: 学習器/別エンジンの呼出しを全検索した上で削除。default constructorや既存combo処理は別。
+原文: https://github.com/official-stockfish/Stockfish/commit/23cf5d827388e84d4389b40025ef401db4925f25
+
+SF-142  fd3c762f6dabfafb6c4f6040989698cdedda1e4e  2026-08-01
+Improved Linux shared memory implementation
+判定: 条件付き推奨（backend更新）
+上流変更: src/engine.cpp, src/numa.h, src/search.h, src/shm.h, src/shm_linux.h
+将棋側: source/shm_linux.h; source/shm.h:SharedMemoryBackend; source/numa.h:SystemWide共有
+理由: 現行はsentinel/refcount型の旧backendで、/dev/shm容量・SIGKILL残骸・filesystem raceの対象経路がある。memfd/socket server方式への更新は適用価値あり。
+条件・必要検証: 単独の小修正ではない。d077f9a8/4c37700c/762dd1da/7f73409c等の後続修正を含む最終形、終了/多process/OOM/旧kernelを検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/fd3c762f6dabfafb6c4f6040989698cdedda1e4e
+
+SF-143  8e3b5b13f93365f7e148a5d0e0e705bc217cd4b5  2026-08-01
+LSX/LASX NNUE paths optimizes
+判定: 見送り
+上流変更: src/nnue/layers/affine_transform.h, src/nnue/layers/affine_transform_sparse_input.h, src/nnue/layers/clipped_relu.h, src/nnue/layers/sqr_clipped_relu.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_architecture.h, src/nnue/simd.h
+将棋側: source/eval/nnue/layers/simd.h; affine_transform*.h
+理由: LoongArchのpack並び替えを省き次層重みをscrambleする最適化。現行にLSX/LASX backendがなく、単独適用不能。
+条件・必要検証: LoongArch対応時にffffe1bd/db6cba47とまとめて検証。x86への効果なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/8e3b5b13f93365f7e148a5d0e0e705bc217cd4b5
+
+SF-144  7b5504097feb349a2262eec0702b2a18e426ccf6  2026-08-01
+Update NNUE perspectives together
+判定: 実験候補（将棋の共通部分のみ）
+上流変更: AUTHORS, src/nnue/features/full_threats.cpp, src/nnue/features/full_threats.h, src/nnue/features/pp_3wide.cpp, src/nnue/features/pp_3wide.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_accumulator.h
+将棋側: source/eval/nnue/nnue_accumulator.h:AccumulatorStack; nnue_feature_transformer.h
+理由: 遅れている視点を追いつかせて共通suffixを一度走査する案。将棋にも2視点があるが、上流の主な節約対象Threat/PP topologyは存在しない。
+条件・必要検証: halfka2の視点別indexと玉refresh境界を保つ。共有走査の節約がFT重み読みに比べ有効か、既存lazy/Finnyと合わせて測る。 過去のmulti_ply試験も有意な改善を確認できていないが、視点共通走査と同一実装ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/7b5504097feb349a2262eec0702b2a18e426ccf6
+
+SF-145  218c74ec4d97807afaab3a4dbda94f43e6e02647  2026-08-01
+Multi cut pruning correction history
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:singular/multi-cut; update_correction_history
+理由: singular検索のmulti-cut結果をcorrection historyへ学習する。現行ではその早期return前にこの更新がなく、移植可能な探索案。
+条件・必要検証: inCheck除外、staticEvalとvalueのscale、bonus積の範囲を確認して棋力検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/218c74ec4d97807afaab3a4dbda94f43e6e02647
+
+SF-146  c5aef2bf1f77d94a3dd476f276af68fd71a0ac07  2026-08-01
+Simplify Negative Extensions
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:negative extension
+理由: TT value>=betaとcutNodeの負延長を同じ分岐へまとめるが、旧cutNode=-2から値が変わりうる。単なる条件整理でない。
+条件・必要検証: 現行のextension式と合わせて数表/棋力検証。reduction/extension連鎖に注意。
+原文: https://github.com/official-stockfish/Stockfish/commit/c5aef2bf1f77d94a3dd476f276af68fd71a0ac07
+
+SF-147  d077f9a8154df309b1b715e51d663e4cd6cf8e73  2026-08-02
+Port Linux shared memory to BSDs and macOS
+判定: 条件付き推奨（対象OS拡張時）
+上流変更: src/Makefile, src/shm.h, src/shm_linux.h
+将棋側: source/shm.h:platform分岐; source/shm_linux.h
+理由: 新memfd/socket backendをBSD/Macへtempfile/unlinkとclose-on-exec代替で拡張する。現行はこれらのOSでdummy/fallbackなので共有メモリ節約の余地あり。
+条件・必要検証: fd3c762fの最終backendを採用する場合の一部。Mac/BSD実機と一時ファイルcleanupを検証し、Androidへ無条件に広げない。
+原文: https://github.com/official-stockfish/Stockfish/commit/d077f9a8154df309b1b715e51d663e4cd6cf8e73
+
+SF-148  c85637b3f1e85dd802e4bdef6c68b63a4babbb7d  2026-08-02
+Simplify futilityValue formula
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:quiet futilityValue
+理由: !bestMoveの項を定数へ畳み、候補手が見つかった後の閾値も変える。現行は別の係数/!bestMove項を使う。
+条件・必要検証: 同値変換として採用せず将棋で枝刈り/棋力を比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/c85637b3f1e85dd802e4bdef6c68b63a4babbb7d
+
+SF-149  b0ee144057cae0a6934b68de4f9bf81290863594  2026-08-02
+Extract loops for adding/subtracting features into functions
+判定: 実験候補
+上流変更: src/nnue/nnue_accumulator.cpp
+将棋側: source/eval/nnue/nnue_feature_transformer.h:差分更新/Finny reset
+理由: 加減算loopを符号templateとalways_inline helperへ抽出する案。将棋のFT2304の24レジスタ経路とcompilerのunrollに干渉しうる。
+条件・必要検証: Threat/PSQT固有部分は移さず共通loopだけ適応。生成asmでspill/ロードを調べ、採用済み24レジスタの速度を落とさないか測る。
+原文: https://github.com/official-stockfish/Stockfish/commit/b0ee144057cae0a6934b68de4f9bf81290863594
+
+SF-150  1ef7f2fe2d1d2f865eb80666c504d4319eb49f05  2026-08-02
+Simplify shm_unix using UniqueFd utility class
+判定: 適用不要（新backend導入時は必須）
+上流変更: src/shm_unix.h
+将棋側: source/shm_linux.h; source/shm.h:SharedMemoryBackend
+理由: 新socket backendのFD所有権をUniqueFdで管理し、終了時のFD再利用raceを減らす。現行は旧shm_open方式なのでそのsocket/SCM_RIGHTS経路はない。
+条件・必要検証: fd3c762fのbackend更新時はこのRAIIを含む最終形を使用。旧backend全体にFD管理不要と判断したわけではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/1ef7f2fe2d1d2f865eb80666c504d4319eb49f05
+
+SF-151  b52f01471b24a6f7282431565792c7778f0675a5  2026-08-03
+Simplify USE_PAIR_ACTIVATIONS / SqrClippedReLU::propagate_pair()
+判定: 実験候補
+上流変更: src/nnue/layers/affine_transform.h, src/nnue/layers/clipped_relu.h, src/nnue/layers/sqr_clipped_relu.h, src/nnue/nnue_architecture.h, src/nnue/simd.h
+将棋側: source/eval/nnue/layers/sqr_clipped_relu.h; affine_transform_explicit.h; architectures/sfnn_network.h
+理由: pair activationを統一しAVX512のpack並び替えを次層重み順に吸収する。現行pair計算はあるが次層scrambleは同じでない。
+条件・必要検証: H1=15/64とpacked tailは上流の32倍数保証外。読込/書出/別ISA間で同じ重みを扱えるよう変換とtailを実装しNPS比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/b52f01471b24a6f7282431565792c7778f0675a5
+
+SF-152  3647d5240d41d84d06306f525a23f4d6918123c0  2026-08-03
+Remove an incorrect AVX512 comment
+判定: 条件付き推奨（文書のみ）
+上流変更: src/nnue/layers/affine_transform.h
+将棋側: source/eval/nnue/layers/affine_transform.h / affine_transform_explicit.h
+理由: AVX512に対応すると誤記したコメントの削除。同種の記載が残っている箇所だけ訂正する保守変更。
+条件・必要検証: 実際の分岐を見てコメントを直す。コード高速化やサポートISA追加とは扱わない。
+原文: https://github.com/official-stockfish/Stockfish/commit/3647d5240d41d84d06306f525a23f4d6918123c0
+
+SF-153  1f711d49aa8687b041eeb9d21ed3ac2f6a2bd216  2026-08-03
+Avoiding Redundant Calculations
+判定: 適用不要
+上流変更: src/movegen.cpp
+将棋側: source/movegen.cpp:歩の生成
+理由: チェス昇格の複数駒分岐でto-Dを共通化。将棋は成/不成の2択で別の生成実装を使い、同じ4回の式はない。
+条件・必要検証: 将棋の生成コードに同じ計算重複がある場合は独立に検討。上流patchの対象は一致しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/1f711d49aa8687b041eeb9d21ed3ac2f6a2bd216
+
+SF-154  4c37700ca4742a5a0da51695ba6daddcc114917c  2026-08-03
+Check that memfd_create is supported
+判定: 適用不要（新backend導入時は必須）
+上流変更: src/shm_unix.h
+将棋側: source/shm_linux.h; source/shm.h
+理由: memfd_create呼出しのcompile条件をMFD_CLOEXECの存在で決める修正。現行旧backendはmemfd_createを使わない。
+条件・必要検証: fd3c762f/d077f9a8を導入する場合に古いkernel/libc向けfallbackと一緒に含める。
+原文: https://github.com/official-stockfish/Stockfish/commit/4c37700ca4742a5a0da51695ba6daddcc114917c
+
+SF-155  762dd1da9a5db458180b2c5db6c53dc40ec61e1a  2026-08-03
+Fix SIGPIPE kills shm_unix server when client disappears
+判定: 適用不要（新backend導入時は必須）
+上流変更: src/shm_unix.h
+将棋側: source/shm_linux.h; source/shm.h
+理由: SCM_RIGHTS serverのsendmsgで切断clientへのSIGPIPEを防ぐ修正。現行旧backendにsocket server/sendmsg経路はない。
+条件・必要検証: 新backendへ更新するならMSG_NOSIGNAL/SO_NOSIGPIPEの最終形を必ず採用し、切断clientをテスト。
+原文: https://github.com/official-stockfish/Stockfish/commit/762dd1da9a5db458180b2c5db6c53dc40ec61e1a
+
+SF-156  4150d22b86d1cc83b3a3b1111a63a3935590bcb3  2026-08-10
+Prefetch continuation correction histories
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:YaneuraOuWorker::do_move / correction_value
+理由: 子で読む2つのcontinuation correction historyをdo_move前にprefetch。現行もss-2/ss-4の同じ型を読むので適用可能。
+条件・必要検証: 打ち/成りのpc・ss==nullptrと初期stack sentinelを正しく扱う。無効pointerの算術を発生させずNPSを測る。
+原文: https://github.com/official-stockfish/Stockfish/commit/4150d22b86d1cc83b3a3b1111a63a3935590bcb3
+
+SF-157  9dec2ead8a2949883888e26e0415c2e5a6054385  2026-08-10
+Simplify shm_unix SharedMemoryRegistry
+判定: 適用不要（新backend導入時は推奨）
+上流変更: src/shm_unix.h
+将棋側: source/shm_linux.h:SharedMemoryRegistry
+理由: 新backendの終了処理をsocket path一覧だけへ簡略化し、search中のdata_ptr書換えを避ける。現行は旧refcount registryで同じclose(AtExit)実装ではない。
+条件・必要検証: 新backendはこの後続修正込みで検討。旧backendにも独自のsignal安全性調査は別途必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/9dec2ead8a2949883888e26e0415c2e5a6054385
+
+SF-158  881e0b4558069a5403b1e5c006a50d9c5d9dd89d  2026-08-10
+Class Default Member Initializers for Option
+判定: 条件付き推奨
+上流変更: src/ucioption.cpp, src/ucioption.h
+将棋側: source/usioption.h:Option; source/usioption.cpp:constructors
+理由: min/max/idxの初期値をmember declarationに置く整理。現行idxは登録前未初期化で、全constructorで明示される保証が弱い。
+条件・必要検証: 将棋spinのint64_t型は維持し、parent/fixed等の独自メンバーを壊さない。単独の探索結果改善とは数えない。
+原文: https://github.com/official-stockfish/Stockfish/commit/881e0b4558069a5403b1e5c006a50d9c5d9dd89d
+
+SF-159  358ab1bcbcb4e0795de950002014aa0d5f21c628  2026-08-10
+Cleanup FeatureTransformer Types
+判定: 適用不要
+上流変更: src/nnue/nnue_feature_transformer.h
+将棋側: source/eval/nnue/nnue_feature_transformer.h
+理由: Threat/PP/PSQTの各array型と長さをaliasへ整理。現行はこれらの分割重みを持たず、半KA2の配列は別構造。
+条件・必要検証: 可読性のための独自型alias導入は別の保守判断。
+原文: https://github.com/official-stockfish/Stockfish/commit/358ab1bcbcb4e0795de950002014aa0d5f21c628
+
+SF-160  de948f0f48f5c3217bd384ea7b5714593666d1a4  2026-08-10
+Simplify optimism scaling formula
+判定: 適用不要
+上流変更: src/evaluate.cpp
+将棋側: source/eval/nnue/evaluate_nnue.cpp
+理由: material/optimismのチェス評価scaleを91000と7675へ簡略化・再調整。現行将棋SFNNには同じmix式がない。
+条件・必要検証: 将棋のFV_SCALEをこの値へ変更する修正ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/de948f0f48f5c3217bd384ea7b5714593666d1a4
+
+SF-161  439733ea339b1601e5acf5488b9369d65c9d68e0  2026-08-10
+Fix rm.exe "Permission denied" errors on Windows
+判定: 適用不要
+上流変更: src/Makefile
+将棋側: source/Makefile:clean; script/msys2_build*.sh
+理由: universal buildが作るWindowsディレクトリsymlinkをrmdirで先に消す修正。現行のビルドはそのTEMP_DIR/symlinkを生成しない。
+条件・必要検証: universal機構を移植する場合のみ必要。一般のcleanへ破壊的な削除を追加しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/439733ea339b1601e5acf5488b9369d65c9d68e0
+
+SF-162  fa8b6add9df33cbdd279a3480df6c2cb2f43d6f8  2026-08-10
+Improve mate finding with a dynamic futility pruning depth cutoff
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:child futility pruning
+理由: abs(eval)+abs(beta)で枝刈り上限深さを変え詰み探索の精度を改善する案。現行は固定の上限。
+条件・必要検証: LUTの1657等はチェスscale。将棋で再tuneし、詰み/大差局面/宣言勝ち近傍の精度と棋力を比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/fa8b6add9df33cbdd279a3480df6c2cb2f43d6f8
+
+SF-163  5062aee519a1ba262d472d8ab139851ced56573e  2026-08-10
+Place continuation history on large pages.
+判定: 適用不要（共有化後は再検討）
+上流変更: src/history.h, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.h:Worker::continuationHistory; yaneuraou-search.cpp:worker_factory
+理由: 現行continuationHistoryはWorker内の配列で、そのWorker自体をmake_unique_large_pageで確保する。同じ目的を既に持ち、共有blockへの分離を単独移植する必要は薄い。
+条件・必要検証: f9b002cfでNUMA共有化する場合はlarge-page blockとして確保。実際のTHP利用はOS設定次第で保証しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/5062aee519a1ba262d472d8ab139851ced56573e
+
+SF-164  ee515ad9b6bd7e928db808c3a2e9ca81d49819c1  2026-08-19
+[bugfix] Allow root move PV to be longer than MAX_PLY plies
+判定: 適用不要
+上流変更: src/search.cpp, src/search.h, tests/instrumented.py
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.h:PVMoves/RootMove; SearchManager::pv
+理由: SyzygyでMAX_PLYを越えて延長したroot PVを固定配列へ戻す時のassert/OOB修正。将棋ではこのSyzygy延長経路が無効。
+条件・必要検証: previousPV系列を移植する際もPVMovesの長さ制限は守る。将棋の独自PV補完の境界検査は維持。
+原文: https://github.com/official-stockfish/Stockfish/commit/ee515ad9b6bd7e928db808c3a2e9ca81d49819c1
+
+SF-165  f21610e51a436b69fabdcc89d8fe25ff0c2d5731  2026-08-19
+Update network: faster training with AdamW optimizer
+判定: 適用不要
+上流変更: src/evaluate.h
+将棋側: source/eval/nnue/nnue_architecture.h; inbox/evalTuyo12-20261025/tag.txt
+理由: AdamWで学習したチェスnn-1a298aa575a0へのネット交換。学習時間改善は学習器側の話で、将棋モデルに互換性なし。
+条件・必要検証: AdamWを将棋学習器で試すなら別の学習実験。既存重みへコード変更だけで反映できない。
+原文: https://github.com/official-stockfish/Stockfish/commit/f21610e51a436b69fabdcc89d8fe25ff0c2d5731
+
+SF-166  5f7348f03f820038f5d246b82de544cbc1d8ffd2  2026-08-19
+Reduce LMR less aggressively in loose alpha windows
+判定: 実験候補
+上流変更: AUTHORS, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:LMR
+理由: 非captureでalphaとevalの差に応じreductionを補正。現行にその項はなく、上流の[-64,96]と倍率3は将棋へそのまま流用不可。
+条件・必要検証: 評価値尺度を合わせ、aspiration/窓幅と多thread棋力で検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/5f7348f03f820038f5d246b82de544cbc1d8ffd2
+
+SF-167  0c8c71f32717253b4d7aa798c78950bf156cad20  2026-08-19
+Extract perspective transform logic into a separate function
+判定: 条件付き推奨（整理のみ）
+上流変更: src/nnue/nnue_feature_transformer.h
+将棋側: source/eval/nnue/nnue_feature_transformer.h:transform
+理由: 視点ごとの変換をhelperへ抽出する可読性改善。将棋にはNNZInfoや上流PSQT戻り値がないので、自分の関数構造で抽出する。
+条件・必要検証: inline後の生成コードとFT2304/他architectureの値を比較。保守目的以外に無条件な速度向上は見込まない。
+原文: https://github.com/official-stockfish/Stockfish/commit/0c8c71f32717253b4d7aa798c78950bf156cad20
+
+SF-168  6d215a03063d79782333970a67abcb6aea32912c  2026-08-19
+Simplify Away Second Razoring Number
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:razoring
+理由: 固定offset+depth二乗の2係数から1係数へ変え発動境界も変更。現行は旧式に近い別係数。
+条件・必要検証: 将棋で再tune。後続allNode制限や二次→一次化まで含め、最終式の候補を比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/6d215a03063d79782333970a67abcb6aea32912c
+
+SF-169  68f7925d5ca0f6806aed5d1a5fe57505d3ed2890  2026-08-19
+simplify FullThreats::append_active_indices
+判定: 適用不要
+上流変更: src/bitboard.h, src/movegen.cpp, src/nnue/features/full_threats.cpp
+将棋側: source/bitboard.h; source/eval/nnue/features/
+理由: FullThreatsでruntime方向shiftを使うためチェスのtemplate shiftを変える整理。現行はFullThreatsなし、将棋の128bit shift/方向体系も別。
+条件・必要検証: 一般化のためだけに将棋の利きtemplateを変更しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/68f7925d5ca0f6806aed5d1a5fe57505d3ed2890
+
+SF-170  a3a8372b1b5841fb1d1a66fe8f3cb492b0c4f3dc  2026-08-19
+More nnue_accumulator.cpp cleanup
+判定: 見送り
+上流変更: src/nnue/nnue_accumulator.cpp
+将棋側: source/eval/nnue/nnue_feature_transformer.h:差分更新/Finny reset
+理由: 上流はscalar/RVV/vectorのtile helperを統一する大きい整理。将棋の24レジスタ特化、手駒差分、PSQTなし経路とは構造が違う。
+条件・必要検証: b0ee1440の小さいhelper実験で効果を先に確認。上流の累積構造全体を置換しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/a3a8372b1b5841fb1d1a66fe8f3cb492b0c4f3dc
+
+SF-171  e37429bb6de9b2e861411dff79768746d9357d38  2026-08-19
+Simplify sliding_attack loop in attacks.h
+判定: 適用不要
+上流変更: src/attacks.h
+将棋側: source/bitboard.cpp:利き初期化
+理由: チェスAttacks::sliding_attackのwhileをforへ変える同値整理。将棋は同じAttacksファイル/関数ではない。
+条件・必要検証: 将棋の同種loopを読みやすくする独立保守は可能だが移植必須ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/e37429bb6de9b2e861411dff79768746d9357d38
+
+SF-172  7c37212ec7eba49be3c89887640f646215269526  2026-08-19
+Refuse a failed large-page allocation
+判定: 修正推奨
+上流変更: src/memory.h
+将棋側: source/memory.h:memory_allocator; source/memory.cpp
+理由: SA-13。割当nullptrを検査せずplacement newし、実ヘッダーへの失敗注入でUBSanが検出した。単一object/array双方の検査が適合。
+条件・必要検証: エラーメッセージと終了方針を合わせ、失敗注入/通常モデルロード/Worker生成で検証。サイズ計算overflowは別途注意。
+原文: https://github.com/official-stockfish/Stockfish/commit/7c37212ec7eba49be3c89887640f646215269526
+
+SF-173  5fd94536751fc8aafb7e24f18a5e1815a07afb68  2026-08-19
+Harden the tablebase reader against corrupted files
+判定: 適用不要
+上流変更: src/syzygy/tbprobe.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:tablebase分岐
+理由: 破損Syzygyファイルのサイズ/配列/シフトを検査する修正。将棋にSyzygy reader自体がない。
+条件・必要検証: 将棋の評価ファイル読込の安全化は別のSA-15で扱う。
+原文: https://github.com/official-stockfish/Stockfish/commit/5fd94536751fc8aafb7e24f18a5e1815a07afb68
+
+SF-174  92c90f41e3175e8f0c4ef399dec70dde015015e1  2026-08-19
+Initialise time budgets on every path
+判定: 適用不要
+上流変更: src/timeman.cpp, src/timeman.h, tests/instrumented.py
+将棋側: source/timeman.cpp:TimeManagement::init_
+理由: 片側clock=0でSFのTMが早期returnしoptimum/maximum未初期化になる問題。将棋はそのreturnがSTOCKFISH分岐内で、別の予算計算を実行する。
+条件・必要検証: 片側clock・depth指定の回帰テストは有用だが、NoBoundのSF予算式をそのまま移さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/92c90f41e3175e8f0c4ef399dec70dde015015e1
+
+SF-175  49f8e667c0ebf146f3ce5a1ea2d49ac78b9f777e  2026-08-19
+Avoid UB decoding LEB128, and guard against corrupted files
+判定: 修正推奨
+上流変更: src/nnue/network.cpp, src/nnue/nnue_common.h
+将棋側: source/eval/nnue/nnue_common.h:read_leb_128; source/eval/nnue/evaluate_nnue.cpp:header読込
+理由: SA-15。int32の正当な負値で左shift UB、NDEBUGで誤magicを受理することを関数単位で再現。unsigned中間値と実read数/stream errorの検査が適合。
+条件・必要検証: 指定モデルのFTはint16で通常loadのUBを確認したわけではない。正常モデル互換と短い/壊れたブロック、過大descriptionを検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/49f8e667c0ebf146f3ce5a1ea2d49ac78b9f777e
+
+SF-176  d68041e3201e6c5fc37d1219168f568647f0f93c  2026-08-19
+Read hash_bytes tail bytes as unsigned
+判定: 修正推奨
+上流変更: src/misc.cpp
+将棋側: source/misc.cpp:hash_bytes
+理由: SA-14。signed charの末尾0x80が上位byte情報を消し、8001と8002が同じ値になることを再現。unsigned byte変換は適合。
+条件・必要検証: TTのZobristキーとは別。共有メモリ名等のfingerprintが変わりうるため旧cacheとの扱いを確認。
+原文: https://github.com/official-stockfish/Stockfish/commit/d68041e3201e6c5fc37d1219168f568647f0f93c
+
+SF-177  ceb059eb48fb8e556df8feff6f8a24e45d03fa11  2026-08-19
+Convert movetime when nodestime is in force
+判定: 適用不要
+上流変更: src/timeman.cpp
+将棋側: source/timeman.cpp:STOCKFISH nodestime経路
+理由: nodestime時のmovetimeをnodes単位へ変換するSF専用修正。将棋ではnodestime経路が無効で時間はmsのまま。
+条件・必要検証: 通常のUSI movetime処理を誤って倍率変換しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/ceb059eb48fb8e556df8feff6f8a24e45d03fa11
+
+SF-178  50221673b29b8f1d52261f3e53dbbef471bb7dfc  2026-08-19
+Initialize shared continuation history once per NUMA node
+判定: 適用不要（共有化後は必須）
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.h:Worker::continuationHistory; cpp:clear
+理由: 現行はWorker専用配列なので各Workerがclearするのが正しい。NUMA先頭だけに制限すると他Workerの履歴が未初期化になる。
+条件・必要検証: f9b002cfのNUMA共有化を採用する場合に必須。共有化とclearを分離して適用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/50221673b29b8f1d52261f3e53dbbef471bb7dfc
+
+SF-179  30290aa0fffa491046ca95a285ce2a505d9c34cc  2026-08-19
+Clamp speedtest inputs to valid ranges
+判定: 修正推奨（speedtest入力）
+上流変更: src/benchmark.cpp, src/engine.cpp, src/engine.h
+将棋側: source/benchmark.cpp:setup_benchmark
+理由: 再精査で現行にもspeedtestとsetup_benchmarkがあると確認。desiredTimeSはintのままで2147484*1000がoverflowし、実関数をUBSanで再現した（SA-18）。前回の対象外判定を訂正。
+条件・必要検証: threads/ttSizeは将棋でsize_tへ拡張済みなので、上流のint版をそのまま移さない。時間は広い型で読取り/clampし、threads/hashもUSI option範囲に制限。正常値の互換を確認。
+原文: https://github.com/official-stockfish/Stockfish/commit/30290aa0fffa491046ca95a285ce2a505d9c34cc
+
+SF-180  1b1b5f49a5b9f9d564120fc4ef513557267f1e4a  2026-08-19
+Simplify Position::update_piece_threats()
+判定: 適用不要
+上流変更: src/position.cpp
+将棋側: source/position.cpp; source/eval/nnue/features/
+理由: update_piece_threatsのslider判定を整理する性能変更。将棋は同じFullThreats/dirty threat更新を持たない。
+条件・必要検証: 半KA2の駒移動差分をこのチェス脅威更新へ置換しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/1b1b5f49a5b9f9d564120fc4ef513557267f1e4a
+
+SF-181  ae3db60f534d3fedb384da388d8222d114909c2f  2026-08-19
+Align and collapse shared NNUE mappings
+判定: 実験候補
+上流変更: src/shm_unix.h
+将棋側: source/shm_linux.h:setup_new_region/setup_existing_region; source/shm.h
+理由: 共有重みmmapを2MiB境界へ揃え初期化後MADV_COLLAPSEを要求する案。現行旧backendにも同種のalignment/THP効果を狙う余地はある。
+条件・必要検証: まずbackend更新方針を決め、MAP_FAILED/unmap範囲/旧kernelでのfallbackを検証。ae3db60fのコードは新shm_unix前提なので直接cherry-pickしない。
+原文: https://github.com/official-stockfish/Stockfish/commit/ae3db60f534d3fedb384da388d8222d114909c2f
+
+SF-182  229f6339e537a097a79831cd06dbfdb3e623d4ac  2026-08-19
+Update Release Creation
+判定: 適用不要
+上流変更: .github/workflows/official_release.yml, .github/workflows/stockfish.yml, .github/workflows/upload_binaries.yml
+将棋側: .github/workflows/make.yml / make-msys2.yml / make-macos.yml
+理由: official release/prereleaseとasset uploadをStockfishのworkflow間で整理する変更。現行は別のrelease運用。
+条件・必要検証: リリース自動化の新要件がない限り移植しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/229f6339e537a097a79831cd06dbfdb3e623d4ac
+
+SF-183  3512dea68483f9daf3b014361c7ea36a44adb338  2026-08-24
+Native thread fixes
+判定: 修正推奨（失敗処理部分）
+上流変更: src/numa.h, src/shm_unix.h, src/thread.cpp, src/thread_native.h
+将棋側: source/thread_win32_osx.h:NativeThread; source/thread.cpp:Thread; source/numa.h
+理由: SA-07。pthread_createのEAGAINを無視する現行ヘッダーを失敗注入で確認済み。生成失敗を検査・報告する修正が適合する。
+条件・必要検証: pthread有効platformで検証。新socket server/NativeThreadOptionsの全構造変更は必要性を分け、検索用large stackを維持。
+原文: https://github.com/official-stockfish/Stockfish/commit/3512dea68483f9daf3b014361c7ea36a44adb338
+
+SF-184  22dfb404b5ab1e5327ea00207bb95ae1606ed8e5  2026-08-24
+miscellaneous cleanups
+判定: 条件付き推奨（共通整理のみ）
+上流変更: AUTHORS, src/numa.h, src/position.cpp, src/search.cpp, src/search.h, src/syzygy/tbprobe.cpp, src/thread.cpp, src/universal/nnue_embed.cpp
+将棋側: source/numa.h; source/engine/yaneuraou-engine/yaneuraou-search.h:RootMove; cpp
+理由: boundをinexactへrename、empty()表記、局所const等の可読性整理。将棋側に同型部分はあるが、cuckoo repetition/DTZは別。
+条件・必要検証: SA-04系列を移す時に必要な名前整理だけ行う。探索不具合修正として一括適用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/22dfb404b5ab1e5327ea00207bb95ae1606ed8e5
+
+SF-185  bd85fb7fa3fc2225e72b7317f0ca822703180543  2026-08-24
+Fix MSVC warning C4141 ('inline' used more than once)
+判定: 条件付き推奨（該当macroのみ）
+上流変更: .github/workflows/msvc.yml, .github/workflows/stockfish.yml, src/misc.h, src/nnue/features/full_threats.cpp, src/nnue/features/pp_3wide.cpp, src/nnue/nnue_accumulator.cpp
+将棋側: source/types.h; source/misc.h; source/eval/nnue/layers/
+理由: sf_always_inlineのGCC/Clang attributeとMSVC __forceinlineを整理しC4141を防ぐ。現行macroは同形だが、上流で重複inlineだったFullThreats/PP/update定義の同一箇所はない。
+条件・必要検証: 将来helperを移植する際にmacro自身へinlineを含める最終形を参照。既存FORCE_INLINEとの二重定義やODRを確認。MSVC CI追加は別の検証基盤候補。
+原文: https://github.com/official-stockfish/Stockfish/commit/bd85fb7fa3fc2225e72b7317f0ca822703180543
+
+SF-186  53804033930d7ce954da1d88b7cc23b53b320059  2026-08-24
+Fix valgrind harness for expected-failure tests
+判定: 適用不要
+上流変更: tests/instrumented.py, tests/testing.py
+将棋側: script/engine_invoker*.py; .github/workflows/
+理由: 上流tests/testing.pyのValgrind expected-failure戻り値とsuppressionsを修正。現行にそのテスト基盤はない。
+条件・必要検証: 異常入力テストを新設する際はsanitizer終了と期待したアプリ終了を区別する設計を参考。
+原文: https://github.com/official-stockfish/Stockfish/commit/53804033930d7ce954da1d88b7cc23b53b320059
+
+SF-187  7d9276c6a96797a2904231c491956a105555f5b3  2026-08-24
+Handle ANSI paths
+判定: 条件付き推奨（Unicode対応時）
+上流変更: src/misc.cpp
+将棋側: source/misc.cpp:パス変換; source/eval/evaluate_io.cpp
+理由: 新しいUTF8→wide変換がANSI GUIパスを壊す問題へのfallback。将棋は同じpath_from_utf8 pipelineを持たず、単独の同一バグとは判定しない。
+条件・必要検証: 22548cb0のUnicode設計を適応するならCP_UTF8検証とCP_ACP fallbackをセット。日本語GUI/ファイル名をWindows実機で検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/7d9276c6a96797a2904231c491956a105555f5b3
+
+SF-188  598ae2c46500e6dc50b54919ea4bebfe213ddcd1  2026-08-24
+Make extensions and futility pruning depend on new seekMate variable
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:singular extension/futility
+理由: seekMate状態でfutility深さを下げsingular extensionを抑える。現行にseekMateはないが、詰み発見と探索爆発の制御案として将棋にも研究余地がある。
+条件・必要検証: 閾値rootDepth>=16/score>=2000は再tune。a35e229e/72d52bbe/2035ddedの最終化まで参照し、中間LUT版を単独採用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/598ae2c46500e6dc50b54919ea4bebfe213ddcd1
+
+SF-189  19a02f44e1bfee44b5a00acf6e812c643b8fd54c  2026-08-25
+guarantee PV extension for nodestime and handle MultiPV
+判定: 適用不要
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:syzygy_extend_pv
+理由: Syzygy PV補完の時間上限をMultiPV本数で割り、nodestimeで決定性を保つ修正。将棋はこの関数がSTOCKFISH専用。
+条件・必要検証: 将棋独自のPV補完には独自の時間予算検査が必要で、同じ修正の直接適用ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/19a02f44e1bfee44b5a00acf6e812c643b8fd54c
+
+SF-190  7f73409c4e22a8a1c2058147d5a3bc9fbed1409e  2026-08-25
+Fix compile bug for Mac OS X 10.13.6
+判定: 適用不要（新backend導入時は必須）
+上流変更: src/shm_unix.h
+将棋側: source/shm_linux.h; source/shm.h
+理由: CMSG_SPACEが定数式でない旧Mac等で、socket ancillary bufferを動的確保する修正。現行旧backendはSCM_RIGHTSを使わない。
+条件・必要検証: 新shm_unixを移植する際はruntimeサイズ/alignを含む最終版を使う。Mac/BSD実機未検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/7f73409c4e22a8a1c2058147d5a3bc9fbed1409e
+
+SF-191  81d2cee9d61b0296f854e15107e0f55596ec1b3d  2026-08-25
+Cache qemu-user deb & syzygy in CI
+判定: 適用不要
+上流変更: .github/workflows/matetrack.yml, .github/workflows/sanitizers.yml, .github/workflows/universal_compilation.yml, tests/testing.py
+将棋側: .github/workflows/ndk.yml / make-macos.yml
+理由: qemu-user/Syzygy downloadをcacheするStockfish CI運用改善。現行に同じmatetrack/Syzygy download経路はない。
+条件・必要検証: 独自SFEN CIを作る際もチェスtablebaseのcacheは不要。
+原文: https://github.com/official-stockfish/Stockfish/commit/81d2cee9d61b0296f854e15107e0f55596ec1b3d
+
+SF-192  7ab49b9bda97a608e500762c1fd1d1c5857936f0  2026-08-25
+Use mmap() for large aligned allocations to avoid cross-NUMA arena reuse
+判定: 実験候補（複数物理NUMA）
+上流変更: src/memory.cpp, src/memory.h, src/shm_unix.h
+将棋側: source/memory.cpp:aligned_large_pages_alloc/free; source/memory.h
+理由: PC-01。malloc arena再利用を避けLinux大容量割当を直接mmapへ替える。現行もmalloc系で適用余地あり、thread再設定時のremote memory対策。
+条件・必要検証: 5cae0fabのMAP_FAILED処理とSA-13のNULL検査込み。map管理/free/fallbackを一体で検証。現PC単一物理NUMAでの改善は未確認。
+原文: https://github.com/official-stockfish/Stockfish/commit/7ab49b9bda97a608e500762c1fd1d1c5857936f0
+
+SF-193  d945b4d920feb69db90d66dca8891bd922627497  2026-08-25
+Update Top CPU Contributors
+判定: 適用不要
+上流変更: Top CPU Contributors.txt
+将棋側: docs/; .github/FUNDING.yml
+理由: Stockfish CPU貢献者一覧の更新。エンジン動作/やねうら王の実装に対応する変更なし。
+条件・必要検証: 他projectの貢献者情報をやねうら王の一覧へ転記しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/d945b4d920feb69db90d66dca8891bd922627497
+
+SF-194  2edd935bbb3ea6e484a1700f582a95e0ee773ec2  2026-08-25
+Simplify optimism scaling formula
+判定: 適用不要
+上流変更: src/evaluate.cpp
+将棋側: source/eval/nnue/evaluate_nnue.cpp
+理由: optimismのmaterial係数を7317へ固定するチェス評価scale変更。現行将棋には同じoptimism計算がない。
+条件・必要検証: FV_SCALE/手駒bucket/進行度への変更とは別。
+原文: https://github.com/official-stockfish/Stockfish/commit/2edd935bbb3ea6e484a1700f582a95e0ee773ec2
+
+SF-195  5cae0fab7dc5c2b46b583b02c6347e6ce6dc3c54  2026-08-29
+Handle MAP_FAILED
+判定: 適用不要（mmap割当導入時は必須）
+上流変更: src/memory.cpp, src/syzygy/tbprobe.cpp
+将棋側: source/memory.cpp; source/shm_linux.h:既存MAP_FAILED検査
+理由: 7ab49b9b導入の大容量mmapがMAP_FAILEDをnullptrと誤認する問題。現行の大容量allocatorはmalloc系で、このバグはない。旧共有backendのmmapは既に検査する。
+条件・必要検証: mmap経路を新設する場合に必須。『mmapが全くない』を非該当の理由にはしない。Syzygy側は不要。
+原文: https://github.com/official-stockfish/Stockfish/commit/5cae0fab7dc5c2b46b583b02c6347e6ce6dc3c54
+
+SF-196  074b1eac474a774bfcf588f039a1788e38ff1f50  2026-08-29
+Clean-up comments
+判定: 適用不要
+上流変更: src/search.cpp, tests/instrumented.py
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp
+理由: 上流コメントと改行・整形の整理。将棋は既に日本語の設計/分岐説明を持ち、上流コメントに置換する必要はない。
+条件・必要検証: 関連機構を移植する時に説明を合わせる程度。機能改善とは扱わない。
+原文: https://github.com/official-stockfish/Stockfish/commit/074b1eac474a774bfcf588f039a1788e38ff1f50
+
+SF-197  d96c183f5a4f240830ceccd815e1dce12117b0ae  2026-08-29
+Simplify HalfKAv2_hm::write_indices()
+判定: 見送り
+上流変更: src/nnue/features/half_ka_v2_hm.cpp, src/nnue/features/half_ka_v2_hm.h
+将棋側: source/eval/nnue/features/features_common.h; source/eval/nnue/features/half_ka2.h
+理由: HalfKA index listをu16へ狭めAVX512の拡張storeを省く。将棋は81マス/手駒/玉でfeature総数が異なり、u16へ収まる前提を満たすとは限らない。
+条件・必要検証: 全対応feature setの最大indexを算出するまで狭めない。指定halfka2だけで他architectureを壊さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/d96c183f5a4f240830ceccd815e1dce12117b0ae
+
+SF-198  8bc5caa2e4b1d4c189b1428e93158b10d3edb0b6  2026-08-29
+Peel off one iteration of the halfka incremental update
+判定: 実験候補（既存特化と重複）
+上流変更: src/nnue/nnue_accumulator.cpp
+将棋側: source/eval/nnue/nnue_feature_transformer.h:update_accumulator_fixed / NNUE_FT_SPECIALIZED
+理由: 1/2本の加減算をloopから剥がす案。現行にもOFFの1→1/2→2特化実装があり、単純な新規案ではない。
+条件・必要検証: 既存specializedの過去比較を確認し、24レジスタとの組合せ/異なる剥がし方を試す時だけ再実験。無条件ON推奨にしない。
+原文: https://github.com/official-stockfish/Stockfish/commit/8bc5caa2e4b1d4c189b1428e93158b10d3edb0b6
+
+SF-199  4d65257b0f8fd8179b81fb88176c4d6eaea94a9c  2026-09-01
+Avoid reducing move horizon in cyclic time controls
+判定: 適用不要
+上流変更: src/timeman.cpp
+将棋側: source/timeman.cpp; source/usi.cpp:movestogo分岐
+理由: チェスの40/10等で残り手数を短縮し過ぎる時間切れ修正。将棋はmovestogo/cyclic TCを使用しない。
+条件・必要検証: 将棋のMoveHorizon/秒読みの別方式へ条件だけ移さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/4d65257b0f8fd8179b81fb88176c4d6eaea94a9c
+
+SF-200  3f6f417b87c0e80ee30914b6b539b4ab7d3b2a5b  2026-09-01
+Update the WDL model
+判定: 適用不要
+上流変更: src/uci.cpp
+将棋側: source/usi.cpp:勝率/評価値表示; source/eval/nnue/evaluate_nnue.cpp
+理由: チェス2M対局からWDL係数/正規化定数を更新。将棋の引き分け率/駒価値/評価尺度とは互換でない。
+条件・必要検証: 将棋データで勝率モデルを学習する別案件。係数の流用不可。
+原文: https://github.com/official-stockfish/Stockfish/commit/3f6f417b87c0e80ee30914b6b539b4ab7d3b2a5b
+
+SF-201  47be34c55fbc86079cba57b9ad6955e6fe0bdff9  2026-09-02
+Fix integer overflow in update_continuation_histories
+判定: 適用不要（倍率導入時は必須）
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:update_continuation_histories
+理由: bonus*weight*CMHC multiplierの3因子積overflowを倍率半減で防ぐ修正。現行はCMHC multiplierの項がなく同じoverflow式ではない。
+条件・必要検証: 将来CMHCを導入する場合は積の全範囲を確認。将棋の既存weightだけ半分にすると学習量を壊す。
+原文: https://github.com/official-stockfish/Stockfish/commit/47be34c55fbc86079cba57b9ad6955e6fe0bdff9
+
+SF-202  01d71fc9a735a13d84402ac9bee8d54b6b5669cd  2026-09-03
+Fix UB when passing plain char to <cctype> functions
+判定: 修正推奨
+上流変更: AUTHORS, src/misc.cpp, src/position.cpp
+将棋側: source/misc.cpp:remove_whitespace/is_whitespace; source/usioption.cpp:CaseInsensitiveLess
+理由: SA-16。負のplain charをisspace/tolowerへ渡しうる現行コードもあり、unsigned charへ変換する修正が適合。
+条件・必要検証: ASCII以外の入力、locale、EOFを区別してテスト。Position::flipのチェス文字列部分は対象外。
+原文: https://github.com/official-stockfish/Stockfish/commit/01d71fc9a735a13d84402ac9bee8d54b6b5669cd
+
+SF-203  06675f704049c62e99dac5533fda42fd5c63aef4  2026-09-03
+update pairwise mul explanation
+判定: 適用不要
+上流変更: src/nnue/nnue_feature_transformer.h
+将棋側: source/eval/nnue/nnue_feature_transformer.h:transform
+理由: 上流QATのFtMaxVal=255前提でpairwise multiplyの説明を整理。現行は254上限と独自の視点の混ぜ方で、説明をそのまま写すと誤る。
+条件・必要検証: 必要なら現行の整数式から日本語コメントを起こす。演算変更なしのcommit。
+原文: https://github.com/official-stockfish/Stockfish/commit/06675f704049c62e99dac5533fda42fd5c63aef4
+
+SF-204  6e4c77f51d09062180fbc2b9befd294abe412633  2026-09-04
+Fix bug in nodestime
+判定: 適用不要
+上流変更: src/timeman.cpp
+将棋側: source/timeman.cpp:STOCKFISH nodestime
+理由: availableNodes/npmsecが0になりlog10(0)とinf→整数変換を起こすSF時間式の修正。将棋のTMにはこのlog10式/有効nodestime経路がない。
+条件・必要検証: USI残り時間の下限や負入力は別の23df8290系で検討。
+原文: https://github.com/official-stockfish/Stockfish/commit/6e4c77f51d09062180fbc2b9befd294abe412633
+
+SF-205  1dc0912d86dafb99e96d679a6ac76cbdf1553459  2026-09-04
+Improve comments
+判定: 条件付き推奨（コメントのみ）
+上流変更: src/misc.cpp, src/tt.cpp, src/tt.h
+将棋側: source/misc.cpp; source/tt.cpp / tt.h
+理由: hash/TT公開APIの意味を補足する文書改善は共通箇所に有用。ただし将棋のkey拡張/世代運用/手番付きindexの独自仕様がある。
+条件・必要検証: 実装に一致する説明だけ適応。上流のTTサイズ/bit配置をそのまま転記しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/1dc0912d86dafb99e96d679a6ac76cbdf1553459
+
+SF-206  edb0d9db6731067ec50ce619ff372b463bc4dd5d  2026-09-05
+Stockfish 19
+判定: 適用不要
+上流変更: src/misc.cpp
+将棋側: source/misc.cpp:engine_info
+理由: Stockfishのversionを19へ上げるリリース宣言。やねうら王のversion/製品名とは別。
+条件・必要検証: 文字列を流用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/edb0d9db6731067ec50ce619ff372b463bc4dd5d
+
+SF-207  b180d657102667f13c59c036210ae6999ebe2cb2  2026-09-09
+Restore Development
+判定: 適用不要
+上流変更: src/misc.cpp
+将棋側: source/misc.cpp:engine_info
+理由: Stockfishの19リリース後にdev表示を復帰するversion変更。やねうら王には独自version規則がある。
+条件・必要検証: 挙動や棋力を変えるcommitではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/b180d657102667f13c59c036210ae6999ebe2cb2
+
+SF-208  0e24f3f205ac17f175eeb27bdca3b6a09d0b1aaa  2026-09-09
+use nullptr instead of Null object pattern for SearchManager
+判定: 見送り
+上流変更: src/search.cpp, src/search.h, src/thread.cpp, src/thread.h
+将棋側: source/search.h:Worker/ISearchManager; source/thread.cpp; source/engine/yaneuraou-engine/
+理由: NullSearchManagerをnullptrへ置換する整理。将棋のWorker/engineは複数の探索エンジンを載せる独自共通基盤で、同じinterface削除は影響が広い。
+条件・必要検証: 全engine factoryと学習workerのmain_manager呼出しを再設計する場合のみ。小さな探索改善として一括移植しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/0e24f3f205ac17f175eeb27bdca3b6a09d0b1aaa
+
+SF-209  0c5892a95e601a6e42b7a15605ef8fe1d0d23eb3  2026-09-09
+Use the number of prior NMP Fail High in search
+判定: 実験候補
+上流変更: src/search.cpp, src/search.h
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.h:Stack; cpp:NMP
+理由: 同nodeの過去NMP fail-high回数で発動marginを下げる機構。現行Stackにcounterがなく、初期化とverification経路を追加する必要がある。
+条件・必要検証: null child/同node再探索のresetを揃え、NMPのbeta条件と将棋scaleを再tune。棋力と詰み回帰を検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/0c5892a95e601a6e42b7a15605ef8fe1d0d23eb3
+
+SF-210  3a7b56a4e4e86b069a44df6577dedac6a94f7ab4  2026-09-09
+Simplify quadratic depth in Razoring
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:razoring
+理由: 深さ二乗を一次に変えseekMate中は抑制する案。現行にはseekMate機構がなく一次化だけ移すと枝刈り過多になりうる。
+条件・必要検証: 598ae2c4の最終seekMate案と合わせて設計。将棋の短詰み回帰と棋力で判断。
+原文: https://github.com/official-stockfish/Stockfish/commit/3a7b56a4e4e86b069a44df6577dedac6a94f7ab4
+
+SF-211  5ca4bfe72b9c0b1ba565c1da081d3531cce98a64  2026-09-09
+Decrease time usage if engine has time disadvantage.
+判定: 実験候補
+上流変更: src/timeman.cpp
+将棋側: source/timeman.cpp:TimeManagement::init_
+理由: 相手より時間が少ない時にoptimumを減らす案。将棋でも研究可能だが、秒読み/加算/自分専用設定があるため単純な残り時間比は不十分。
+条件・必要検証: 負時間を先にsanitizeし、秒読みとfischer別に対局検証。Stockfishの0.9係数を無検証で流用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/5ca4bfe72b9c0b1ba565c1da081d3531cce98a64
+
+SF-212  8f6a95de2fbe0a6fe139a78711a2ee8d58e5b148  2026-09-09
+Use a local accumulator to eliminate redundant stores to m.value
+判定: 実験候補
+上流変更: src/movepick.cpp
+将棋側: source/movepick.cpp:MovePicker::score
+理由: m.valueへ何度も書く代わりにlocal intへ累積し最後に一度store。将棋側にも同形の連続更新があり、アルゴリズムを保つ小さい最適化候補。
+条件・必要検証: 生成asmと評価順、overflow、同点順を確認しNPS比較。共有historyのread回数/順序は維持。以前のFT重みprefetch試験とは別の案。
+原文: https://github.com/official-stockfish/Stockfish/commit/8f6a95de2fbe0a6fe139a78711a2ee8d58e5b148
+
+SF-213  9287f1654a1e15fe12f3f417f1fb9763b09d39e1  2026-09-09
+[bugfix] Apply cyclic TCs when in nodestime
+判定: 適用不要
+上流変更: src/timeman.cpp, src/timeman.h
+将棋側: source/timeman.cpp; source/usi.cpp
+理由: nodestimeのcyclic time control予算を周回ごとに補充する修正。将棋は有効nodestimeとmovestogo双方を持たない。
+条件・必要検証: 将棋のfischer加算をcyclic budgetとして二重加算しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/9287f1654a1e15fe12f3f417f1fb9763b09d39e1
+
+SF-214  55cf867cf5f37471c159ed26d3164a6a1f01c828  2026-09-09
+Make dbg_* methods return the inspected variable
+判定: 条件付き推奨（開発補助）
+上流変更: src/misc.cpp, src/misc.h
+将棋側: source/misc.cpp / misc.h:dbg_hit_on/dbg_mean_of等
+理由: 観測した値をそのまま返す変更は将棋にも使え、条件式の重複評価を避けられる。現行dbg関数の戻り型と宣言も一緒に変更する必要。
+条件・必要検証: debug計測だけの利便性。releaseで未使用なら性能効果なし。bool/int64の型を維持。
+原文: https://github.com/official-stockfish/Stockfish/commit/55cf867cf5f37471c159ed26d3164a6a1f01c828
+
+SF-215  e52ea9ac8d4fa099e8962d2109b3c71aff58ce66  2026-09-09
+Simplify quiet history bonus
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:TT fail-high quiet bonus
+理由: TT手のquiet history bonusの上限をなくし131*depthへ変更。現行はmin式なので深いnodeで学習強度が変わる。
+条件・必要検証: StatsEntryのDと最大depthで入力範囲を確認し将棋で棋力検証。単純な同値整理と扱わない。
+原文: https://github.com/official-stockfish/Stockfish/commit/e52ea9ac8d4fa099e8962d2109b3c71aff58ce66
+
+SF-216  5e723b394065af7ed88c2bb6650f4dc9872991e7  2026-09-09
+Remove unused PawnPushOrAttacks
+判定: 適用不要
+上流変更: src/attacks.h
+将棋側: source/bitboard.h; source/movegen.cpp
+理由: 上流FullThreatsで不要になったPawnPushOrAttacks表の削除。将棋に同じ表はなく、歩の利き/前進の仕様もチェスと異なる。
+条件・必要検証: 将棋の歩利き表をこの理由で削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/5e723b394065af7ed88c2bb6650f4dc9872991e7
+
+SF-217  342c24b4edd4c90e0bb5a2b605d0f9fde9e78d72  2026-09-09
+Fix AVX2 Compiler Pipeline
+判定: 適用不要
+上流変更: .github/workflows/avx2_compilers.yml
+将棋側: .github/workflows/make.yml / make-msys2.yml
+理由: Stockfish avx2_compilers workflowのmatrix/コンパイラ検査を修正。現行に同じworkflowはない。
+条件・必要検証: 将棋のコンパイラ行列テストは別設計で導入する。
+原文: https://github.com/official-stockfish/Stockfish/commit/342c24b4edd4c90e0bb5a2b605d0f9fde9e78d72
+
+SF-218  59aae690f91d6f69aac194f447d84b4a2c3be778  2026-09-09
+Add -ftrapv to CI
+判定: 条件付き推奨（検証基盤）
+上流変更: .github/workflows/sanitizers.yml
+将棋側: .github/workflows/make.yml; source/Makefile; source/extra/bitop.h
+理由: signed overflowをtrapするCIは探索の積やindex検査に役立つ。ただし将棋のbit操作には意図したunsigned wrapがあるため型の区別が必要。
+条件・必要検証: ASan/UBSanと別buildで-ftrapvを適応し指定モデルで探索回帰。今回新たに全suiteを実施したわけではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/59aae690f91d6f69aac194f447d84b4a2c3be778
+
+SF-219  4c991722447d27a3932448990187d9f05355ebf0  2026-09-13
+[CI] Increase number of go-mate test positions to 1000
+判定: 条件付き推奨（検証基盤）
+上流変更: .github/workflows/matetrack.yml
+将棋側: script/engine_invoker*.py; source/mate/mate1ply_*.cpp; source/engine/yaneuraou-engine/yaneuraou-search.cpp
+理由: 短詰み試験を1000局面へ増やし1threadの決定的runとtimeoutを置く設計は有効。チェスEPD/go mate手数指定はUSIと互換でない。
+条件・必要検証: SFENの既知詰み/不詰め/受け問題を整備して通常探索と詰み専用を分ける。時間切れ時は子processを回収。
+原文: https://github.com/official-stockfish/Stockfish/commit/4c991722447d27a3932448990187d9f05355ebf0
+
+SF-220  0f602f90349885d6379c08984fdfcd5f3da429d0  2026-09-13
+Fail high recovery depth adjustement
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:iterative_deepening aspiration
+理由: fail high後の深さを一度に戻さずfailHighRecoveryで漸増させる。現行にcounterはなく、同じfail-high再探索には移植余地がある。
+条件・必要検証: MultiPVのpvIdx=0限定とcounter寿命を揃え、詰み表示/時間配分と将棋棋力を検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/0f602f90349885d6379c08984fdfcd5f3da429d0
+
+SF-221  b69288679a9a45e736e83e2661889334b9618a4d  2026-09-13
+Fail reproducibility checks on engine errors or missing node output
+判定: 条件付き推奨（検証基盤）
+上流変更: AUTHORS, tests/reprosearch.sh
+将棋側: script/bench*.py / engine_invoker*.py; .github/workflows/
+理由: 上流Expect shellでpipeline失敗/nodes欠落を成功扱いしない修正。現行に同じshellはなく、bench_finny_reset.pyはreturncodeを検査、各bench parserは測定行を抽出する。
+条件・必要検証: 既存Python runnerのreturncode/timeout/info nodes抽出を確認して不足時のみ適応。go nodesのechoを実測値と数えない。
+原文: https://github.com/official-stockfish/Stockfish/commit/b69288679a9a45e736e83e2661889334b9618a4d
+
+SF-222  bc944563790bf0b46a7acd8d9de139315d1b974f  2026-09-13
+Update network: longer training
+判定: 適用不要
+上流変更: src/evaluate.h
+将棋側: source/eval/nnue/nnue_architecture.h; inbox/evalTuyo12-20261025/tag.txt
+理由: チェスの長期学習ネットnn-134a887f4c8fへ既定名を交換。将棋の入力/モデル形式と非互換。
+条件・必要検証: 指定将棋モデルを維持。
+原文: https://github.com/official-stockfish/Stockfish/commit/bc944563790bf0b46a7acd8d9de139315d1b974f
+
+SF-223  82d73d0a9e7cf3e1cd6c56c012ca69dff2f2ed32  2026-09-13
+Optimize both_attacks_bb()
+判定: 適用不要
+上流変更: src/attacks.h
+将棋側: source/bitboard.h / bitboard.cpp
+理由: チェスHQのAVX2結果から飛車成分を取り出すshuffle短縮。将棋はDualMagic/both_attacks_bbの同じ実装を持たない。
+条件・必要検証: 将棋向けHQを新設しない限り適用対象なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/82d73d0a9e7cf3e1cd6c56c012ca69dff2f2ed32
+
+SF-224  86433ca703e808fb3b7b46b3efb3ee3fdbf53c22  2026-09-13
+Add iterator header to numa.h
+判定: 修正推奨（ヘッダー依存）
+上流変更: src/numa.h
+将棋側: source/numa.h:include節 / get_process_affinity
+理由: 現行はstd::inserterを使うのに<iterator>を明示includeしていない。transitive includeに依存せず直接includeする変更は適合する。
+条件・必要検証: Clang14では既存buildが通っても可搬性修正として有効。新旧コンパイラ/Windowsのビルドで確認。
+原文: https://github.com/official-stockfish/Stockfish/commit/86433ca703e808fb3b7b46b3efb3ee3fdbf53c22
+
+SF-225  031dfeb437fa6b06cdbdf4ef89dfb82f6b83c4d3  2026-09-13
+Remove unused constexpr_lsb and lsb_index64
+判定: 適用不要
+上流変更: src/bitboard.h
+将棋側: source/bitboard.h; source/extra/bitop.h; source/eval/nnue/layers/
+理由: 上流の不要de Bruijn constexpr_lsb/表を削除。現行bitboard.hにその定義はなく、独自LSB intrinsic経路を持つ。
+条件・必要検証: NNUE層のlookupが存在する場合も別の呼出しを調べる。名前だけで一括削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/031dfeb437fa6b06cdbdf4ef89dfb82f6b83c4d3
+
+SF-226  1548538edecc4bd8aae119050c5f853935d25173  2026-09-18
+Fix deep recursion.
+判定: 条件付き推奨（安全策）
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:LMR depth計算
+理由: SA-08。現行は深いplyでも負reductionによる延長を許し、上流が制限した構造が残る。2*rootDepth以深で延長を抑える考え方は適合する。
+条件・必要検証: 将棋での探索爆発は未再現。MAX_PLYがあるため無限再帰とは呼ばない。深詰み/長時間/多threadの棋力とnode数を比較して採否決定。
+原文: https://github.com/official-stockfish/Stockfish/commit/1548538edecc4bd8aae119050c5f853935d25173
+
+SF-227  7a372f3fd71a036ed35d2d474f44a3138be69a0f  2026-09-18
+Tweak evaluation correction factor.
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:correction_value/update_correction_history/do_move
+理由: 6手前のcontinuation correctionを追加し他の係数を下げる。現行は2/4手前だけを使い、配列/stackのアクセス範囲も確認が必要。
+条件・必要検証: 6手前を読む前のsentinel初期化とprefetchはss-5へ対応。将棋の係数を再tuneして棋力検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/7a372f3fd71a036ed35d2d474f44a3138be69a0f
+
+SF-228  9c11e2317a02a87be0e2c0c4347c2a0370561e1c  2026-09-18
+Allow razoring to be performed only at allNodes
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:razoring
+理由: fail-low cutoffをallNode限定にしmarginを調整する案。現行はNonPV全般で、cutNodeとの対称化は適応可能。
+条件・必要検証: seekMateの有無と二乗/一次式の前提を合わせる。9c11e231の342係数だけ流用せず将棋対局で比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/9c11e2317a02a87be0e2c0c4347c2a0370561e1c
+
+SF-229  248a8b86d789666d4aa2ae5e04dc18ae2a18fe95  2026-09-18
+Use ubuntu-slim for lightweight release jobs
+判定: 適用不要
+上流変更: .github/workflows/official_release.yml, .github/workflows/stockfish.yml, .github/workflows/upload_binaries.yml, AUTHORS
+将棋側: .github/workflows/make.yml / make-msys2.yml
+理由: Stockfishの軽量release/packaging jobのみubuntu-slimへ変更。現行のコンパイルjobを同じrunnerへ変える話ではない。
+条件・必要検証: リリース運用再設計時だけ参考。探索への効果なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/248a8b86d789666d4aa2ae5e04dc18ae2a18fe95
+
+SF-230  ce330df8be77dca150b541566459df0822d2b8d8  2026-09-18
+Simplify LMR divisor
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:lmrDivisor/quiet pruning
+理由: 16個のtune済み除数を3000+7*(min(depth,16)-8)^2へ置換。現行にも配列があり適用可能だが、各深さの減縮が変わる。
+条件・必要検証: 将棋で係数再tuneと棋力比較。table参照削除だけの性能案として採用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/ce330df8be77dca150b541566459df0822d2b8d8
+
+SF-231  e7b67b9b13d05bced9b7976fe17cab21634c86e4  2026-09-18
+Simplify TT cutoff and penalize condition checks
+判定: 適用不要（penalize導入後は再検討）
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:TT cutoff; source/tt.cpp
+理由: TT cutoffとpenalizeの共通条件を括り出す整理。現行はpenalizeを持たず、rule50条件も将棋にはない。
+条件・必要検証: 319d61efの機構を採用するなら最終の条件配置を参照。将棋のTT手の合法性/詰み検査を保持。
+原文: https://github.com/official-stockfish/Stockfish/commit/e7b67b9b13d05bced9b7976fe17cab21634c86e4
+
+SF-232  17a6c8f1eb0da45c2ca405321919519bf4e211ba  2026-09-19
+CI: Update Compiler Images (#7175)
+判定: 適用不要
+上流変更: .github/workflows/avx2_compilers.yml
+将棋側: .github/workflows/make.yml / make-mingw.yml
+理由: Stockfish avx2_compilersのコンパイラ用container image更新。現行にこのmatrix/jobはない。
+条件・必要検証: 将棋CIで使うツールチェインは別途互換性を検証して更新する。
+原文: https://github.com/official-stockfish/Stockfish/commit/17a6c8f1eb0da45c2ca405321919519bf4e211ba
+
+SF-233  b69fd13039a734b5bb850c4c3d890314ccb8d432  2026-09-22
+Use LLD w/ Clang for Universal builds
+判定: 適用不要
+上流変更: src/Makefile
+将棋側: source/Makefile:link; script/msys2_build*.sh
+理由: Windows Clang universal binaryの最終linkへLLD指定を加える修正。現行にはそのuniversalリンク機構がない。
+条件・必要検証: universal対応を作る時は必要。通常buildへLLDを使うかは独立の性能/互換性判断。
+原文: https://github.com/official-stockfish/Stockfish/commit/b69fd13039a734b5bb850c4c3d890314ccb8d432
+
+SF-234  e8e9bcf5697b80d987295e58d658d69f72745ccc  2026-09-22
+add MACOSX_VERSION_MIN, use ndk r28b
+判定: 条件付き推奨（対象OS設定）
+上流変更: .github/workflows/arm_compilation.yml, src/Makefile
+将棋側: source/Makefile:APPLE_* target; script/android_build.sh; .github/workflows/ndk.yml
+理由: macOS minimum版を引数化しNDK r28bへ更新する配布互換性変更。現行はmacOS11 target等の独自設定でそのまま差分は合わない。
+条件・必要検証: 対応OS/APIの方針を決めてから設定化。旧Android/Windows hostを含むビルド検証が必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/e8e9bcf5697b80d987295e58d658d69f72745ccc
+
+SF-235  205f005283fa67c2f691152f4ad2ec09ed654b42  2026-09-22
+Use permute in both_attacks_bb()
+判定: 適用不要
+上流変更: src/attacks.h
+将棋側: source/bitboard.h / bitboard.cpp
+理由: チェスAVX2 DualMagicのmask配置とpermuteで角/飛車利きを合成する性能変更。将棋の利き表/128bit表現に対応しない。
+条件・必要検証: 将棋用HQを新設しない限り対象なし。
+原文: https://github.com/official-stockfish/Stockfish/commit/205f005283fa67c2f691152f4ad2ec09ed654b42
+
+SF-236  bf45059688274b7b633ad48737751a9bf81d74cb  2026-09-22
+Optimize HalfKAv2_hm::make_index()
+判定: 見送り
+上流変更: src/nnue/features/half_ka_v2_hm.cpp, src/nnue/nnue_accumulator.cpp
+将棋側: source/eval/nnue/features/half_ka2.cpp / half_ka_hm*.cpp
+理由: 64マスのorientとpiece/bucket offsetをu16の表へ畳み、make_indexをXORにする。将棋では81マス/手駒のindex arithmeticが異なる。
+条件・必要検証: 将棋固有offset表なら研究可能だが、全feature indexとcacheサイズを検証して別実装にする。
+原文: https://github.com/official-stockfish/Stockfish/commit/bf45059688274b7b633ad48737751a9bf81d74cb
+
+SF-237  81bdd79622b822abe8d88f1a9c246c80b4a6d3a0  2026-09-22
+[CI] Reorder matetrack runs
+判定: 条件付き推奨（検証基盤）
+上流変更: .github/workflows/matetrack.yml
+将棋側: script/engine_invoker*.py; .github/workflows/
+理由: 長時間go mateの前に通常の正しさ検査を完了させるCI順序とMultiPV corpus強化は有用。現行に同じmatetrack jobはない。
+条件・必要検証: SFEN版のsuiteを新設する際に219/4c991722と合わせて適応。
+原文: https://github.com/official-stockfish/Stockfish/commit/81bdd79622b822abe8d88f1a9c246c80b4a6d3a0
+
+SF-238  d8f77ce4450afcd03a442be29fd7df5821741dea  2026-09-22
+merge the template and non-template versions of attacks_bb
+判定: 見送り
+上流変更: src/attacks.h, src/movegen.cpp, src/position.cpp, src/position.h
+将棋側: source/bitboard.h; source/position.h; source/movegen.cpp
+理由: チェスAttacksのtemplate/non-template APIをalways_inlineのruntime引数へ統一。将棋の駒種/色templateは81マスの多い特殊分岐に使われる。
+条件・必要検証: 同じinline化で性能を保つ保証がなく、保守要求がない限り移さない。行うなら全駒種/ISAのasmとperft/NPSを確認。
+原文: https://github.com/official-stockfish/Stockfish/commit/d8f77ce4450afcd03a442be29fd7df5821741dea
+
+SF-239  f740707f9d45df53f15316beb3674bea7ebdc54a  2026-09-22
+Replace nnueComplexity with simple_eval equivalent
+判定: 実験候補（評価の後処理）
+上流変更: src/evaluate.cpp, src/nnue/network.cpp, src/nnue/network.h
+将棋側: source/eval/nnue/evaluate_nnue.cpp; source/position.cpp:materialValue
+理由: NNUEとmaterialの符号/規模の一致度で補正する案。将棋には同じPSQT/optimism式はなく、既存NNUE値への新しい補正機構になる。
+条件・必要検証: 将棋の手駒/成りを含むmaterial、scale、千日手傾向で再tune。チェス式の流用や指定モデル互換性の修正ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/f740707f9d45df53f15316beb3674bea7ebdc54a
+
+SF-240  0a215d6c9e48856ef630013b8ab8312941a59057  2026-09-22
+Miscellaneous cleanups September 2026
+判定: 条件付き推奨（共通整理のみ）
+上流変更: AUTHORS, src/Makefile, src/benchmark.cpp, src/benchmark.h, src/memory.cpp, src/memory.h, src/misc.cpp, src/misc.h, src/nnue/nnue_accumulator.h, src/nnue/nnue_common.h, src/numa.h, src/shm.h, src/shm_unix.h, src/thread.cpp, src/thread.h, src/timeman.h, src/tt.cpp, src/tt.h, src/uci.cpp
+将棋側: source/Makefile; source/misc.h; source/memory.h; source/thread.h; source/numa.h
+理由: typo/宣言整理と-latomicのlink flag移動は共通部分へ適応可能。nthreadsは将棋では既にコメントアウト済み。一方get_working_directoryは現用なので削除不可。
+条件・必要検証: 用途ごとに分割し全call siteを調べる。新backendのalignmentやNativeThreadへのinclude整理は未導入機構への依存を確認。
+原文: https://github.com/official-stockfish/Stockfish/commit/0a215d6c9e48856ef630013b8ab8312941a59057
+
+SF-241  a35e229ec92815450768cf45b42e1127d20a3426  2026-09-30
+Smoothen seekMate trigger
+判定: 実験候補
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:iterative_deepening / seekMate候補
+理由: seekMate閾値をdepth依存の750+220000/d²へ滑らかにする。現行にseekMateがないので単独適用する対象はないが、機構導入時は初期の固定閾値より最終案が参考になる。
+条件・必要検証: rootDepth>0と有効scoreを保証し、72d52bbe/2035ddedのMultiPV修正込みで将棋scaleを再tune。
+原文: https://github.com/official-stockfish/Stockfish/commit/a35e229ec92815450768cf45b42e1127d20a3426
+
+SF-242  a17c0ce28d5a4cc40e3f2d0e8892cb1cb4234730  2026-09-30
+SFNNv17: Remove psqt accumulator and update default net
+判定: 適用不要（指定SFNN）
+上流変更: src/evaluate.h, src/nnue/network.cpp, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_accumulator.h, src/nnue/nnue_architecture.h, src/nnue/nnue_common.h, src/nnue/nnue_feature_transformer.h, src/nnue/nnue_misc.cpp, src/nnue/nnue_misc.h, src/nnue/simd.h
+将棋側: source/eval/nnue/architectures/sfnn_network.h; source/eval/nnue/nnue_feature_transformer.h
+理由: SFNNv17でPSQT accumulatorを削除し新ネットへ変更。指定将棋SFNNは既にPSQT枝なしの独自構成で、同じ削除対象はない。
+条件・必要検証: 指定モデルがSFNNv17互換になるわけではない。旧NNUEやmaterial評価まで削除しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/a17c0ce28d5a4cc40e3f2d0e8892cb1cb4234730
+
+SF-243  1bf75bb3cc722eb97d9461709b94cdcfb8e1807c  2026-09-30
+Optimize do_move capture handling
+判定: 実験候補
+上流変更: AUTHORS, src/nnue/nnue_accumulator.h, src/search.cpp, src/search.h
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:YaneuraOuWorker::do_move; cpp:search/qsearch
+理由: 呼出し元で計算したcapture_stageをdo_moveへ渡し再計算を省く。現行do_moveも内部で再計算しており、移植しやすい小変更。
+条件・必要検証: 将棋のcapture_stageは駒取り以外に歩成りも含む。意味をcapture()へ変えず、ProbCutと全overloadの引数を合わせてNPS/評価差分を検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/1bf75bb3cc722eb97d9461709b94cdcfb8e1807c
+
+SF-244  e5c99a892ed3cd2272d7dc551ab12488797cd710  2026-09-30
+Balanced lto for gcc > 13
+判定: 条件付き推奨（GCCビルド）
+上流変更: src/Makefile
+将棋側: source/Makefile:LTOFLAGS; script/mingw_gcc.sh
+理由: GCC14以降のLTO partitionをbalancedにしてlink並列性を改善する案。現行LTOFLAGSは別設計で、Clangの今回の計測には適用しない。
+条件・必要検証: 4265c149のmajor抽出込み。GCC13以前/universal対象は除き、build時間・メモリ・NPSを比較。既存のdefault partitionも確認。
+原文: https://github.com/official-stockfish/Stockfish/commit/e5c99a892ed3cd2272d7dc551ab12488797cd710
+
+SF-245  7954475e053163a37a0485f38cd68ab629409f7e  2026-09-30
+Assert correct MaxChunkSize at compile time
+判定: 条件付き推奨（compile-time検査）
+上流変更: src/nnue/simd.h
+将棋側: source/eval/nnue/nnue_feature_transformer.h:Vector/Tiling; source/eval/nnue/layers/simd.h
+理由: vector幅とtile定数の不一致をstatic_assertで止める考え方は有用。将棋はbytes/16bit要素数の定義が上流と異なるため同じassert文を直貼りできない。
+条件・必要検証: 現行のkVectorHeight/sizeof(vec_t)/kHalfDimensionsの関係として定義し全ISA/architectureをcompile検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/7954475e053163a37a0485f38cd68ab629409f7e
+
+SF-246  af68fea3b9dec044e89b72c7d552ed417df7d125  2026-09-30
+Remove Redundant file.close()
+判定: 条件付き推奨（整理のみ）
+上流変更: src/benchmark.cpp
+将棋側: source/benchmark.cpp:setup_bench
+理由: 現行benchにもscope末尾のfile.close()があり、ifstreamのdestructorに任せて削除可能。
+条件・必要検証: 直後にファイルを再利用しないこのscopeだけが対象。性能改善やリーク修正と数えない。
+原文: https://github.com/official-stockfish/Stockfish/commit/af68fea3b9dec044e89b72c7d552ed417df7d125
+
+SF-247  49ea5ded38315cff8e67f4a677a9e7811612fbf6  2026-09-30
+Simplify singularDepth from the bonus formula
+判定: 適用不要（学習機構導入後は実験）
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:singular/multi-cut
+理由: 218c74ecのcorrection bonusからsingularDepthを除く変更。現行はそのmulti-cut更新自体を持たない。
+条件・必要検証: 機構を採る場合に最終係数を参考に将棋でtune。未導入の式を修正するためだけに追加しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/49ea5ded38315cff8e67f4a677a9e7811612fbf6
+
+SF-248  885813b0e3d68fb9b817182a813ba884c575ff2c  2026-10-10
+simplify delta-based reductions to constant PvNode discount
+判定: 実験候補
+上流変更: src/search.cpp, src/search.h
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:reduction/aspiration; h:rootDelta
+理由: LMRのdelta/rootDelta依存を除きPV nodeの一定割引に置換。現行もrootDeltaを使うため適用可能だが、窓幅による探索配分が変わる。
+条件・必要検証: 全呼出しとdirect qsearch/search helperの初期化を揃え、将棋で棋力とaspiration失敗回数を比較。
+原文: https://github.com/official-stockfish/Stockfish/commit/885813b0e3d68fb9b817182a813ba884c575ff2c
+
+SF-249  2d54ef335ac40832140cfa079d2d814b2bfb7916  2026-10-10
+Update network: longer finetune with one-tenth LR
+判定: 適用不要
+上流変更: src/evaluate.h
+将棋側: source/eval/nnue/nnue_architecture.h; inbox/evalTuyo12-20261025/tag.txt
+理由: チェス重みを低学習率の長期finetune版へ交換するだけ。将棋の半KA2_2304_15_64と非互換。
+条件・必要検証: 学習率の研究は将棋学習器側の別実験。
+原文: https://github.com/official-stockfish/Stockfish/commit/2d54ef335ac40832140cfa079d2d814b2bfb7916
+
+SF-250  04e0819783154eae2d3b136009ebec0f199404d4  2026-10-10
+Remove three always-true conditions in search
+判定: 条件付き推奨（成立箇所のみ）
+上流変更: AUTHORS, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:TT cutoff / fail-low capture bonus / qsearch
+理由: capture bonus分岐のpriorCapture重複は現行でも整理余地あり。一方penalizeは未導入で、qsearchのstand-pat前には将棋独自の詰み分岐もある。
+条件・必要検証: 各条件の恒真性を将棋の実際の到達経路で証明してから除く。SA-01の1手詰めTTスコアを直さず広くis_decisiveを外さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/04e0819783154eae2d3b136009ebec0f199404d4
+
+SF-251  a43f36824bb5363d574c57f5d45ade27ae15a956  2026-10-10
+Simplification: Remove the ply-5 continuation history update
+判定: 実験候補
+上流変更: AUTHORS, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:update_continuation_histories; source/movepick.cpp:score
+理由: ply5専用readは現行でもないが、そのcontextでのupdateを除くとhistory値が変わる。同じ駒対tableを別plyから読むため、完全な死んだ書込みとは断定できない。
+条件・必要検証: 将棋にはCMHC倍率もない。ply5を外す単独の棋力/NPS実験として扱い、同値整理と称さない。
+原文: https://github.com/official-stockfish/Stockfish/commit/a43f36824bb5363d574c57f5d45ade27ae15a956
+
+SF-252  186d6a41c1303317e4af31ed1859673f6699c12b  2026-10-10
+One instance of reductions array
+判定: 条件付き推奨（共有定数化）
+上流変更: src/search.cpp, src/search.h
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.h:Worker::reductions; cpp:clear/reduction
+理由: 全Workerで同じlog表を持ちclear毎に計算する現行も、immutableな1個へ共有化できる。係数は将棋2763で上流2872と異なる。
+条件・必要検証: 係数/MAX_MOVESとindex0初期値を維持し、学習worker含め読取り専用を確認。NPS改善量は未計測。
+原文: https://github.com/official-stockfish/Stockfish/commit/186d6a41c1303317e4af31ed1859673f6699c12b
+
+SF-253  dcf1cd5a8045d49866c0cc56df5b8ba6fe41a659  2026-10-10
+Remove redundant curly braces on single-statement blocks
+判定: 見送り
+上流変更: src/engine.cpp, src/memory.cpp, src/misc.cpp, src/misc.h, src/numa.h, src/score.cpp, src/search.cpp, src/universal/entry_x86.cpp
+将棋側: source/numa.h; source/memory.cpp; source/engine/yaneuraou-engine/yaneuraou-search.cpp
+理由: 単文blockのbraceを外すstyle整理。将棋の日本語コメントや#if配置も違い、追従による機能利益はない。
+条件・必要検証: 関連部分を修正する時の局所整形に留め、無関係な大量差分を作らない。
+原文: https://github.com/official-stockfish/Stockfish/commit/dcf1cd5a8045d49866c0cc56df5b8ba6fe41a659
+
+SF-254  400c23f978897b34d4a5ed5c4c6c6f858d40f976  2026-10-11
+Only generate legal moves in movegen
+判定: 見送り（別設計案件）
+上流変更: src/attacks.cpp, src/attacks.h, src/bitboard.h, src/movegen.cpp, src/movegen.h, src/movepick.cpp, src/movepick.h, src/perft.h, src/position.cpp, src/position.h, src/search.cpp, src/syzygy/tbprobe.cpp, src/thread.cpp, src/types.h, src/uci.cpp
+将棋側: source/movegen.cpp / movegen.h; source/position.cpp / position.h; source/movepick.cpp
+理由: 常に合法手だけ生成するためthreat bitboardを維持し、pseudo_legal/legal分離を統合する大規模変更。将棋は打歩詰・打ち・成不成・王手回避があり、同じ脅威表では代用できない。
+条件・必要検証: 将棋の合法生成を独自設計するなら研究可能だが、このpatchの一部だけ移してsearch側legal検査を消すのは不可。LEGAL_ALL/perft/全不成を網羅する必要。
+原文: https://github.com/official-stockfish/Stockfish/commit/400c23f978897b34d4a5ed5c4c6c6f858d40f976
+
+SF-255  513ce075215d4a297b42d22564783d2e6316b04e  2026-10-11
+Improve matefinding
+判定: 実験候補
+上流変更: src/search.cpp, src/search.h
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:iterative_deepening/NMP/ProbCut/LMR; h:Worker
+理由: seekMateをWorker状態にして反復のPVごとに設定し、NMPを浅く、小ProbCutを停止、王手手のLMRを緩める詰み発見案。現行に同機構はない。
+条件・必要検証: a35e229e/72d52bbe/2035ddedと合わせて最終形を将棋へ適応。1手詰め専用経路と長い詰みの棋力/探索量を検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/513ce075215d4a297b42d22564783d2e6316b04e
+
+SF-256  31275420c720e98fa5061c4e2a0bb4e716a85561  2026-10-11
+Two small cleanups
+判定: 適用不要
+上流変更: src/evaluate.cpp, src/search.cpp
+将棋側: source/eval/nnue/evaluate_nnue.cpp; source/tt.cpp
+理由: 上流のmaterial評価式を同値に書換え、penalizeの多thread特性に注記を追加。将棋に同じscale式/penalize機構はない。
+条件・必要検証: 319d61efを試す場合はantiscalerの注意を引き継ぐ。式のrenameだけを移す対象はない。
+原文: https://github.com/official-stockfish/Stockfish/commit/31275420c720e98fa5061c4e2a0bb4e716a85561
+
+SF-257  5c4cef0bfe61fb3249178b2bcf21f5673557efe7  2026-10-13
+Update NNUE architecture to SFNNv18 and net nn-c9e480e92425.nnue
+判定: 見送り（新モデルが必要）
+上流変更: src/Makefile, src/evaluate.h, src/nnue/features/half_ka_v2_hm.cpp, src/nnue/features/k32q2.cpp, src/nnue/features/half_ka_v2_hm.h, src/nnue/network.cpp, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_accumulator.h, src/nnue/nnue_architecture.h, src/nnue/nnue_common.h, src/nnue/nnue_feature_transformer.h, src/nnue/nnue_misc.cpp
+将棋側: source/eval/nnue/features/half_ka2.*; architectures/nnue_arch_gen.py; nnue_feature_transformer.h
+理由: SFNNv18はK32Q2、queen条件bucket、32 LayerStacks、int8 FT、非LEB形式へ全面変更。指定将棋モデルとはfeature/scale/serialization全てが非互換。
+条件・必要検証: 将棋の手駒/成りに対応する新特徴量と学習/exportを設計する別案件。int8だけ既存重みに当てない。
+原文: https://github.com/official-stockfish/Stockfish/commit/5c4cef0bfe61fb3249178b2bcf21f5673557efe7
+
+SF-258  e08dfa8049ead33b64d92c874bda59f213702b42  2026-10-17
+Pair int8 weight rows in accumulator updates
+判定: 適用不要（現行int16 FT）
+上流変更: src/nnue/features/full_threats.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_feature_transformer.h, src/nnue/simd.h
+将棋側: source/eval/nnue/nnue_feature_transformer.h:WeightType/update_accumulator_tiled
+理由: int8 FTの2行をmaddubsで同時widenしてshuffle負荷を減らす。現行のFT重みはint16で、widen処理自体がない。
+条件・必要検証: 5c4cef0b相当のint8学習を将棋へ導入する場合の候補。旧歩差分の事前計算案とは別物。
+原文: https://github.com/official-stockfish/Stockfish/commit/e08dfa8049ead33b64d92c874bda59f213702b42
+
+SF-259  6a9ec5c33d00c13edde7d19249194102867ae8c3  2026-10-17
+Lazy compute threats
+判定: 適用不要
+上流変更: src/position.cpp, src/position.h
+将棋側: source/position.h:StateInfo; source/position.cpp
+理由: 400c23f9で導入した全合法生成用のthreatsを遅延計算する変更。将棋にその全駒種threat cacheはない。
+条件・必要検証: 既存USE_LAZY_EVALUATE/Finnyとは無関係。合法生成の新設なしにこのflagだけ追加しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/6a9ec5c33d00c13edde7d19249194102867ae8c3
+
+SF-260  b877fbde5985f57d07dd137085f366588f36a717  2026-10-17
+Optimize FullThreats LUTs and incremental index updates
+判定: 適用不要
+上流変更: src/nnue/features/full_threats.cpp
+将棋側: source/eval/nnue/features/
+理由: FullThreatsのlut1/lut2をまとめ、駒種別offsetを畳む最適化。現行はその入力特徴量/lookupを持たない。
+条件・必要検証: 将棋の新しい脅威特徴量を設計する場合のみ参考。
+原文: https://github.com/official-stockfish/Stockfish/commit/b877fbde5985f57d07dd137085f366588f36a717
+
+SF-261  effdc3fd3f6de6e75fe1374a51a7a7eed66f880b  2026-10-17
+Refactor totBestMoveChanges calculation
+判定: 条件付き推奨（整理/小最適化）
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:iterative_deepening時間管理
+理由: totBestMoveChangesの減衰/全thread回収を使う時間管理branchへ寄せ、検討時の不要走査を省く。現行にも同様の更新と利用箇所がある。
+条件・必要検証: infinite/ponder/depth/node制限でcounterの寿命とリセット時点を保つことを確認。NPS効果は未計測。
+原文: https://github.com/official-stockfish/Stockfish/commit/effdc3fd3f6de6e75fe1374a51a7a7eed66f880b
+
+SF-262  8875da570bf333551f699dbe2c9859745ddb0b80  2026-10-24
+Combine int8 pairing with pointer hoisting
+判定: 適用不要（現行int16 FT）
+上流変更: src/nnue/nnue_accumulator.cpp
+将棋側: source/eval/nnue/nnue_feature_transformer.h:差分更新
+理由: int8 paired-row処理のpointer計算をloop外へ出す上流最適化。現行FTはint16で同じpair/widen処理を持たない。
+条件・必要検証: 一般のpointer hoist案は既存24レジスタasmを見て個別に検討。commit全体の移植は不要。
+原文: https://github.com/official-stockfish/Stockfish/commit/8875da570bf333551f699dbe2c9859745ddb0b80
+
+SF-263  90fbc48cc23ed7d1fe0b4292226ac5f389739934  2026-10-24
+Propagate failed NNUE downloads from net.sh
+判定: 適用不要
+上流変更: AUTHORS, scripts/net.sh
+将棋側: source/Makefile; script/build.sh
+理由: 上流net.shがdownload失敗後に成功終了を返す問題。現行は既定チェス重みをそのscriptから取得せず、指定将棋モデルを外部供給する。
+条件・必要検証: 将棋用download機構を新設する際は失敗を伝播させる。現行モデル読込エラー処理とは別。
+原文: https://github.com/official-stockfish/Stockfish/commit/90fbc48cc23ed7d1fe0b4292226ac5f389739934
+
+SF-264  7316ef4e86a7a4fcb1bfb909369dc35860a79e3d  2026-10-24
+Reject oversized Syzygy symbol tables
+判定: 適用不要
+上流変更: src/syzygy/tbprobe.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:tablebase分岐
+理由: 破損Syzygyのsymbol数が固定4096配列を超えるOOB修正。現行にそのreaderもsymbol bufferもない。
+条件・必要検証: 将棋の評価ファイル検査は別のSA-15で行う。
+原文: https://github.com/official-stockfish/Stockfish/commit/7316ef4e86a7a4fcb1bfb909369dc35860a79e3d
+
+SF-265  f59408947bc5ab843091467b4e3facc29df12f0b  2026-10-24
+Scale the single-root-move time cap in nodestime mode
+判定: 適用不要
+上流変更: src/search.cpp
+将棋側: source/timeman.cpp; source/engine/yaneuraou-engine/yaneuraou-search.cpp:時間管理
+理由: nodestime時の500ms上限をnodesへ変換する単位修正。将棋は有効nodestime経路がなくmsで管理する。
+条件・必要検証: USIの通常500ms上限へnpmsec倍率を追加しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/f59408947bc5ab843091467b4e3facc29df12f0b
+
+SF-266  4265c149d27c01a8119c9cc42030e3b25c2cc6f5  2026-10-24
+Makefile: read only the major version for the gcc LTO partition check
+判定: 適用不要（version分岐導入時は必須）
+上流変更: AUTHORS, src/Makefile
+将棋側: source/Makefile:LTOFLAGS
+理由: e5c99a89の-dumpversion全体を整数比較する誤りをmajor抽出で直す。現行にこのbalanced/one分岐はない。
+条件・必要検証: GCC別partitionを新設する場合は13.5.0等のfull versionでも正しく分岐させる。
+原文: https://github.com/official-stockfish/Stockfish/commit/4265c149d27c01a8119c9cc42030e3b25c2cc6f5
+
+SF-267  e46d2249ce77ceeadb46fb12528d2995e63afece  2026-10-24
+CI: pin the checkout action in official_release.yml to a commit
+判定: 条件付き推奨（CI運用方針）
+上流変更: .github/workflows/official_release.yml
+将棋側: .github/workflows/make*.yml
+理由: 書込み権限jobのcheckoutをmutable tagからSHAへ固定する考え方は有効。ただし上流official_release.ymlは現行にない。
+条件・必要検証: 将棋の各action/versionを個別に確認し、対応する既存jobだけ更新する。上流SHAを無検証で一律転記しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/e46d2249ce77ceeadb46fb12528d2995e63afece
+
+SF-268  ed2f9bdce55ed155f50738aef82e94a543eef55d  2026-10-24
+Remove duplicate TT prefetch
+判定: 適用不要（先行prefetch採用後は実験）
+上流変更: src/position.cpp, src/position.h, src/search.cpp
+将棋側: source/position.cpp:Position::do_move TT prefetch; yaneuraou-search.cpp:do_move
+理由: 6f97594eの手前prefetchと重複するPosition内部prefetchを除く変更。現行はWorker側の先行prefetchを持たず、消すと唯一のprefetchを失う。
+条件・必要検証: 先行prefetchの効果を確認後に二重/一回のNPSを比較。Position APIからTT引数を消す場合は他エンジンも対応。
+原文: https://github.com/official-stockfish/Stockfish/commit/ed2f9bdce55ed155f50738aef82e94a543eef55d
+
+SF-269  6706f98a82c4ed17a2589dd6f6416eb7c8a88526  2026-10-24
+Deduplicate changed PSQ index calculation
+判定: 適用不要
+上流変更: src/nnue/nnue_accumulator.cpp
+将棋側: source/eval/nnue/nnue_feature_transformer.h:Finny table更新
+理由: 新K32Q2のhybridとrefreshで重複するPSQ index計算を共通関数へ抽出。将棋に同じqueen条件付きhybrid更新はない。
+条件・必要検証: 将棋Finnyの手駒/盤上差分は別のhelperとして現行に沿って整理する。
+原文: https://github.com/official-stockfish/Stockfish/commit/6706f98a82c4ed17a2589dd6f6416eb7c8a88526
+
+SF-270  17a0e6648ce1db9763b9d5bcc688fbf4a2d58cc8  2026-10-24
+rework movepicker stages
+判定: 見送り（別設計案件）
+上流変更: src/movepick.cpp, src/movepick.h
+将棋側: source/movepick.cpp / movepick.h; source/movegen.h
+理由: TT/INIT段階とbad capture/quiet段階を統合する上流整理。全合法生成400c23f9と新MoveList構造を前提とし、将棋の歩成り/全合法手flag/王手回避は別。
+条件・必要検証: 独自MovePicker再設計として性能検証は可能。stage番号だけ移さず、手の重複/欠落・skip_quiets・ProbCutを全て照合。
+原文: https://github.com/official-stockfish/Stockfish/commit/17a0e6648ce1db9763b9d5bcc688fbf4a2d58cc8
+
+SF-271  a1e94f955c167e42de47b92ad7fd72d2b801b785  2026-10-24
+Simplify FullThreats LUT init
+判定: 適用不要
+上流変更: src/nnue/features/full_threats.cpp
+将棋側: source/eval/nnue/features/
+理由: FullThreats LUT初期化を単一constexpr関数/構造体へ整理。現行に同じlut1/lut2はない。
+条件・必要検証: 将棋のhalfka2や手駒bucket表とは別。
+原文: https://github.com/official-stockfish/Stockfish/commit/a1e94f955c167e42de47b92ad7fd72d2b801b785
+
+SF-272  dbe600b7438662e9ade60b31fa0625259dcd0077  2026-10-24
+Unroll NNUE feature updates
+判定: 実験候補（生成コードで要確認）
+上流変更: AUTHORS, src/nnue/nnue_accumulator.cpp
+将棋側: source/eval/nnue/nnue_feature_transformer.h:update_accumulator_tiled/24レジスタ経路
+理由: 上流int8 updateの固定loopを明示unrollし、Clang23の大きなTile stack copyを除く。現行はint16で構造が違うが、固定kTileRegs loopのunrollを確認する価値あり。
+条件・必要検証: Clang14の今回のasmで既に展開されていれば不要。spill/コード膨張を確認し全ISAへのpragmaを無条件追加しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/dbe600b7438662e9ade60b31fa0625259dcd0077
+
+SF-273  72d52bbec20e245d52ffc34b26fb50ca946d378c  2026-10-25
+Ensure valid score range for seekMate
+判定: 適用不要（seekMate導入時は必須）
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:RootMove score/previousScore
+理由: MultiPVの-VALUE_INFINITEをabsしてseekMateを誤発動する修正。現行にseekMateがないためこの誤発動はない。
+条件・必要検証: seekMate機構を試すならpreviousScoreとsentinel検査をセット。後続2035ddedの最終形を使用。
+原文: https://github.com/official-stockfish/Stockfish/commit/72d52bbec20e245d52ffc34b26fb50ca946d378c
+
+SF-274  23df82905b5d9a1456d66d290e7e1ab638041f93  2026-10-25
+Sanitize negative time values
+判定: 条件付き推奨（入力検査）
+上流変更: src/uci.cpp
+将棋側: source/usi.cpp:parse_limits; source/timeman.cpp:movetime/remain_time
+理由: 負の残り時間/movetimeを1へ丸める案。将棋も負数を受理し、remain_timeには下限があるがmovetimeは別経路でそのまま使う。
+条件・必要検証: USIの秒読み/増分/0=無制限の意味を維持して負数だけ検査。上流時間優位計算由来のバグが現行にあるとは判定しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/23df82905b5d9a1456d66d290e7e1ab638041f93
+
+SF-275  7347cc2f4e7ec1262f4ee2e4cc164ceacf7326be  2026-10-25
+Simplify the optimism evaluation
+判定: 適用不要
+上流変更: AUTHORS, src/evaluate.cpp, src/search.cpp
+将棋側: source/eval/nnue/evaluate_nnue.cpp; yaneuraou-search.cpp
+理由: optimismを4倍にして相関項をまとめ精度/丸めを変える上流評価変更。現行に同じoptimism/scale_evaluation機構はない。
+条件・必要検証: f740707f相当の新補正を将棋で研究する時に最終式を参考。FV_SCALEだけ変更して代用しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/7347cc2f4e7ec1262f4ee2e4cc164ceacf7326be
+
+SF-276  20eab0ba8c855064cb3171ea75faf34083490b37  2026-10-25
+Makefile: fix universal build when source directory path contains spaces
+判定: 適用不要
+上流変更: AUTHORS, src/Makefile
+将棋側: source/Makefile; script/build.sh
+理由: universal用TEMP_DIR/CURDIRを含むtarget/prerequisiteの空白path修正。現行にこのuniversal driverはない。
+条件・必要検証: 将棋の通常ビルドでのpath quotingは別に検証する。universalを移植する時は相対pathとshell quotingをセット。
+原文: https://github.com/official-stockfish/Stockfish/commit/20eab0ba8c855064cb3171ea75faf34083490b37
+
+SF-277  ff3a6c508ed731f0dcf253f4ddf646df19a62f84  2026-10-25
+21 bit tt keys with SWAR
+判定: 実験候補（TT_CLUSTER_SIZE=3）
+上流変更: src/search.cpp, src/tt.cpp, src/tt.h
+将棋側: source/tt.cpp:TTEntry/Cluster/probe; source/config.h:HASH_KEY_BITS
+理由: 3個の16bit照合keyを21bit×3へ詰めSWAR比較する。現行では照合key幅を決めるのはHASH_KEY_BITSではなくTT_CLUSTER_SIZEで、3なら16bit、それ以外の対応構成なら64bit。
+条件・必要検証: TT_CLUSTER_SIZE=3へ限定し、HASH_KEY_BITS別のkey抽出と手番付きcluster選択を維持。64bit照合構成を21bitへ狭めない。SA-11 atomic化、Move16/layout/衝突/多thread棋力を検証。
+原文: https://github.com/official-stockfish/Stockfish/commit/ff3a6c508ed731f0dcf253f4ddf646df19a62f84
+
+SF-278  2035dded2fbe4cb897c746132cfd56ad2c404593  2026-10-28
+Simplify seekMate score selection
+判定: 適用不要（seekMate導入時は推奨）
+上流変更: src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:iterative_deepening
+理由: seekMateで常にpreviousScoreを使う最終整理。現行にこの機構がなく単独対象なし。
+条件・必要検証: 598ae2c4/a35e229e/513ce075/72d52bbeの系列を一体で適応する場合に使用。
+原文: https://github.com/official-stockfish/Stockfish/commit/2035dded2fbe4cb897c746132cfd56ad2c404593
+
+SF-279  61c68717855b03f535ccae33a3920ed83caa0762  2026-10-28
+Reduce null move pruning one ply less in odd threads
+判定: 実験候補（多thread）
+上流変更: AUTHORS, src/search.cpp
+将棋側: source/engine/yaneuraou-engine/yaneuraou-search.cpp:NMP; h:Worker::threadIdx
+理由: 奇数threadだけNMP減縮を1少なくし探索を分散する。現行にもthreadIdx/NMPがあるので移植可能な多thread探索案。
+条件・必要検証: 1threadでは効果なし。NMPのbeta/seekMate条件を合わせ、8/32threadの棋力と詰み回帰で比較。NPSの減少だけで失敗とは判定しない。
+原文: https://github.com/official-stockfish/Stockfish/commit/61c68717855b03f535ccae33a3920ed83caa0762
+
+SF-280  ff7cee4244ec96ea488c402669e3674c0574dce6  2026-10-28
+Update NNUE architecture to SFNNv19 and net nn-d1ee674a62ca.nnue
+判定: 見送り（新モデルが必要）
+上流変更: src/Makefile, src/evaluate.h, src/nnue/features/full_threats.cpp, src/nnue/features/full_threats.h, src/nnue/features/k32q2.cpp, src/nnue/features/k32q2.h, src/nnue/features/pp_3wide.cpp, src/nnue/features/pp_3wide.h, src/nnue/nnue_accumulator.cpp, src/nnue/nnue_accumulator.h, src/nnue/nnue_architecture.h, src/nnue/nnue_common.h, src/nnue/nnue_feature_transformer.h, src/search.cpp
+将棋側: source/eval/nnue/features/half_ka2.*; architectures/nnue_arch_gen.py; nnue_accumulator.h
+理由: SFNNv19はK32H3のqueen/rookなし第3block、block-major重み配置、Threat/PPの左右反転とrefresh条件を変更。将棋の指定モデルは全面的に非互換。
+条件・必要検証: 将棋で駒構成bucketを新設するなら学習器/exporter/Finny keyまで同時設計。既存progress8/手駒bucketと同一ではない。
+原文: https://github.com/official-stockfish/Stockfish/commit/ff7cee4244ec96ea488c402669e3674c0574dce6
