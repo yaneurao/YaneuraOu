@@ -1,0 +1,260 @@
+探索部不具合の処理台帳
+更新日: 2026-10-29
+
+この文書は調査結果の記録。修正はまだ行っていない。
+チェック欄は「対策の実装と検証が完了したとき」にだけ埋める。
+再現確認済み・静的確認・未再現候補・テスト側の問題を区別して扱う。
+
+推奨する処理順 / 固定ID
+[ ] SA-01 1手詰めのTTスコア正規化                  再現済み / 本体 / 優先
+[ ] SA-02 不成を指定したsearchmovesの制限違反        通常USIで再現済み / 本体 / 優先
+[ ] SA-03 ponder抽出のMove::none処理                 assert有効の通常USIで再現済み / 本体
+[ ] SA-04 MultiPVのbound表示                         関数単位で再現済み / 出力
+[ ] SA-05 root moveのeffortの1ノード不足              静的確認 / 時間配分
+[ ] SA-06 null moveのcapturedPiece初期化              状態不整合を再現済み / 探索実害未確認
+[ ] SA-07 pthread_create失敗処理                     失敗注入で確認 / pthread版のみ
+[ ] SA-08 深い階層のLMR延長の連鎖                    Stockfish修正未反映 / 将棋では未再現
+[ ] SA-09 Position::UnitTestのスタック使用量          再現済み / テスト側
+[ ] SA-10 部分キーUnitTestのStateInfo添字超過         ASanで再現済み / テスト側
+
+SA-01〜SA-05を先に処理し、SA-08は移植前に将棋での再現・棋力検証を行う。
+この順序は作業提案であり、自動的に修正へ着手する許可を意味しない。
+Stockfishの修正は、同じ原因・同じ実行経路があることを確認してから適用する。
+
+台帳IDと下の詳細項目の対応:
+SA-01=1、SA-02=2、SA-03=3、SA-04=4、SA-05=5、SA-08=6、
+SA-06=7、SA-07=8、SA-09=9a、SA-10=9b。
+
+再現条件に関する注意
+・SA-01は保存/再取得する実関数のテストで再現したもの。通常USIの最終mate表示が
+  必ず誤ると確認したわけではない。
+・SA-03のクラッシュはASSERT_LV=3のビルド。assert無効の通常ビルドでも
+  同じ入力で必ずクラッシュすると確認したわけではない。
+・標準unittestはSA-09/SA-10で止まるため、全テスト合格とはしていない。
+・証拠ログはbuild/search-audit-20261029/に保存している。このディレクトリは
+  Git管理対象外であり、別のcheckoutには自動では引き継がれない。
+
+以下は最初の調査の詳細記録。
+
+やねうら王 探索部・Stockfish直近半年修正の監査
+調査日: 2026-10-29
+
+対象と制約
+・YaneuraOu HEAD: 0f421391。元の追跡ファイルは一切変更せず、commitも行っていない。
+・Stockfish HEAD/FETCH_HEAD: ff7cee4244ec96ea488c402669e3674c0574dce6。
+  origin/masterをfetchし、ローカルHEADと一致することを確認。
+・比較期間: 2026-04-29〜2026-10-29。全280コミットから探索・TT・時間管理・
+  Position・スレッド/NUMAに関する127コミットを抽出。不具合修正を中心に22件の
+  変更内容を保存して照合した。全コミットの全変更を形式検証したものではない。
+・評価関数: /workspace/YaneuraOuWork/inbox/evalTuyo12-20261025
+  SFNN_halfka2_2304_15_64_progress8 / FV_SCALE=24。
+・git archiveによる隔離コピーをcheckout/に作成してビルド。
+  AVX512VNNI / clang++ / ASan + UBSan / ASSERT_LV=3 / DEBUG=ON。
+  USE_LAZY_EVALUATE・USE_FINNY_TABLES・USE_FINNY_RESETを有効化。
+  元ソースとの一致・モデルSHA256・ビルドコマンドはmetadata.jsonに記録。
+・外部C++プローブは隔離コピーから作ったオブジェクトをリンクしている。
+  private関数・状態を調べるためプローブ側に-fno-access-controlを用いたが、
+  探索・Position・TT等の実装は変更していない。直接関数テストと通常USI再現を区別する。
+
+1. 優先度高: 1手詰めのTT保存時に詰み距離を正規化していない【再現済み】
+場所:
+  source/engine/yaneuraou-engine/yaneuraou-search.cpp:2918-2924 (通常探索)
+  source/engine/yaneuraou-engine/yaneuraou-search.cpp:4769-4778 (静止探索)
+  同:5217 value_to_tt、同:5233以降 value_from_tt
+
+両経路で bestValue=mate_in(ss->ply+1) をそのままTTへ保存する。
+一方、TTから読む際はvalue_from_ttで現在のplyを引くため、同じ局面・同じplyへの
+再訪問でも詰みまでの距離が変わる。通常探索内の「変換してはならない」コメントも
+TTの実際の保存規約と一致しない。
+
+実際の関数呼び出しで確認した値:
+  局面: 7nk/8l/7R1/9/9/9/9/9/K8 b R2B4G4S3N3L18P 1
+  mate_1plyの返す手: B*2b
+  ss->ply=4、1手詰めなので返値はmate_in(5)=31995。
+  保存されたTT値=31995、正しくは局面からの距離でmate_in(1)=31999。
+  2回目の呼び出しの返値=31991、正しくは1回目と同じ31995。
+  通常探索・静止探索の両方で同じ誤差を再現した。
+
+影響: 詰み距離、詰みスコアの大小比較、詰み距離枝刈りで誤った情報を使いうる。
+今回、特定の実戦局面での最善手変更や棋力差までは検証していない。
+修正方向: 保存値をvalue_to_tt(bestValue,ss->ply)で正規化する等。
+証拠: mate_tt_probe.cpp / mate-tt-probe.log。通常USIだけの再現ではなく関数単位の再現。
+Stockfish半年の同名修正ではなく、将棋独自の1手詰め経路の不具合。
+補足: 全ての手が次の1手詰めを許す局面を通常USIで4回繰り返したテストでは、
+最終表示は毎回score mate -2で正しかった（mate-usi-probe.json）。
+したがって「通常USIの最終表示が必ず誤る」ではなく、保存値と再取得値の不整合を
+関数単位で再現した指摘である。
+
+2. searchmovesで指定した合法な不成が無視される【通常ビルドで再現済み】
+場所: source/thread.cpp:439-466
+
+GenerateAllLegalMoves=falseでは、指定手を選択的なMoveList<LEGAL>と照合する。
+合法でも通常の生成で省略される不成が全て除外されると、rootMoves.empty()を
+「制限なし」とみなすフォールバックで全候補手が再登録される。
+
+再現（指定モデル・FV_SCALE=24・BookFile=no_book）:
+  setoption name GenerateAllLegalMoves value false
+  position startpos moves 7g7f 3c3d
+  go depth 3 searchmoves 8h2b
+  → bestmove 2g2f （指定集合外）
+同じ入力でGenerateAllLegalMoves=true:
+  → bestmove 8h2b （指定どおり）
+
+cshogiでも8h2bが合法であることを確認した。
+修正方向: 明示的なsearchmovesは全合法手として検証し、rootのMovePicker側にも
+その候補が生成されるよう反映する。setup_rootMovesのフィルタだけ変えても十分とは限らない。
+当面の回避策はGenerateAllLegalMoves=true。
+証拠: searchmoves-probe.json / searchmoves-release-probe.log / searchmoves_probe.py。
+将棋の選択的な不成省略に起因する独自問題。
+
+3. 浅い探索終了時にponder抽出がMove::noneを擬似合法性判定へ渡す【通常USIで再現済み】
+場所:
+  source/engine/yaneuraou-engine/yaneuraou-search.cpp:5894-5901
+  source/position.cpp:1386以降、特に1442
+  source/types.h:765
+
+置換表にhitしても、手がMove::noneの静的評価・静止探索エントリーがありうる。
+extract_ponder_from_ttはm.is_ok()を確認せずpseudo_legal_s<true>(m)を呼ぶ。
+pseudo_legal_s側も入口で特殊手を弾かず、from_sq()のASSERT_LV3で停止する。
+pseudo_legalのコメントにある「特殊手ならfalseを返す」契約も満たしていない。
+
+再現:
+  新規起動、指定モデル・Hash64・定跡無効、isready後に
+  position startpos
+  go depth 1
+  → ASSERT(is_ok()) / Move::from_sq → pseudo_legal_s → extract_ponder_from_tt。
+  bench 64 1 1 default depth でも同じ停止を再現した。
+
+これはASSERT_LV=3ビルドでの停止を確認したもので、既定のassert無効ビルドが
+この入力でクラッシュするとは主張しない。
+修正方向: ponder抽出で特殊手を弾く。pseudo_legal自体の特殊手に対する契約も確認する。
+証拠: fresh-startpos-depth1.log / fresh-depth1.log / fresh_depth1_probe.py。
+
+4. MultiPVの境界付きスコアが確定値として表示される【関数プローブで再現済み】
+場所:
+  source/engine/yaneuraou-engine/yaneuraou-search.cpp:5747-5751、5850
+原因: isExact = i != pvIdx || !updated として、探索対象のPV以外のboundフラグを落とす。
+
+状態を構成して実際のSearchManager::pvを呼んだ結果:
+  MultiPV=2、pvIdx=1、rootMoves[0].scoreLowerbound=true
+  → multipv=1のInfoFull.boundが空文字列。
+  rootMoves[1].scoreUpperbound=true
+  → multipv=2のInfoFull.boundはupperbound。
+したがって前者だけが不正に確定値扱いになる。
+
+影響: 解析・GUI・教師データ収集が、上界/下界を確定値と誤認しうる。
+修正方向: 「更新済みか」と実際のboundフラグで表示を決める。
+関連する中断時の詰みスコア/PVロールバックもまとめて確認する必要がある。
+証拠: pv_boundary_probe.cpp / pv-boundary-probe.logのPROBE行。
+同プローブ末尾には通常のdepth1探索もあり、項目3のassertも起きる。
+対応するStockfish修正:
+  3e3e976fdf54adf6fce636ff21f7c0f4ce66a70a (2026-05-04)
+  https://github.com/official-stockfish/Stockfish/commit/3e3e976fdf54adf6fce636ff21f7c0f4ce66a70a
+  [bugfix] Respect bound flags for searched moves in multiPV analysis
+
+5. root moveのeffortで最初の1ノードを数え落とす【静的確認】
+場所: source/engine/yaneuraou-engine/yaneuraou-search.cpp:3869-3874、4103、1970
+Worker::do_moveはnodesを1増やすが、その後にnodeCountを保存している。
+rm.effort += nodes-nodeCount はrootのdo_moveを1回分ずつ除外する。
+通常のnodes統計自体は正しい。誤るのは各root moveのeffortと、それを使う時間配分。
+修正方向: nodeCountの採取をdo_moveの前へ移す。
+対応するStockfish修正:
+  944bee71177601649150f44f4d2eee91418594ff (2026-05-10)
+  https://github.com/official-stockfish/Stockfish/commit/944bee71177601649150f44f4d2eee91418594ff
+  Fix calculation of searched nodes (effort)
+
+6. LMRの負の削減が深い階層まで延長として連鎖する対策が未反映【要追加再現】
+場所: source/engine/yaneuraou-engine/yaneuraou-search.cpp:3978
+現状:
+  max(1, min(newDepth-r/1024,newDepth+2)) + PvNode
+StockfishはrootDepthの2倍以上深い階層では追加延長を抑制する修正を入れている。
+やねうら王にはその条件がない。MAX_PLYの停止はあるため、無限再帰だとは主張しない。
+探索量の膨張・応答遅延の候補だが、今回の将棋テストで同じ探索爆発は再現できていない。
+将棋固有の延長調整もあるため、修正の移植前には局面・探索量・棋力の検証が必要。
+対応するStockfish修正:
+  1548538edecc4bd8aae119050c5f853935d25173 (2026-09-18)
+  https://github.com/official-stockfish/Stockfish/commit/1548538edecc4bd8aae119050c5f853935d25173
+  Fix deep recursion.
+
+7. null moveでcapturedPieceが残る【状態の不整合を再現、現行探索への実害未確認】
+場所: source/position.cpp:2426以降
+StateInfo全体をコピーした後、capturedPieceをNO_PIECEへ戻していない。
+平手から7g7f 3c3d 8h2b+と進めて、王手されていないことを確認してnull moveすると、
+captured_piece()は21（直前に取った後手の角）のまま。期待は0（NO_PIECE）。
+ただし現行のpriorCapture利用箇所はprevSq/currentMoveでguardされ、Stockfishで
+実害が出たstalemate判定は将棋側では無効。これによる棋力低下や誤った手は未確認。
+証拠: pv-boundary-probe.logのNULL_PROBE行。
+対応するStockfish修正:
+  782852b26a5bd22eb0ea6a834cbeb48d4356a07b (2026-06-25)
+  https://github.com/official-stockfish/Stockfish/commit/782852b26a5bd22eb0ea6a834cbeb48d4356a07b
+  Clear capturedPiece in do_null_move
+
+8. pthread版NativeThreadが生成失敗を無視する【失敗注入で確認、プラットフォーム限定】
+場所: source/thread_win32_osx.h:49、source/thread.cpp:31-66
+対象: __APPLE__ / __MINGW32__ / __MINGW64__ / USE_PTHREADS。
+pthread_createの戻り値を確認しない。ヘッダーをそのまま使う小さなテストでEAGAINを
+返すようにすると、workerを作れないままコンストラクターが正常終了することを確認した。
+Thread側はworkerの起動完了を待つため、この失敗は待機から復帰できない原因になる。
+今回のLinux既定ビルドはstd::threadを使うので、同じ経路は通らない。
+Mac/MinGW実機でのエンジン全体のハング再現は未実施。
+証拠: native_thread_failure_probe.cpp / native-thread-failure-probe.log。
+対応するStockfish修正:
+  3512dea68483f9daf3b014361c7ea36a44adb338 (2026-08-24)
+  https://github.com/official-stockfish/Stockfish/commit/3512dea68483f9daf3b014361c7ea36a44adb338
+  Native thread fixes
+
+9. 標準unittestに別途2つの問題【再現済み、探索本体とは区別】
+(9a) FT幅2304のビルドでPosition::UnitTestのスタックが大きすぎる。
+  場所: source/position.cpp:3342、3468、3690、3740、3809、3960
+  StateInfo s[512]等が複数存在する。StateInfoはこの構成で9856 byte。
+  ASan版の関数入口はrspを17,638,528 byte（約16.82 MiB）減らしている。
+  通常スタックではASan版・通常版ともPositionテスト開始前にSIGSEGV。
+  子プロセスだけスタックを64 MiBにすると先へ進めた。
+(9b) 部分キーのテストがStateInfo配列の末尾を1要素超える。
+  場所: source/position.cpp:3809-3820
+  StateInfo si[MAX_PLY]に対し、j=1; j<MAX_PLY; ++j のループでsi[j+1]へ書く。
+  MAX_PLY=246では最後にsi[246]を渡す。ASanがWRITE of size 80の
+  stack-buffer-overflowを報告し、変数si1847の終端と完全に一致した。
+標準unittest全体が合格したとは言えない。2件とも元ソースを直さず記録している。
+証拠: unit-tests.log / release-unit-normal-stack.log / asan-unit-64mb-stack.log。
+
+未反映に見えても、そのまま移植すべきでないStockfish修正
+・47be34c5の継続履歴オーバーフロー: 原因となるbonus*weight*multiplierの3因子乗算を
+  やねうら王は使っていない。同じ修正は不要。
+・db11ca42 / c67c1ec6のTT深さ減算・競合対策: 問題のpenalize/aging処理自体が
+  やねうら王のTTにない。同じunderflowを未反映バグと数えていない。
+・92c90f41 / ceb059eb / 6e4c77f5 / 9287f165 / f5940894のnodestime関連:
+  やねうら王では該当オプションと時間管理経路がSTOCKFISHブロックで無効。
+  有効な将棋用TimeManagementは別実装なので同一原因の不具合とは判断しない。
+・ee515ad9等のSyzygyによるMAX_PLY超過PV、9700f6f2のLimitStrength+Syzygy:
+  将棋にSyzygy/Skill機能がないので同じ再現条件はない。
+・seekMateスコア範囲の修正: 元になるseekMate機能がやねうら王にない。
+・1eff8b03 / 74a0a737等のMultiPV詰みPV完全性・中断回復は関連するが、
+  将棋独自の1手詰め/宣言勝ち/千日手/PV補完と併せた検証が必要。
+  項目4以外の全corner caseを今回実戦局面で再現したとは主張しない。
+・cctype/破損LEB128の防御等は探索外の周辺処理として参照したが、
+  今回の探索不具合の件数には含めない。
+
+通った検証
+・ASan/UBSan + ASSERT_LV=3、指定モデルでbench標準4局面・各100,000ノード。
+  合計400,240ノード、異常なし。baseline-sanitizer-bench.log。
+・39局面×4構成=156検索。
+  (Threads,MultiPV,Hash MiB,全合法手,検討モード):
+  (1,1,64,false,false)、(1,8,1,true,false)、(8,4,1,false,false)、(32,4,64,true,true)。
+  各20,000ノード。cshogiでPV・bestmove・ponderの合法性を検証。
+・stop/ponderhitを混ぜた24検索。上と合計180ケース、異常なし。
+・どの合法手を指しても次に詰まされる局面で、1/8/32スレッド、MultiPV1/8、
+  nodes=1〜4096を組み合わせた48検索。
+・時計指定・movetime・searchmoves・実際の手順を持つ千日手の8検索。
+  上と合計56ケース、異常なし。通常ケース全体では236ケース。
+・上記とは別に、強制詰み局面を同じTTのまま4回再探索し、最終mate表示が正しいことを確認。
+・独立実装cshogiとのperft比較6局面。開始局面depth3=25470で一致。
+  中盤・終盤5局面のdepth2も全て一致。perft-compare.json。
+・test nn test_accumulator 100: 23,442手、checksum 7678100571246805065で合格。
+  accumulator-100.log。
+
+限界
+・236ケースに通ったことは、全局面や全タイミングでの正しさの証明ではない。
+・ThreadSanitizerによる全共有データの検証、Mac/Windows実機、長時間の棋力対戦は未実施。
+・深い再帰の候補とMultiPV中断時の全corner caseは、再現確認済みの問題と区別した。
+・原因の特定と再現まで。元のソース修正、commit、pushは行っていない。
