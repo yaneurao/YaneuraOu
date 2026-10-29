@@ -1,0 +1,117 @@
+Finny reset AVX512 追加最適化の計測 (2026-10-30)
+
+対象と基準
+- パッチの対象リビジョン: 77a20e51 (本体は0f421391と同じ)
+- CPU: AMD Ryzen 9 9950X (16 cores / 32 logical CPUs)
+- 評価関数: ../inbox/evalTuyo12-20261025
+- Architecture: SFNN_halfka2_2304_15_64_progress8, FV_SCALE=24
+- clang++ 14, TARGET_CPU=AVX512VNNI
+- 全版共通: -DUSE_LAZY_EVALUATE -DUSE_FINNY_TABLES -DUSE_FINNY_RESET
+- 基準は採用済み24 ZMMタイル版。探索部は変更しない。
+
+実装した案
+1) NNUE_FINNY_MASK_DIFF
+   AVX512で特徴インデックスを16個ずつ比較する。40要素なら3比較。
+   差分数から全計算への切替を先に判断し、不要なremove/addリストを作らない。
+   差分ゼロなら探索用accumulatorへのコピーだけにし、Finny表への再書込を省く。
+   末尾はマスクロードし、特徴リストの容量を超えて読み出さない。
+   要素数の異なる場合およびNNUE_FINNY_CANCEL併用時は従来の差分処理。
+
+2) NNUE_FT_COMPACT
+   現行の2倍されたint16 accumulatorを維持する可逆なFT重み表現。
+   doubled_weight = 2 * int8_base + residual とし、例外だけ補正を保存する。
+   32要素単位のマスク、タイル単位の補正開始位置を持つ。
+   AVX512Fの32bit expand loadで補正を展開し、16bitへ戻して加算する。
+   AVX512VBMI2等は使用しない。ファイル形式・評価値の丸めは変更しない。
+   読込時に全304,010,496重みを復元して元の値と照合する。
+   8bit化に伴う再学習・量子化誤差はない。
+   試作の動的配列は生の共有メモリ像にできないため、このフラグの版だけ
+   プロセス内でモデルを所有する。プロセス間でのモデル共有は対象外。
+
+測定方法
+- 各構成を同時にロードするが、探索は必ず1プロセスずつ。
+- CPU affinity: 0-31, Threads=32, USI_Hash=64 MiB, 定跡なし。
+- benchの既定4局面。各サンプル直前に400万nodes/局面のwarmup。
+- 測定は1600万nodes/局面 (約6400万nodes/サンプル)、各構成8回。
+- 順序は4種類を反転・入替して、各構成の平均測定順を揃える。
+- NPSは合計nodes / 合計探索時間。モデル読込時間を含まない。
+- 各回のNPS、同一roundの基準との比の平均、標準誤差もJSONに残す。
+- 32スレッド探索は決定的でなく、同じnodesでも探索木・bestmoveは揺れる。
+
+正しさの検証
+- 各構成で test nn test_accumulator 100。
+- 全構成: 100局、23,442手、歩移動4,061、歩捕獲1,784、成り424、玉移動2,239。
+- 差分更新 / Finny refresh / キャッシュを使わない全計算のint16 accumulatorを比較。
+- 評価値チェックサム: 7678100571246805065 (全構成一致)。
+
+初回: 24レジスタ、通常のインライン・ループ展開
+- 生ログ・全結果: build/finny-reset-20261030/
+- baseline: 13,582,845 NPS, paired +0.000% (SE 0.000pt)
+- mask: 13,368,642 NPS, paired -1.127% (SE 3.171pt)
+- compact: 10,849,548 NPS, paired -19.836% (SE 2.765pt)
+- both: 10,384,556 NPS, paired -22.936% (SE 2.932pt)
+
+追加確認
+- 圧縮版の生成コードに、各重み更新でaccumulatorをスタックへ読み書きするループを確認。
+- NNUE_FT_COMPACT_UNROLL: 補助関数・lambdaのインラインと内部ループ展開を指定。
+- 24本を展開した版も全構成の正しさ検証に合格。最初の測定で大幅な改善がなく、
+  生成コードにも退避が残ったため、この確認走行は途中終了した。
+  部分ログは build/finny-reset-unroll-20261030/ に保存。8回完了の集計には使わない。
+- 圧縮版だけNNUE_FT_REGS=8として、展開・補正用のレジスタ余裕を増やした版を比較。
+  基準と差分判定版は24本のまま。最終結果は以下に追記する。
+
+通常配列、展開指定、圧縮版のみ8本タイル (各8回完了)
+- baseline: 15,044,245 NPS, paired +0.000% (SE 0.000pt)
+- mask: 14,899,972 NPS, paired -0.899% (SE 1.041pt)
+- compact: 10,583,781 NPS, paired -29.628% (SE 0.646pt)
+- both: 10,775,759 NPS, paired -28.312% (SE 1.054pt)
+- 生ログ: build/finny-reset-regs8-20261030/
+- 基準と圧縮版の確保経路が異なることを確認。LinuxのTHP設定はmadvise。
+  基準のFTはLarge Pages向け確保・MADV_HUGEPAGEの対象だが、試作のvectorのFTは対象外。
+- 比較条件を揃えるため、圧縮版のint8本体、マスク、タイルオフセット、補正値も
+  make_unique_large_pageで確保する版を追加測定した。
+- 上記の通常配列版に対応する本体差分は
+  build/finny-reset-20261030/implementation-before-largepages.patch に保存。
+  現在の本体はLarge Pages向け確保を使う試作である。
+- 別バッチ同士の絶対NPSには経時変化も含まれるので、各バッチ内の基準比で判断する。
+
+最終確認: Large Pages向け確保、展開指定、圧縮版のみ8本タイル (各8回完了)
+- baseline: 14,510,763 NPS, 合算NPSの基準比 +0.000%, paired +0.000% (SE 0.000pt)
+- mask: 14,869,058 NPS, 合算NPSの基準比 +2.469%, paired +2.489% (SE 1.379pt)
+- compact: 10,788,041 NPS, 合算NPSの基準比 -25.655%, paired -25.611% (SE 1.249pt)
+- both: 10,849,063 NPS, 合算NPSの基準比 -25.234%, paired -25.168% (SE 1.352pt)
+- 生ログ・全結果: build/finny-reset-largepages-20261030/results.json
+- 基準と差分判定版は直前のバッチと同じバイナリを再利用した。
+- 正しさの検証は最終版でも全構成合格。上記の23,442手・チェックサムに一致。
+- Large Pages確保の実績は largepages-verification.json に保存した。
+  LinuxのAnonHugePagesは圧縮版プロセスで3,942,400 KiB。
+  通常配列版では3,594,240 KiBだった。プロセス全体の値であり、FTだけの値ではない。
+- 圧縮FTのデータ量は、8bit本体、32要素マスク、8本タイルのオフセット、32bit補正を
+  合わせて約336.35 MiB。Large Pagesアロケータの丸めを含む配列確保量は約340 MiB。
+  初回提案の約296 MiBは要素別の疎補正を想定した値で、SIMD展開用のメタデータを
+  持つ今回の実装とは異なる。現行の重み配列は約579.85 MiB。
+
+判断
+- 差分判定版: 完了した3バッチ24組のpaired比較の平均は+0.154%、標準誤差1.201pt。
+  各バッチの基準/差分判定版はSHA256も同じである。
+  最終8回だけなら+2.49%だが、それ以前は-1.13%、-0.90%。改善は再現していない。
+- 圧縮版: 最初の24本、展開指定、8本への縮小、Large Pages向け確保まで確認したが、
+  測定した実装ではNPSが改善しない。メモリ量の削減は速度向上につながらなかった。
+  他の可逆圧縮方式すべてが遅いと証明したものではない。
+- 両案とも本体には採用しない。既に採用済みのFinny reset・24本タイルを維持する。
+- 試作の本体差分と計測スクリプトは同名の.patchに保存し、本体の変更は戻した。
+
+最終版の再現方法 (リポジトリルートから、独立した作業ツリーで実行)
+  git apply --unidiff-zero docs/finny-reset-experiments-20261030.patch
+  python3 script/bench_finny_compact.py --build \
+    --eval-dir ../inbox/evalTuyo12-20261025 \
+    --arch SFNN_halfka2_2304_15_64_progress8 \
+    --threads 32 --pin 0-31 --rounds 8 \
+    --nodes 16000000 --warmup-nodes 4000000 --games 100 \
+    --compact-unroll --compact-regs 8 \
+    --output build/finny-reset-largepages-20261030-repro
+
+パッチ中の実験フラグは既定OFF。
+NNUE_FT_COMPACTはAVX512 SFNNの探索ビルド用で、NNUE_FT_SPECIALIZEDとの併用は不可。
+NNUE_FT_COMPACT_UNROLLおよびNNUE_FT_REGS=8は、上記の再現コマンドでは
+圧縮版と両方有効版にだけ付加される。基準と差分判定版は24本のまま。
