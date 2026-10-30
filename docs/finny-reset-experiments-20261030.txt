@@ -72,7 +72,7 @@ Finny reset AVX512 追加最適化の計測 (2026-10-30)
   make_unique_large_pageで確保する版を追加測定した。
 - 上記の通常配列版に対応する本体差分は
   build/finny-reset-20261030/implementation-before-largepages.patch に保存。
-  現在の本体はLarge Pages向け確保を使う試作である。
+  最終確認にはLarge Pages向け確保を使う試作を使用した。
 - 別バッチ同士の絶対NPSには経時変化も含まれるので、各バッチ内の基準比で判断する。
 
 最終確認: Large Pages向け確保、展開指定、圧縮版のみ8本タイル (各8回完了)
@@ -115,3 +115,8 @@ Finny reset AVX512 追加最適化の計測 (2026-10-30)
 NNUE_FT_COMPACTはAVX512 SFNNの探索ビルド用で、NNUE_FT_SPECIALIZEDとの併用は不可。
 NNUE_FT_COMPACT_UNROLLおよびNNUE_FT_REGS=8は、上記の再現コマンドでは
 圧縮版と両方有効版にだけ付加される。基準と差分判定版は24本のまま。
+
+長時間追試 (2026-10-30)
+- 差分判定版と現行版だけを32スレッド、1億2,800万nodes/局面、各12回で再比較。
+- paired平均は-2.532%、95%信頼区間[-3.358%, -1.707%]。12組すべてで低下。
+- この条件では採用しない。詳細は docs/finny-mask-long-20261030.txt を参照。
