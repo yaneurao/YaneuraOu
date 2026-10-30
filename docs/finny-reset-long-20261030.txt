@@ -1,0 +1,83 @@
+USE_FINNY_RESETの32スレッド長時間再検証 (2026-10-30)
+
+対象
+- ユーザー指定の「FT_RESET」は、採用済みのUSE_FINNY_RESETを指すものとして比較。
+- 現在のソース (2db1cae4、本体は0f421391と同じ) からOFF/ONを新規ビルド。
+- 両版共通: USE_LAZY_EVALUATE、USE_FINNY_TABLES、FT2304の24本ZMMタイル。
+- 唯一のフラグ差: ON版だけ -DUSE_FINNY_RESET。
+- Finny tables自体のON/OFF比較ではない。
+- 差分判定AVX512化 (NNUE_FINNY_MASK_DIFF) とFT圧縮は両版とも無効。
+- USE_FINNY_RESETで有効になるのは、玉移動等のreset経路でFinny表を使う処理と、
+  差分更新の重み列数が全計算以上になる場合に全計算へ切り替える判断。
+
+条件
+- CPU: AMD Ryzen 9 9950X、32スレッド、CPU affinity 0-31。
+- clang++ 14、TARGET_CPU=AVX512VNNI。
+- Architecture: SFNN_halfka2_2304_15_64_progress8。
+- モデル: ../inbox/evalTuyo12-20261025、FV_SCALE=24。
+- Hash=64 MiB、定跡なし、bench既定4局面 (初期局面だけではない)。
+- 各測定前に1局面1,600万nodesでwarmup。
+- 測定は1局面1億2,800万nodes、4局面合計約5億1,200万nodes/回。
+- ユーザー指示により各版2回、順序はOFF→ON、ON→OFF。
+- 両版をロードしたまま保持し、探索は1プロセスずつ。
+- NPSの時間はエンジンのbench集計値。モデル読込時間とwarmupは除外する。
+- 32スレッド探索は非決定的であり、同じnodes制限でも探索木は変わる。
+
+正しさの検証
+- ビルド直後に両版で test nn test_accumulator 100 を実行して合格。
+- 両版とも100局、23,442手、歩移動4,061、歩捕獲1,784、成り424、玉移動2,239。
+- 差分更新、Finny refresh、キャッシュを使わない全計算のint16 accumulatorを比較。
+- 評価値チェックサムは両版とも7678100571246805065。
+- 長時間測定開始時に実行ファイル/モデルのSHA256がこの検証時と同じことを確認。
+- 検証用スクリプトが付随して実行した短い100万nodes/局面のbenchは、下記に含めない。
+
+長時間の結果
+組  順序       OFF NPS       ON NPS         ON/OFF
+1   OFF→ON    5,806,493   11,164,151  +92.270%
+2   ON→OFF    5,915,082   11,564,728  +95.513%
+
+各版の合計nodes / 合計時間によるNPS
+- OFF: 5,860,284 NPS (1,024,190,188 nodes / 174.768秒)。
+- ON: 11,360,899 NPS (1,024,162,282 nodes / 90.148秒)。
+- 合算NPS比: +93.863%。
+- 各組のNPS比の平均: +93.891%。
+
+局面別NPS (2回分のnodes/時間で集計、最後のinfo行から算出)
+局面  OFF NPS       ON NPS         ON/OFF
+1      11,910,277   14,292,974  +20.005%
+2       4,326,960   10,341,810  +139.009%
+3       3,941,613    9,615,491  +143.948%
+4       8,790,319   12,284,170  +39.747%
+
+判断
+- 今回のモデル、CPU、32スレッド、長いbenchではUSE_FINNY_RESETに明確な効果がある。
+- 2組ともONが約90%以上高速。特に既定の2・3局面で差が大きい。
+- 採用済みのUSE_FINNY_RESETは維持する。
+- この比率は今回のbench条件の値であり、別の局面群や短い探索で同率になるとは扱わない。
+- エンジン本体ソースは変更していない。計測スクリプトと記録のみを変更。
+
+生ログ
+- ビルド/100局検証: build/finny-reset-long-20261030-validate/
+- 長時間の全結果: build/finny-reset-long-20261030/results.json
+- 各回ログ: build/finny-reset-long-20261030/round-XX-{baseline,finny_reset}.log
+
+再現手順 (リポジトリルートから)
+  python3 script/bench_finny_reset.py --build \
+    --eval-dir ../inbox/evalTuyo12-20261025 \
+    --arch SFNN_halfka2_2304_15_64_progress8 \
+    --target-cpu AVX512VNNI --compiler clang++ --threads 32 --pin 0-31 \
+    --rounds 1 --nodes 1000000 --warmup-nodes 250000 --games 100 \
+    --output build/finny-reset-long-20261030-validate
+  python3 script/bench_finny_mask_long.py --candidate finny_reset \
+    --reference build/finny-reset-long-20261030-validate/results.json \
+    --bin-dir build/finny-reset-long-20261030-validate \
+    --output build/finny-reset-long-20261030 --rounds 2
+
+前段は新規ビルドと検証用、後段が今回指定された2組の長時間測定。
+後段の既定値: threads=32、nodes=128000000、warmup-nodes=16000000、pin=0-31。
+
+SHA256
+- baseline: 04681ce28e20148020512afb25491379e6b6c9e33bea87830aab55b815fcb613
+- finny_reset: ff8890fad064e3496d3062e070e47c62344b25eb2870866567818db92a549991
+- nn.bin: f5dc93cbc8406db9b3d881682e437dc39665cfeca095eebb13128845c7147794
+- progress.bin: a2d18f0564639c945b5d6469e9b437cd64a526ad4fbcef02ab1d8f547d08e5f1

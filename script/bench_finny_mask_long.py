@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Long paired bench comparison of existing baseline and Finny mask binaries.
+"""Long paired bench comparison of validated baseline and Finny candidate binaries.
 
 Reuses prior accumulator checks only after verifying binary and model SHA256.
 Engines remain loaded; exactly one engine searches at a time. No engine source
@@ -21,17 +21,15 @@ import time
 from bench_sfnn_experiments import Engine, SUMMARY, digest
 
 
-NAMES = ("baseline", "mask")
-
-
-def summarize(records):
+def summarize(records, candidate="mask"):
+    names = ("baseline", candidate)
     complete = sorted(set(r["round"] for r in records
                           if sum(s["round"] == r["round"] for s in records) == 2))
     pairs = {i: {r["variant"]: r for r in records if r["round"] == i} for i in complete}
-    ratios = [100 * (pairs[i]["mask"]["nps"] / pairs[i]["baseline"]["nps"] - 1)
+    ratios = [100 * (pairs[i][candidate]["nps"] / pairs[i]["baseline"]["nps"] - 1)
               for i in complete]
     summary = {}
-    for name in NAMES:
+    for name in names:
         rows = [r for r in records if r["variant"] == name]
         if rows:
             summary[name] = {
@@ -52,8 +50,8 @@ def summarize(records):
             if len(ratios) == 12:
                 mean = statistics.mean(ratios)
                 summary["paired"]["ci95_percent"] = [mean - 2.200985 * se, mean + 2.200985 * se]
-    if all(n in summary for n in NAMES):
-        summary["aggregate_change_percent"] = 100 * (summary["mask"]["aggregate_nps"]
+    if all(n in summary for n in names):
+        summary["aggregate_change_percent"] = 100 * (summary[candidate]["aggregate_nps"]
                                                      / summary["baseline"]["aggregate_nps"] - 1)
     return summary
 
@@ -62,6 +60,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference", type=Path, default=Path("build/finny-reset-largepages-20261030/results.json"))
     parser.add_argument("--bin-dir", type=Path, default=Path("build/finny-reset-largepages-20261030"))
+    parser.add_argument("--candidate", choices=("mask", "finny_reset"), default="mask")
     parser.add_argument("--output", type=Path, default=Path("build/finny-mask-long-20261030"))
     parser.add_argument("--threads", type=int, default=32)
     parser.add_argument("--pin", default="0-31")
@@ -75,27 +74,40 @@ def main():
     os.chdir(root)
     reference = args.reference.resolve()
     prior = json.loads(reference.read_text())
-    bins = {n: args.bin_dir.resolve() / n for n in NAMES}
+    names = ("baseline", args.candidate)
+    bins = {n: args.bin_dir.resolve() / n for n in names}
     eval_dir = Path(prior["metadata"]["eval_dir"])
-    binary_hashes = {n: digest(bins[n]) for n in NAMES}
+    binary_hashes = {n: digest(bins[n]) for n in names}
     model_hashes = {n: digest(eval_dir / n) for n in prior["metadata"]["model_sha256"]}
-    if any(binary_hashes[n] != prior["metadata"]["binary_sha256"][n] for n in NAMES):
+    if any(binary_hashes[n] != prior["metadata"]["binary_sha256"][n] for n in names):
         raise RuntimeError("Binaries differ from the validated reference")
     if model_hashes != prior["metadata"]["model_sha256"]:
         raise RuntimeError("Model differs from the validated reference")
-    checks = {n: prior["checks"][n] for n in NAMES}
-    checksums = [re.search(r"test_accumulator passed:.*checksum (\d+)", checks[n]) for n in NAMES]
+    checks = {n: prior["checks"][n] for n in names}
+    checksums = [re.search(r"test_accumulator passed:.*checksum (\d+)", checks[n]) for n in names]
     if any(m is None for m in checksums) or checksums[0][1] != checksums[1][1]:
         raise RuntimeError("Prior correctness checks missing or inconsistent")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=True)
+    common = prior["metadata"].get("common_cppflags", prior["metadata"].get("extra_cppflags"))
+    if common is None:
+        raise RuntimeError("Reference does not record common build flags")
+    variant_flags = prior["metadata"].get("variant_cppflags")
+    if variant_flags is None:
+        variant_flags = {}
+        for name in names:
+            flags, = (s.split("=", 1)[1] for s in prior["metadata"]["build_commands"][name]
+                      if s.startswith("EXTRA_CPPFLAGS="))
+            if not flags.startswith(common):
+                raise RuntimeError("Reference build flags differ from common flags")
+            variant_flags[name] = flags[len(common):].strip()
     metadata = {
         "started_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "reference": str(reference), "checks_reused_from": str(reference),
         "architecture": prior["metadata"]["architecture"], "eval_dir": str(eval_dir),
         "target_cpu": prior["metadata"]["target_cpu"],
-        "common_cppflags": prior["metadata"]["common_cppflags"],
-        "variant_cppflags": {n: prior["metadata"]["variant_cppflags"][n] for n in NAMES},
+        "common_cppflags": common,
+        "variant_cppflags": {n: variant_flags[n] for n in names}, "candidate": args.candidate,
         "binary_sha256": binary_hashes, "model_sha256": model_hashes,
         "binaries": {n: str(p) for n, p in bins.items()}, "threads": args.threads,
         "pin": args.pin, "rounds": args.rounds, "nodes_per_position": args.nodes,
@@ -108,7 +120,7 @@ def main():
     }
     engines, records = {}, []
     try:
-        for name in NAMES:
+        for name in names:
             engine = engines[name] = Engine(bins[name], args.pin)
             engine.send(f"setoption name Threads value {args.threads}\n"
                         "setoption name USI_Hash value 64\nsetoption name BookFile value no_book\n"
@@ -117,7 +129,7 @@ def main():
             (output / f"startup-{name}.log").write_text(engine.receive(lambda line: line.strip() == "readyok"))
             print(f"READY {name}; binary/model hashes and prior 100-game check verified", flush=True)
         for round_index in range(args.rounds):
-            order = NAMES if round_index % 2 == 0 else NAMES[::-1]
+            order = names if round_index % 2 == 0 else names[::-1]
             for name in order:
                 engine = engines[name]
                 started = time.monotonic()
@@ -140,14 +152,15 @@ def main():
                                 "nodes": nodes, "nps": nps, "wall_seconds": time.monotonic() - started,
                                 "bestmoves": re.findall(r"^bestmove .*$", stdout, re.MULTILINE)[-4:]})
                 result = {"metadata": metadata, "checks": checks, "records": records,
-                          "summary": summarize(records)}
+                          "summary": summarize(records, args.candidate)}
                 (output / "results.partial.json").write_text(json.dumps(result, indent=2))
                 print(f"round {round_index + 1:02}/{args.rounds} {name:8} {nps:12,} NPS ({milliseconds / 1000:.2f}s)", flush=True)
-            print("PAIRED " + json.dumps(summarize(records)["paired"]), flush=True)
+            print("PAIRED " + json.dumps(summarize(records, args.candidate)["paired"]), flush=True)
         metadata["finished_utc"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         (output / "results.json").write_text(json.dumps(
-            {"metadata": metadata, "checks": checks, "records": records, "summary": summarize(records)}, indent=2))
-        print(json.dumps(summarize(records), indent=2), flush=True)
+            {"metadata": metadata, "checks": checks, "records": records,
+             "summary": summarize(records, args.candidate)}, indent=2))
+        print(json.dumps(summarize(records, args.candidate), indent=2), flush=True)
     finally:
         for engine in engines.values():
             engine.close()
