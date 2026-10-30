@@ -4,6 +4,7 @@
 Reuses prior accumulator checks only after verifying binary and model SHA256.
 Engines remain loaded; exactly one engine searches at a time. No engine source
 is changed. The fixed sample count avoids stopping when a desired result appears.
+Separate bench calls recreate search threads; the warmup does not preserve Finny tables.
 """
 
 import argparse
@@ -113,6 +114,7 @@ def main():
         "pin": args.pin, "rounds": args.rounds, "nodes_per_position": args.nodes,
         "warmup_nodes_per_position": args.warmup_nodes, "hash_mib": 64, "fv_scale": 24,
         "positions": "bench default (4 positions)", "persistent_engines": True,
+        "finny_cache_survives_separate_bench_warmup": False,
         "order": "AB, BA alternating; count fixed before measurement",
         "git_head": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "lscpu": subprocess.check_output(["lscpu"], text=True),
