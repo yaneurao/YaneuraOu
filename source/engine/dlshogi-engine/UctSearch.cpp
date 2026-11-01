@@ -484,42 +484,48 @@ void UctSearcher::ParallelUctSearch(const Position& rootPos) {
         trajectories_batch_discarded.clear();
         current_policy_value_batch_index = 0;
 
-        // バッチサイズ分探索を繰り返す
-        // stop()になったらなるべく早く終わりたいので終了判定のところに "&& !stop"を書いておく。
-        // ※　VirtualLossを無くすなどして、stop()になったら直ちにリターンすべきだが、
-        //    1回のbatch sizeはGPU側で0.1秒程度で完了できる量にすると思うので、普通のGPUでは誤差か。
-        for (int i = 0; i < policy_value_batch_maxsize && !stop(); i++)
         {
+            // 同じデバイスのバッチ収集を直列化する。推論とバックアップはロック外で行う。
+            auto gather_lock = grp->acquire_gather_lock();
 
-            // 盤面のコピー
-
-            // rootPosはスレッドごとに用意されたもので、呼び出し元にインスタンスが存在しているので、
-            // 単純なコピーで問題ない。
-            Position pos;
-            std::memcpy(&pos, &rootPos, sizeof(Position));
-
-            // 1回プレイアウトする
-            visitor_batch.emplace_back();
-            const float result = UctSearch(&pos, nullptr, current_root, visitor_batch.back());
-
-            if (result != DISCARDED)
+            // バッチサイズ分探索を繰り返す
+            // stop()になったらなるべく早く終わりたいので終了判定のところに "&& !stop"を書いておく。
+            // ※　VirtualLossを無くすなどして、stop()になったら直ちにリターンすべきだが、
+            //    1回のbatch sizeはGPU側で0.1秒程度で完了できる量にすると思うので、普通のGPUでは誤差か。
+            for (int i = 0; i < policy_value_batch_maxsize && !stop(); i++)
             {
-                atomic_fetch_add(&search_limits.nodes_searched, (NodeCountType) 1);
-                //  →　ここで加算するとnpsの計算でまだEvalNodeしてないものまで加算されて
-                // 大きく見えてしまうのでもう少しあとで加算したいところだが…。
-            }
-            else
-            {
-                // 破棄した探索経路を保存
-                trajectories_batch_discarded.emplace_back(
-                  std::move(visitor_batch.back().trajectories));
+
+                // 盤面のコピー
+
+                // rootPosはスレッドごとに用意されたもので、呼び出し元にインスタンスが存在しているので、
+                // 単純なコピーで問題ない。
+                Position pos;
+                std::memcpy(&pos, &rootPos, sizeof(Position));
+
+                // 1回プレイアウトする
+                visitor_batch.emplace_back();
+                const float result = UctSearch(&pos, nullptr, current_root, visitor_batch.back());
+
+                if (result != DISCARDED)
+                {
+                    atomic_fetch_add(&search_limits.nodes_searched, (NodeCountType) 1);
+                    //  →　ここで加算するとnpsの計算でまだEvalNodeしてないものまで加算されて
+                    // 大きく見えてしまうのでもう少しあとで加算したいところだが…。
+                }
+                else
+                {
+                    // 破棄した探索経路を保存
+                    trajectories_batch_discarded.emplace_back(
+                      std::move(visitor_batch.back().trajectories));
+                }
+
+                // 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
+                if (result == DISCARDED || result != QUEUING)
+                {
+                    visitor_batch.pop_back();
+                }
             }
 
-            // 評価中の末端ノードに達した、もしくはバックアップ済みため破棄する
-            if (result == DISCARDED || result != QUEUING)
-            {
-                visitor_batch.pop_back();
-            }
         }
 
         // 評価

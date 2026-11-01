@@ -59,6 +59,9 @@ public:
 	// 各探索スレッドは探索開始時に(nn_forward()の呼び出しまでに)、この関数を呼び出してスレッドとGPUとを紐付けないといけない。
 	void set_device() { nn->set_device(gpu_id); }
 
+	// 同一デバイスのスレッド間でバッチ収集を直列化する。
+	std::unique_lock<std::mutex> acquire_gather_lock() { return std::unique_lock<std::mutex>(mutex_gather); }
+
 	// やねうら王では、スレッドの生成～解体はThreadクラスが行うので、これらはコメントアウト。
 
 	//	void Run();
@@ -113,6 +116,7 @@ private:
 
 	// ↑のnnにアクセスする時のmutex
 	std::mutex mutex_gpu;
+	std::mutex mutex_gather;
 
 	// --- やねうら王独自拡張
 
