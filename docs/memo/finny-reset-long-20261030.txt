@@ -3,7 +3,7 @@ USE_FINNY_RESETの32スレッド長時間再検証 (2026-10-30)
 【後続監査による訂正】
 本書の約94%を安定した改善率として扱った結論は撤回した。元のログの記録は残す。
 記録付きの再比較では約+19.3%。旧測定の直接原因は確定できていない。
-詳細: docs/finny-reset-measurement-audit-20261030.txt
+詳細: docs/memo/finny-reset-measurement-audit-20261030.txt
 
 対象
 - ユーザー指定の「FT_RESET」は、採用済みのUSE_FINNY_RESETを指すものとして比較。

@@ -37,7 +37,7 @@ Finny差分判定AVX512版の長時間比較 (2026-10-30)
 再現コマンド (検証済みの前回バイナリを利用)
   python3 script/bench_finny_mask_long.py
 
-パッチを適用して構築する場合は docs/finny-reset-experiments-20261030.txt を参照。
+パッチを適用して構築する場合は docs/memo/finny-reset-experiments-20261030.txt を参照。
 本スクリプトはreferenceの検証済みバイナリ/モデルのハッシュと一致しなければ実行しない。
 
 結果 (12組、全24サンプル完了)
