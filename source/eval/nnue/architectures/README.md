@@ -775,7 +775,7 @@ remove/addする重み列の合計が全特徴量の加算本数以上になる�
 変更前後の比較は、リポジトリルートから次のように実行できる。
 
 ```sh
-python3 script/bench_finny_reset.py --build \
+python3 tools/memo/bench_finny_reset.py --build \
   --extra-cppflags='-DUSE_LAZY_EVALUATE -DUSE_FINNY_TABLES' \
   --eval-dir ../inbox/evalTuyo12-20261025 \
   --arch SFNN_halfka2_2304_15_64_progress8 \
@@ -814,7 +814,7 @@ AVX512（`USE_AVX512`定義時）かつFT幅2304の場合は、FTタイルに24�
 Finnyの相殺除去は重複する特徴量の個数を保ち、駒落ちなどの重複にも対応する。
 
 ```sh
-python3 script/bench_sfnn_experiments.py --build \
+python3 tools/memo/bench_sfnn_experiments.py --build \
   --eval-dir ../inbox/evalTuyo12-20261025 \
   --arch SFNN_halfka2_2304_15_64_progress8 \
   --threads 1 --pin 2 --nodes 2000000 --warmup-nodes 500000 --rounds 4

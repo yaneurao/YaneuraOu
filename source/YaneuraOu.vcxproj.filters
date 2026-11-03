@@ -570,24 +570,18 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\script\readme.txt">
+    <Text Include="..\tools\script\README.md">
       <Filter>script</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\script\calc_rating.py">
+    <None Include="..\tools\script\engine_invoker1.py">
       <Filter>script</Filter>
     </None>
-    <None Include="..\script\analyze_result_log.py">
+    <None Include="..\tools\script\analyze_yane_log.py">
       <Filter>script</Filter>
     </None>
-    <None Include="..\script\engine_invoker1.py">
-      <Filter>script</Filter>
-    </None>
-    <None Include="..\script\analyze_yane_log.py">
-      <Filter>script</Filter>
-    </None>
-    <None Include="..\script\engine_invoker5.py">
+    <None Include="..\tools\script\engine_invoker5.py">
       <Filter>script</Filter>
     </None>
     <None Include="Makefile">
@@ -597,7 +591,7 @@
     <None Include="..\.editorconfig" />
     <None Include="..\.gitattributes" />
     <None Include="..\.gitignore" />
-    <None Include="..\script\bench.py">
+    <None Include="..\tools\script\bench.py">
       <Filter>script</Filter>
     </None>
     <None Include=".clang-format" />

@@ -53,6 +53,7 @@ YaneuraOu.VC.VC.opendb
 x64/
 x86/
 build/
+!/tools/build/
 bld/
 [Bb]in/
 [Oo]bj/

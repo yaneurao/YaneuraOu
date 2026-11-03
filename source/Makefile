@@ -501,7 +501,7 @@ ifneq (,$(IS_NNUE_EDITION))
 		ifneq (,$(findstring em++,$(COMPILER)))
 			# 📝 incbin.hによるパラメーターの埋め込みは、.incbinで置いたデータシンボルを
 			#     wasm-ldがリンクできないため使えない。代わりに、パラメーターを文字列リテラルとして
-			#     持つembedded_nnue.cppをリンクする。このファイルはscript/wasm_build.jsが生成する。
+			#     持つembedded_nnue.cppをリンクする。このファイルはtools/build/wasm_build.jsが生成する。
 			SOURCES += \
 				eval/nnue/embedded_nnue.cpp
 		endif

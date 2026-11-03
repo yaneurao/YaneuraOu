@@ -129,7 +129,7 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
 //     "data symbols must live in a data section"となる。-fltoではアセンブルが
 //     リンク時まで遅延されるので、コンパイルは通りwasm-ldがSIGABRTで落ちる。
 //     代わりに、パラメーターを文字列リテラルとして持つembedded_nnue.cpp
-//     (script/wasm_build.jsが生成)をリンクする。
+//     (tools/build/wasm_build.jsが生成)をリンクする。
 extern const char*       gEmbeddedNNUEData;
 extern const std::size_t gEmbeddedNNUESize;
 #elif !defined(_MSC_VER) && !defined(NNUE_EMBEDDING_OFF)

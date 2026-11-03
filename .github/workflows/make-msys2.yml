@@ -67,7 +67,7 @@ jobs:
       - name: make
         run: |
           $env:PATH+=';C:\msys64';
-          .\main\script\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
+          .\main\tools\build\msys2_build.ps1 -Edition ${{ matrix.edition }} -Compiler ${{ matrix.compiler }} -Target ${{ matrix.target }} -Cpu ${{ matrix.archcpu }}
         shell: pwsh
 
       # - uses: actions/upload-artifact@v4

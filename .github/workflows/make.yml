@@ -159,7 +159,7 @@ jobs:
         if: ${{ matrix.compiler == 'aarch64-linux-gnu-g++' }}
 
       - name: make
-        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
+        run: ./main/tools/build/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }}
 
       # - uses: actions/upload-artifact@v4
       #   with:

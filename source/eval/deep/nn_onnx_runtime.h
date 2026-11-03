@@ -6,7 +6,8 @@
 #if defined(ONNXRUNTIME)
 
 // ONNX Runtimeを使う場合。
-// "docs/解説.txt"を確認すること。
+// やねうら王Wiki「ふかうら王のビルド手順」を確認すること。
+// https://github.com/yaneurao/YaneuraOu/wiki/ふかうら王のビルド手順
 
 #include <onnxruntime_cxx_api.h>
 

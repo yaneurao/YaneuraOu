@@ -74,13 +74,13 @@ jobs:
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_TENSOR_RT' }}
 
       - name: make YANEURAOU_ENGINE_DEEP_ORT_CPU
-        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I${HOME}/onnxruntime-linux-x64-1.11.1/include EXTRA_LDFLAGS=-L${HOME}/onnxruntime-linux-x64-1.11.1/lib"
+        run: ./main/tools/build/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I${HOME}/onnxruntime-linux-x64-1.11.1/include EXTRA_LDFLAGS=-L${HOME}/onnxruntime-linux-x64-1.11.1/lib"
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_ORT_CPU' }}
         # ONNXRUNTIME版のビルド済みバイナリ実行時、 `${HOME}/onnxruntime-linux-x64-1.11.1/lib` のディレクトリを環境変数 `LD_LIBRARY_PATH` に追加するか、
         # ライブラリ検索パス(`/usr/local/lib` など)の下にコピーし、root権限にてldconfigを実行してライブラリキャッシュを更新する。
 
       - name: make YANEURAOU_ENGINE_DEEP_TENSOR_RT
-        run: ./main/script/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I/usr/local/cuda-11.7/include EXTRA_LDFLAGS=-L/usr/local/cuda-11.7/lib64 EXTRA_LDFLAGS+=-L/usr/local/cuda-11.7/lib64/stubs"
+        run: ./main/tools/build/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I/usr/local/cuda-11.7/include EXTRA_LDFLAGS=-L/usr/local/cuda-11.7/lib64 EXTRA_LDFLAGS+=-L/usr/local/cuda-11.7/lib64/stubs"
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_TENSOR_RT' }}
 
       # - uses: actions/upload-artifact@v4
