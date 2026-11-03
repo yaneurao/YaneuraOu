@@ -24,7 +24,8 @@ namespace Book
 	// ---------------------------------------------------------------------------------------------
 
 	// makebookコマンドの処理本体
-	// フォーマット等については docs/解説.txt, docs/USI拡張コマンド.txt を見ること。
+	// フォーマット等については docs/解説.txt と、やねうら王Wiki「USI拡張コマンド」を見ること。
+	// https://github.com/yaneurao/YaneuraOu/wiki/USI%E6%8B%A1%E5%BC%B5%E3%82%B3%E3%83%9E%E3%83%B3%E3%83%89
     void makebook(IEngine& engine, istringstream& is)
 	{
         // このタイミングでisready()で初期化しておく。
