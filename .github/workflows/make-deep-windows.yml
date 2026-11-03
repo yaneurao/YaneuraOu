@@ -31,13 +31,13 @@ jobs:
 
       - name: Install pkg
         run: nuget.exe restore YaneuraOu.sln
-        working-directory: main
+        working-directory: main/source
 
       - name: make
         run: |
-          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-CPU /p:Platform=x64
-          MSBuild.exe /t:build /p:Configuration=Release-Deep-ORT-DML /p:Platform=x64
-        working-directory: main
+          MSBuild.exe YaneuraOu.sln /t:build /p:Configuration=Release-Deep-ORT-CPU /p:Platform=x64
+          MSBuild.exe YaneuraOu.sln /t:build /p:Configuration=Release-Deep-ORT-DML /p:Platform=x64
+        working-directory: main/source
 
       # - uses: actions/upload-artifact@v4
       #   with:

@@ -659,7 +659,6 @@
     <None Include="..\.editorconfig" />
     <None Include="..\.gitattributes" />
     <None Include="..\.gitignore" />
-    <None Include="..\tools\script\analyze_yane_log.py" />
     <None Include="..\tools\script\bench.py" />
     <None Include="..\tools\script\engine_invoker1.py" />
     <None Include="..\tools\script\engine_invoker5.py" />
