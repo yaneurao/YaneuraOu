@@ -569,7 +569,6 @@
     <ClInclude Include="shm.h" />
     <ClInclude Include="shm_linux.h" />
     <ClInclude Include="timeman.h" />
-    <ClInclude Include="tracer.h" />
     <ClInclude Include="search.h" />
     <ClInclude Include="testcmd\unit_test.h" />
     <ClInclude Include="thread_win32_osx.h" />
