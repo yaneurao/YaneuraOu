@@ -805,9 +805,18 @@ AVX512（`USE_AVX512`定義時）かつFT幅2304の場合は、FTタイルに24�
 | EXTRA_CPPFLAGS | 対象 |
 | --- | --- |
 | `-DNNUE_FT_SPECIALIZED` | 通常更新のremove 1/add 1とremove 2/add 2を固定本数のループで処理する。 |
+| `-DNNUE_FT_SPARSE8` | AVX512・SFNN・FT幅2304専用。FT重みを8bit＋少数の補正値として格納し、差分更新の重み転送量を減らす。 |
 | `-DNNUE_FT_REGS=8` / `12` / `24` | AVX512かつFT幅2304のFTタイル用レジスタ数を上書きする。 |
 | `-DNNUE_FINNY_CANCEL` | Finnyで発生したremove/addを多重集合として比較し、相殺分を除く。 |
 | `-DNNUE_SFNN_FUSED_FT` | EWM変換と疎入力の第1層を融合する。生成architectureの16出力・FT幅128の倍数・8bit重み向け。 |
+
+`NNUE_FT_SPARSE8`は読み込み時の可逆な変換であり、モデルファイルと評価値は変更しない。
+重みの確保領域は従来のままで、よく読む重みをその前半に詰める。
+補正位置の索引として、入力特徴量ごとに4バイトを追加する。
+補正が必要な重みが全体の1/1024を超えるモデルでは、従来の16bit方式を使う。
+8bit方式では通常更新の1対1・2対2の専用処理も内部で使うため、`NNUE_FT_SPECIALIZED`の追加は不要。
+本方式はデフォルト無効。使用時は既存の`-DUSE_LAZY_EVALUATE -DUSE_FINNY_TABLES -DUSE_FINNY_RESET`に
+`-DNNUE_FT_SPARSE8`を追加する。AVX512以外ではこの指定を無視する。
 
 融合版は、既存の8出力用カーネルとは別にAVX512VNNIの16出力用カーネルを使う。
 `test nn test_accumulator`では、融合前後の第1層の生の整数出力も比較する。
