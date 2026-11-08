@@ -46,6 +46,89 @@ __extension__ using i128 = signed __int128;
 #endif
 
 
+// Wrapper around std::atomic<T> which uses relaxed accesses or plain
+// accesses, depending on the config. Intended use is e.g. wasm where
+// the overhead of atomic instructions can be significant, and we only
+// require non-tearing for the updates, while ensuring we use relaxed
+// accesses otherwise.
+// 更新時に値が途中で分断されないことを保証するためのstd::atomic<T>のラッパー。
+// 設定に応じてrelaxedアクセスまたは通常アクセスを使用する。
+// atomic命令のコストが大きくなりうるwasmなどでの使用を想定し、
+// 通常はrelaxedアクセスを使いつつ、必要に応じて通常アクセスへ切り替えられる。
+template<typename T>
+class RelaxedAtomic {
+    static constexpr bool UseAtomic =
+#ifdef USE_SLOPPY_ATOMICS
+      !std::atomic<T>::is_always_lock_free || sizeof(T) > sizeof(usize);
+#else
+      true;
+#endif
+
+   public:
+    RelaxedAtomic() = default;
+    RelaxedAtomic(T val) :
+        inner(val) {}
+    RelaxedAtomic(const RelaxedAtomic& a) :
+        inner(static_cast<T>(a)) {}
+
+    T operator=(T val) {
+        this->store(val, std::memory_order_relaxed);
+        return val;
+    }
+
+    RelaxedAtomic& operator=(const RelaxedAtomic& a) {
+        this->store(static_cast<T>(a), std::memory_order_relaxed);
+        return *this;
+    }
+
+    operator T() const { return this->load(std::memory_order_relaxed); }
+
+    RelaxedAtomic& operator+=(T val) {
+        this->store(this->load(std::memory_order_relaxed) + val, std::memory_order_relaxed);
+        return *this;
+    }
+
+    RelaxedAtomic& operator++() { return *this += 1; }
+
+    RelaxedAtomic& operator--() { return *this -= 1; }
+
+    T operator++(int) {
+        T val = this->load(std::memory_order_relaxed);
+        this->store(val + 1, std::memory_order_relaxed);
+        return val;
+    }
+
+    T operator--(int) {
+        T val = this->load(std::memory_order_relaxed);
+        this->store(val - 1, std::memory_order_relaxed);
+        return val;
+    }
+
+    RelaxedAtomic& operator-=(T val) {
+        this->store(this->load(std::memory_order_relaxed) - val, std::memory_order_relaxed);
+        return *this;
+    }
+
+    T load(std::memory_order order) const {
+        assert(order == std::memory_order_relaxed);
+        if constexpr (UseAtomic)
+            return inner.load(order);
+        else
+            return inner;
+    }
+
+    void store(T val, std::memory_order order) {
+        assert(order == std::memory_order_relaxed);
+        if constexpr (UseAtomic)
+            inner.store(val, order);
+        else
+            inner = val;
+    }
+
+   private:
+    std::conditional_t<UseAtomic, std::atomic<T>, T> inner;
+};
+
 class OptionsMap;
 
 // --------------------
