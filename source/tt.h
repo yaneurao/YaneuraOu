@@ -1,8 +1,6 @@
 ﻿#ifndef TT_H_INCLUDED
 #define TT_H_INCLUDED
 
-//#include <cstddef>
-//#include <cstdint>
 #include "types.h"
 #include "misc.h"
 #include "memory.h"
@@ -19,29 +17,33 @@ struct Key256;
 struct TTEntry;
 struct Cluster;
 
-// There is only one global hash table for the engine and all its threads. For chess in particular, we even allow racy
-// updates between threads to and from the TT, as taking the time to synchronize access would cost thinking time and
-// thus elo. As a hash table, collisions are possible and may cause chess playing issues (bizarre blunders, faulty mate
-// reports, etc). Fixing these also loses elo; however such risk decreases quickly with larger TT size.
+// There is only one global hash table for the engine and all its threads.
+// For chess in particular, we even allow racy updates between threads to and
+// from the TT, as taking the time to synchronize access would cost thinking
+// time and thus Elo. As a hash table, collisions are possible and may cause
+// chess playing issues (bizarre blunders, faulty mate reports, etc). Fixing
+// these also loses Elo; however such risk decreases with larger TT size.
 //
-// We clearly separate TTData, a local copy of an entry, from TTWriter, which writes to the global table.
+// We clearly separate TTData, a local copy of an entry, from TTWriter, which
+// writes to the global table.
 
-// エンジンとそのすべてのスレッドに対して、グローバルなハッシュテーブルは1つだけ存在します。
-// 特にチェスにおいては、TT（トランスポジションテーブル）間でのスレッド間の競合的な更新も許可しており、
-// アクセスを同期化するための時間を費やすと思考時間が減少し、それに伴いEloレーティングも下がるためです。
+// エンジンとそのすべてのスレッドに対して、グローバルなハッシュテーブルは1つだけ存在する。
+// 特にチェスでは、TTへのアクセスを同期するための時間が思考時間を消費し、
+// 結果としてEloを低下させるため、スレッド間でTTを読み書きする際の競合を許容している。
+// ハッシュテーブルである以上、衝突は起こり得るし、それによってチェスの対局上の
+// 問題（不可解な悪手、誤った詰みの報告など）が生じる可能性がある。
+// これらの問題を修正することもEloを低下させる。ただし、TTのサイズが大きくなるほど、
+// そのようなリスクは減少する。
 //
-// ハッシュテーブルであるため、衝突が発生する可能性があり、
-// それが原因でチェスプレイに問題が生じる場合があります（奇妙なミスや誤ったチェックメイト報告など）。
-// これらを修正することもEloレーティングを失うことにつながりますが、大きなTTサイズではそのリスクは急速に減少します。
-//
-// TTData(エントリのローカルコピー)と、グローバルな置換表へ書き込むTTWriterを明確に分離しています。
+// TTData（エントリのローカルコピー）と、グローバルテーブルへの書き込みを行う
+// TTWriterは、明確に分離している。
 
+// A copy of the data already in an entry (possibly collided). Probes and reads
+// are racy and non-atomic, possibly resulting in inconsistent data.
 
-// A copy of the data already in an entry (possibly collided). Probes and reads are racy and non-atomic,
-// possibly resulting in inconsistent data.
-
-// すでにエントリに存在するデータのコピー（衝突している可能性があります）。
-// probeやreadは競合することがあり、アトミックではないため、不整合なデータを返す可能性があります。
+// エントリにすでに格納されているデータのコピー（衝突している可能性もある）。
+// TTの探索と読み取りは競合を許容しており、アトミックではないため、
+// データの整合性が失われる可能性がある。
 
 // ■ 補足
 // 
@@ -64,17 +66,18 @@ struct TTData {
 		eval(ev),
 		depth(d),
 		bound(b),
-		is_pv(pv) {
-	};
+		is_pv(pv) {}
 	// clang-format on
 };
 
-// This is used to make racy, non-atomic writes to the global TT. Writes are not "guaranteed":
-// for chess reasons, we may decide the new data is less important than the old.
 
-// これはグローバルTTへの競合的で非アトミックな書き込みを行うために使用されます。
-// 書き込みは「必ず行われる」わけではなく、探索上の理由で新しいデータが古いデータより重要でないと判断されることがあります。
+// This is used to make racy, non-atomic writes to the global TT. Writes are
+// not "guaranteed": for chess reasons, we may decide the new data is less
+// important than the old.
 
+// これは、グローバルTTに対して競合を許容した非アトミックな書き込みを行うために使用する。
+// 書き込みは「保証」されない。チェスの観点から、新しいデータは古いデータよりも
+// 重要度が低いと判断し、書き込みを行わない場合がある。
 struct TTWriter {
 public:
     void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 generation8);
@@ -132,16 +135,19 @@ public:
 
 	u8 generation() const;
 
-	// Approximate what fraction of entries (permille) have been written to during this root search
+    // Approximate what fraction of entries (permille) have been written to
+    // during this root search.
+
 	// このルート探索中に書き込まれたエントリの割合（パーミル単位）を概算します。
 	// ⇨ 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
 
 	int hashfull(int maxAge = 0) const;
 
-	// `probe` is the primary method: given a board position, we lookup its entry in the table, and return a tuple of:
-	//   1) whether the entry already had data on this position
-	//   2) a copy of the prior data, if any (may be self-inconsistent due to read races)
-	//   3) a writer object to the entry
+    // `probe(key)` is the primary method: given a board position, we lookup
+    //  its entry in the table, and return a tuple of:
+    //   1) whether the entry already had data on this position
+    //   2) a copy of the prior data, if any (may be self-inconsistent due to races)
+    //   3) a writer object to the entry
 	//
 	// probeは主なメソッドであり、局面を与えられるとテーブル内のエントリを検索し、以下のタプルを返します。
 	//   1) そのエントリがすでにこの局面のデータを持っていたかどうか
@@ -195,7 +201,11 @@ private:
 	// Stockfishはresize()ごとに毎回新しく置換表を確保するが、やねうら王では
 	// そこは端折りたいので、毎回は確保しない。そのため前回サイズがここに格納されていないと
 	// 再確保すべきかどうかの判定ができない。ゆえに0で初期化しておく。
-	usize clusterCount = 0;
+	usize clusterCount
+#if !STOCKFISH
+		= 0
+#endif
+;
 
 	// 確保されているClusterの先頭(alignされている)
 	// Stockfishではmemをコンストラクタで初期化していないが、初期化しておいたほうが

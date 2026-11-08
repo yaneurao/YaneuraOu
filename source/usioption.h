@@ -1,13 +1,11 @@
-﻿#ifndef USI_OPTION_H_INCLUDED
-#define USI_OPTION_H_INCLUDED
+﻿#ifndef USIOPTION_H_INCLUDED
+#define USIOPTION_H_INCLUDED
 
-#include <cstddef>
 #include <functional>
 #include <iosfwd>
 #include <map>
 #include <optional>
 #include <string>
-#include <cstdint>
 
 #include "misc.h"
 
@@ -59,9 +57,12 @@ class Option {
 
     Option& operator=(const std::string&);
 
-    //operator int() const;
+#if STOCKFISH
+    operator int() const;
+#else
     // 📌 やねうら王では、int64_tに変更する。
     operator i64() const;
+#endif
 
     operator std::string() const;
     bool operator==(const char*) const;
@@ -72,10 +73,11 @@ class Option {
     int operator<<(const Option&) = delete;
 
     // -- やねうら王独自
-
+#if !STOCKFISH
     // 固定化フラグ。
     // これを true にすると、operator = で変更できなくなる。
     bool fixed = false;
+#endif
 
    private:
     friend class OptionsMap;
@@ -98,7 +100,12 @@ class Option {
 
     // このオプション設定がint型であるときに、最小値と最大値。
     // 📒 Stockfishではintだが、やねうら王ではint64_tに変更。
-    i64 min, max;
+
+#if STOCKFISH
+    int               min = 0, max = 0;
+#else
+    i64 min = 0, max = 0;
+#endif
 
     // 追加した順に0,1,2,…
     // 💡 これは、OptionsMap.add()で追加する時に設定される。
@@ -202,10 +209,10 @@ class OptionsMap {
     OptionsStore options_map;
     InfoListener info;
 
+#if !STOCKFISH
     // 指定がなければ従来互換のV1。
     int book_options_version = 1;
 
-#if !STOCKFISH
     // 思考エンジンがGUIからの"usi"に対して返す"option ..."文字列から
     // Optionオブジェクトを構築して、それを *this に突っ込む。
     // "engine_options.txt"というファイルの各行からOptionオブジェクト構築して
@@ -217,6 +224,7 @@ class OptionsMap {
 #endif
 };
 
+#if !STOCKFISH
 // OptionsMapを参照で使いたい時に使うproxy。(やねうら王独自拡張)
 // 📝 C++ではclass memberの参照型はコンストラクタで初期化(代入)しなければならない。コンストラクタ以外で代入するには、
 //     std::reference_wrapperを用いればいいのだが、これを用いる場合、operator[]がうまく処理できない。
@@ -238,6 +246,7 @@ public:
 private:
 	OptionsMap* options = nullptr;
 };
+#endif
 
 } // namespace YaneuraOu
 

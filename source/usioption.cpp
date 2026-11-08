@@ -159,7 +159,11 @@ Option::Option(const std::vector<std::string>& list, const std::string& cur, OnC
 }
 #endif
 
+#if STOCKFISH
+Option::operator int() const {
+#else
 Option::operator i64() const {
+#endif
 	ASSERT_LV1(type == "check" || type == "spin");
 #if STOCKFISH
 	return (type == "spin" ? std::stoi(currentValue) : currentValue == "true");
