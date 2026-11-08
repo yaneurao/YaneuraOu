@@ -141,7 +141,7 @@ void Bitboards::init()
 	// 1) SquareWithWallテーブルの初期化。
 
 	for (auto sq : SQ)
-		sqww_table[sq] = SquareWithWall(SQWW_11 + (int32_t)file_of(sq) * SQWW_L + (int32_t)rank_of(sq) * SQWW_D);
+		sqww_table[sq] = SquareWithWall(SQWW_11 + (i32)file_of(sq) * SQWW_L + (i32)rank_of(sq) * SQWW_D);
 
 
 	// 2) direct_tableの初期化

@@ -21,8 +21,8 @@ namespace Eval::NNUE::Layers {
 	public:
 		// Input/output type
 		// 入出力の型
-		using InputType = std::int32_t;
-		using OutputType = std::uint8_t;
+		using InputType = i32;
+		using OutputType = u8;
 
 		// Number of input/output dimensions
 		// 入出力の次元数
@@ -35,8 +35,8 @@ namespace Eval::NNUE::Layers {
 
 		// Hash value embedded in the evaluation file
 		// 評価関数ファイルに埋め込むハッシュ値
-		static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
-			std::uint32_t hash_value = 0x538D24C7u;
+		static constexpr u32 GetHashValue(u32 prevHash) {
+			u32 hash_value = 0x538D24C7u;
 			hash_value += prevHash;
 			return hash_value;
 		}

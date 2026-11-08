@@ -23,7 +23,7 @@ class HalfKPE9 {
   static constexpr const char* kName =
       (AssociatedKing == Side::kFriend) ? "HalfKPE9(Friend)" : "HalfKPE9(Enemy)";
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t kHashValue =
+  static constexpr u32 kHashValue =
       0x5D69D5B9u ^ (AssociatedKing == Side::kFriend);
   // 特徴量の次元数
   static constexpr IndexType kDimensions =

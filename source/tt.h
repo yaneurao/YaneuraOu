@@ -77,7 +77,7 @@ struct TTData {
 
 struct TTWriter {
 public:
-    void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+    void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 generation8);
 
 private:
 	friend class TranspositionTable;
@@ -91,7 +91,7 @@ private:
 
 // やねうら王では、TTClusterSizeを変更できて、これが2の時は、TTEntryに格納するhash keyは64bit。(Stockfishのように)3の時は16bit。
 #if TT_CLUSTER_SIZE == 3
-typedef uint16_t TTE_KEY_TYPE;
+typedef u16 TTE_KEY_TYPE;
 #else // TT_CLUSTER_SIZEが2,4,6,8の時は64bit。5,7は選択する意味がないと思うので考えない。
 typedef uint64_t TTE_KEY_TYPE;
 #endif
@@ -111,7 +111,7 @@ public:
 	// Set TT size in MiB
 	// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。[MiB]単位。
 
-	void resize(size_t mbSize,ThreadPool& threads);  // Set TT size in MiB
+	void resize(usize mbSize,ThreadPool& threads);  // Set TT size in MiB
 
 	// Re-initialize memory, multithreaded
 	// メモリを再初期化、マルチスレッド対応
@@ -130,7 +130,7 @@ public:
 	// The current age, used when writing new data to the TT
 	// 新しいデータをTTに書き込む際に使用される現在のエイジ
 
-	uint8_t generation() const;
+	u8 generation() const;
 
 	// Approximate what fraction of entries (permille) have been written to during this root search
 	// このルート探索中に書き込まれたエントリの割合（パーミル単位）を概算します。
@@ -195,7 +195,7 @@ private:
 	// Stockfishはresize()ごとに毎回新しく置換表を確保するが、やねうら王では
 	// そこは端折りたいので、毎回は確保しない。そのため前回サイズがここに格納されていないと
 	// 再確保すべきかどうかの判定ができない。ゆえに0で初期化しておく。
-	size_t clusterCount = 0;
+	usize clusterCount = 0;
 
 	// 確保されているClusterの先頭(alignされている)
 	// Stockfishではmemをコンストラクタで初期化していないが、初期化しておいたほうが
@@ -203,7 +203,7 @@ private:
 	Cluster* table = nullptr;
 
 	// ⇨ 世代カウンター。new_search()のごとに1ずつ加算する。TTEntry::save()で用いる。
-	uint8_t generation8 = 0;
+	u8 generation8 = 0;
 };
 
 } // namespace YaneuraOu

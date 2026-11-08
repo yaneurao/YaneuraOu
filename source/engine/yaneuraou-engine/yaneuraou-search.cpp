@@ -343,7 +343,7 @@ void YaneuraOuEngine::resize_threads() {
 }
 
 // 置換表の割り当て
-void YaneuraOuEngine::set_tt_size(size_t mb){
+void YaneuraOuEngine::set_tt_size(usize mb){
 	wait_for_search_finished();
 	tt.resize(mb, threads);
 }
@@ -782,7 +782,7 @@ void update_correction_history(const Position&          pos,
 //     探索しつづけて千日手にしてしまうのを回避)工夫がある。
 //     将棋の場合、普通の千日手と連続王手の千日手と劣等局面による千日手(循環？)とかあるのでこれ導入するのちょっと嫌。
 //     ⇨  TODO : もうちょっとどうにかする。
-Value value_draw(size_t nodes) { return VALUE_DRAW - 1 + Value(nodes & 0x2); }
+Value value_draw(usize nodes) { return VALUE_DRAW - 1 + Value(nodes & 0x2); }
 
 Value value_to_tt(Value v, int ply);
 Value value_from_tt(Value v, int ply /*, int r50c */);
@@ -843,7 +843,7 @@ bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
 #if STOCKFISH
 Search::Worker::Worker(SharedState& sharedState,
 	std::unique_ptr<ISearchManager> sm,
-	size_t                          threadId,
+	usize                          threadId,
 	NumaReplicatedAccessToken       token) :
 	// Unpack the SharedState struct into member variables
 	threadIdx(threadId),
@@ -861,9 +861,9 @@ Search::Worker::Worker(SharedState& sharedState,
 Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 #if STOCKFISH
                                          std::unique_ptr<ISearchManager>,
-                                         size_t                    threadIdx,
-                                         size_t                    numaThreadIdx,
-                                         size_t                    numaTotal,
+                                         usize                    threadIdx,
+                                         usize                    numaThreadIdx,
+                                         usize                    numaTotal,
                                          NumaReplicatedAccessToken token,
 #else
                                          const ThreadIds& ids,
@@ -1501,7 +1501,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     // MultiPV
     // 💡 bestmoveとしてしこの局面の上位N個を探索する機能
 
-    size_t multiPV = size_t(options["MultiPV"]);
+    usize multiPV = usize(options["MultiPV"]);
 
 #if STOCKFISH
     Skill skill(options["Skill Level"], options["UCI_LimitStrength"] ? int(options["UCI_Elo"]) : 0);
@@ -1519,7 +1519,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     // 📝 SkillLevelが有効(設定された値が20未満)のときは、MultiPV = 4で探索。
 
     if (skill.enabled())
-        multiPV = std::max(multiPV, size_t(4));
+        multiPV = std::max(multiPV, usize(4));
 
     // 💡 multiPVの値は、この局面での合法手の数を上回ってはならない。
     multiPV = std::min(multiPV, rootMoves.size());
@@ -1593,7 +1593,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
         // 🤔 将棋ではこれ使わなくていいような？
 
-        //size_t pvFirst = 0;
+        //usize pvFirst = 0;
         //pvLast         = 0;
 
         // 💡 探索深さを増やすかのフラグがfalseなら、同じ深さを探索したことになるので、
@@ -1627,7 +1627,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             //     pvLastはrootMoves.size()になるまで
             //     インクリメントされるから、次のように単純化できる。
 
-            size_t pvFirst = pvIdx;
+            usize pvFirst = pvIdx;
             pvLast         = rootMoves.size();
 
 #endif
@@ -1967,7 +1967,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 #endif
         {
             uint64_t nodesEffort =
-              rootMoves[0].effort * 100000 / std::max(size_t(1), size_t(nodes));
+              rootMoves[0].effort * 100000 / std::max(usize(1), usize(nodes));
 
             double fallingEval =
               (11.325 + 2.115 * (mainThread->bestPreviousAverageScore - bestValue)
@@ -2175,7 +2175,7 @@ void YaneuraOuWorker::clear() {
                     h.fill(-523);
 
 	// reductions tableの初期化(これはWorkerごとが持つように変更された)
-    for (size_t i = 1; i < reductions.size(); ++i)
+    for (usize i = 1; i < reductions.size(); ++i)
         reductions[i] = int(2763 / 128.0 * std::log(i));
 
 	// 📝 lowPlyHistoryの初期化は、対局ごとではなく、局面ごと("go"のごと)に変更された。
@@ -2378,7 +2378,7 @@ Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta,
     // Stockfishでは、このline上でIIRとquiet shallow pruningを抑制して、
     // 前回のPVを浅い枝刈りで壊しにくくしている。
     ss->followPV = rootNode
-                || ((ss - 1)->followPV && static_cast<size_t>(ss->ply - 1) < lastIterationPV.size()
+                || ((ss - 1)->followPV && static_cast<usize>(ss->ply - 1) < lastIterationPV.size()
                     && (ss - 1)->currentMove == lastIterationPV[ss->ply - 1]);
 
 #if defined(USE_CLASSIC_EVAL) && defined(USE_LAZY_EVALUATE)
@@ -5440,7 +5440,7 @@ void update_quiet_histories(
 
 // 手加減が有効であるなら、best moveを'level'に依存する統計ルールに基づくRootMovesの集合から選ぶ。
 // Heinz van Saanenのアイデア。
-Move Skill::pick_best(const RootMoves& rootMoves, size_t multiPV) {
+Move Skill::pick_best(const RootMoves& rootMoves, usize multiPV) {
     static PRNG rng(now());  // PRNG sequence should be non-deterministic
 							 // 乱数ジェネレーターは非決定的であるべき。
 
@@ -5460,7 +5460,7 @@ Move Skill::pick_best(const RootMoves& rootMoves, size_t multiPV) {
 	// 1つは、決定的で、弱いレベルでは大きくなるもので、1つはランダムである。
 	// 次に得点がもっとも高い指し手を選択する。
 
-	for (size_t i = 0; i < multiPV; ++i)
+	for (usize i = 0; i < multiPV; ++i)
     {
         // This is our magic formula
 		// これが魔法の公式
@@ -5604,7 +5604,7 @@ void syzygy_extend_pv(const OptionsMap&         options,
     int ply = 1;
 
     // Step 1, walk the PV to the last position in TB with correct decisive score
-    while (size_t(ply) < rootMove.pv.size())
+    while (usize(ply) < rootMove.pv.size())
     {
         Move& pvMove = rootMove.pv[ply];
 
@@ -5700,7 +5700,7 @@ void syzygy_extend_pv(const OptionsMap&         options,
         v = VALUE_DRAW;
 
     // Undo the PV moves
-    for (size_t i = rootMove.pv.size(); i > 0; --i)
+    for (usize i = rootMove.pv.size(); i > 0; --i)
         pos.undo_move(rootMove.pv[i - 1]);
 
     // Inform if we couldn't get a full extension in time
@@ -5720,13 +5720,13 @@ void SearchManager::pv(Search::YaneuraOuWorker&  worker,
     const auto nodes     = threads.nodes_searched();
     auto&      rootMoves = worker.rootMoves;
     auto&      pos       = worker.rootPos;
-    size_t     pvIdx     = worker.pvIdx;
-    size_t     multiPV   = std::min(size_t(worker.options["MultiPV"]), rootMoves.size());
+    usize     pvIdx     = worker.pvIdx;
+    usize     multiPV   = std::min(usize(worker.options["MultiPV"]), rootMoves.size());
 #if STOCKFISH
     uint64_t tbHits = threads.tb_hits() + (worker.tbConfig.rootInTB ? rootMoves.size() : 0);
 #endif
 
-    for (size_t i = 0; i < multiPV; ++i)
+    for (usize i = 0; i < multiPV; ++i)
     {
         bool updated = rootMoves[i].score != -VALUE_INFINITE;
 

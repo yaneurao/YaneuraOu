@@ -46,7 +46,7 @@ namespace YaneuraOu {
 // availability of aligned_alloc(). Memory allocated with std_aligned_alloc()
 // must be freed with std_aligned_free().
 
-void* std_aligned_alloc(size_t alignment, size_t size) {
+void* std_aligned_alloc(usize alignment, usize size) {
 #if defined(_ISOC11_SOURCE)
     return aligned_alloc(alignment, size);
 #elif defined(POSIXALIGNEDALLOC)
@@ -80,12 +80,12 @@ void std_aligned_free(void* ptr) {
 
 #if defined(_WIN32)
 
-static void* aligned_large_pages_alloc_windows([[maybe_unused]] size_t allocSize) {
+static void* aligned_large_pages_alloc_windows([[maybe_unused]] usize allocSize) {
 
     return windows_try_with_large_page_priviliges(
-      [&](size_t largePageSize) {
+      [&](usize largePageSize) {
           // Round up size to full pages and allocate
-          allocSize = (allocSize + largePageSize - 1) & ~size_t(largePageSize - 1);
+          allocSize = (allocSize + largePageSize - 1) & ~usize(largePageSize - 1);
           return VirtualAlloc(nullptr, allocSize, MEM_RESERVE | MEM_COMMIT | MEM_LARGE_PAGES,
                               PAGE_READWRITE);
       },
@@ -98,7 +98,7 @@ static void* aligned_large_pages_alloc_windows([[maybe_unused]] size_t allocSize
 bool first_large_pages_allocation = true;
 #endif
 
-void* aligned_large_pages_alloc(size_t allocSize) {
+void* aligned_large_pages_alloc(usize allocSize) {
 
 	// ※　ここでは4KB単位でalignされたメモリが返ることは保証されているので
 	//     引数でalignを指定できる必要はない。(それを超えた大きなalignを行いたいケースがない)
@@ -134,16 +134,16 @@ void* aligned_large_pages_alloc(size_t allocSize) {
 
 #else
 
-void* aligned_large_pages_alloc(size_t allocSize) {
+void* aligned_large_pages_alloc(usize allocSize) {
 
     #if defined(__linux__)
-    constexpr size_t alignment = 2 * 1024 * 1024;  // 2MB page size assumed
+    constexpr usize alignment = 2 * 1024 * 1024;  // 2MB page size assumed
     #else
-    constexpr size_t alignment = 4096;  // small page size assumed
+    constexpr usize alignment = 4096;  // small page size assumed
     #endif
 
     // Round up to multiples of alignment
-    size_t size = ((allocSize + alignment - 1) / alignment) * alignment;
+    usize size = ((allocSize + alignment - 1) / alignment) * alignment;
     void*  mem  = std_aligned_alloc(alignment, size);
     #if defined(MADV_HUGEPAGE)
     madvise(mem, size, MADV_HUGEPAGE);
@@ -157,7 +157,7 @@ bool has_large_pages() {
 
 #if defined(_WIN32)
 
-    constexpr size_t page_size = 2 * 1024 * 1024;  // 2MB page size assumed
+    constexpr usize page_size = 2 * 1024 * 1024;  // 2MB page size assumed
     void*            mem       = aligned_large_pages_alloc_windows(page_size);
     if (mem == nullptr)
     {

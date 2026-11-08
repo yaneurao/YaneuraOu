@@ -19,7 +19,7 @@ namespace Eval::NNUE::Features {
 class A2 {
  public:
   static constexpr const char* kName = "A2";
-  static constexpr std::uint32_t kHashValue = 0xA20DCB9Bu;
+  static constexpr u32 kHashValue = 0xA20DCB9Bu;
   static constexpr IndexType kDimensions = e_king;
   static constexpr IndexType kMaxActiveDimensions = PIECE_NUMBER_NB;
   static constexpr TriggerEvent kRefreshTrigger = TriggerEvent::kNone;

@@ -6,6 +6,7 @@
 // ----------------------------
 
 #include <thread>
+#include "misc.h"
 
 /// On OSX threads other than the main thread are created with a reduced stack
 /// size of 512KB by default, this is too low for deep searches, which require
@@ -26,7 +27,7 @@ namespace YaneuraOu {
 class NativeThread {
     pthread_t thread;
 	// 少なくともこのサイズのスタック領域を確保したい
-    static constexpr size_t TH_STACK_SIZE = 8 * 1024 * 1024;
+    static constexpr usize TH_STACK_SIZE = 8 * 1024 * 1024;
 
    public:
     template<class Function, class... Args>

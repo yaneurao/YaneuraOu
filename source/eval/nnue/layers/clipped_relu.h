@@ -20,8 +20,8 @@ class ClippedReLU {
   // Input/output type
   // 入出力の型
   using InputType = typename PreviousLayer::OutputType;
-  using OutputType = std::uint8_t;
-  static_assert(std::is_same<InputType, std::int32_t>::value, "");
+  using OutputType = u8;
+  static_assert(std::is_same<InputType, i32>::value, "");
 
   // Number of input/output dimensions
   // 入出力の次元数
@@ -33,24 +33,24 @@ class ClippedReLU {
 
   // Size of forward propagation buffer used in this layer
   // この層で使用する順伝播用バッファのサイズ
-  static constexpr std::size_t kSelfBufferSize =
+  static constexpr usize kSelfBufferSize =
       CeilToMultiple(kOutputDimensions * sizeof(OutputType), kCacheLineSize);
 
   // Size of the forward propagation buffer used from the input layer to this layer
   // 入力層からこの層までで使用する順伝播用バッファのサイズ
-  static constexpr std::size_t kBufferSize =
+  static constexpr usize kBufferSize =
       PreviousLayer::kBufferSize + kSelfBufferSize;
 
   // Hash value embedded in the evaluation file
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t GetHashValue() {
-    std::uint32_t hash_value = 0x538D24C7u;
+  static constexpr u32 GetHashValue() {
+    u32 hash_value = 0x538D24C7u;
     hash_value += PreviousLayer::GetHashValue();
     return hash_value;
   }
 
   // ハッシュ値を前段の値から更新するときのヘルパー
-  static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
+  static constexpr u32 GetHashValue(u32 prevHash) {
     return 0x538D24C7u + prevHash;
   }
 

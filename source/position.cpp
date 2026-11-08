@@ -376,7 +376,7 @@ void Position::set_state() const {
         for (PieceType pr = PAWN; pr < PIECE_HAND_NB; ++pr)
             st->hand_key +=
               Zobrist::hand[c][pr]
-              * (int64_t) hand_count(hand[c], pr);  // 手駒はaddにする(差分計算が楽になるため)
+              * (i64) hand_count(hand[c], pr);  // 手駒はaddにする(差分計算が楽になるため)
 
     // --- hand
 
@@ -450,9 +450,9 @@ std::optional<PositionSetError> Position::set(const std::string& sfen, StateInfo
     // 盤面を読むときにスペースが盤面と手番とのセパレーターなのでそこを読み飛ばさないようにnoskipwsを指定しておく。
     ss >> std::noskipws;
 
-    uint8_t token;
+    u8 token;
     bool    promote = false;
-    size_t  idx;
+    usize   idx;
 
 #if defined(USE_EVAL_LIST)
     // evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。

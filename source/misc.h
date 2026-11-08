@@ -2,6 +2,8 @@
 #define MISC_H_INCLUDED
 
 //#include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <exception>  // IWYU pragma: keep
 // IWYU pragma: no_include <__exception/terminate.h>
 #include <functional>
@@ -24,6 +26,25 @@
 #include "types.h"
 
 namespace YaneuraOu {
+
+using u64 = std::uint64_t;
+using u32 = std::uint32_t;
+using u16 = std::uint16_t;
+using u8  = std::uint8_t;
+
+using i64 = std::int64_t;
+using i32 = std::int32_t;
+using i16 = std::int16_t;
+using i8  = std::int8_t;
+
+using usize = std::size_t;
+using isize = std::ptrdiff_t;
+
+#if defined(__GNUC__) && defined(IS_64BIT)
+__extension__ using u128 = unsigned __int128;
+__extension__ using i128 = signed __int128;
+#endif
+
 
 class OptionsMap;
 
@@ -100,7 +121,7 @@ void dbg_print();
 // ms単位での時間計測しか必要ないのでこれをTimePoint型のように扱う。
 // TimePointの定義。💡 やねうら王では、types.hに移動。
 //using TimePoint = std::chrono::milliseconds::rep;  // A value in milliseconds
-//static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
+//static_assert(sizeof(TimePoint) == sizeof(i64), "TimePoint should be 64 bits");
 #endif
 
 
@@ -166,12 +187,12 @@ void sync_cout_end();
 // --------------------
 
 //  最大サイズが固定長のvectorみたいなやつ。
-template<typename T, std::size_t MaxSize>
+template<typename T, usize MaxSize>
 class ValueList {
 
 public:
-   	// 配列のsizeを返す。
-    std::size_t size() const { return size_; }
+	// 配列のsizeを返す。
+    usize size() const { return size_; }
 
 	// 配列のsizeをintで返す。
     int         ssize() const { return int(size_); }
@@ -188,7 +209,7 @@ public:
 
 	// count個の要素を増やす。
 	// 要素は未初期化のまま増やした要素の先頭のポインタを返す。
-    T* make_space(size_t count) {
+    T* make_space(usize count) {
         T* result = &values_[size_];
         size_ += count;
         assert(size_ <= MaxSize);
@@ -201,24 +222,24 @@ public:
 
 private:
 	T           values_[MaxSize];
-	std::size_t size_ = 0;
+	usize size_ = 0;
 };
 
 // --------------------
 //      MultiArray
 // --------------------
 
-template<typename T, std::size_t Size, std::size_t... Sizes>
+template<typename T, usize Size, usize... Sizes>
 class MultiArray;
 
 namespace Detail {
 
-	template<typename T, std::size_t Size, std::size_t... Sizes>
+	template<typename T, usize Size, usize... Sizes>
 	struct MultiArrayHelper {
 		using ChildType = MultiArray<T, Sizes...>;
 	};
 
-	template<typename T, std::size_t Size>
+	template<typename T, usize Size>
 	struct MultiArrayHelper<T, Size> {
 		using ChildType = T;
 	};
@@ -235,7 +256,7 @@ namespace Detail {
 // MultiArray は汎用的な N 次元配列です。
 // テンプレートパラメータ (Size と Sizes) が配列の次元を表します。
 
-template<typename T, std::size_t Size, std::size_t... Sizes>
+template<typename T, usize Size, usize... Sizes>
 class MultiArray {
 	using ChildType = typename Detail::MultiArrayHelper<T, Size, Sizes...>::ChildType;
 	using ArrayType = std::array<ChildType, Size>;
@@ -361,11 +382,11 @@ inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
     return (uint128(a) * uint128(b)) >> 64;
 #else
 	// 64bit同士の掛け算を64bitを32bit 2つに分割して、筆算のようなことをするコード
-    uint64_t aL = uint32_t(a), aH = a >> 32;
-    uint64_t bL = uint32_t(b), bH = b >> 32;
+    uint64_t aL = u32(a), aH = a >> 32;
+    uint64_t bL = u32(b), bH = b >> 32;
     uint64_t c1 = (aL * bL) >> 32;
     uint64_t c2 = aH * bL + c1;
-    uint64_t c3 = aL * bH + uint32_t(c2);
+    uint64_t c3 = aL * bH + u32(c2);
     return aH * bH + (c2 >> 32) + (c3 >> 32);
 #endif
 }
@@ -378,24 +399,24 @@ inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
 //     プロセス間でNNUEのパラメーター共有を行うときのチェック用。
 
 // 任意の byte streamをバイト列そのままのハッシュとして利用し、uint64_tで返す。
-uint64_t hash_bytes(const char*, size_t);
+uint64_t hash_bytes(const char*, usize);
 
-// 任意の POD ライクなデータ構造を、バイト列そのままのハッシュとして利用し、size_tで返す。
+// 任意の POD ライクなデータ構造を、バイト列そのままのハッシュとして利用し、usizeで返す。
 // 📝 `reinterpret_cast` でメモリ内容を生のまま string_view にして hash を取る。
 //     その実装はコンパイラ依存かつendian依存。
 
 template<typename T>
-inline std::size_t get_raw_data_hash(const T& value) {
+inline usize get_raw_data_hash(const T& value) {
     // We must have no padding bytes because we're reinterpreting as char
     static_assert(std::has_unique_object_representations<T>());
 
-    return static_cast<std::size_t>(
+    return static_cast<usize>(
       hash_bytes(reinterpret_cast<const char*>(&value), sizeof(value)));
 }
 
 template<typename T>
-inline void hash_combine(std::size_t& seed, const T& v) {
-    std::size_t x;
+inline void hash_combine(usize& seed, const T& v) {
+    usize x;
     // For primitive types we avoid using the default hasher, which may be
     // nondeterministic across program invocations
     if constexpr (std::is_integral<T>())
@@ -426,7 +447,7 @@ inline std::uint64_t hash_string(const std::string& sv) { return hash_bytes(sv.d
 */
 
 // Capacity : 最大文字列長(byte)
-template<std::size_t Capacity>
+template<usize Capacity>
 class FixedString {
    public:
 
@@ -439,7 +460,7 @@ class FixedString {
 	// char* から FixedStringを構築する。
 	// ⚠ Capacityを超えた場合は、即座にstd::terminate()を呼び出す。
     FixedString(const char* str) {
-        size_t len = std::strlen(str);
+        usize len = std::strlen(str);
         if (len > Capacity)
             std::terminate();
         std::memcpy(data_, str, len);
@@ -458,23 +479,23 @@ class FixedString {
     }
 
 	// 格納している文字列長さ
-    std::size_t size() const { return length_; }
+    usize size() const { return length_; }
 
 	// template引数で渡されたCapacity
-    std::size_t capacity() const { return Capacity; }
+    usize capacity() const { return Capacity; }
 
 	// string::c_str()みたいなの。
     const char* c_str() const { return data_; }
 	const char* data() const { return data_; }
 
 	// 文字列の i 番目。
-    char& operator[](std::size_t i) { return data_[i]; }
-    const char& operator[](std::size_t i) const { return data_[i]; }
+    char& operator[](usize i) { return data_[i]; }
+    const char& operator[](usize i) const { return data_[i]; }
 
 	// 文字列のappend
 	// ⚠ Capacityを超えた場合は、即座にstd::terminate()を呼び出す。
     FixedString& operator+=(const char* str) {
-        size_t len = std::strlen(str);
+        usize len = std::strlen(str);
         if (length_ + len > Capacity)
             std::terminate();
         std::memcpy(data_ + length_, str, len);
@@ -515,7 +536,7 @@ class FixedString {
     char        data_[Capacity + 1];  // +1 for null terminator
 
 	// 格納している文字列の長さ。
-    std::size_t length_;
+    usize length_;
 };
 
 // --------------------
@@ -1312,8 +1333,8 @@ void remove_whitespace(std::string& s);
 // スペース相当文字列かどうかを判定する。⇨ NUMAの処理に必要
 bool is_whitespace(std::string_view s);
 
-// "123"みたいな文字列を123のように数値型(size_t)に変換する。
-size_t str_to_size_t(const std::string& s);
+// "123"みたいな文字列を123のように数値型(usize)に変換する。
+usize str_to_size_t(const std::string& s);
 
 // --------------------
 //    Concurrent

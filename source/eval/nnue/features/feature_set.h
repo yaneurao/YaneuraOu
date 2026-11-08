@@ -135,7 +135,7 @@ class FeatureSet<FirstFeatureType, RemainingFeatureTypes...> :
 
  public:
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t kHashValue =
+  static constexpr u32 kHashValue =
       Head::kHashValue ^ (Tail::kHashValue << 1) ^ (Tail::kHashValue >> 31);
   // 特徴量の次元数
   static constexpr IndexType kDimensions =
@@ -201,7 +201,7 @@ class FeatureSet<FeatureType> : public FeatureSetBase<FeatureSet<FeatureType>> {
  public:
   // Hash value embedded in the evaluation file
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t kHashValue = FeatureType::kHashValue;
+  static constexpr u32 kHashValue = FeatureType::kHashValue;
   // Number of feature dimensions
   // 特徴量の次元数
   static constexpr IndexType kDimensions = FeatureType::kDimensions;

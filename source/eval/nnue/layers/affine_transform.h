@@ -15,10 +15,10 @@ namespace YaneuraOu {
 namespace Eval::NNUE::Layers {
 
 template<IndexType kInputDimensions, IndexType kPaddedInputDimensions, IndexType kOutputDimensions>
-static void affine_transform_unaligned(std::int32_t*       output,
-                                       const std::int8_t*  weights,
-                                       const std::int32_t* biases,
-                                       const std::uint8_t* input) {
+static void affine_transform_unaligned(i32*       output,
+                                       const i8*  weights,
+                                       const i32* biases,
+                                       const u8* input) {
 #if defined(USE_SSE2) || defined(USE_NEON)
 
 #if defined(USE_AVX512)
@@ -150,13 +150,13 @@ static void affine_transform_unaligned(std::int32_t*       output,
 #endif
     }
 #else
-    std::memcpy(output, biases, sizeof(std::int32_t) * kOutputDimensions);
+    std::memcpy(output, biases, sizeof(i32) * kOutputDimensions);
 
     // Traverse weights in transpose order to take advantage of input sparsity
     for (IndexType i = 0; i < kInputDimensions; ++i)
         if (input[i])
         {
-            const std::int8_t* w  = &weights[i];
+            const i8* w  = &weights[i];
             const int          in = input[i];
             for (IndexType j = 0; j < kOutputDimensions; ++j)
                 output[j] += w[j * kPaddedInputDimensions] * in;
@@ -172,8 +172,8 @@ class AffineTransform {
 	// Input/output type
 	// 入出力の型
 	using InputType  = typename PreviousLayer::OutputType;
-	using OutputType = std::int32_t;
-	static_assert(std::is_same<InputType, std::uint8_t>::value, "");
+	using OutputType = i32;
+	static_assert(std::is_same<InputType, u8>::value, "");
 
 	// Number of input/output dimensions
 	// 入出力の次元数
@@ -183,17 +183,17 @@ class AffineTransform {
 
 	// Size of forward propagation buffer used in this layer
 	// この層で使用する順伝播用バッファのサイズ
-	static constexpr std::size_t kSelfBufferSize =
+	static constexpr usize kSelfBufferSize =
 	    CeilToMultiple(kOutputDimensions * sizeof(OutputType), kCacheLineSize);
 
 	// Size of the forward propagation buffer used from the input layer to this layer
 	// 入力層からこの層までで使用する順伝播用バッファのサイズ
-	static constexpr std::size_t kBufferSize = PreviousLayer::kBufferSize + kSelfBufferSize;
+	static constexpr usize kBufferSize = PreviousLayer::kBufferSize + kSelfBufferSize;
 
 	// 評価関数ファイルに埋め込むハッシュ値
 	// Hash value embedded in the evaluation file
-	static constexpr std::uint32_t GetHashValue() {
-		std::uint32_t hash_value = 0xCC03DAE4u;
+	static constexpr u32 GetHashValue() {
+		u32 hash_value = 0xCC03DAE4u;
 		hash_value += kOutputDimensions;
 		hash_value ^= PreviousLayer::GetHashValue() >> 1;
 		hash_value ^= PreviousLayer::GetHashValue() << 31;
@@ -201,8 +201,8 @@ class AffineTransform {
 	}
 
 	// ハッシュ値を前段の値から更新するときのヘルパー
-	static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
-		std::uint32_t hash_value = 0xCC03DAE4u;
+	static constexpr u32 GetHashValue(u32 prevHash) {
+		u32 hash_value = 0xCC03DAE4u;
 		hash_value += kOutputDimensions;
 		hash_value ^= prevHash >> 1;
 		hash_value ^= prevHash << 31;
@@ -233,9 +233,9 @@ class AffineTransform {
 	Tools::Result ReadParameters(std::istream& stream) {
 		Tools::Result result = previous_layer_.ReadParameters(stream);
 		if (result.is_not_ok()) return result;
-		for (std::size_t i = 0; i < kOutputDimensions; ++i)
+		for (usize i = 0; i < kOutputDimensions; ++i)
 			biases_[i] = read_little_endian<BiasType>(stream);
-		for (std::size_t i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
+		for (usize i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
 			weights_[GetWeightIndex(IndexType(i))] = read_little_endian<WeightType>(stream);
 		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
@@ -262,10 +262,10 @@ class AffineTransform {
 			constexpr int n = kInputDimensions;
 			constexpr int m = kOutputDimensions;
 			constexpr int n_stride = kPaddedInputDimensions;
-			auto A = *reinterpret_cast<const int8_t(*)[m][n_stride]>(weights_);
-			auto x = *reinterpret_cast<const uint8_t(*)[n]>(input);
-			auto b = *reinterpret_cast<const int32_t(*)[m]>(biases_);
-			auto y = *reinterpret_cast<int32_t(*)[m]>(buffer);
+			auto A = *reinterpret_cast<const i8(*)[m][n_stride]>(weights_);
+			auto x = *reinterpret_cast<const u8(*)[n]>(input);
+			auto b = *reinterpret_cast<const i32(*)[m]>(biases_);
+			auto y = *reinterpret_cast<i32(*)[m]>(buffer);
 			emscripten_wasm_simd::affine<n, m, n_stride>(A, x, b, y);
 			return y;
 		}
@@ -282,7 +282,7 @@ class AffineTransform {
 				constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
 				constexpr IndexType kNumRegs = kOutputDimensions / 16;
 
-				const auto   input32 = reinterpret_cast<const std::int32_t*>(input);
+				const auto   input32 = reinterpret_cast<const i32*>(input);
 				const __m512i* biasvec = reinterpret_cast<const __m512i*>(biases_);
 				__m512i        acc[kNumRegs];
 
@@ -312,7 +312,7 @@ class AffineTransform {
 				constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
 				constexpr IndexType kNumRegs = kOutputDimensions / 8;
 
-				const auto   input32 = reinterpret_cast<const std::int32_t*>(input);
+				const auto   input32 = reinterpret_cast<const i32*>(input);
 				const __m256i* biasvec = reinterpret_cast<const __m256i*>(biases_);
 				__m256i        acc[kNumRegs];
 
@@ -342,7 +342,7 @@ class AffineTransform {
 				constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
 				constexpr IndexType kNumRegs = kOutputDimensions / 4;
 
-				const auto   input32 = reinterpret_cast<const std::int32_t*>(input);
+				const auto   input32 = reinterpret_cast<const i32*>(input);
 				const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases_);
 				__m128i        acc[kNumRegs];
 
@@ -373,7 +373,7 @@ class AffineTransform {
 				constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
 				constexpr IndexType kNumRegs = kOutputDimensions / kOutputSimdWidth;
 
-				const auto       input32 = reinterpret_cast<const std::int32_t*>(input);
+				const auto       input32 = reinterpret_cast<const i32*>(input);
 				const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases_);
 				int32x4_t        acc[kNumRegs];
 
@@ -461,7 +461,7 @@ class AffineTransform {
    private:
 	// パラメータの型
 	using BiasType   = OutputType;
-	using WeightType = std::int8_t;
+	using WeightType = i8;
 
 	// この層の直前の層
 	PreviousLayer previous_layer_;

@@ -55,7 +55,7 @@ struct SfnnNetwork {
 	Layers::ClippedReLUExplicit<Hidden2Dims> ac_1;
 	Layers::AffineTransformExplicit<Hidden2Dims, 1> fc_2;
 
-	using OutputType = std::int32_t;
+	using OutputType = i32;
 	static constexpr IndexType kOutputDimensions = 1;
 	static constexpr IndexType kInputDims = InputDims;
 	static constexpr IndexType kHidden1Dims = Hidden1Dims;
@@ -75,9 +75,9 @@ struct SfnnNetwork {
 #endif
 
 	using Buffer = SfnnNetworkBuffer<Fc0Layer, kHidden1Dims, kHidden2Dims, kUsePackedTail>;
-	static constexpr std::size_t kBufferSize = sizeof(Buffer);
+	static constexpr usize kBufferSize = sizeof(Buffer);
 
-	static constexpr std::uint32_t GetHashValue() {
+	static constexpr u32 GetHashValue() {
 		return 0x6333718Au;
 	}
 
@@ -100,7 +100,7 @@ struct SfnnNetwork {
 			&& fc_2.WriteParameters(stream);
 	}
 
-	static typename decltype(ac_0)::OutputType ClippedReLUValue(std::int32_t value) {
+	static typename decltype(ac_0)::OutputType ClippedReLUValue(i32 value) {
 		const auto shifted = value >> kWeightScaleBits;
 		if (shifted <= 0)
 			return 0;
@@ -109,7 +109,7 @@ struct SfnnNetwork {
 		return static_cast<typename decltype(ac_0)::OutputType>(shifted);
 	}
 
-	static typename decltype(ac_sqr_0)::OutputType SqrClippedReLUValue(std::int32_t value) {
+	static typename decltype(ac_sqr_0)::OutputType SqrClippedReLUValue(i32 value) {
 		const auto sqr = (static_cast<long long>(value) * value) >> (2 * kWeightScaleBits + 7);
 		return static_cast<typename decltype(ac_sqr_0)::OutputType>(sqr >= 127 ? 127 : sqr);
 	}
@@ -123,29 +123,29 @@ struct SfnnNetwork {
 	}
 
 	static void MakeHidden1InputPacked(const typename decltype(fc_0)::OutputType* input,
-	                                   std::uint32_t* output) {
+	                                   u32* output) {
 		constexpr IndexType kPackedWords = CeilToMultiple<IndexType>(kHidden1Dims * 2, 8) / 4;
 		if constexpr (kHidden1Dims == 7) {
-			const auto s0 = static_cast<std::uint32_t>(SqrClippedReLUValue(input[0]));
-			const auto s1 = static_cast<std::uint32_t>(SqrClippedReLUValue(input[1]));
-			const auto s2 = static_cast<std::uint32_t>(SqrClippedReLUValue(input[2]));
-			const auto s3 = static_cast<std::uint32_t>(SqrClippedReLUValue(input[3]));
-			const auto s4 = static_cast<std::uint32_t>(SqrClippedReLUValue(input[4]));
-			const auto s5 = static_cast<std::uint32_t>(SqrClippedReLUValue(input[5]));
-			const auto s6 = static_cast<std::uint32_t>(SqrClippedReLUValue(input[6]));
-			const auto c0 = static_cast<std::uint32_t>(ClippedReLUValue(input[0]));
-			const auto c1 = static_cast<std::uint32_t>(ClippedReLUValue(input[1]));
-			const auto c2 = static_cast<std::uint32_t>(ClippedReLUValue(input[2]));
-			const auto c3 = static_cast<std::uint32_t>(ClippedReLUValue(input[3]));
-			const auto c4 = static_cast<std::uint32_t>(ClippedReLUValue(input[4]));
-			const auto c5 = static_cast<std::uint32_t>(ClippedReLUValue(input[5]));
-			const auto c6 = static_cast<std::uint32_t>(ClippedReLUValue(input[6]));
+			const auto s0 = static_cast<u32>(SqrClippedReLUValue(input[0]));
+			const auto s1 = static_cast<u32>(SqrClippedReLUValue(input[1]));
+			const auto s2 = static_cast<u32>(SqrClippedReLUValue(input[2]));
+			const auto s3 = static_cast<u32>(SqrClippedReLUValue(input[3]));
+			const auto s4 = static_cast<u32>(SqrClippedReLUValue(input[4]));
+			const auto s5 = static_cast<u32>(SqrClippedReLUValue(input[5]));
+			const auto s6 = static_cast<u32>(SqrClippedReLUValue(input[6]));
+			const auto c0 = static_cast<u32>(ClippedReLUValue(input[0]));
+			const auto c1 = static_cast<u32>(ClippedReLUValue(input[1]));
+			const auto c2 = static_cast<u32>(ClippedReLUValue(input[2]));
+			const auto c3 = static_cast<u32>(ClippedReLUValue(input[3]));
+			const auto c4 = static_cast<u32>(ClippedReLUValue(input[4]));
+			const auto c5 = static_cast<u32>(ClippedReLUValue(input[5]));
+			const auto c6 = static_cast<u32>(ClippedReLUValue(input[6]));
 			output[0] = s0 | (s1 << 8) | (s2 << 16) | (s3 << 24);
 			output[1] = s4 | (s5 << 8) | (s6 << 16) | (c0 << 24);
 			output[2] = c1 | (c2 << 8) | (c3 << 16) | (c4 << 24);
 			output[3] = c5 | (c6 << 8);
 		} else {
-			std::memset(output, 0, kPackedWords * sizeof(std::uint32_t));
+			std::memset(output, 0, kPackedWords * sizeof(u32));
 			auto bytes = reinterpret_cast<typename decltype(ac_sqr_0)::OutputType*>(output);
 			for (IndexType i = 0; i < kHidden1Dims; ++i)
 				bytes[i] = SqrClippedReLUValue(input[i]);
@@ -157,7 +157,7 @@ struct SfnnNetwork {
 	template <typename BufferType>
 	const OutputType* PropagateTail(BufferType& buf) const {
 		if constexpr (kUsePackedTail) {
-			std::uint32_t ac_sqr_0_packed[CeilToMultiple<IndexType>(kHidden1Dims * 2, 8) / 4];
+			u32 ac_sqr_0_packed[CeilToMultiple<IndexType>(kHidden1Dims * 2, 8) / 4];
 			MakeHidden1InputPacked(buf.fc_0_out, ac_sqr_0_packed);
 			fc_1.PropagateClippedReLUPackedToOutput(ac_sqr_0_packed, fc_2, buf.fc_2_out);
 		} else {

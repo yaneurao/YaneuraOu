@@ -22,9 +22,9 @@ namespace YaneuraOu {
 Thread::Thread(Search::SharedState& sharedState,
                //std::unique_ptr<Search::ISearchManager> sm,
                Search::WorkerFactory          worker_factory,
-               size_t                         n,               // threadIdx
-               size_t                         numaN,           // numaThreadIdx
-               size_t                         totalNumaCount,  // numaTotal
+               usize                         n,               // threadIdx
+               usize                         numaN,           // numaThreadIdx
+               usize                         totalNumaCount,  // numaTotal
                OptionalThreadToNumaNodeBinder binder) :
     idx(n),
     idxInNuma(numaN),
@@ -173,7 +173,7 @@ void Thread::idle_loop() {
 uint64_t ThreadPool::nodes_searched() const { return accumulate(&Search::Worker::nodes); }
 //uint64_t ThreadPool::tb_hits() const { return accumulate(&Search::Worker::tbHits); }
 
-static size_t next_power_of_two(uint64_t count) { return count > 1 ? (2ULL << msb(count - 1)) : 1; }
+static usize next_power_of_two(uint64_t count) { return count > 1 ? (2ULL << msb(count - 1)) : 1; }
 
 // Creates/destroys threads to match the requested number.
 // Created and launched threads will immediately go to sleep in idle_loop.
@@ -187,7 +187,7 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
                      Search::SharedState sharedState,
                      const Search::UpdateContext& updateContext,
                      // 🤔 やねうら王ではさらに抽象化する。
-                     size_t                       requested_threads,
+                     usize                       requested_threads,
                      const Search::WorkerFactory& worker_factory
 ) {
 
@@ -211,9 +211,9 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
     }
 
 #if STOCKFISH
-    const size_t requested = sharedState.options["Threads"];
+    const usize requested = sharedState.options["Threads"];
 #else
-    const size_t requested = requested_threads;
+    const usize requested = requested_threads;
     // 🤔 やねうら王では、ここ、"Threads"の値を反映させたくない。(DL系などで、ここに柔軟性が必要)
 #endif
 
@@ -258,7 +258,7 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
             return true;
         }();
 
-        std::map<NumaIndex, size_t> counts;
+        std::map<NumaIndex, usize> counts;
 
         boundThreadToNumaNode = doBindThreads
                                 ? numaConfig.distribute_threads_among_numa_nodes(requested)
@@ -268,7 +268,7 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
             counts[0] = requested;  // Pretend all threads are part of numa node 0
         else
         {
-            for (size_t i = 0; i < boundThreadToNumaNode.size(); ++i)
+            for (usize i = 0; i < boundThreadToNumaNode.size(); ++i)
                 counts[boundThreadToNumaNode[i]]++;
         }
 
@@ -291,7 +291,7 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
 
         while (threads.size() < requested)
         {
-            const size_t    threadId      = threads.size();
+            const usize    threadId      = threads.size();
             const NumaIndex numaId        = doBindThreads ? boundThreadToNumaNode[threadId] : 0;
             auto create_thread = [&]() {
 #if STOCKFISH
@@ -378,17 +378,17 @@ void ThreadPool::clear() {
 #endif
 }
 
-void ThreadPool::run_on_thread(size_t threadId, std::function<void()> f) {
+void ThreadPool::run_on_thread(usize threadId, std::function<void()> f) {
 	assert(threads.size() > threadId);
 	threads[threadId]->run_custom_job(std::move(f));
 }
 
-void ThreadPool::wait_on_thread(size_t threadId) {
+void ThreadPool::wait_on_thread(usize threadId) {
 	assert(threads.size() > threadId);
 	threads[threadId]->wait_for_search_finished();
 }
 
-size_t ThreadPool::num_threads() const { return threads.size(); }
+usize ThreadPool::num_threads() const { return threads.size(); }
 
 
 // Wakes up main thread waiting in idle_loop() and returns immediately.
@@ -570,8 +570,8 @@ void ThreadPool::wait_for_search_finished() const {
 			th->wait_for_search_finished();
 }
 
-std::vector<size_t> ThreadPool::get_bound_thread_count_by_numa_node() const {
-	std::vector<size_t> counts;
+std::vector<usize> ThreadPool::get_bound_thread_count_by_numa_node() const {
+	std::vector<usize> counts;
 
 	if (!boundThreadToNumaNode.empty())
 	{

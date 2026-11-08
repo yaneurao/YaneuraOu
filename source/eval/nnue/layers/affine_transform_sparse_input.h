@@ -19,8 +19,8 @@ namespace Eval::NNUE::Layers {
 #if defined(USE_SSSE3) || USE_NEON >= 8
 
 alignas(kCacheLineSize) static inline const
-  std::array<std::array<std::uint16_t, 8>, 256> lookup_indices = []() {
-      std::array<std::array<std::uint16_t, 8>, 256> v{};
+  std::array<std::array<u16, 8>, 256> lookup_indices = []() {
+      std::array<std::array<u16, 8>, 256> v{};
       for (unsigned i = 0; i < 256; ++i)
       {
           std::uint64_t j = i, k = 0;
@@ -30,9 +30,9 @@ alignas(kCacheLineSize) static inline const
       return v;
   }();
 
-// Find indices of nonzero numbers in an int32_t array
+// Find indices of nonzero numbers in an i32 array
 template<const IndexType kInputDimensions>
-void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_out) {
+void find_nnz(const i32* input, u16* out, IndexType& count_out) {
 #if defined(USE_SSSE3)
 #if defined(USE_AVX512)
     using vec_t = __m512i;
@@ -59,17 +59,17 @@ void find_nnz(const std::int32_t* input, std::uint16_t* out, IndexType& count_ou
 #define vec128_add(a, b) _mm_add_epi16(a, b)
 #elif defined(USE_NEON)
     using vec_t                        = uint32x4_t;
-	static constexpr std::uint32_t Mask[4] = {1, 2, 4, 8};
+	static constexpr u32 Mask[4] = {1, 2, 4, 8};
 #define vec_nnz(a) vaddvq_u32(vandq_u32(vtstq_u32(a, a), vld1q_u32(Mask)))
     using vec128_t                     = uint16x8_t;
 #define vec128_zero vdupq_n_u16(0)
 #define vec128_set_16(a) vdupq_n_u16(a)
-#define vec128_load(a) vld1q_u16(reinterpret_cast<const std::uint16_t*>(a))
-#define vec128_storeu(a, b) vst1q_u16(reinterpret_cast<std::uint16_t*>(a), b)
+#define vec128_load(a) vld1q_u16(reinterpret_cast<const u16*>(a))
+#define vec128_storeu(a, b) vst1q_u16(reinterpret_cast<u16*>(a), b)
 #define vec128_add(a, b) vaddq_u16(a, b)
 #endif
 
-    constexpr IndexType kInputSimdWidth = sizeof(vec_t) / sizeof(std::int32_t);
+    constexpr IndexType kInputSimdWidth = sizeof(vec_t) / sizeof(i32);
     // Inputs are processed kInputSimdWidth at a time and outputs are processed 8 at a time so we process in chunks of max(kInputSimdWidth, 8)
     constexpr IndexType kChunkSize       = std::max<IndexType>(kInputSimdWidth, 8);
     constexpr IndexType kNumChunks       = kInputDimensions / kChunkSize;
@@ -118,8 +118,8 @@ class AffineTransformSparseInput {
 	// Input/output type
 	// 入出力の型
 	using InputType  = typename PreviousLayer::OutputType;
-	using OutputType = std::int32_t;
-	static_assert(std::is_same<InputType, std::uint8_t>::value, "");
+	using OutputType = i32;
+	static_assert(std::is_same<InputType, u8>::value, "");
 
 	// Number of input/output dimensions
 	// 入出力の次元数
@@ -129,12 +129,12 @@ class AffineTransformSparseInput {
 
 	// Size of forward propagation buffer used in this layer
 	// この層で使用する順伝播用バッファのサイズ
-	static constexpr std::size_t kSelfBufferSize =
+	static constexpr usize kSelfBufferSize =
 	    CeilToMultiple(kOutputDimensions * sizeof(OutputType), kCacheLineSize);
 
 	// Size of the forward propagation buffer used from the input layer to this layer
 	// 入力層からこの層までで使用する順伝播用バッファのサイズ
-	static constexpr std::size_t kBufferSize = PreviousLayer::kBufferSize + kSelfBufferSize;
+	static constexpr usize kBufferSize = PreviousLayer::kBufferSize + kSelfBufferSize;
 
 #if defined(USE_SSSE3) || USE_NEON >= 8
     static constexpr IndexType kChunkSize = 4;
@@ -144,8 +144,8 @@ class AffineTransformSparseInput {
 
 	// 評価関数ファイルに埋め込むハッシュ値
 	// Hash value embedded in the evaluation file
-	static constexpr std::uint32_t GetHashValue() {
-		std::uint32_t hash_value = 0xCC03DAE4u;
+	static constexpr u32 GetHashValue() {
+		u32 hash_value = 0xCC03DAE4u;
 		hash_value += kOutputDimensions;
 		hash_value ^= PreviousLayer::GetHashValue() >> 1;
 		hash_value ^= PreviousLayer::GetHashValue() << 31;
@@ -153,8 +153,8 @@ class AffineTransformSparseInput {
 	}
 
 	// ハッシュ値を前段の値から更新するときのヘルパー
-	static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
-		std::uint32_t hash_value = 0xCC03DAE4u;
+	static constexpr u32 GetHashValue(u32 prevHash) {
+		u32 hash_value = 0xCC03DAE4u;
 		hash_value += kOutputDimensions;
 		hash_value ^= prevHash >> 1;
 		hash_value ^= prevHash << 31;
@@ -185,9 +185,9 @@ class AffineTransformSparseInput {
 	Tools::Result ReadParameters(std::istream& stream) {
 		Tools::Result result = previous_layer_.ReadParameters(stream);
 		if (result.is_not_ok()) return result;
-		for (std::size_t i = 0; i < kOutputDimensions; ++i)
+		for (usize i = 0; i < kOutputDimensions; ++i)
 			biases_[i] = read_little_endian<BiasType>(stream);
-		for (std::size_t i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
+		for (usize i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
 			weights_[GetWeightIndex(IndexType(i))] = read_little_endian<WeightType>(stream);
 		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
@@ -215,10 +215,10 @@ class AffineTransformSparseInput {
 			constexpr int n = kInputDimensions;
 			constexpr int m = kOutputDimensions;
 			constexpr int n_stride = kPaddedInputDimensions;
-			auto A = *reinterpret_cast<const int8_t(*)[m][n_stride]>(weights_);
-			auto x = *reinterpret_cast<const uint8_t(*)[n]>(input);
-			auto b = *reinterpret_cast<const int32_t(*)[m]>(biases_);
-			auto y = *reinterpret_cast<int32_t(*)[m]>(buffer);
+			auto A = *reinterpret_cast<const i8(*)[m][n_stride]>(weights_);
+			auto x = *reinterpret_cast<const u8(*)[n]>(input);
+			auto b = *reinterpret_cast<const i32(*)[m]>(biases_);
+			auto y = *reinterpret_cast<i32(*)[m]>(buffer);
 			emscripten_wasm_simd::affine<n, m, n_stride>(A, x, b, y);
 			return y;
 		}
@@ -231,10 +231,10 @@ class AffineTransformSparseInput {
         {
             constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kNumRegs   = kOutputDimensions / 16;
-            std::uint16_t       nnz[kNumChunks];
+            u16       nnz[kNumChunks];
             IndexType           count;
 
-            const auto input32 = reinterpret_cast<const std::int32_t*>(input);
+            const auto input32 = reinterpret_cast<const i32*>(input);
 
             // Find indices of nonzero 32-bit blocks
             find_nnz<kNumChunks>(input32, nnz, count);
@@ -268,10 +268,10 @@ class AffineTransformSparseInput {
         {
             constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kNumRegs   = kOutputDimensions / 8;
-            std::uint16_t       nnz[kNumChunks];
+            u16       nnz[kNumChunks];
             IndexType           count;
 
-            const auto input32 = reinterpret_cast<const std::int32_t*>(input);
+            const auto input32 = reinterpret_cast<const i32*>(input);
 
             // Find indices of nonzero 32-bit blocks
             find_nnz<kNumChunks>(input32, nnz, count);
@@ -305,10 +305,10 @@ class AffineTransformSparseInput {
         {
             constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kNumRegs   = kOutputDimensions / 4;
-            std::uint16_t       nnz[kNumChunks];
+            u16       nnz[kNumChunks];
             IndexType           count;
 
-            const auto input32 = reinterpret_cast<const std::int32_t*>(input);
+            const auto input32 = reinterpret_cast<const i32*>(input);
 
             // Find indices of nonzero 32-bit blocks
             find_nnz<kNumChunks>(input32, nnz, count);
@@ -343,10 +343,10 @@ class AffineTransformSparseInput {
             constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
             constexpr IndexType kNumRegs   = kOutputDimensions / kOutputSimdWidth;
-            std::uint16_t       nnz[kNumChunks];
+            u16       nnz[kNumChunks];
             IndexType           count;
 
-            const auto input32 = reinterpret_cast<const std::int32_t*>(input);
+            const auto input32 = reinterpret_cast<const i32*>(input);
 
             // Find indices of nonzero 32-bit blocks
             find_nnz<kNumChunks>(input32, nnz, count);
@@ -392,7 +392,7 @@ class AffineTransformSparseInput {
    private:
 	// パラメータの型
 	using BiasType   = OutputType;
-	using WeightType = std::int8_t;
+	using WeightType = i8;
 
 	// この層の直前の層
 	PreviousLayer previous_layer_;

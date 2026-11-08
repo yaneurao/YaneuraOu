@@ -98,10 +98,10 @@ namespace Progress {
 
 		Tools::Result ReadParameters(std::istream& stream);
 
-		std::int64_t SumQ16(const Position& pos) const;
+		i64 SumQ16(const Position& pos) const;
 		int BucketIndex(const Position& pos, int bucket_count) const;
 
-		std::int32_t weights_q16_[SQ_NB][Eval::fe_end] = {};
+		i32 weights_q16_[SQ_NB][Eval::fe_end] = {};
 	};
 
 } // namespace Progress
@@ -110,11 +110,11 @@ namespace Progress {
 	// Hash value of evaluation function structure
 	// 評価関数の構造のハッシュ値
 #if defined(SFNNwoPSQT)
-	constexpr std::uint32_t kSfnnBaseHashValue = 0x3c203b32u;
-	constexpr std::uint32_t kHashValue = kSfnnBaseHashValue;
+	constexpr u32 kSfnnBaseHashValue = 0x3c203b32u;
+	constexpr u32 kHashValue = kSfnnBaseHashValue;
 	constexpr int kLayerStacks = LayerStacks;
 #else
-	constexpr std::uint32_t kHashValue =
+	constexpr u32 kHashValue =
 	    FeatureTransformer::GetHashValue() ^ Network::GetHashValue();
 	constexpr int kLayerStacks = 1;
 #endif
@@ -147,11 +147,11 @@ namespace Progress {
 
 	// ヘッダを読み込む
 	Tools::Result ReadHeader(std::istream& stream,
-	    std::uint32_t* hash_value, std::string* architecture, std::uint32_t* version_out = nullptr);
+	    u32* hash_value, std::string* architecture, u32* version_out = nullptr);
 
 	// ヘッダを書き込む
 	bool WriteHeader(std::ostream& stream,
-	    std::uint32_t hash_value, const std::string& architecture);
+	    u32 hash_value, const std::string& architecture);
 
 	// 評価関数パラメータを読み込む
 	// On a sidecar read failure, replace failed_file with its path.
@@ -167,8 +167,8 @@ namespace Progress {
 // 同一の評価関数パラメーターを持つプロセス同士で自動的にメモリが共有される。
 template<>
 struct std::hash<YaneuraOu::Eval::NNUE::NnueNetworks> {
-	std::size_t operator()(const YaneuraOu::Eval::NNUE::NnueNetworks& n) const noexcept {
-		return static_cast<std::size_t>(
+	YaneuraOu::usize operator()(const YaneuraOu::Eval::NNUE::NnueNetworks& n) const noexcept {
+		return static_cast<YaneuraOu::usize>(
 			YaneuraOu::hash_bytes(reinterpret_cast<const char*>(&n), sizeof(n)));
 	}
 };

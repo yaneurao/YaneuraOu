@@ -21,7 +21,7 @@ namespace Eval::NNUE::Features {
 		static constexpr const char* kName =
 			(AssociatedKing == Side::kFriend) ? "HalfKA1(Friend)" : "HalfKA(Enemy)";
 		// 評価関数ファイルに埋め込むハッシュ値
-		static constexpr std::uint32_t kHashValue =
+		static constexpr u32 kHashValue =
 			0x5f134cb9u ^ (AssociatedKing == Side::kFriend);
 		// 特徴量の次元数
 		// 両玉を区別して含める

@@ -53,8 +53,8 @@ class Position;
 
 constexpr int     int_max   = (std::numeric_limits<int>    ::max)();
 constexpr int     int_min   = (std::numeric_limits<int>    ::min)();
-constexpr int64_t int64_max = (std::numeric_limits<int64_t>::max)();
-constexpr int64_t int64_min = (std::numeric_limits<int64_t>::min)();
+constexpr i64 int64_max = (std::numeric_limits<i64>::max)();
+constexpr i64 int64_min = (std::numeric_limits<i64>::min)();
 constexpr size_t  size_max  = (std::numeric_limits<size_t> ::max)();
 constexpr size_t  size_min  = (std::numeric_limits<size_t> ::min)();
 
@@ -63,7 +63,7 @@ constexpr size_t  size_min  = (std::numeric_limits<size_t> ::min)();
 // --------------------
 
 // 手番
-enum Color : uint8_t { BLACK = 0/*先手*/, WHITE = 1/*後手*/, COLOR_NB /* = 2 */ , COLOR_ZERO = 0,};
+enum Color : u8 { BLACK = 0/*先手*/, WHITE = 1/*後手*/, COLOR_NB /* = 2 */ , COLOR_ZERO = 0,};
 
 // 相手番を返す
 constexpr Color operator ~(Color c) { return (Color)(c ^ 1);  }
@@ -81,7 +81,7 @@ std::ostream& operator<<(std::ostream& os, Color c);
 
 //  例) FILE_3なら3筋。
 // 📝 Stockfishではuint8_tに変更になっているが、それだとダウンカウントできないのであとで見直す。
-enum File : int8_t { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 , FILE_NB , FILE_ZERO=0 };
+enum File : i8 { FILE_1, FILE_2, FILE_3, FILE_4, FILE_5, FILE_6, FILE_7, FILE_8, FILE_9 , FILE_NB , FILE_ZERO=0 };
 
 // 正常な値であるかを検査する。assertで使う用。
 constexpr bool is_ok(File f) { return FILE_ZERO <= f && f < FILE_NB; }
@@ -103,7 +103,7 @@ static std::ostream& operator<<(std::ostream& os, File f) { os << (char)('1' + f
 
 // 例) RANK_4なら4段目。
 // 📝 Stockfishではuint8_tに変更になっているが、それだとダウンカウントできないのであとで見直す。
-enum Rank : int8_t { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9 , RANK_NB , RANK_ZERO = 0};
+enum Rank : i8 { RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8, RANK_9 , RANK_NB , RANK_ZERO = 0};
 
 // 正常な値であるかを検査する。assertで使う用。
 constexpr bool is_ok(Rank r) { return RANK_ZERO <= r && r < RANK_NB; }
@@ -140,7 +140,7 @@ static std::ostream& operator<<(std::ostream& os, Rank r) { os << (char)('a' + r
 // 盤上右上(１一が0)、左下(９九)が80
 // 方角を表現するときにマイナスの値を使うので符号型である必要がある。
 // ⚠ SQ_NB * 2 は、負の数になるからint(SQ_NB)のようなcastが必要。
-enum Square : int8_t
+enum Square : i8
 {
 	// 以下、盤面の右上から左下までの定数。
 	// これを定義していなくとも問題ないのだが、デバッガでSquare型を見たときに
@@ -278,7 +278,7 @@ static std::ostream& operator<<(std::ostream& os, Square sq) { os << file_of(sq)
 // bit 14..18 : いまの升から盤外まで何升上に(略
 // bit 19..23 : いまの升から盤外まで何升下に(略
 // bit 24..28 : いまの升から盤外まで何升左に(略
-enum SquareWithWall : int32_t {
+enum SquareWithWall : i32 {
 	// 相対移動するときの差分値
 	SQWW_R = SQ_R - (1 << 9) + (1 << 24), SQWW_U = SQ_U - (1 << 14) + (1 << 19), SQWW_D = -int(SQWW_U), SQWW_L = -int(SQWW_R),
 	SQWW_RU = int(SQWW_R) + int(SQWW_U), SQWW_RD = int(SQWW_R) + int(SQWW_D), SQWW_LU = int(SQWW_L) + int(SQWW_U), SQWW_LD = int(SQWW_L) + int(SQWW_D),
@@ -317,7 +317,7 @@ namespace Effect8
 	// 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
 	// bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
 	// 同時に複数のbitが1であることがありうる。
-	enum Directions : uint8_t {
+	enum Directions : u8 {
 		DIRECTIONS_ZERO  = 0, DIRECTIONS_RU = 1, DIRECTIONS_R = 2, DIRECTIONS_RD = 4,
 		DIRECTIONS_U     = 8, DIRECTIONS_D = 16, DIRECTIONS_LU = 32, DIRECTIONS_L = 64, DIRECTIONS_LD = 128,
 		DIRECTIONS_CROSS = DIRECTIONS_U  | DIRECTIONS_D  | DIRECTIONS_R  | DIRECTIONS_L,
@@ -425,7 +425,7 @@ constexpr Depth DEPTH_NONE         = -3;
 // searchで探索窓を設定するので、この窓の範囲外の値が返ってきた場合、
 // high fail時はこの値は上界(真の値はこれより小さい)、low fail時はこの値は下界(真の値はこれより大きい)
 // である。
-enum Bound : uint8_t {
+enum Bound : u8 {
 	BOUND_NONE,  // 探索していない(DEPTH_NONE)ときに、最善手か、静的評価スコアだけを置換表に格納したいときに用いる。
 	BOUND_UPPER, // 上界(真の評価値はこれより小さい) = 詰みのスコアや、nonPVで評価値があまり信用ならない状態であることを表現する。
 	BOUND_LOWER, // 下界(真の評価値はこれより大きい)
@@ -535,7 +535,7 @@ constexpr bool is_decisive(Value value) { return is_win(value) || is_loss(value)
 extern const char* USI_PIECE;
 
 // 駒の種類(先後の区別なし)
-enum PieceType : uint8_t
+enum PieceType : u8
 {
 	// 金の順番を飛の後ろにしておく。KINGを8にしておく。
 	// こうすることで、成りを求めるときに pc |= 8;で求まり、かつ、先手の全種類の駒を列挙するときに空きが発生しない。(DRAGONが終端になる)
@@ -570,7 +570,7 @@ enum PieceType : uint8_t
 };
 
 // 駒(先後の区別あり)
-enum Piece : uint8_t
+enum Piece : u8
 {
 	NO_PIECE = 0,
 
@@ -711,7 +711,7 @@ std::string to_usi_string(Move16 m);
 // なので、Moveが使うのは、16bit(Move16) + 5bit(Piece) = 下位21bit
 //
 
-enum MoveEnum : uint32_t {
+enum MoveEnum : u32 {
 	MOVE_NONE    = 0,             // 無効な移動
 
 	MOVE_NULL    = (1 << 7) + 1,  // NULL MOVEを意味する指し手。Square(1)からSquare(1)への移動は存在しないのでここを特殊な記号として使う。
@@ -724,7 +724,7 @@ enum MoveEnum : uint32_t {
 
 // Stockfishとの互換性を保つために導入。
 // 普通の指し手か成りの指し手かを判定するのに用いる。
-enum MoveType : uint16_t {
+enum MoveType : u16 {
     NORMAL,
 #if STOCKFISH
     PROMOTION  = 1 << 14,
@@ -741,7 +741,7 @@ class Move
 {
 public:
 	Move() = default;
-	constexpr explicit Move(std::uint32_t d): data(d) {}
+	constexpr explicit Move(u32 d): data(d) {}
 
 	// -- 定数
 
@@ -812,13 +812,13 @@ public:
 
 	// Move16への変換子
 	Move16 to_move16() const;
-	constexpr uint16_t to_u16() const { return uint16_t(data); }
-	constexpr uint32_t to_u32() const { return uint32_t(data); }
+	constexpr u16 to_u16() const { return u16(data); }
+	constexpr u32 to_u32() const { return u32(data); }
 	constexpr explicit operator bool() const { return data != 0; }
-	constexpr explicit operator uint32_t() const { return uint32_t(data); }
+	constexpr explicit operator u32() const { return u32(data); }
 
 	// 下位16bit(from,to,drop,promote)をそのまま返す。
-    constexpr std::uint16_t raw() const { return uint16_t(data); }
+    constexpr u16 raw() const { return u16(data); }
 
 	// -- 文字列化
 
@@ -830,11 +830,11 @@ public:
 
 	// -- unordered_mapなどで比較するときに用いる。operator<()は定義したくないので、こちらを用いる。
 	struct MoveHash {
-		std::size_t operator()(const Move& m) const { return make_key(m.data); }
+		usize operator()(const Move& m) const { return make_key(m.data); }
 	};
 
 protected:
-	std::uint32_t data;
+	u32 data;
 };
 
 // 16bit型の指し手。Move型の下位16bit。
@@ -870,7 +870,7 @@ public:
 	constexpr PieceType move_dropped_piece() const { return PieceType((data >> 7) & 0x7f); }
 
 	// 16bit(from,to,drop,promote)をそのまま返す。
-    constexpr std::uint16_t raw() const { return uint16_t(data); }
+    constexpr u16 raw() const { return u16(data); }
 
 	constexpr MoveType type_of() { return MoveType(data & (MOVE_PROMOTE | MOVE_DROP)); }
 	constexpr bool is_ok() const { return (data >> 7) != (data & 0x7f); }
@@ -889,7 +889,7 @@ public:
 	// Moveに変換が必要なときは、そのあとMove()にcastすることはできる。(上位16bitは0のまま)
 	// 内部的に用いる。基本的にはこの関数を呼び出さないこと。
 	// ⇨ このMove16のinstanceをMoveに戻したい時は、Position::to_move(Move16)を使うこと。
-	constexpr uint16_t to_u16() const { return (u16)data; }
+	constexpr u16 to_u16() const { return (u16)data; }
 
 	//constexpr operator bool() const { return data; }
 	// ⇨ これ定義していると余計なバグに悩まされることになる。
@@ -903,7 +903,7 @@ public:
 	static Move16 from_string(const std::string usi_move);
 
 protected:
-	uint16_t data;
+	u16 data;
 };
 
 // USI形式で指し手を表示する
@@ -962,7 +962,7 @@ static std::string pretty(Move m, PieceType movedPieceType) { return pretty(m, (
 // 歩の枚数を8bit、香、桂、銀、角、飛、金を4bitずつで持つ。こうすると16進数表示したときに綺麗に表示される。(なのはのアイデア)
 // 最小でも5bit(歩) + 3bit*4(それ以外) + 2bit*2(飛・角) = 21bit。
 // 📝 これ詰めてもいいが、そうすると角が4枚のような盤面を与えられたときに隣のbitにoverflowしてしまうのであまりいいとも言えない。
-enum Hand : uint32_t { HAND_ZERO = 0, };
+enum Hand : u32 { HAND_ZERO = 0, };
 
 // 手駒のbit位置
 constexpr int PIECE_BITS[PIECE_HAND_NB] = { 0, 0 /*歩*/, 8 /*香*/, 12 /*桂*/, 16 /*銀*/, 20 /*角*/, 24 /*飛*/ , 28 /*金*/ };
@@ -1020,7 +1020,7 @@ constexpr u32 hand_except_pawn_exists(Hand hand) { return hand & (HAND_BIT_MASK 
 
 // 持っている駒種に対応する7bitの値を返す。
 // bit0..6 : 歩, 香 , 桂 , 銀 , 角 , 飛 , 金 の順番。
-static uint32_t hand_exists_7bit(Hand h) {
+static u32 hand_exists_7bit(Hand h) {
     // 枚数が1以上なら、引き算により HAND_BORROW_MASK の該当ビットが 0 になる。
     // それを反転 (~ ) して PEXT で集約すれば 7bit のフラグが得られる。
     return PEXT32(~(HAND_BORROW_MASK - h), HAND_BORROW_MASK);
@@ -1052,7 +1052,7 @@ std::ostream& operator<<(std::ostream& os, Hand hand);
 
 // 特定種の手駒を持っているかどうかをbitで表現するクラス	
 // bit0..歩を持っているか , bit1..香 , bit2..桂 , bit3..銀 , bit4..角 , bit5..飛 , bit6..金 , bit7..玉(フラグとして用いるため)	
-enum HandKind : uint32_t {
+enum HandKind : u32 {
 	HAND_KIND_PAWN = 1 << (PAWN - 1), HAND_KIND_LANCE = 1 << (LANCE - 1), HAND_KIND_KNIGHT = 1 << (KNIGHT - 1),
 	HAND_KIND_SILVER = 1 << (SILVER - 1), HAND_KIND_BISHOP = 1 << (BISHOP - 1), HAND_KIND_ROOK = 1 << (ROOK - 1), HAND_KIND_GOLD = 1 << (GOLD - 1),
 	HAND_KIND_KING = 1 << (KING - 1), HAND_KIND_ZERO = 0,
@@ -1144,7 +1144,7 @@ namespace Eval
 	 　	2) ここが32bitであってもそんなに速度低下しないし、それはSSE4.2以前に限るから許容範囲。
 		という2つの理由から、32bitに固定する。
 */
-enum BonaPiece : int32_t;
+enum BonaPiece : i32;
 
 }
 
@@ -1193,7 +1193,7 @@ struct std::hash<YaneuraOu::Move16> {
 
 // TimePointの定義。💡Stockfishではmisc.hにある。
 typedef std::chrono::milliseconds::rep TimePoint;
-static_assert(sizeof(TimePoint) == sizeof(int64_t), "TimePoint should be 64 bits");
+static_assert(sizeof(TimePoint) == sizeof(YaneuraOu::i64), "TimePoint should be 64 bits");
 
 // 自作エンジンのEntry Point。
 // 使い方は自作エンジンのサンプルであるUSER_ENGINEの user-engine/user-search.cpp を参考にすること。

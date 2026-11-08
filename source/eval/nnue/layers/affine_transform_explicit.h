@@ -23,8 +23,8 @@ class AffineTransformExplicit {
 
    public:
         // Input/output type
-        using InputType = std::uint8_t;
-        using OutputType = std::int32_t;
+        using InputType = u8;
+        using OutputType = i32;
 
         // Number of input/output dimensions
         static constexpr IndexType kInputDimensions       = InputDimensions;
@@ -39,8 +39,8 @@ class AffineTransformExplicit {
         using OutputBuffer = OutputType[kPaddedOutputDimensions];
 
         // Hash value embedded in the evaluation file
-        static constexpr std::uint32_t GetHashValue(std::uint32_t prevHash) {
-                std::uint32_t hash_value = 0xCC03DAE4u;
+        static constexpr u32 GetHashValue(u32 prevHash) {
+                u32 hash_value = 0xCC03DAE4u;
                 hash_value += kOutputDimensions;
                 hash_value ^= prevHash >> 1;
                 hash_value ^= prevHash << 31;
@@ -67,9 +67,9 @@ class AffineTransformExplicit {
 
         // Read network parameters
         Tools::Result ReadParameters(std::istream& stream) {
-                for (std::size_t i = 0; i < kOutputDimensions; ++i)
+                for (usize i = 0; i < kOutputDimensions; ++i)
                         biases_[i] = read_little_endian<BiasType>(stream);
-                for (std::size_t i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
+                for (usize i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
                         weights_[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
                 if constexpr (kHasClippedReLUPackedWeights) {
                         constexpr IndexType kDwordCount = kPaddedInputDimensions / 4;
@@ -102,10 +102,10 @@ class AffineTransformExplicit {
                         constexpr int n = kInputDimensions;
                         constexpr int m = kOutputDimensions;
                         constexpr int n_stride = kPaddedInputDimensions;
-                        auto A = *reinterpret_cast<const int8_t(*)[m][n_stride]>(weights_);
-                        auto x = *reinterpret_cast<const uint8_t(*)[n]>(input);
-                        auto b = *reinterpret_cast<const int32_t(*)[m]>(biases_);
-                        auto y = *reinterpret_cast<int32_t(*)[m]>(output);
+                        auto A = *reinterpret_cast<const i8(*)[m][n_stride]>(weights_);
+                        auto x = *reinterpret_cast<const u8(*)[n]>(input);
+                        auto b = *reinterpret_cast<const i32(*)[m]>(biases_);
+                        auto y = *reinterpret_cast<i32(*)[m]>(output);
                         emscripten_wasm_simd::affine<n, m, n_stride>(A, x, b, y);
                         return; // void return
                 }
@@ -128,7 +128,7 @@ class AffineTransformExplicit {
                                 constexpr IndexType kActualNumRegs = kNumAccums;
 #endif
 
-                                const auto   input32 = reinterpret_cast<const std::int32_t*>(input);
+                                const auto   input32 = reinterpret_cast<const i32*>(input);
                                 const __m512i* biasvec = reinterpret_cast<const __m512i*>(biases_);
                                 __m512i        acc[kActualNumRegs];
 
@@ -190,7 +190,7 @@ class AffineTransformExplicit {
                                 constexpr IndexType kActualNumRegs = kNumAccums;
 #endif
 
-                                const auto   input32 = reinterpret_cast<const std::int32_t*>(input);
+                                const auto   input32 = reinterpret_cast<const i32*>(input);
                                 const __m256i* biasvec = reinterpret_cast<const __m256i*>(biases_);
                                 __m256i        acc[kActualNumRegs];
 
@@ -245,7 +245,7 @@ class AffineTransformExplicit {
                                 constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
                                 constexpr IndexType kNumRegs = kOutputDimensions / 4;
 
-                                const auto   input32 = reinterpret_cast<const std::int32_t*>(input);
+                                const auto   input32 = reinterpret_cast<const i32*>(input);
                                 const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases_);
                                 __m128i        acc[kNumRegs];
 
@@ -276,7 +276,7 @@ class AffineTransformExplicit {
                                 constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
                                 constexpr IndexType kNumRegs = kOutputDimensions / kOutputSimdWidth;
 
-                                const auto       input32 = reinterpret_cast<const std::int32_t*>(input);
+                                const auto       input32 = reinterpret_cast<const i32*>(input);
                                 const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases_);
                                 int32x4_t        acc[kNumRegs];
 
@@ -361,7 +361,7 @@ class AffineTransformExplicit {
 
 #if defined(USE_AVX512)
         void PropagateClippedReLUPackedToOutput(
-            const std::uint32_t* input32,
+            const u32* input32,
             const AffineTransformExplicit<kOutputDimensions, 1>& next_layer,
             OutputType* output) const {
                 if constexpr (kOutputDimensions == 64) {
@@ -446,13 +446,13 @@ class AffineTransformExplicit {
             const AffineTransformExplicit<kOutputDimensions, 1>& next_layer,
             OutputType* output) const {
                 PropagateClippedReLUPackedToOutput(
-                    reinterpret_cast<const std::uint32_t*>(input), next_layer, output);
+                    reinterpret_cast<const u32*>(input), next_layer, output);
         }
 #endif
 
    private:
         using BiasType   = OutputType;
-        using WeightType = std::int8_t;
+        using WeightType = i8;
 
         alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
         alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];

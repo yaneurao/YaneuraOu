@@ -21,7 +21,7 @@ class HalfRelativeKP {
   static constexpr const char* kName = (AssociatedKing == Side::kFriend) ?
       "HalfRelativeKP(Friend)" : "HalfRelativeKP(Enemy)";
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t kHashValue =
+  static constexpr u32 kHashValue =
       0xF9180919u ^ (AssociatedKing == Side::kFriend);
   // 玉を除いた駒種
   static constexpr IndexType kNumPieceKinds = (fe_end - fe_hand_end) / SQ_NB;

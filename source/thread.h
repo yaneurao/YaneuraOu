@@ -98,9 +98,9 @@ public:
 		// 📌 やねうら王では、ISearchManagerを使わずに、Workerのfactoryを使ってWorkerを直接生成する。
 		Search::WorkerFactory          factory,
 #endif
-		size_t                         threadIdx,
-		size_t						   numaThreadIdx,
-		size_t						   numaTotal,
+		usize                         threadIdx,
+		usize						   numaThreadIdx,
+		usize						   numaTotal,
 		OptionalThreadToNumaNodeBinder binder
 	);
 	virtual ~Thread();
@@ -147,7 +147,7 @@ public:
 
 	// Threadの自身のスレッド番号を返す。0 origin。
 	// コンストラクタで渡したthread_idが返ってくる。
-	size_t id() const { return idx; }
+	usize id() const { return idx; }
 
 	// 実行しているworker
 	LargePagePtr<Search::Worker> worker;
@@ -164,7 +164,7 @@ private:
 
 	// thread id。main threadなら0。slaveなら1から順番に値が割当てられる。
 	// nthreadsは、スレッド数。(options["Threads"]の値)
-    size_t idx, idxInNuma, totalNuma /*, nthreads */;
+    usize idx, idxInNuma, totalNuma /*, nthreads */;
     // 📌 nthreads使わないと思う。やねうら王ではコメントアウト
 
 	// exit      : このフラグが立ったら終了する。
@@ -216,13 +216,13 @@ public:
 	void   start_thinking(const OptionsMap&, Position&, StateListPtr&, Search::LimitsType);
 
 	// 指定したthreadIdのthreadで、jobとしてfを実行する。
-	void   run_on_thread(size_t threadId, std::function<void()> f);
+	void   run_on_thread(usize threadId, std::function<void()> f);
 
 	// 指定したthreadIdのthreadが、jobを実行終わるのを待つ。
-	void   wait_on_thread(size_t threadId);
+	void   wait_on_thread(usize threadId);
 
 	// このThreadPoolが保持しているthread数
-	size_t num_threads() const;
+	usize num_threads() const;
 
 	// set()で生成したスレッドの初期化
     // 💡 各ThreadのWorkerに対してclear()が呼び出される。
@@ -234,7 +234,7 @@ public:
              Search::SharedState sharedState,
              const Search::UpdateContext&,
 			 // 🌈 やねうら王独自追加
-             size_t                       requested_threads,
+             usize                       requested_threads,
              const Search::WorkerFactory& worker_factory
 	);
     /*
@@ -287,7 +287,7 @@ public:
     void wait_for_search_finished() const;
 
 
-	std::vector<size_t> get_bound_thread_count_by_numa_node() const;
+	std::vector<usize> get_bound_thread_count_by_numa_node() const;
 
 	// 評価関数パラメーターがいま実行しているNUMAに配置されているようにする。
 	void ensure_network_replicated();

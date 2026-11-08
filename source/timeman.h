@@ -8,7 +8,7 @@
 namespace YaneuraOu {
 
 class OptionsMap;
-enum Color : uint8_t;
+enum Color : u8;
 
 namespace Search {
 	struct LimitsType;
@@ -64,7 +64,7 @@ class TimeManagement {
 
 #if STOCKFISH
 
-    void advance_nodes_time(std::int64_t nodes);
+    void advance_nodes_time(i64 nodes);
     // 💡 やねうら王ではNodesTimeを使わない。
 
 #else
@@ -128,7 +128,7 @@ class TimeManagement {
 
 #if STOCKFISH
 
-	std::int64_t availableNodes = -1;     // When in 'nodes as time' mode
+	i64 availableNodes = -1;     // When in 'nodes as time' mode
     bool         useNodesTime   = false;  // True if we are in 'nodes as time' mode
     // 💡 やねうら王ではNodesTimeを使わない。
 

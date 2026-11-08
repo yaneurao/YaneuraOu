@@ -55,6 +55,14 @@ typedef  int32_t s32;
 typedef uint64_t u64;
 typedef  int64_t s64;
 
+// misc.hを経由しないtypes.hからも参照する基本型。
+using usize = std::size_t;
+using isize = std::ptrdiff_t;
+using i8  = std::int8_t;
+using i16 = std::int16_t;
+using i32 = std::int32_t;
+using i64 = std::int64_t;
+
 // ----------------------------
 //      inline化の強制
 // ----------------------------
@@ -100,21 +108,21 @@ inline s32 POPCNT64(u64 a) { return __builtin_popcountll(a); }
 
 // software emulationによるpopcnt(やや遅い)
 
-inline int32_t POPCNT32(uint32_t a) {
+inline i32 POPCNT32(u32 a) {
   a = (a & UINT32_C(0x55555555)) + (a >> 1 & UINT32_C(0x55555555));
   a = (a & UINT32_C(0x33333333)) + (a >> 2 & UINT32_C(0x33333333));
   a = (a & UINT32_C(0x0f0f0f0f)) + (a >> 4 & UINT32_C(0x0f0f0f0f));
   a = (a & UINT32_C(0x00ff00ff)) + (a >> 8 & UINT32_C(0x00ff00ff));
   a = (a & UINT32_C(0x0000ffff)) + (a >> 16 & UINT32_C(0x0000ffff));
-  return (int32_t)a;
+  return (i32)a;
 }
-inline int32_t POPCNT64(uint64_t a) {
+inline i32 POPCNT64(uint64_t a) {
   a = (a & UINT64_C(0x5555555555555555)) + (a >> 1 & UINT64_C(0x5555555555555555));
   a = (a & UINT64_C(0x3333333333333333)) + (a >> 2 & UINT64_C(0x3333333333333333));
   a = (a & UINT64_C(0x0f0f0f0f0f0f0f0f)) + (a >> 4 & UINT64_C(0x0f0f0f0f0f0f0f0f));
   a = (a & UINT64_C(0x00ff00ff00ff00ff)) + (a >> 8 & UINT64_C(0x00ff00ff00ff00ff));
   a = (a & UINT64_C(0x0000ffff0000ffff)) + (a >> 16 & UINT64_C(0x0000ffff0000ffff));
-  return (int32_t)a + (int32_t)(a >> 32);
+  return (i32)a + (i32)(a >> 32);
 }
 #endif
 
@@ -145,7 +153,7 @@ static u64 pext(u64 val, u64 mask)
 {
 	u64 res = 0;
 	for (u64 bb = 1; mask; bb += bb) {
-		if ((int64_t)val & (int64_t)mask & -(int64_t)mask)
+		if ((i64)val & (i64)mask & -(i64)mask)
 			res |= bb;
 		// マスクを1bitずつ剥がしていく実装なので処理時間がbit長に依存しない。
 		// ゆえに、32bit用のpextを別途用意する必要がない。
@@ -154,7 +162,7 @@ static u64 pext(u64 val, u64 mask)
 	return res;
 }
 
-static u32 PEXT32(u32 a, uint32_t b) { return (u32)pext(a, b); }
+static u32 PEXT32(u32 a, u32 b) { return (u32)pext(a, b); }
 static u64 PEXT64(u64 a, uint64_t b) { return pext(a, b); }
 
 #endif
@@ -168,21 +176,21 @@ static u64 PEXT64(u64 a, uint64_t b) { return pext(a, b); }
 
 #if defined (IS_64BIT)
 // 1である最下位のbitのbit位置を得る。0を渡してはならない。
-FORCE_INLINE int LSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward(&index, v); return index; }
+FORCE_INLINE int LSB32(u32 v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward(&index, v); return index; }
 FORCE_INLINE int LSB64(uint64_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward64(&index, v); return index; }
 
 // 1である最上位のbitのbit位置を得る。0を渡してはならない。
-FORCE_INLINE int MSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse(&index, v); return index; }
+FORCE_INLINE int MSB32(u32 v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse(&index, v); return index; }
 FORCE_INLINE int MSB64(uint64_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse64(&index, v); return index; }
 
 #else
 
 // 32bit環境では64bit版を要求されたら2回に分けて実行。
-FORCE_INLINE int LSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward(&index, v); return index; }
-FORCE_INLINE int LSB64(uint64_t v) { ASSERT_LV3(v != 0); return uint32_t(v) ? LSB32(uint32_t(v)) : 32 + LSB32(uint32_t(v >> 32)); }
+FORCE_INLINE int LSB32(u32 v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanForward(&index, v); return index; }
+FORCE_INLINE int LSB64(uint64_t v) { ASSERT_LV3(v != 0); return u32(v) ? LSB32(u32(v)) : 32 + LSB32(u32(v >> 32)); }
 
-FORCE_INLINE int MSB32(uint32_t v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse(&index, v); return index; }
-FORCE_INLINE int MSB64(uint64_t v) { ASSERT_LV3(v != 0); return uint32_t(v >> 32) ? 32 + MSB32(uint32_t(v >> 32)) : MSB32(uint32_t(v)); }
+FORCE_INLINE int MSB32(u32 v) { ASSERT_LV3(v != 0); unsigned long index; _BitScanReverse(&index, v); return index; }
+FORCE_INLINE int MSB64(uint64_t v) { ASSERT_LV3(v != 0); return u32(v >> 32) ? 32 + MSB32(u32(v >> 32)) : MSB32(u32(v)); }
 #endif
 
 #elif defined(__GNUC__)
@@ -242,13 +250,13 @@ struct alignas(32) ymm
 
   // アライメント揃っていないところからの読み込みに対応させるためにloadではなくloaduのほうを用いる。
   ymm(const void* p) :m(_mm256_loadu_si256((__m256i*)p)) {}
-  ymm(const uint8_t t) { for (int i = 0; i < 32; ++i) ((u8*)this)[i] = t; }
+  ymm(const u8 t) { for (int i = 0; i < 32; ++i) ((u8*)this)[i] = t; }
   //      /*  m.m256i_u8[i] = t; // これだとg++対応できない。 */
 
   ymm() {}
 
   // MSBが1なら1にする
-  uint32_t to_uint32() const { return _mm256_movemask_epi8(m); }
+  u32 to_uint32() const { return _mm256_movemask_epi8(m); }
 
   ymm& operator |= (const ymm& b1) { m = _mm256_or_si256(m, b1.m); return *this; }
   ymm& operator &= (const ymm& b1) { m = _mm256_and_si256(m, b1.m); return *this; }
@@ -269,20 +277,20 @@ struct alignas(32) ymm
 struct ymm
 {
   union {
-    uint8_t m8[32];
-    uint16_t m16[16];
+    u8 m8[32];
+    u16 m16[16];
     uint64_t m64[4];
   };
 
   ymm(const void* p) { const auto p64 = (uint64_t*)p;  m64[0] = p64[0]; m64[1] = p64[1]; m64[2] = p64[2]; m64[3] = p64[3]; }
-  ymm(const uint8_t t) { for (int i = 0; i < 32; ++i) m8[i] = t; }
+  ymm(const u8 t) { for (int i = 0; i < 32; ++i) m8[i] = t; }
   ymm() {}
 
   // MSBを直列化する
-  uint32_t to_uint32() const {
-    uint32_t r = 0;
+  u32 to_uint32() const {
+    u32 r = 0;
     for (int i = 0; i < 32; ++i)
-      r |= uint32_t(m8[i] >> 7) << i;
+      r |= u32(m8[i] >> 7) << i;
     return r;
   }
 
@@ -307,7 +315,7 @@ struct ymm
   ymm cmp(const ymm& rhs) const {
     ymm t;
     for (int i = 0; i < 32; ++i)
-      t.m8[i] = ((int8_t)m8[i] > (int8_t)rhs.m8[i]) ? 0xff : 0;
+      t.m8[i] = ((i8)m8[i] > (i8)rhs.m8[i]) ? 0xff : 0;
     return t;
   }
 

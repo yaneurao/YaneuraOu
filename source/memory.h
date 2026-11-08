@@ -52,14 +52,14 @@ namespace YaneuraOu {
 
 // 通常のメモリ確保。alignmentされたsize[byte]のメモリを確保する。
 // 💡 AlignedPtrから内部的に呼び出して使うために用意されている。この関数は直接呼び出されない。
-void* std_aligned_alloc(size_t alignment, size_t size);
+void* std_aligned_alloc(usize alignment, usize size);
 void  std_aligned_free(void* ptr);
 
 // Memory aligned by page size, min alignment: 4096 bytes
 // 大きなメモリの確保用のalloc/free。4096 bytes単位でalignmentされていることは保証されている。
 // ⇨ この関数は置換表のメモリ確保のために使われる。
 // 💡 Windowsのlarge pages allocの機能が使えるなら、それを用いる。
-void* aligned_large_pages_alloc(size_t size);
+void* aligned_large_pages_alloc(usize size);
 void  aligned_large_pages_free(void* mem);
 
 // 現環境でlarge pagesが使えるか判定して返す。
@@ -98,15 +98,15 @@ void memory_deleter_array(T* ptr, FREE_FUNC free_func) {
     // Move back on the pointer to where the size is allocated
 	// 配列サイズが格納されている位置までポインタを戻します
 
-	const size_t array_offset = std::max(sizeof(size_t), alignof(T));
+	const usize array_offset = std::max(sizeof(usize), alignof(T));
     char*        raw_memory   = reinterpret_cast<char*>(ptr) - array_offset;
 
     if constexpr (!std::is_trivially_destructible_v<T>)
     {
-        const size_t size = *reinterpret_cast<size_t*>(raw_memory);
+        const usize size = *reinterpret_cast<usize*>(raw_memory);
 
         // Explicitly call the destructor for each element in reverse order
-        for (size_t i = size; i-- > 0;)
+        for (usize i = size; i-- > 0;)
             ptr[i].~T();
     }
 
@@ -129,19 +129,19 @@ inline std::enable_if_t<!std::is_array_v<T>, T*> memory_allocator(ALLOC_FUNC all
 
 template<typename T, typename ALLOC_FUNC>
 inline std::enable_if_t<std::is_array_v<T>, std::remove_extent_t<T>*>
-memory_allocator(ALLOC_FUNC alloc_func, size_t num) {
+memory_allocator(ALLOC_FUNC alloc_func, usize num) {
     using ElementType = std::remove_extent_t<T>;
 
-    const size_t array_offset = std::max(sizeof(size_t), alignof(ElementType));
+    const usize array_offset = std::max(sizeof(usize), alignof(ElementType));
 
     // Save the array size in the memory location
     char* raw_memory =
       reinterpret_cast<char*>(alloc_func(array_offset + num * sizeof(ElementType)));
     ASSERT_ALIGNED(raw_memory, alignof(T));
 
-    new (raw_memory) size_t(num);
+    new (raw_memory) usize(num);
 
-    for (size_t i = 0; i < num; ++i)
+    for (usize i = 0; i < num; ++i)
         new (raw_memory + array_offset + i * sizeof(ElementType)) ElementType();
 
     // Need to return the pointer at the start of the array so that
@@ -192,7 +192,7 @@ std::enable_if_t<!std::is_array_v<T>, LargePagePtr<T>> make_unique_large_page(Ar
 // サイズが不明な配列用の make_unique_large_page
 
 template<typename T>
-std::enable_if_t<std::is_array_v<T>, LargePagePtr<T>> make_unique_large_page(size_t num) {
+std::enable_if_t<std::is_array_v<T>, LargePagePtr<T>> make_unique_large_page(usize num) {
     using ElementType = std::remove_extent_t<T>;
 
     static_assert(alignof(ElementType) <= 4096,
@@ -231,7 +231,7 @@ using AlignedPtr =
 
 template<typename T, typename... Args>
 std::enable_if_t<!std::is_array_v<T>, AlignedPtr<T>> make_unique_aligned(Args&&... args) {
-    const auto func = [](size_t size) { return std_aligned_alloc(alignof(T), size); };
+    const auto func = [](usize size) { return std_aligned_alloc(alignof(T), size); };
     T*         obj  = memory_allocator<T>(func, std::forward<Args>(args)...);
 
     return AlignedPtr<T>(obj);
@@ -241,10 +241,10 @@ std::enable_if_t<!std::is_array_v<T>, AlignedPtr<T>> make_unique_aligned(Args&&.
 // サイズが不明な配列用の make_unique_aligned
 
 template<typename T>
-std::enable_if_t<std::is_array_v<T>, AlignedPtr<T>> make_unique_aligned(size_t num) {
+std::enable_if_t<std::is_array_v<T>, AlignedPtr<T>> make_unique_aligned(usize num) {
     using ElementType = std::remove_extent_t<T>;
 
-    const auto   func   = [](size_t size) { return std_aligned_alloc(alignof(ElementType), size); };
+    const auto   func   = [](usize size) { return std_aligned_alloc(alignof(ElementType), size); };
     ElementType* memory = memory_allocator<T>(func, num);
 
     return AlignedPtr<T>(memory);
@@ -280,7 +280,7 @@ auto windows_try_with_large_page_priviliges([[maybe_unused]] FuncYesT&& fyes, Fu
     HANDLE hProcessToken{};
     LUID   luid{};
 
-    const size_t largePageSize = GetLargePageMinimum();
+    const usize largePageSize = GetLargePageMinimum();
     if (!largePageSize)
         return fno();
 

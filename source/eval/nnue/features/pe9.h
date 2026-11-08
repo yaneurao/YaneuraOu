@@ -20,7 +20,7 @@ class PE9 {
   // 特徴量名
   static constexpr const char* kName = "PE9";
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t kHashValue = 0x764CFB4Bu;
+  static constexpr u32 kHashValue = 0x764CFB4Bu;
   // 特徴量の次元数
   static constexpr IndexType kDimensions = static_cast<IndexType>(fe_end) * 3 * 3;
   // 特徴量のうち、同時に値が1となるインデックスの数の最大値

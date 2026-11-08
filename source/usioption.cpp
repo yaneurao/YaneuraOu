@@ -69,7 +69,7 @@ void OptionsMap::add(const std::string& name, const Option& option) {
 	{
 		// 未追加なので追加してやる。
 
-		static size_t insert_order = 0;
+		static usize insert_order = 0;
 
 		options_map[name] = option;
 
@@ -86,7 +86,7 @@ void OptionsMap::add(const std::string& name, const Option& option) {
 }
 
 // 保持しているOptionのなかで、このoption_nameを持つものの数。
-std::size_t OptionsMap::count(const std::string& name) const { return options_map.count(name); }
+usize OptionsMap::count(const std::string& name) const { return options_map.count(name); }
 
 Option::Option(const OptionsMap* map) :
 	parent(map) {
@@ -118,7 +118,7 @@ Option::Option(OnChange f) :
 #if STOCKFISH
 Option::Option(int v, int minv, int maxv, OnChange f) :
 #else
-Option::Option(int64_t v, int64_t minv, int64_t maxv, OnChange f) :
+Option::Option(i64 v, i64 minv, i64 maxv, OnChange f) :
 #endif
 	type("spin"),
 	min(minv),
@@ -159,7 +159,7 @@ Option::Option(const std::vector<std::string>& list, const std::string& cur, OnC
 }
 #endif
 
-Option::operator int64_t() const {
+Option::operator i64() const {
 	ASSERT_LV1(type == "check" || type == "spin");
 #if STOCKFISH
 	return (type == "spin" ? std::stoi(currentValue) : currentValue == "true");
@@ -271,7 +271,7 @@ Option& Option::operator=(const std::string& v) {
 
 std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 	// OptionsMapへの登録順に出力されてほしいので、idxを0から増やしていき、Option::idxが一致したものを表示していく。
-	for (size_t idx = 0; idx < om.options_map.size(); ++idx)
+	for (usize idx = 0; idx < om.options_map.size(); ++idx)
 		for (const auto& it : om.options_map)
 			if (it.second.idx == idx)
 			{
@@ -308,9 +308,9 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 	// オプションの値が変更された時に呼び出されるOn changeアクション。
 
 	//static void on_clear_hash(const Option&) { Search::clear(); }
-	//static void on_hash_size(const Option& o) { TT.resize(size_t(o)); }
+	//static void on_hash_size(const Option& o) { TT.resize(usize(o)); }
 	static void on_logger(const Option& o) { start_logger(o); }
-	//static void on_threads(const Option& o) { Threads.set(size_t(o)); }
+	//static void on_threads(const Option& o) { Threads.set(usize(o)); }
 	//static void on_tb_path(const Option& o) { Tablebases::init(o); }
 	//static void on_eval_file(const Option&) { Eval::NNUE::init(); }
 
@@ -328,7 +328,7 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 	std::ostream& operator<<(std::ostream& os, const OptionsMap& om)
 	{
 		// idxの順番を守って出力する
-		for (size_t idx = 0; idx < om.size(); ++idx)
+		for (usize idx = 0; idx < om.size(); ++idx)
 			for (const auto& it : om)
 				if (it.second.idx == idx)
 				{
@@ -341,7 +341,7 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 					if (o.type == "spin")
 						// この範囲はStockfishではfloatになっているが、
 						// やねうら王では、int64_tに変更する。
-						os << " default " << int64_t(stoll(o.defaultValue))
+						os << " default " << i64(stoll(o.defaultValue))
 						<< " min " << o.min
 						<< " max " << o.max;
 
@@ -488,7 +488,7 @@ void OptionsMap::build_option(const std::string& line)
 	else {
 
 		std::string name, value, option_type;
-		int64_t min_value = 0, max_value = 1;
+		i64 min_value = 0, max_value = 1;
 		std::vector<std::string> combo_list;
 		while (!scanner.eol())
 		{
@@ -542,7 +542,7 @@ std::string OptionsMap::set_option_if_exists(const std::string& option_name, con
 }
 
 // idxを指定して、それに対応するOptionを取得する。
-std::pair<const std::string, const Option&> OptionsMap::get_option_by_idx(size_t idx) const
+std::pair<const std::string, const Option&> OptionsMap::get_option_by_idx(usize idx) const
 {
 	for (const auto& o : options_map)
 		if (o.second.idx == idx)
@@ -562,13 +562,13 @@ std::string OptionsMap::get_option(const std::string& option_name)
 	// キーの最大長を取得
 	// 💡 "=="のindentを揃えたいため
 
-	size_t max_key_length = 0;
+	usize max_key_length = 0;
 	for (const auto& o : options_map) {
 		max_key_length = std::max(max_key_length, o.first.length());
 	}
 
 	std::string result;
-	for (size_t idx = 0; idx < options_map.size(); ++idx)
+	for (usize idx = 0; idx < options_map.size(); ++idx)
 	{
 		auto it = get_option_by_idx(idx);
 

@@ -160,7 +160,7 @@ public:
 
 	// options["USI_Hash"]などの置換表サイズに対して、それが変更された時に呼び出されるhandler。
     // 置換表的なものを使用するときは、これをoverrideすると便利。
-	virtual void set_tt_size(size_t mb) = 0;
+	virtual void set_tt_size(usize mb) = 0;
 
 	// USIの"ponderhit"に対するhandler。
 	// 💡 "ponderhit"に対して set_ponderhit(false)として呼び出される。
@@ -249,8 +249,8 @@ public:
 
 	// スレッド割り当てをした時などのメッセージ出力用handler。
 
-	virtual std::vector<std::pair<size_t, size_t>> get_bound_thread_count_by_numa_node() const {
-        return std::vector<std::pair<size_t, size_t>>();
+	virtual std::vector<std::pair<usize, usize>> get_bound_thread_count_by_numa_node() const {
+        return std::vector<std::pair<usize, usize>>();
     }
 	virtual std::string get_numa_config_as_string() const { return ""; }
     virtual std::string numa_config_information_as_string() const { return ""; }
@@ -263,7 +263,7 @@ public:
     // outputPathへ書き出す。対応していないEngine派生classではfalseを返す。
     virtual bool qsearch_psv(const std::string& inputPath,
                              const std::string& outputPath,
-                             size_t             workerCount,
+                             usize             workerCount,
                              std::string&       message) {
         message = "qsearch_psv is not supported by this engine.";
         return false;
@@ -363,7 +363,7 @@ class Engine: public IEngine {
 
     virtual void set_numa_config_from_option(const std::string& o) override;
     virtual void resize_threads() override;
-    virtual void set_tt_size(size_t mb) override;
+    virtual void set_tt_size(usize mb) override;
     virtual void set_ponderhit(bool b) override;
     virtual void search_clear() override;
 
@@ -390,7 +390,7 @@ class Engine: public IEngine {
     virtual std::string sfen() const override;
     virtual void        flip() override;
     virtual std::string visualize() const override;
-	virtual std::vector<std::pair<size_t, size_t>> get_bound_thread_count_by_numa_node() const override;
+	virtual std::vector<std::pair<usize, usize>> get_bound_thread_count_by_numa_node() const override;
     virtual std::string get_numa_config_as_string() const override;
     virtual std::string numa_config_information_as_string() const override;
     virtual std::string thread_allocation_information_as_string() const override;
@@ -401,7 +401,7 @@ class Engine: public IEngine {
     // 標準Engine基底classは未対応扱いとし、標準探索部(YaneuraOuEngine)でoverrideする。
     virtual bool qsearch_psv(const std::string& inputPath,
                              const std::string& outputPath,
-                             size_t             workerCount,
+                             usize             workerCount,
                              std::string&       message) override {
         message = "qsearch_psv is not supported by this engine.";
         return false;
@@ -525,7 +525,7 @@ class EngineWrapper: public IEngine {
 
     virtual void set_numa_config_from_option(const std::string& o) override { engine->set_numa_config_from_option(o); }
     virtual void resize_threads() override { engine->resize_threads(); }
-    virtual void set_tt_size(size_t mb) override { engine->set_tt_size(mb); }
+    virtual void set_tt_size(usize mb) override { engine->set_tt_size(mb); }
     virtual void set_ponderhit(bool b) override { engine->set_ponderhit(b); }
     virtual void search_clear() override { engine->search_clear(); }
 
@@ -567,7 +567,7 @@ class EngineWrapper: public IEngine {
     virtual void        flip() override { return engine->flip(); }
     virtual std::string visualize() const override { return engine->visualize(); }
 
-    virtual std::vector<std::pair<size_t, size_t>>
+    virtual std::vector<std::pair<usize, usize>>
     get_bound_thread_count_by_numa_node() const override {
         return engine->get_bound_thread_count_by_numa_node();
     }
@@ -587,7 +587,7 @@ class EngineWrapper: public IEngine {
 #if !STOCKFISH
     virtual bool qsearch_psv(const std::string& inputPath,
                              const std::string& outputPath,
-                             size_t             workerCount,
+                             usize             workerCount,
                              std::string&       message) override {
         return engine->qsearch_psv(inputPath, outputPath, workerCount, message);
     }

@@ -158,8 +158,8 @@ class FeatureTransformer {
 	// Output type
 	// 出力の型
 	using OutputType = TransformedFeatureType;
-	using BiasType   = std::int16_t;
-	using WeightType = std::int16_t;
+	using BiasType   = i16;
+	using WeightType = i16;
 
 	// Number of input/output dimensions
 	// 入出力の次元数
@@ -172,11 +172,11 @@ class FeatureTransformer {
 
 	// Size of forward propagation buffer
 	// 順伝播用バッファのサイズ
-	static constexpr std::size_t kBufferSize = kOutputDimensions * sizeof(OutputType);
+	static constexpr usize kBufferSize = kOutputDimensions * sizeof(OutputType);
 
 	// Hash value embedded in the evaluation file
 	// 評価関数ファイルに埋め込むハッシュ値
-	static constexpr std::uint32_t GetHashValue() {
+	static constexpr u32 GetHashValue() {
 #if defined(SFNNwoPSQT)
 		// 学習部と整合性とるの面倒なのでSFNNwoPSQTのときはこれに固定しておく。
 		return 0x5f134ab8u;
@@ -216,8 +216,8 @@ class FeatureTransformer {
 			++finny_generation_;
 #endif
 #else
-		for (std::size_t i = 0; i < kHalfDimensions; ++i) biases_[i] = read_little_endian<BiasType>(stream);
-		for (std::size_t i = 0; i < kHalfDimensions * kInputDimensions; ++i)
+		for (usize i = 0; i < kHalfDimensions; ++i) biases_[i] = read_little_endian<BiasType>(stream);
+		for (usize i = 0; i < kHalfDimensions * kInputDimensions; ++i)
 			weights_[i] = read_little_endian<WeightType>(stream);
 #if defined(USE_FINNY_TABLES)
 		if (!stream.fail())
@@ -235,7 +235,7 @@ class FeatureTransformer {
 		if (sparse8_enabled_) {
 			// Preserve the existing writer's int16 layout, including permutation/scaling.
 			alignas(kCacheLineSize) WeightType column[kHalfDimensions];
-			const auto* packed = reinterpret_cast<const std::int8_t*>(weights_);
+			const auto* packed = reinterpret_cast<const i8*>(weights_);
 			for (IndexType i = 0; i < kInputDimensions; ++i) {
 				for (IndexType j = 0; j < kHalfDimensions; ++j)
 					column[j] = int(packed[i * kHalfDimensions + j]) * 2;
@@ -589,16 +589,16 @@ class FeatureTransformer {
 	// of weights_ holds bytes; its second half holds correction records.
 	// Allocation size stays unchanged; the frequently read weight data is halved.
 	struct Sparse8Correction {
-		std::uint16_t position;
-		std::int16_t residual;
+		u16 position;
+		i16 residual;
 	};
 	static_assert(sizeof(Sparse8Correction) == 4);
 	static_assert(kHalfDimensions == 2304, "NNUE_FT_SPARSE8 currently supports FT2304 only");
-	static constexpr std::size_t kSparse8Bytes = std::size_t(kHalfDimensions) * kInputDimensions;
+	static constexpr usize kSparse8Bytes = usize(kHalfDimensions) * kInputDimensions;
 
 	void prepare_sparse8_weights() {
-		std::size_t count = 0;
-		for (std::size_t i = 0; i < kSparse8Bytes; ++i) {
+		usize count = 0;
+		for (usize i = 0; i < kSparse8Bytes; ++i) {
 			const int value = weights_[i] / 2;
 			count += value < -128 || value > 127;
 		}
@@ -609,20 +609,20 @@ class FeatureTransformer {
 			return;
 		std::vector<Sparse8Correction> corrections;
 		corrections.reserve(count);
-		auto* packed = reinterpret_cast<std::int8_t*>(weights_);
+		auto* packed = reinterpret_cast<i8*>(weights_);
 		for (IndexType i = 0; i < kInputDimensions; ++i) {
-			sparse8_offsets_[i] = static_cast<std::uint32_t>(corrections.size());
+			sparse8_offsets_[i] = static_cast<u32>(corrections.size());
 			for (IndexType j = 0; j < kHalfDimensions; ++j) {
-				const int value = weights_[std::size_t(i) * kHalfDimensions + j];
-				const auto base = static_cast<std::int8_t>(value / 2);
+				const int value = weights_[usize(i) * kHalfDimensions + j];
+				const auto base = static_cast<i8>(value / 2);
 				// Forward packing cannot overwrite the next unread int16.
-				packed[std::size_t(i) * kHalfDimensions + j] = base;
+				packed[usize(i) * kHalfDimensions + j] = base;
 				const int residual = value - int(base) * 2;
 				if (residual)
-					corrections.push_back({std::uint16_t(j), std::int16_t(residual)});
+					corrections.push_back({u16(j), i16(residual)});
 			}
 		}
-		sparse8_offsets_[kInputDimensions] = static_cast<std::uint32_t>(corrections.size());
+		sparse8_offsets_[kInputDimensions] = static_cast<u32>(corrections.size());
 		if (!corrections.empty())
 			std::memcpy(packed + kSparse8Bytes, corrections.data(), corrections.size() * sizeof(Sparse8Correction));
 		sparse8_enabled_ = true;
@@ -631,9 +631,9 @@ class FeatureTransformer {
 #if !defined(NO_PREFETCH)
 	// 実際に加減算する列の先頭だけを先読みする。列全体には命令を発行しない。
 	void prefetch_sparse8_columns(const Features::IndexList& indices) const {
-		const auto* base = reinterpret_cast<const std::int8_t*>(weights_);
+		const auto* base = reinterpret_cast<const i8*>(weights_);
 		for (const auto index : indices)
-			_mm_prefetch(reinterpret_cast<const char*>(base + std::size_t(kHalfDimensions) * index), _MM_HINT_T2);
+			_mm_prefetch(reinterpret_cast<const char*>(base + usize(kHalfDimensions) * index), _MM_HINT_T2);
 	}
 #endif
 
@@ -642,7 +642,7 @@ class FeatureTransformer {
 		for (auto i = sparse8_offsets_[index]; i < sparse8_offsets_[index + 1]; ++i) {
 			Sparse8Correction item;
 			// memcpy avoids aliasing/lifetime assumptions about the int16 storage.
-			std::memcpy(&item, bytes + std::size_t(i) * sizeof(item), sizeof(item));
+			std::memcpy(&item, bytes + usize(i) * sizeof(item), sizeof(item));
 			destination[item.position] += sign * item.residual;
 		}
 	}
@@ -655,7 +655,7 @@ class FeatureTransformer {
 			apply_sparse8_corrections(reinterpret_cast<BiasType*>(acc), index, Add ? 1 : -1);
 			return;
 		}
-		const auto* packed = reinterpret_cast<const std::int8_t*>(weights_) + std::size_t(kHalfDimensions) * index + offset;
+		const auto* packed = reinterpret_cast<const i8*>(weights_) + usize(kHalfDimensions) * index + offset;
 		for (IndexType k = 0; k < kTileRegs; ++k) {
 			const auto w = _mm512_slli_epi16(_mm512_cvtepi8_epi16(
 				_mm256_load_si256(reinterpret_cast<const __m256i*>(packed + k * 32))), 1);
@@ -850,7 +850,7 @@ class FeatureTransformer {
 		// Multiset difference: preserve repeated features (e.g. missing pieces).
 		std::sort(removed.begin(), removed.end());
 		std::sort(added.begin(), added.end());
-		std::size_t r = 0, a = 0, r_out = 0, a_out = 0;
+		usize r = 0, a = 0, r_out = 0, a_out = 0;
 		while (r < removed.size() && a < added.size()) {
 			if (removed[r] == added[a]) { ++r; ++a; }
 			else if (removed[r] < added[a]) removed[r_out++] = removed[r++];
@@ -869,7 +869,7 @@ class FeatureTransformer {
 		Features::IndexList& removed,
 		Features::IndexList& added) {
 		if (old_active.size() == new_active.size()) {
-			for (std::size_t i = 0; i < old_active.size(); ++i) {
+			for (usize i = 0; i < old_active.size(); ++i) {
 				if (old_active[i] == new_active[i])
 					continue;
 				removed.push_back(old_active[i]);
@@ -884,8 +884,8 @@ class FeatureTransformer {
 		bool old_matched[RawFeatures::kMaxActiveDimensions] = {};
 		bool new_matched[RawFeatures::kMaxActiveDimensions] = {};
 
-		for (std::size_t oi = 0; oi < old_active.size(); ++oi) {
-			for (std::size_t ni = 0; ni < new_active.size(); ++ni) {
+		for (usize oi = 0; oi < old_active.size(); ++oi) {
+			for (usize ni = 0; ni < new_active.size(); ++ni) {
 				if (!new_matched[ni] && old_active[oi] == new_active[ni]) {
 					old_matched[oi] = true;
 					new_matched[ni] = true;
@@ -894,10 +894,10 @@ class FeatureTransformer {
 			}
 		}
 
-		for (std::size_t oi = 0; oi < old_active.size(); ++oi)
+		for (usize oi = 0; oi < old_active.size(); ++oi)
 			if (!old_matched[oi])
 				removed.push_back(old_active[oi]);
-		for (std::size_t ni = 0; ni < new_active.size(); ++ni)
+		for (usize ni = 0; ni < new_active.size(); ++ni)
 			if (!new_matched[ni])
 				added.push_back(new_active[ni]);
 	}
@@ -906,7 +906,7 @@ class FeatureTransformer {
 		Features::IndexList& destination,
 		const Features::IndexList& source) {
 		destination.resize(source.size());
-		for (std::size_t i = 0; i < source.size(); ++i)
+		for (usize i = 0; i < source.size(); ++i)
 			destination[i] = source[i];
 	}
 #endif
@@ -1222,7 +1222,7 @@ class FeatureTransformer {
 	alignas(kCacheLineSize) BiasType biases_[kHalfDimensions];
 	alignas(kCacheLineSize) WeightType weights_[kHalfDimensions * kInputDimensions];
 #if defined(NNUE_FT_PACKED8)
-	std::uint32_t sparse8_offsets_[kInputDimensions + 1];
+	u32 sparse8_offsets_[kInputDimensions + 1];
 	bool sparse8_enabled_ = false;
 #endif
 

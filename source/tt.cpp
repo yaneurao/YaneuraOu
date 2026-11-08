@@ -86,12 +86,12 @@ namespace YaneuraOu {
 // Stockfishではkey16は16bit固定であるが、これをやねうら王では、HASH_KEYが64bit,128bit,256bitのときに
 // それぞれ16bit,64bit,64bitに拡張している。
 
-static constexpr uint8_t GENERATION_BITS = 5;                            // genBound8のうち、generationに使うbit数。
-static constexpr uint8_t GENERATION_MASK = (1 << GENERATION_BITS) - 1;   // genBound8からgenerationだけを取り出すためのマスク。
-static constexpr uint8_t BOUND_SHIFT     = GENERATION_BITS;              // Boundを格納するbit位置。generationの直後に置く。
-static constexpr uint8_t BOUND_MASK      = 0b11 << BOUND_SHIFT;          // genBound8からBoundの2bitだけを取り出すためのマスク。
-static constexpr uint8_t PV_SHIFT        = BOUND_SHIFT + 2;              // PV nodeフラグを格納するbit位置。Boundの直後に置く。
-static constexpr uint8_t PV_MASK         = 1 << PV_SHIFT;                // genBound8からPV nodeフラグだけを取り出すためのマスク。
+static constexpr u8 GENERATION_BITS = 5;                            // genBound8のうち、generationに使うbit数。
+static constexpr u8 GENERATION_MASK = (1 << GENERATION_BITS) - 1;   // genBound8からgenerationだけを取り出すためのマスク。
+static constexpr u8 BOUND_SHIFT     = GENERATION_BITS;              // Boundを格納するbit位置。generationの直後に置く。
+static constexpr u8 BOUND_MASK      = 0b11 << BOUND_SHIFT;          // genBound8からBoundの2bitだけを取り出すためのマスク。
+static constexpr u8 PV_SHIFT        = BOUND_SHIFT + 2;              // PV nodeフラグを格納するbit位置。Boundの直後に置く。
+static constexpr u8 PV_MASK         = 1 << PV_SHIFT;                // genBound8からPV nodeフラグだけを取り出すためのマスク。
 
 struct TTEntry {
 
@@ -108,23 +108,23 @@ struct TTEntry {
 	bool is_occupied() const { return bool(depth8); };
 
 #if STOCKFISH
-    void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+    void save(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 generation8);
 #else
     void
-    save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8);
+    save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 generation8);
 #endif
 
-	uint8_t relative_age(const uint8_t curr_generation) const;
+	u8 relative_age(const u8 curr_generation) const;
 
    private:
     friend class TranspositionTable;
 
     TTE_KEY_TYPE key;
-    uint8_t      depth8;
-    uint8_t      genBound8;
+    u8      depth8;
+    u8      genBound8;
     Move16       move16;
-    int16_t      value16;
-    int16_t      eval16;
+    i16      value16;
+    i16      eval16;
 };
 
 
@@ -142,7 +142,7 @@ struct TTEntry {
 // 引数のgenは、Stockfishにはないが、やねうら王では学習時にスレッドごとに別の局面を探索させたいので
 // スレッドごとに異なるgenerationの値を指定したくてこのような作りになっている。
 
-void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t curr_generation) {
+void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 curr_generation) {
 
 	// Preserve the old ttmove if we don't have a new one
 	// 新しいttmoveがない場合、古いttmoveを保持します
@@ -161,10 +161,10 @@ void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, V
 		assert(curr_generation <= GENERATION_MASK); // TT::new_search() plays nice
 
 		key       = TTE_KEY_TYPE(k);
-		depth8    = uint8_t(d - DEPTH_NONE);
-		genBound8 = uint8_t(curr_generation | b << BOUND_SHIFT | uint8_t(pv) << PV_SHIFT);
-		value16   = int16_t(v);
-		eval16    = int16_t(ev);
+		depth8    = u8(d - DEPTH_NONE);
+		genBound8 = u8(curr_generation | b << BOUND_SHIFT | u8(pv) << PV_SHIFT);
+		value16   = i16(v);
+		eval16    = i16(ev);
 
 		// value,evalが適切な範囲であるか(やねうら王独自追加)
 		ASSERT_LV3(-VALUE_INFINITE <   v  && v < VALUE_INFINITE  ||  v == VALUE_NONE);
@@ -174,7 +174,7 @@ void TTEntry::save(TTE_KEY_TYPE k, Value v, bool pv, Bound b, Depth d, Move m, V
 }
 
 
-uint8_t TTEntry::relative_age(const uint8_t curr_generation) const {
+u8 TTEntry::relative_age(const u8 curr_generation) const {
 	// Returns this entry's age. We count generations like clocks count hours,
 	// i.e. we require 0 - 1 == 31. Unsigned subtraction guarantees the required
 	// borrowing regardless of the upper pv/bound bits.
@@ -195,13 +195,13 @@ TTWriter::TTWriter(TTEntry* tte) :
 
 #if STOCKFISH
 void TTWriter::write(
-  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+  Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 generation8) {
     entry->save(k, v, pv, b, d, m, ev, generation8);
 }
 #else
 
 void TTWriter::write(
-  const Key k_, Value v, bool pv, Bound b, Depth d, Move m, Value ev, uint8_t generation8) {
+  const Key k_, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 generation8) {
 
 #if HASH_KEY_BITS <= 64
     const TTE_KEY_TYPE k = TTE_KEY_TYPE(k_);
@@ -257,7 +257,7 @@ static_assert((sizeof(Cluster) % 32) == 0, "Unexpected Cluster size");
 // トランスポジションテーブルはクラスターで構成されており、
 // 各クラスターはClusterSize個のTTEntryで構成されます。
 
-void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
+void TranspositionTable::resize(usize mbSize, ThreadPool& threads) {
 #if STOCKFISH
     aligned_large_pages_free(table);
 
@@ -267,7 +267,7 @@ void TranspositionTable::resize(size_t mbSize, ThreadPool& threads) {
 
 	// mbSizeの単位は[MB]なので、ここでは1MBの倍数単位のメモリが確保されるが、
 	// 仕様上は、1MBの倍数である必要はない。
-	size_t newClusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
+	usize newClusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
 
 	// clusterCountは偶数でなければならない。
 	// この理由については、TTEntry::first_entry()のコメントを見よ。
@@ -327,21 +327,21 @@ void TranspositionTable::clear(ThreadPool& threads) {
 
 	// Stockfishのコード
 #if 0
-	const size_t threadCount = threads.num_threads();
+	const usize threadCount = threads.num_threads();
 
-	for (size_t i = 0; i < threadCount; ++i)
+	for (usize i = 0; i < threadCount; ++i)
 	{
 		threads.run_on_thread(i, [this, i, threadCount]() {
 			// Each thread will zero its part of the hash table
-			const size_t stride = clusterCount / threadCount;
-			const size_t start = stride * i;
-			const size_t len = i + 1 != threadCount ? stride : clusterCount - start;
+			const usize stride = clusterCount / threadCount;
+			const usize start = stride * i;
+			const usize len = i + 1 != threadCount ? stride : clusterCount - start;
 
 			std::memset(&table[start], 0, len * sizeof(Cluster));
 			});
 	}
 
-	for (size_t i = 0; i < threadCount; ++i)
+	for (usize i = 0; i < threadCount; ++i)
 		threads.wait_on_thread(i);
 #endif
 
@@ -380,7 +380,7 @@ void TranspositionTable::new_search() {
 }
 
 
-uint8_t TranspositionTable::generation() const { return generation8; }
+u8 TranspositionTable::generation() const { return generation8; }
 
 // Looks up the current position in the transposition table.
 // It returns true if the key is found (which may be a collision), and has non-null data.

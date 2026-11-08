@@ -19,10 +19,10 @@ class K {
   // 特徴量名
   static constexpr const char* kName = "K";
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t kHashValue = 0xD3CEE169u;
+  static constexpr u32 kHashValue = 0xD3CEE169u;
 
   // 特徴量の次元数
-  static constexpr IndexType kDimensions = uint32_t(SQ_NB) * 2;
+  static constexpr IndexType kDimensions = u32(SQ_NB) * 2;
 
   // 特徴量のうち、同時に値が1となるインデックスの数の最大値
   static constexpr IndexType kMaxActiveDimensions = 2;

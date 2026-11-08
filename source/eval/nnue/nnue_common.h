@@ -60,14 +60,14 @@ namespace Eval::NNUE {
   // Version of the evaluation file
   // 評価関数ファイルのバージョンを表す定数
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
-  constexpr std::uint32_t kVersion = 0x7AF32F17u;
+  constexpr u32 kVersion = 0x7AF32F17u;
 #else
-  constexpr std::uint32_t kVersion = 0x7AF32F16u;
+  constexpr u32 kVersion = 0x7AF32F16u;
 #endif
 
   // LEB128圧縮データを識別するためのmagic string
   constexpr const char        Leb128MagicString[] = "COMPRESSED_LEB128";
-  constexpr const std::size_t Leb128MagicStringSize = sizeof(Leb128MagicString) - 1;
+  constexpr const usize Leb128MagicStringSize = sizeof(Leb128MagicString) - 1;
 
   // Constant used in evaluation value calculation
   // 評価値の計算で利用する定数
@@ -77,23 +77,23 @@ namespace Eval::NNUE {
 
   // Size of cache line (in bytes)
   // キャッシュラインのサイズ（バイト単位）
-  constexpr std::size_t kCacheLineSize = 64;
+  constexpr usize kCacheLineSize = 64;
 
   // SIMD width (in bytes)
   // SIMD幅（バイト単位）
   #if defined(USE_AVX2)
-  constexpr std::size_t kSimdWidth = 32;
+  constexpr usize kSimdWidth = 32;
   #elif defined(USE_SSE2)
-  constexpr std::size_t kSimdWidth = 16;
+  constexpr usize kSimdWidth = 16;
   #elif defined(USE_MMX)
-  constexpr std::size_t kSimdWidth = 8;
+  constexpr usize kSimdWidth = 8;
 
   #elif defined(USE_NEON)
-  constexpr std::size_t kSimdWidth = 16;
+  constexpr usize kSimdWidth = 16;
   #elif defined(USE_WASM_SIMD)
-  constexpr std::size_t kSimdWidth = 16;
+  constexpr usize kSimdWidth = 16;
   #endif
-  constexpr std::size_t kMaxSimdWidth = 32;
+  constexpr usize kMaxSimdWidth = 32;
 
   // unique number for each piece type on each square
   // 将棋では、BonaPieceで事足りるのでここでは定義しない。
@@ -115,16 +115,16 @@ namespace Eval::NNUE {
     PS_B_KING   = 11 * SQUARE_NB + 1,
     PS_END2     = 12 * SQUARE_NB + 1
   };
-  extern const uint32_t kpp_board_index[PIECE_NB][COLOR_NB];
+  extern const u32 kpp_board_index[PIECE_NB][COLOR_NB];
 
   #endif
 
   // Type of input feature after conversion
   // 変換後の入力特徴量の型
-  using TransformedFeatureType = std::uint8_t;
+  using TransformedFeatureType = u8;
 
   // インデックスの型
-  using IndexType = std::uint32_t;
+  using IndexType = u32;
 
   // Round n up to be a multiple of base
   // n以上で最小のbaseの倍数を求める
@@ -140,11 +140,11 @@ namespace Eval::NNUE {
   inline IntType read_little_endian(std::istream& stream) {
 
       IntType result;
-      std::uint8_t u[sizeof(IntType)];
+      u8 u[sizeof(IntType)];
       typename std::make_unsigned<IntType>::type v = 0;
 
       stream.read(reinterpret_cast<char*>(u), sizeof(IntType));
-      for (std::size_t i = 0; i < sizeof(IntType); ++i)
+      for (usize i = 0; i < sizeof(IntType); ++i)
           v = (v << 8) | u[sizeof(IntType) - i - 1];
 
       std::memcpy(&result, &v, sizeof(IntType));
@@ -153,17 +153,17 @@ namespace Eval::NNUE {
 
   // little-endianで複数の整数を読み込む
   template <typename IntType>
-  inline void read_little_endian(std::istream& stream, IntType* out, std::size_t count) {
+  inline void read_little_endian(std::istream& stream, IntType* out, usize count) {
 	  if (IsLittleEndian)
 		  stream.read(reinterpret_cast<char*>(out), sizeof(IntType) * count);
 	  else
-		  for (std::size_t i = 0; i < count; ++i)
+		  for (usize i = 0; i < count; ++i)
 			  out[i] = read_little_endian<IntType>(stream);
   }
 
   // signed LEB128で圧縮された整数を読み込む
   template<typename IntType>
-  inline void read_leb_128(std::istream& stream, IntType* out, std::size_t count) {
+  inline void read_leb_128(std::istream& stream, IntType* out, usize count) {
 
 	  // Check the presence of our LEB128 magic string
 	  char leb128MagicString[Leb128MagicStringSize];
@@ -172,16 +172,16 @@ namespace Eval::NNUE {
 
 	  static_assert(std::is_signed_v<IntType>, "Not implemented for unsigned types");
 
-	  const std::uint32_t BUF_SIZE = 4096;
-	  std::uint8_t        buf[BUF_SIZE];
+	  const u32 BUF_SIZE = 4096;
+	  u8        buf[BUF_SIZE];
 
-	  auto bytes_left = read_little_endian<std::uint32_t>(stream);
+	  auto bytes_left = read_little_endian<u32>(stream);
 
-	  std::uint32_t buf_pos = BUF_SIZE;
-	  for (std::size_t i = 0; i < count; ++i)
+	  u32 buf_pos = BUF_SIZE;
+	  for (usize i = 0; i < count; ++i)
 	  {
 		  IntType result = 0;
-		  size_t  shift = 0;
+		  usize  shift = 0;
 		  do
 		  {
 			  if (buf_pos == BUF_SIZE)
@@ -190,7 +190,7 @@ namespace Eval::NNUE {
 				  buf_pos = 0;
 			  }
 
-			  std::uint8_t byte = buf[buf_pos++];
+			  u8 byte = buf[buf_pos++];
 			  --bytes_left;
 			  result |= (byte & 0x7f) << shift;
 			  shift += 7;

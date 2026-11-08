@@ -24,7 +24,7 @@ namespace YaneuraOu {
 
 // 歩の陣形に対するhistoryのサイズ
 constexpr int PAWN_HISTORY_BASE_SIZE   = 8192;  // has to be a power of 2
-constexpr int UINT_16_HISTORY_SIZE     = std::numeric_limits<uint16_t>::max() + 1;
+constexpr int UINT_16_HISTORY_SIZE     = std::numeric_limits<u16>::max() + 1;
 // correction historyのサイズ
 constexpr int CORRHIST_BASE_SIZE       = UINT_16_HISTORY_SIZE;
 constexpr int CORRECTION_HISTORY_LIMIT = 1024;
@@ -36,15 +36,15 @@ static_assert((PAWN_HISTORY_BASE_SIZE & (PAWN_HISTORY_BASE_SIZE - 1)) == 0,
 static_assert((CORRHIST_BASE_SIZE & (CORRHIST_BASE_SIZE - 1)) == 0,
               "CORRHIST_BASE_SIZE has to be a power of 2");
 
-inline uint16_t pawn_correction_history_index(const Position& pos) { return uint16_t(pos.pawn_key()); }
+inline u16 pawn_correction_history_index(const Position& pos) { return u16(pos.pawn_key()); }
 // 🌈 Stockfishではhash keyはuint64_tなので、そのままuint16_tにできるが、やねうら王では、
 //     Keyという構造体なので暗黙で64bitにすることはできない。ゆえに明示的なcastが必要となる。
 
-inline uint16_t minor_piece_index(const Position& pos) { return uint16_t(pos.minor_piece_key()); }
+inline u16 minor_piece_index(const Position& pos) { return u16(pos.minor_piece_key()); }
 
 template<Color c>
-inline uint16_t non_pawn_index(const Position& pos) {
-    return uint16_t(pos.non_pawn_key(c));
+inline u16 non_pawn_index(const Position& pos) {
+    return u16(pos.non_pawn_key(c));
 }
 
 // StatsEntry is the container of various numerical statistics. We use a class
@@ -130,10 +130,10 @@ enum StatsType {
 	Captures
 };
 
-template<typename T, int D, std::size_t... Sizes>
+template<typename T, int D, usize... Sizes>
 using Stats = MultiArray<StatsEntry<T, D>, Sizes...>;
 
-template<typename T, int D, std::size_t... Sizes>
+template<typename T, int D, usize... Sizes>
 using AtomicStats = MultiArray<StatsEntry<T, D, true>, Sizes...>;
 
 // DynStats is a dynamically sized array of Stats, used for thread-shared histories
@@ -148,7 +148,7 @@ using AtomicStats = MultiArray<StatsEntry<T, D, true>, Sizes...>;
 template<typename T, int SizeMultiplier>
 struct DynStats {
 	// s : スレッド数
-    explicit DynStats(size_t s) {
+    explicit DynStats(usize s) {
 		// この配列のサイズ
         size = s * SizeMultiplier;
 
@@ -159,33 +159,33 @@ struct DynStats {
     // Sets all values in the range to 0
 	// すべての要素を0にする。
 	// 📓 並列で呼び出すことを想定している。threadIdxがthread id、numaTotalがthreadの総数。 
-    void clear_range(int value, size_t threadIdx, size_t numaTotal) {
-        size_t start = uint64_t(threadIdx) * size / numaTotal;
+    void clear_range(int value, usize threadIdx, usize numaTotal) {
+        usize start = uint64_t(threadIdx) * size / numaTotal;
         assert(start < size);
 
 		// 最後のスレッドは、末尾まで。さもなくば、次のスレッドの開始点まで。
-        size_t end = threadIdx + 1 == numaTotal ? size : uint64_t(threadIdx + 1) * size / numaTotal;
+        usize end = threadIdx + 1 == numaTotal ? size : uint64_t(threadIdx + 1) * size / numaTotal;
 
         while (start < end)
             data[start++].fill(value);
     }
 
 	// 確保されている配列のサイズ
-	size_t get_size() const { return size; }
+	usize get_size() const { return size; }
 
 	// 配列の要素へのaccessor
-	T&     operator[](size_t index) {
+	T&     operator[](usize index) {
         assert(index < size);
         return data.get()[index];
     }
-    const T& operator[](size_t index) const {
+    const T& operator[](usize index) const {
         assert(index < size);
         return data.get()[index];
     }
 
    private:
 	// 確保されている配列のsize
-    size_t            size;
+    usize            size;
 
 	// 確保されている配列の実体
     LargePagePtr<T[]> data;
@@ -203,7 +203,7 @@ struct DynStats {
 // 詳細は https://www.chessprogramming.org/Butterfly_Boards を参照してください。
 // 💡 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
 
-using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, UINT_16_HISTORY_SIZE>;
+using ButterflyHistory = Stats<i16, 7183, COLOR_NB, UINT_16_HISTORY_SIZE>;
 
 /*
 	 📓 上記のような配列、将棋では添字順を入れ替えて、history[c][to]をhistory[to][c]としたい。
@@ -236,17 +236,17 @@ using ButterflyHistory = Stats<std::int16_t, 7183, COLOR_NB, UINT_16_HISTORY_SIZ
 // ルート付近での手順の順序を改善するために使用されます。
 // 💡 ply とは 探索開始局面からの手数のこと。
 
-using LowPlyHistory = Stats<std::int16_t, 7183, LOW_PLY_HISTORY_SIZE, UINT_16_HISTORY_SIZE>;
+using LowPlyHistory = Stats<i16, 7183, LOW_PLY_HISTORY_SIZE, UINT_16_HISTORY_SIZE>;
 
 // CapturePieceToHistory is addressed by a move's [piece][to][captured piece type]
 // CapturePieceToHistoryは、指し手の [piece][to][captured piece type]で示される。
 
-using CapturePieceToHistory = Stats<std::int16_t, 10692, PIECE_NB, SQUARE_NB, PIECE_TYPE_NB>;
+using CapturePieceToHistory = Stats<i16, 10692, PIECE_NB, SQUARE_NB, PIECE_TYPE_NB>;
 
 // PieceToHistory is like ButterflyHistory but is addressed by a move's [piece][to]
 // PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[piece][to]で示される。
 
-using PieceToHistory = Stats<std::int16_t, 30000, PIECE_NB, SQUARE_NB>;
+using PieceToHistory = Stats<i16, 30000, PIECE_NB, SQUARE_NB>;
 
 // ContinuationHistory is the combined history of a given pair of moves, usually
 // the current one given a previous one. The nested history table is based on
@@ -263,7 +263,7 @@ using ContinuationHistory = MultiArray<PieceToHistory, PIECE_NB, SQUARE_NB>;
 // ※　歩の陣形に対するhistory。
 
 using PawnHistory =
-  DynStats<AtomicStats<std::int16_t, 8192, PIECE_NB, SQUARE_NB>, PAWN_HISTORY_BASE_SIZE>;
+  DynStats<AtomicStats<i16, 8192, PIECE_NB, SQUARE_NB>, PAWN_HISTORY_BASE_SIZE>;
 
 // Correction histories record differences between the static evaluation of
 // positions and their search score. It is used to improve the static evaluation
@@ -313,12 +313,12 @@ namespace Detail {
 template<CorrHistType>
 struct CorrHistTypedef {
     using type =
-      DynStats<Stats<std::int16_t, CORRECTION_HISTORY_LIMIT, COLOR_NB>, CORRHIST_BASE_SIZE>;
+      DynStats<Stats<i16, CORRECTION_HISTORY_LIMIT, COLOR_NB>, CORRHIST_BASE_SIZE>;
 };
 
 template<>
 struct CorrHistTypedef<PieceTo> {
-    using type = Stats<std::int16_t, CORRECTION_HISTORY_LIMIT, PIECE_NB, SQUARE_NB>;
+    using type = Stats<i16, CORRECTION_HISTORY_LIMIT, PIECE_NB, SQUARE_NB>;
 };
 
 template<>
@@ -328,21 +328,21 @@ struct CorrHistTypedef<Continuation> {
 
 template<>
 struct CorrHistTypedef<NonPawn> {
-    using type = DynStats<Stats<std::int16_t, CORRECTION_HISTORY_LIMIT, COLOR_NB, COLOR_NB>,
+    using type = DynStats<Stats<i16, CORRECTION_HISTORY_LIMIT, COLOR_NB, COLOR_NB>,
                           CORRHIST_BASE_SIZE>;
 };
 
 }
 
 using UnifiedCorrectionHistory =
-  DynStats<MultiArray<CorrectionBundle<std::int16_t, CORRECTION_HISTORY_LIMIT>, COLOR_NB>,
+  DynStats<MultiArray<CorrectionBundle<i16, CORRECTION_HISTORY_LIMIT>, COLOR_NB>,
            CORRHIST_BASE_SIZE>;
 
 
 template<CorrHistType T>
 using CorrectionHistory = typename Detail::CorrHistTypedef<T>::type;
 
-using TTMoveHistory = StatsEntry<std::int16_t, 8192>;
+using TTMoveHistory = StatsEntry<i16, 8192>;
 
 
 // Set of histories shared between groups of threads. To avoid excessive
@@ -357,7 +357,7 @@ using TTMoveHistory = StatsEntry<std::int16_t, 8192>;
 // 2 の冪である必要があります。
 
 struct SharedHistories {
-    SharedHistories(size_t threadCount) :
+    SharedHistories(usize threadCount) :
         correctionHistory(threadCount),
         pawnHistory(threadCount) {
         assert((threadCount & (threadCount - 1)) == 0 && threadCount != 0);
@@ -365,7 +365,7 @@ struct SharedHistories {
         pawnHistSizeMinus1 = pawnHistory.get_size() - 1;
     }
 
-    size_t get_size() const { return sizeMinus1 + 1; }
+    usize get_size() const { return sizeMinus1 + 1; }
 
     auto& pawn_entry(const Position& pos) {
         return pawnHistory[pos.pawn_key() & pawnHistSizeMinus1];
@@ -401,7 +401,7 @@ struct SharedHistories {
     PawnHistory              pawnHistory;
 
    private:
-    size_t sizeMinus1, pawnHistSizeMinus1;
+    usize sizeMinus1, pawnHistSizeMinus1;
 };
 
 

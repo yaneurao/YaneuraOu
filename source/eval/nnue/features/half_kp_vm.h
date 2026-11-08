@@ -22,7 +22,7 @@ public:
 	static constexpr const char* kName =
 		(AssociatedKing == Side::kFriend) ? "HalfKP_vm(Friend)" : "HalfKP_vm(Enemy)";
 	// 評価関数ファイルに埋め込むハッシュ値
-	static constexpr std::uint32_t kHashValue =
+	static constexpr u32 kHashValue =
 		0x0B6B1D9Bu ^ (AssociatedKing == Side::kFriend);
 	// 特徴量の次元数
 	static constexpr IndexType kDimensions =

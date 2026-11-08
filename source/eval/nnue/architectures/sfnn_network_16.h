@@ -12,8 +12,8 @@ namespace YaneuraOu::Eval::NNUE {
 template <IndexType Inputs, IndexType Outputs>
 struct SfnnAffine16 {
     static constexpr IndexType PaddedInputs = CeilToMultiple<IndexType>(Inputs, 32);
-    std::int32_t biases[Outputs];
-    std::int16_t weights[Outputs][PaddedInputs];
+    i32 biases[Outputs];
+    i16 weights[Outputs][PaddedInputs];
 
     bool Read(std::istream& stream) {
         read_little_endian(stream, biases, Outputs);
@@ -27,7 +27,7 @@ struct SfnnAffine16 {
         const auto write = [&](auto value) {
             using U = std::make_unsigned_t<decltype(value)>;
             const U bits = static_cast<U>(value);
-            for (std::size_t i = 0; i < sizeof(value); ++i)
+            for (usize i = 0; i < sizeof(value); ++i)
                 stream.put(static_cast<char>((bits >> (i * 8)) & 255));
         };
         for (auto value : biases) write(value);
@@ -36,11 +36,11 @@ struct SfnnAffine16 {
         return bool(stream);
     }
 
-    void Propagate(const std::uint8_t* input, std::int64_t* output) const {
+    void Propagate(const u8* input, i64* output) const {
         for (IndexType o = 0; o < Outputs; ++o) {
-            std::int64_t sum = biases[o];
+            i64 sum = biases[o];
             for (IndexType i = 0; i < Inputs; ++i)
-                sum += std::int64_t(weights[o][i]) * input[i];
+                sum += i64(weights[o][i]) * input[i];
             output[o] = sum;
         }
     }
@@ -53,24 +53,24 @@ struct SfnnNetwork16 {
     static constexpr IndexType kHidden2Dims = Hidden2Dims;
     static constexpr bool kUseShortcut = UseShortcut;
     static constexpr IndexType kOutputDimensions = 1;
-    using OutputType = std::int64_t;
+    using OutputType = i64;
     SfnnAffine16<InputDims, Hidden1Dims + (UseShortcut ? 1 : 0)> fc_0;
     SfnnAffine16<Hidden1Dims * 2, Hidden2Dims> fc_1;
     SfnnAffine16<Hidden2Dims, 1> fc_2;
-    std::uint32_t weight_scale = 4096;
+    u32 weight_scale = 4096;
     unsigned shift = 12;
 
     struct alignas(kCacheLineSize) Buffer {
-        std::int64_t first[Hidden1Dims + (UseShortcut ? 1 : 0)];
-        std::int64_t second[Hidden2Dims];
-        std::uint8_t first_activated[Hidden1Dims * 2];
-        std::uint8_t second_activated[Hidden2Dims];
+        i64 first[Hidden1Dims + (UseShortcut ? 1 : 0)];
+        i64 second[Hidden2Dims];
+        u8 first_activated[Hidden1Dims * 2];
+        u8 second_activated[Hidden2Dims];
         OutputType output[1];
     };
-    static constexpr std::size_t kBufferSize = sizeof(Buffer);
-    static constexpr std::uint32_t GetHashValue() { return 0x6333718Au; }
+    static constexpr usize kBufferSize = sizeof(Buffer);
+    static constexpr u32 GetHashValue() { return 0x6333718Au; }
 
-    bool SetWeightScale(std::uint32_t qb) {
+    bool SetWeightScale(u32 qb) {
         if (qb < 64 || qb > 16384 || (qb & (qb - 1))) return false;
         weight_scale = qb;
         shift = 0;
@@ -86,15 +86,15 @@ struct SfnnNetwork16 {
         return fc_0.Write(stream) && fc_1.Write(stream) && fc_2.Write(stream);
     }
 
-    std::uint8_t Clipped(std::int64_t z) const {
-        return std::uint8_t(std::clamp<std::int64_t>(z / weight_scale, 0, 127));
+    u8 Clipped(i64 z) const {
+        return u8(std::clamp<i64>(z / weight_scale, 0, 127));
     }
-    std::uint8_t Squared(std::int64_t z) const {
+    u8 Squared(i64 z) const {
         // Beyond this bound the result saturates. Inside it, z*z fits int64
         // even for QB=16384. This also handles INT64_MIN without negation.
-        const std::int64_t bound = std::int64_t(weight_scale) * 128;
+        const i64 bound = i64(weight_scale) * 128;
         if (z <= -bound || z >= bound) return 127;
-        return std::uint8_t(std::min<std::int64_t>((z * z) >> (2 * shift + 7), 127));
+        return u8(std::min<i64>((z * z) >> (2 * shift + 7), 127));
     }
 
     const OutputType* Propagate(const TransformedFeatureType* input, char* buffer) const {

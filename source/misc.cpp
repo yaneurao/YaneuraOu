@@ -514,7 +514,7 @@ string config_info()
 //  統計情報
 // --------------------
 
-static atomic<int64_t> hits[2], means[2];
+static atomic<i64> hits[2], means[2];
 
 void dbg_hit_on(bool b) { ++hits[0]; if (b) ++hits[1]; }
 void dbg_hit_on(bool c, bool b) { if (c) dbg_hit_on(b); }
@@ -554,13 +554,13 @@ void sync_cout_start() { std::cout << IO_LOCK; }
 void sync_cout_end() { std::cout << IO_UNLOCK; }
 
 // Hash function based on public domain MurmurHash64A, by Austin Appleby.
-uint64_t hash_bytes(const char* data, size_t size) {
+uint64_t hash_bytes(const char* data, usize size) {
     const uint64_t m = 0xc6a4a7935bd1e995ull;
     const int      r = 47;
 
     uint64_t h = size * m;
 
-    const char* end = data + (size & ~(size_t) 7);
+    const char* end = data + (size & ~(usize) 7);
 
     for (const char* p = data; p != end; p += 8)
     {
@@ -686,7 +686,7 @@ namespace Tools {
 				start = stride * i,
 				len = (i != threadCount - 1) ? stride : size - start;
 
-				memset((uint8_t*)table + start, 0, len);
+				memset((u8*)table + start, 0, len);
 			});
 		}
 
@@ -1905,10 +1905,10 @@ namespace StringExtension
 		if (s.empty())
 			return res;
 
-		size_t begin = 0;
+		usize begin = 0;
 		for (;;)
 		{
-			const size_t end = s.find(delimiter, begin);
+			const usize end = s.find(delimiter, begin);
 			if (end == string::npos)
 				break;
 
@@ -1954,12 +1954,12 @@ bool is_whitespace(string_view s) {
 	return all_of(s.begin(), s.end(), [](char c) { return isspace(c); });
 }
 
-// "123"みたいな文字列を123のように数値型(size_t)に変換する。
-size_t str_to_size_t(const string& s) {
+// "123"みたいな文字列を123のように数値型(usize)に変換する。
+usize str_to_size_t(const string& s) {
 	unsigned long long value = stoull(s);
-	if (value > numeric_limits<size_t>::max())
+	if (value > numeric_limits<usize>::max())
 		exit(EXIT_FAILURE);
-	return static_cast<size_t>(value);
+	return static_cast<usize>(value);
 }
 
 // ----------------------------

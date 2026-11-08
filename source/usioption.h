@@ -9,6 +9,8 @@
 #include <string>
 #include <cstdint>
 
+#include "misc.h"
+
 namespace YaneuraOu {
 
 // Define a custom comparator, because the UCI options should be case-insensitive
@@ -42,7 +44,7 @@ class Option {
 	Option(int v, int minv, int maxv, OnChange = nullptr);
 #else
 	// ⇨ 💡 やねうら王では、引数をint64_tに変更
-    Option(int64_t v, int64_t minv, int64_t maxv, OnChange = nullptr);
+    Option(i64 v, i64 minv, i64 maxv, OnChange = nullptr);
 #endif
 
     // combo
@@ -59,7 +61,7 @@ class Option {
 
     //operator int() const;
     // 📌 やねうら王では、int64_tに変更する。
-    operator int64_t() const;
+    operator i64() const;
 
     operator std::string() const;
     bool operator==(const char*) const;
@@ -96,14 +98,14 @@ class Option {
 
     // このオプション設定がint型であるときに、最小値と最大値。
     // 📒 Stockfishではintだが、やねうら王ではint64_tに変更。
-    int64_t min, max;
+    i64 min, max;
 
     // 追加した順に0,1,2,…
     // 💡 これは、OptionsMap.add()で追加する時に設定される。
     // 📝 "usi"コマンド応答で、OptionsMapへの登録順に出力されてほしいので、
     //     カウンターを0から増やしていき、Option::idxが一致したものを表示していくようになっている。
     //     この変数は、そのためのもの。
-    size_t idx;
+    usize idx;
 
     // このOptionの設定値が変更された時に呼び出されるevent handler。
     OnChange on_change;
@@ -141,7 +143,7 @@ class OptionsMap {
 
     // 保持しているOptionのなかで、このoption_nameを持つものの数。
     // 💡 ある名前のoption項目を持っているかどうかを調べるのに使う。
-    std::size_t count(const std::string& option_name) const;
+    usize count(const std::string& option_name) const;
 
 #if !STOCKFISH
 
@@ -179,7 +181,7 @@ class OptionsMap {
 
     // idxを指定して、それに対応するOptionを取得する。
     // ⚠ 値が存在しないidxを指定すると落ちる。
-    std::pair<const std::string, const Option&> get_option_by_idx(size_t idx) const;
+    std::pair<const std::string, const Option&> get_option_by_idx(usize idx) const;
 
 #endif
 
@@ -230,7 +232,7 @@ public:
 
 	const Option& operator[](const std::string& option_name) const { return (*options)[option_name]; };
 	void add(const std::string& option_name, const Option& option) { return (*options).add(option_name, option); }
-	std::size_t count(const std::string& option_name) const { return (*options).count(option_name); }
+	usize count(const std::string& option_name) const { return (*options).count(option_name); }
 	bool book_options_v2() const { return (*options).book_options_v2(); }
 
 private:

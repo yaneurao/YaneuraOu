@@ -47,18 +47,18 @@ namespace Search {
 
 struct PVMoves {
     Move        moves[MAX_PLY + 1];
-    std::size_t length = 0;
+    usize length = 0;
 
     Move*       begin() { return moves; }
     const Move* begin() const { return moves; }
     Move*       end() { return moves + length; }
     const Move* end() const { return moves + length; }
 
-    Move&       operator[](std::size_t index) { return moves[index]; }
-    const Move& operator[](std::size_t index) const { return moves[index]; }
+    Move&       operator[](usize index) { return moves[index]; }
+    const Move& operator[](usize index) const { return moves[index]; }
 
     bool        empty() const { return length == 0; }
-    std::size_t size() const { return length; }
+    usize size() const { return length; }
 
     void clear() { length = 0; }
 
@@ -67,7 +67,7 @@ struct PVMoves {
         moves[length++] = move;
     }
 
-    void resize(std::size_t newSize) {
+    void resize(usize newSize) {
         assert(newSize <= length);
         length = newSize;
     }
@@ -309,7 +309,7 @@ struct InfoFull: InfoShort {
     int selDepth;
 
     // "multipv"の値。
-    size_t multiPV;
+    usize multiPV;
 
 #if STOCKFISH
     // 💡勝率はやねうら王では使わない
@@ -321,17 +321,17 @@ struct InfoFull: InfoShort {
     std::string_view bound;
 
     // 経過時間
-    size_t timeMs;
+    usize timeMs;
 
     // 探索したnode数
-    size_t nodes;
+    usize nodes;
 
     // NPS
-    size_t nps;
+    usize nps;
 
 #if STOCKFISH
     // 💡tbHitsもやねうら王では使わない。(tb = tablebases)
-    size_t           tbHits;
+    usize           tbHits;
 #endif
 
     // PVを文字列化したもの
@@ -350,7 +350,7 @@ struct InfoIteration {
     std::string_view currmove;
 
 	// 現在探索中の指し手のナンバー
-    size_t currmovenumber;
+    usize currmovenumber;
 };
 
 // 📌 読み筋を出力する時に呼び出すlistener
@@ -403,9 +403,9 @@ public:
 	Worker(SharedState& sharedState,
 #if STOCKFISH
 	,std::unique_ptr<ISearchManager> sm,
-	size_t threadIdx,
-	size_t numaThreadIdx,
-	size_t numaTotal,
+	usize threadIdx,
+	usize numaThreadIdx,
+	usize numaTotal,
 	NumaReplicatedAccessToken numaAccessToken)
 #else
           // 🌈 上記の4つの引数を一纏めにした構造体
@@ -509,7 +509,7 @@ protected:
 	LimitsType limits;
 
 	// 📝 派生class側で
-    // size_t pvIdx, pvLast;
+    // usize pvIdx, pvLast;
 
 	// nodes           : 探索したnode数。do_move()で(自分で)カウントする。
     // tbHits          : tablebaseにhitした回数。将棋では使わない。
@@ -553,7 +553,7 @@ protected:
 	// numaThreadIdx   : 何番目のNUMAを使うか。
 	// numaTotal       : NUMA内のThreadの合計個数。
 	// numaAccessToken : このWorker threadに対応するNumaのtoken
-    size_t                    threadIdx, numaThreadIdx, numaTotal;
+    usize                    threadIdx, numaThreadIdx, numaTotal;
     NumaReplicatedAccessToken numaAccessToken;
 
 	// 📝 派生class側で
