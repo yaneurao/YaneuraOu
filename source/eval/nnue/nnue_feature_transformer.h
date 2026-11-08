@@ -628,6 +628,15 @@ class FeatureTransformer {
 		sparse8_enabled_ = true;
 	}
 
+#if !defined(NO_PREFETCH)
+	// 実際に加減算する列の先頭だけを先読みする。列全体には命令を発行しない。
+	void prefetch_sparse8_columns(const Features::IndexList& indices) const {
+		const auto* base = reinterpret_cast<const std::int8_t*>(weights_);
+		for (const auto index : indices)
+			_mm_prefetch(reinterpret_cast<const char*>(base + std::size_t(kHalfDimensions) * index), _MM_HINT_T2);
+	}
+#endif
+
 	void apply_sparse8_corrections(BiasType* destination, IndexType index, int sign) const {
 		const auto* bytes = reinterpret_cast<const unsigned char*>(weights_) + kSparse8Bytes;
 		for (auto i = sparse8_offsets_[index]; i < sparse8_offsets_[index + 1]; ++i) {
@@ -979,6 +988,17 @@ class FeatureTransformer {
 		// Avoid reading more weight columns than rebuilding from the bias.
 		rebuild = rebuild || removed_indices.size() + added_indices.size() >= active_indices.size();
 #endif
+
+#if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
+		if constexpr (Packed) {
+			if (rebuild)
+				prefetch_sparse8_columns(active_indices);
+			else {
+				prefetch_sparse8_columns(removed_indices);
+				prefetch_sparse8_columns(added_indices);
+			}
+		}
+#endif
 		if (rebuild) {
 #if defined(VECTOR)
 			const auto* source = trigger_index == 0 ? biases_ : nullptr;
@@ -1089,6 +1109,17 @@ class FeatureTransformer {
 			Features::IndexList removed_indices[2], added_indices[2];
 			bool                reset[2];
 			RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset);
+#if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
+			if constexpr (Packed) {
+				for (int c = 0; c < COLOR_NB; ++c) {
+					if (!reset[c]) {
+						prefetch_sparse8_columns(removed_indices[c]);
+						prefetch_sparse8_columns(added_indices[c]);
+					}
+				}
+			}
+#endif
+
 			for (int c = 0; c < COLOR_NB; ++c) {
 				const Color perspective = static_cast<Color>(c);
 #if defined(USE_FINNY_TABLES) && defined(USE_FINNY_RESET)

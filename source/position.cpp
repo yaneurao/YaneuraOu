@@ -4,6 +4,9 @@
 #include <stack>
 
 #include "position.h"
+#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT) && !defined(NO_PREFETCH)
+#include "history.h"
+#endif
 #include "misc.h"
 #include "tt.h"
 #include "mate/mate.h"
@@ -1654,7 +1657,8 @@ Move Position::to_move(Move16 m16) const
 // 指し手で盤面を1手進める。
 // ⚠ m として Move::none()はもちろん、Move::null() , Move::resign()などお断り。
 template<Color Us, typename T>
-void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* tt) {
+void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* tt,
+                            [[maybe_unused]] const SharedHistories* history) {
 
     ASSERT_LV3(m.is_ok());
     ASSERT_LV3(&newSt != st);
@@ -2104,6 +2108,19 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
     st->hand_key  = h;
 
     st->hand = hand[them];
+#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT) && !defined(NO_PREFETCH)
+    // 次局面のキーが確定したので、王手情報・千日手の計算中に履歴を先読みする。
+    if (history) {
+        const auto pc = moved_piece(m);
+        const auto to = m.to_sq();
+        _mm_prefetch(reinterpret_cast<const char*>(&history->pawn_entry(*this)[pc][to]), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char*>(&history->pawn_correction_entry(*this)), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char*>(&history->minor_piece_correction_entry(*this)), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char*>(&history->nonpawn_correction_entry<WHITE>(*this)), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char*>(&history->nonpawn_correction_entry<BLACK>(*this)), _MM_HINT_T0);
+    }
+#endif
+
 
     // このタイミングで王手関係の情報を更新しておいてやる。
     set_check_info<false>();
@@ -2404,12 +2421,12 @@ void Position::undo_move_impl(Move m) {
 
 // do_move()を先後分けたdo_move_impl<>()を呼び出す。
 template <typename T>
-void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt)
+void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt, const SharedHistories* history)
 {
     if (sideToMove == BLACK)
-        do_move_impl<BLACK, T>(m, newSt, givesCheck, tt);
+        do_move_impl<BLACK, T>(m, newSt, givesCheck, tt, history);
     else
-        do_move_impl<WHITE, T>(m, newSt, givesCheck, tt);
+        do_move_impl<WHITE, T>(m, newSt, givesCheck, tt, history);
 }
 
 // undo_move()を先後分けたdo_move_impl<>()を呼び出す。
@@ -3996,8 +4013,8 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
 template bool Position::pseudo_legal_s<false>(const Move m) const;
 template bool Position::pseudo_legal_s< true>(const Move m) const;
 
-template void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const TranspositionTable* tt);
-template void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const void* tt);
+template void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const TranspositionTable* tt, const SharedHistories* history);
+template void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const void* tt, const SharedHistories* history);
 
 template void Position::do_null_move(StateInfo& st, const TranspositionTable& tt);
 template void Position::do_null_move(StateInfo& st, const int& tt);

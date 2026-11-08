@@ -2079,6 +2079,16 @@ void Search::YaneuraOuWorker::do_move(Position & pos, const Move move, StateInfo
 void YaneuraOuWorker::do_move(
   Position& pos, const Move move, StateInfo& st, const bool givesCheck, Stack* const ss) {
 
+#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT) && !defined(NO_PREFETCH)
+    // 子局面の補正値が読むss-2/ss-4は、着手前にはss-1/ss-3に当たる。
+    if (ss != nullptr) {
+        const auto pc = pos.moved_piece(move);
+        const auto to = move.to_sq();
+        _mm_prefetch(reinterpret_cast<const char*>(&(*(ss-1)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char*>(&(*(ss-3)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
+    }
+#endif
+
     bool capture = pos.capture_stage(move);
 
     // Preferable over fetch_add to avoid locking instructions
@@ -2090,12 +2100,12 @@ void YaneuraOuWorker::do_move(
 
     // accumulatorStackを用いる実装。
 
-    DirtyBoardData dirtyBoardData = pos.do_move(move, st, givesCheck, &tt);
+    DirtyBoardData dirtyBoardData = pos.do_move(move, st, givesCheck, &tt, &sharedHistory);
     accumulatorStack.push(dirtyBoardData);
 
 #else
 
-    pos.do_move(move, st, givesCheck, &tt);
+    pos.do_move(move, st, givesCheck, &tt, &sharedHistory);
 
 #endif
 

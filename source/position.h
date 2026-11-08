@@ -21,6 +21,8 @@
 
 namespace YaneuraOu {
 
+struct SharedHistories;
+
 // --------------------
 //     局面の情報
 // --------------------
@@ -645,8 +647,10 @@ public:
 #if STOCKFISH
     void do_move(Move m, StateInfo& newSt, bool givesCheck, const TranspositionTable* tt);
 #else
+    // historyは省略可能。探索で次局面の履歴を先読みするときだけ渡す。
 	template <typename T = void>
-    void do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt = nullptr);
+    void do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt = nullptr,
+                 const SharedHistories* history = nullptr);
 #endif
 
 	// 💡 上記のdo_move()にはgivesCheckも渡さないといけないが、
@@ -1076,7 +1080,8 @@ private:
 
 	// do_move()の先後分けたもの。内部的に呼び出される。
     template<Color Us, typename T>
-    void do_move_impl(Move m, StateInfo& st, bool givesCheck, const T* tt);
+    void do_move_impl(Move m, StateInfo& st, bool givesCheck, const T* tt,
+                      const SharedHistories* history);
 
 	// undo_move()の先後分けたもの。内部的に呼び出される。
     template<Color Us>
