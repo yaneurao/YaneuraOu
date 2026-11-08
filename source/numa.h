@@ -71,6 +71,7 @@ using GetThreadSelectedCpuSetMasks_t = BOOL (*)(HANDLE, PGROUP_AFFINITY, USHORT,
 #endif
 
 #include "misc.h"
+#include "thread_native.h"
 
 namespace YaneuraOu {
 
@@ -377,7 +378,7 @@ inline WindowsAffinity get_process_affinity() {
 
         if (GetThreadSelectedCpuSetMasks_f != nullptr)
         {
-            std::thread th([&]() {
+            NativeThread th = create_native_thread(NativeThreadOptions{}, [&]() {
                 std::set<CpuIndex> cpus;
                 bool               isAffinityFull = true;
 
@@ -452,6 +453,8 @@ inline WindowsAffinity get_process_affinity() {
                 }
             });
 
+            if (!th.joinable())
+                affinity.isOldDeterminate = false;
             th.join();
         }
     }
@@ -1202,10 +1205,16 @@ class NumaConfig {
 
     template<typename FuncT>
     void execute_on_numa_node(NumaIndex n, FuncT&& f) const {
-        std::thread th([this, &f, n]() {
+        NativeThread th = create_native_thread(NativeThreadOptions{}, [this, &f, n]() {
             bind_current_thread_to_numa_node(n);
             std::forward<FuncT>(f)();
         });
+
+        if (!th.joinable())
+        {
+            std::cerr << "Failed to execute function on NUMA node\n";
+            std::exit(EXIT_FAILURE);
+        }
 
         th.join();
     }

@@ -202,7 +202,7 @@
     <ClInclude Include="eval\evalhash.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
-    <ClInclude Include="thread_win32_osx.h">
+    <ClInclude Include="thread_native.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\features\half_kpe9.h">
