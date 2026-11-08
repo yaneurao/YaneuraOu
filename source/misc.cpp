@@ -466,7 +466,6 @@ string config_info()
 
 	config += o1("ASSERT_LV"           , ASSERT_LV      );
 	config += o1("HASH_KEY_BITS"       , HASH_KEY_BITS  );
-	config += o1("TT_CLUSTER_SIZE"     , TT_CLUSTER_SIZE);
 
 	bool for_tournament = 
 #if defined(FOR_TOURNAMENT)

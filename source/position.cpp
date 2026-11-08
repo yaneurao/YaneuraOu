@@ -1843,7 +1843,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         if constexpr (std::is_same_v<T, TranspositionTable>)
         {
             const auto key = k ^ h;
-            prefetch(tt->first_entry(key, them));
+            prefetch(tt->get_cluster(key, them));
         }
 
 #if defined(USE_PARTIAL_KEY) & 0
@@ -2002,7 +2002,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         if constexpr (std::is_same_v<T, TranspositionTable>)
         {
             const auto key = k ^ h;
-            prefetch(tt->first_entry(key, them));
+            prefetch(tt->get_cluster(key, them));
         }
 
 #if defined(USE_EVAL_LIST)
@@ -2462,7 +2462,7 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
     }
 
     st->key ^= Zobrist::side;
-    prefetch(tt.first_entry(key()));
+    prefetch(tt.get_cluster(key()));
 
 	st->pliesFromNull = 0;
 
@@ -2486,7 +2486,7 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
     // 　prefetchのスケジューラーが処理しきれない可能性が…。
     // CPUによっては有効なので一応やっておく。
 
-	// 📝 以下のprefetchのfirst_entry()でやねうら王は、この時の手番が必要なので
+	// 📝 以下のprefetchのget_cluster()でやねうら王は、この時の手番が必要なので
     //     先に手番を変えておく。
     sideToMove = ~sideToMove;
 
@@ -2497,7 +2497,7 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
 	if constexpr (std::is_same_v<T, TranspositionTable>)
     {
         const auto key = st->key();
-        prefetch(tt.first_entry(key, sideToMove));
+        prefetch(tt.get_cluster(key, sideToMove));
     }
 
 	st->pliesFromNull = 0;

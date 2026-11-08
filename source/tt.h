@@ -1,20 +1,18 @@
 ﻿#ifndef TT_H_INCLUDED
 #define TT_H_INCLUDED
 
-#include "types.h"
+#include <tuple>
+
 #include "misc.h"
 #include "memory.h"
-#include "thread.h"
+#include "types.h"
 
 namespace YaneuraOu {
 
-struct Key128;
-struct Key256;
+class ThreadPool;
 
 // cf.【決定版】コンピュータ将棋のHASHの概念について詳しく : http://yaneuraou.yaneu.com/2018/11/18/%E3%80%90%E6%B1%BA%E5%AE%9A%E7%89%88%E3%80%91%E3%82%B3%E3%83%B3%E3%83%94%E3%83%A5%E3%83%BC%E3%82%BF%E5%B0%86%E6%A3%8B%E3%81%AEhash%E3%81%AE%E6%A6%82%E5%BF%B5%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6/
 
-//class ThreadPool;
-struct TTEntry;
 struct Cluster;
 
 // There is only one global hash table for the engine and all its threads.
@@ -81,23 +79,17 @@ struct TTData {
 struct TTWriter {
 public:
     void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 generation8);
+    void penalize(int penalty);  // decrement stored depth by the penalty
 
 private:
 	friend class TranspositionTable;
-	TTEntry* entry;
-	TTWriter(TTEntry* tte);
+
+	// コンストラクタで渡されたcl,idx。最後、cluster[index]にwriteで書き戻す。
+	Cluster* cluster;
+    int      index;
+
+    TTWriter(Cluster* cl, int idx);
 };
-
-// ============================================================
-//               やねうら王独自拡張
-// ============================================================
-
-// やねうら王では、TTClusterSizeを変更できて、これが2の時は、TTEntryに格納するhash keyは64bit。(Stockfishのように)3の時は16bit。
-#if TT_CLUSTER_SIZE == 3
-typedef u16 TTE_KEY_TYPE;
-#else // TT_CLUSTER_SIZEが2,4,6,8の時は64bit。5,7は選択する意味がないと思うので考えない。
-typedef uint64_t TTE_KEY_TYPE;
-#endif
 
 // ============================================================
 //               置換表本体
@@ -124,7 +116,7 @@ public:
 
 	void clear(ThreadPool& threads);                  // Re-initialize memory, multithreaded
 
-	// This must be called at the beginning of each root search to track entry aging
+    // Must be called at the beginning of each root search to track entry aging
 	// エントリのエイジングを追跡するために、各ルート検索の開始時にこれを呼び出す必要があります。
 	// ⇨ 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
 
@@ -157,7 +149,7 @@ public:
 	// 置換表のなかから与えられたkeyに対応するentryを探す。
 	// 見つかったならfound == trueにしてそのTT_ENTRY*を返す。
 	// 見つからなかったらfound == falseで、このとき置換表に書き戻すときに使うと良いTT_ENTRY*を返す。
-	// ※ KeyとしてKey(64 bit)以外に 128,256bitのhash keyにも対応。(やねうら王独自拡張)
+	// Positionのキー幅によらず、TTでは下位64bitをキーとして使用する。
 	//
 	// ⇨ このprobe()でTTの内部状態が変更されないことは保証されている。(されるようになった)
 
@@ -165,6 +157,10 @@ public:
     std::tuple<bool, TTData, TTWriter> probe(
           const Key key) const;  // The main method, whose retvals separate local vs global objects
 #else
+	// やねうら王では、probeするときに pos も渡す必要がある。
+	// これは、以下の2つの目的。
+	// 1. 手番情報が必要
+	// 2. 置換表に格納されている指し手(16-bit)をMove(32-bit)化して返す必要がある
 	std::tuple<bool, TTData, TTWriter> probe(const Key key, const Position& pos) const;
 #endif
 
@@ -172,9 +168,9 @@ public:
 	// ハッシュ関数です。外部での唯一の使用目的はメモリのプリフェッチです。
 
 	/*
-		📓 first_entry()とは？
+		📓 get_cluster()とは？
 
-		keyを元にClusterのindexを求めて、その最初のTTEntry* を返す。
+		keyを元にClusterのindexを求めて、そのCluster* を返す。
 
 		Stockfishとは違い、引数にこの局面の手番(side_to_move)を渡しているのは、
 		手番をCluster indexのbit 0に埋めることで、手番が異なれば、異なる
@@ -186,10 +182,11 @@ public:
 	*/ 
 
 #if STOCKFISH
-    TTEntry* first_entry(const Key key)
-      const;  // This is the hash function; its only external use is memory prefetching.
+    Cluster* get_cluster(const Key key) const;
 #else
-	TTEntry* first_entry(const Key& key, Color side_to_move) const;
+	// 🌈 やねうら王では、
+	// 手番のよってTTを分割しているので、side_to_moveが引数として必要となる。
+	Cluster* get_cluster(const Key key, Color side_to_move) const;
 #endif
 
 	static void UnitTest(Test::UnitTester& unittest, IEngine& engine);

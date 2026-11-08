@@ -600,10 +600,6 @@ constexpr bool pretty_jp = false;
 #define HASH_KEY_BITS 64
 #endif
 
-#if !defined(TT_CLUSTER_SIZE)
-#define TT_CLUSTER_SIZE 3
-#endif
-
 // --- lastMove
 
 // KIF形式に変換するときにPositionクラスにその局面へ至る直前の指し手が保存されていないと
