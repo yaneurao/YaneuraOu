@@ -510,7 +510,7 @@ namespace Eval {
 	void EvalHash_Clear() { g_evalTable.clear(Threads); };
 
 	// prefetchする関数も用意しておく。
-	void prefetch_evalhash(const Key key)
+	void prefetch_evalhash(const u64 key)
 	{
 		prefetch(g_evalTable[key]);
 	}
@@ -843,7 +843,7 @@ namespace Eval {
 
 #if defined ( USE_EVAL_HASH )
 		// 局面のhash key
-		const Key key = pos.key();
+		const HASH_KEY key = pos.key();
 
 		// evaluate hash tableにはあるかも。
 

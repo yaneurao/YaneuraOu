@@ -1,5 +1,5 @@
-﻿#ifndef _TYPES_H_INCLUDED
-#define _TYPES_H_INCLUDED
+﻿#ifndef TYPES_H_INCLUDED
+#define TYPES_H_INCLUDED
 
 // --------------------
 // release configurations
@@ -43,6 +43,18 @@
 namespace YaneuraOu {
 
 class Position;
+
+// TTなどで使うキーは常に64bit。局面の完全なキーは設定に応じて切り替える。
+using Key = u64;
+struct Key128;
+struct Key256;
+#if HASH_KEY_BITS <= 64
+using HASH_KEY = u64;
+#elif HASH_KEY_BITS <= 128
+using HASH_KEY = Key128;
+#else
+using HASH_KEY = Key256;
+#endif
 
 // --------------------
 //  型の最小値・最大値
@@ -1200,4 +1212,4 @@ static_assert(sizeof(TimePoint) == sizeof(YaneuraOu::i64), "TimePoint should be 
 extern void engine_main();
 
 
-#endif // #ifndef _TYPES_H_INCLUDED
+#endif // #ifndef TYPES_H_INCLUDED

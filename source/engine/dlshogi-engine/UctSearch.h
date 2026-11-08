@@ -176,7 +176,7 @@ struct BatchElement {
 #endif
 
 #if defined(ENABLE_NN_CACHE)
-	Key policy_value_cache_key; // NN推論結果cache用。HASH_KEY_BITSに応じたKey型。
+	HASH_KEY policy_value_cache_key; // NN推論結果cache用。HASH_KEY_BITSに応じたKey型。
 #endif
 
 	// 通常の探索では、このポインターはNodeVisitor::value_win を指している。
@@ -214,7 +214,7 @@ public:
 		policy_value_batch = new BatchElement[policy_value_batch_maxsize];
 
 #ifdef MAKE_BOOK
-		policy_value_book_key = new Key[policy_value_batch_maxsize];
+		policy_value_book_key = new HASH_KEY[policy_value_batch_maxsize];
 #endif
 	}
 
@@ -339,7 +339,7 @@ private:
 	BatchElement* policy_value_batch;
 
 #ifdef MAKE_BOOK
-	Key* policy_value_book_key;
+	HASH_KEY* policy_value_book_key;
 #endif
 
 	// features1[],features2[],policy_value_batch[],policy_value_book_key[],の次に使用するindexを示している。

@@ -52,17 +52,17 @@ struct StateInfo {
 			枚数にすると実装が面倒になるので、やねうら王は、
 			Zobrist::psq[pc][8]をaddしていく。
 	*/
-    Key materialKey;
+    HASH_KEY materialKey;
 
 	// 歩のhash key(盤上のみ)
-    Key pawnKey;
+    HASH_KEY pawnKey;
 
 	// 小駒(香、桂、銀、金 とその成り駒)によるhash key
 	// 📝 チェスだとKnight, Bishop。
-    Key minorPieceKey;
+    HASH_KEY minorPieceKey;
 
 	// 歩以外の駒によるhash key(盤上のみ)
-    Key nonPawnKey[COLOR_NB];
+    HASH_KEY nonPawnKey[COLOR_NB];
 #endif
 
 #if STOCKFISH
@@ -86,7 +86,7 @@ struct StateInfo {
 
 #if defined(SFNNwoPSQT) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 	// NNUE progress bucket用の進行度計算キャッシュ。
-	Key nnue_progress_key;
+	HASH_KEY nnue_progress_key;
 	int64_t nnue_progress_sum;
 	Square nnue_progress_sq_bk;
 	Square nnue_progress_sq_wk;
@@ -100,15 +100,15 @@ struct StateInfo {
 	// 指し手で局面を進めるときにコピーされない(なんにせよ再計算される)
 
 #if STOCKFISH
-	Key        key;
+	HASH_KEY        key;
 #else
 	// 盤面(盤上の駒)と手駒に関するhash key
 	// 直接アクセスせずに、hand_key()、board_key(),key()を用いること。
 
 	// 💡 board_keyはZobrist::psqをxorしていく。hand_keyはZobrist::handを加算していく。key = board_key ^ hand_key。
 
-	Key board_key;
-    Key hand_key;
+	HASH_KEY board_key;
+    HASH_KEY hand_key;
 
 	// この局面のハッシュキー
 	// ※　次の局面にdo_move()で進むときに最終的な値が設定される
@@ -120,12 +120,9 @@ struct StateInfo {
 		盤面が同じで手駒だけ損している局面(劣等局面)を検出するためには、
 		同一の盤面であるかを高速に調べる必要があり、それには盤面のhash keyが必要となる。
 		それがboard_keyである。
-
-		⚠ KeyからKey64(64bit key)が欲しい場合、
-		    暗黙の変換子が定義されているので単にKey64へcastすると良い。
 	*/
 
-	Key key() const { return board_key ^ hand_key; }
+	HASH_KEY key() const { return board_key ^ hand_key; }
 
 #endif
 
@@ -753,18 +750,18 @@ public:
 	// 📝 StateInfoの同名のメンバーへの簡易アクセス。
 	// 💡 USE_PARTIAL_KEYがdefineされていない時は、key()以外は使えない。
 
-    Key key() const;
-    Key material_key() const;
-    Key pawn_key() const;
-    Key minor_piece_key() const;
-    Key non_pawn_key(Color c) const;
+    HASH_KEY key() const;
+    HASH_KEY material_key() const;
+    HASH_KEY pawn_key() const;
+    HASH_KEY minor_piece_key() const;
+    HASH_KEY non_pawn_key(Color c) const;
 
 #if !STOCKFISH
 	// ある指し手を指した後のhash keyを返す。
 	// 将棋だとこの計算にそこそこ時間がかかるので、通常の探索部でprefetch用に
 	// これを計算するのはあまり得策ではないが、詰将棋ルーチンでは置換表を投機的に
 	// prefetchできるとずいぶん速くなるのでこの関数を用意しておく。
-	Key key_after(Move m) const;
+	HASH_KEY key_after(Move m) const;
 #endif
 
     // -----------------------
@@ -1074,7 +1071,7 @@ private:
                      Square&           rfrom,
                      Square&           rto,
                      DirtyPiece* const dp = nullptr);
-    Key  adjust_key50(Key k) const;
+    HASH_KEY  adjust_key50(HASH_KEY k) const;
 
 #endif
 
@@ -1271,31 +1268,31 @@ inline Square Position::castling_rook_square(CastlingRights cr) const {
 
 
 #if STOCKFISH
-inline Key Position::key() const { return adjust_key50(st->key); }
+inline HASH_KEY Position::key() const { return adjust_key50(st->key); }
 
-inline Key Position::adjust_key50(Key k) const {
+inline HASH_KEY Position::adjust_key50(HASH_KEY k) const {
     return st->rule50 < 14 ? k : k ^ make_key((st->rule50 - 14) / 8);
 }
 #else
-inline Key Position::key() const { return st->key(); }
+inline HASH_KEY Position::key() const { return st->key(); }
 #endif
 
 #if defined(USE_PARTIAL_KEY)
-inline Key Position::pawn_key() const { return st->pawnKey; }
+inline HASH_KEY Position::pawn_key() const { return st->pawnKey; }
 
-inline Key Position::material_key() const { return st->materialKey; }
+inline HASH_KEY Position::material_key() const { return st->materialKey; }
 
-inline Key Position::minor_piece_key() const { return st->minorPieceKey; }
+inline HASH_KEY Position::minor_piece_key() const { return st->minorPieceKey; }
 
-inline Key Position::non_pawn_key(Color c) const { return st->nonPawnKey[c]; }
+inline HASH_KEY Position::non_pawn_key(Color c) const { return st->nonPawnKey[c]; }
 #else
 
 // 使わないのでダミーの値を返すようにしておく。
 
-inline Key Position::pawn_key() const { return Key(); }
-inline Key Position::material_key() const { return Key(); }
-inline Key Position::minor_piece_key() const { return Key(); }
-inline Key Position::non_pawn_key(Color c) const { return Key(); }
+inline HASH_KEY Position::pawn_key() const { return HASH_KEY(); }
+inline HASH_KEY Position::material_key() const { return HASH_KEY(); }
+inline HASH_KEY Position::minor_piece_key() const { return HASH_KEY(); }
+inline HASH_KEY Position::non_pawn_key(Color c) const { return HASH_KEY(); }
 
 #endif
 

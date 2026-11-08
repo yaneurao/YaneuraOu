@@ -273,7 +273,7 @@ bool UctSearcher::QueuingNode(const Position *pos, Node* node, float* value_win)
 	}*/
 
 #if defined(ENABLE_NN_CACHE) && !defined(USE_POLICY_BOOK) && !defined(MAKE_BOOK)
-	Key policy_value_cache_key = 0;
+	HASH_KEY policy_value_cache_key = 0;
 	if (policy_value_cache.IsEnabled()) {
 		policy_value_cache_key = pos->key();
 		PolicyValueCache::ResultPtr cached;
@@ -1128,7 +1128,7 @@ void UctSearcher::EvalNode() {
 #ifdef MAKE_BOOK
         // 定跡作成時は、事前確率に定跡の遷移確率も使用する
         constexpr float alpha = 0.5f;
-        const Key&      key   = policy_value_book_key[i];
+        const HASH_KEY&      key   = policy_value_book_key[i];
         const auto      itr   = bookMap.find(key);
         if (itr != bookMap.end())
         {

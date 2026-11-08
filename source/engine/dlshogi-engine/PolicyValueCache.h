@@ -49,7 +49,7 @@ public:
 
 	bool IsEnabled() const { return capacity_ != 0; }
 
-	bool Lookup(const Key key, const size_t policy_size, ResultPtr& result) {
+	bool Lookup(const HASH_KEY key, const size_t policy_size, ResultPtr& result) {
 		if (!IsEnabled())
 			return false;
 
@@ -75,7 +75,7 @@ public:
 		return true;
 	}
 
-	void Store(const Key key, const float value, std::vector<float>&& policy) {
+	void Store(const HASH_KEY key, const float value, std::vector<float>&& policy) {
 		if (!IsEnabled())
 			return;
 
@@ -93,7 +93,7 @@ public:
 		shard.lru.push_front(key);
 		shard.entries.emplace(key, Entry{std::move(result), shard.lru.begin()});
 		if (shard.entries.size() > shard.capacity) {
-			const Key oldest = shard.lru.back();
+			const HASH_KEY oldest = shard.lru.back();
 			shard.entries.erase(oldest);
 			shard.lru.pop_back();
 		}
@@ -104,18 +104,18 @@ private:
 
 	struct Entry {
 		ResultPtr result;
-		std::list<Key>::iterator lru_position;
+		std::list<HASH_KEY>::iterator lru_position;
 	};
 
 	struct Shard {
 		size_t capacity = 0;
 		std::shared_mutex mutex;
-		std::list<Key> lru;
-		std::unordered_map<Key, Entry> entries;
+		std::list<HASH_KEY> lru;
+		std::unordered_map<HASH_KEY, Entry> entries;
 	};
 
-	Shard& GetShard(const Key key) {
-		const size_t hash = std::hash<Key>{}(key);
+	Shard& GetShard(const HASH_KEY key) {
+		const size_t hash = std::hash<HASH_KEY>{}(key);
 		const size_t index = shard_count_ == kShardCount
 			? hash & (kShardCount - 1)
 			: hash % shard_count_;

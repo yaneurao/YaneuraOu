@@ -177,7 +177,7 @@ struct TranspositionTable {
 	}
 
 	// 指定したKeyのTTEntryを返す。見つからなければ初期化された新規のTTEntryを返す。
-	TTEntry& LookUp(Key key, Color root_color) {
+	TTEntry& LookUp(HASH_KEY key, Color root_color) {
 		auto& entries = tt[key & clusters_mask];
 		uint32_t hash_high = ((key >> 32) & ~1) | root_color;
 
@@ -347,7 +347,7 @@ public:
 
 		std::vector<Move> moves;
 		if (options[kMorePreciseMatePv]) {
-			std::unordered_map<Key, MateState> memo;
+			std::unordered_map<HASH_KEY, MateState> memo;
 			SearchMatePvMorePrecise(true, root_color, r, memo);
 
 			// 探索メモから詰み手順を再構築する
@@ -378,7 +378,7 @@ public:
 			}
 		}
 		else {
-			std::unordered_set<Key> visited;
+			std::unordered_set<HASH_KEY> visited;
 			SearchMatePvFast(true, root_color, r, moves, visited);
 		}
 
@@ -795,7 +795,7 @@ public:
 
 	// 詰み手順を1つ返す
 	// 最短の詰み手順である保証はない
-	bool SearchMatePvFast(bool or_node, Color root_color, Position& pos, std::vector<Move>& moves, std::unordered_set<Key>& visited) {
+	bool SearchMatePvFast(bool or_node, Color root_color, Position& pos, std::vector<Move>& moves, std::unordered_set<HASH_KEY>& visited) {
 		// 一度探索したノードを探索しない
 		if (visited.find(pos.key()) != visited.end()) {
 			return false;
@@ -864,7 +864,7 @@ public:
 	// pos 盤面
 	// memo 過去に探索した盤面のキーと探索状況のmap
 	// return 詰みまでの手数、詰みの局面は0、ループがある場合はkLoop、不詰みの場合はkNotMated
-	int SearchMatePvMorePrecise(bool or_node, Color root_color, Position& pos, std::unordered_map<Key, MateState>& memo) {
+	int SearchMatePvMorePrecise(bool or_node, Color root_color, Position& pos, std::unordered_map<HASH_KEY, MateState>& memo) {
 		// 過去にこのノードを探索していないか調べる
 		auto key = pos.key();
 		if (memo.find(key) != memo.end()) {

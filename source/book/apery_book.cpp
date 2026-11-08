@@ -47,9 +47,9 @@ public:
 
 namespace Book {
 
-Key AperyBook::ZobPiece[PIECE_NB - 1][SQ_NB];
-Key AperyBook::ZobHand[PIECE_HAND_NB - 1][19]; // 持ち駒の同一種類の駒の数ごと
-Key AperyBook::ZobTurn;
+HASH_KEY AperyBook::ZobPiece[PIECE_NB - 1][SQ_NB];
+HASH_KEY AperyBook::ZobHand[PIECE_HAND_NB - 1][19]; // 持ち駒の同一種類の駒の数ごと
+HASH_KEY AperyBook::ZobTurn;
 
 void AperyBook::init() {
 	// 定跡のhash生成用なので、seedは固定でデフォルト値を使う。
@@ -81,12 +81,12 @@ AperyBook::AperyBook(const std::string& filename) {
     }
 }
 
-Key AperyBook::bookKey(const Position& pos) {
+HASH_KEY AperyBook::bookKey(const Position& pos) {
     static constexpr int hand_piece_map[] = {
         -1, 0, 1, 2, 3, 5, 6, 4
     };
 
-    Key key = 0;
+    HASH_KEY key = 0;
     for (Square sq = SQ_ZERO; sq < SQ_NB; ++sq) {
         key ^= ZobPiece[pos.piece_on(sq)][sq];
     }

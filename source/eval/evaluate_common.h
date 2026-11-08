@@ -25,8 +25,7 @@ namespace Eval
 
 #if defined(USE_EVAL_HASH)
 	// prefetchする関数
-    using Key64 = uint64_t;
-	void prefetch_evalhash(const Key64 key);
+	void prefetch_evalhash(const u64 key);
 #endif
 
 	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。

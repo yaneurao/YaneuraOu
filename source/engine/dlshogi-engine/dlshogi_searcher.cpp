@@ -595,7 +595,7 @@ void DlshogiSearcher::OutputPvCheck() {
 // posからply先のpvのhash keyを返す。
 // ply = 残り手数(3を設定すると現局面と合わせて4手分をkeysに出力)
 // keys には keys[0]がply手後、keys[1]がply-1手後 .. keys[ply-1]に0手後のhash keyが返る。
-void pv_key(Position& pos, Node* node, int ply, Key64 keys[]) {
+void pv_key(Position& pos, Node* node, int ply, u64 keys[]) {
     if (ply == 0)
         keys[ply] = pos.key();
     else if (node == nullptr || node->child_num == 0)
@@ -885,7 +885,7 @@ void DlshogiSearcher::InterruptionCheck(const Position& rootPos) {
                     //sync_cout << to_usi_string(m2) << sync_endl;
 
                     pos.do_move(m1, si);
-                    Key64 k1[4] = {}, k2[4] = {};
+                    u64 k1[4] = {}, k2[4] = {};
                     pv_key(pos, node1, 3, k1);  // 4手先までのhash key
                     pos.undo_move(m1);
                     pos.do_move(m2, si);

@@ -203,11 +203,7 @@ void TTWriter::write(
 void TTWriter::write(
   const Key k_, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 generation8) {
 
-#if HASH_KEY_BITS <= 64
     const TTE_KEY_TYPE k = TTE_KEY_TYPE(k_);
-#else
-    const TTE_KEY_TYPE k = TTE_KEY_TYPE(k_.extract64<1>());
-#endif
 
     entry->save(k, v, pv, b, d, m, ev, generation8);
 }
@@ -400,11 +396,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, cons
 
     TTEntry* const tte = first_entry(key, pos.side_to_move());
 
-#if HASH_KEY_BITS <= 64
     const TTE_KEY_TYPE key_for_ttentry = TTE_KEY_TYPE(key);
-#else
-    const TTE_KEY_TYPE key_for_ttentry = TTE_KEY_TYPE(key.extract64<1>());
-#endif
 
 	// Use the low 16 bits as key inside the cluster
 	// クラスター内で下位16ビットをキーとして使用します

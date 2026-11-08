@@ -881,7 +881,7 @@ void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(mbSize); }
 void EvalHash_Clear() { g_evalTable.clear(); };
 
 // prefetchする関数も用意しておく。
-void prefetch_evalhash(const Key key) {
+void prefetch_evalhash(const u64 key) {
     constexpr auto mask = ~((u64)0x1f);
     prefetch((void*)((u64)g_evalTable[key] & mask));
 }
@@ -984,7 +984,7 @@ Value evaluate(const Position& pos) {
 
 #if defined(USE_EVAL_HASH)
     // evaluate hash tableにはあるかも。
-    const Key key = pos.state()->key();
+    const HASH_KEY key = pos.state()->key();
     ScoreKeyValue entry = *g_evalTable[key];
     entry.decode();
     if (entry.key == key) {

@@ -120,7 +120,7 @@ namespace dlshogi {
 	private:
 		// ある局面のHASH_KEY(Position::key()にて取得できる)に対応するmutexを返す。
 		// →　これ外から呼び出して使わなくていいっぽいのでとりまprivateにしておく。
-		std::mutex& get_mutex(const Key key)
+		std::mutex& get_mutex(const HASH_KEY key)
 		{
 			return mutexes[key & (MUTEX_NUM - 1)];
 		}

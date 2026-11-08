@@ -175,7 +175,7 @@
 // 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
 // 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
 // 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
-// これ、128 or 256bitにすると、置換表に用いるhashのkeyにそれを使えるので置換表のhash衝突ちょっと減る。
+// Positionのキーを128bit,256bitにした場合も、TTには下位64bitを渡す。
 // 注意 : ふかうら王で、スーパーテラショック定跡の生成を行う時は、HASH_KEY_BITSを128に設定すること。
 //#define HASH_KEY_BITS 64
 
@@ -593,26 +593,16 @@ constexpr bool pretty_jp = false;
 #define HASH_KEY_BITS 128
 #endif
 
-// --- hash key bits and TT_CLUSTER_SIZE
+// --- hash key bits
 
+// HASH_KEY および HASH_KEY_BITSの定義。
 #if !defined(HASH_KEY_BITS)
 #define HASH_KEY_BITS 64
-#endif
-
-// ここ、typedef ではなく usingで書きたいが、現時点でKey64,Key128,Key256が未定義なので…。
-
-#if HASH_KEY_BITS <= 64
-#define Key Key64
-#elif HASH_KEY_BITS <= 128
-#define Key Key128
-#else
-#define Key Key256
 #endif
 
 #if !defined(TT_CLUSTER_SIZE)
 #define TT_CLUSTER_SIZE 3
 #endif
-
 
 // --- lastMove
 

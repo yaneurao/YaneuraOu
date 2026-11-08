@@ -50,31 +50,31 @@ namespace Zobrist {
 
 #if STOCKFISH
 
-Key psq[PIECE_NB][SQUARE_NB];
-Key enpassant[FILE_NB];
-Key castling[CASTLING_RIGHT_NB];
-Key side, noPawns;
+HASH_KEY psq[PIECE_NB][SQUARE_NB];
+HASH_KEY enpassant[FILE_NB];
+HASH_KEY castling[CASTLING_RIGHT_NB];
+HASH_KEY side, noPawns;
 
 #else
 
 // 💡 Stockfishでは、Keyはuint64_tなので zeroは単に 0と書けるが、
 //     やねうら王は、HASH_KEYは64,128,256bitに拡張しているので…。
-Key zero;
+HASH_KEY zero;
 
 // 手番
-Key side;
+HASH_KEY side;
 
-// 駒pcが盤上sqに配置されているときのZobrist Key
+// 駒pcが盤上sqに配置されているときのZobrist HASH_KEY
 // 💡 玉などは盤上にない場合、SQ_NBになるのでSQ_NB_PLUS1で確保する。
-Key psq[PIECE_NB][SQ_NB_PLUS1];
+HASH_KEY psq[PIECE_NB][SQ_NB_PLUS1];
 
 // c側の手駒prが一枚増えるごとにこれを加算するZobristKey
 // 枚数ごとにhash keyのtableを用意するのは嫌なので、加算型にしてある。
-Key hand[COLOR_NB][PIECE_HAND_NB];
+HASH_KEY hand[COLOR_NB][PIECE_HAND_NB];
 
 #if defined(USE_PARTIAL_KEY)
 // 歩の陣形に関して盤上に歩が一枚もない時のhash key
-Key noPawns;
+HASH_KEY noPawns;
 #endif
 
 #endif
@@ -88,11 +88,11 @@ void Position::init() {
 	PRNG rng(20151225); // 開発開始日 == 電王トーナメント2015,最終日
 
 	// 乱数で初期化するコード
-	auto set_rand = [&](Key& h) {
-        auto r1 = rng.rand<Key64>();
-        auto r2 = rng.rand<Key64>();
-        auto r3 = rng.rand<Key64>();
-        auto r4 = rng.rand<Key64>();
+	auto set_rand = [&](HASH_KEY& h) {
+        auto r1 = rng.rand<u64>();
+        auto r2 = rng.rand<u64>();
+        auto r3 = rng.rand<u64>();
+        auto r4 = rng.rand<u64>();
         SET_HASH(h, r1, r2, r3, r4);
     };
 
@@ -1670,12 +1670,12 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
     // 現在の局面のhash keyはこれで、これを更新していき、
     // 次の局面のhash keyを求めてStateInfo::key_に格納。
 #if STOCKFISH
-    Key k = st->key ^ Zobrist::side;
+    HASH_KEY k = st->key ^ Zobrist::side;
 #else
-    Key k = st->board_key ^ Zobrist::side;
+    HASH_KEY k = st->board_key ^ Zobrist::side;
 
     // 🌈 将棋だと手駒がある。手駒用のhash keyを別途用意
-    Key h = st->hand_key;
+    HASH_KEY h = st->hand_key;
 #endif
 
     // Copy some fields of the old state to our new StateInfo object except the
@@ -2232,7 +2232,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 }
 
 // ある指し手を指した後のhash keyを返す。
-Key Position::key_after(Move m) const {
+HASH_KEY Position::key_after(Move m) const {
 
     Color Us = side_to_move();
     auto  k  = st->board_key ^ Zobrist::side;
