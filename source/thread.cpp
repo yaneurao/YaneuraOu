@@ -435,52 +435,42 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
 
     Search::RootMoves rootMoves;
 #if STOCKFISH
-    const auto legalmoves = MoveList<LEGAL_ALL>(pos);
-
     for (const auto& usiMove : limits.searchmoves)
     {
         auto move = USIEngine::to_move(pos, usiMove);
-
-        if (std::find(legalmoves.begin(), legalmoves.end(), move) != legalmoves.end())
+        if (move != Move::none())
             rootMoves.emplace_back(move);
     }
 
-    // limits.searchmovesが指定されていないとき、rootMovesがemptyになる。
-    // このとき、すべての合法手でスタートする必要がある。
     if (rootMoves.empty())
-        for (const auto& m : legalmoves)
+        for (const auto& m : MoveList<LEGAL_ALL>(pos))
             rootMoves.emplace_back(m);
 
 #else
 
-    // 🌈  GenerateAllLegalMoves反映させないと..
-    bool generate_all_legal_moves =
-      options.count("GenerateAllLegalMoves") && options["GenerateAllLegalMoves"];
+    // USIEngine::to_move()は不成も含めて合法性を確認するため、再度リストを検索しない。
+    // GenerateAllLegalMoves == falseでも、searchmovesで明示された角不成などは許可する。
+    for (const auto& usiMove : limits.searchmoves)
+    {
+        auto move = USIEngine::to_move(pos, usiMove);
+        // resign、win、passなどは探索対象の通常の指し手ではない。
+        if (move.is_ok())
+            rootMoves.emplace_back(move);
+    }
 
-    // ⚠ MoveList<LEGAL_ALL>とMoveList<LEGAL>は異なる型なので1つの変数に代入できない。
-    //     std::variantを使うよりは次のように書いたほうがすっきりする。
+    // searchmovesが指定されない場合はGenerateAllLegalMovesを反映させる。
+    // 指定された手がすべて無効だった場合も、従来どおり通常の探索に戻す。
+    if (rootMoves.empty())
+    {
+        bool generate_all_legal_moves =
+          options.count("GenerateAllLegalMoves") && options["GenerateAllLegalMoves"];
 
-    auto setup_rootMoves = [&](auto& moveList) {
-        for (const auto& usiMove : limits.searchmoves)
-        {
-            auto move = USIEngine::to_move(pos, usiMove);
-
-			// これだと角不成のような指し手が GenerateAllLegalMoves == falseだと rootMovesにないから除外されてしまう..
-            if (std::find(moveList.begin(), moveList.end(), move) != moveList.end())
-                rootMoves.emplace_back(move);
-        }
-
-        if (rootMoves.empty())
-            for (const auto& m : moveList)
+        if (generate_all_legal_moves)
+            for (const auto& m : MoveList<LEGAL_ALL>(pos))
                 rootMoves.emplace_back(m);
-    };
-
-    if (generate_all_legal_moves) {
-        auto legalmoves = MoveList<LEGAL_ALL>(pos);
-        setup_rootMoves(legalmoves);
-    } else {
-        auto legalmoves = MoveList<LEGAL>(pos);
-        setup_rootMoves(legalmoves);
+        else
+            for (const auto& m : MoveList<LEGAL>(pos))
+                rootMoves.emplace_back(m);
     }
 
 #endif
