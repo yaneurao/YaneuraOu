@@ -5,8 +5,7 @@
 //   bit operation library
 //
 
-#include <cstddef> // std::size_t
-#include <cstdint> // uint64_tなどの定義
+#include "../misc.h"
 
 #if defined(_MSC_VER)
 #include <stdlib.h> // _byteswap_uint64
@@ -46,22 +45,11 @@ namespace YaneuraOu {
 //      type define(uint , sint)
 // ----------------------------
 
-typedef  uint8_t  u8;
-typedef   int8_t  s8;
-typedef uint16_t u16;
-typedef  int16_t s16;
-typedef uint32_t u32;
-typedef  int32_t s32;
-typedef uint64_t u64;
-typedef  int64_t s64;
-
-// misc.hを経由しないtypes.hからも参照する基本型。
-using usize = std::size_t;
-using isize = std::ptrdiff_t;
-using i8  = std::int8_t;
-using i16 = std::int16_t;
-using i32 = std::int32_t;
-using i64 = std::int64_t;
+// 旧来の符号付き整数型名。基本整数型の定義はmisc.hに集約する。
+using s8  = i8;
+using s16 = i16;
+using s32 = i32;
+using s64 = i64;
 
 // ----------------------------
 //      inline化の強制

@@ -14,16 +14,19 @@
 
 // あまりたくさんここに書くとコンパイルが遅くなるので書きたくないのだが…。
 
-#include "extra/bitop.h"
-
+#include <cassert>
+#include <cstddef>
 #include <cstdint>
+#include <type_traits>
+
 #include <iostream>     // iostreamに対する<<使うので仕方ない
 #include <string>       // std::string使うので仕方ない
 #include <algorithm>    // std::max()を使うので仕方ない
 #include <limits>		// std::numeric_limitsを使うので仕方ない
-#include <chrono>       // std::chrono
 #include <vector>       // std::vector
-#include <cassert>      // assert
+
+#include "misc.h"
+#include "extra/bitop.h"
 
 #if defined(_MSC_VER)
 // Disable some silly and noisy warnings from MSVC compiler
@@ -1203,10 +1206,6 @@ struct std::hash<YaneuraOu::Move16> {
 };
 
 #include "extra/macros.h"
-
-// TimePointの定義。💡Stockfishではmisc.hにある。
-typedef std::chrono::milliseconds::rep TimePoint;
-static_assert(sizeof(TimePoint) == sizeof(YaneuraOu::i64), "TimePoint should be 64 bits");
 
 // 自作エンジンのEntry Point。
 // 使い方は自作エンジンのサンプルであるUSER_ENGINEの user-engine/user-search.cpp を参考にすること。

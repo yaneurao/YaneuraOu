@@ -1,4 +1,5 @@
-﻿
+﻿#include "misc.h"
+
 // Windows環境下でのプロセッサグループの割当関係
 #ifdef _WIN32
 #if _WIN32_WINNT < 0x0601
@@ -50,7 +51,7 @@ using fun8_t = bool(*)(HANDLE, BOOL, PTOKEN_PRIVILEGES, DWORD, PTOKEN_PRIVILEGES
 #include <stdlib.h>
 #endif
 
-#include "misc.h"
+#include "types.h"
 #include "thread.h"
 
 // === やねうら王独自追加
@@ -61,7 +62,6 @@ using fun8_t = bool(*)(HANDLE, BOOL, PTOKEN_PRIVILEGES, DWORD, PTOKEN_PRIVILEGES
 #include <cmath>				// std::exp()
 #include <filesystem>           // create_directory()
 #include "usi.h"				// Options
-#include "thread.h"             // ThreadPool
 #include "testcmd/unit_test.h"	// UnitTester
 
 using namespace std;
@@ -1673,7 +1673,7 @@ namespace Parser
 	}
 
 	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
-	s64 LineScanner::get_number(s64 defaultValue)
+	i64 LineScanner::get_number(i64 defaultValue)
 	{
 		string token = get_text();
 		return token.empty() ? defaultValue : atoll(token.c_str());

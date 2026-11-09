@@ -1,29 +1,33 @@
 ﻿#ifndef MISC_H_INCLUDED
 #define MISC_H_INCLUDED
 
-//#include <chrono>
+#include "config.h"
+
+#include <algorithm>
+#include <array>
+#include <atomic>
+#include <cassert>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <exception>  // IWYU pragma: keep
 // IWYU pragma: no_include <__exception/terminate.h>
 #include <functional>
+#include <iosfwd>
 #include <optional>
-#include <cstring>
-#include <memory>
-//#include <string>
+#include <string>
 #include <string_view>
 #include <type_traits>
-//#include <vector>
+#include <vector>
 
-#include <fstream>
-#include <mutex>
-#include <atomic>
-#include <sstream>
-#include <queue>
-#include <unordered_set>
 #include <condition_variable>
-
-#include "types.h"
+#include <cstring>
+#include <fstream>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <sstream>
+#include <unordered_set>
 
 namespace YaneuraOu {
 
@@ -130,6 +134,8 @@ class RelaxedAtomic {
 };
 
 class OptionsMap;
+class IEngine;
+namespace Test { class UnitTester; }
 
 // --------------------
 //     engine info
@@ -203,13 +209,10 @@ void dbg_print();
 //  Time[ms] wrapper
 // --------------------
 
-#if STOCKFISH
 // ms単位での時間計測しか必要ないのでこれをTimePoint型のように扱う。
-// TimePointの定義。💡 やねうら王では、types.hに移動。
-//using TimePoint = std::chrono::milliseconds::rep;  // A value in milliseconds
-//static_assert(sizeof(TimePoint) == sizeof(i64), "TimePoint should be 64 bits");
-#endif
-
+using TimePoint = std::chrono::milliseconds::rep;  // A value in milliseconds
+                                                 // ミリ秒単位の値。
+static_assert(sizeof(TimePoint) == sizeof(i64), "TimePoint should be 64 bits");
 
 // ms単位で現在時刻を返す
 static TimePoint now() {
@@ -1243,7 +1246,7 @@ namespace Parser
 		// 次の文字列を数値化して返す。
 		// 空の文字列である場合は引数の値がそのまま返る。
 		// "ABC"のような文字列で数値化できない場合は0が返る。(あまり良くない仕様だがatoll()を使うので仕方ない)
-		s64 get_number(s64 defaultValue);
+		i64 get_number(i64 defaultValue);
 		double get_double(double defaultValue);
 
 		// 解析位置(カーソル)が行の末尾まで進んだのか？
