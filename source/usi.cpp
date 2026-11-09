@@ -66,12 +66,8 @@ overload(Ts...) -> overload<Ts...>;
 void USIEngine::print_info_string(std::string_view str) {
 	sync_cout_start();
 	for (auto& line : split(str, "\n"))
-	{
 		if (!is_whitespace(line))
-		{
 			std::cout << "info string " << line << '\n';
-		}
-	}
 	sync_cout_end();
 }
 
@@ -846,9 +842,7 @@ void USIEngine::benchmark(std::istream& args) {
         else if (token == "position")
             position(is);
         else if (token == "ucinewgame")
-        {
             engine.search_clear();  // search_clear may take a while
-        }
 
         if (cnt > NUM_WARMUP_POSITIONS)
             break;
@@ -905,9 +899,7 @@ void USIEngine::benchmark(std::istream& args) {
         else if (token == "position")
             position(is);
         else if (token == "ucinewgame")
-        {
             engine.search_clear();  // search_clear may take a while
-        }
     }
 
     totalTime = std::max<TimePoint>(totalTime, 1);  // Ensure positivity to avoid a 'divide by zero'
@@ -1010,15 +1002,11 @@ void USIEngine::position(std::istringstream& is) {
 
 	// 指し手のリストをパースする(あるなら)
     while (is >> token)
-    {
         moves.push_back(token);
-	}
 
     auto err = engine.set_position(sfen, moves);
     if (err.has_value())
-    {
         terminate_on_critical_error(fullCommand, err->what());
-    }
 }
 
 #if STOCKFISH

@@ -4259,15 +4259,10 @@ moves_loop:  // When in check, search starts here
 		// その手が以前に探索された他の手よりも悪い場合、
         // 後でその統計を更新するために記憶しておきます。
 
+        // capturesSearched : 探索した、駒を捕獲する指し手
+        // quietsSearched   : 探索した、駒を捕獲しない指し手
         if (move != bestMove && moveCount <= SEARCHEDLIST_CAPACITY)
-        {
-            if (capture)
-                // 探索した、駒を捕獲する指し手
-                capturesSearched.push_back(move);
-			else
-                // 探索した、駒を捕獲しない指し手
-                quietsSearched.push_back(move);
-        }
+            (capture ? capturesSearched : quietsSearched).push_back(move);
     } // end of while
 
 	// -----------------------

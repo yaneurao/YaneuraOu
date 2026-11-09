@@ -401,12 +401,10 @@ public:
 		static_assert(Detail::is_strictly_assignable_v<T, U>,
 			"Cannot assign fill value to entry type");
 		for (auto& ele : data_)
-		{
 			if constexpr (sizeof...(Sizes) == 0)
 				ele = v;
 			else
 				ele.fill(v);
-		}
 	}
 
 	constexpr void swap(MultiArray<T, Size, Sizes...>& other) noexcept { data_.swap(other.data_); }
