@@ -1,8 +1,11 @@
 ﻿#include "unit_test.h"
 
+#include <algorithm>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <variant>
+#include "../benchmark.h"
 #include "../position.h"
 #include "../usi.h"
 #include "../search.h"
@@ -157,6 +160,51 @@ namespace Test
             auto depth3 = engine.perft(StartSFEN, 3);
             const auto* nodes3 = std::get_if<u64>(&depth3);
             tester.test("Start position depth 3 = 25470", nodes3 && *nodes3 == 25470);
+        });
+
+        // ベンチマークの既定値と、不正なspeedtest引数の補正を確認する。
+        tester.run([](UnitTester& tester, IEngine&) {
+            auto section = tester.section("Benchmark");
+            std::istringstream benchDefaults;
+            auto commands = Benchmark::setup_bench(StartSFEN, benchDefaults);
+            tester.test("bench defaults retain four 15-second positions",
+                        commands.size() == 11
+                          && commands[0] == "setoption name Threads value 1"
+                          && commands[1] == "setoption name USI_Hash value 1024"
+                          && commands[2] == "ucinewgame"
+                          && std::count(commands.begin(), commands.end(), "go movetime 15000") == 4);
+
+            std::istringstream pgoBench("1024 1 14 default depth");
+            commands = Benchmark::setup_bench(StartSFEN, pgoBench);
+            tester.test("PGO bench retains depth-limited searches",
+                        std::count(commands.begin(), commands.end(), "go depth 14") == 4);
+
+            for (const std::string input : {"32 1024 150", "0 0 0", "-1 -1 -1", "1 64 2147484",
+                                           "9223372036854775807 9223372036854775807 9223372036854775807"})
+            {
+                std::istringstream args(input);
+                const auto setup = Benchmark::setup_benchmark(args);
+                const int maxSeconds = std::numeric_limits<int>::max() / 1000;
+                const std::string expected = input == "32 1024 150" ? "32 1024 150"
+                  : input == "0 0 0" || input == "-1 -1 -1" ? "1 1 1"
+                  : input == "1 64 2147484" ? "1 64 " + std::to_string(maxSeconds)
+                  : std::to_string(MaxThreads) + " " + std::to_string(MaxHashMB) + " " + std::to_string(maxSeconds);
+                bool positiveTimes = true;
+                for (const auto& command : setup.commands)
+                    if (command.find("go movetime ") == 0)
+                    {
+                        std::istringstream time(command.substr(12));
+                        i64 milliseconds = 0;
+                        positiveTimes = positiveTimes && bool(time >> milliseconds) && milliseconds > 0;
+                    }
+                tester.test("speedtest accepts and bounds " + input.substr(0, 24),
+                            setup.filledInvocation == expected && positiveTimes);
+            }
+
+            std::istringstream args("9223372036854775807");
+            const auto setup = Benchmark::setup_benchmark(args);
+            tester.test("speedtest default hash uses bounded threads",
+                        setup.threads == MaxThreads && setup.ttSize == std::min(i64(128) * MaxThreads, i64(MaxHashMB)));
         });
 
 		// Book namespace
