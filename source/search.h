@@ -115,6 +115,13 @@ struct RootMove
 
 	bool extract_ponder_from_tt(const TranspositionTable& tt, Position& pos, Move ponder_candidate);
 
+    // 未確定の評価値を、証明済みの勝ち・負けとして扱わないための判定。
+    bool is_inexact() const { return inexactLower || inexactUpper; }
+    bool is_exact_loss() const {
+        return score != -VALUE_INFINITE && is_loss(score) && !is_inexact();
+    }
+    void unset_inexact() { inexactLower = inexactUpper = false; }
+
 	// std::count(),std::find()などで指し手と比較するときに必要。
 	bool operator==(const Move& m) const { return pv[0] == m; }
 
@@ -136,6 +143,9 @@ struct RootMove
 	// 次のiteration時の探索窓の範囲を決めるときに使う。
 	Value previousScore    = -VALUE_INFINITE;
 
+    // 前回の評価値が確定値であるか。MultiPVの途中停止時の復元に用いる。
+    bool previousScoreExact = false;
+
 	// aspiration searchの時に用いる。previousScoreの移動平均。
 	Value averageScore	   = -VALUE_INFINITE;
 
@@ -147,11 +157,11 @@ struct RootMove
 	//     ソースコードの差分を減らすことにする。
 	Value uciScore		   = -VALUE_INFINITE;
 
-	// uciScoreはlowerboundになっているのか。
-	bool scoreLowerbound   = false;
+	// スコアが下界のみの未確定値であるか。
+	bool inexactLower      = false;
 
-	// uciScoreはupperboundになっているのか。
-	bool scoreUpperbound   = false;
+	// スコアが上界のみの未確定値であるか。
+	bool inexactUpper      = false;
 
 	// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
 	int selDepth           = 0;
@@ -164,6 +174,8 @@ struct RootMove
 
 	// この指し手で進めたときのpv
 	PVMoves pv;
+    // 前回の反復で得たPV。previousScoreと組にして保存する。
+    PVMoves previousPV;
 };
 
 using RootMoves = std::vector<RootMove>;

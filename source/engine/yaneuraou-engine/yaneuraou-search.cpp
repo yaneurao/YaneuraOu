@@ -117,7 +117,7 @@ void SearchOptions::add_options(OptionsMap& options) {
 void SearchManager::pre_start_searching(YaneuraOuWorker& worker) {
     // 🤔 StockfishのThreadPool::start_thinking()にあった以下の初期化をこちらに移動させた。
 
-    stopOnPonderhit /* = stop = abortedSearch */ = false;
+    stopOnPonderhit /* = stop */ = false;
     ponder                                       = worker.limits.ponderMode;
     increaseDepth                                = true;
 }
@@ -635,13 +635,15 @@ YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
         const auto bestThreadMoveVote = votes[bestThreadPV[0]];
         const auto newThreadMoveVote  = votes[newThreadPV[0]];
 
-        const bool bestThreadInProvenWin = is_win(bestThreadScore);
-        const bool newThreadInProvenWin  = is_win(newThreadScore);
+        const bool bestThreadInProvenWin =
+          is_win(bestThreadScore) && !bestThread->worker->rootMoves[0].is_inexact();
+        const bool newThreadInProvenWin =
+          is_win(newThreadScore) && !th->worker->rootMoves[0].is_inexact();
 
         const bool bestThreadInProvenLoss =
-          bestThreadScore != -VALUE_INFINITE && is_loss(bestThreadScore);
+          bestThread->worker->rootMoves[0].is_exact_loss();
         const bool newThreadInProvenLoss =
-          newThreadScore != -VALUE_INFINITE && is_loss(newThreadScore);
+          th->worker->rootMoves[0].is_exact_loss();
 
         // We make sure not to pick a thread with truncated principal variation
         const bool betterVotingValue =
@@ -651,7 +653,7 @@ YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
         if (bestThreadInProvenWin)
         {
             // Make sure we pick the shortest mate / TB conversion
-            if (newThreadScore > bestThreadScore)
+            if (newThreadInProvenWin && newThreadScore > bestThreadScore)
                 bestThread = th.get();
         }
         else if (bestThreadInProvenLoss)
@@ -1289,9 +1291,11 @@ SKIP_SEARCH:
     //    正規化して判定する。
     //
     //    定跡の指し手にhitした場合など、通常探索をskipした経路ではResignValueでは投了しない。
+    // 未確定の下界だけで、ResignValueによる投了を確定させない。
     bool resign_by_value = false;
     auto resign_value    = (int) options["ResignValue"];
-    if (!search_skipped && bestThread->rootMoves[0].score != -VALUE_INFINITE)
+    if (!search_skipped && bestThread->rootMoves[0].score != -VALUE_INFINITE
+        && !bestThread->rootMoves[0].is_inexact())
     {
         Value resign_score = bestThread->rootMoves[0].uciScore;
         if (resign_score == -VALUE_INFINITE)
@@ -1428,7 +1432,6 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     Depth lastBestMoveDepth = 0;
     Value lastBestScore     = -VALUE_INFINITE;
     PVMoves lastBestPV;
-    lastBestPV.push_back(Move::none());
 
     // alpha,beta         : aspiration searchの窓の範囲(alpha,beta)
     // delta              : apritation searchで窓を動かす大きさdelta
@@ -1591,8 +1594,12 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
         // 💡 aspiration window searchのために反復深化の前回のiterationのスコアをコピーしておく
 
-        for (RootMove& rm : rootMoves)
-            rm.previousScore = rm.score;
+        for (usize i = 0; i < rootMoves.size(); ++i)
+        {
+            rootMoves[i].previousScore      = rootMoves[i].score;
+            rootMoves[i].previousPV         = rootMoves[i].pv;
+            rootMoves[i].previousScoreExact = i < multiPV && !rootMoves[i].is_inexact();
+        }
 
         // 🤔 将棋ではこれ使わなくていいような？
 
@@ -1800,6 +1807,52 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 assert(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
             }
 
+            if (threads.stop && pvIdx)
+            {
+                // In MultiPV, an aborted line must not replace a proven loss from an earlier line.
+                // MultiPVの途中停止で、先に探索を完了したPVの確定した負けを上書きさせない。
+                if ((is_loss(rootMoves[pvIdx - 1].score) && rootMoves[pvIdx] < rootMoves[pvIdx - 1])
+                    || rootMoves[pvIdx].is_exact_loss())
+                {
+                    // Restore a safe exact score and its matching PV from the previous iteration.
+                    // 前回の確定スコアが利用できるなら、対応するPVと一緒に復元する。
+                    if (rootMoves[pvIdx].previousScore != -VALUE_INFINITE
+                        && rootMoves[pvIdx].previousScoreExact
+                        && rootMoves[pvIdx].previousScore <= rootMoves[pvIdx - 1].score)
+                    {
+                        rootMoves[pvIdx].score = rootMoves[pvIdx].uciScore =
+                          rootMoves[pvIdx].previousScore;
+                        rootMoves[pvIdx].previousScore = -VALUE_INFINITE;
+                        rootMoves[pvIdx].pv            = rootMoves[pvIdx].previousPV;
+                        rootMoves[pvIdx].unset_inexact();
+                    }
+
+                    // Otherwise cap the score and mark it as inexact.
+                    // 利用できなければスコアに上限を設け、未確定として扱う。
+                    else
+                    {
+                        if (is_loss(rootMoves[pvIdx - 1].score))
+                        {
+                            rootMoves[pvIdx].score = rootMoves[pvIdx].uciScore =
+                              rootMoves[pvIdx - 1].score;
+                            rootMoves[pvIdx].previousScore = -VALUE_INFINITE;
+                            rootMoves[pvIdx].pv.resize(1);
+                            rootMoves[pvIdx].inexactUpper = true;
+                        }
+                        else
+                            rootMoves[pvIdx].inexactUpper = false;
+
+                        rootMoves[pvIdx].inexactLower = !rootMoves[pvIdx].inexactUpper;
+                    }
+                }
+
+                // Finally, mark loss scores from partially searched moves as inexact.
+                // まだ探索を完了していない他の候補手の負けスコアも、未確定として扱う。
+                for (usize i = pvIdx + 1; i < multiPV; ++i)
+                    if (rootMoves[i].is_exact_loss())
+                        rootMoves[i].inexactLower = true;
+            }
+
             // Sort the PV lines searched so far and update the GUI
             // これまでに探索したPVラインをソートし、GUIを更新する
 
@@ -1808,22 +1861,10 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
             std::stable_sort(rootMoves.begin() /* + pvFirst */, rootMoves.begin() + pvIdx + 1);
 
-            if (mainThread
-                && (threads.stop || pvIdx + 1 == multiPV || nodes > 10000000)
-                // A thread that aborted search can have mated-in/TB-loss PV and
-                // score that cannot be trusted, i.e. it can be delayed or refuted
-                // if we would have had time to fully search other root-moves. Thus
-                // we suppress this output and below pick a proven score/PV for this
-                // thread (from the previous iteration).
-
-                // 探索を中断したスレッドは、詰み直前のPVやTB損失のPVおよび
-                // 信頼できないスコアを持つ可能性がある。
-                // つまり、他のルートムーブを完全に探索する時間があれば、
-                // 遅延したり反証されたりするかもしれない。
-                // したがって、この出力を抑制し、以下でこのスレッドに対して
-                // （前回の反復から）証明済みのスコア／PVを選択する。
-
-                && !(threads.abortedSearch && is_loss(rootMoves[0].uciScore))
+            // Publish only ongoing searches here; the final PV is emitted after stop handling.
+            // 途中停止時の最終PVは、以下の復元処理が済んでから出力する。
+            if (mainThread && !threads.stop
+                && (pvIdx + 1 == multiPV || nodes > 10000000)
 #if !STOCKFISH
                 // PVの出力間隔を超えている。
                 && search_options.lastPvInfoTime + search_options.computed_pv_interval <= now()
@@ -1856,43 +1897,36 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             lastIterationPV = rootMoves[0].pv;
         }
 
-        // A mated-in/TB-loss score from an aborted search cannot be trusted: the loss
-        // could be delayed or refuted upon exploring the remaining root-moves.
-        // Thus here we roll back to the score from the previous iteration.
-
-        // 中断された探索で得た詰み/TB負けのスコアは信頼できない。
-        // 残りのルート手を調べると、その負けが延びたり反証されたりする可能性がある。
-        // そのため、ここでは前回の反復深化で得たスコアに戻す。
-
-        if (threads.abortedSearch && rootMoves[0].score != -VALUE_INFINITE
-            && is_loss(rootMoves[0].score))
+        // An exact loss from an aborted first PV line cannot be trusted.
+        // Restore the last completed iteration, or mark a depth-one loss as inexact.
+        // 先頭PVの探索を途中停止したときの確定した負けスコアは信用できない。
+        // 完了済みの反復のスコアとPVへ戻す。深さ1で復元先がなければ未確定とする。
+        const bool abortedLossSearch = threads.stop && !pvIdx && rootMoves[0].is_exact_loss();
+        if (abortedLossSearch)
         {
-            // Bring the last best move to the front for best thread selection.
-            // 最後に得られた最善手を先頭に移動し、最適なスレッド選択のために備える。
-            // 💡 move_to_front()は、見つけたものを先頭に移動させ、元の先頭からそこまでは1つ後方にずらす。
-
-            Utility::move_to_front(rootMoves, [&lastBestPV = std::as_const(lastBestPV)](
-                                                const auto& rm) { return rm == lastBestPV[0]; });
-            rootMoves[0].pv    = lastBestPV;
-            rootMoves[0].score = rootMoves[0].uciScore = lastBestScore;
-
-            if (mainThread && lastBestPV[0] != Move::none())
+            if (!lastBestPV.empty())
             {
-#if STOCKFISH
-                uciPvSent = true;
-#else
-                // 前回iterationのPVへロールバックしただけで、そのPVをUSIへ出力したとは限らない。
-                // やねうら王ではPV出力間隔によって途中PVが抑制されるため、ここでtrueにすると
-                // bestmove直前の最終PV出力がスキップされることがある。
-                uciPvSent = false;
-#endif
+                // Bring the last best move to the front for best thread selection.
+                // 最後に得られた最善手を先頭に移動し、最適なスレッド選択のために備える。
+                // 💡 move_to_front()は、見つけたものを先頭に移動させ、元の先頭からそこまでは1つ後方にずらす。
+                Utility::move_to_front(rootMoves, [&lastPV = std::as_const(lastBestPV)](
+                                                    const auto& rm) { return rm == lastPV[0]; });
+                rootMoves[0].pv    = lastBestPV;
+                rootMoves[0].score = rootMoves[0].uciScore = lastBestScore;
+                rootMoves[0].unset_inexact();
+
+                // 復元したPVをまだUSIへ出力したとは限らないため、最終出力を省略しない。
+                // やねうら王ではPV出力間隔によって途中PVが抑制されることがある。
+                if (mainThread)
+                    uciPvSent = false;
             }
+            else
+                rootMoves[0].inexactLower = true;
         }
-        else if (rootMoves[0].pv[0] != lastBestPV[0])
+        else if (!threads.stop)
         {
-            lastBestPV        = rootMoves[0].pv;
-            lastBestScore     = rootMoves[0].score;
-            lastBestMoveDepth = rootDepth;
+            lastBestPV    = rootMoves[0].pv;
+            lastBestScore = rootMoves[0].score;
         }
 
         // 🤔 探索深さが、mateの手数の2倍以上になったら、それより短い詰みが
@@ -4133,16 +4167,16 @@ moves_loop:  // When in check, search starts here
 
                 rm.score = rm.uciScore = value;
                 rm.selDepth            = selDepth;
-                rm.scoreLowerbound = rm.scoreUpperbound = false;
+                rm.unset_inexact();
 
                 if (value >= beta)
                 {
-                    rm.scoreLowerbound = true;
+                    rm.inexactLower = true;
                     rm.uciScore        = beta;
                 }
                 else if (value <= alpha)
                 {
-                    rm.scoreUpperbound = true;
+                    rm.inexactUpper = true;
                     rm.uciScore        = alpha;
                 }
 
@@ -5545,7 +5579,7 @@ void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
       worker.completedDepth >= 1
       && ((worker.limits.use_time_management() && (elapsed > tm.maximum() || stopOnPonderhit)) || (worker.limits.movetime && elapsed >= worker.limits.movetime)
           || (worker.limits.nodes && worker.threads.nodes_searched() >= worker.limits.nodes)))
-        worker.threads.stop = worker.threads.abortedSearch = true;
+        worker.threads.stop = true;
 #else
       worker.completedDepth >= 1)
     {
@@ -5557,7 +5591,7 @@ void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
           // 5.
           || (tm.search_end && tm.search_end <= elapsed))
 
-            worker.threads.stop = worker.threads.abortedSearch = true;
+            worker.threads.stop = true;
 
         else if (!tm.search_end && worker.limits.use_time_management() &&
 				 // 1.
@@ -5719,7 +5753,6 @@ void SearchManager::pv(Search::YaneuraOuWorker&  worker,
     const auto nodes     = threads.nodes_searched();
     auto&      rootMoves = worker.rootMoves;
     auto&      pos       = worker.rootPos;
-    usize     pvIdx     = worker.pvIdx;
     usize     multiPV   = std::min(usize(worker.options["MultiPV"]), rootMoves.size());
 #if STOCKFISH
     uint64_t tbHits = threads.tb_hits() + (worker.tbConfig.rootInTB ? rootMoves.size() : 0);
@@ -5727,41 +5760,37 @@ void SearchManager::pv(Search::YaneuraOuWorker&  worker,
 
     for (usize i = 0; i < multiPV; ++i)
     {
-        bool updated = rootMoves[i].score != -VALUE_INFINITE;
+        bool usePreviousScore = rootMoves[i].score == -VALUE_INFINITE;
 
-        if (depth == 1 && !updated && i > 0)
+        if (depth == 1 && usePreviousScore && i > 0)
             continue;
 
-        Depth d = updated ? depth : std::max(1, depth - 1);
-        Value v = updated ? rootMoves[i].uciScore : rootMoves[i].previousScore;
+        Depth d = usePreviousScore ? std::max(1, depth - 1) : depth;
+        Value v = usePreviousScore ? rootMoves[i].previousScore : rootMoves[i].uciScore;
 
         if (v == -VALUE_INFINITE)
             v = VALUE_ZERO;
 
 #if STOCKFISH
-        bool tb = worker.tbConfig.rootInTB && std::abs(v) <= VALUE_TB;
-        v       = tb ? rootMoves[i].tbScore : v;
-#endif
+        bool isTBScore = worker.tbConfig.rootInTB && std::abs(v) <= VALUE_TB;
+        v              = isTBScore ? rootMoves[i].tbScore : v;
 
-#if STOCKFISH
-        bool isExact = i != pvIdx || tb || !updated;  // tablebase- and previous-scores are exact
-
-        // Potentially correct and extend the PV, and in exceptional cases v
-        // 必要に応じてPVを修正・延長し、例外的な場合にはvも処理する
-
-        if (is_decisive(v) && std::abs(v) < VALUE_MATE_IN_MAX_PLY
-            && ((!rootMoves[i].scoreLowerbound && !rootMoves[i].scoreUpperbound) || isExact))
+        // Potentially correct and extend the PV, and in exceptional cases v.
+        // 必要に応じてPVを修正・延長し、例外的な場合には評価値も処理する。
+        if (is_decisive(v) && std::abs(v) < VALUE_MATE_IN_MAX_PLY && !usePreviousScore
+            && (!rootMoves[i].is_inexact() || isTBScore))
             syzygy_extend_pv(worker.options, worker.limits, pos, rootMoves[i], v);
-#else
-        bool isExact =
-          i != pvIdx /* || tb */ || !updated;  // tablebase- and previous-scores are exact
-                                               // tablebaseのスコアおよび以前のスコアは正確である
-
 #endif
+
+        // A score from the previous iteration must use that iteration's PV too.
+        // 前回の反復のスコアを表示するときは、PVもその反復のものを使う。
+        // 最初の反復に入る前にstopされた場合は、前回PVがまだないので現在の合法手を使う。
+        const auto& pvMoves = usePreviousScore && !rootMoves[i].previousPV.empty()
+                                ? rootMoves[i].previousPV : rootMoves[i].pv;
 
         std::string pv;
 #if STOCKFISH
-        for (Move m : rootMoves[i].pv)
+        for (Move m : pvMoves)
             pv += UCIEngine::move(m, pos.is_chess960()) + " ";
 #else
 		// 🌈 やねうら王では、consideration_modeのときは置換表からPVをかき集める。
@@ -5788,8 +5817,8 @@ void SearchManager::pv(Search::YaneuraOuWorker&  worker,
 
                 // まず、rootMoves.pvを辿れるところまで辿る。
                 // rootMoves[i].pv[0]は宣言勝ちの指し手(Move::win())の可能性があるので注意。
-                if (ply < int(rootMoves[i].pv.size()))
-                    m = rootMoves[i].pv[ply];
+                if (ply < int(pvMoves.size()))
+                    m = pvMoves[ply];
                 else
                 {
                     // 次の手を置換表から拾う。
@@ -5827,7 +5856,7 @@ void SearchManager::pv(Search::YaneuraOuWorker&  worker,
                 pos.undo_move(moves[--ply]);
 		}
         else
-            for (Move m : rootMoves[i].pv)
+            for (Move m : pvMoves)
                 pv += USIEngine::move(m) + ' ';
 #endif
 
@@ -5840,9 +5869,10 @@ void SearchManager::pv(Search::YaneuraOuWorker&  worker,
 #if STOCKFISH
         auto wdl = worker.options["UCI_ShowWDL"] ? UCIEngine::wdl(v, pos) : "";
 #endif
-        auto bound = rootMoves[i].scoreLowerbound
+        assert(!(rootMoves[i].inexactLower && rootMoves[i].inexactUpper));
+        auto bound = rootMoves[i].inexactLower
                      ? "lowerbound"
-                     : (rootMoves[i].scoreUpperbound ? "upperbound" : "");
+                     : (rootMoves[i].inexactUpper ? "upperbound" : "");
 
         InfoFull info;
 
@@ -5856,7 +5886,11 @@ void SearchManager::pv(Search::YaneuraOuWorker&  worker,
         info.score = v;
 #endif
 
-        if (!isExact)
+#if STOCKFISH
+        if (!(isTBScore || usePreviousScore))
+#else
+        if (!usePreviousScore)
+#endif
             info.bound = bound;
 
         TimePoint time = std::max(TimePoint(1), tm.elapsed_time());
