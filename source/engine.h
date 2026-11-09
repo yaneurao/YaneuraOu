@@ -8,6 +8,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "evaluate.h"
@@ -114,10 +115,11 @@ public:
     virtual ~IEngine() { wait_for_search_finished(); }
 
 	// "perft"コマンド。perftとは、performance testの略。
+	// 成功時はノード数、局面設定に失敗した場合はPositionSetErrorを返す。
 #if STOCKFISH
-    std::uint64_t perft(const std::string& fen, Depth depth, bool isChess960);
+    std::variant<u64, PositionSetError> perft(const std::string& fen, Depth depth, bool isChess960);
 #else
-    virtual std::uint64_t perft(const std::string& fen, Depth depth) = 0;
+    virtual std::variant<u64, PositionSetError> perft(const std::string& fen, Depth depth) = 0;
 #endif
 
 	// "go"コマンド。ThreadPoolのmain threadに対して探索を開始(start_searching)する。
@@ -352,8 +354,8 @@ class Engine: public IEngine {
    public:
     Engine();
 
-    virtual std::uint64_t perft(const std::string& fen,
-                                Depth              depth /*, bool isChess960 */) override;
+    virtual std::variant<u64, PositionSetError>
+    perft(const std::string& fen, Depth depth /*, bool isChess960 */) override;
 
     virtual void go(Search::LimitsType& limits) override;
     virtual void stop() override;
@@ -510,8 +512,8 @@ class EngineWrapper: public IEngine {
     // Engineのoverride
     // 📌 すべてset_engine()で渡されたengineに委譲する。
 
-    virtual std::uint64_t perft(const std::string& fen,
-                                Depth              depth /*, bool isChess960 */) override {
+    virtual std::variant<u64, PositionSetError>
+    perft(const std::string& fen, Depth depth /*, bool isChess960 */) override {
         return engine->perft(fen, depth);
     }
 

@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <variant>
 #include "../position.h"
 #include "../usi.h"
 #include "../search.h"
@@ -135,6 +136,28 @@ namespace Test
 		// --- 各classに対するUnitTest
 
 		tester.engine = &engine;
+
+		// perftの局面設定エラーが、エンジンのインターフェースを通って呼び出し側へ返ることを確認。
+        tester.run([](UnitTester& tester, IEngine& engine) {
+            auto section = tester.section("Perft");
+            for (const auto& sfen : {std::string(), std::string("not-a-sfen"),
+                                    std::string("9/9/9/9/9/9/9/9/9 x - 1"),
+                                    std::string("9/9/9/9/9/9/9/9/9 b Z 1")})
+            {
+                auto result = engine.perft(sfen, 1);
+                const auto* error = std::get_if<PositionSetError>(&result);
+                tester.test("Invalid SFEN returns a diagnostic: " + sfen,
+                            error && std::string(error->what()).find("Invalid SFEN") != std::string::npos);
+            }
+
+            auto depth1 = engine.perft(StartSFEN, 1);
+            const auto* nodes1 = std::get_if<u64>(&depth1);
+            tester.test("Start position depth 1 = 30", nodes1 && *nodes1 == 30);
+
+            auto depth3 = engine.perft(StartSFEN, 3);
+            const auto* nodes3 = std::get_if<u64>(&depth3);
+            tester.test("Start position depth 3 = 25470", nodes3 && *nodes3 == 25470);
+        });
 
 		// Book namespace
 		tester.run(Book::UnitTest);

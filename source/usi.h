@@ -182,7 +182,7 @@ private:
 	void          benchmark(std::istream& args);
 	void          position(std::istringstream& is);
 	void          setoption(std::istringstream& is);
-	std::uint64_t perft(const Search::LimitsType&);
+	u64 perft(const Search::LimitsType&);
 
 #if !STOCKFISH
 	// 🌈 やねうら王独自拡張 🌈

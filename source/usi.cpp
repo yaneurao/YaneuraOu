@@ -1,6 +1,7 @@
 ﻿#include <cstdlib>
 #include <sstream>
 #include <queue>
+#include <variant>
 
 #include "types.h"
 #include "usi.h"
@@ -957,8 +958,12 @@ void USIEngine::setoption(std::istringstream& is) {
     engine_options().setoption(is);
 }
 
-std::uint64_t USIEngine::perft(const Search::LimitsType& limits) {
-    auto nodes = engine.perft(engine.sfen(), limits.perft /*, engine.get_options()["UCI_Chess960"]*/);
+u64 USIEngine::perft(const Search::LimitsType& limits) {
+    auto result = engine.perft(engine.sfen(), limits.perft /*, engine.get_options()["UCI_Chess960"]*/);
+    if (auto err = std::get_if<PositionSetError>(&result))
+        terminate_on_critical_error("go perft " + std::to_string(limits.perft), err->what());
+
+    auto nodes = std::get<u64>(result);
     sync_cout << "\nNodes searched: " << nodes << "\n" << sync_endl;
     return nodes;
 }
