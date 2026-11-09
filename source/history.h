@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <array>
-#include <atomic>
 //#include <cassert>
 #include <cmath>
 #include <cstdint>
@@ -61,31 +60,20 @@ inline u16 non_pawn_index(const Position& pos) {
 
 // T : このEntryの実体
 // D : abs(entry) <= Dとなるように制限される。
-// Atomic : これがtrueなら、atomic版になる。
-template<typename T, int D, bool Atomic = false>
+// Shared : これがtrueなら、スレッド共有用のRelaxedAtomic版になる。
+template<typename T, int D, bool Shared = false>
 struct StatsEntry {
 
-	static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
+    static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
 
    private:
-	// Atomic == Falseの時は普通のT、さもなくばstd::atomic<T>
-    std::conditional_t<Atomic, std::atomic<T>, T> entry;
-
+    // 共有しない場合はT、共有する場合はRelaxedAtomic<T>。
+    std::conditional_t<Shared, RelaxedAtomic<T>, T> entry;
 
    public:
-    void operator=(const T& v) {
-        if constexpr (Atomic)
-            entry.store(v, std::memory_order_relaxed);
-        else
-            entry = v;
-    }
+    void operator=(const T& v) { entry = v; }
 
-    operator T() const {
-        if constexpr (Atomic)
-            return entry.load(std::memory_order_relaxed);
-        else
-            return entry;
-    }
+    operator T() const { return entry; }
 
 	// このStatsEntry(Statsの1要素)に対して"<<"演算子でbonus値の加算が出来るようにしておく。
 	// 値が範囲外にならないように制限してある。

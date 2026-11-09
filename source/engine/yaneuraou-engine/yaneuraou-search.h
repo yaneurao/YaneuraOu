@@ -536,7 +536,7 @@ class YaneuraOuWorker: public Worker {
     // nodes           : 探索node数これはbase classのほうにある。
     // tbHits          : tablebaseにhitした回数。将棋では使わない。
     // bestMoveChanges : bestMoveが反復深化のなかで変化した回数
-    std::atomic<uint64_t> /* nodes, tbHits,*/ bestMoveChanges;
+    RelaxedAtomic<u64> /* nodes, tbHits,*/ bestMoveChanges;
 
     // selDepth : 選択探索の深さ。
     // 💡depthとPV lineに対するUSI infoで出力するselDepth。

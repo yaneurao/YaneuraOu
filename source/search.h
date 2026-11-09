@@ -527,7 +527,7 @@ protected:
 	// nodes           : 探索したnode数。do_move()で(自分で)カウントする。
     // tbHits          : tablebaseにhitした回数。将棋では使わない。
     // bestMoveChanges : bestMoveが反復深化のなかで変化した回数。📝 派生classのほうで。
-    std::atomic<uint64_t> nodes /*, tbHits, bestMoveChanges*/;
+    RelaxedAtomic<u64> nodes /*, tbHits, bestMoveChanges*/;
 
 	// 📝 派生class側で。
 #if STOCKFISH

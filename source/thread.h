@@ -326,7 +326,7 @@ private:
 
 	// Threadクラスの特定のメンバー変数を足し合わせたものを返す。
 	// 💡 nodesの集計に用いる。
-	u64 accumulate(std::atomic<u64> Search::Worker::* member) const {
+	u64 accumulate(RelaxedAtomic<u64> Search::Worker::* member) const {
 
 		u64 sum = 0;
 		for (auto&& th : threads)

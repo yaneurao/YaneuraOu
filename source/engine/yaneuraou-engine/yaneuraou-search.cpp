@@ -2128,10 +2128,9 @@ void YaneuraOuWorker::do_move(
 
     bool capture = pos.capture_stage(move);
 
-    // Preferable over fetch_add to avoid locking instructions
-	// ロック命令を避けるため、fetch_add よりもこちらの方が望ましい。
-
-	nodes.store(nodes.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+    // RelaxedAtomic increments use a relaxed load/store pair, avoiding locking instructions.
+    // RelaxedAtomicの加算はrelaxedなload/storeで行い、ロック命令を避ける。
+    ++nodes;
 
 #if defined(EVAL_SFNN)
 
