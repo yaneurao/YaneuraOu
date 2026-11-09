@@ -1,68 +1,47 @@
 ﻿#include "misc.h"
 
-// Windows環境下でのプロセッサグループの割当関係
-#ifdef _WIN32
-#if _WIN32_WINNT < 0x0601
-#undef  _WIN32_WINNT
-#define _WIN32_WINNT 0x0601 // Force to include needed API prototypes
-#endif
-
-// windows.hのなかでmin,maxを定義してあって、C++のmin,maxと衝突して困る。
-// #undef max
-// #undef min
-// としても良いが、以下のようにdefineすることでこれを回避できるらしい。
-
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-
-#include <windows.h>
-// The needed Windows API for processor groups could be missed from old Windows
-// versions, so instead of calling them directly (forcing the linker to resolve
-// the calls at compile time), try to load them at runtime. To do this we need
-// first to define the corresponding function pointers.
-extern "C" {
-using fun1_t = bool(*)(LOGICAL_PROCESSOR_RELATIONSHIP,
-                       PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX, PDWORD);
-using fun2_t = bool(*)(USHORT, PGROUP_AFFINITY);
-using fun3_t = bool(*)(HANDLE, CONST GROUP_AFFINITY*, PGROUP_AFFINITY);
-using fun4_t = bool(*)(USHORT, PGROUP_AFFINITY, USHORT, PUSHORT);
-using fun5_t = WORD(*)();
-using fun6_t = bool(*)(HANDLE, DWORD, PHANDLE);
-using fun7_t = bool(*)(LPCSTR, LPCSTR, PLUID);
-using fun8_t = bool(*)(HANDLE, BOOL, PTOKEN_PRIVILEGES, DWORD, PTOKEN_PRIVILEGES, PDWORD);
-}
-#endif
-
+#include <array>
+#include <atomic>
+#include <cassert>
+#include <cctype>
+#include <cstring>
+#include <cerrno>
+#include <cmath>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
-//#include <iostream>
+#include <iostream>
+#include <iterator>
+#include <limits>
+#include <mutex>
 #include <sstream>
-//#include <vector>
-//#include <cstdlib>
+#include <string_view>
 
-#if defined(__linux__) && !defined(__ANDROID__)
-#include <stdlib.h>
-#include <sys/mman.h> // madvise()
-#endif
-
-#if defined(__APPLE__) || defined(__ANDROID__) || defined(__OpenBSD__) || (defined(__GLIBCXX__) && !defined(_GLIBCXX_HAVE_ALIGNED_ALLOC) && !defined(_WIN32)) || defined(__e2k__)
-#define POSIXALIGNEDALLOC
-#include <stdlib.h>
+#if defined(_WIN32)
+    #if _WIN32_WINNT < 0x0601
+        #undef _WIN32_WINNT
+        #define _WIN32_WINNT 0x0601  // Force to include needed API prototypes
+                                     // 必要なAPIのプロトタイプ宣言を読み込む。
+    #endif
+    // windows.hのmin/maxマクロとC++の関数が衝突するのを防ぐ。
+    #ifndef NOMINMAX
+        #define NOMINMAX
+    #endif
+    #include <direct.h>
+    #include <windows.h>
+#else
+    #include <unistd.h>
 #endif
 
 #include "types.h"
+
+// やねうら王独自機能で使うヘッダー。
+#include <ctime>                 // std::ctime()
+#include <cstdio>                // fopen(), fread()
 #include "thread.h"
-
-// === やねうら王独自追加
-
-#include <ctime>				// std::ctime()
-#include <cstring>				// std::memset()
-#include <cstdio>				// fopen(),fread()
-#include <cmath>				// std::exp()
-#include <filesystem>           // create_directory()
-#include "usi.h"				// Options
-#include "testcmd/unit_test.h"	// UnitTester
+#include "usi.h"
+#include "testcmd/unit_test.h"
 
 using namespace std;
 
@@ -290,8 +269,6 @@ std::string engine_info(const std::string& engine_name,
 // 使用したコンパイラについての文字列を返す。
 string compiler_info() {
 
-#define stringify2(x) #x
-#define stringify(x) stringify2(x)
 #define make_version_string(major, minor, patch) stringify(major) "." stringify(minor) "." stringify(patch)
 
 	/// Predefined macros hell:
@@ -303,11 +280,11 @@ string compiler_info() {
 	/// _WIN32					Building on Windows (any)
 	/// _WIN64					Building on Windows 64 bit
 
-	string compiler = "\nCompiled by ";
+	string compiler = "\nCompiled by                : ";
 
 #if defined(__INTEL_LLVM_COMPILER)
 	compiler += "ICX ";
-	compiler += stringify(__INTEL_COMPILER) " update " stringify(__INTEL_COMPILER_UPDATE);
+	compiler += stringify(__INTEL_LLVM_COMPILER);
 #elif defined(__clang__)
 	compiler += "clang++ ";
 	compiler += make_version_string(__clang_major__, __clang_minor__, __clang_patchlevel__);
@@ -364,6 +341,9 @@ string compiler_info() {
 
 	compiler += "\nCompilation settings       : ";
 	compiler += (Is64Bit ? "64bit" : "32bit");
+#if defined(USE_AVX512ICL)
+    compiler += " AVX512ICL";
+#endif
 #if defined(USE_VNNI)
 	compiler += " VNNI";
 #endif
@@ -371,8 +351,9 @@ string compiler_info() {
 	compiler += " AVX512";
 #endif
 
-//	compiler += (HasPext ? " BMI2" : "");
-// ⇨ このフラグ、やねうら王では持っていない。
+#if defined(USE_BMI2)
+    compiler += " BMI2";
+#endif
 
 #if defined(USE_AVX2)
 	compiler += " AVX2";
@@ -390,6 +371,13 @@ string compiler_info() {
 	compiler += " NEON_DOTPROD";
 #elif defined(USE_NEON)
 	compiler += " NEON";
+#endif
+
+#if defined(USE_LASX)
+    compiler += " LASX";
+#endif
+#if defined(USE_LSX)
+    compiler += " LSX";
 #endif
 
 #if STOCKFISH
@@ -413,6 +401,263 @@ string compiler_info() {
 
 	return compiler;
 }
+
+// --------------------
+//  統計情報
+// --------------------
+
+// Debug functions used mainly to collect run-time statistics
+// 主に実行時の統計を集めるためのデバッグ関数。
+constexpr int MaxDebugSlots = 32;
+
+namespace {
+
+template<usize N>
+struct DebugInfo {
+    std::array<std::atomic<i64>, N> data = {0};
+
+    [[nodiscard]] constexpr std::atomic<i64>& operator[](usize index) {
+        assert(index < N);
+        return data[index];
+    }
+
+    constexpr DebugInfo& operator=(const DebugInfo& other) {
+        for (usize i = 0; i < N; i++)
+            data[i].store(other.data[i].load());
+        return *this;
+    }
+};
+
+struct DebugExtremes: public DebugInfo<3> {
+    DebugExtremes() {
+        data[1] = std::numeric_limits<i64>::min();
+        data[2] = std::numeric_limits<i64>::max();
+    }
+};
+
+std::array<DebugInfo<2>, MaxDebugSlots>  hit;
+std::array<DebugInfo<2>, MaxDebugSlots>  mean;
+std::array<DebugInfo<3>, MaxDebugSlots>  stdev;
+std::array<DebugInfo<6>, MaxDebugSlots>  correl;
+std::array<DebugExtremes, MaxDebugSlots> extremes;
+
+}  // namespace
+
+bool dbg_hit_on(bool cond, int slot) {
+
+    ++hit.at(slot)[0];
+    if (cond)
+        ++hit.at(slot)[1];
+
+    return cond;
+}
+
+i64 dbg_mean_of(i64 value, int slot) {
+
+    ++mean.at(slot)[0];
+    mean.at(slot)[1] += value;
+
+    return value;
+}
+
+i64 dbg_stdev_of(i64 value, int slot) {
+
+    ++stdev.at(slot)[0];
+    stdev.at(slot)[1] += value;
+    stdev.at(slot)[2] += value * value;
+
+    return value;
+}
+
+i64 dbg_extremes_of(i64 value, int slot) {
+    ++extremes.at(slot)[0];
+
+    i64 current_max = extremes.at(slot)[1].load();
+    while (current_max < value && !extremes.at(slot)[1].compare_exchange_weak(current_max, value))
+    {}
+
+    i64 current_min = extremes.at(slot)[2].load();
+    while (current_min > value && !extremes.at(slot)[2].compare_exchange_weak(current_min, value))
+    {}
+
+    return value;
+}
+
+void dbg_correl_of(i64 value1, i64 value2, int slot) {
+
+    ++correl.at(slot)[0];
+    correl.at(slot)[1] += value1;
+    correl.at(slot)[2] += value1 * value1;
+    correl.at(slot)[3] += value2;
+    correl.at(slot)[4] += value2 * value2;
+    correl.at(slot)[5] += value1 * value2;
+}
+
+void dbg_print() {
+
+    i64  n;
+    auto E   = [&n](i64 x) { return double(x) / n; };
+    auto sqr = [](double x) { return x * x; };
+
+    for (int i = 0; i < MaxDebugSlots; ++i)
+        if ((n = hit[i][0]))
+            std::cerr << "Hit #" << i << ": Total " << n << " Hits " << hit[i][1]
+                      << " Hit Rate (%) " << 100.0 * E(hit[i][1]) << std::endl;
+
+    for (int i = 0; i < MaxDebugSlots; ++i)
+        if ((n = mean[i][0]))
+            std::cerr << "Mean #" << i << ": Total " << n << " Mean " << E(mean[i][1]) << std::endl;
+
+    for (int i = 0; i < MaxDebugSlots; ++i)
+        if ((n = stdev[i][0]))
+        {
+            double r = sqrt(E(stdev[i][2]) - sqr(E(stdev[i][1])));
+            std::cerr << "Stdev #" << i << ": Total " << n << " Stdev " << r << std::endl;
+        }
+
+    for (int i = 0; i < MaxDebugSlots; ++i)
+        if ((n = extremes[i][0]))
+            std::cerr << "Extremity #" << i << ": Total " << n << " Min " << extremes[i][2]
+                      << " Max " << extremes[i][1] << std::endl;
+
+    for (int i = 0; i < MaxDebugSlots; ++i)
+        if ((n = correl[i][0]))
+        {
+            double r = (E(correl[i][5]) - E(correl[i][1]) * E(correl[i][3]))
+                     / (sqrt(E(correl[i][2]) - sqr(E(correl[i][1])))
+                        * sqrt(E(correl[i][4]) - sqr(E(correl[i][3]))));
+            std::cerr << "Correl. #" << i << ": Total " << n << " Coefficient " << r << std::endl;
+        }
+}
+
+void dbg_clear() {
+    hit.fill({});
+    mean.fill({});
+    stdev.fill({});
+    correl.fill({});
+    extremes.fill({});
+}
+
+// if (c) dbg_hit_on(b)と等価。従来の条件付き呼び出しを維持する。
+bool dbg_hit_on(bool c, bool b) {
+    if (c)
+        dbg_hit_on(b, 0);
+    return b;
+}
+
+// --------------------
+//  sync_out/sync_endl
+// --------------------
+
+// Used to serialize access to cout
+// to avoid multiple threads writing at the same time.
+ostream& operator<<(ostream& os, SyncCout sc) {
+
+	static mutex m;
+
+	if (sc == IO_LOCK)
+		m.lock();
+
+	if (sc == IO_UNLOCK)
+		m.unlock();
+
+	return os;
+}
+
+void sync_cout_start() { std::cout << IO_LOCK; }
+void sync_cout_end() { std::cout << IO_UNLOCK; }
+
+// Hash function based on public domain MurmurHash64A, by Austin Appleby.
+// Austin ApplebyによるパブリックドメインのMurmurHash64Aに基づく。
+u64 hash_bytes(const char* data, usize size) {
+    const u64 m = 0xc6a4a7935bd1e995ull;
+    const int r = 47;
+
+    u64 h = size * m;
+
+    const char* end = data + (size & ~(usize) 7);
+
+    for (const char* p = data; p != end; p += 8)
+    {
+        u64 k;
+        std::memcpy(&k, p, sizeof(k));
+
+        k *= m;
+        k ^= k >> r;
+        k *= m;
+
+        h ^= k;
+        h *= m;
+    }
+
+    if (size & 7)
+    {
+        u64 k = 0;
+        for (int i = (size & 7) - 1; i >= 0; i--)
+            k = (k << 8) | u8(end[i]);
+
+        h ^= k;
+        h *= m;
+    }
+
+    h ^= h >> r;
+    h *= m;
+    h ^= h >> r;
+
+    return h;
+}
+
+// Trampoline helper to avoid moving Logger to misc.h
+// Loggerをmisc.hに移さずに呼び出せるようにする。
+void start_logger(const string& fname) { Logger::start(fname); }
+
+// Read a numerical value from the command line
+// コマンドラインから数字を読み取る。
+// "123"みたいな文字列を123のように数値型(usize)に変換する。エラーの場合は、std::nulloptが返る。
+std::optional<usize> str_to_size_t(const std::string& s) {
+    if (s.empty() || s[0] == '-')
+        return std::nullopt;
+    errno                           = 0;
+    char*                    endptr = nullptr;
+    const unsigned long long value  = std::strtoull(s.c_str(), &endptr, 10);
+    if (errno == ERANGE || (*endptr != '\0' && !std::isspace(static_cast<unsigned char>(*endptr)))
+        || value > std::numeric_limits<usize>::max())
+        return std::nullopt;
+    return static_cast<usize>(value);
+}
+
+// Reads the file as bytes.
+// Returns nullopt if the file does not exist.
+
+// ファイルをバイトとして読み込みます。
+// ファイルが存在しない場合は nullopt を返します。
+
+optional<string> read_file_to_string(const string& filename) {
+
+	// 起動フォルダ相対でのpath
+	std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+
+	ifstream f(path, ios_base::binary);
+	if (!f)
+		return nullopt;
+	return string(istreambuf_iterator<char>(f), istreambuf_iterator<char>());
+}
+
+// Remove all spaces from a string
+// スペース相当文字列を削除する。NUMAの処理でも使用する。
+void remove_whitespace(std::string& s) {
+    s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c); }),
+            s.end());
+}
+
+// Test if a string has only spaces
+// スペース相当文字列だけかを判定する。NUMAの処理でも使用する。
+bool is_whitespace(std::string_view s) {
+    return std::all_of(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c); });
+}
+
+
+// 📌 ここ以下は、やねうら王の独自追加 📌
 
 // config.hで設定した値などについて出力する。
 string config_info()
@@ -509,128 +754,7 @@ string config_info()
 	return config;
 }
 
-// --------------------
-//  統計情報
-// --------------------
 
-static atomic<i64> hits[2], means[2];
-
-void dbg_hit_on(bool b) { ++hits[0]; if (b) ++hits[1]; }
-void dbg_hit_on(bool c, bool b) { if (c) dbg_hit_on(b); }
-void dbg_mean_of(int v) { ++means[0]; means[1] += v; }
-
-void dbg_print() {
-
-	if (hits[0])
-		cerr << "Total " << hits[0] << " Hits " << hits[1]
-		<< " hit rate (%) " << fixed << setprecision(3) << (100.0f * hits[1] / hits[0]) << endl;
-
-	if (means[0])
-		cerr << "Total " << means[0] << " Mean "
-		<< (double)means[1] / means[0] << endl;
-}
-
-// --------------------
-//  sync_out/sync_endl
-// --------------------
-
-// Used to serialize access to cout
-// to avoid multiple threads writing at the same time.
-ostream& operator<<(ostream& os, SyncCout sc) {
-
-	static mutex m;
-
-	if (sc == IO_LOCK)
-		m.lock();
-
-	if (sc == IO_UNLOCK)
-		m.unlock();
-
-	return os;
-}
-
-void sync_cout_start() { std::cout << IO_LOCK; }
-void sync_cout_end() { std::cout << IO_UNLOCK; }
-
-// Hash function based on public domain MurmurHash64A, by Austin Appleby.
-uint64_t hash_bytes(const char* data, usize size) {
-    const uint64_t m = 0xc6a4a7935bd1e995ull;
-    const int      r = 47;
-
-    uint64_t h = size * m;
-
-    const char* end = data + (size & ~(usize) 7);
-
-    for (const char* p = data; p != end; p += 8)
-    {
-        uint64_t k;
-        std::memcpy(&k, p, sizeof(k));
-
-        k *= m;
-        k ^= k >> r;
-        k *= m;
-
-        h ^= k;
-        h *= m;
-    }
-
-    if (size & 7)
-    {
-        uint64_t k = 0;
-        for (int i = (size & 7) - 1; i >= 0; i--)
-            k = (k << 8) | (uint64_t) end[i];
-
-        h ^= k;
-        h *= m;
-    }
-
-    h ^= h >> r;
-    h *= m;
-    h ^= h >> r;
-
-    return h;
-}
-
-/// Trampoline helper to avoid moving Logger to misc.h
-void start_logger(const string& fname) { Logger::start(fname); }
-
-// --------------------
-//  prefetch命令
-// --------------------
-
-// prefetch命令を使わない。
-#if defined (NO_PREFETCH)
-
-void prefetch(const void*) {}
-
-#else
-
-void prefetch([[maybe_unused]] const void* addr) {
-
-	// SSEの命令なのでSSE2が使える状況でのみ使用する。
-#if defined (USE_SSE2)
-
-	// 下位5bitが0でないような中途半端なアドレスのprefetchは、
-	// そもそも構造体がalignされていない可能性があり、バグに違いない。
-	ASSERT_LV3(((u64)addr & 0x1f) == 0);
-
-	// 1 cache lineのprefetch
-	// 64bytesの系もあるかも知れないが、Stockfishではcache line = 32bytesだと仮定してある。
-	// ちなみにRyzenでは32bytesらしい。
-
-	#if defined(_MSC_VER)
-	_mm_prefetch((char const*)addr, _MM_HINT_T0);
-	//	cout << hex << (u64)addr << endl;
-	#else
-	__builtin_prefetch(addr);
-	#endif
-
-#endif
-}
-
-#endif
-
-// 📌 ここ以下は、やねうら王の独自追加 📌
 
 // --------------------
 //   ElapsedTimer
@@ -1440,23 +1564,6 @@ namespace SystemIO
 	}
 }
 
-// Reads the file as bytes.
-// Returns nullopt if the file does not exist.
-
-// ファイルをバイトとして読み込みます。
-// ファイルが存在しない場合は nullopt を返します。
-
-optional<string> read_file_to_string(const string& filename) {
-
-	// 起動フォルダ相対でのpath
-	std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
-
-	ifstream f(path, ios_base::binary);
-	if (!f)
-		return nullopt;
-	return string(istreambuf_iterator<char>(f), istreambuf_iterator<char>());
-}
-
 // --------------------
 //       Path
 // --------------------
@@ -1936,48 +2043,13 @@ namespace StringExtension
 
 };
 
-// sを文字列spで分割した文字列集合を返す。
-// ※ Stockfishとの互換性のために用意。
-vector<string_view> split(string_view s, string_view delimiter)
-{
-	return StringExtension::Split(s, delimiter);
-}
-
-// スペース相当文字列を削除する。⇨ NUMAの処理に必要
-void remove_whitespace(string& s) {
-	s.erase(remove_if(s.begin(), s.end(), [](char c) { return isspace(c); }), s.end());
-}
-
-// スペース相当文字列かどうかを判定する。⇨ NUMAの処理に必要
-bool is_whitespace(string_view s) {
-	return all_of(s.begin(), s.end(), [](char c) { return isspace(c); });
-}
-
-
-// Read a numerical value from the command line
-// コマンドラインから数字を読み取る。
-// "123"みたいな文字列を123のように数値型(usize)に変換する。エラーの場合は、std::nulloptが返る。
-std::optional<usize> str_to_size_t(const std::string& s) {
-    if (s.empty() || s[0] == '-')
-        return std::nullopt;
-    errno                           = 0;
-    char*                    endptr = nullptr;
-    const unsigned long long value  = std::strtoull(s.c_str(), &endptr, 10);
-    if (errno == ERANGE || (*endptr != '\0' && !std::isspace(static_cast<unsigned char>(*endptr)))
-        || value > std::numeric_limits<usize>::max())
-        return std::nullopt;
-    return static_cast<usize>(value);
-}
-
 // ----------------------------
 //     working directory
 // ----------------------------
 
 #ifdef _WIN32
-#include <direct.h>
 #define GETCWD _getcwd
 #else
-#include <unistd.h>
 #define GETCWD getcwd
 #endif
 

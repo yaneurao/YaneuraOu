@@ -1,7 +1,9 @@
 ﻿#ifndef MISC_H_INCLUDED
 #define MISC_H_INCLUDED
 
+#if !STOCKFISH
 #include "config.h"
+#endif
 
 #include <algorithm>
 #include <array>
@@ -29,6 +31,13 @@
 #include <sstream>
 #include <unordered_set>
 
+#if !defined(NO_PREFETCH) && (defined(_MSC_VER) || defined(__INTEL_COMPILER))
+    #include <immintrin.h>
+#endif
+
+#define stringify2(x) #x
+#define stringify(x) stringify2(x)
+
 namespace YaneuraOu {
 
 using u64 = std::uint64_t;
@@ -49,6 +58,401 @@ __extension__ using u128 = unsigned __int128;
 __extension__ using i128 = signed __int128;
 #endif
 
+
+class OptionsMap;
+class IEngine;
+namespace Test { class UnitTester; }
+
+// --------------------
+//     engine info
+// --------------------
+
+// エンジンのバージョン情報を返す。
+std::string engine_version_info();
+
+// "USI"コマンドに応答するために表示する。
+//
+//  to_usi : これがtrueのときは、"usi"コマンドに対する応答として呼び出されたという意味。
+//           これがfalseのときは、起動直後の出力用。
+//        	 ⚠ やねうら王ではMultiEngineを採用しており、
+//			 起動直後ではエンジン名が確定しないから出力できない。
+// 
+// 🤔 やねうら王では、以下のように変更する。
+// engine_name    : エンジン名
+// engine_author  : エンジンの作者名
+// engine_version : エンジンのバージョン
+// eval_name      : 評価関数名
+std::string engine_info(const std::string& engine_name,
+						const std::string& engine_author,
+                        const std::string& engine_version,
+                        const std::string& eval_name);
+
+// 使用したコンパイラについての文字列を返す。
+std::string compiler_info();
+
+// config.hで設定した値などについて出力する。
+std::string config_info();
+
+
+// --------------------
+//    prefetch命令
+// --------------------
+
+// prefetch()は、与えられたアドレスの内容をL1/L2 cacheに事前に読み込む。
+// これはnon-blocking関数で、CPUがメモリに読み込むのを待たない。
+
+// Prefetch hint enums for explicit call-site control.
+// 呼び出し側から読み書きと局所性のヒントを指定する。
+enum class PrefetchRw {
+    READ,
+    WRITE
+};
+
+// NOTE: PrefetchLoc controls locality / cache level, not whether a prefetch
+//       is issued. In particular, PrefetchLoc::NONE maps to a non-temporal /
+//       lowest-locality prefetch (Intel: _MM_HINT_NTA, GCC/Clang: locality = 0)
+//       and therefore still performs a prefetch. To completely disable
+//       prefetching, define NO_PREFETCH so that prefetch() becomes a no-op.
+// PrefetchLocは局所性・キャッシュ階層を指定するもので、発行の有無は指定しない。
+// NONEも非一時的／最低局所性のヒントとしてプリフェッチを発行する。
+// Intelでは_MM_HINT_NTA、GCC/Clangではlocality=0に対応する。
+// 完全な無効化にはNO_PREFETCHを定義し、prefetch()を何もしない関数にする。
+enum class PrefetchLoc {
+    NONE,      // Non-temporal / no cache locality (still issues a prefetch)
+               // 非一時的なアクセス。プリフェッチ自体は発行する。
+    LOW,       // Low locality (e.g. T2 / L2)
+               // 低い局所性。
+    MODERATE,  // Moderate locality (e.g. T1 / L1)
+               // 中程度の局所性。
+    HIGH       // High locality (e.g. T0 / closest cache)
+               // 高い局所性。
+};
+
+// Preloads the given address into cache. This is a non-blocking
+// function that doesn't stall the CPU waiting for data to be loaded from memory,
+// which can be quite slow.
+// 指定アドレスのデータを事前にキャッシュへ読み込む。読み込み完了は待たない。
+#ifdef NO_PREFETCH
+template<PrefetchRw RW = PrefetchRw::READ, PrefetchLoc LOC = PrefetchLoc::HIGH>
+void prefetch(const void*) {}
+#elif defined(_MSC_VER) || defined(__INTEL_COMPILER)
+
+constexpr int get_intel_hint(PrefetchRw rw, PrefetchLoc loc) {
+    if (rw == PrefetchRw::WRITE)
+    #ifdef _MM_HINT_ET0
+        return _MM_HINT_ET0;
+    #else
+        // Fallback when write-prefetch hint is not available: use T0
+        // 書き込み用のヒントが使えない場合はT0を使う。
+        return _MM_HINT_T0;
+    #endif
+    switch (loc)
+    {
+    case PrefetchLoc::NONE :
+        return _MM_HINT_NTA;
+    case PrefetchLoc::LOW :
+        return _MM_HINT_T2;
+    case PrefetchLoc::MODERATE :
+        return _MM_HINT_T1;
+    case PrefetchLoc::HIGH :
+        return _MM_HINT_T0;
+    default :
+        return _MM_HINT_T0;
+    }
+}
+
+template<PrefetchRw RW = PrefetchRw::READ, PrefetchLoc LOC = PrefetchLoc::HIGH>
+void prefetch(const void* addr) {
+    _mm_prefetch(static_cast<const char*>(addr), get_intel_hint(RW, LOC));
+}
+#else
+template<PrefetchRw RW = PrefetchRw::READ, PrefetchLoc LOC = PrefetchLoc::HIGH>
+void prefetch(const void* addr) {
+    __builtin_prefetch(addr, static_cast<int>(RW), static_cast<int>(LOC));
+}
+#endif
+
+// --------------------
+//  logger
+// --------------------
+
+// cin/coutへの入出力をファイルにリダイレクトを開始/終了する。
+void start_logger(const std::string& fname);
+
+// "123"みたいな文字列を123のように数値型(usize)に変換する。
+std::optional<usize> str_to_size_t(const std::string& s);
+
+// Reads the file as bytes.
+// Returns std::nullopt if the file does not exist.
+
+// ファイルをバイトとして読み込みます。
+// ファイルが存在しない場合は std::nullopt を返します。
+
+// 💡 filenameは、起動フォルダ相対で指定する。
+
+std::optional<std::string> read_file_to_string(const std::string& filename);
+
+// --------------------
+//  統計情報
+// --------------------
+
+// bがtrueであった回数 / dbg_hit_on()が呼び出された回数を調べる。
+// slotを指定すると、複数の統計を独立して記録できる。戻り値は観測した値。
+bool dbg_hit_on(bool cond, int slot = 0);
+i64  dbg_mean_of(i64 value, int slot = 0);
+i64  dbg_stdev_of(i64 value, int slot = 0);
+i64  dbg_extremes_of(i64 value, int slot = 0);
+void dbg_correl_of(i64 value1, i64 value2, int slot = 0);
+
+// if (c) dbg_hit_on(b)と等価。やねうら王の既存コードとの互換用。
+bool dbg_hit_on(bool c, bool b);
+
+// 探索部から1秒おきにdbg_print()が呼び出されるものとする。
+// このとき、記録した統計情報をcerrに出力する。
+void dbg_print();
+void dbg_clear();
+
+// --------------------
+//  Time[ms] wrapper
+// --------------------
+
+// ms単位での時間計測しか必要ないのでこれをTimePoint型のように扱う。
+using TimePoint = std::chrono::milliseconds::rep;  // A value in milliseconds
+                                                 // ミリ秒単位の値。
+static_assert(sizeof(TimePoint) == sizeof(i64), "TimePoint should be 64 bits");
+
+// ms単位で現在時刻を返す
+inline TimePoint now() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    //(std::chrono::steady_clock::now().time_since_epoch()).count() * 10;
+    // 💡 10倍早く時間が経過するようにして、持ち時間制御のテストなどを行う時は↑このように10をかけ算する。
+}
+
+#if STOCKFISH
+
+#else
+// 🌈 時間計測用。経過時間を計測する。
+struct ElapsedTimer {
+    ElapsedTimer();
+
+    // startTimeを引数sで初期化する。
+    ElapsedTimer(TimePoint s);
+
+    // タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
+    void reset();
+    // TimePointを指定して初期化する。この時刻からの経過時間が求められるようになる。
+    void reset(TimePoint s);
+
+    // resetしてからの経過時間。
+    TimePoint elapsed() const;
+
+   private:
+    // reset()された時刻。
+    TimePoint startTime;
+};
+
+#endif
+
+// sを文字列spで分割した文字列集合を返す。
+// ※ Stockfishとの互換性のために用意。
+inline std::vector<std::string_view> split(std::string_view s, std::string_view delimiter) {
+    std::vector<std::string_view> res;
+
+    if (s.empty())
+        return res;
+
+    usize begin = 0;
+    for (;;)
+    {
+        const usize end = s.find(delimiter, begin);
+        if (end == std::string_view::npos)
+            break;
+
+        res.emplace_back(s.substr(begin, end - begin));
+        begin = end + delimiter.size();
+    }
+
+    res.emplace_back(s.substr(begin));
+
+    return res;
+}
+
+// スペース相当文字列を削除する。⇨ NUMAの処理に必要
+void remove_whitespace(std::string& s);
+
+// スペース相当文字列かどうかを判定する。⇨ NUMAの処理に必要
+bool is_whitespace(std::string_view s);
+
+// --------------------
+//  sync_out/sync_endl
+// --------------------
+
+// Used to serialize access to std::cout
+// to avoid multiple threads writing at the same time.
+
+// スレッド排他しながらcoutに出力するために使う。
+// 例)
+// sync_out << "bestmove " << m << sync_endl;
+// のように用いる。
+
+enum SyncCout {
+	IO_LOCK,
+	IO_UNLOCK
+};
+std::ostream& operator<<(std::ostream&, SyncCout);
+
+#define sync_cout std::cout << IO_LOCK
+#define sync_endl std::endl << IO_UNLOCK
+
+// sync_cout / sync_endlと同等のlock～unlock。
+void sync_cout_start();
+void sync_cout_end();
+
+// --------------------
+//      ValueList
+// --------------------
+
+//  最大サイズが固定長のvectorみたいなやつ。
+template<typename T, usize MaxSize>
+class ValueList {
+
+public:
+	// 配列のsizeを返す。
+    usize size() const { return size_; }
+
+	// 配列のsizeをintで返す。
+    int         ssize() const { return int(size_); }
+
+	void        push_back(const T& value) {
+        assert(size_ < MaxSize);
+        values_[size_++] = value;
+    }
+    // pushes back value if value < max
+    // valueがmax未満のときだけ要素数を増やす。
+    void push_back_if_lt(const T& value, const T& max) {
+        assert(size_ < MaxSize);
+        values_[size_] = value;
+        size_ += (value < max);
+    }
+	const T* begin() const { return values_; }
+	const T* end() const { return values_ + size_; }
+
+	const T& operator[](int index) const { return values_[index]; }
+	// ⇨ ここの引数、どうせ大きな配列は確保しないのでsize_tではなくintで良い。
+
+	// count個の要素を増やす。
+	// 要素は未初期化のまま増やした要素の先頭のポインタを返す。
+    T* make_space(usize count) {
+        T* result = &values_[size_];
+        size_ += count;
+        assert(size_ <= MaxSize);
+        return result;
+    }
+
+	// 非const版の begin/end(やねうら王独自追加)
+	T* begin() { return values_; }
+	T* end()   { return values_ + size_; }
+
+private:
+	T           values_[MaxSize];
+	usize size_ = 0;
+};
+
+// --------------------
+//      MultiArray
+// --------------------
+
+template<typename T, usize Size, usize... Sizes>
+class MultiArray;
+
+namespace Detail {
+
+	template<typename T, usize Size, usize... Sizes>
+	struct MultiArrayHelper {
+		using ChildType = MultiArray<T, Sizes...>;
+	};
+
+	template<typename T, usize Size>
+	struct MultiArrayHelper<T, Size> {
+		using ChildType = T;
+	};
+
+	template<typename To, typename From>
+	constexpr bool is_strictly_assignable_v =
+		std::is_assignable_v<To&, From> && (std::is_same_v<To, From> || !std::is_convertible_v<From, To>);
+
+}
+
+// MultiArray is a generic N-dimensional array.
+// The template parameters (Size and Sizes) encode the dimensions of the array.
+
+// MultiArray は汎用的な N 次元配列です。
+// テンプレートパラメータ (Size と Sizes) が配列の次元を表します。
+
+template<typename T, usize Size, usize... Sizes>
+class MultiArray {
+	using ChildType = typename Detail::MultiArrayHelper<T, Size, Sizes...>::ChildType;
+	using ArrayType = std::array<ChildType, Size>;
+	ArrayType data_;
+
+public:
+	using value_type = typename ArrayType::value_type;
+	using size_type = typename ArrayType::size_type;
+	using difference_type = typename ArrayType::difference_type;
+	using reference = typename ArrayType::reference;
+	using const_reference = typename ArrayType::const_reference;
+	using pointer = typename ArrayType::pointer;
+	using const_pointer = typename ArrayType::const_pointer;
+	using iterator = typename ArrayType::iterator;
+	using const_iterator = typename ArrayType::const_iterator;
+	using reverse_iterator = typename ArrayType::reverse_iterator;
+	using const_reverse_iterator = typename ArrayType::const_reverse_iterator;
+
+	constexpr auto& at(size_type index) { return data_.at(index); }
+	constexpr const auto& at(size_type index) const { return data_.at(index); }
+
+	constexpr auto& operator[](size_type index) noexcept { assert(index < Size); return data_[index]; }
+	constexpr const auto& operator[](size_type index) const noexcept { assert(index < Size); return data_[index]; }
+
+	constexpr auto& front() noexcept { return data_.front(); }
+	constexpr const auto& front() const noexcept { return data_.front(); }
+	constexpr auto& back() noexcept { return data_.back(); }
+	constexpr const auto& back() const noexcept { return data_.back(); }
+
+	auto* data() { return data_.data(); }
+	const auto* data() const { return data_.data(); }
+
+	constexpr auto begin() noexcept { return data_.begin(); }
+	constexpr auto end() noexcept { return data_.end(); }
+	constexpr auto begin() const noexcept { return data_.begin(); }
+	constexpr auto end() const noexcept { return data_.end(); }
+	constexpr auto cbegin() const noexcept { return data_.cbegin(); }
+	constexpr auto cend() const noexcept { return data_.cend(); }
+
+	constexpr auto rbegin() noexcept { return data_.rbegin(); }
+	constexpr auto rend() noexcept { return data_.rend(); }
+	constexpr auto rbegin() const noexcept { return data_.rbegin(); }
+	constexpr auto rend() const noexcept { return data_.rend(); }
+	constexpr auto crbegin() const noexcept { return data_.crbegin(); }
+	constexpr auto crend() const noexcept { return data_.crend(); }
+
+	constexpr bool      empty() const noexcept { return data_.empty(); }
+	constexpr size_type size() const noexcept { return data_.size(); }
+	constexpr size_type max_size() const noexcept { return data_.max_size(); }
+
+	template<typename U>
+	void fill(const U& v) {
+		static_assert(Detail::is_strictly_assignable_v<T, U>,
+			"Cannot assign fill value to entry type");
+		for (auto& ele : data_)
+			if constexpr (sizeof...(Sizes) == 0)
+				ele = v;
+			else
+				ele.fill(v);
+	}
+
+	constexpr void swap(MultiArray<T, Size, Sizes...>& other) noexcept { data_.swap(other.data_); }
+};
 
 // Wrapper around std::atomic<T> which uses relaxed accesses or plain
 // accesses, depending on the config. Intended use is e.g. wasm where
@@ -133,283 +537,6 @@ class RelaxedAtomic {
     std::conditional_t<UseAtomic, std::atomic<T>, T> inner;
 };
 
-class OptionsMap;
-class IEngine;
-namespace Test { class UnitTester; }
-
-// --------------------
-//     engine info
-// --------------------
-
-// エンジンのバージョン情報を返す。
-std::string engine_version_info();
-
-// "USI"コマンドに応答するために表示する。
-//
-//  to_usi : これがtrueのときは、"usi"コマンドに対する応答として呼び出されたという意味。
-//           これがfalseのときは、起動直後の出力用。
-//        	 ⚠ やねうら王ではMultiEngineを採用しており、
-//			 起動直後ではエンジン名が確定しないから出力できない。
-// 
-// 🤔 やねうら王では、以下のように変更する。
-// engine_name    : エンジン名
-// engine_author  : エンジンの作者名
-// engine_version : エンジンのバージョン
-// eval_name      : 評価関数名
-std::string engine_info(const std::string& engine_name,
-						const std::string& engine_author,
-                        const std::string& engine_version,
-                        const std::string& eval_name);
-
-// 使用したコンパイラについての文字列を返す。
-std::string compiler_info();
-
-// config.hで設定した値などについて出力する。
-std::string config_info();
-
-
-// --------------------
-//    prefetch命令
-// --------------------
-
-// prefetch()は、与えられたアドレスの内容をL1/L2 cacheに事前に読み込む。
-// これはnon-blocking関数で、CPUがメモリに読み込むのを待たない。
-
-void prefetch(const void* addr);
-
-// --------------------
-//  logger
-// --------------------
-
-// cin/coutへの入出力をファイルにリダイレクトを開始/終了する。
-void start_logger(const std::string& fname);
-
-// "123"みたいな文字列を123のように数値型(usize)に変換する。
-std::optional<usize> str_to_size_t(const std::string& s);
-
-// --------------------
-//  統計情報
-// --------------------
-
-// bがtrueであった回数 / dbg_hit_on()が呼び出された回数 を調べるためのもの。
-// (どれくらいの割合でXが成り立つか、みたいなのを調べるときに用いる)
-void dbg_hit_on(bool b);
-
-// if (c) dbg_hit_on(b)と等価。
-void dbg_hit_on(bool c , bool b);
-
-// vの合計 / 呼びだされた回数 ( = vの平均) みたいなのを求めるときに調べるためのもの。
-void dbg_mean_of(int v);
-
-// 探索部から1秒おきにdbg_print()が呼び出されるものとする。
-// このとき、以下の関数を呼び出すと、その統計情報をcerrに出力する。
-void dbg_print();
-
-// --------------------
-//  Time[ms] wrapper
-// --------------------
-
-// ms単位での時間計測しか必要ないのでこれをTimePoint型のように扱う。
-using TimePoint = std::chrono::milliseconds::rep;  // A value in milliseconds
-                                                 // ミリ秒単位の値。
-static_assert(sizeof(TimePoint) == sizeof(i64), "TimePoint should be 64 bits");
-
-// ms単位で現在時刻を返す
-static TimePoint now() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
-    //(std::chrono::steady_clock::now().time_since_epoch()).count() * 10;
-    // 💡 10倍早く時間が経過するようにして、持ち時間制御のテストなどを行う時は↑このように10をかけ算する。
-}
-
-#if STOCKFISH
-
-#else
-// 🌈 時間計測用。経過時間を計測する。
-struct ElapsedTimer {
-    ElapsedTimer();
-
-    // startTimeを引数sで初期化する。
-    ElapsedTimer(TimePoint s);
-
-    // タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
-    void reset();
-    // TimePointを指定して初期化する。この時刻からの経過時間が求められるようになる。
-    void reset(TimePoint s);
-
-    // resetしてからの経過時間。
-    TimePoint elapsed() const;
-
-   private:
-    // reset()された時刻。
-    TimePoint startTime;
-};
-
-#endif
-
-// --------------------
-//  sync_out/sync_endl
-// --------------------
-
-// Used to serialize access to std::cout
-// to avoid multiple threads writing at the same time.
-
-// スレッド排他しながらcoutに出力するために使う。
-// 例)
-// sync_out << "bestmove " << m << sync_endl;
-// のように用いる。
-
-enum SyncCout {
-	IO_LOCK,
-	IO_UNLOCK
-};
-std::ostream& operator<<(std::ostream&, SyncCout);
-
-#define sync_cout std::cout << IO_LOCK
-#define sync_endl std::endl << IO_UNLOCK
-
-// sync_cout / sync_endlと同等のlock～unlock。
-void sync_cout_start();
-void sync_cout_end();
-
-// --------------------
-//      ValueList
-// --------------------
-
-//  最大サイズが固定長のvectorみたいなやつ。
-template<typename T, usize MaxSize>
-class ValueList {
-
-public:
-	// 配列のsizeを返す。
-    usize size() const { return size_; }
-
-	// 配列のsizeをintで返す。
-    int         ssize() const { return int(size_); }
-
-	void        push_back(const T& value) {
-        assert(size_ < MaxSize);
-        values_[size_++] = value;
-    }
-	const T* begin() const { return values_; }
-	const T* end() const { return values_ + size_; }
-
-	const T& operator[](int index) const { return values_[index]; }
-	// ⇨ ここの引数、どうせ大きな配列は確保しないのでsize_tではなくintで良い。
-
-	// count個の要素を増やす。
-	// 要素は未初期化のまま増やした要素の先頭のポインタを返す。
-    T* make_space(usize count) {
-        T* result = &values_[size_];
-        size_ += count;
-        assert(size_ <= MaxSize);
-        return result;
-    }
-
-	// 非const版の begin/end(やねうら王独自追加)
-	T* begin() { return values_; }
-	T* end()   { return values_ + size_; }
-
-private:
-	T           values_[MaxSize];
-	usize size_ = 0;
-};
-
-// --------------------
-//      MultiArray
-// --------------------
-
-template<typename T, usize Size, usize... Sizes>
-class MultiArray;
-
-namespace Detail {
-
-	template<typename T, usize Size, usize... Sizes>
-	struct MultiArrayHelper {
-		using ChildType = MultiArray<T, Sizes...>;
-	};
-
-	template<typename T, usize Size>
-	struct MultiArrayHelper<T, Size> {
-		using ChildType = T;
-	};
-
-	template<typename To, typename From>
-	constexpr bool is_strictly_assignable_v =
-		std::is_assignable_v<To&, From> && (std::is_same_v<To, From> || !std::is_convertible_v<From, To>);
-
-}
-
-// MultiArray is a generic N-dimensional array.
-// The template parameters (Size and Sizes) encode the dimensions of the array.
-
-// MultiArray は汎用的な N 次元配列です。
-// テンプレートパラメータ (Size と Sizes) が配列の次元を表します。
-
-template<typename T, usize Size, usize... Sizes>
-class MultiArray {
-	using ChildType = typename Detail::MultiArrayHelper<T, Size, Sizes...>::ChildType;
-	using ArrayType = std::array<ChildType, Size>;
-	ArrayType data_;
-
-public:
-	using value_type = typename ArrayType::value_type;
-	using size_type = typename ArrayType::size_type;
-	using difference_type = typename ArrayType::difference_type;
-	using reference = typename ArrayType::reference;
-	using const_reference = typename ArrayType::const_reference;
-	using pointer = typename ArrayType::pointer;
-	using const_pointer = typename ArrayType::const_pointer;
-	using iterator = typename ArrayType::iterator;
-	using const_iterator = typename ArrayType::const_iterator;
-	using reverse_iterator = typename ArrayType::reverse_iterator;
-	using const_reverse_iterator = typename ArrayType::const_reverse_iterator;
-
-	constexpr auto& at(size_type index) noexcept { return data_.at(index); }
-	constexpr const auto& at(size_type index) const noexcept { return data_.at(index); }
-
-	constexpr auto& operator[](size_type index) noexcept { return data_[index]; }
-	constexpr const auto& operator[](size_type index) const noexcept { return data_[index]; }
-
-	constexpr auto& front() noexcept { return data_.front(); }
-	constexpr const auto& front() const noexcept { return data_.front(); }
-	constexpr auto& back() noexcept { return data_.back(); }
-	constexpr const auto& back() const noexcept { return data_.back(); }
-
-	auto* data() { return data_.data(); }
-	const auto* data() const { return data_.data(); }
-
-	constexpr auto begin() noexcept { return data_.begin(); }
-	constexpr auto end() noexcept { return data_.end(); }
-	constexpr auto begin() const noexcept { return data_.begin(); }
-	constexpr auto end() const noexcept { return data_.end(); }
-	constexpr auto cbegin() const noexcept { return data_.cbegin(); }
-	constexpr auto cend() const noexcept { return data_.cend(); }
-
-	constexpr auto rbegin() noexcept { return data_.rbegin(); }
-	constexpr auto rend() noexcept { return data_.rend(); }
-	constexpr auto rbegin() const noexcept { return data_.rbegin(); }
-	constexpr auto rend() const noexcept { return data_.rend(); }
-	constexpr auto crbegin() const noexcept { return data_.crbegin(); }
-	constexpr auto crend() const noexcept { return data_.crend(); }
-
-	constexpr bool      empty() const noexcept { return data_.empty(); }
-	constexpr size_type size() const noexcept { return data_.size(); }
-	constexpr size_type max_size() const noexcept { return data_.max_size(); }
-
-	template<typename U>
-	void fill(const U& v) {
-		static_assert(Detail::is_strictly_assignable_v<T, U>,
-			"Cannot assign fill value to entry type");
-		for (auto& ele : data_)
-			if constexpr (sizeof...(Sizes) == 0)
-				ele = v;
-			else
-				ele.fill(v);
-	}
-
-	constexpr void swap(MultiArray<T, Size, Sizes...>& other) noexcept { data_.swap(other.data_); }
-};
-
 // --------------------
 //       乱数
 // --------------------
@@ -463,20 +590,26 @@ static std::ostream& operator<<(std::ostream& os, PRNG& prng)
 //  64bit×64bitの掛け算の上位64bitを取り出す関数
 // --------------------
 
-inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
-#if defined(__GNUC__) && defined(IS_64BIT)
-    __extension__ using uint128 = unsigned __int128;
-    return (uint128(a) * uint128(b)) >> 64;
+inline u64 mul_hi64(u64 a, u64 b) {
+#if defined(__GNUC__) && defined(IS_64BIT) && !defined(__wasm__)
+    return (u128(a) * u128(b)) >> 64;
 #else
-	// 64bit同士の掛け算を64bitを32bit 2つに分割して、筆算のようなことをするコード
-    uint64_t aL = u32(a), aH = a >> 32;
-    uint64_t bL = u32(b), bH = b >> 32;
-    uint64_t c1 = (aL * bL) >> 32;
-    uint64_t c2 = aH * bL + c1;
-    uint64_t c3 = aL * bH + u32(c2);
+    // 64bit同士の掛け算を32bitずつに分割して上位64bitを求める。
+    u64 aL = u32(a), aH = a >> 32;
+    u64 bL = u32(b), bH = u64(b) >> 32;
+    u64 c1 = (aL * bL) >> 32;
+    u64 c2 = aH * bL + c1;
+    u64 c3 = aL * bH + u32(c2);
     return aH * bH + (c2 >> 32) + (c3 >> 32);
 #endif
 }
+
+template<typename T1, typename T2>
+inline constexpr T2 interpolate(T1 x, T1 x0, T1 x1, T2 y0, T2 y1) {
+    assert(x0 != x1);
+    return T2(y0 + (y1 - y0) * (x - x0) / (x1 - x0));
+}
+
 
 // --------------------
 //   hash値の計算
@@ -486,7 +619,7 @@ inline uint64_t mul_hi64(uint64_t a, uint64_t b) {
 //     プロセス間でNNUEのパラメーター共有を行うときのチェック用。
 
 // 任意の byte streamをバイト列そのままのハッシュとして利用し、uint64_tで返す。
-uint64_t hash_bytes(const char*, usize);
+u64 hash_bytes(const char*, usize);
 
 // 任意の POD ライクなデータ構造を、バイト列そのままのハッシュとして利用し、usizeで返す。
 // 📝 `reinterpret_cast` でメモリ内容を生のまま string_view にして hash を取る。
@@ -495,7 +628,8 @@ uint64_t hash_bytes(const char*, usize);
 template<typename T>
 inline usize get_raw_data_hash(const T& value) {
     // We must have no padding bytes because we're reinterpreting as char
-    static_assert(std::has_unique_object_representations<T>());
+    // charとして再解釈するため、パディングバイトがあってはならない。
+    static_assert(std::has_unique_object_representations_v<T>);
 
     return static_cast<usize>(
       hash_bytes(reinterpret_cast<const char*>(&value), sizeof(value)));
@@ -506,7 +640,8 @@ inline void hash_combine(usize& seed, const T& v) {
     usize x;
     // For primitive types we avoid using the default hasher, which may be
     // nondeterministic across program invocations
-    if constexpr (std::is_integral<T>())
+    // 整数型には、起動ごとに値が変わりうる標準ハッシャーを使わない。
+    if constexpr (std::is_integral_v<T>)
         x = v;
     else
         x = std::hash<T>{}(v);
@@ -515,7 +650,7 @@ inline void hash_combine(usize& seed, const T& v) {
 
 // 文字列に対してそのhash値を返す。
 // 💡 アルゴリズムが固定されていないと値が変わるのでC++のruntimeに依存するわけにはいかない。
-inline std::uint64_t hash_string(const std::string& sv) { return hash_bytes(sv.data(), sv.size()); }
+inline u64 hash_string(const std::string& sv) { return hash_bytes(sv.data(), sv.size()); }
 
 
 /*
@@ -673,26 +808,29 @@ void move_to_front(std::vector<T>& vec, Predicate pred) {
     auto it = std::find_if(vec.begin(), vec.end(), pred);
 
     if (it != vec.end())
-    {
         std::rotate(vec.begin(), it, it + 1);
-    }
 }
 }
 
-// 到達しないことを明示して最適化を促す。
-// 💡 sf_assume(false)ならば、そこには到達しないことを明示する。sf_assume(true)ならば到達する。
-//     clangを除外してあるのは、警告が消えないからっぽい。
-
-#if defined(__GNUC__)
-    #define sf_always_inline __attribute__((always_inline))
-#elif defined(_MSC_VER)
-	#define sf_always_inline __forceinline
-#else
-    // do nothing for other compilers
-    #define sf_always_inline
+// コンパイラーごとのインライン化・仮定・到達不能箇所などの指定。
+// sf_assumeの条件は副作用を含まず、必ず成立する式を指定する。
+#ifndef __has_builtin
+    #define __has_builtin(x) 0
 #endif
 
-#if defined(__GNUC__) && !defined(__clang__)
+#if defined(__GNUC__)
+    #define sf_always_inline inline __attribute__((always_inline))
+#elif defined(_MSC_VER)
+    #define sf_always_inline __forceinline
+#else
+    // plain inline for other compilers
+    // その他のコンパイラーでは通常のinlineを使う。
+    #define sf_always_inline inline
+#endif
+
+#if defined(__clang__)
+    #define sf_assume(cond) __builtin_assume(cond)
+#elif defined(__GNUC__)
     #if __GNUC__ >= 13
         #define sf_assume(cond) __attribute__((assume(cond)))
     #else
@@ -703,9 +841,36 @@ void move_to_front(std::vector<T>& vec, Predicate pred) {
                     __builtin_unreachable(); \
             } while (0)
     #endif
+#elif defined(_MSC_VER)
+    #define sf_assume(cond) __assume(cond)
 #else
     // do nothing for other compilers
+    // その他のコンパイラーでは何もしない。
     #define sf_assume(cond)
+#endif
+
+#ifdef __GNUC__
+    #define sf_unreachable() __builtin_unreachable()
+#elif defined(_MSC_VER)
+    #define sf_unreachable() __assume(0)
+#else
+    #define sf_unreachable()
+#endif
+
+#ifdef __GNUC__
+    #define RESTRICT __restrict__
+#elif defined(_MSC_VER)
+    #define RESTRICT __restrict
+#else
+    #define RESTRICT
+#endif
+
+#ifdef __clang__
+    #define UNROLLED_FOR(...) _Pragma("clang loop unroll(full)") for (__VA_ARGS__)
+#elif defined(__GNUC__)
+    #define UNROLLED_FOR(...) _Pragma("GCC unroll 32") for (__VA_ARGS__)
+#else
+    #define UNROLLED_FOR(...) for (__VA_ARGS__)
 #endif
 
 // --------------------
@@ -1112,16 +1277,6 @@ namespace SystemIO
 	};
 };
 
-// Reads the file as bytes.
-// Returns std::nullopt if the file does not exist.
-
-// ファイルをバイトとして読み込みます。
-// ファイルが存在しない場合は std::nullopt を返します。
-
-// 💡 filenameは、起動フォルダ相対で指定する。
-
-std::optional<std::string> read_file_to_string(const std::string& filename);
-
 // --------------------
 //       Path
 // --------------------
@@ -1409,16 +1564,6 @@ namespace StringExtension
 	// 例: v = [1,2,3] に対して ' '.join(v) == "1 2 3"
 	std::string Join(const std::vector<std::string>& v , const std::string& delimiter);
 };
-
-// sを文字列spで分割した文字列集合を返す。
-// ※ Stockfishとの互換性のために用意。
-std::vector<std::string_view> split(std::string_view s, std::string_view delimiter);
-
-// スペース相当文字列を削除する。⇨ NUMAの処理に必要
-void remove_whitespace(std::string& s);
-
-// スペース相当文字列かどうかを判定する。⇨ NUMAの処理に必要
-bool is_whitespace(std::string_view s);
 
 // --------------------
 //    Concurrent
