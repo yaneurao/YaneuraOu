@@ -4,6 +4,8 @@
 #ifndef CLASSIC_NNUE_ARCHITECTURE_H_INCLUDED
 #define CLASSIC_NNUE_ARCHITECTURE_H_INCLUDED
 
+#include <cstdint>
+
 #include "../../config.h"
 
 #if defined(EVAL_NNUE)

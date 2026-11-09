@@ -1,7 +1,7 @@
 ﻿#ifndef PERFT_H_INCLUDED
 #define PERFT_H_INCLUDED
 
-//#include <cstdint>
+#include <cstdint>
 
 #include "movegen.h"
 #include "position.h"

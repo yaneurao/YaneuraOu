@@ -5,7 +5,7 @@
 #include <atomic>
 //#include <cassert>
 #include <cmath>
-//#include <cstdint>
+#include <cstdint>
 //#include <cstdlib>
 #include <limits>
 #include <type_traits>  // IWYU pragma: keep

@@ -4,6 +4,8 @@
 #ifndef CLASSIC_NNUE_COMMON_H_INCLUDED
 #define CLASSIC_NNUE_COMMON_H_INCLUDED
 
+#include <cstdint>
+
 #include <algorithm>   // std::min
 #include <cassert>
 #include <cstring>		// std::memcpy()

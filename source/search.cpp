@@ -1,4 +1,6 @@
 ﻿#include "search.h"
+
+#include <cstdint>
 #include "evaluate.h"
 
 namespace YaneuraOu {

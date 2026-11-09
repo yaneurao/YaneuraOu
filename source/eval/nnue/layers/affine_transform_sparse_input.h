@@ -5,6 +5,8 @@
 #ifndef CLASSIC_NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
 #define CLASSIC_NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
 
+#include <cstdint>
+
 #include "../../../config.h"
 
 #if defined(EVAL_NNUE)
