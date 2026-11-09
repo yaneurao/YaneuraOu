@@ -47,6 +47,10 @@ using AdjustTokenPrivileges_t =
 }
 #endif
 
+#if defined(__linux__) && !defined(__ANDROID__)
+    #include <sys/mman.h>
+    #include <unistd.h>
+#endif
 
 namespace YaneuraOu {
 
@@ -268,10 +272,57 @@ T* align_ptr_up(T* ptr) {
       reinterpret_cast<char*>((ptrint + (Alignment - 1)) / Alignment * Alignment));
 }
 
+#if defined(__linux__) && !defined(__ANDROID__)
+
+// Allocate size bytes aligned to a 2 MB boundary using mmap.
+// On success the returned pointer can be freed with munmap(ptr, size).
+// mmapを使って2MiB境界に整列した領域を確保する。
+// 成功時のポインターはmunmap(ptr, size)で解放する。
+inline void* mmap_huge_aligned(usize size, int flags, int fd = -1, off_t offset = 0) {
+    constexpr usize Alignment = 2 * 1024 * 1024;
+    const long      pageSize  = sysconf(_SC_PAGESIZE);
+
+    if (size >= Alignment && pageSize > 0)
+    {
+        const usize mappingSize =
+          ((size + static_cast<usize>(pageSize) - 1) / static_cast<usize>(pageSize))
+          * static_cast<usize>(pageSize);
+        const usize reservationSize = mappingSize + Alignment;
+        void*       reservation =
+          mmap(nullptr, reservationSize, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+        if (reservation != MAP_FAILED)
+        {
+            char* const base        = static_cast<char*>(reservation);
+            char* const alignedBase = align_ptr_up<Alignment>(base);
+
+            void* mapped =
+              mmap(alignedBase, size, PROT_READ | PROT_WRITE, flags | MAP_FIXED, fd, offset);
+
+            if (mapped != MAP_FAILED)
+            {
+                const usize prefixSize = static_cast<usize>(alignedBase - base);
+                const usize suffixSize = reservationSize - prefixSize - mappingSize;
+                if (prefixSize)
+                    munmap(reservation, prefixSize);
+                if (suffixSize)
+                    munmap(alignedBase + mappingSize, suffixSize);
+                return mapped;
+            }
+
+            munmap(reservation, reservationSize);
+        }
+    }
+
+    return mmap(nullptr, size, PROT_READ | PROT_WRITE, flags, fd, offset);
+}
+
+#endif
+
 #if defined(_WIN32)
 
 template<typename FuncYesT, typename FuncNoT>
-auto windows_try_with_large_page_priviliges([[maybe_unused]] FuncYesT&& fyes, FuncNoT&& fno) {
+auto windows_try_with_large_page_privileges([[maybe_unused]] FuncYesT&& fyes, FuncNoT&& fno) {
 
     #if !defined(_WIN64)
     return fno();

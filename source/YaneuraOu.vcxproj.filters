@@ -331,7 +331,7 @@
     <ClInclude Include="shm.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="shm_linux.h">
+    <ClInclude Include="shm_unix.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\architectures\sfnn-1536.h">

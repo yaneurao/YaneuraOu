@@ -567,7 +567,7 @@
     <ClInclude Include="perft.h" />
     <ClInclude Include="score.h" />
     <ClInclude Include="shm.h" />
-    <ClInclude Include="shm_linux.h" />
+    <ClInclude Include="shm_unix.h" />
     <ClInclude Include="timeman.h" />
     <ClInclude Include="search.h" />
     <ClInclude Include="testcmd\unit_test.h" />
