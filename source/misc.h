@@ -15,6 +15,7 @@
 #include <exception>  // IWYU pragma: keep
 // IWYU pragma: no_include <__exception/terminate.h>
 #include <functional>
+#include <filesystem>
 #include <iosfwd>
 #include <optional>
 #include <string>
@@ -177,10 +178,14 @@ void prefetch(const void* addr) {
 // --------------------
 
 // cin/coutへの入出力をファイルにリダイレクトを開始/終了する。
-void start_logger(const std::string& fname);
+void start_logger(const std::filesystem::path& fname);
 
 // "123"みたいな文字列を123のように数値型(usize)に変換する。
 std::optional<usize> str_to_size_t(const std::string& s);
+
+// UTF-8のパスをOSのネイティブ形式へ変換する。
+// WindowsではUTF-8として不正な場合にANSIコードページで再試行する。
+std::filesystem::path path_from_utf8(const std::string& path);
 
 // Reads the file as bytes.
 // Returns std::nullopt if the file does not exist.

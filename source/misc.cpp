@@ -46,6 +46,9 @@
 using namespace std;
 
 namespace YaneuraOu {
+
+namespace fs = std::filesystem;
+
 namespace {
 
 // --------------------
@@ -101,16 +104,7 @@ class Logger {
 public:
 	// ログ記録の開始。
 	// fname : ログを書き出すファイル名
-	static void start(const string& fname) {
-
-		string fname2 = fname;
-		string upper_fname = StringExtension::ToUpper(fname2);
-		// 以前、"WriteDebugLog"オプションはチェックボックスになっていたので
-		// GUIがTrue/Falseを渡してくることがある。
-		if (upper_fname == "FALSE")
-			fname2 = ""; // なかったことにする。
-		else if (upper_fname == "TRUE")
-			fname2 = "io_log.txt";
+	static void start(const fs::path& fname) {
 
 		static Logger l;
 
@@ -121,13 +115,13 @@ public:
 			l.file.close();
 		}
 
-		if (!fname2.empty())
+		if (!fname.empty())
 		{
-			l.file.open(fname2, ifstream::out);
+			l.file.open(fname, ifstream::out);
 
 			if (!l.file.is_open())
 			{
-				cerr << "Unable to open debug log file " << fname2 << endl;
+				cerr << "Unable to open debug log file " << fname << endl;
 				exit(EXIT_FAILURE);
 			}
 
@@ -609,7 +603,35 @@ u64 hash_bytes(const char* data, usize size) {
 
 // Trampoline helper to avoid moving Logger to misc.h
 // Loggerをmisc.hに移さずに呼び出せるようにする。
-void start_logger(const string& fname) { Logger::start(fname); }
+void start_logger(const fs::path& fname) { Logger::start(fname); }
+
+// This utility allows us to handle filenames and paths with UTF8 encoding
+// UTF-8で指定されたファイル名やパスを扱うための変換関数。
+fs::path path_from_utf8(const std::string& path) {
+#ifdef _WIN32
+    int u8len = static_cast<int>(path.size());
+
+    // First attempt UTF-8, then fall back to ANSI for old GUIs like Arena
+    // まずUTF-8を試し、失敗したら古いGUI向けにANSIで再試行する。
+    constexpr int CodePages[2] = {CP_UTF8, CP_ACP};
+    for (int cp : CodePages)
+    {
+        int flags = cp == CP_UTF8 ? MB_ERR_INVALID_CHARS : 0;
+        int wlen  = MultiByteToWideChar(cp, flags, path.c_str(), u8len, NULL, 0);
+        if (wlen > 0)
+        {
+            std::wstring wstr(static_cast<usize>(wlen), L'\0');
+            MultiByteToWideChar(cp, 0, path.c_str(), u8len, wstr.data(), wlen);
+            return {wstr};
+        }
+    }
+
+    return {path};
+#else
+    return {path};
+#endif
+}
+
 
 // Read a numerical value from the command line
 // コマンドラインから数字を読み取る。

@@ -125,7 +125,7 @@ void Engine::add_base_options() {
     // デバッグ用にログファイルへ書き出す。
     options.add(  //
       "DebugLogFile", Option("", [](const Option& o) {
-          start_logger(o);
+          start_logger(path_from_utf8(std::string(o)));
           return std::nullopt;
       }));
 }
