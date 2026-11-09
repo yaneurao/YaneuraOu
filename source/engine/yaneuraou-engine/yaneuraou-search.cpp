@@ -2130,9 +2130,9 @@ void YaneuraOuWorker::do_move(
     }
 }
 
-void YaneuraOuWorker::do_null_move(Position& pos, StateInfo& st) { pos.do_null_move(st, tt); }
+void Search::YaneuraOuWorker::do_null_move(Position& pos, StateInfo& st) { pos.do_null_move(st, tt); }
 
-void YaneuraOuWorker::undo_move(Position& pos, const Move move) {
+void Search::YaneuraOuWorker::undo_move(Position& pos, const Move move) {
 
 	pos.undo_move(move);
 
@@ -2141,7 +2141,7 @@ void YaneuraOuWorker::undo_move(Position& pos, const Move move) {
 #endif
 }
 
-void YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
+void Search::YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
 
 
 // Reset histories, usually before a new game
@@ -2240,7 +2240,8 @@ Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
 // cutNode : LMRで悪そうな指し手に対してreduction量を増やすnode
 
 template<NodeType nodeType>
-Value YaneuraOuWorker::search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode)
+Value Search::YaneuraOuWorker::search(
+	Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, const bool cutNode)
 {
     // -----------------------
     //     nodeの種類

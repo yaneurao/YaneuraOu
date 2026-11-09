@@ -484,7 +484,7 @@ class YaneuraOuWorker: public Worker {
     // これは PV ノードおよび非 PV ノードの両方に対応するメインの探索関数
     // 💡 最初、iterative_deepening()のなかから呼び出される。
     template<NodeType nodeType>
-    Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
+    Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, const bool cutNode);
 
     // 静止探索
     // Quiescence search function, which is called by the main search
