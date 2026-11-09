@@ -79,7 +79,7 @@ public:
 			"usinewgame"コマンドが送られてきた時の応答。
 			毎局、開始時にGUI側から送られてくるので1局ごとに行う探索部の初期化などはここに書く。
 
-		verify_networks()
+		verify_network()
 			評価関数部の初期化が行えているかのチェックを行う。
 
 		save_network()
@@ -183,7 +183,7 @@ public:
     virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) {}
     virtual void set_on_iter(std::function<void(const InfoIter&)>&&) {}
     virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) {}
-    virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) {}
+    virtual void set_on_verify_network(std::function<void(std::string_view)>&&) {}
 
 #if !STOCKFISH
     virtual void set_on_update_string(std::function<void(std::string_view)>&&) {}
@@ -199,7 +199,7 @@ public:
 
 	// ネットワークの読み込みができているか確認する。
 	// 読み込まれていなければload_networks()で読み込む。
-    virtual void verify_networks() const {}
+    virtual void verify_network() const {}
 
 	// TODO あとで考える。
 #if STOCKFISH
@@ -373,12 +373,12 @@ class Engine: public IEngine {
     virtual void set_on_iter(std::function<void(const InfoIter&)>&&) override final;
     virtual void
     set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) override final;
-    virtual void set_on_verify_networks(std::function<void(std::string_view)>&&) override;
+    virtual void set_on_verify_network(std::function<void(std::string_view)>&&) override;
     virtual void set_on_update_string(std::function<void(std::string_view)>&&) override final;
     virtual std::function<void(std::string_view, std::string_view)>
     get_on_bestmove() override final;
 
-    virtual void verify_networks() const override {}
+    virtual void verify_network() const override {}
     virtual void save_network(const std::string& path) override {}
 
     virtual void              trace_eval() const override;
@@ -543,8 +543,8 @@ class EngineWrapper: public IEngine {
     set_on_bestmove(std::function<void(std::string_view, std::string_view)>&& f) override final {
         engine->set_on_bestmove(std::move(f));
     }
-    virtual void set_on_verify_networks(std::function<void(std::string_view)>&& f) override {
-        engine->set_on_verify_networks(std::move(f));
+    virtual void set_on_verify_network(std::function<void(std::string_view)>&& f) override {
+        engine->set_on_verify_network(std::move(f));
     }
     virtual void set_on_update_string(std::function<void(std::string_view)>&& f) override final {
         engine->set_on_update_string(std::move(f));
@@ -553,7 +553,7 @@ class EngineWrapper: public IEngine {
         return engine->get_on_bestmove();
     }
 
-    virtual void verify_networks() const override { engine->verify_networks(); }
+    virtual void verify_network() const override { engine->verify_network(); }
     virtual void save_network(const std::string& path) override { engine->save_network(path); }
 
     virtual void trace_eval() const override { engine->trace_eval(); }

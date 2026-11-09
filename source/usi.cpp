@@ -142,7 +142,7 @@ void USIEngine::init_search_update_listeners() {
       [this](const auto& i) { on_update_full(i /*, engine.get_options()["UCI_ShowWDL"] */); });
     engine.set_on_bestmove([](const auto& bm, const auto& p) { on_bestmove(bm, p); });
     engine.set_on_update_string([](const auto& i) { on_update_string(i); });
-    engine.set_on_verify_networks([](const auto& s) { print_info_string(s); });
+    engine.set_on_verify_network([](const auto& s) { print_info_string(s); });
 }
 
 // USI応答部ループ
@@ -792,7 +792,7 @@ void USIEngine::benchmark(std::istream& args) {
     engine.set_on_iter([](const auto&) {});
     engine.set_on_update_no_moves([](const auto&) {});
     engine.set_on_bestmove([](const auto&, const auto&) {});
-    engine.set_on_verify_networks([](const auto&) {});
+    engine.set_on_verify_network([](const auto&) {});
 
 #if !STOCKFISH
 	// USIEngine::isready()を呼び出してやらかないと"engine_options.txt"などの読み込みが行われない。
@@ -1732,7 +1732,7 @@ void USIEngine::isready()
 
 	// 評価関数の読み込みなど時間のかかるであろう処理はこのタイミングで行なう。
 	// 起動時に時間のかかる処理をしてしまうと将棋所がタイムアウト判定をして、思考エンジンとしての認識をリタイアしてしまう。
-	engine.verify_networks();
+	engine.verify_network();
 #endif
 
 	// isreadyに対してはreadyokを返すまで次のコマンドが来ないことは約束されているので

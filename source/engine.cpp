@@ -276,7 +276,7 @@ void Engine::isready()
 }
 
 std::uint64_t Engine::perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
-	verify_networks();
+	verify_network();
 
 	return Benchmark::perft(fen, depth /*, isChess960 */);
 }
@@ -284,7 +284,7 @@ std::uint64_t Engine::perft(const std::string& fen, Depth depth /*, bool isChess
 
 void Engine::go(Search::LimitsType& limits) {
 	ASSERT_LV3(limits.perft == 0);
-	//verify_networks();
+	//verify_network();
 
 	threads.start_thinking(options, pos, states, limits);
 }
@@ -323,8 +323,14 @@ void Engine::set_on_bestmove(std::function<void(std::string_view, std::string_vi
     updateContext.onBestmove = std::move(f);
 }
 
-void Engine::set_on_verify_networks(std::function<void(std::string_view)>&& f) {
-    //onVerifyNetworks = std::move(f);
+#if STOCKFISH
+void Engine::set_on_start(std::function<void()>&& f) { updateContext.onStart = std::move(f); }
+#endif
+
+void Engine::set_on_verify_network(std::function<void(std::string_view)>&& f) {
+#if STOCKFISH
+    onVerifyNetwork = std::move(f);
+#endif
 	// TODO : あとで
 }
 
@@ -413,7 +419,7 @@ void Engine::trace_eval() const {
 
 	p.set(pos.fen(), options["UCI_Chess960"], &trace_states->back());
 
-    verify_networks();
+    verify_network();
 	sync_cout << "\n" << Eval::trace(p, *networks) << sync_endl;
 #endif
 }

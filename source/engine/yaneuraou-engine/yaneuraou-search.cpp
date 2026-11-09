@@ -582,7 +582,7 @@ void YaneuraOuEngine::trace_eval() const {
 #else
     p.set(pos.sfen(),&trace_states->back());
 #endif
-    verify_networks();
+    verify_network();
 
     //sync_cout << "\n" << Eval::trace(p, *networks) << sync_endl;
 	// TODO あとで
@@ -590,7 +590,7 @@ void YaneuraOuEngine::trace_eval() const {
 
 // 現在の局面の評価値を出力する。
 Value YaneuraOuEngine::evaluate() const {
-	verify_networks();
+	verify_network();
     return Eval::evaluate(pos); // cpに変換するか？まあいいか…。
 }
 

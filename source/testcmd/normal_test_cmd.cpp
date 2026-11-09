@@ -322,7 +322,7 @@ namespace {
 				continue;
 			}
 
-			// IEngine::evaluate() は内部で verify_networks() + Eval::evaluate(pos) を
+			// IEngine::evaluate() は内部で verify_network() + Eval::evaluate(pos) を
 			// 呼ぶ。NNUE accumulator は set_from_packed_sfen 後に invalid 状態に
 			// なっているはずなので、Eval::evaluate 側で full refresh される (= 通常の
 			// 探索開始時と同じ経路)。
