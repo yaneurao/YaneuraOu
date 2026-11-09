@@ -5,6 +5,7 @@ Linux・Windows・Android・WebAssembly向けのビルド補助ツールです�
 ## 目次
 
 - [Linux・Windows](#ビルド)
+- [PGO](#pgo)
 - [Android](#android)
 - [WebAssembly](#webassembly)
 
@@ -52,6 +53,36 @@ bash tools/build/mingw_gcc.sh \
 ```powershell
 .\tools\build\msys2_build.ps1 -Edition YANEURAOU_ENGINE_NNUE -Compiler clang++ -Target normal -Cpu AVX2
 ```
+
+## PGO
+
+`source/Makefile`の`pgo`ターゲットで、計測用ビルド、benchによる訓練、プロファイルの集約、本番ビルドを順番に実行します。**すべて`tournament`でビルド**します。Clang/GCC、Python 3.8以上、および生成したエンジンを実行できる環境が必要です。Clangでは対応する`llvm-profdata`も必要です。
+
+次の例は`source/`から実行します。`PGO_EVAL_DIR`には使用する評価関数のフォルダを指定してください。エディションとCPU、追加フラグは通常のmakeと同様です。
+
+```sh
+make -j16 pgo \
+  COMPILER=clang++ TARGET_CPU=AVX512VNNI \
+  YANEURAOU_EDITION=YANEURAOU_ENGINE_SFNN_halfkahm2_2304_15_64_k9k9_progress8 \
+  PGO_EVAL_DIR=../../inbox/SFNN_halfkahm2_2304_15_64_k9k9_progress8-20261109 \
+  EXTRA_CPPFLAGS="-DUSE_LAZY_EVALUATE -DUSE_FINNY_TABLES -DUSE_FINNY_RESET -DNNUE_FT_SPARSE8"
+```
+
+最後に通常の`TARGET`へPGO済みの実行ファイルを出力します。訓練やビルドに失敗した場合、既存の実行ファイルは置き換えません。定跡は訓練時に無効にします。モデルの`eval_options.txt`は通常どおり読み込まれます。
+
+| 変数 | 既定値・役割 |
+| --- | --- |
+| `PGO_EVAL_DIR` | `../eval`。訓練用エンジンの`EvalDir`。`source/`からの相対パスまたは絶対パス。 |
+| `PGO_BENCH` | `1024 1 14 default depth`。`bench`の後ろに渡す引数。既定はHash 1024MiB、1スレッド、既定4局面を深さ14まで探索。 |
+| `PGO_DIR` | `$(OBJDIR)/pgo`。各実行のオブジェクト・プロファイル・訓練ログの保存先。`source/`からの相対パスに空白がない場所を指定。 |
+| `PGO_PROFDATA` | Clang用の`llvm-profdata`。未指定ならClangと同じディレクトリ、バージョン付きの名前、PATHから検索。例：`llvm-profdata-14`。 |
+| `PGO_TIMEOUT` | `600`。エンジン起動から訓練終了までの上限秒数。ビルド時間は含まない。 |
+
+例えば独自のSFEN局面集を使う場合は、`PGO_BENCH="1024 1 150000 /path/to/training.sfen nodes"`を追加します。これは各局面を15万ノードまで探索する指定です。局面集のパスはbenchの仕様により空白を含まないものを使ってください。
+
+GCCでは`COMPILER=g++`を指定します。Clangのprofrawは`llvm-profdata`で集約し、GCCのgcdaは同じオブジェクト・実行ファイルパスで利用します。通常ビルドのオブジェクトを流用せず、ソースの`touch`も行いません。ビルドの補助処理は[pgo.py](pgo.py)にあります。
+
+訓練を手動で行う場合は、同じビルド設定で`make profgen`、計測用エンジンの実行、`make profuse`の順でも使えます。`profgen`は計測用エンジンを`TARGET`へ出力します。`pgo`と`profgen`は毎回新しい作業ディレクトリを作るので、古いプロファイルは混ざりません。`profuse`は直前の`profgen`のデータを使い、コンパイラ・エディション・CPU・追加フラグが異なる場合はエラーにします。
 
 ## Android
 

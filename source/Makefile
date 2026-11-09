@@ -3,6 +3,7 @@
 
 # normal     : 通常使用版(配布用の実行ファイルはこちら)
 # tournament : 大会で使う用(通常版よりややEloが高いが使える機能に制限がある)
+# pgo        : tournamentをPGOで最適化(Clang/GCC、生成エンジンを実行できる環境用)
 
 # === ビルドオプション (build options) ===
 
@@ -110,6 +111,13 @@ COMPILER = clang++
 # ※ NNUEの未知なarchitectureの時にarchitecture headerを動的に生成するのに用いる。
 PYTHON = python
 
+# PGOの訓練設定。パスはsource/からの相対パスでも指定できる。
+PGO_EVAL_DIR ?= ../eval
+PGO_BENCH    ?= 1024 1 14 default depth
+PGO_TIMEOUT  ?= 600
+# llvm-profdataはClangと同じディレクトリやバージョン付きの名前から自動検索する。
+PGO_PROFDATA ?=
+
 # YANEURAOU_ENGINE_ 以降を architecture 名として扱う。
 # NNUE_ prefix は任意で、SFNN_* もNNUE系のarchitectureとして解釈する。
 ENGINE_ARCH       := $(patsubst YANEURAOU_ENGINE_%,%,$(YANEURAOU_EDITION))
@@ -141,6 +149,9 @@ WCPPFLAGS     =
 LDFLAGS       = 
 LIBS          =
 INCLUDE       = # -I../include
+
+# 再帰makeに渡すフラグ内の空白や引用符を保持する。
+shell_quote = '$(subst ','"'"',$(1))'
 
 # makeするときにCPPFLAGS,LDFLAGSを追加で指定したいときはこれを用いる。
 EXTRA_CPPFLAGS =
@@ -306,6 +317,9 @@ OBJDIR   = ../obj
 ifeq "$(strip $(OBJDIR))" ""
 	OBJDIR = ..
 endif
+
+# 各実行で新しい作業ディレクトリを作り、通常ビルドや古いプロファイルと分離する。
+PGO_DIR ?= $(OBJDIR)/pgo
 
 #SOURCES  = $(wildcard *.cpp)
 SOURCES  = \
@@ -675,27 +689,40 @@ endif
 
 # 通常使用。
 normal: run_python_script
-	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS)' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CPPFLAGS=$(call shell_quote,$(CPPFLAGS) $(LTOFLAGS)) LDFLAGS=$(call shell_quote,$(LDFLAGS) $(LTOFLAGS)) $(TARGET)
 
 # トーナメント用
 tournament: run_python_script
-	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS) -DFOR_TOURNAMENT' LDFLAGS='$(LDFLAGS) $(LTOFLAGS)' $(TARGET)
+	$(MAKE) CPPFLAGS=$(call shell_quote,$(CPPFLAGS) $(LTOFLAGS) -DFOR_TOURNAMENT) LDFLAGS=$(call shell_quote,$(LDFLAGS) $(LTOFLAGS)) $(TARGET)
 
-#　とりあえずPGOはAVX2とSSE4.2専用
+# gprof用の計測ビルド。
 prof:
 	$(MAKE) CPPFLAGS='$(CPPFLAGS) -pg' tournament
 
+PGO_COMMAND = $(PYTHON) ../tools/build/pgo.py \
+	--make $(call shell_quote,$(MAKE)) \
+	--compiler $(call shell_quote,$(COMPILER)) \
+	--edition $(call shell_quote,$(YANEURAOU_EDITION)) \
+	--cpu $(call shell_quote,$(TARGET_CPU)) \
+	--target $(call shell_quote,$(TARGET)) \
+	--work-dir $(call shell_quote,$(PGO_DIR)) \
+	--cppflags=$(call shell_quote,$(EXTRA_CPPFLAGS)) \
+	--ldflags=$(call shell_quote,$(EXTRA_LDFLAGS)) \
+	--eval-dir $(call shell_quote,$(PGO_EVAL_DIR)) \
+	--bench $(call shell_quote,$(PGO_BENCH)) \
+	--timeout $(call shell_quote,$(PGO_TIMEOUT)) \
+	--profdata $(call shell_quote,$(PGO_PROFDATA))
+
+# 個別実行も可能。profgenの出力で手動訓練した後、同じ設定でprofuseを呼ぶ。
 profgen:
-	$(MAKE) CPPFLAGS='$(CPPFLAGS) -fprofile-generate -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-generate -lgcov'
+	+$(PGO_COMMAND) generate
 
 profuse:
-	$(MAKE) CPPFLAGS='$(CPPFLAGS) $(LTOFLAGS) -fprofile-use -lgcov' LDFLAGS='$(LDFLAGS) -fprofile-use -lgcov $(LTOFLAGS)'
+	+$(PGO_COMMAND) use
 
+# 計測用ビルド→benchによる訓練→集約→本番ビルドをすべてtournamentで行う。
 pgo:
-	$(MAKE) profgen
-	@./$(TARGET) EvalDir ../build/eval , bench , quit
-	@touch $(SOURCES)
-	$(MAKE) profuse
+	+$(PGO_COMMAND) all
 
 clean:
 	rm -f $(OBJECTS) $(CUDA_OBJECTS) $(OBJC_OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda}
