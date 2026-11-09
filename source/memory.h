@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
+#include <iostream>
 #include <memory>
 #include <new>
 #include <type_traits>
@@ -17,6 +19,7 @@
     #if _WIN32_WINNT < 0x0601
         #undef _WIN32_WINNT
         #define _WIN32_WINNT 0x0601  // Force to include needed API prototypes
+        // 必要なAPIのプロトタイプ宣言が読み込まれるようにする。
     #endif
 
     #if !defined(NOMINMAX)
@@ -55,6 +58,14 @@ using AdjustTokenPrivileges_t =
 
 namespace YaneuraOu {
 
+constexpr usize HugePageSize = usize(1) << 30;
+
+[[noreturn]] inline void report_failed_allocation(usize bytes) {
+    std::cerr << "Failed to allocate " << bytes << " bytes." << std::endl;
+    std::exit(EXIT_FAILURE);
+}
+
+
 // 通常のメモリ確保。alignmentされたsize[byte]のメモリを確保する。
 // 💡 AlignedPtrから内部的に呼び出して使うために用意されている。この関数は直接呼び出されない。
 void* std_aligned_alloc(usize alignment, usize size);
@@ -64,6 +75,7 @@ void  std_aligned_free(void* ptr);
 // 大きなメモリの確保用のalloc/free。4096 bytes単位でalignmentされていることは保証されている。
 // ⇨ この関数は置換表のメモリ確保のために使われる。
 // 💡 Windowsのlarge pages allocの機能が使えるなら、それを用いる。
+void* aligned_large_pages_alloc_with_hint(usize size, bool hugePageHint);
 void* aligned_large_pages_alloc(usize size);
 void  aligned_large_pages_free(void* mem);
 
@@ -125,6 +137,8 @@ template<typename T, typename ALLOC_FUNC, typename... Args>
 inline std::enable_if_t<!std::is_array_v<T>, T*> memory_allocator(ALLOC_FUNC alloc_func,
                                                                   Args&&... args) {
     void* raw_memory = alloc_func(sizeof(T));
+    if (raw_memory == nullptr)
+        report_failed_allocation(sizeof(T));
     ASSERT_ALIGNED(raw_memory, alignof(T));
     return new (raw_memory) T(std::forward<Args>(args)...);
 }
@@ -140,8 +154,12 @@ memory_allocator(ALLOC_FUNC alloc_func, usize num) {
     const usize array_offset = std::max(sizeof(usize), alignof(ElementType));
 
     // Save the array size in the memory location
-    char* raw_memory =
-      reinterpret_cast<char*>(alloc_func(array_offset + num * sizeof(ElementType)));
+    // 確保した領域の先頭に配列の要素数を保存する。
+    // 配列の要素数と要素本体に必要なバイト数を合わせて確保する。
+    const usize bytes      = array_offset + num * sizeof(ElementType);
+    char*       raw_memory = reinterpret_cast<char*>(alloc_func(bytes));
+    if (raw_memory == nullptr)
+        report_failed_allocation(bytes);
     ASSERT_ALIGNED(raw_memory, alignof(T));
 
     new (raw_memory) usize(num);
@@ -337,6 +355,7 @@ auto windows_try_with_large_page_privileges([[maybe_unused]] FuncYesT&& fyes, Fu
         return fno();
 
     // Dynamically link OpenProcessToken, LookupPrivilegeValue and AdjustTokenPrivileges
+    // OpenProcessToken、LookupPrivilegeValue、AdjustTokenPrivilegesを動的にリンクする。
 
     HMODULE hAdvapi32 = GetModuleHandle(TEXT("advapi32.dll"));
 
@@ -357,6 +376,7 @@ auto windows_try_with_large_page_privileges([[maybe_unused]] FuncYesT&& fyes, Fu
         return fno();
 
     // We need SeLockMemoryPrivilege, so try to enable it for the process
+    // プロセスでSeLockMemoryPrivilegeを有効にする。
 
     if (!OpenProcessToken_f(  // OpenProcessToken()
           GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hProcessToken))
@@ -376,6 +396,8 @@ auto windows_try_with_large_page_privileges([[maybe_unused]] FuncYesT&& fyes, Fu
     // Try to enable SeLockMemoryPrivilege. Note that even if AdjustTokenPrivileges()
     // succeeds, we still need to query GetLastError() to ensure that the privileges
     // were actually obtained.
+    // AdjustTokenPrivileges()の成功だけでは権限を取得できたとは限らないため、
+    // GetLastError()も確認する。
 
     if (!AdjustTokenPrivileges_f(hProcessToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES), &prevTp,
                                  &prevTpLen)
@@ -385,6 +407,7 @@ auto windows_try_with_large_page_privileges([[maybe_unused]] FuncYesT&& fyes, Fu
     auto&& ret = fyes(largePageSize);
 
     // Privilege no longer needed, restore previous state
+    // 不要になった権限を元の状態に戻す。
     AdjustTokenPrivileges_f(hProcessToken, FALSE, &prevTp, 0, nullptr, nullptr);
 
     CloseHandle(hProcessToken);
