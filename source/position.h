@@ -17,7 +17,6 @@
 
 #include "extra/key128.h"
 #include "extra/long_effect.h"
-#include "misc.h"
 
 namespace YaneuraOu {
 

@@ -12,6 +12,7 @@
 #define USE_ELEMENT_WISE_MULTIPLY
 #endif
 
+#include "../../types.h"
 #include "nnue_common.h"
 #include "nnue_architecture.h"
 #include "features/index_list.h"

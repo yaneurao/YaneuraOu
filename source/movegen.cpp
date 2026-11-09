@@ -1,10 +1,10 @@
 ﻿//   指し手生成ライブラリ
 
-#include "types.h"
-#include "position.h"
 #include "movegen.h"
 
 #include <iostream>
+
+#include "position.h"
 
 // clang-format off
 // 🌈 indentに特別な意味があるので、clang-formatはこのファイルでは無効化しておく。

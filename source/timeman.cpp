@@ -2,11 +2,12 @@
 
 #if defined(USE_TIME_MANAGEMENT)
 
-#include "misc.h"
+#include "timeman.h"
+
 #include "search.h"
 #include "thread.h"
+#include "types.h"
 #include "usi.h"
-#include "timeman.h"
 
 namespace YaneuraOu {
 

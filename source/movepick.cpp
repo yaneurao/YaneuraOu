@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "bitboard.h"
+#include "misc.h"
 #include "position.h"
 
 namespace YaneuraOu {

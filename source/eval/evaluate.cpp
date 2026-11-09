@@ -1,8 +1,10 @@
-﻿#include "../types.h"
-#include "../position.h"
-#include "../evaluate.h"
-#include "../misc.h"
+﻿#include "../evaluate.h"
+
 #include <map>
+
+#include "../misc.h"
+#include "../position.h"
+#include "../types.h"
 
 namespace YaneuraOu {
 namespace Eval

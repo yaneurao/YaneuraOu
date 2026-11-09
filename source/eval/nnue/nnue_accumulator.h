@@ -7,6 +7,8 @@
 
 #if defined(EVAL_NNUE)
 
+#include "../../types.h"
+#include "../../misc.h"
 #include "nnue_architecture.h"
 
 namespace YaneuraOu {

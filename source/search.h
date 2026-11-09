@@ -17,7 +17,7 @@
 //#include "syzygy/tbprobe.h"
 //#include "timeman.h"
 #include "timeman.h"
-//#include "types.h"
+#include "types.h"
 
 namespace YaneuraOu {
 

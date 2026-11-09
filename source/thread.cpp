@@ -1,4 +1,6 @@
-﻿#include <algorithm> // std::count
+﻿#include "thread.h"
+
+#include <algorithm> // std::count
 #include <cmath>     // std::abs
 #include <cstdlib>
 #include <iostream>
@@ -7,10 +9,10 @@
 #include <unordered_map>
 
 #include "history.h"
-#include "thread.h"
-#include "usi.h"
-#include "tt.h"
 #include "movegen.h"
+#include "tt.h"
+#include "types.h"
+#include "usi.h"
 
 namespace YaneuraOu {
 

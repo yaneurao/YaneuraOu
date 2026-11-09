@@ -18,10 +18,6 @@
 #include <utility>
 #include <variant>
 
-// 🌈 Stockfishはtypes.h で misc.hのincludeをしているが、
-//     やねうら王ではそこではやりたくないので…。
-#include "misc.h"
-
 // Unix系では匿名ファイルとUnixソケットで評価関数のパラメーターを共有する。
 // Androidは従来どおりローカルメモリにフォールバックする。
 #if (defined(__linux__) && !defined(__ANDROID__)) || defined(__APPLE__) || defined(__FreeBSD__) \

@@ -13,6 +13,7 @@
 //#include <type_traits>
 
 #include "history.h"
+#include "misc.h"
 #include "movegen.h"
 #include "types.h"
 #include "position.h"

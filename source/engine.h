@@ -11,6 +11,7 @@
 #include <variant>
 #include <vector>
 
+#include "misc.h"
 #include "evaluate.h"
 //#include "nnue/network.h"
 #include "numa.h"
@@ -19,6 +20,7 @@
 //#include "syzygy/tbprobe.h"  // for Stockfish::Depth
 #include "thread.h"
 #include "tt.h"
+#include "types.h"
 #include "usioption.h"
 
 namespace YaneuraOu {

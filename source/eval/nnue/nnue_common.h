@@ -15,6 +15,7 @@
 #if defined(EVAL_NNUE)
 
 #include "../../misc.h"  // Tools::Result
+#include "../../types.h"
 
 #if defined(USE_WASM_SIMD)
 #include "./wasm_simd.h"

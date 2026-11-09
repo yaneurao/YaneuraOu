@@ -1,11 +1,14 @@
-﻿#include <atomic>
+﻿#include "engine.h"
 
-#include "engine.h"
-#include "thread.h"
+#include <atomic>
+
+#include "misc.h"
 #include "perft.h"
+#include "search.h"
+#include "thread.h"
+#include "types.h"
 #include "usioption.h"
 #include "book/book.h"
-#include "search.h"
 
 namespace YaneuraOu {
 

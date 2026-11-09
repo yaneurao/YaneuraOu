@@ -17,6 +17,8 @@
     #include <arm_neon.h>
 #endif
 
+#include "../../../types.h"
+
 // CPU capability switch for NNUE dot-product code. For SFNN H1=7 networks
 // (fc0: ->8, packed tail: 14->64->1), measured AVX512VNNI was slower than
 // AVX512 maddubs/madd, so only that NNUE shape uses the fallback.

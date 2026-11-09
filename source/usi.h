@@ -7,8 +7,9 @@
 #include <memory>
 #include <string>
 
-#include "types.h"
 #include "engine.h"
+#include "misc.h"
+#include "search.h"
 #include "position.h"
 #include "testcmd/unit_test.h"
 

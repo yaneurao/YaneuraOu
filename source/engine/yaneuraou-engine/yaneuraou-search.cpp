@@ -1,4 +1,4 @@
-﻿#include "../../types.h"
+﻿#include "../../config.h"
 
 #if defined (YANEURAOU_ENGINE)
 
@@ -22,12 +22,13 @@
 #include <cstring>	// memset()
 
 #include "yaneuraou-search.h"
+#include "../../misc.h"
+#include "../../movepick.h"
 #include "../../position.h"
 #include "../../thread.h"
-#include "../../misc.h"
 #include "../../tt.h"
+#include "../../types.h"
 #include "../../book/book.h"
-#include "../../movepick.h"
 #include "../../usi.h"
 #include "../../mate/mate.h"
 #include "../../tune.h"

@@ -1,18 +1,18 @@
-﻿#include <cstdlib>
+﻿#include "usi.h"
+
+#include <cstdlib>
 #include <sstream>
 #include <queue>
 #include <variant>
 
-#include "types.h"
-#include "usi.h"
-#include "position.h"
-#include "search.h"
-#include "thread.h"
-#include "misc.h"
-#include "testcmd/unit_test.h"
 #include "benchmark.h"
 #include "engine.h"
 #include "movegen.h"
+#include "position.h"
+#include "search.h"
+#include "thread.h"
+#include "types.h"
+#include "testcmd/unit_test.h"
 
 #if defined(__EMSCRIPTEN__)
 // yaneuraou.wasm

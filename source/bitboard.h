@@ -2,6 +2,7 @@
 #define _BITBOARD_H_
 
 #include "types.h"
+#include "misc.h"
 
 namespace YaneuraOu {
 
