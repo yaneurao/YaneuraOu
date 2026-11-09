@@ -303,7 +303,7 @@ void Engine::search_clear() {
     tt.clear(threads);
     threads.clear();
 
-    // @TODO wont work with multiple instances
+    // TODO: does not work with multiple instances
     Tablebases::init(options["SyzygyPath"]);  // Free mapped files
 #else
 	// benchコマンドから内部的に呼び出す。
@@ -357,7 +357,8 @@ void Engine::resize_threads() {
 	// 📌 スレッド数のリサイズ
 
 #if STOCKFISH
-	threads.set(numaContext.get_numa_config(), { options, threads, tt, networks }, updateContext);
+    threads.set(numaContext.get_numa_config(), {options, threads, tt, sharedHists, network},
+                updateContext);
 #else
 
 	// 🌈  やねうら王ではここでWorkerFactoryを渡すように変更。
@@ -372,7 +373,7 @@ void Engine::resize_threads() {
 		{ return make_unique_large_page<Search::Worker>(sharedState, ids); };
 
     threads.set(numaContext.get_numa_config(),
-                {options, threads, tt, sharedHists /*, networks*/ }, /* これはSharedState 相当 */
+                {options, threads, tt, sharedHists /*, network */ }, /* これはSharedState 相当 */
 				updateContext,
                 options["Threads"],
 				worker_factory);
@@ -425,7 +426,7 @@ void Engine::trace_eval() const {
 	p.set(pos.fen(), options["UCI_Chess960"], &trace_states->back());
 
     verify_network();
-	sync_cout << "\n" << Eval::trace(p, *networks) << sync_endl;
+	sync_cout << "\n" << Eval::trace(p, *network) << sync_endl;
 #endif
 }
 

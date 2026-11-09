@@ -17,6 +17,12 @@
 
 namespace YaneuraOu {
 
+class OptionsMap;
+#if STOCKFISH
+using Value = int;
+// これ参照していないので削除すべきだと思う。
+#endif
+
 // --------------------
 // スレッドの属するNumaを管理する
 // --------------------
@@ -99,10 +105,10 @@ public:
 		// 📌 やねうら王では、SearchManagerを渡す代わりに、Workerのfactoryを使ってWorkerを直接生成する。
 		Search::WorkerFactory          factory,
 #endif
-		usize                         threadIdx,
-		usize						   numaThreadIdx,
-		usize						   numaTotal,
-		OptionalThreadToNumaNodeBinder binder
+		usize                         /*threadIdx*/,
+		usize						  /*numaThreadIdx*/,
+		usize						  /*numaTotal*/,
+		OptionalThreadToNumaNodeBinder /*binder*/
 	);
 	virtual ~Thread();
 
@@ -230,12 +236,15 @@ public:
 	// requested_threadsの数になるように、スレッド数を変更する。
     // 💡 各ThreadのWorkerに対してclear()が1度以上呼び出されることは保証されている。
     void set(const NumaConfig&            numaConfig,
-             Search::SharedState sharedState,
+             Search::SharedState /*sharedState*/,
+#if STOCKFISH
+              const Search::SearchManager::UpdateContext&);
+#else
              const Search::UpdateContext&,
 			 // 🌈 やねうら王独自追加
              usize                       requested_threads,
-             const Search::WorkerFactory& worker_factory
-	);
+             const Search::WorkerFactory& worker_factory);
+#endif
     /*
 	   💡 Stockfishでは、
             Search::SharedState,
