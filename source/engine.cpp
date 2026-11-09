@@ -83,7 +83,8 @@ void Engine::add_base_options() {
 
     options.add(  //
       "NumaPolicy", Option("auto", [this](const Option& o) {
-          set_numa_config_from_option(o);
+          if (!set_numa_config_from_option(o))
+              return "NumaPolicy: invalid value '" + std::string(o) + "', keeping previous config.";
           return numa_config_information_as_string() + "\n"
                + thread_allocation_information_as_string();
       }));
@@ -165,7 +166,7 @@ void Engine::add_options() {
 }
 
 // NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
-void Engine::set_numa_config_from_option(const std::string& o) {
+bool Engine::set_numa_config_from_option(const std::string& o) {
 	if (o == "auto" || o == "system")
 	{
 		numaContext.set_numa_config(NumaConfig::from_system(DefaultNumaPolicy));
@@ -181,12 +182,16 @@ void Engine::set_numa_config_from_option(const std::string& o) {
 	}
 	else
 	{
-		numaContext.set_numa_config(NumaConfig::from_string(o));
+        auto parsed = NumaConfig::from_string(o);
+        if (!parsed.has_value())
+            return false;
+        numaContext.set_numa_config(std::move(*parsed));
 	}
 
 	// Force reallocation of threads in case affinities need to change.
 	resize_threads();
 	threads.ensure_network_replicated();
+    return true;
 }
 
 

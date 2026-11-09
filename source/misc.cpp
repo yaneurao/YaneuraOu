@@ -1953,12 +1953,20 @@ bool is_whitespace(string_view s) {
 	return all_of(s.begin(), s.end(), [](char c) { return isspace(c); });
 }
 
-// "123"みたいな文字列を123のように数値型(usize)に変換する。
-usize str_to_size_t(const string& s) {
-	unsigned long long value = stoull(s);
-	if (value > numeric_limits<usize>::max())
-		exit(EXIT_FAILURE);
-	return static_cast<usize>(value);
+
+// Read a numerical value from the command line
+// コマンドラインから数字を読み取る。
+// "123"みたいな文字列を123のように数値型(usize)に変換する。エラーの場合は、std::nulloptが返る。
+std::optional<usize> str_to_size_t(const std::string& s) {
+    if (s.empty() || s[0] == '-')
+        return std::nullopt;
+    errno                           = 0;
+    char*                    endptr = nullptr;
+    const unsigned long long value  = std::strtoull(s.c_str(), &endptr, 10);
+    if (errno == ERANGE || (*endptr != '\0' && !std::isspace(static_cast<unsigned char>(*endptr)))
+        || value > std::numeric_limits<usize>::max())
+        return std::nullopt;
+    return static_cast<usize>(value);
 }
 
 // ----------------------------

@@ -145,7 +145,8 @@ public:
     // modifiers
 
 	// NumaConfigをエンジンオプションの"NumaPolicy"から設定する。
-    virtual void set_numa_config_from_option(const std::string& o) = 0;
+	// 値が不正な場合は構成を変更せずfalseを返す。
+    virtual bool set_numa_config_from_option(const std::string& o) = 0;
 
 	// options["Threads"]やoptions["NumaPolicy"]が変更になった時に呼び出され、
     // スレッドを必要な数だけ再生成するhandler。
@@ -361,7 +362,7 @@ class Engine: public IEngine {
     virtual std::optional<PositionSetError> set_position(const std::string&              sfen,
                                                          const std::vector<std::string>& moves) override;
 
-    virtual void set_numa_config_from_option(const std::string& o) override;
+    virtual bool set_numa_config_from_option(const std::string& o) override;
     virtual void resize_threads() override;
     virtual void set_tt_size(usize mb) override;
     virtual void set_ponderhit(bool b) override;
@@ -523,7 +524,7 @@ class EngineWrapper: public IEngine {
         return engine->set_position(sfen, moves);
     }
 
-    virtual void set_numa_config_from_option(const std::string& o) override { engine->set_numa_config_from_option(o); }
+    virtual bool set_numa_config_from_option(const std::string& o) override { return engine->set_numa_config_from_option(o); }
     virtual void resize_threads() override { engine->resize_threads(); }
     virtual void set_tt_size(usize mb) override { engine->set_tt_size(mb); }
     virtual void set_ponderhit(bool b) override { engine->set_ponderhit(b); }

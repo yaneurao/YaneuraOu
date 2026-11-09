@@ -178,6 +178,9 @@ void prefetch(const void* addr);
 // cin/coutへの入出力をファイルにリダイレクトを開始/終了する。
 void start_logger(const std::string& fname);
 
+// "123"みたいな文字列を123のように数値型(usize)に変換する。
+std::optional<usize> str_to_size_t(const std::string& s);
+
 // --------------------
 //  統計情報
 // --------------------
@@ -1415,9 +1418,6 @@ void remove_whitespace(std::string& s);
 
 // スペース相当文字列かどうかを判定する。⇨ NUMAの処理に必要
 bool is_whitespace(std::string_view s);
-
-// "123"みたいな文字列を123のように数値型(usize)に変換する。
-usize str_to_size_t(const std::string& s);
 
 // --------------------
 //    Concurrent
