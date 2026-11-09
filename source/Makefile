@@ -249,7 +249,9 @@ else
 		#     wasm simd128にコンパイルされる。
 		CPPFLAGS += -msimd128
 		CPPFLAGS += -DUSE_SSE42 -msse4.2
-		CPPFLAGS += -pthread
+		# Stockfish同様、WASMではRelaxedAtomicの軽量経路を使う。
+		# ただしポインター幅より大きな型などは、RelaxedAtomic側の判定でatomicを維持する。
+		CPPFLAGS += -pthread -DUSE_SLOPPY_ATOMICS
 		CPPFLAGS += -s STRICT=1
 		LDFLAGS += --pre-js wasm_pre.js
 		# LDFLAGS += --preload-file eval/nn.bin
