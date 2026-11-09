@@ -3,8 +3,8 @@
 
 #include <atomic>
 #include <condition_variable>
-//#include <cstddef>
-//#include <cstdint>
+#include <functional>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -94,9 +94,9 @@ public:
 	Thread(
 		Search::SharedState&,
 #if STOCKFISH
-		std::unique_ptr<Search::ISearchManager>,
+		std::unique_ptr<Search::SearchManager>,
 #else
-		// 📌 やねうら王では、ISearchManagerを使わずに、Workerのfactoryを使ってWorkerを直接生成する。
+		// 📌 やねうら王では、SearchManagerを渡す代わりに、Workerのfactoryを使ってWorkerを直接生成する。
 		Search::WorkerFactory          factory,
 #endif
 		usize                         threadIdx,
@@ -164,9 +164,7 @@ private:
 	std::condition_variable   cv;
 
 	// thread id。main threadなら0。slaveなら1から順番に値が割当てられる。
-	// nthreadsは、スレッド数。(options["Threads"]の値)
-    usize idx, idxInNuma, totalNuma /*, nthreads */;
-    // 📌 nthreads使わないと思う。やねうら王ではコメントアウト
+    usize idx, idxInNuma, totalNuma;
 
 	// exit      : このフラグが立ったら終了する。
 	// searching : 探索中であるかを表すフラグ。プログラムを簡素化するため、事前にtrueにしてある。
@@ -268,11 +266,11 @@ public:
     // →　これはPosition::do_move()を呼び出した回数。
     // ※　dlshogiエンジンで、探索ノード数が知りたい場合は、
     // 　dlshogi::nodes_visited()を呼び出すこと。
-    uint64_t nodes_searched() const;
+    u64 nodes_searched() const;
 
 #if STOCKFISH
 	// 💡 tablebaseにhitした回数。将棋では使わない。
-	uint64_t               tb_hits() const;
+	u64               tb_hits() const;
 
 	// ⚠ これは、やねうら王の標準探索エンジンでしか使わないので、
     //     YaneuraOuEngine側に移動させる。
@@ -288,7 +286,11 @@ public:
     void wait_for_search_finished() const;
 
 
-	std::vector<usize> get_bound_thread_count_by_numa_node() const;
+    // 各スレッドのNUMAノード。bindしない設定では空。
+    std::vector<usize> get_bound_thread_to_numa_node() const;
+    std::vector<usize> get_bound_thread_count_by_numa_node() const;
+    // bind先のNUMAノード数。bindしない場合は1を返す。
+    usize numa_nodes() const;
 
 	// 評価関数パラメーターがいま実行しているNUMAに配置されているようにする。
 	void ensure_network_replicated();
@@ -326,9 +328,9 @@ private:
 
 	// Threadクラスの特定のメンバー変数を足し合わせたものを返す。
 	// 💡 nodesの集計に用いる。
-	uint64_t accumulate(std::atomic<uint64_t> Search::Worker::* member) const {
+	u64 accumulate(std::atomic<u64> Search::Worker::* member) const {
 
-		uint64_t sum = 0;
+		u64 sum = 0;
 		for (auto&& th : threads)
 			sum += (th->worker.get()->*member).load(std::memory_order_relaxed);
 		return sum;

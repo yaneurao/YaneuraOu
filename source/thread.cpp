@@ -1,18 +1,27 @@
 ﻿#include "thread.h"
 
 #include <algorithm> // std::count
+#include <cassert>
 #include <cmath>     // std::abs
 #include <cstdlib>
+#include <deque>
 #include <iostream>
 #include <map>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 
+#include "bitboard.h"
 #include "history.h"
+#include "memory.h"
 #include "movegen.h"
-#include "tt.h"
+#include "search.h"
+#include "timeman.h"
 #include "types.h"
 #include "usi.h"
+#include "usioption.h"
 
 namespace YaneuraOu {
 
@@ -24,7 +33,7 @@ namespace YaneuraOu {
 // 'searching' および 'exit' は、すでに設定されている必要がある点に注意してください。
 
 Thread::Thread(Search::SharedState& sharedState,
-               //std::unique_ptr<Search::ISearchManager> sm,
+               //std::unique_ptr<Search::SearchManager> sm,
                Search::WorkerFactory          worker_factory,
                usize                         n,               // threadIdx
                usize                         numaN,           // numaThreadIdx
@@ -33,7 +42,6 @@ Thread::Thread(Search::SharedState& sharedState,
     idx(n),
     idxInNuma(numaN),
     totalNuma(totalNumaCount),
-    //nthreads(sharedState.options["Threads"]),
     stdThread(
       create_native_thread(NativeThreadOptions{}.setLargeStack(true), &Thread::idle_loop, this)) {
 
@@ -44,6 +52,9 @@ Thread::Thread(Search::SharedState& sharedState,
     }
 
 #if !defined(__EMSCRIPTEN__)
+
+    // スレッドはsearching == trueで開始するので、idle_loop()で待機状態になるまで待つ。
+    wait_for_search_finished();
 
 #if STOCKFISH
 	run_custom_job([this, &binder, &sharedState /*, &sm*/, n]() {
@@ -68,7 +79,7 @@ Thread::Thread(Search::SharedState& sharedState,
 #endif
     });
 
-    // スレッドはsearching == trueで開始するので、このままworkerのほう待機状態にさせておく
+    // Workerを生成するジョブが完了するまで待つ。
     wait_for_search_finished();
 
 #else
@@ -101,7 +112,7 @@ Thread::Thread(Search::SharedState& sharedState,
 Thread::~Thread() {
 
     // 探索中にスレッドオブジェクトが解体されることはない。
-    ASSERT_LV3(!searching);
+    assert(!searching);
 
     // 探索は終わっているのでexitフラグをセットしてstart_searching()を呼べば終了するはず。
     exit = true;
@@ -161,7 +172,7 @@ void Thread::idle_loop() {
         std::unique_lock<std::mutex> lk(mutex);
         searching = false;
         cv.notify_one();  // Wake up anyone waiting for search finished
-                          // 探索の完了を待っているすべてのスレッドを起こします
+                          // 探索の完了を待っているスレッドを1つ起こします
 
         cv.wait(lk, [&] { return searching; });
 
@@ -181,10 +192,10 @@ void Thread::idle_loop() {
 
 //Search::SearchManager* ThreadPool::main_manager() { return main_thread()->worker->main_manager(); }
 
-uint64_t ThreadPool::nodes_searched() const { return accumulate(&Search::Worker::nodes); }
-//uint64_t ThreadPool::tb_hits() const { return accumulate(&Search::Worker::tbHits); }
+u64 ThreadPool::nodes_searched() const { return accumulate(&Search::Worker::nodes); }
+//u64 ThreadPool::tb_hits() const { return accumulate(&Search::Worker::tbHits); }
 
-static usize next_power_of_two(uint64_t count) { return count > 1 ? (2ULL << msb(count - 1)) : 1; }
+static usize next_power_of_two(u64 count) { return count > 1 ? (2ULL << msb(count - 1)) : 1; }
 
 // Creates/destroys threads to match the requested number.
 // Created and launched threads will immediately go to sleep in idle_loop.
@@ -285,7 +296,7 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
         for (auto pair : counts)
         {
             NumaIndex numaIndex = pair.first;
-            uint64_t  count     = pair.second;
+            u64       count     = pair.second;
             auto      f         = [&]() {
                 sharedState.sharedHistories.try_emplace(numaIndex, next_power_of_two(count));
             };
@@ -304,14 +315,10 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
             const NumaIndex numaId        = doBindThreads ? boundThreadToNumaNode[threadId] : 0;
             auto create_thread = [&]() {
 #if STOCKFISH
-                auto manager = threadId == 0
-                               ? std::unique_ptr<Search::ISearchManager>(
-                                   std::make_unique<Search::SearchManager>(updateContext))
-                               : std::make_unique<Search::NullSearchManager>();
-                // 💡 Stockfishのこの実装は、main threadのときだけSearchManagerを渡して、main thread以外のときは
-                //     SearchManagerを使わせない(NullSearchManagerを渡す)という意味。しかし、結局探索部からmain threadでしか
-                //     SearchManagerを呼び出さないので、このような設計にする必要はないと思う。
-                //     WorkerからSearchManagerにアクセスできればそれだけでいいので、やねうら王では上の設計は採用しない。
+                auto manager =
+                  threadId == 0 ? std::make_unique<Search::SearchManager>(updateContext) : nullptr;
+                // 💡 以前のStockfishはmain thread以外にNullSearchManagerを渡していたが、現行ではnullptr。
+                //     やねうら王ではSearchManagerをEngine派生classが持ち、WorkerFactory経由でWorkerを生成する。
 #endif
 
                 // When not binding threads we want to force all access to happen
@@ -339,6 +346,7 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
             };
 
             // Ensure the worker thread inherits the intended NUMA affinity at creation.
+            // 生成時にスレッドが意図したNUMAアフィニティを継承するようにする。
             if (doBindThreads)
                 numaConfig.execute_on_numa_node(numaId, create_thread);
             else
@@ -364,7 +372,7 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
 //     つまりは、このmethodは対局ごとに対局開始時に必ず呼び出される。
 
 void ThreadPool::clear() {
-	if (threads.size() == 0)
+	if (threads.empty())
 		return;
 
 	for (auto&& th : threads)
@@ -579,6 +587,10 @@ void ThreadPool::wait_for_search_finished() const {
 			th->wait_for_search_finished();
 }
 
+std::vector<usize> ThreadPool::get_bound_thread_to_numa_node() const {
+    return boundThreadToNumaNode;
+}
+
 std::vector<usize> ThreadPool::get_bound_thread_count_by_numa_node() const {
 	std::vector<usize> counts;
 
@@ -596,6 +608,13 @@ std::vector<usize> ThreadPool::get_bound_thread_count_by_numa_node() const {
 	}
 
 	return counts;
+}
+
+usize ThreadPool::numa_nodes() const {
+    std::unordered_set<usize> seen;
+    for (NumaIndex n : boundThreadToNumaNode)
+        seen.insert(n);
+    return std::max(seen.size(), usize(1));
 }
 
 void ThreadPool::ensure_network_replicated() {

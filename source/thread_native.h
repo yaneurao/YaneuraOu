@@ -50,9 +50,8 @@ NativeThread create_native_thread(NativeThreadOptions options, Function&& fun, A
 
 #else
 
-// type erase F
-// 関数オブジェクトFの型を消去し、共通のインターフェースで呼び出せるようにする。
-struct ThreadCallableBase {
+struct ThreadCallableBase {  // type erase F
+    // 関数オブジェクトFの型を消去し、共通のインターフェースで呼び出せるようにする。
     virtual ~ThreadCallableBase() = default;
     virtual void run()            = 0;
 };
