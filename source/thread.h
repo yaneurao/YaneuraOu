@@ -314,21 +314,26 @@ public:
 #endif
 		;
 
-	auto cbegin() const noexcept { return threads.cbegin(); }
-	auto begin() noexcept { return threads.begin(); }
-	auto end() noexcept { return threads.end(); }
-	auto cend() const noexcept { return threads.cend(); }
-	auto size() const noexcept { return threads.size(); }
-	auto empty() const noexcept { return threads.empty(); }
+#if !STOCKFISH
+    // Threadの所有権はThreadPoolが管理し、外部にはThreadへの参照だけを返す。
+    Thread&       at(usize index) { return *threads.at(index); }
+    const Thread& at(usize index) const { return *threads.at(index); }
+#endif
 
-	// 抱えているすべてのThread
-	// 💡 Stockfishではprivate memberなのだが、
-	//     やねうら王ではEngine派生class側からアクセスしたいことがあるのでpublicに変更。
-	std::vector<std::unique_ptr<Thread>> threads;
+    // 読み取り専用の走査にはcbegin()/cend()を使う。
+    auto cbegin() const noexcept { return threads.cbegin(); }
+    auto begin() noexcept { return threads.begin(); }
+    auto end() noexcept { return threads.end(); }
+    auto cend() const noexcept { return threads.cend(); }
+    auto size() const noexcept { return threads.size(); }
+    auto empty() const noexcept { return threads.empty(); }
 
 private:
 	// 現局面までのStateInfoのlist
 	StateListPtr                         setupStates;
+
+    // 抱えているすべてのThread。生成・破棄はThreadPool内で行う。
+    std::vector<std::unique_ptr<Thread>> threads;
 
 	// 各threadに対応するNUMAのindex
 	std::vector<NumaIndex>               boundThreadToNumaNode;

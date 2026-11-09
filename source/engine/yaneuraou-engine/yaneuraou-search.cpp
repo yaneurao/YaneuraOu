@@ -524,7 +524,7 @@ bool YaneuraOuEngine::qsearch_psv(const std::string& inputPath,
         {
             threads.run_on_thread(threadId, [&, threadId]() {
                 auto* worker =
-                  static_cast<YaneuraOuWorker*>(threads.threads[threadId]->worker.get());
+                  static_cast<YaneuraOuWorker*>(threads.at(threadId).worker.get());
 
                 while (true)
                 {
@@ -601,9 +601,9 @@ Value YaneuraOuEngine::evaluate() const {
 // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
 YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
 
-    auto& threads = this->threads.threads;
+    auto& threads = this->threads;
 
-    Thread* bestThread = threads.front().get();
+    Thread* bestThread = threads.main_thread();
     Value   minScore   = VALUE_NONE;
 
     std::unordered_map<Move, int64_t, Move::MoveHash> votes(
