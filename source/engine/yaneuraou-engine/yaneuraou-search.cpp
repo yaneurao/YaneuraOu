@@ -14,6 +14,7 @@
 
 #include "../../search.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <sstream>
 #include <fstream>

@@ -1,5 +1,6 @@
 ﻿#include "engine.h"
 
+#include <algorithm>
 #include <atomic>
 
 #include "misc.h"

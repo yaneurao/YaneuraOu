@@ -1,5 +1,7 @@
 ﻿#include "usioption.h"
 
+#include <algorithm>
+
 //#include "evaluate.h"
 #include "misc.h"
 //#include "search.h

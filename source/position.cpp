@@ -1,4 +1,5 @@
-﻿#include <iostream>
+﻿#include <algorithm>
+#include <iostream>
 #include <sstream>
 #include <cstring> // std::memset()
 #include <stack>

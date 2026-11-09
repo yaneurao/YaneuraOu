@@ -1,5 +1,6 @@
 ﻿#include "usi.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <sstream>
 #include <queue>

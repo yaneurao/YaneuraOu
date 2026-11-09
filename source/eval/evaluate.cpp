@@ -1,5 +1,6 @@
 ﻿#include "../evaluate.h"
 
+#include <algorithm>
 #include <map>
 
 #include "../misc.h"

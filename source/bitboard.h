@@ -1,6 +1,8 @@
 ﻿#ifndef _BITBOARD_H_
 #define _BITBOARD_H_
 
+#include <algorithm>
+
 #include "types.h"
 #include "misc.h"
 

@@ -4,6 +4,8 @@
 
 #include "timeman.h"
 
+#include <algorithm>
+
 #include "search.h"
 #include "thread.h"
 #include "types.h"
