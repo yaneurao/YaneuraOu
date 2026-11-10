@@ -26,7 +26,6 @@
 #include <cstring>
 #include <fstream>
 #include <memory>
-#include <mutex>
 #include <queue>
 #include <sstream>
 
@@ -1233,40 +1232,6 @@ namespace Directory
 
 	// 起動時のフォルダを返す。
 	std::string GetBinaryFolder();
-}
-
-// --------------------
-//    PRNGのasync版
-// --------------------
-
-// PRNGのasync版
-struct AsyncPRNG
-{
-	// [ASYNC] 乱数を一つ取り出す。
-	template<typename T> T rand() {
-		std::unique_lock<std::mutex> lk(mutex);
-		return prng.rand<T>();
-	}
-
-	// [ASYNC] 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
-	u64 rand(u64 n) {
-		std::unique_lock<std::mutex> lk(mutex);
-		return prng.rand(n);
-	}
-
-	// 内部で使用している乱数seedを返す。
-	u64 get_seed() const { return prng.get_seed(); }
-
-protected:
-	std::mutex mutex;
-	PRNG prng;
-};
-
-// 乱数のseedを表示する。(デバッグ用)
-static std::ostream& operator<<(std::ostream& os, AsyncPRNG& prng)
-{
-	os << "AsyncPRNG::seed = " << std::hex << prng.get_seed() << std::dec;
-	return os;
 }
 
 // --------------------

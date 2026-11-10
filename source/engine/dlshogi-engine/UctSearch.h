@@ -3,6 +3,8 @@
 
 #include "../../config.h"
 #if defined(YANEURAOU_ENGINE_DEEP)
+
+#include <mutex>
 #include "../../position.h"
 #include "../../mate/mate.h"
 

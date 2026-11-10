@@ -4,6 +4,8 @@
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 
+#include <mutex>
+
 #include "../../position.h"
 #include "../../book/book.h"
 #include "../../book/policybook.h"

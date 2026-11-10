@@ -4,6 +4,8 @@
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 
+#include <mutex>
+
 #include <thread>
 #include "../../position.h"
 #include "../../movegen.h"
