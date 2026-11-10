@@ -56,11 +56,6 @@ __extension__ using u128 = unsigned __int128;
 __extension__ using i128 = signed __int128;
 #endif
 
-
-class OptionsMap;
-class IEngine;
-namespace Test { class UnitTester; }
-
 // --------------------
 //     engine info
 // --------------------
@@ -80,17 +75,21 @@ std::string engine_version_info();
 // engine_author  : エンジンの作者名
 // engine_version : エンジンのバージョン
 // eval_name      : 評価関数名
+#if STOCKFISH
+std::string engine_info(bool to_uci = false);
+#else
 std::string engine_info(const std::string& engine_name,
 						const std::string& engine_author,
                         const std::string& engine_version,
                         const std::string& eval_name);
 
-// 使用したコンパイラについての文字列を返す。
-std::string compiler_info();
-
 // config.hで設定した値などについて出力する。
 std::string config_info();
 
+#endif
+
+// 使用したコンパイラについての文字列を返す。
+std::string compiler_info();
 
 // --------------------
 //    prefetch命令
@@ -192,7 +191,7 @@ std::filesystem::path path_from_utf8(const std::string& path);
 
 // 💡 filenameは、起動フォルダ相対で指定する。
 
-std::optional<std::string> read_file_to_string(const std::string& filename);
+std::optional<std::string> read_file_to_string(const std::string& path);
 
 // --------------------
 //  統計情報
@@ -1429,10 +1428,16 @@ private:
 //     UnitTest
 // --------------------
 
+#if !STOCKFISH
+
+class IEngine;
+namespace Test { class UnitTester; }
+
 namespace Misc {
 	// このheaderに書いてある関数のUnitTest。
 	void UnitTest(Test::UnitTester& tester, IEngine& engine);
 }
+#endif
 
 } // namespace YaneuraOu
 
