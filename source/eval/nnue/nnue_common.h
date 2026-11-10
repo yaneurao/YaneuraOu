@@ -53,13 +53,6 @@ namespace YaneuraOu {
 
 namespace Eval::NNUE {
 
-  // エンディアン判定
-#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-  constexpr bool IsLittleEndian = true;
-#else
-  constexpr bool IsLittleEndian = false;
-#endif
-
   // Version of the evaluation file
   // 評価関数ファイルのバージョンを表す定数
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)

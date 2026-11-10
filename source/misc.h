@@ -312,6 +312,12 @@ std::ostream& operator<<(std::ostream&, SyncCout);
 void sync_cout_start();
 void sync_cout_end();
 
+// True if and only if the binary is compiled on a little-endian machine
+// バイナリがlittle-endian環境向けにコンパイルされている場合に限りtrue。
+static inline const u16  Le             = 1;
+static inline const bool IsLittleEndian = *reinterpret_cast<const char*>(&Le) == 1;
+
+
 // --------------------
 //      ValueList
 // --------------------
