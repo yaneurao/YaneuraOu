@@ -181,6 +181,9 @@ LOCAL_SRC_FILES := \
   ../../../source/book/apery_book.cpp                                        \
   ../../../source/book/book.cpp                                              \
   ../../../source/extra/bitop.cpp                                            \
+  ../../../source/extra/tools.cpp                                            \
+  ../../../source/extra/system_io.cpp                                        \
+  ../../../source/extra/parser.cpp                                           \
   ../../../source/extra/long_effect.cpp                                      \
   ../../../source/extra/sfen_packer.cpp                                      \
   ../../../source/mate/mate.cpp                                              \
