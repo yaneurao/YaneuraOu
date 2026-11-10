@@ -123,6 +123,18 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
     if (end - begin <= 1)
         return;
 
+    // With two moves, avoid setting up the vector sorter.
+    // 2手なら必要な場合だけ交換し、ベクトルソーターの準備を省く。
+    if (end - begin == 2)
+    {
+        if (begin[1].value >= limit && begin[0].value < begin[1].value)
+        {
+            const ExtMove first = begin[0];
+            begin[0] = begin[1];
+            begin[1] = first;
+        }
+        return;
+    }
     ExtMove *sortedEnd = begin, *p = begin + 1;
 
 #ifdef USE_AVX512
