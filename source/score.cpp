@@ -8,18 +8,29 @@
 
 namespace YaneuraOu {
 
+#if STOCKFISH
+Score::Score(Value v, const Position& pos) {
+#else
 Score::Score(Value v /*, const Position& pos*/) {
+#endif
+
     assert(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
     if (!is_decisive(v))
+
+#if STOCKFISH
+        score = InternalUnits{UCIEngine::to_cp(v, pos)};
+
+    else if (std::abs(v) <= VALUE_TB)
     {
-        score = InternalUnits{USIEngine::to_cp(v /*, pos*/)};
+        auto distance = VALUE_TB - std::abs(v);
+        score         = (v > 0) ? Tablebase{distance, true} : Tablebase{-distance, false};
     }
-    //else if (std::abs(v) <= VALUE_TB)
-    //{
-    //    auto distance = VALUE_TB - std::abs(v);
-    //    score         = (v > 0) ? Tablebase{distance, true} : Tablebase{-distance, false};
-    //}
+
+#else
+		score = InternalUnits{USIEngine::to_cp(v /*, pos*/)};
+#endif
+
     else
     {
 		// 詰みまでの手数
