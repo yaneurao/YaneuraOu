@@ -19,15 +19,14 @@
 #include <string_view>
 
 #if defined(_WIN32)
-    #if _WIN32_WINNT < 0x0601
-        #undef _WIN32_WINNT
-        #define _WIN32_WINNT 0x0601  // Force to include needed API prototypes
-                                     // 必要なAPIのプロトタイプ宣言を読み込む。
-    #endif
     // windows.hのmin/maxマクロとC++の関数が衝突するのを防ぐ。
     #ifndef NOMINMAX
         #define NOMINMAX
     #endif
+#if STOCKFISH
+    #include <direct.h>
+    // Stockfish、以前は
+#endif
     #include <windows.h>
     #include <shellapi.h>
 #endif
@@ -41,8 +40,6 @@
 #include "usi.h"
 #include "testcmd/unit_test.h"
 
-using namespace std;
-
 namespace YaneuraOu {
 
 namespace fs = std::filesystem;
@@ -53,9 +50,15 @@ namespace {
 //  logger
 // --------------------
 
+#if STOCKFISH
+// Version number or dev.
+// バージョン番号、または開発版を表すdev。
+constexpr std::string_view version = "dev";
+#endif
+
 // Our fancy logging facility. The trick here is to replace cin.rdbuf() and
 // cout.rdbuf() with two Tie objects that tie cin and cout to a file stream. We
-// can toggle the logging of cout and std::cin at runtime whilst preserving
+// can toggle the logging of std::cout and std::cin at runtime whilst preserving
 // usual I/O functionality, all without changing a single line of code!
 // Idea from http://groups.google.com/group/comp.lang.c++/msg/1d941c0f26ea0d81
 
@@ -63,70 +66,70 @@ namespace {
 // cinからの入力とcoutへの出力をファイルにリダイレクトできる。
 // cf. http://groups.google.com/group/comp.lang.c++/msg/1d941c0f26ea0d81
 
-struct Tie : public streambuf {  // MSVC requires split streambuf for cin and cout
+struct Tie: public std::streambuf {  // MSVC requires split streambuf for cin and cout
+    // MSVCではcin用とcout用に別々のstreambufを用意する。
 
-	Tie(streambuf* b, streambuf* l) :
-		buf(b),
-		logBuf(l) {
-	}
+    Tie(std::streambuf* b, std::streambuf* l) :
+        buf(b),
+        logBuf(l) {}
 
-	int sync() override { return logBuf->pubsync(), buf->pubsync(); }
-	int overflow(int c) override { return log(buf->sputc(char(c)), "<< "); }
-	int underflow() override { return buf->sgetc(); }
-	int uflow() override { return log(buf->sbumpc(), ">> "); }
+    int sync() override { return logBuf->pubsync(), buf->pubsync(); }
+    int overflow(int c) override { return log(buf->sputc(char(c)), "<< "); }
+    int underflow() override { return buf->sgetc(); }
+    int uflow() override { return log(buf->sbumpc(), ">> "); }
 
-	streambuf *buf, *logBuf;
+    std::streambuf *buf, *logBuf;
 
-	int log(int c, const char* prefix) {
+    int log(int c, const char* prefix) {
 
-		static int last = '\n';  // Single log file
+        static int last = '\n';  // Single log file
+                                  // 単一のログファイルにまとめる。
 
-		if (last == '\n')
-			logBuf->sputn(prefix, 3);
+        if (last == '\n')
+            logBuf->sputn(prefix, 3);
 
-		return last = logBuf->sputc(char(c));
-	}
+        return last = logBuf->sputc(char(c));
+    }
 };
 
 class Logger {
 
-	Logger() :
-		in(cin.rdbuf(), file.rdbuf()),
-		out(cout.rdbuf(), file.rdbuf()) {
-	}
-	~Logger() { start(""); }
+    Logger() :
+        in(std::cin.rdbuf(), file.rdbuf()),
+        out(std::cout.rdbuf(), file.rdbuf()) {}
+    ~Logger() { start(""); }
 
-	ofstream file;    // ログを書き出すファイル
-	Tie           in, out; // 標準入力とファイル、標準出力とファイルのひも付け
+    std::ofstream file;    // ログを書き出すファイル
+    Tie           in, out; // 標準入力とファイル、標準出力とファイルのひも付け
 
-public:
-	// ログ記録の開始。
-	// fname : ログを書き出すファイル名
-	static void start(const fs::path& fname) {
+   public:
+    // ログ記録の開始。
+    // fname : ログを書き出すファイル名
+    static void start(const fs::path& fname) {
 
-		static Logger l;
+        static Logger l;
 
-		if (l.file.is_open())
-		{
-			cout.rdbuf(l.out.buf);
-			cin.rdbuf(l.in.buf);
-			l.file.close();
-		}
+        if (l.file.is_open())
+        {
+            std::cout.rdbuf(l.out.buf);
+            std::cin.rdbuf(l.in.buf);
+            l.file.close();
+        }
 
-		if (!fname.empty())
-		{
-			l.file.open(fname, ifstream::out);
+        if (!fname.empty())
+        {
+            l.file.open(fname, std::ifstream::out);
 
-			if (!l.file.is_open())
-			{
-				cerr << "Unable to open debug log file " << fname << endl;
-				exit(EXIT_FAILURE);
-			}
+            if (!l.file.is_open())
+            {
+                std::cerr << "Unable to open debug log file " << fname << std::endl;
+                exit(EXIT_FAILURE);
+            }
 
-			cin.rdbuf(&l.in);
-			cout.rdbuf(&l.out);
-		}
-	}
+            std::cin.rdbuf(&l.in);
+            std::cout.rdbuf(&l.out);
+        }
+    }
 };
 
 } // namespace
@@ -201,22 +204,24 @@ std::string engine_version_info() {
 	return ss.str();
 }
 
+#if STOCKFISH
+std::string engine_info(bool to_uci) {
+    return engine_version_info() + (to_uci ? "\nid author " : " by ")
+         + "the Stockfish developers (see AUTHORS file)";
+}
+#else
 std::string engine_info(const std::string& engine_name,
                         const std::string& engine_author,
 						const std::string& engine_version,
                         const std::string& eval_name)
 {
-#if STOCKFISH
-    return engine_version_info() + (to_uci ? "\nid author " : " by ")
-         + "the Stockfish developers (see AUTHORS file)";
-#endif
     // → これ好きじゃない。
 
-	stringstream ss;
-	string engine_name_, engine_author_;
+	std::stringstream ss;
+	std::string engine_name_, engine_author_;
 
 	// カレントフォルダに"engine_name.txt"があればその1行目をエンジン名とする機能
-	ifstream ifs("engine_name.txt");
+	std::ifstream ifs("engine_name.txt");
 	if (!ifs.fail())
 	{
 		// 1行目が読み込めなかったときのためにデフォルト値を設定しておく。
@@ -258,8 +263,10 @@ std::string engine_info(const std::string& engine_name,
 	return engine_name_ + "\n" + "id author " + engine_author_; 
 }
 
+#endif
+
 // 使用したコンパイラについての文字列を返す。
-string compiler_info() {
+std::string compiler_info() {
 
 #define make_version_string(major, minor, patch) stringify(major) "." stringify(minor) "." stringify(patch)
 
@@ -272,7 +279,7 @@ string compiler_info() {
 	/// _WIN32					Building on Windows (any)
 	/// _WIN64					Building on Windows 64 bit
 
-	string compiler = "\nCompiled by                : ";
+	std::string compiler = "\nCompiled by                : ";
 
 #if defined(__INTEL_LLVM_COMPILER)
 	compiler += "ICX ";
@@ -293,7 +300,7 @@ string compiler_info() {
 
 	compiler += "MCST LCC ";
 	compiler += "(version ";
-	compiler += to_string(__LCC__ / 100);
+	compiler += std::to_string(__LCC__ / 100);
 	dot_ver2(__LCC__ % 100) dot_ver2(__LCC_MINOR__) compiler += ")";
 
 #elif __GNUC__
@@ -536,9 +543,9 @@ void dbg_clear() {
 
 // Used to serialize access to cout
 // to avoid multiple threads writing at the same time.
-ostream& operator<<(ostream& os, SyncCout sc) {
+std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 
-	static mutex m;
+	static std::mutex m;
 
 	if (sc == IO_LOCK)
 		m.lock();
@@ -698,15 +705,15 @@ std::optional<usize> str_to_size_t(const std::string& s) {
 // ファイルをバイトとして読み込みます。
 // ファイルが存在しない場合は nullopt を返します。
 
-optional<string> read_file_to_string(const string& filename) {
+std::optional<std::string> read_file_to_string(const std::string& path) {
 
 	// 起動フォルダ相対でのpath
-	const auto path = Directory::GetBinaryFolder() / path_from_utf8(filename);
+	const auto full_path = Directory::GetBinaryFolder() / path_from_utf8(path);
 
-	ifstream f(path, ios_base::binary);
+	std::ifstream f(full_path, std::ios_base::binary);
 	if (!f)
-		return nullopt;
-	return string(istreambuf_iterator<char>(f), istreambuf_iterator<char>());
+		return std::nullopt;
+	return std::string(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
 }
 
 // Remove all spaces from a string
@@ -723,19 +730,46 @@ bool is_whitespace(std::string_view s) {
 }
 
 
+// Return the directory where our Stockfish binary sits. This is useful,
+// because when the NNUE network is not embedded in the binary, this directory
+// is one of the locations where we look for the NNUE file.
+// 実行ファイルの配置ディレクトリを返す。外部NNUEファイルの探索などに使う。
+fs::path CommandLine::get_binary_directory(fs::path argv0) {
+
+#ifdef _WIN32
+    // Prefer the executable path reported by Windows. Unlike _get_wpgmptr,
+    // this does not depend on whether the CRT used a narrow or wide entry
+    // point. Windows paths cannot exceed 32767 characters, so a fixed
+    // buffer is always sufficient. Falls back to argv0 if the API fails.
+    // CRTのエントリーポイント形式に依存しないWindows APIを優先する。
+    // Windowsパスの最大長を収めるバッファを使い、失敗時はargv0へ戻る。
+    constexpr DWORD MaxPath = 32768;
+    wchar_t         path[MaxPath];
+
+    if (const DWORD length = GetModuleFileNameW(nullptr, path, MaxPath))
+        argv0 = fs::path(path, path + length);
+#endif
+
+    auto binaryDirectory = argv0.parent_path();
+    if (binaryDirectory.empty())
+        binaryDirectory = fs::path(".");
+    return binaryDirectory;
+}
+
+
 // 📌 ここ以下は、やねうら王の独自追加 📌
 
 // config.hで設定した値などについて出力する。
-string config_info()
+std::string config_info()
 {
-	string config = "\nconfigured by config.h";
+	std::string config = "\nconfigured by config.h";
 
-	auto o  = [](string(p) , string(q)) { return "\n" + (p + string(20,' ')).substr(0,20) + " : " + q; };
-	auto o1 = [&o](const char* p , u64  u ) { return o(string(p) , std::to_string(u) ); };
-	auto o2 = [&o](const char* p , bool b ) { return o(string(p) , b ? "true":"false"); };
+	auto o  = [](std::string(p) , std::string(q)) { return "\n" + (p + std::string(20,' ')).substr(0,20) + " : " + q; };
+	auto o1 = [&o](const char* p , u64  u ) { return o(std::string(p) , std::to_string(u) ); };
+	auto o2 = [&o](const char* p , bool b ) { return o(std::string(p) , b ? "true":"false"); };
 
 	// 評価関数タイプ
-	string eval_type =
+	std::string eval_type =
 #if defined(YANEURAOU_ENGINE_DEEP)
 	"DEEP";
 #elif defined(YANEURAOU_ENGINE_NNUE)
@@ -768,7 +802,7 @@ string config_info()
 #elif defined(YANEURAOU_ENGINE_KPP_KKPT)
 	"KPP_KKPT";
 #elif defined(YANEURAOU_ENGINE_MATERIAL)
-	"MATERIAL_LV" + to_string(MATERIAL_LEVEL);
+	"MATERIAL_LV" + std::to_string(MATERIAL_LEVEL);
 #else
 	"Unknown";
 #endif
@@ -858,7 +892,7 @@ namespace Tools {
 		const size_t threadCount = threads.num_threads();
 
 		if (name_ != nullptr)
-			sync_cout << "info string " + string(name_) + " : Start clearing with " << threadCount << " threads , size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
+			sync_cout << "info string " + std::string(name_) + " : Start clearing with " << threadCount << " threads , size =  " << size / (1024 * 1024) << "[MB]" << sync_endl;
 
 		// マルチスレッドで並列化してクリアする。
 
@@ -875,7 +909,7 @@ namespace Tools {
 				start = stride * i,
 				len = (i != threadCount - 1) ? stride : size - start;
 
-				memset((u8*)table + start, 0, len);
+				std::memset((u8*)table + start, 0, len);
 			});
 		}
 
@@ -883,13 +917,13 @@ namespace Tools {
 			threads.wait_on_thread(i);
 
 		if (name_ != nullptr)
-			sync_cout << "info string " + string(name_) + " : Finish clearing." << sync_endl;
+			sync_cout << "info string " + std::string(name_) + " : Finish clearing." << sync_endl;
 
 #else
 		// yaneuraou.wasm
 		// pthread_joinによってブラウザのメインスレッドがブロックされるため、単一スレッドでメモリをクリアする処理に変更
 
-		memset(table, 0, size);
+		std::memset(table, 0, size);
 #endif
 
 	}
@@ -905,11 +939,11 @@ namespace Tools {
 	// 指定されたミリ秒だけsleepする。
 	void sleep(u64 ms)
 	{
-		this_thread::sleep_for(chrono::milliseconds(ms));
+		std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 	}
 
 	// 現在時刻を文字列化したもを返す。(評価関数の学習時などに用いる)
-	string now_string()
+	std::string now_string()
 	{
 		// ctime(), localtime()を使うと、MSVCでセキュアでないという警告が出る。
 		// C++標準的にはそんなことないはずなのだが…。
@@ -919,9 +953,9 @@ namespace Tools {
 #pragma warning(disable : 4996)
 #endif
 
-		auto now = chrono::system_clock::now();
-		auto tp = chrono::system_clock::to_time_t(now);
-		auto result = string(ctime(&tp));
+		auto now = std::chrono::system_clock::now();
+		auto tp = std::chrono::system_clock::to_time_t(now);
+		auto result = std::string(std::ctime(&tp));
 
 		// 末尾に改行コードが含まれているならこれを除去する
 		while (*result.rbegin() == '\n' || (*result.rbegin() == '\r'))
@@ -933,7 +967,7 @@ namespace Tools {
 	// '\r'が末尾に残るのでこの'\r'を除去するためにwrapperを書く。
 	// そのため、ifstreamに対してgetline()を呼び出すときは、
 	// getline()ではなくこのこの関数を使うべき。
-	bool getline(ifstream& fs, string& s)
+	bool getline(std::ifstream& fs, std::string& s)
 	{
 		bool b = (bool)std::getline(fs, s);
 		StringExtension::trim_inplace(s);
@@ -950,7 +984,7 @@ namespace Tools {
 	{
 		size = size_;
 		if (enable_)
-			cout << "0% [";
+			std::cout << "0% [";
 		dots = 0;
 	}
 
@@ -965,14 +999,14 @@ namespace Tools {
 		const size_t all_dots = 70; // 100%になった時に70個打つ。
 
 		// 何dot塗りつぶすのか。
-		size_t d = (size == 0) ? all_dots : min((size_t)(all_dots * current / size), all_dots);
+		size_t d = (size == 0) ? all_dots : std::min((size_t)(all_dots * current / size), all_dots);
 
 		for (; dots < d ; ++dots)
-			cout << ".";
+			std::cout << ".";
 
 		if (dots == all_dots)
 		{
-			cout << "] 100%" << endl;
+			std::cout << "] 100%" << std::endl;
 			dots++; // 1加算しておけば完了したことがわかる。
 		}
 	}
@@ -1023,16 +1057,16 @@ namespace SystemIO
 
 	// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。末尾の改行は除去される。
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
-	Tools::Result ReadAllLines(const fs::path& filename, vector<string>& lines, bool trim)
+	Tools::Result ReadAllLines(const fs::path& filename, std::vector<std::string>& lines, bool trim)
 	{
 #if 0
-		ifstream fs(filename);
+		std::ifstream fs(filename);
 		if (fs.fail())
 			return 1; // 読み込み失敗
 
 		while (!fs.fail() && !fs.eof())
 		{
-			string line;
+			std::string line;
 			Dependency::getline(fs, line);
 			if (trim)
 				line = StringExtension::trim(line);
@@ -1061,7 +1095,7 @@ namespace SystemIO
 		if (!result.is_ok())
 			return result;
 
-		string line;
+		std::string line;
 		while (reader.ReadLine(line).is_ok())
 			lines.emplace_back(line);
 
@@ -1069,7 +1103,7 @@ namespace SystemIO
 	}
 
 	// ファイルにすべての行を書き出す。
-	Tools::Result WriteAllLines(const fs::path& filename, vector<string>& lines)
+	Tools::Result WriteAllLines(const fs::path& filename, std::vector<std::string>& lines)
 	{
 		TextWriter writer;
 
@@ -1088,7 +1122,7 @@ namespace SystemIO
 		return Tools::ResultCode::Ok;
 	}
 
-	Tools::Result ReadFileToMemory(const fs::path& filename, function<void* (size_t)> callback_func)
+	Tools::Result ReadFileToMemory(const fs::path& filename, std::function<void* (size_t)> callback_func)
 	{
 		// fstream、遅いので、FILEを用いて書き換える。
 
@@ -1099,10 +1133,10 @@ namespace SystemIO
 		if (fp == nullptr)
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
-		fseek(fp, 0, SEEK_END);
-		size_t endPos = (size_t)ftell(fp);
-		fseek(fp, 0, SEEK_SET);
-		size_t beginPos = (size_t)ftell(fp);
+		std::fseek(fp, 0, SEEK_END);
+		size_t endPos = (size_t)std::ftell(fp);
+		std::fseek(fp, 0, SEEK_SET);
+		size_t beginPos = (size_t)std::ftell(fp);
 		size_t file_size = endPos - beginPos;
 
 		// ファイルサイズがわかったのでcallback_funcを呼び出してこの分のバッファを確保してもらい、
@@ -1123,13 +1157,13 @@ namespace SystemIO
 			// 今回読み込むサイズ
 			size_t read_size = (pos + block_size < file_size) ? block_size : (file_size - pos);
 
-			if (fread((u8*)ptr + pos, 1, read_size, fp) != read_size)
+			if (std::fread((u8*)ptr + pos, 1, read_size, fp) != read_size)
 				// 指定サイズだけ読み込めていないということは、読み込み上のエラーである。
 				return Tools::Result(Tools::ResultCode::FileReadError);
 
 			//cout << ".";
 		}
-		fclose(fp);
+		std::fclose(fp);
 
 		return Tools::Result::Ok();
 	}
@@ -1140,7 +1174,7 @@ namespace SystemIO
 		// 起動フォルダ相対でのpath
 		const auto path = Directory::GetBinaryFolder() / filename;
 
-		fstream fs(path, ios::out | ios::binary);
+		std::fstream fs(path, std::ios::out | std::ios::binary);
 		if (fs.fail())
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
@@ -1172,7 +1206,7 @@ namespace SystemIO
 #elif defined(__GNUC__) && defined(IS_64BIT) && !(defined(__ANDROID__) && defined(__ANDROID_API__) && __ANDROID_API__ < 24) && !defined(__MACH__)
 		return ftello64(f);
 #else
-		return ftell(f);
+		return std::ftell(f);
 #endif
 	}
 
@@ -1183,7 +1217,7 @@ namespace SystemIO
 #elif defined(__GNUC__) && defined(IS_64BIT) && !(defined(__ANDROID__) && defined(__ANDROID_API__) && __ANDROID_API__ < 24) && !defined(__MACH__)
 		return fseeko64(f, offset, origin);
 #else
-		return fseek(f, offset, origin);
+		return std::fseek(f, offset, origin);
 #endif
 	}
 
@@ -1236,7 +1270,7 @@ namespace SystemIO
 	void TextReader::Close()
 	{
 		if (fp != nullptr)
-			fclose(fp);
+			std::fclose(fp);
 
 		clear();
 	}
@@ -1324,7 +1358,7 @@ namespace SystemIO
 
 	// 1行読み込む(改行まで)
 	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
-	Tools::Result TextReader::ReadLine(string& line)
+	Tools::Result TextReader::ReadLine(std::string& line)
 	{
 		while (true)
 		{
@@ -1360,7 +1394,7 @@ namespace SystemIO
 			if (skipEmptyLine && line_size == 0)
 				continue;
 
-			line = string((const char*)line_buffer.data() + skip_byte, line_size );
+			line = std::string((const char*)line_buffer.data() + skip_byte, line_size );
 			return Tools::ResultCode::Ok;
 		}
 	}
@@ -1411,13 +1445,13 @@ namespace SystemIO
 	}
 
 	// 文字列を書き出す(改行コードは書き出さない)
-	Tools::Result TextWriter::Write(const string& str)
+	Tools::Result TextWriter::Write(const std::string& str)
 	{
 		return Write(str.c_str(), str.size());
 	}
 
 	// 1行を書き出す(改行コードも書き出す) 改行コードは"\r\n"とする。
-	Tools::Result TextWriter::WriteLine(const string& line)
+	Tools::Result TextWriter::WriteLine(const std::string& line)
 	{
 		auto result = Write(line.c_str(), line.size());
 		if (result.is_not_ok())
@@ -1445,8 +1479,8 @@ namespace SystemIO
 
 			// 今回のループで書き込むbyte数
 			write_size = buf_size - write_cursor;
-			memcpy(&buf[write_cursor], ptr2, write_size);
-			if (fwrite(buf.data(), buf_size, 1, fp) == 0)
+			std::memcpy(&buf[write_cursor], ptr2, write_size);
+			if (std::fwrite(buf.data(), buf_size, 1, fp) == 0)
 				return Tools::ResultCode::FileWriteError;
 
 			// buf[0..write_cursor-1]が窓で、ループごとにその窓がbuf_sizeずつずれていくと考える。
@@ -1457,7 +1491,7 @@ namespace SystemIO
 			write_cursor_end -= buf_size;
 			write_cursor      = 0;
 		}
-		memcpy(&buf[write_cursor], ptr2, size);
+		std::memcpy(&buf[write_cursor], ptr2, size);
 		write_cursor += size;
 
 		return Tools::ResultCode::Ok;
@@ -1472,7 +1506,7 @@ namespace SystemIO
 			return Tools::ResultCode::FileWriteError;
 
 		// bufのwrite_cursorの指している手前までを書き出す。
-		if (write_cursor > 0 && fwrite(&buf[0], write_cursor, 1, fp) == 0)
+		if (write_cursor > 0 && std::fwrite(&buf[0], write_cursor, 1, fp) == 0)
 			return Tools::ResultCode::FileWriteError;
 
 		write_cursor = 0;
@@ -1487,7 +1521,7 @@ namespace SystemIO
 			if (Flush().is_not_ok())
 				return Tools::ResultCode::FileWriteError;
 
-			fclose(fp); // GetLastErrorでエラーを取得することはできるが…。
+			std::fclose(fp); // GetLastErrorでエラーを取得することはできるが…。
 			fp = nullptr;
 		}
 		return Tools::ResultCode::Ok;
@@ -1501,7 +1535,7 @@ namespace SystemIO
 		Tools::ResultCode result = Tools::ResultCode::Ok;
 		if (fp != nullptr)
 		{
-			if (fclose(fp) != 0)
+			if (std::fclose(fp) != 0)
 				result = Tools::ResultCode::FileCloseError;
 			fp = nullptr;
 		}
@@ -1546,13 +1580,13 @@ namespace SystemIO
 	// ptrの指すメモリにsize[byte]だけファイルから読み込む
 	Tools::Result BinaryReader::Read(void* ptr, size_t size, size_t* size_of_read_bytes)
 	{
-		size_t actual_size_of_read_bytes = fread(ptr, 1, size, fp);
+		size_t actual_size_of_read_bytes = std::fread(ptr, 1, size, fp);
 
 		if (size_of_read_bytes) {
 			*size_of_read_bytes = actual_size_of_read_bytes;
 		}
 
-		if (feof(fp)) {
+		if (std::feof(fp)) {
 			// ファイルの末尾を超えて読もうとした場合。
 			return Tools::Result(Tools::ResultCode::Eof);
 		}
@@ -1583,7 +1617,7 @@ namespace SystemIO
 	// ptrの指すメモリからsize[byte]だけファイルに書き込む
 	Tools::Result BinaryWriter::Write(void* ptr, size_t size)
 	{
-		if (fwrite((u8*)ptr, 1, size, fp) != size)
+		if (std::fwrite((u8*)ptr, 1, size, fp) != size)
 			return Tools::Result(Tools::ResultCode::FileWriteError);
 
 		return Tools::Result::Ok();
@@ -1601,7 +1635,7 @@ namespace Path
 	// path名とファイル名を結合して、それを返す。
 	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければ'/'を付与する。
 	// ('/'自体は、Pathの区切り文字列として、WindowsでもLinuxでも使えるはずなので。
-	string Combine(const string& folder, const string& filename)
+	std::string Combine(const std::string& folder, const std::string& filename)
 	{
 		// 与えられたfileが絶対Pathであるかの判定
 		if (IsAbsolute(filename))
@@ -1614,7 +1648,7 @@ namespace Path
 	}
 
 	// full path表現(ファイル名を含む)から、(フォルダ名を除いた)ファイル名の部分を取得する。
-	string GetFileName(const string& path)
+	std::string GetFileName(const std::string& path)
 	{
 		// "\"か"/"か、どちらを使ってあるかはわからないがなるべく後ろにある、いずれかの文字を探す。
 		auto path_index1 = path.find_last_of("\\");
@@ -1622,21 +1656,21 @@ namespace Path
 
 		// どちらの文字も見つからなかったのであれば、ディレクトリ名が含まれておらず、
 		// 与えられたpath丸ごとがファイル名だと考えられる。
-		if (path_index1 == string::npos && path_index2 == string::npos)
+		if (path_index1 == std::string::npos && path_index2 == std::string::npos)
 			return path;
 
 		// なるべく後ろのを見つけたいが、string::nposは大きな定数なので単純にmax()するとこれを持ってきてしまう。
 		// string::nposを0とみなしてmaxをとる。
-		path_index1 = path_index1 == string::npos ? 0 : path_index1;
-		path_index2 = path_index2 == string::npos ? 0 : path_index2;
-		auto path_index = max(path_index1, path_index2);
+		path_index1 = path_index1 == std::string::npos ? 0 : path_index1;
+		path_index2 = path_index2 == std::string::npos ? 0 : path_index2;
+		auto path_index = std::max(path_index1, path_index2);
 
 		// そこ以降を返す。
 		return path.substr(path_index + 1);
 	}
 
 	// full path表現から、ディレクトリ名の部分を取得する。
-	string GetDirectoryName(const string& path)
+	std::string GetDirectoryName(const std::string& path)
 	{
 		// ファイル名部分を引き算してやる。
 
@@ -1646,7 +1680,7 @@ namespace Path
 
 	// 絶対Pathであるかの判定。
 	// "\\"(WindowsのUNC)で始まるか、"/"で始まるか(Windows / Linuxのroot)、"~"で始まるか、"C:"(ドライブレター + ":")で始まるか。
-	bool IsAbsolute(const string& path)
+	bool IsAbsolute(const std::string& path)
 	{
 		// path separator
 		const auto path_char1 = '\\';
@@ -1696,9 +1730,9 @@ namespace Directory
 	// 指定されたフォルダに存在するファイルをすべて列挙する。
 	// 列挙するときに拡張子を指定できる。(例 : ".bin")
 	// 拡張子として""を指定すればすべて列挙される。
-	vector<string> EnumerateFiles(const string& sourceDirectory, const string& extension)
+	std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const std::string& extension)
 	{
-		vector<string> filenames;
+		std::vector<std::string> filenames;
 
 		// filesystemのファイル列挙、ディレクトリとして空の文字列を渡すと例外で落ちる。
 		// current directoryにしたい時は明示的に指定してやらなければならない。
@@ -1750,7 +1784,7 @@ namespace Parser
 	*/
 
 	// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
-	string LineScanner::peek_text()
+	std::string LineScanner::peek_text()
 	{
 		// 二重にpeek_text()を呼び出すのは合法であるものとする。
 		if (!token.empty())
@@ -1789,7 +1823,7 @@ namespace Parser
 	}
 
 	// 次のtokenを返す。
-	string LineScanner::get_text()
+	std::string LineScanner::get_text()
 	{
 		auto result = (!token.empty() ? token : peek_text());
 		token.clear();
@@ -1798,7 +1832,7 @@ namespace Parser
 
 	// 現在のcursor位置から残りの文字列を取得する。
 	// peek_text()した分があるなら、それも先頭にくっつけて返す。
-	string LineScanner::get_rest()
+	std::string LineScanner::get_rest()
 	{
 		return token.empty()
 			? line.substr(pos)
@@ -1808,15 +1842,15 @@ namespace Parser
 	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
 	i64 LineScanner::get_number(i64 defaultValue)
 	{
-		string token = get_text();
+		std::string token = get_text();
 		return token.empty() ? defaultValue : atoll(token.c_str());
 	}
 
 	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
 	double LineScanner::get_double(double defaultValue)
 	{
-		string token = get_text();
-		return token.empty() ? defaultValue : atof(token.c_str());
+		std::string token = get_text();
+		return token.empty() ? defaultValue : std::atof(token.c_str());
 	}
 
 }
@@ -1827,11 +1861,11 @@ namespace Parser
 
 namespace {
 	// 文字列を大文字化する
-	string to_upper(const string source)
+	std::string to_upper(const std::string source)
 	{
-		string destination;
+		std::string destination;
 		destination.resize(source.size());
-		transform(source.cbegin(), source.cend(), destination.begin(), /*toupper*/[](char c) { return (char)toupper(c); });
+		std::transform(source.cbegin(), source.cend(), destination.begin(), /*toupper*/[](char c) { return (char)std::toupper(c); });
 		return destination;
 	}
 }
@@ -1841,7 +1875,7 @@ namespace StringExtension
 	// 大文字・小文字を無視して文字列の比較を行う。
 	// string-case insensitive-compareの略？
 	// s1==s2のとき0(false)を返す。
-	bool stricmp(const string& s1, const string& s2)
+	bool stricmp(const std::string& s1, const std::string& s2)
 	{
 		// Windowsだと_stricmp() , Linuxだとstrcasecmp()を使うのだが、
 		// 後者がどうも動作が怪しい。自前実装しておいたほうが無難。
@@ -1856,10 +1890,10 @@ namespace StringExtension
 	bool is_number(char c) { return '0' <= c && c <= '9'; }
 
 	// 行の末尾の"\r","\n",スペース、"\t"を除去した文字列を返す。
-	string trim(const string& input)
+	std::string trim(const std::string& input)
 	{
 		// copyしておく。
-		string s = input;
+		std::string s = input;
 
 		// curを現在位置( s[cur]のような )カーソルだとして扱うと、最後、-1になるまで
 		// ループするコードになり、符号型が必要になる。
@@ -1878,7 +1912,7 @@ namespace StringExtension
 	}
 
 	// trim()の高速版。引数で受け取った文字列を直接trimする。(この関数は返し値を返さない)
-	void trim_inplace(string& s)
+	void trim_inplace(std::string& s)
 	{
 		auto cur = s.length();
 
@@ -1890,9 +1924,9 @@ namespace StringExtension
 
 	// 行の末尾の数字を除去した文字列を返す。
 	// (行の末尾の"\r","\n",スペース、"\t"を除去したあと)
-	string trim_number(const string& input)
+	std::string trim_number(const std::string& input)
 	{
-		string s = input;
+		std::string s = input;
 		auto cur = s.length();
 
 		// 末尾のスペースを詰めたあと数字を詰めてそのあと再度スペースを詰める。
@@ -1912,7 +1946,7 @@ namespace StringExtension
 	}
 
 	// trim_number()の高速版。引数で受け取った文字列を直接trimする。(この関数は返し値を返さない)
-	void trim_number_inplace(string& s)
+	void trim_number_inplace(std::string& s)
 	{
 		auto cur = s.length();
 
@@ -1929,31 +1963,31 @@ namespace StringExtension
 	}
 
 	// 文字列をint化する。int化に失敗した場合はdefault_の値を返す。
-	int to_int(const string input, int default_)
+	int to_int(const std::string input, int default_)
 	{
 		// stoi()は例外を出すので例外を使わないようにしてビルドしたいのでNG。
 		// atoi()は、セキュリティ的な脆弱性がある。
 		// 仕方ないのでistringstreamを使う。
 
-		istringstream ss(input);
+		std::istringstream ss(input);
 		int result = default_; // 失敗したときはこの値のままになる
 		ss >> result;
 		return result;
 	}
 
 	// 文字列をfloat化する。float化に失敗した場合はdefault_の値を返す。
-	float to_float(const string input, float default_)
+	float to_float(const std::string input, float default_)
 	{
-		istringstream ss(input);
+		std::istringstream ss(input);
 		float result = default_; // 失敗したときはこの値のままになる
 		ss >> result;
 		return result;
 	}
 
 	// スペース、タブなど空白に相当する文字で分割して返す。
-	vector<string> split(const string& input)
+	std::vector<std::string> split(const std::string& input)
 	{
-		auto result = vector<string>();
+		auto result = std::vector<std::string>();
 		Parser::LineScanner scanner(input);
 		while (!scanner.eol())
 			result.push_back(scanner.get_text());
@@ -1963,44 +1997,44 @@ namespace StringExtension
 
 	// 先頭にゼロサプライした文字列を返す。
 	// 例) n = 123 , digit = 6 なら "000123"という文字列が返る。
-	string to_string_with_zero(u64 n, int digit)
+	std::string to_string_with_zero(u64 n, int digit)
 	{
 		// 現在の状態
-		ios::fmtflags curret_flag = cout.flags();
+		std::ios::fmtflags curret_flag = std::cout.flags();
 
-		ostringstream ss;
-		ss << setw(digit) << setfill('0') << n;
-		string s(ss.str());
+		std::ostringstream ss;
+		ss << std::setw(digit) << std::setfill('0') << n;
+		std::string s(ss.str());
 
 		// 状態を戻す
-		cout.flags(curret_flag);
+		std::cout.flags(curret_flag);
 		return s;
 	}
 
 	// 文字列valueが、文字列startingで始まっていればtrueを返す。
-	bool StartsWith(string const& value, string const& starting)
+	bool StartsWith(std::string const& value, std::string const& starting)
 	{
 		if (starting.size() > value.size()) return false;
-		return equal(starting.begin(), starting.end(), value.begin());
+		return std::equal(starting.begin(), starting.end(), value.begin());
 	};
 
 	// 文字列valueが、文字列endingで終了していればtrueを返す。
-	bool EndsWith(string const& value, string const& ending)
+	bool EndsWith(std::string const& value, std::string const& ending)
 	{
 		if (ending.size() > value.size()) return false;
-		return equal(ending.rbegin(), ending.rend(), value.rbegin());
+		return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
 	};
 
 	// 文字列sのなかに文字列tが含まれるかを判定する。含まれていればtrueを返す。
-	bool Contains(const string& s, const string& t) {
-	   return s.find(t) != string::npos;
+	bool Contains(const std::string& s, const std::string& t) {
+	   return s.find(t) != std::string::npos;
 	   // C++20ならstring::contains()が使えるのだが…。
 	}
 
 	// 文字列valueに対して文字xを文字yに置換した新しい文字列を返す。
-	string Replace(string const& value, char x, char y)
+	std::string Replace(std::string const& value, char x, char y)
 	{
-		string r(value);
+		std::string r(value);
 		for (size_t i = 0; i < r.size(); ++i)
 			if (r[i] == x)
 				r[i] = y;
@@ -2008,19 +2042,19 @@ namespace StringExtension
 	}
 
 	// 文字列を大文字にして返す。
-	string ToUpper(string const& value)
+	std::string ToUpper(std::string const& value)
 	{
-		string s(value);
-		transform(s.begin(), s.end(), s.begin(),
-			[](unsigned char c){ return toupper(c); });
+		std::string s(value);
+		std::transform(s.begin(), s.end(), s.begin(),
+			[](unsigned char c){ return std::toupper(c); });
 		return s;
 	}
 
 	// sを文字列spで分割した文字列集合を返す。
 	// ※　返し値はstring_view(参照を持っている)の配列なので、引数として一時オブジェクトを渡さないように注意してください。
 	//    一時オブジェクトへの参照を含むstring_viewをこの関数が返してしまうことになる。
-	vector<string_view> Split(string_view s, string_view delimiter) {
-		vector<string_view> res;
+	std::vector<std::string_view> Split(std::string_view s, std::string_view delimiter) {
+		std::vector<std::string_view> res;
 
 		if (s.empty())
 			return res;
@@ -2029,7 +2063,7 @@ namespace StringExtension
 		for (;;)
 		{
 			const usize end = s.find(delimiter, begin);
-			if (end == string::npos)
+			if (end == std::string::npos)
 				break;
 
 			res.emplace_back(s.substr(begin, end - begin));
@@ -2043,9 +2077,9 @@ namespace StringExtension
 
 	// Pythonの delemiter.join(v) みたいなの。
 	// 例: v = [1,2,3] に対して ' '.join(v) == "1 2 3"
-	string Join(const vector<string>& v , const string& delimiter)
+	std::string Join(const std::vector<std::string>& v , const std::string& delimiter)
 	{
-		string result;
+		std::string result;
 		for (size_t i = 0; i < v.size(); ++i) {
 			result += v[i];
 			if (i < v.size() - 1) {
@@ -2056,33 +2090,6 @@ namespace StringExtension
 	}
 
 };
-
-// Return the directory where our Stockfish binary sits. This is useful,
-// because when the NNUE network is not embedded in the binary, this directory
-// is one of the locations where we look for the NNUE file.
-// 実行ファイルの配置ディレクトリを返す。外部NNUEファイルの探索などに使う。
-fs::path CommandLine::get_binary_directory(fs::path argv0) {
-
-#ifdef _WIN32
-    // Prefer the executable path reported by Windows. Unlike _get_wpgmptr,
-    // this does not depend on whether the CRT used a narrow or wide entry
-    // point. Windows paths cannot exceed 32767 characters, so a fixed
-    // buffer is always sufficient. Falls back to argv0 if the API fails.
-    // CRTのエントリーポイント形式に依存しないWindows APIを優先する。
-    // Windowsパスの最大長を収めるバッファを使い、失敗時はargv0へ戻る。
-    constexpr DWORD MaxPath = 32768;
-    wchar_t         path[MaxPath];
-
-    if (const DWORD length = GetModuleFileNameW(nullptr, path, MaxPath))
-        argv0 = fs::path(path, path + length);
-#endif
-
-    auto binaryDirectory = argv0.parent_path();
-    if (binaryDirectory.empty())
-        binaryDirectory = fs::path(".");
-    return binaryDirectory;
-}
-
 
 #if !STOCKFISH
 // プロセス共通の起動引数から、Unicodeを保持した絶対パスを返す。
@@ -2101,12 +2108,12 @@ CommandLine CommandLine::g;
 
 // 標準入力から1行もらう。Ctrl+Zが来れば"quit"が来たものとする。
 // また先行入力でqueueに積んでおくことができる。(次のinput()で取り出される)
-string StandardInput::input()
+std::string StandardInput::input()
 {
-	string cmd;
+	std::string cmd;
 	if (cmds.size() == 0)
 	{
-		if (!std::getline(cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
+		if (!std::getline(std::cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
 			cmd = "quit";
 	} else {
 		// 積んであるコマンドがあるならそれを実行する。
@@ -2122,7 +2129,7 @@ string StandardInput::input()
 }
 
 // 先行入力としてqueueに積む。(次のinput()で取り出される)
-void StandardInput::push(const string& s)
+void StandardInput::push(const std::string& s)
 {
 	cmds.push(s);
 }
@@ -2130,9 +2137,9 @@ void StandardInput::push(const string& s)
 void StandardInput::parse_args(const CommandLine& cli)
 {
 	// ファイルからコマンドの指定
-	if (cli.argc >= 3 && string(cli.argv[1]) == "file")
+	if (cli.argc >= 3 && std::string(cli.argv[1]) == "file")
 	{
-		vector<string> cmds0;
+		std::vector<std::string> cmds0;
 		SystemIO::ReadAllLines(cli.argv[2], cmds0);
 
 		// queueに変換する。
@@ -2141,14 +2148,14 @@ void StandardInput::parse_args(const CommandLine& cli)
 
 	} else {
 
-		string cmd;
+		std::string cmd;
 
 		// 引数として指定されたものを一つのコマンドとして実行する機能
 		// ただし、','が使われていれば、そこでコマンドが区切れているものとして解釈する。
 
 		for (int i = 1; i < cli.argc; ++i)
 		{
-			string s = cli.argv[i];
+			std::string s = cli.argv[i];
 
 			// sから前後のスペースを除去しないといけない。
 			while (*s.rbegin() == ' ') s.pop_back();
