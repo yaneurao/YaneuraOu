@@ -5,7 +5,6 @@
 #include <variant>
 
 #include "movegen.h"
-#include "extra/tools.h"
 #include "position.h"
 #include "types.h"
 #include "usi.h"
@@ -58,8 +57,7 @@ perft(const std::string& fen, Depth depth , bool isChess960) {
 inline std::variant<u64, PositionSetError>
 perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
 
-	ElapsedTimer time;
-    time.reset();
+    const auto start = now();
 #endif
 
     StateInfo st;
@@ -76,7 +74,7 @@ perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
 
 	// 🌈 やねうら王では、NPS(leaf nodeの数/elapsed)と計測に要した時間も出力する。
 	auto nodes = perft<true>(p, depth);
-    auto elapsed = time.elapsed() + 1; // ゼロ割防止のために +1
+    auto elapsed = now() - start + 1; // ゼロ割防止のために +1
 
 	sync_cout << "Elapsed Time = " << elapsed << " [ms]" << sync_endl;
     sync_cout << 1000 * nodes / elapsed << " NPS" << sync_endl;
