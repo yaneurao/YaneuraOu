@@ -5,6 +5,7 @@
 #include <variant>
 
 #include "movegen.h"
+#include "extra/tools.h"
 #include "position.h"
 #include "types.h"
 #include "usi.h"

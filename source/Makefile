@@ -347,6 +347,9 @@ SOURCES  = \
 	book/apery_book.cpp                                                        \
 	book/policybook.cpp                                                        \
 	extra/bitop.cpp                                                            \
+	extra/tools.cpp                                                            \
+	extra/system_io.cpp                                                            \
+	extra/parser.cpp                                                            \
 	extra/long_effect.cpp                                                      \
 	extra/sfen_packer.cpp                                                      \
 	mate/mate.cpp                                                              \

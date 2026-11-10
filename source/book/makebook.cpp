@@ -4,6 +4,7 @@
 
 #include "book.h"
 #include "../misc.h"
+#include "../extra/tools.h"
 #include "../position.h"
 #include <sstream>
 

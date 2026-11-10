@@ -1,9 +1,12 @@
 ﻿#include "usioption.h"
+#include "extra/parser.h"
+#include "extra/system_io.h"
 
 #include <algorithm>
 
 //#include "evaluate.h"
 #include "misc.h"
+#include "extra/tools.h"
 //#include "search.h
 //#include "syzygy/tbprobe.h"
 #include "thread.h"
@@ -149,9 +152,7 @@ Option::Option(const std::vector<std::string>& list, const std::string& cur, OnC
 	max(0),
 	on_change(std::move(f)) {
 
-	// listの文字列をスペース区切りで連結してdefaultValueに突っ込む。
-	//defaultValue = StringExtension::Join(list, " ");
-	// 📝 間違い。
+	// 単純なスペース区切りではなく、combo形式でdefaultValueを構築する。
 	//    {"A","B","C"}なるstd::vector<string>とcur = "B"から
 	//    "B var A var B var C"のような文字列を構築してdefaultValueに入れる必要がある。
     std::string s = cur;
@@ -382,7 +383,7 @@ std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
 void OptionsMap::set_engine_options(const std::string& options)
 {
 	// ";"で区切って複数指定できるものとする。
-	auto v = StringExtension::Split(options, ";");
+	auto v = split(options, ";");
 	for (auto line : v)
 		build_option(std::string(line));
 }
@@ -410,7 +411,8 @@ void OptionsMap::read_engine_option_profile(const std::string& filename)
 		if (line.size() >= 2 && line[0] == '/' && line[1] == '/')
 			continue;
 
-		const auto line2 = StringExtension::Replace(line, '=', ' ');
+		auto line2 = line;
+		std::replace(line2.begin(), line2.end(), '=', ' ');
 		Parser::LineScanner scanner(line2);
 		const std::string key = scanner.get_text();
 
@@ -468,7 +470,8 @@ void OptionsMap::build_option(const std::string& line)
 
 	auto& Options = options_map;
 
-	const auto& line2 = StringExtension::Replace(line, '=', ' ');
+	auto line2 = line;
+	std::replace(line2.begin(), line2.end(), '=', ' ');
 
 	Parser::LineScanner scanner(line2);
 	std::string token = scanner.get_text();

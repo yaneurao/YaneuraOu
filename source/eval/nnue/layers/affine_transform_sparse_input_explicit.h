@@ -5,6 +5,7 @@
 #define NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_EXPLICIT_H_INCLUDED
 
 #include "../../../config.h"
+#include "../../../extra/tools.h"
 
 #if defined(EVAL_NNUE)
 

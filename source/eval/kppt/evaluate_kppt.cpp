@@ -1,4 +1,5 @@
 ﻿#include "../../config.h"
+#include "../../extra/tools.h"
 
 //
 // Apery WCSC26の評価関数バイナリを読み込むための仕組み。

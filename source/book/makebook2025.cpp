@@ -1,4 +1,6 @@
 ﻿#include "../types.h"
+#include "../extra/parser.h"
+#include "../extra/system_io.h"
 
 #if defined (ENABLE_MAKEBOOK_CMD)
 
@@ -45,6 +47,7 @@
 #include "../position.h"
 #include "../movegen.h"
 #include "../misc.h"
+#include "../extra/tools.h"
 
 using namespace std;
 namespace YaneuraOu {
@@ -825,10 +828,10 @@ namespace MakeBook2025
 					{
 						// いったん変数に入れておかないと、temporary objectのstring_viewを作ることになってそのあと不正になる。
 						auto line2 = line.substr(2);
-						auto splited = StringExtension::Split(line2, ",");
+						auto splited = split(line2, ",");
 						for (auto command : splited)
 						{
-							auto splited2 = StringExtension::Split(command, ":");
+							auto splited2 = split(command, ":");
 							if (splited2.size() >= 1)
 							{
 								auto& token = splited2[0];

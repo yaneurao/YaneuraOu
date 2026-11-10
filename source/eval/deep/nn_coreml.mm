@@ -1,4 +1,5 @@
 #include "nn_coreml.h"
+#include "../../extra/tools.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP) && defined(COREML)
 

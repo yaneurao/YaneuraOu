@@ -5,6 +5,7 @@
 #include <stack>
 
 #include "position.h"
+#include "extra/tools.h"
 #if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT) && !defined(NO_PREFETCH)
 #include "history.h"
 #endif

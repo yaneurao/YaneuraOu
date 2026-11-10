@@ -1,4 +1,5 @@
 ﻿#include "../config.h"
+#include "../extra/system_io.h"
 
 #if defined(USE_POLICY_BOOK)
 
@@ -6,6 +7,7 @@
 
 #include "policybook.h"
 #include "../misc.h"
+#include "../extra/tools.h"
 #include "../position.h"
 #include "../thread.h"
 #include "../usi.h"

@@ -1,6 +1,7 @@
 ﻿// NNUE評価関数の計算に関するコード
 
 #include "../../config.h"
+#include "../../extra/tools.h"
 
 #if defined(EVAL_NNUE)
 

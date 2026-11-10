@@ -5,6 +5,7 @@
 #define CLASSIC_NNUE_LAYERS_INPUT_SLICE_H_INCLUDED
 
 #include "../../../config.h"
+#include "../../../extra/tools.h"
 
 #if defined(EVAL_NNUE)
 

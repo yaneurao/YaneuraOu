@@ -2,6 +2,7 @@
 #define _BOOK_H_INCLUDED_
 
 #include "../types.h"
+#include "../extra/tools.h"
 #include "../position.h"
 #include "../misc.h"
 #include "../usi.h"

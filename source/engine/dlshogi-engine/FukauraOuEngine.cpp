@@ -10,6 +10,7 @@
 #include "../../usi.h"
 #include "../../thread.h"
 #include "../../misc.h"
+#include "../../extra/tools.h"
 
 #include "dlshogi_searcher.h"
 #include "UctSearch.h"

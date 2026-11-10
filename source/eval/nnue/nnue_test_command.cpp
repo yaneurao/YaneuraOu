@@ -1,6 +1,7 @@
 ﻿// NNUE評価関数に関するUSI拡張コマンド
 
 #include "../../config.h"
+#include "../../extra/tools.h"
 
 #if defined(ENABLE_TEST_CMD) && defined(EVAL_NNUE)
 

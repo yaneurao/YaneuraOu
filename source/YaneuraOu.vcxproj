@@ -553,6 +553,9 @@
     <ClInclude Include="eval\nnue\nnue_test_command.h" />
     <ClInclude Include="extra\all.h" />
     <ClInclude Include="extra\bitop.h" />
+    <ClInclude Include="extra\tools.h" />
+    <ClInclude Include="extra\system_io.h" />
+    <ClInclude Include="extra\parser.h" />
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\macros.h" />
@@ -625,6 +628,9 @@
     <ClCompile Include="eval\nnue\features\pe9.cpp" />
     <ClCompile Include="eval\nnue\nnue_test_command.cpp" />
     <ClCompile Include="extra\bitop.cpp" />
+    <ClCompile Include="extra\tools.cpp" />
+    <ClCompile Include="extra\system_io.cpp" />
+    <ClCompile Include="extra\parser.cpp" />
     <ClCompile Include="extra\long_effect.cpp" />
     <ClCompile Include="extra\sfen_packer.cpp" />
     <ClCompile Include="main.cpp" />

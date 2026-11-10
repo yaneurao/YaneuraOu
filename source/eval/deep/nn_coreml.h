@@ -1,6 +1,7 @@
 ﻿#ifndef __NN_COREML_H_INCLUDED__
 #define __NN_COREML_H_INCLUDED__
 #include "../../config.h"
+#include "../../extra/tools.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 #if defined(COREML)

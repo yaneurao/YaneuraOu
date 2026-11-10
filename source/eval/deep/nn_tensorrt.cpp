@@ -1,4 +1,6 @@
 ﻿#include "nn_tensorrt.h"
+#include "../../extra/tools.h"
+#include "../../extra/system_io.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP) && defined (TENSOR_RT)
 

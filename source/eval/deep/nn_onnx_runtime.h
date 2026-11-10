@@ -1,6 +1,7 @@
 ﻿#ifndef __NN_ONNX_RUNTIME_H_INCLUDED__
 #define __NN_ONNX_RUNTIME_H_INCLUDED__
 #include "../../config.h"
+#include "../../extra/tools.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 #if defined(ONNXRUNTIME)

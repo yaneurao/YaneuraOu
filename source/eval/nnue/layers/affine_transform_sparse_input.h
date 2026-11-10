@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "../../../config.h"
+#include "../../../extra/tools.h"
 
 #if defined(EVAL_NNUE)
 

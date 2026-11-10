@@ -91,6 +91,15 @@
     <ClInclude Include="extra\bitop.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
+    <ClInclude Include="extra\tools.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\system_io.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
+    <ClInclude Include="extra\parser.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
     <ClInclude Include="extra\long_effect.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
@@ -385,6 +394,15 @@
       <Filter>リソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="extra\bitop.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\tools.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\system_io.cpp">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClCompile>
+    <ClCompile Include="extra\parser.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
     <ClCompile Include="eval\evaluate_bona_piece.cpp">

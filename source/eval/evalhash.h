@@ -2,6 +2,7 @@
 #define EVALHASH_H_INCLUDED
 
 #include "../types.h"
+#include "../extra/tools.h"
 #include "../misc.h"
 
 namespace YaneuraOu {

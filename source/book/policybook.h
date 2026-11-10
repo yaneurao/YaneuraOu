@@ -2,6 +2,7 @@
 #define POLICYBOOK_H_INCLUDED
 
 #include "../config.h"
+#include "../extra/tools.h"
 
 #if defined(USE_POLICY_BOOK)
 

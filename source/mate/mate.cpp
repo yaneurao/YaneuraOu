@@ -1,4 +1,5 @@
 ﻿#include "mate.h"
+#include "../extra/tools.h"
 #if defined (USE_MATE_1PLY)
 #include "../position.h"
 #include "../movegen.h"

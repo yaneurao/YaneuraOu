@@ -1,4 +1,6 @@
 ﻿#include "usi.h"
+#include "extra/system_io.h"
+#include "extra/tools.h"
 
 #include <algorithm>
 #include <cstdlib>

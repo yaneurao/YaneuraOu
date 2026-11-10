@@ -1,4 +1,5 @@
 ﻿#include "../../config.h"
+#include "../../extra/tools.h"
 
 #if defined (YANEURAOU_ENGINE)
 

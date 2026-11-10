@@ -1,4 +1,6 @@
 ﻿#include "../config.h"
+#include "../extra/parser.h"
+#include "../extra/system_io.h"
 
 #include <array>
 #include <cstring>
@@ -13,6 +15,7 @@
 #include "apery_book.h"
 #include "../position.h"
 #include "../misc.h"
+#include "../extra/tools.h"
 #include "../search.h"
 #include "../thread.h"
 #include "../usi.h"

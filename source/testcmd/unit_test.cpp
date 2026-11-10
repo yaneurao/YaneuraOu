@@ -223,9 +223,6 @@ namespace Test
 		// USI namespace
 		tester.run(USIEngine::UnitTest);
 
-		// Misc tools
-		tester.run(Misc::UnitTest);
-
 		// 指し手生成のテスト
 		//tester.run(MoveGen::UnitTest)
 

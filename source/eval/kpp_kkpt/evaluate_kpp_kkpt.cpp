@@ -1,4 +1,5 @@
 ﻿#include "../../config.h"
+#include "../../extra/tools.h"
 
 // KPP+KKPTの実験用コード。
 // ほとんどevaluate_kppt.cppと同じ。

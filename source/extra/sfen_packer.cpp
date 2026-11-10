@@ -1,4 +1,5 @@
 ﻿#include "../config.h"
+#include "tools.h"
 
 #include "../misc.h"
 #include "../position.h"

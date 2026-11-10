@@ -3,6 +3,7 @@
 #define NNUE_SFNN_NETWORK_16_H_INCLUDED
 
 #include "../nnue_common.h"
+#include "../../../extra/tools.h"
 #include <algorithm>
 #include <cstdint>
 #include <type_traits>

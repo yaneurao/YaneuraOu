@@ -8,6 +8,7 @@
 #include <stdexcept>
 
 #include "bitboard.h"
+#include "extra/tools.h"
 #include "evaluate.h"
 #include "types.h"
 

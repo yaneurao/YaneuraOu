@@ -4,6 +4,7 @@
 #define CLASSIC_NNUE_LAYERS_SUM_H
 
 #include "../../../config.h"
+#include "../../../extra/tools.h"
 
 #if defined(EVAL_NNUE)
 
