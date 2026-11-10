@@ -1328,36 +1328,6 @@ namespace Parser
 }
 
 // --------------------
-//       Math
-// --------------------
-
-// 進行度の計算や学習で用いる数学的な関数
-namespace Math {
-	// シグモイド関数
-	//  = 1.0 / (1.0 + std::exp(-x))
-	double sigmoid(double x);
-
-	// シグモイド関数の微分
-	//  = sigmoid(x) * (1.0 - sigmoid(x))
-	double dsigmoid(double x);
-
-	// vを[lo,hi]の間に収まるようにクリップする。
-	// ※　Stockfishではこの関数、bitboard.hに書いてある。
-	template<class T> constexpr const T& clamp(const T& v, const T& lo, const T& hi) {
-		return v < lo ? lo : v > hi ? hi : v;
-	}
-
-	// cの倍数になるようにvを繰り上げる
-	template<class T> constexpr const T align(const T v, const int c)
-	{
-		// cは2の倍数である。(1である一番上のbit以外は0
-		ASSERT_LV3((c & (c - 1)) == 0);
-		return (v + (T)(c - 1)) & ~(T)(c - 1);
-	}
-
-}
-
-// --------------------
 //    文字列 拡張
 // --------------------
 

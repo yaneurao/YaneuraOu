@@ -824,7 +824,7 @@ namespace {
 
         // 1) ここ、下手にclipすると学習時には影響があるような気もするが…。
         // 2) accumulator.scoreは、差分計算の時に用いないので書き換えて問題ない。
-        score = Math::clamp(score, -VALUE_MAX_EVAL, VALUE_MAX_EVAL);
+        score = std::clamp(score, -VALUE_MAX_EVAL, VALUE_MAX_EVAL);
 
         accumulator.score = score;
         accumulator.computed_score = true;

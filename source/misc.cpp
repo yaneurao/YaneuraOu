@@ -1818,18 +1818,6 @@ namespace Parser
 }
 
 // --------------------
-//       Math
-// --------------------
-
-double Math::sigmoid(double x) {
-	return 1.0 / (1.0 + exp(-x));
-}
-
-double Math::dsigmoid(double x) {
-	return sigmoid(x) * (1.0 - sigmoid(x));
-}
-
-// --------------------
 //    文字列 拡張
 // --------------------
 
