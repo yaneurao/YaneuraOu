@@ -88,17 +88,8 @@
 // #define YANEURAOU_ENGINE
 
 
-// Position::see()を用いるか。これはSEE(Static Exchange Evaluation : 静的取り合い評価)の値を返す関数。
-// #define USE_SEE
-
-
 // Timerクラスに、今回の思考時間を計算する機能を追加するか。
 // #define USE_TIME_MANAGEMENT
-
-
-// MovePickerを使うのか(Stockfish風のコード)
-// ※　通常探索部以外では使わないので、切り離せるようになっている。
-// #define USE_MOVE_PICKER
 
 
 // Position classにcorrection historyで用いるような
@@ -152,9 +143,9 @@
 // EVAL_SFNNを使うときはdefineしてはならない。
 // #define USE_CLASSIC_EVAL
 
-// 駒の価値のテーブルを使うか。(Apery WCSC26の定義)
-// Eval::PieceValueなどが使えるようになる。
-//#define USE_PIECE_VALUE
+// StateInfoに駒割り評価値を保持し、局面設定時の計算とdo_move()時の差分更新を行う。
+// 駒価値テーブル・SEE・MovePickerは、この指定によらず利用できる。
+// #define USE_MATERIAL_VALUE
 
 // do_move()のときに移動した駒の管理をして差分計算
 // 1. 駒番号を管理しているpiece_listについて
@@ -369,14 +360,12 @@ constexpr int MAX_PLY_NUM = 246;
 	#define YANEURAOU_ENGINE
 	#define USE_CLASSIC_EVAL
 	#define USE_PARTIAL_KEY
-	#define USE_PIECE_VALUE
-	#define USE_SEE
+	#define USE_MATERIAL_VALUE
 	#define USE_EVAL_LIST
 	#define USE_MATE_1PLY
 	#define USE_MATE_SOLVER
 	#define USE_MATE_DFPN
 	#define USE_TIME_MANAGEMENT
-	#define USE_MOVE_PICKER
 	#define USE_EVAL
 
 	// 定跡関連コマンド
@@ -460,7 +449,6 @@ constexpr int MAX_PLY_NUM = 246;
 	#define USE_MATE_1PLY
 	#define USE_MATE_SOLVER
 	#define USE_MATE_DFPN
-	#define USE_PIECE_VALUE
 	#define ENABLE_TEST_CMD
 
 	// 勝率の集計を行う型としてdouble型を用いる。
@@ -486,7 +474,7 @@ constexpr int MAX_PLY_NUM = 246;
 // --- やねうら王詰将棋エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(YANEURAOU_MATE_ENGINE)
-	// 🤔 CLASSIC EVALは用いないが、Position::materialのような
+	// 🤔 CLASSIC EVALは用いないが、KEEP_LAST_MOVEのようなStateInfo上の
 	//     追加メンバー変数を用いるには、USE_CLASSIC_EVALを定義する必要がある。
 	#define USE_CLASSIC_EVAL
 	#undef MAX_PLY_NUM
@@ -495,7 +483,6 @@ constexpr int MAX_PLY_NUM = 246;
 	//#define LONG_EFFECT_LIBRARY
 	#define USE_MATE_SOLVER
 	#define USE_MATE_DFPN
-	#define USE_PIECE_VALUE
 	#define ENABLE_TEST_CMD
 #endif
 
@@ -503,10 +490,8 @@ constexpr int MAX_PLY_NUM = 246;
 // --- ユーザーの自作エンジンとして実行ファイルを公開するとき用の設定集
 
 #if defined(USER_ENGINE)
-	//#define USE_SEE
 	//#define USE_EVAL
 	//#define EVAL_MATERIAL
-	//#define USE_PIECE_VALUE
 #endif
 
 // --------------------

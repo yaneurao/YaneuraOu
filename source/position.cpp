@@ -732,7 +732,7 @@ std::optional<PositionSetError> Position::set(const std::string& sfen, StateInfo
 
     // --- evaluate
 
-#if defined(USE_PIECE_VALUE)
+#if defined(USE_MATERIAL_VALUE)
     st->materialValue = Eval::material(*this);
 #endif
 
@@ -1813,7 +1813,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 
 #endif
 
-#if defined(USE_PIECE_VALUE)
+#if defined(USE_MATERIAL_VALUE)
     // 駒割りの差分計算用
     int materialDiff;
 #endif
@@ -1893,7 +1893,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         // put_piece()などを用いたのでupdateする
         update_bitboards();
 
-#if defined(USE_PIECE_VALUE)
+#if defined(USE_MATERIAL_VALUE)
         // 駒打ちなので駒割りの変動なし。
         materialDiff = 0;
 #endif
@@ -1918,7 +1918,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         // もし成る指し手であるなら、成った後の駒を配置する。
         Piece moved_after_pc = moved_piece_after(m);
 
-#if defined(USE_PIECE_VALUE)
+#if defined(USE_MATERIAL_VALUE)
         materialDiff = m.is_promote() ? Eval::ProDiffPieceValue[moved_pc] : 0;
 #endif
         // 📌 ここから下はStockfishのdo_move()のコードの一部 📌
@@ -1972,7 +1972,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
             h += Zobrist::hand[Us][pr];
 #endif
 
-#if defined(USE_PIECE_VALUE)
+#if defined(USE_MATERIAL_VALUE)
             // 評価関数で使う駒割りの値も更新
             materialDiff += Eval::CapturePieceValue[captured];
 #endif
@@ -2096,7 +2096,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
     //st->continuousCheck[them] = prev->continuousCheck[them];
     // 💡 memcpy()するので自動的にそうなっている。
 
-#if defined(USE_PIECE_VALUE)
+#if defined(USE_MATERIAL_VALUE)
     st->materialValue =
       (Value) (st->previous->materialValue + (Us == BLACK ? materialDiff : -materialDiff));
     //ASSERT_LV5(st->materialValue == Eval::material(*this));
@@ -2544,7 +2544,6 @@ void Position::undo_null_move()
 }
 
 
-#if defined (USE_SEE)
 
 // Tests if the SEE (Static Exchange Evaluation)
 // value of move is greater or equal to the given threshold. We'll use an
@@ -2827,7 +2826,6 @@ bool Position::see_ge(Move m, Value threshold) const
     return bool(res);
 }
 
-#endif // defined (USE_SEE)
 
 // ----------------------------------
 //      千日手判定
@@ -3702,7 +3700,6 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
             tester.test("bishop's unpromoted move", all);
         }
     }
-#if defined(USE_SEE)
     {
         // see_ge()のテスト
         auto      section = tester.section("see_ge");
@@ -3750,7 +3747,6 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         m = pos.to_move(make_move16(SQ_22, SQ_33));
         tester.test("pos2move", see_ge_th(-Eval::HorseValue));
     }
-#endif
 
     {
         // null moveのテスト

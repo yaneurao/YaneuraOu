@@ -189,7 +189,7 @@ struct StateInfo {
 
 	// --- evaluate
 
-#if defined(USE_PIECE_VALUE)
+#if defined(USE_MATERIAL_VALUE)
         // この局面での評価関数の駒割
         Value materialValue;
 #endif
@@ -734,13 +734,11 @@ public:
 	const Eval::EvalList* eval_list() const { return &evalList; }
 #endif
 
-#if defined (USE_SEE)
 	// 指し手mのsee(Static Exchange Evaluation : 静的取り合い評価)において
 	// v(しきい値)以上になるかどうかを返す。
 	// see_geのgeはgreater or equal(「以上」の意味)の略。
 	bool see_ge(Move m, Value threshold = VALUE_ZERO) const;
 
-#endif
 
     // -----------------------
     // Accessing hash keys

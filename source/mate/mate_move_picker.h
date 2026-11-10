@@ -70,19 +70,20 @@ namespace Mate {
 			});
 
 			// それぞれの指し手に対して点数をつける。
-			if (MoveOrdering)
+			if constexpr (MoveOrdering)
 			{
-#if !defined (USE_PIECE_VALUE)
-				std::cout << "Error! : define USE_PIECE_VALUE" << std::endl;
-#endif
-
 				// 現在の駒割りに、captureする指し手に対してcaptureする駒を加点して、
 				// あと、駒の移動先の升が受け方の玉から近いかに対して加点して、その指し手の価値として返す。
 				// 大雑把なオーダリングだが、異なる深さのleaf nodeの有望さの比較がそれによってきちんとできるなら
 				// わりとアリなのでは…。
 
 				// 先手から見た駒割
-				int value = pos.state()->materialValue;
+#if defined(USE_MATERIAL_VALUE)
+                int value = pos.state()->materialValue;
+#else
+                // 駒割りを保持しない構成では、オーダリングが必要なときだけ計算する。
+                int value = Eval::material(pos);
+#endif
 
 				// いまの手番側
 				auto us = pos.side_to_move();

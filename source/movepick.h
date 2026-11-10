@@ -2,7 +2,6 @@
 #define MOVEPICK_H_INCLUDED
 
 #include "config.h"
-#if defined(USE_MOVE_PICKER)
 
 #include <array>
 //#include <cassert>
@@ -140,6 +139,5 @@ class MovePicker {
 
 }  // namespace YaneuraOu
 
-#endif // defined(USE_MOVE_PICKER)
 #endif // #ifndef MOVEPICK_H_INCLUDED
 

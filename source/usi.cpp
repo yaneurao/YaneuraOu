@@ -1689,7 +1689,6 @@ bool parse_ponderhit(istringstream& is, Search::LimitsType& limits)
 // スコアを歩の価値を100として正規化して出力する。
 //   MATEではないスコアなら"cp x"のように出力する。
 //   MATEのスコアなら、"mate x"のように出力する。
-// ⚠ USE_PIECE_VALUEが定義されていない時は正規化しようがないのでこの関数は呼び出せない。
 std::string USIEngine::value(Value v)
 {
 	ASSERT_LV3(-VALUE_INFINITE < v && v < VALUE_INFINITE);

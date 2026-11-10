@@ -120,7 +120,6 @@ public:
 	// MATEではないスコアなら"cp x"のように出力する。
 	// MATEのスコアなら、"mate x"のように出力する。
 	// 
-	// ⚠ USE_PIECE_VALUEが定義されていない時は正規化しようがないのでこの関数は呼び出せない。
 	static std::string value(Value v);
 
     // USIの指し手文字列などに使われている盤上の升を表す文字列をSquare型に変換する

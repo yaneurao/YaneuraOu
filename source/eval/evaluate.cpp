@@ -22,10 +22,8 @@ namespace Eval
 
 #endif
 
-#if defined(USE_PIECE_VALUE)
-	// 何らかの評価関数を用いる以上、駒割りの計算は必須。
-	// 評価関数を一切呼び出さないならこの計算は要らないが、
-	// 実行時のオーバーヘッドは小さいので、そこまで考慮することもなさげ。
+	// 必要なときに駒割りを全計算する。
+	// USE_MATERIAL_VALUEを有効にした構成では、局面設定時に計算し、以降は差分更新する。
 
 	// 駒割りの計算
 	// 先手側から見た評価値
@@ -43,7 +41,6 @@ namespace Eval
 
 		return (Value)v;
 	}
-#endif
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 

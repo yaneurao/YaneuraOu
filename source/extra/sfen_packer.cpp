@@ -704,7 +704,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen , StateInfo 
 
 	// --- evaluate
 
-#if defined(USE_PIECE_VALUE)
+#if defined(USE_MATERIAL_VALUE)
 	st->materialValue = Eval::material(*this);
 #endif
 

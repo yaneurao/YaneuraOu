@@ -65,9 +65,6 @@ namespace Eval {
 
 #endif // defined(USE_CLASSIC_EVAL)
 
-
-#if defined (USE_PIECE_VALUE)
-
     // 駒割りを計算する。
 	// 💡 この関数は、classic evalでなくとも用いることがある。(例えば、dfpnのMovePickerでmaterialに従ってorderingする場合など)
 	// 📝 Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
@@ -116,16 +113,6 @@ namespace Eval {
 	// ※　move.to_sq()に駒がない場合もこの関数の呼び出しは合法。(VALUE_NONEが返る)
 	// ⚠  後手の駒に対してもプラスの値が返る。
 	Value CapturePieceValuePlusPromote(const Position& pos, Move move);
-
-#else
-
-	// 📝 cpに変換する時に必要なのでPawnValueだけは定義しておく。
-	enum {
-		PawnValue = 90
-	};
-
-#endif
-
 
 #if defined(USE_EVAL_LIST)
 
