@@ -1,5 +1,7 @@
-﻿#include "tt.h"
+﻿#if !STOCKFISH
 #include "extra/tools.h"
+#endif
+#include "tt.h"
 
 #include <algorithm>
 #include <cassert>
