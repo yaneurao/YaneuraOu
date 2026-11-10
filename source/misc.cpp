@@ -194,6 +194,14 @@ std::string engine_version_info() {
 			<< std::setw(2) << std::setfill('0') << day;
 #endif
 
+#ifdef GIT_DIFFINDEX
+        ss << "-m";
+#endif
+        // GIT_DIFFINDEXが定義されていれば、開発版のバージョン名に「-m」を付加する。
+        // StockfishではMakefileが未コミットの変更を検出した場合に定義する。
+        // やねうら王のMakefileでは自動設定しない。必要ならEXTRA_CPPFLAGSで
+        // -DGIT_DIFFINDEXを指定する。
+
 		ss << "-";
 
 #ifdef GIT_SHA
