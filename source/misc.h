@@ -592,7 +592,12 @@ static std::ostream& operator<<(std::ostream& os, PRNG& prng)
 //  64bit×64bitの掛け算の上位64bitを取り出す関数
 // --------------------
 
+#if STOCKFISH
+inline usize mul_hi64(u64 a, usize b) {
+// Stockfishのこの部分、u64に書き換え忘れているのだと思う。
+#else
 inline u64 mul_hi64(u64 a, u64 b) {
+#endif
 #if defined(__GNUC__) && defined(IS_64BIT) && !defined(__wasm__)
     return (u128(a) * u128(b)) >> 64;
 #else
