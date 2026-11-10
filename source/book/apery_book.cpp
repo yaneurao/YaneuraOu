@@ -70,7 +70,7 @@ void AperyBook::init() {
 AperyBook::AperyBook(const std::string& filename) {
     init();
 
-    std::ifstream file(filename, std::ifstream::in | std::ifstream::binary);
+    std::ifstream file(path_from_utf8(filename), std::ifstream::in | std::ifstream::binary);
 
     if (!file.is_open())
         sync_cout << "info string could not open an apery book file. " << filename << sync_endl;

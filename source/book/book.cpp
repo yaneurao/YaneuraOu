@@ -314,7 +314,7 @@ namespace Book
 
 	static bool read_file_to_memory(const std::string& filename, std::vector<unsigned char>& data)
 	{
-		std::ifstream file(filename, std::ios::in | std::ios::binary | std::ios::ate);
+		std::ifstream file(path_from_utf8(filename), std::ios::in | std::ios::binary | std::ios::ate);
 		if (!file)
 			return false;
 
@@ -585,13 +585,13 @@ namespace Book
 			{
 				if (ybb_book_file)
 				{
-					ybb_index_fs.open(actual_filename, std::ios::in | std::ios::binary);
+					ybb_index_fs.open(path_from_utf8(actual_filename), std::ios::in | std::ios::binary);
 					if (ybb_index_fs.fail())
 					{
 						sync_cout << "info string Error! : can't read file : " + actual_filename << sync_endl;
 						return Tools::Result(Tools::ResultCode::FileNotFound);
 					}
-					ybb_moves_fs.open(actual_filename, std::ios::in | std::ios::binary);
+					ybb_moves_fs.open(path_from_utf8(actual_filename), std::ios::in | std::ios::binary);
 					if (ybb_moves_fs.fail())
 					{
 						sync_cout << "info string Error! : can't read file : " + actual_filename << sync_endl;
@@ -621,7 +621,7 @@ namespace Book
 				if (fs.is_open())
 					fs.close();
 
-				fs.open(actual_filename, std::ios::in);
+				fs.open(path_from_utf8(actual_filename), std::ios::in);
 				if (fs.fail())
 				{
 					sync_cout << "info string Error! : can't read file : " + actual_filename << sync_endl;
@@ -1426,9 +1426,9 @@ namespace Book
 	// Option["BookDir"]が定跡ファイルの入っているフォルダなのでこれを連結した定跡ファイルのファイル名を返す。
 	std::string BookMoveSelector::get_book_name() const
 	{
-        std::string abs_book_dir =
-            Path::Combine(Directory::GetBinaryFolder(), std::string(options["BookDir"]));
-		return Path::Combine( abs_book_dir , std::string(options["BookFile"]));
+        const auto abs_book_dir = Directory::GetBinaryFolder()
+                                / path_from_utf8(std::string(options["BookDir"]));
+        return (abs_book_dir / path_from_utf8(std::string(options["BookFile"]))).u8string();
 	}
 
 	std::vector<std::string> BookMoveSelector::get_book_names() const

@@ -4,6 +4,8 @@
 
 #include "FukauraOuEngine.h"
 
+#include <filesystem>
+
 #include "../../position.h"
 #include "../../usi.h"
 #include "../../thread.h"
@@ -133,9 +135,9 @@ void FukauraOuEngine::init_gpu() {
 
     // 評価関数モデルのPATH。
     auto eval_dir      = options["EvalDir"];
-    auto abs_eval_path = Path::Combine(Directory::GetBinaryFolder(), eval_dir);
+    auto abs_eval_path = Directory::GetBinaryFolder() / path_from_utf8(std::string(eval_dir));
     auto model_name    = options["DNN_Model"];
-    auto model_path    = Path::Combine(abs_eval_path, model_name);
+    auto model_path    = abs_eval_path / path_from_utf8(std::string(model_name));
     std::string model_architecture = options["ModelArchitecture"];
 
     if (!Eval::dlshogi::set_model_architecture(model_architecture))
@@ -151,13 +153,14 @@ void FukauraOuEngine::init_gpu() {
               << sync_endl;
 
     // modelファイルが存在することは事前に確認しておく。
-    if (!Path::Exists(model_path))
+    std::error_code model_error;
+    if (!std::filesystem::is_regular_file(model_path, model_error))
     {
         sync_cout << "Error! : " << model_path << " file not found" << sync_endl;
         Tools::exit();
     }
 
-    searcher.InitGPU(model_path, model_architecture, thread_settings, dnn_batch_size);
+    searcher.InitGPU(model_path.u8string(), model_architecture, thread_settings, dnn_batch_size);
 }
 
 

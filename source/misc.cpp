@@ -701,7 +701,7 @@ std::optional<usize> str_to_size_t(const std::string& s) {
 optional<string> read_file_to_string(const string& filename) {
 
 	// 起動フォルダ相対でのpath
-	std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+	const auto path = Directory::GetBinaryFolder() / path_from_utf8(filename);
 
 	ifstream f(path, ios_base::binary);
 	if (!f)
@@ -1060,10 +1060,22 @@ namespace Tools {
 
 namespace SystemIO
 {
+    namespace {
+    // ネイティブのパスを保ったままFILE*を開く。modeはASCIIのモード指定。
+    FILE* open_file(const fs::path& path, const char* mode) {
+#ifdef _WIN32
+        const std::wstring wide_mode(mode, mode + std::strlen(mode));
+        return _wfopen(path.c_str(), wide_mode.c_str());
+#else
+        return std::fopen(path.c_str(), mode);
+#endif
+    }
+    }
+
 
 	// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。末尾の改行は除去される。
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
-	Tools::Result ReadAllLines(const string& filename, vector<string>& lines, bool trim)
+	Tools::Result ReadAllLines(const fs::path& filename, vector<string>& lines, bool trim)
 	{
 #if 0
 		ifstream fs(filename);
@@ -1095,7 +1107,7 @@ namespace SystemIO
 		reader.SkipEmptyLine(true);
 
 		// 起動フォルダ相対でのpath
-		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+		const auto path = Directory::GetBinaryFolder() / filename;
 
 		auto result = reader.Open(path);
 		if (!result.is_ok())
@@ -1109,12 +1121,12 @@ namespace SystemIO
 	}
 
 	// ファイルにすべての行を書き出す。
-	Tools::Result WriteAllLines(const string& filename, vector<string>& lines)
+	Tools::Result WriteAllLines(const fs::path& filename, vector<string>& lines)
 	{
 		TextWriter writer;
 
 		// 起動フォルダ相対でのpath
-		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+		const auto path = Directory::GetBinaryFolder() / filename;
 
 		if (writer.Open(path).is_not_ok())
 			return Tools::ResultCode::FileOpenError;
@@ -1128,14 +1140,14 @@ namespace SystemIO
 		return Tools::ResultCode::Ok;
 	}
 
-	Tools::Result ReadFileToMemory(const string& filename, function<void* (size_t)> callback_func)
+	Tools::Result ReadFileToMemory(const fs::path& filename, function<void* (size_t)> callback_func)
 	{
 		// fstream、遅いので、FILEを用いて書き換える。
 
 		// 起動フォルダ相対でのpath
-		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+		const auto path = Directory::GetBinaryFolder() / filename;
 
-		FILE* fp = fopen(path.c_str(), "rb");
+		FILE* fp = open_file(path, "rb");
 		if (fp == nullptr)
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
@@ -1175,10 +1187,10 @@ namespace SystemIO
 	}
 
 
-	Tools::Result WriteMemoryToFile(const string& filename, void* ptr, size_t size)
+	Tools::Result WriteMemoryToFile(const fs::path& filename, void* ptr, size_t size)
 	{
 		// 起動フォルダ相対でのpath
-		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+		const auto path = Directory::GetBinaryFolder() / filename;
 
 		fstream fs(path, ios::out | ios::binary);
 		if (fs.fail())
@@ -1260,15 +1272,15 @@ namespace SystemIO
 	}
 
 	// ファイルをopenする。
-	Tools::Result TextReader::Open(const string& filename)
+	Tools::Result TextReader::Open(const fs::path& filename)
 	{
 		Close();
 
 		// 起動フォルダ相対でのpath
-		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+		const auto path = Directory::GetBinaryFolder() / filename;
 
 		// 高速化のためにbinary open
-		fp = fopen(path.c_str(), "rb");
+		fp = open_file(path, "rb");
 		return (fp == nullptr) ? Tools::Result(Tools::ResultCode::FileOpenError) : Tools::Result::Ok();
 	}
 
@@ -1438,14 +1450,14 @@ namespace SystemIO
 
 	// === TextWriter ===
 
-	Tools::Result TextWriter::Open(const string& filename)
+	Tools::Result TextWriter::Open(const fs::path& filename)
 	{
 		Close();
 
 		// 起動フォルダ相対でのpath
-		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+		const auto path = Directory::GetBinaryFolder() / filename;
 
-		fp = fopen(path.c_str(), "wb");
+		fp = open_file(path, "wb");
 		return fp == nullptr ? Tools::ResultCode::FileOpenError
                              : Tools::ResultCode::Ok;
 	}
@@ -1551,7 +1563,7 @@ namespace SystemIO
 	// === BinaryReader ===
 
 	// ファイルのopen
-	Tools::Result BinaryReader::Open(const string& filename)
+	Tools::Result BinaryReader::Open(const fs::path& filename)
 	{
 		auto close_result = Close();
 		if (!close_result.is_ok()) {
@@ -1559,9 +1571,9 @@ namespace SystemIO
 		}
 
 		// 起動フォルダ相対でのpath
-		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+		const auto path = Directory::GetBinaryFolder() / filename;
 
-		fp = fopen(path.c_str(), "rb");
+		fp = open_file(path, "rb");
 		if (fp == nullptr)
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
@@ -1608,12 +1620,12 @@ namespace SystemIO
 	// === BinaryWriter ===
 
 	// ファイルのopen
-	Tools::Result BinaryWriter::Open(const string& filename, bool append)
+	Tools::Result BinaryWriter::Open(const fs::path& filename, bool append)
 	{
 		// 起動フォルダ相対でのpath
-		std::string path = Path::Combine(Directory::GetBinaryFolder(), filename);
+		const auto path = Directory::GetBinaryFolder() / filename;
 
-		fp = fopen(path.c_str(), append ? "ab" : "wb");
+		fp = open_file(path, append ? "ab" : "wb");
 		if (fp == nullptr)
 			return Tools::Result(Tools::ResultCode::FileOpenError);
 
@@ -1715,7 +1727,7 @@ namespace Path
 	// ファイルが存在するかの確認
 	bool Exists(const std::string& path)
 	{
-		std::ifstream ifs(path);
+		std::ifstream ifs(path_from_utf8(path));
 
 		// openに成功したら存在する。
         return ifs.is_open();
@@ -1742,29 +1754,29 @@ namespace Directory
 
 		// filesystemのファイル列挙、ディレクトリとして空の文字列を渡すと例外で落ちる。
 		// current directoryにしたい時は明示的に指定してやらなければならない。
-		auto src = sourceDirectory.empty() ? fs::current_path() : fs::path(sourceDirectory);
+		auto src = sourceDirectory.empty() ? fs::current_path() : path_from_utf8(sourceDirectory);
 
 		for (auto ent : fs::directory_iterator(src))
 			if (fs::is_regular_file(ent)
 				&& StringExtension::EndsWith(ent.path().filename().string(), extension))
 
-				filenames.push_back(Path::Combine(ent.path().parent_path().string(), ent.path().filename().string()));
+				filenames.push_back(ent.path().u8string());
 
 		return filenames;
 	}
 
-	// フォルダを作成する。日本語は使っていないものとする。
+	// フォルダを作成する。文字列のパスはUTF-8で指定できる。
 	// 💡 working directory相対で指定する。
 	Tools::Result CreateFolder(const std::string& dir_name) {
 		std::error_code ec;
-		bool created = fs::create_directory(dir_name, ec);
+		bool created = fs::create_directory(path_from_utf8(dir_name), ec);
 		return created
 			? Tools::Result::Ok()
 			: Tools::Result(Tools::ResultCode::CreateFolderError);
 	}
 
 	// 起動時のフォルダを返す。
-	string GetBinaryFolder() { return CommandLine::get_binary_directory(); }
+	fs::path GetBinaryFolder() { return CommandLine::get_binary_directory(); }
 }
 
 
@@ -2125,28 +2137,10 @@ fs::path CommandLine::get_binary_directory(fs::path argv0) {
 
 
 #if !STOCKFISH
-// 既存の文字列API向けに、絶対パスと末尾の区切り文字を用意する。
-std::string CommandLine::get_binary_directory() {
-    auto directory = get_binary_directory(
-      g.argc > 0 && g.argv && g.argv[0] ? path_from_utf8(g.argv[0]) : fs::path{});
-    directory = fs::absolute(directory);
-
-#ifdef _WIN32
-    // 既存のfopen/ifstreamなどはANSIのパスを受け取るため、ここだけ変換する。
-    // Unicodeのパスが必要な呼び出し側はfilesystem::path版を直接使用する。
-    const auto& native = directory.native();
-    int size = WideCharToMultiByte(CP_ACP, 0, native.data(), int(native.size()),
-                                  nullptr, 0, nullptr, nullptr);
-    std::string result(size, '\0');
-    if (size > 0)
-        WideCharToMultiByte(CP_ACP, 0, native.data(), int(native.size()),
-                            result.data(), size, nullptr, nullptr);
-#else
-    std::string result = directory.string();
-#endif
-    if (!result.empty() && result.back() != '/' && result.back() != '\\')
-        result += char(fs::path::preferred_separator);
-    return result;
+// プロセス共通の起動引数から、Unicodeを保持した絶対パスを返す。
+fs::path CommandLine::get_binary_directory() {
+    return fs::absolute(get_binary_directory(
+      g.argc > 0 && g.argv && g.argv[0] ? path_from_utf8(g.argv[0]) : fs::path{}));
 }
 #endif
 

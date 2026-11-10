@@ -21,6 +21,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <cstring>
@@ -667,7 +668,6 @@ inline u64 hash_string(const std::string& sv) { return hash_bytes(sv.data(), sv.
 
 struct CommandLine {
 public:
-    CommandLine() = default;
     CommandLine(int _argc, char** _argv);
 
     CommandLine(const CommandLine&)            = delete;
@@ -675,26 +675,29 @@ public:
     CommandLine(CommandLine&&)                 = default;
     CommandLine& operator=(CommandLine&&)      = default;
 
+#if !STOCKFISH
+	// 🌈 やねうら王では、Multi Engineを採用しているので、
+	//    それぞれのEngineからCommandLineを参照できる必要がある。
+
+    CommandLine() = default;
+
 	// コンストラクタでargc,argvを渡さなかった時に、あとから設定する。
     // WindowsではOSからUnicodeの起動引数を取得し、UTF-8へ変換して保持する。
     void set_arg(int _argc, char** _argv);
+
+    // プロセス共通の起動引数から、実行ファイルの配置ディレクトリを絶対パスで返す。
+    static std::filesystem::path get_binary_directory();
+
+	// global object
+	static CommandLine g;
+#endif
 
     // argv0で指定された実行ファイルの配置ディレクトリを返す。
     // WindowsではOSから取得した実行ファイルのパスを優先する。
     static std::filesystem::path get_binary_directory(std::filesystem::path argv0);
 
-#if !STOCKFISH
-    // 起動フォルダを文字列で返す、やねうら王の互換API。
-    // 末尾にパス区切り文字を付ける。Directory::GetBinaryFolder()から使用する。
-    // Windowsでは既存のファイル入出力に合わせ、ANSIコードページの文字列を返す。
-    static std::string get_binary_directory();
-#endif
-
 	int    argc;
 	char** argv;
-
-	// global object
-	static CommandLine g;
 
    private:
 #ifdef _WIN32
@@ -971,11 +974,23 @@ namespace SystemIO
 	// 引数で渡されるtrimはtrueを渡すと末尾のスペース、タブがトリムされる。
 	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
 	// 💡 filenameは、起動フォルダ相対で指定する。
-	Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false);
+	Tools::Result ReadAllLines(const std::filesystem::path& filename, std::vector<std::string>& lines, bool trim = false);
+    inline Tools::Result ReadAllLines(const std::string& filename, std::vector<std::string>& lines, bool trim = false) {
+        return ReadAllLines(path_from_utf8(filename), lines, trim);
+    }
+    inline Tools::Result ReadAllLines(const char* filename, std::vector<std::string>& lines, bool trim = false) {
+        return ReadAllLines(path_from_utf8(filename), lines, trim);
+    }
 
 	// ファイルにすべての行を書き出す。
 	// 💡 filenameは、起動フォルダ相対で指定する。
-	Tools::Result WriteAllLines(const std::string& filename, std::vector<std::string>& lines);
+	Tools::Result WriteAllLines(const std::filesystem::path& filename, std::vector<std::string>& lines);
+    inline Tools::Result WriteAllLines(const std::string& filename, std::vector<std::string>& lines) {
+        return WriteAllLines(path_from_utf8(filename), lines);
+    }
+    inline Tools::Result WriteAllLines(const char* filename, std::vector<std::string>& lines) {
+        return WriteAllLines(path_from_utf8(filename), lines);
+    }
 
 
 	// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
@@ -989,8 +1004,20 @@ namespace SystemIO
 	// nullptrを返せば良い。このとき、read_file_to_memory()は、読み込みを中断し、エラーリターンする。
 	// 💡 filenameは、起動フォルダ相対で指定する。
 
-	Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func);
-	Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, size_t size);
+	Tools::Result ReadFileToMemory(const std::filesystem::path& filename, std::function<void* (size_t)> callback_func);
+    inline Tools::Result ReadFileToMemory(const std::string& filename, std::function<void* (size_t)> callback_func) {
+        return ReadFileToMemory(path_from_utf8(filename), std::move(callback_func));
+    }
+    inline Tools::Result ReadFileToMemory(const char* filename, std::function<void* (size_t)> callback_func) {
+        return ReadFileToMemory(path_from_utf8(filename), std::move(callback_func));
+    }
+	Tools::Result WriteMemoryToFile(const std::filesystem::path& filename, void* ptr, size_t size);
+    inline Tools::Result WriteMemoryToFile(const std::string& filename, void* ptr, size_t size) {
+        return WriteMemoryToFile(path_from_utf8(filename), ptr, size);
+    }
+    inline Tools::Result WriteMemoryToFile(const char* filename, void* ptr, size_t size) {
+        return WriteMemoryToFile(path_from_utf8(filename), ptr, size);
+    }
 
 	// 通常のftell/fseekは2GBまでしか対応していないので特別なバージョンが必要である。
 
@@ -1007,7 +1034,9 @@ namespace SystemIO
 
 		// ファイルをopenする。
 		// 💡 filenameは、起動フォルダ相対で指定する。
-		Tools::Result Open(const std::string& filename);
+		Tools::Result Open(const std::filesystem::path& filename);
+        Tools::Result Open(const std::string& filename) { return Open(path_from_utf8(filename)); }
+        Tools::Result Open(const char* filename) { return Open(path_from_utf8(filename)); }
 
 		// Open()を呼び出してオープンしたファイルをクローズする。
 		void Close();
@@ -1105,7 +1134,9 @@ namespace SystemIO
 		static constexpr size_t buf_size = 4096;
 
 		// 💡 filenameは、起動フォルダ相対で指定する。
-		Tools::Result Open(const std::string& filename);
+		Tools::Result Open(const std::filesystem::path& filename);
+        Tools::Result Open(const std::string& filename) { return Open(path_from_utf8(filename)); }
+        Tools::Result Open(const char* filename) { return Open(path_from_utf8(filename)); }
 
 		// 文字列を書き出す(改行コードは書き出さない)
 		Tools::Result Write(const std::string& str);
@@ -1156,7 +1187,9 @@ namespace SystemIO
 	public:
 		// ファイルのopen
 		// 💡 filenameは、起動フォルダ相対で指定する。
-		Tools::Result Open(const std::string& filename);
+		Tools::Result Open(const std::filesystem::path& filename);
+        Tools::Result Open(const std::string& filename) { return Open(path_from_utf8(filename)); }
+        Tools::Result Open(const char* filename) { return Open(path_from_utf8(filename)); }
 
 		// ファイルサイズの取得
 		// ファイルポジションは先頭に移動する。
@@ -1178,7 +1211,9 @@ namespace SystemIO
 		// ファイルのopen
 		// append == trueで呼び出すと、このあとWriteしたものはファイル末尾に追記される。
 		// 💡 filenameは、起動フォルダ相対で指定する。
-		Tools::Result Open(const std::string& filename, bool append = false);
+		Tools::Result Open(const std::filesystem::path& filename, bool append = false);
+        Tools::Result Open(const std::string& filename, bool append = false) { return Open(path_from_utf8(filename), append); }
+        Tools::Result Open(const char* filename, bool append = false) { return Open(path_from_utf8(filename), append); }
 
 		// ptrの指すメモリからsize[byte]だけファイルに書き込む。
 		// ※　sizeは2GB制限があるので気をつけて。
@@ -1240,13 +1275,13 @@ namespace Directory
 	std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const std::string& extension);
 
 	// フォルダを作成する。
-	// working directory相対で指定する。dir_nameに日本語は使っていないものとする。
+	// working directory相対で指定する。文字列のパスはUTF-8で指定できる。
 	// ※　Windows環境だと、この関数名、WinAPIのCreateDirectoryというマクロがあって…。
 	// 　ゆえに、CreateDirectory()をやめて、CreateFolder()に変更する。
 	Tools::Result CreateFolder(const std::string& dir_name);
 
 	// 起動時のフォルダを返す。
-	std::string GetBinaryFolder();
+	std::filesystem::path GetBinaryFolder();
 }
 
 // --------------------

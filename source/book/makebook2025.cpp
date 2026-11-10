@@ -25,6 +25,7 @@
 #include <charconv>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <thread>
@@ -526,7 +527,10 @@ namespace MakeBook2025
 			output_result();
 
 			if (!fast)
-				std::remove(sfen_temp_path.c_str());
+            {
+                std::error_code ignored;
+                std::filesystem::remove(Directory::GetBinaryFolder() / path_from_utf8(sfen_temp_path), ignored);
+            }
 		}
 
 	protected:
@@ -649,13 +653,13 @@ namespace MakeBook2025
 
 			if (is_ybb_book(readbook_path))
 			{
-				ifstream index_reader(readbook_path, ios::binary);
+				ifstream index_reader(path_from_utf8(readbook_path), ios::binary);
 				if (!index_reader)
 				{
 					sync_cout << "info string Error! : can't read file : " + readbook_path << sync_endl;
 					return Tools::ResultCode::FileNotFound;
 				}
-				ifstream moves_reader(readbook_path, ios::binary);
+				ifstream moves_reader(path_from_utf8(readbook_path), ios::binary);
 				if (!moves_reader)
 				{
 					sync_cout << "info string Error! : can't read file : " + readbook_path << sync_endl;
@@ -1312,7 +1316,7 @@ namespace MakeBook2025
 		{
 			cout << "Write to a book DB  : " << endl;
 
-			ifstream index_reader(readbook_path, ios::binary);
+			ifstream index_reader(path_from_utf8(readbook_path), ios::binary);
 			if (!index_reader)
 			{
 				sync_cout << "info string Error! : can't read file : " + readbook_path << sync_endl;
@@ -1338,7 +1342,7 @@ namespace MakeBook2025
 			if (!ybb_index_size(u64(book_nodes.size()), index_size))
 				return Tools::ResultCode::FileWriteError;
 
-			ofstream writer(writebook_path, ios::binary | ios::out | ios::trunc);
+			ofstream writer(path_from_utf8(writebook_path), ios::binary | ios::out | ios::trunc);
 			if (!writer)
 			{
 				cout << "Error! : open file error , path = " << writebook_path << endl;

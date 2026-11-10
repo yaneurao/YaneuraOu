@@ -101,14 +101,14 @@ namespace EvalIO {
 				else if (in_.file_or_memory.file() && out_.file_or_memory.file())
 				{
 					std::vector<u8> buffer(input_block_size);
-					std::ifstream ifs(in_.file_or_memory.filename, std::ios::binary);
+					std::ifstream ifs(path_from_utf8(in_.file_or_memory.filename), std::ios::binary);
 					if (ifs) ifs.read(reinterpret_cast<char*>(buffer.data()), input_block_size);
 					else
 					{
 						std::cout << "info string read file error , file = " << in_.file_or_memory.filename << std::endl;
 						return false;
 					};
-					std::ofstream ofs(out_.file_or_memory.filename, std::ios::binary);
+					std::ofstream ofs(path_from_utf8(out_.file_or_memory.filename), std::ios::binary);
 					if (ofs) ofs.write(reinterpret_cast<char*>(buffer.data()), output_block_size);
 					else
 					{

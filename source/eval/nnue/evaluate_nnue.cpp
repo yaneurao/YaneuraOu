@@ -373,15 +373,14 @@ namespace {
 		}
 #if defined(SFNNwoPSQT) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 		const std::string eval_dir = Options["EvalDir"];
-		const auto progress_path = Path::Combine(
-		    Path::Combine(Directory::GetBinaryFolder(), eval_dir), "progress.bin");
+		const auto progress_path = Directory::GetBinaryFolder() / path_from_utf8(eval_dir) / "progress.bin";
 		std::ifstream progress_stream(progress_path, std::ios::binary);
 		sync_cout << "info string loading progress file : " << progress_path << sync_endl;
 		result = progress_stream.is_open()
 		    ? tmp->progress.ReadParameters(progress_stream)
 		    : Tools::Result(Tools::ResultCode::FileNotFound);
 		if (result.is_not_ok()) {
-			if (failed_file) *failed_file = progress_path;
+			if (failed_file) *failed_file = progress_path.u8string();
 			sync_cout << "info string NNUE progress params read failed: " << progress_path
 			          << " : " << result.to_string() << sync_endl;
 			return result;
@@ -905,15 +904,15 @@ void load_eval() {
         const Tools::Result result = [&] {
             if (dir_name != "<internal>") {
             #if !defined(__EMSCRIPTEN__)
-                auto abs_eval_path = Path::Combine(Directory::GetBinaryFolder(), dir_name);
+                auto abs_eval_path = Directory::GetBinaryFolder() / path_from_utf8(dir_name);
             #else
                 // 📝 wasmでは評価関数ファイルはEmscriptenの仮想FS上にある。
                 //     Directory::GetBinaryFolder()はホスト側のパスを返すので前置せず、
                 //     EvalDirをそのまま仮想FS上のパスとして扱う。
-                auto abs_eval_path = dir_name;
+                auto abs_eval_path = path_from_utf8(dir_name);
             #endif
-                const std::string file_path = Path::Combine(abs_eval_path, file_name);
-                failed_file = file_path;
+                const auto file_path = abs_eval_path / path_from_utf8(file_name);
+                failed_file = file_path.u8string();
                 std::ifstream stream(file_path, std::ios::binary);
                 sync_cout << "info string loading eval file : " << file_path << sync_endl;
 				if (!stream.is_open())

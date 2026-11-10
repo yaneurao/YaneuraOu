@@ -3,6 +3,7 @@
 #if defined(YANEURAOU_ENGINE_DEEP) && defined (TENSOR_RT)
 
 #include <regex>
+#include <vector>
 #include "unpack.cuh"
 //#include "dlshogi_types.h"
 
@@ -173,10 +174,19 @@ namespace Eval::dlshogi
 			FatalError("createParser");
 		}
 
-		auto parsed = parser->parseFromFile(onnx_filename.c_str(), (int)nvinfer1::ILogger::Severity::kWARNING);
+        // WindowsでもUnicodeパスで開けるよう、モデル本体は共通I/Oで読み込む。
+        // 外部重みの解決用には、従来と同じモデルファイル名をparserへ渡す。
+        std::vector<char> model_data;
+        const auto read_result = SystemIO::ReadFileToMemory(onnx_filename, [&](size_t size) {
+            model_data.resize(size);
+            return model_data.data();
+        });
+        if (read_result.is_not_ok())
+            FatalError("read ONNX model");
+        auto parsed = parser->parse(model_data.data(), model_data.size(), onnx_filename.c_str());
 		if (!parsed)
 		{
-			FatalError("parseFromFile");
+			FatalError("parse ONNX model");
 		}
 
 		// 教師局面なくてcalibration_cache用意できないのでコメントアウトしておく。(yane)
@@ -186,7 +196,7 @@ namespace Eval::dlshogi
 		{
 			// キャリブレーションキャッシュがある場合のみINT8を使用
 			std::string calibration_cache_filename = std::string(onnx_filename) + ".calibcache";
-			std::ifstream calibcache(calibration_cache_filename);
+			std::ifstream calibcache(path_from_utf8(calibration_cache_filename));
 			if (calibcache.is_open())
 			{
 				calibcache.close();
@@ -378,7 +388,7 @@ namespace Eval::dlshogi
 				//throw std::runtime_error("Engine serialization failed");
 				return Tools::ResultCode::SomeError;
 			}
-			std::ofstream engineFile(serialized_filename, std::ios::binary);
+			std::ofstream engineFile(path_from_utf8(serialized_filename), std::ios::binary);
 			if (!engineFile)
 			{
 				//throw std::runtime_error("Cannot open engine file");
