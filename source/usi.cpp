@@ -170,6 +170,7 @@ std::string USIEngine::read_command()
 // USI応答部ループ
 void USIEngine::loop()
 {
+    set_console_utf8();
     // 起動時コマンドは、マルチインスタンス時に注入先を選べるよう、
     // 選択されたEngineのentry point側からコマンドキューへ積む。
 

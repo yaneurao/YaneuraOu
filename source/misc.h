@@ -799,6 +799,8 @@ void move_to_front(std::vector<T>& vec, Predicate pred) {
     #define UNROLLED_FOR(...) for (__VA_ARGS__)
 #endif
 
+void set_console_utf8();
+
 } // namespace YaneuraOu
 
 #endif // #ifndef MISC_H_INCLUDED

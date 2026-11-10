@@ -767,4 +767,13 @@ fs::path CommandLine::get_binary_directory() {
 // CommandLine global object
 CommandLine CommandLine::g;
 
+// On Windows, tell the console to use UTF8 encoding
+// Windowsではコンソールの入出力をUTF-8に設定する。
+void set_console_utf8() {
+#ifdef _WIN32
+    SetConsoleCP(CP_UTF8);
+    SetConsoleOutputCP(CP_UTF8);
+#endif
+}
+
 } // namespace YaneuraOu
