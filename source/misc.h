@@ -356,10 +356,6 @@ public:
         return result;
     }
 
-	// 非const版の begin/end(やねうら王独自追加)
-	T* begin() { return values_; }
-	T* end()   { return values_ + size_; }
-
 private:
 	T           values_[MaxSize];
 	usize size_ = 0;
