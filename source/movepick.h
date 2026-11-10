@@ -20,6 +20,8 @@
 
 namespace YaneuraOu {
 
+enum Stages : i8;
+
 // -----------------------
 //   MovePicker
 // -----------------------
@@ -27,19 +29,18 @@ namespace YaneuraOu {
 // 指し手オーダリング器
 
 
-// MovePicker class is used to pick one pseudo-legal move at a time from the
-// current position. The most important method is next_move(), which returns a
-// new pseudo-legal move each time it is called, until there are no moves left,
-// when Move::none() is returned. In order to improve the efficiency of the
-// alpha-beta algorithm, MovePicker attempts to return the moves which are most
-// likely to get a cut-off first.
+// The MovePicker class is used to pick one legal move at a time from the
+// current position. The most important method is next_move(), which emits one
+// new legal move on every call, until there are no moves left, when
+// Move::none() is returned. In order to improve the efficiency of the alpha-beta
+// algorithm, MovePicker attempts to return the moves which are most likely to get
+// a cut-off first.
+// MovePickerクラスは、現在の局面から一回につき合法手を一手取り出すために用いる。
+// 最も重要なメソッドはnext_move()であり、呼び出すたびに新しい合法手を一手返し、
+// 指し手が尽きるとMove::none()を返す。alpha-beta探索を効率化するため、
+// MovePickerはカットオフを起こす可能性の高い手を先に返そうとする。
 //
-// MovePickerクラスは、現在の局面から、(呼び出し)一回につきpseudo legalな指し手を一つ取り出すのに用いる。
-// 最も重要なメソッドはnext_move()であり、これは、新しいpseudo legalな指し手を呼ばれるごとに返し、
-// (返すべき)指し手が無くなった場合には、Move::none()を返す。
-// alpha beta探索の効率を改善するために、MovePickerは最初に(早い段階のnext_move()で)カットオフ(beta cut)が
-// 最も出来そうな指し手を返そうとする。
-//
+// やねうら王では擬似合法手を返し、呼び出し元の探索でpos.legal()を確認する。
 class MovePicker {
    public:
     // このクラスは指し手生成バッファが大きいので、コピーして使うような使い方は禁止。
@@ -47,25 +48,24 @@ class MovePicker {
     MovePicker& operator=(const MovePicker&) = delete;
 
     // 通常探索(main search)と静止探索から呼び出されるとき用のコンストラクタ。
-    MovePicker(const Position&              pos_,
-               Move                         ttMove_,
-               Depth                        depth_,
-               const ButterflyHistory*      mh,
-               const LowPlyHistory*         lph,
-               const CapturePieceToHistory* cph,
-               const PieceToHistory**       ch,
-               const SharedHistories*       sh,
-               int ply_
+    MovePicker(const Position&              /* pos_    */,
+               Move                         /* ttMove_ */,
+               Depth                        /* depth_  */,
+               const ButterflyHistory*      /* mh      */,
+               const LowPlyHistory*         /* lph     */,
+               const CapturePieceToHistory* /* cph     */,
+               const PieceToHistory**       /* ch      */,
+               const SharedHistories*       /* sh      */,
+               int                          /* ply_    */
 #if !STOCKFISH
               ,bool generate_all_legal_moves
 #endif
     );
 
-    // 通常探索時にProbCutの処理から呼び出されるのコンストラクタ。
-    // SEEの値がth以上となるcaptureの指してだけを生成する。
-    // threshold_ = 直前に取られた駒の価値。これ以下の捕獲の指し手は生成しない。
-    // capture_or_pawn_promotion()に該当する指し手しか返さない。
-    MovePicker(const Position&, Move ttMove_, int threshold_, const CapturePieceToHistory*
+    // 通常探索のProbCut用。SEEがthreshold以上の捕獲手を返す。
+    // thresholdは呼び出し元指定の枝刈りの閾値で、直前に取られた駒の価値ではない。
+    // 先行するTT手は捕獲手かつpseudo_legalなら返し、SEEの条件は課さない。
+    MovePicker(const Position&, Move /* ttMove_ */, int /* threshold_ */, const CapturePieceToHistory*
 #if STOCKFISH
 #else
     , bool generate_all_legal_moves
@@ -77,7 +77,7 @@ class MovePicker {
     // 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
     Move next_move();
 
-    // next_move()で、quietな指し手をskipするためのフラグをセットする。
+    // 以降のnext_move()でquietを省略し、生成済みの悪いquietも返却対象から外す。
     void skip_quiet_moves();
 
    private:
@@ -89,12 +89,7 @@ class MovePicker {
     // GenType == QUIETS   : 捕獲しない指し手のオーダリング
     // GenType == EVASIONS : 王手回避の指し手のオーダリング
     template<GenType T>
-    ExtMove* score(const MoveList<T>&);
-
-    // range-based forを使いたいので。
-    // 現在の指し手から終端までの指し手が返る。
-    ExtMove* begin() { return cur; }
-    ExtMove* end() { return endCur; }
+    ExtMove* generate_and_score();
 
     const Position& pos;
 
@@ -108,17 +103,17 @@ class MovePicker {
     // 置換表の指し手(コンストラクタで渡される)
     Move ttMove;
 
-    // cur            : 次に返す指し手
-    // endCur         : 生成された指し手の末尾
-    // endBadCapture  : BadCaptureの終端(captureの指し手を試すフェイズでのendMovesから後方に向かって悪い捕獲の指し手を移動させていく時に用いる)
-    // endCaptures    : capturesの終端
-    // endGenerated   : 生成された終端
-    ExtMove *cur, *endCur, *endBadCaptures, *endCaptures, *endGenerated;
+    // cur            : 次に返す候補
+    // endCur         : 現在走査する領域の終端
+    // endBadCaptures : movesから始まる悪い捕獲手の領域の終端
+    // endBadMoves    : 悪い捕獲手と、その直後へ詰めた悪いquietの領域の終端
+    ExtMove *cur, *endCur, *endBadCaptures, *endBadMoves;
 
-    // 指し手生成の段階
-    int stage;
+    // 現在の段階と、TT手の処理後に開始する段階
+    Stages stage;
+    Stages first_stage;
 
-    // ProbCut用の指し手生成に用いる、直前の指し手で捕獲された駒の価値
+    // ProbCutでSEE判定に用いる、呼び出し元指定の閾値
     int threshold;
 
     // コンストラクタで渡された探索深さ
