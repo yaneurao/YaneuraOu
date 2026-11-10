@@ -679,21 +679,19 @@ public:
     // WindowsではOSからUnicodeの起動引数を取得し、UTF-8へ変換して保持する。
     void set_arg(int _argc, char** _argv);
 
-	// 起動フォルダを返す
-	// 💡 文字列の末尾には`\`がついている。
-	// ⚠ set_arg()を事前に呼び出して、コマンドラインから渡されたargc, argvをセットしてあること。
-	// 🤔 やねうら王では、Directory::GetBinaryDirectory()を用いる。この関数は内部的に呼び出される。
-    static std::string get_binary_directory() { return g.get_binary_directory(g.argv[0]); }
+    // argv0で指定された実行ファイルの配置ディレクトリを返す。
+    // WindowsではOSから取得した実行ファイルのパスを優先する。
+    static std::filesystem::path get_binary_directory(std::filesystem::path argv0);
 
-	// argv0 : コマンドラインから渡されたargv[0]を渡して、そこから起動フォルダを返す。
-	// Stockfishとの互換性のために用意。やねうら王では呼び出さない。
-	static std::string get_binary_directory(std::string argv0);
+#if !STOCKFISH
+    // 起動フォルダを文字列で返す、やねうら王の互換API。
+    // 末尾にパス区切り文字を付ける。Directory::GetBinaryFolder()から使用する。
+    // Windowsでは既存のファイル入出力に合わせ、ANSIコードページの文字列を返す。
+    static std::string get_binary_directory();
+#endif
 
-	// cwd(current working directory)
-	static std::string get_working_directory();
-
-	int    argc = 0;
-	char** argv = nullptr;
+	int    argc;
+	char** argv;
 
 	// global object
 	static CommandLine g;

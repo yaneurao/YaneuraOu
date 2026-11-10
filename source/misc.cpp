@@ -28,11 +28,8 @@
     #ifndef NOMINMAX
         #define NOMINMAX
     #endif
-    #include <direct.h>
     #include <windows.h>
     #include <shellapi.h>
-#else
-    #include <unistd.h>
 #endif
 
 #include "types.h"
@@ -2100,60 +2097,58 @@ namespace StringExtension
 
 };
 
-// ----------------------------
-//     working directory
-// ----------------------------
+// Return the directory where our Stockfish binary sits. This is useful,
+// because when the NNUE network is not embedded in the binary, this directory
+// is one of the locations where we look for the NNUE file.
+// 実行ファイルの配置ディレクトリを返す。外部NNUEファイルの探索などに使う。
+fs::path CommandLine::get_binary_directory(fs::path argv0) {
 
 #ifdef _WIN32
-#define GETCWD _getcwd
-#else
-#define GETCWD getcwd
+    // Prefer the executable path reported by Windows. Unlike _get_wpgmptr,
+    // this does not depend on whether the CRT used a narrow or wide entry
+    // point. Windows paths cannot exceed 32767 characters, so a fixed
+    // buffer is always sufficient. Falls back to argv0 if the API fails.
+    // CRTのエントリーポイント形式に依存しないWindows APIを優先する。
+    // Windowsパスの最大長を収めるバッファを使い、失敗時はargv0へ戻る。
+    constexpr DWORD MaxPath = 32768;
+    wchar_t         path[MaxPath];
+
+    if (const DWORD length = GetModuleFileNameW(nullptr, path, MaxPath))
+        argv0 = fs::path(path, path + length);
 #endif
 
-string CommandLine::get_binary_directory(std::string argv0) {
-	std::string pathSeparator;
+    auto binaryDirectory = argv0.parent_path();
+    if (binaryDirectory.empty())
+        binaryDirectory = fs::path(".");
+    return binaryDirectory;
+}
+
+
+#if !STOCKFISH
+// 既存の文字列API向けに、絶対パスと末尾の区切り文字を用意する。
+std::string CommandLine::get_binary_directory() {
+    auto directory = get_binary_directory(
+      g.argc > 0 && g.argv && g.argv[0] ? path_from_utf8(g.argv[0]) : fs::path{});
+    directory = fs::absolute(directory);
 
 #ifdef _WIN32
-	pathSeparator = "\\";
-#ifdef _MSC_VER
-	// Under windows argv[0] may not have the extension. Also _get_pgmptr() had
-	// issues in some Windows 10 versions, so check returned values carefully.
-	char* pgmptr = nullptr;
-	if (!_get_pgmptr(&pgmptr) && pgmptr != nullptr && *pgmptr)
-		argv0 = pgmptr;
-#endif
+    // 既存のfopen/ifstreamなどはANSIのパスを受け取るため、ここだけ変換する。
+    // Unicodeのパスが必要な呼び出し側はfilesystem::path版を直接使用する。
+    const auto& native = directory.native();
+    int size = WideCharToMultiByte(CP_ACP, 0, native.data(), int(native.size()),
+                                  nullptr, 0, nullptr, nullptr);
+    std::string result(size, '\0');
+    if (size > 0)
+        WideCharToMultiByte(CP_ACP, 0, native.data(), int(native.size()),
+                            result.data(), size, nullptr, nullptr);
 #else
-	pathSeparator = "/";
+    std::string result = directory.string();
 #endif
-
-	// Extract the working directory
-	auto workingDirectory = CommandLine::get_working_directory();
-
-	// Extract the binary directory path from argv0
-	auto   binaryDirectory = argv0;
-	size_t pos = binaryDirectory.find_last_of("\\/");
-	if (pos == string::npos)
-		binaryDirectory = "." + pathSeparator;
-	else
-		binaryDirectory.resize(pos + 1);
-
-	// Pattern replacement: "./" at the start of path is replaced by the working directory
-	if (binaryDirectory.find("." + pathSeparator) == 0)
-		binaryDirectory.replace(0, 1, workingDirectory);
-
-	return binaryDirectory;
+    if (!result.empty() && result.back() != '/' && result.back() != '\\')
+        result += char(fs::path::preferred_separator);
+    return result;
 }
-
-// 起動時のworking directory
-string CommandLine::get_working_directory() {
-	string workingDirectory = "";
-	char        buff[40000];
-	char* cwd = GETCWD(buff, 40000);
-	if (cwd)
-		workingDirectory = cwd;
-
-	return workingDirectory;
-}
+#endif
 
 // CommandLine global object
 CommandLine CommandLine::g;
