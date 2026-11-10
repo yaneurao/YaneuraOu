@@ -533,13 +533,6 @@ void dbg_clear() {
     extremes.fill({});
 }
 
-// if (c) dbg_hit_on(b)と等価。従来の条件付き呼び出しを維持する。
-bool dbg_hit_on(bool c, bool b) {
-    if (c)
-        dbg_hit_on(b, 0);
-    return b;
-}
-
 // --------------------
 //  sync_out/sync_endl
 // --------------------

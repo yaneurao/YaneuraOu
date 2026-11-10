@@ -208,9 +208,6 @@ i64  dbg_stdev_of(i64 value, int slot = 0);
 i64  dbg_extremes_of(i64 value, int slot = 0);
 void dbg_correl_of(i64 value1, i64 value2, int slot = 0);
 
-// if (c) dbg_hit_on(b)と等価。やねうら王の既存コードとの互換用。
-bool dbg_hit_on(bool c, bool b);
-
 // 探索部から1秒おきにdbg_print()が呼び出されるものとする。
 // このとき、記録した統計情報をcerrに出力する。
 void dbg_print();
