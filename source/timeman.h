@@ -1,7 +1,7 @@
 ﻿#ifndef TIMEMAN_H_INCLUDED
 #define TIMEMAN_H_INCLUDED
 
-#include <cstdint>
+#include <limits>
 
 #include "misc.h"
 
@@ -22,25 +22,33 @@ namespace Search {
 
 class TimeManagement {
    public:
+
+#if !STOCKFISH
     // 起動時に呼び出す。
     // このclassが使用するengine optionを追加する。
     void add_options(OptionsMap& options);
+#endif
 
     // 今回の思考時間を決定する。
     // optimum(),maximum(),minimum()に反映する。
 	// ⚠ optionsに"USI_Ponder"と"Stochastic_Ponder"オプションが含まれていること。
-    void init(const Search::LimitsType& limits, Color us, int ply, const OptionsMap& options
+    void init(Search::LimitsType& limits,
+              Color               us,
+              int                 ply,
+              const OptionsMap&   options,
 #if STOCKFISH
-			  , double& originalTimeAdjust
-    // 💡 やねうら王では使わないことにする。
+			  double& originalTimeAdjust
+			  // 💡 やねうら王では使わないことにする。
 #else
-			  , int max_moves_to_draw
+			  int max_moves_to_draw
 #endif
     );
 
     TimePoint optimum() const;
     TimePoint maximum() const;
+#if !STOCKFISH
     TimePoint minimum() const;  // 📌 やねうら王独自追加。
+#endif
 
     // "go"からの経過時間を返す。
     template<typename FUNC>
@@ -55,12 +63,12 @@ class TimeManagement {
 
     // startTimeからの経過時間。
     // 💡 startTimeは、init()した時にLimitsType::startTimeがコピーされる。そこからの経過時間。
-    TimePoint elapsed_time() const { return now() - startTime; };
+    TimePoint elapsed_time() const { return now() - startTime; }
 
 
 	// 初期化。
     // 🌈　やねうら王では使わない。Stockfishとの互換性のために用意。
-    void clear() {}
+    void clear();
 
 #if STOCKFISH
 
@@ -112,6 +120,7 @@ class TimeManagement {
 
 #if STOCKFISH
    private:
+    static constexpr TimePoint NoBound = std::numeric_limits<TimePoint>::max() / 2;
     TimePoint startTime;      // 💡 探索開始時刻。LimitsType startTimeの値。
 #else
     bool      isFinalPush;    // 🌈 秒読みに突入しているので持ち時間を使い切るべきであるフラグ。
@@ -120,17 +129,26 @@ class TimeManagement {
     TimePoint ponderhitTime;  // 🌈 "ponderhit"した時刻。startTimeからの経過時間ではなく、Timer::now()の生の値。
                               //     "ponderhit"するまではstartTimeと同じ値。
    private:
+    // 制限なしを表現する定数
+    static constexpr TimePoint NoBound = std::numeric_limits<TimePoint>::max() / 2;
+
     TimePoint minimumTime;  // 🌈 やねうら王独自追加。
 #endif
 
-    TimePoint optimumTime;
-    TimePoint maximumTime;
+    TimePoint optimumTime = NoBound;
+    TimePoint maximumTime = NoBound;
 
 #if STOCKFISH
 
-	i64 availableNodes = -1;     // When in 'nodes as time' mode
-    bool         useNodesTime   = false;  // True if we are in 'nodes as time' mode
-    // 💡 やねうら王ではNodesTimeを使わない。
+    // Related to 'nodes as time' mode:
+	// `nodes as time`モード関連。
+	// 💡 やねうら王ではNodesTimeを使わない。
+
+    bool         useNodesTime   = false;
+
+    i64  availableNodes    = -1;
+    int  previousMovesToGo = 0;
+    i64  cyclicBudget      = 0;
 
 #else
     // 📌 以下、やねうら王独自追加。
@@ -147,16 +165,6 @@ class TimeManagement {
     TimePoint network_delay;
     TimePoint remain_time;
     bool      round_up_to_fullsecond;
-
-	// TODO : あとで
-#if 0
-    // 前回のinit()の値。
-	// このあとround_up()で用いるので保存しておく。
-    Search::LimitsType* lastcall_Limits;
-    Color               lastcall_Us;
-    int                 lastcall_Ply;
-    OptionsMap*         lastcall_Opt;
-#endif
 
 #endif
 };

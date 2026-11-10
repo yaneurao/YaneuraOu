@@ -13,6 +13,25 @@
 
 namespace YaneuraOu {
 
+TimePoint TimeManagement::optimum() const { return optimumTime; }
+TimePoint TimeManagement::maximum() const { return maximumTime; }
+
+#if STOCKFISH
+void TimeManagement::clear() {
+    availableNodes    = -1;  // When in 'nodes as time' mode
+    previousMovesToGo = 0;
+}
+
+void TimeManagement::advance_nodes_time(i64 nodes) {
+    assert(useNodesTime);
+    availableNodes = std::max(i64(0), availableNodes - nodes);
+}
+
+#else
+
+TimePoint TimeManagement::minimum() const { return minimumTime; }
+void  TimeManagement::clear() {}
+
 namespace {
 
 // これぐらい自分が指すと終局すると考えて計画を練る。
@@ -23,6 +42,7 @@ const int MoveHorizon = 160;
 PRNG prng;
 
 } // namespace
+
 
 // 起動時に呼び出す。
 // このclassが使用するengine optionを追加する。
@@ -59,7 +79,19 @@ void TimeManagement::add_options(OptionsMap& options) {
 
 }
 
-void TimeManagement::init(const Search::LimitsType& limits,
+#endif
+
+// Called at the beginning of the search and calculates
+// the bounds of time allowed for the current game ply. We currently support:
+//      1) x basetime (+ z increment)
+//      2) x moves in y seconds (+ z increment)
+
+// 探索の開始時に呼び出され、現在の手番で使用できる思考時間の
+// 上限と下限を計算する。現在、以下の時間制御に対応している。
+//      1) 基本持ち時間 x（＋ 1手ごとの加算時間 z）
+//      2) y秒以内にx手指す（＋ 1手ごとの加算時間 z）
+
+void TimeManagement::init(Search::LimitsType& limits,
                           Color               us,
                           int                 ply,
                           const OptionsMap&   options
@@ -310,6 +342,8 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 	maximumTime = std::min(round_up(maximumTime), remain_time);
 }
 
+#if !STOCKFISH
+
 // 1秒単位で繰り上げてdelayを引く。
 // ただし、remain_timeよりは小さくなるように制限する。
 TimePoint TimeManagement::round_up(TimePoint t0) {
@@ -374,11 +408,7 @@ void TimeManagement::set_search_end(TimePoint e) {
     // 💡 search_endの値は、startTimeからの経過時間なので。
     search_end = round_up(std::max(t1, t2)) + ponderhitTime - startTime;
 }
-
-TimePoint TimeManagement::minimum() const { return minimumTime; }
-TimePoint TimeManagement::optimum() const { return optimumTime; }
-TimePoint TimeManagement::maximum() const { return maximumTime; }
-
+#endif
 
 } // namespace YaneuraOu
 
