@@ -135,7 +135,7 @@ void FukauraOuEngine::init_gpu() {
 
     // 評価関数モデルのPATH。
     auto eval_dir      = options["EvalDir"];
-    auto abs_eval_path = Directory::GetBinaryFolder() / path_from_utf8(std::string(eval_dir));
+    auto abs_eval_path = CommandLine::get_binary_directory() / path_from_utf8(std::string(eval_dir));
     auto model_name    = options["DNN_Model"];
     auto model_path    = abs_eval_path / path_from_utf8(std::string(model_name));
     std::string model_architecture = options["ModelArchitecture"];

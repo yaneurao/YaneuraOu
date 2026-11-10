@@ -25,7 +25,8 @@
     #endif
 #if STOCKFISH
     #include <direct.h>
-    // Stockfish、以前は
+    // Stockfish、以前は_getcwd()を使っていた。
+    // 現在は使っていないので、このincludeは取り除くべき。
 #endif
     #include <windows.h>
     #include <shellapi.h>
@@ -708,7 +709,7 @@ std::optional<usize> str_to_size_t(const std::string& s) {
 std::optional<std::string> read_file_to_string(const std::string& path) {
 
 	// 起動フォルダ相対でのpath
-	const auto full_path = Directory::GetBinaryFolder() / path_from_utf8(path);
+	const auto full_path = CommandLine::get_binary_directory() / path_from_utf8(path);
 
 	std::ifstream f(full_path, std::ios_base::binary);
 	if (!f)
@@ -1089,7 +1090,7 @@ namespace SystemIO
 		reader.SkipEmptyLine(true);
 
 		// 起動フォルダ相対でのpath
-		const auto path = Directory::GetBinaryFolder() / filename;
+		const auto path = CommandLine::get_binary_directory() / filename;
 
 		auto result = reader.Open(path);
 		if (!result.is_ok())
@@ -1108,7 +1109,7 @@ namespace SystemIO
 		TextWriter writer;
 
 		// 起動フォルダ相対でのpath
-		const auto path = Directory::GetBinaryFolder() / filename;
+		const auto path = CommandLine::get_binary_directory() / filename;
 
 		if (writer.Open(path).is_not_ok())
 			return Tools::ResultCode::FileOpenError;
@@ -1127,7 +1128,7 @@ namespace SystemIO
 		// fstream、遅いので、FILEを用いて書き換える。
 
 		// 起動フォルダ相対でのpath
-		const auto path = Directory::GetBinaryFolder() / filename;
+		const auto path = CommandLine::get_binary_directory() / filename;
 
 		FILE* fp = open_file(path, "rb");
 		if (fp == nullptr)
@@ -1172,7 +1173,7 @@ namespace SystemIO
 	Tools::Result WriteMemoryToFile(const fs::path& filename, void* ptr, size_t size)
 	{
 		// 起動フォルダ相対でのpath
-		const auto path = Directory::GetBinaryFolder() / filename;
+		const auto path = CommandLine::get_binary_directory() / filename;
 
 		std::fstream fs(path, std::ios::out | std::ios::binary);
 		if (fs.fail())
@@ -1259,7 +1260,7 @@ namespace SystemIO
 		Close();
 
 		// 起動フォルダ相対でのpath
-		const auto path = Directory::GetBinaryFolder() / filename;
+		const auto path = CommandLine::get_binary_directory() / filename;
 
 		// 高速化のためにbinary open
 		fp = open_file(path, "rb");
@@ -1437,7 +1438,7 @@ namespace SystemIO
 		Close();
 
 		// 起動フォルダ相対でのpath
-		const auto path = Directory::GetBinaryFolder() / filename;
+		const auto path = CommandLine::get_binary_directory() / filename;
 
 		fp = open_file(path, "wb");
 		return fp == nullptr ? Tools::ResultCode::FileOpenError
@@ -1553,7 +1554,7 @@ namespace SystemIO
 		}
 
 		// 起動フォルダ相対でのpath
-		const auto path = Directory::GetBinaryFolder() / filename;
+		const auto path = CommandLine::get_binary_directory() / filename;
 
 		fp = open_file(path, "rb");
 		if (fp == nullptr)
@@ -1605,7 +1606,7 @@ namespace SystemIO
 	Tools::Result BinaryWriter::Open(const fs::path& filename, bool append)
 	{
 		// 起動フォルダ相対でのpath
-		const auto path = Directory::GetBinaryFolder() / filename;
+		const auto path = CommandLine::get_binary_directory() / filename;
 
 		fp = open_file(path, append ? "ab" : "wb");
 		if (fp == nullptr)
@@ -1623,144 +1624,6 @@ namespace SystemIO
 		return Tools::Result::Ok();
 	}
 }
-
-// --------------------
-//       Path
-// --------------------
-
-// C#にあるPathクラス的なもの。ファイル名の操作。
-// C#のメソッド名に合わせておく。
-namespace Path
-{
-	// path名とファイル名を結合して、それを返す。
-	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければ'/'を付与する。
-	// ('/'自体は、Pathの区切り文字列として、WindowsでもLinuxでも使えるはずなので。
-	std::string Combine(const std::string& folder, const std::string& filename)
-	{
-		// 与えられたfileが絶対Pathであるかの判定
-		if (IsAbsolute(filename))
-			return filename;
-
-		if (folder.length() >= 1 && *folder.rbegin() != '/' && *folder.rbegin() != '\\')
-			return folder + "/" + filename;
-
-		return folder + filename;
-	}
-
-	// full path表現(ファイル名を含む)から、(フォルダ名を除いた)ファイル名の部分を取得する。
-	std::string GetFileName(const std::string& path)
-	{
-		// "\"か"/"か、どちらを使ってあるかはわからないがなるべく後ろにある、いずれかの文字を探す。
-		auto path_index1 = path.find_last_of("\\");
-		auto path_index2 = path.find_last_of("/");
-
-		// どちらの文字も見つからなかったのであれば、ディレクトリ名が含まれておらず、
-		// 与えられたpath丸ごとがファイル名だと考えられる。
-		if (path_index1 == std::string::npos && path_index2 == std::string::npos)
-			return path;
-
-		// なるべく後ろのを見つけたいが、string::nposは大きな定数なので単純にmax()するとこれを持ってきてしまう。
-		// string::nposを0とみなしてmaxをとる。
-		path_index1 = path_index1 == std::string::npos ? 0 : path_index1;
-		path_index2 = path_index2 == std::string::npos ? 0 : path_index2;
-		auto path_index = std::max(path_index1, path_index2);
-
-		// そこ以降を返す。
-		return path.substr(path_index + 1);
-	}
-
-	// full path表現から、ディレクトリ名の部分を取得する。
-	std::string GetDirectoryName(const std::string& path)
-	{
-		// ファイル名部分を引き算してやる。
-
-		auto length = path.length() - GetFileName(path).length() - 1;
-		return (length == 0) ? "" : path.substr(0,length);
-	}
-
-	// 絶対Pathであるかの判定。
-	// "\\"(WindowsのUNC)で始まるか、"/"で始まるか(Windows / Linuxのroot)、"~"で始まるか、"C:"(ドライブレター + ":")で始まるか。
-	bool IsAbsolute(const std::string& path)
-	{
-		// path separator
-		const auto path_char1 = '\\';
-		const auto path_char2 = '/';
-
-		// home directory
-		const auto home_char  = '~';
-
-		// dirve letter separator
-		const auto drive_char = ':';
-
-		if (path.length() >= 1)
-		{
-			const char c = path[0];
-			if (c == path_char1 || c == path_char2 || c == home_char)
-				return true;
-
-			// 2文字目が":"なら1文字目をチェックしなくとも良いかな？
-			if (path.length() >= 2 && path[1] == drive_char)
-				return true;
-		}
-
-		return false;
-	}
-
-	// ファイルが存在するかの確認
-	bool Exists(const std::string& path)
-	{
-		std::ifstream ifs(path_from_utf8(path));
-
-		// openに成功したら存在する。
-        return ifs.is_open();
-	}
-
-};
-
-// --------------------
-//    Directory
-// --------------------
-
-// ディレクトリに存在するファイルの列挙用
-// C#のDirectoryクラスっぽい何か
-namespace Directory
-{
-	namespace fs = std::filesystem;
-
-	// 指定されたフォルダに存在するファイルをすべて列挙する。
-	// 列挙するときに拡張子を指定できる。(例 : ".bin")
-	// 拡張子として""を指定すればすべて列挙される。
-	std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const std::string& extension)
-	{
-		std::vector<std::string> filenames;
-
-		// filesystemのファイル列挙、ディレクトリとして空の文字列を渡すと例外で落ちる。
-		// current directoryにしたい時は明示的に指定してやらなければならない。
-		auto src = sourceDirectory.empty() ? fs::current_path() : path_from_utf8(sourceDirectory);
-
-		for (auto ent : fs::directory_iterator(src))
-			if (fs::is_regular_file(ent)
-				&& StringExtension::EndsWith(ent.path().filename().string(), extension))
-
-				filenames.push_back(ent.path().u8string());
-
-		return filenames;
-	}
-
-	// フォルダを作成する。文字列のパスはUTF-8で指定できる。
-	// 💡 working directory相対で指定する。
-	Tools::Result CreateFolder(const std::string& dir_name) {
-		std::error_code ec;
-		bool created = fs::create_directory(path_from_utf8(dir_name), ec);
-		return created
-			? Tools::Result::Ok()
-			: Tools::Result(Tools::ResultCode::CreateFolderError);
-	}
-
-	// 起動時のフォルダを返す。
-	fs::path GetBinaryFolder() { return CommandLine::get_binary_directory(); }
-}
-
 
 // --------------------
 //       Parser
@@ -2184,23 +2047,6 @@ namespace Misc {
 	{
 		auto section1 = tester.section("Misc");
 
-		{
-			auto section2 = tester.section("Path");
-
-			{
-				auto section3 = tester.section("Combine");
-
-				tester.test("Absolute Path Root1",        Path::Combine("xxxx"  , "/dir"   ) == "/dir"     );
-				tester.test("Absolute Path Root2",        Path::Combine("xxxx"  , "\\dir"  ) == "\\dir"    );
-				tester.test("Absolute Path Home",         Path::Combine("xxxx"  , "~dir"   ) == "~dir"     );
-				tester.test("Absolute Path Drive Letter", Path::Combine("xxxx"  , "c:\\dir") == "c:\\dir"  );
-				tester.test("Absolute Path UNC",          Path::Combine("xxxx"  , "\\\\dir") == "\\\\dir"  );
-				tester.test("Relative Path1",             Path::Combine("xxxx"  , "yyy"    ) == "xxxx/yyy" );
-				tester.test("Relative Path2",             Path::Combine("xxxx/" , "yyy"    ) == "xxxx/yyy" );
-				tester.test("Relative Path3",             Path::Combine("xxxx\\", "yyy"    ) == "xxxx\\yyy");
-			}
-
-		}
 		{
 			auto section2 = tester.section("StringExtension");
 			{

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <sstream>
 #include <queue>
 #include <variant>
@@ -1376,8 +1377,8 @@ void USIEngine::isready() {
 	// "EvalDir"オプションが生えているなら..
 	if (options.count("EvalDir"))
     {
-        auto eval_options_path = Path::Combine(options["EvalDir"], "eval_options.txt");
-        options.read_engine_options(eval_options_path);
+        const auto eval_options_path = path_from_utf8(options["EvalDir"]) / "eval_options.txt";
+        options.read_engine_options(eval_options_path.u8string());
     }
 
 	// Engineの派生classのisready()を呼び出す。

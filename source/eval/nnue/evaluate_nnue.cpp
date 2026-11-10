@@ -373,7 +373,7 @@ namespace {
 		}
 #if defined(SFNNwoPSQT) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 		const std::string eval_dir = Options["EvalDir"];
-		const auto progress_path = Directory::GetBinaryFolder() / path_from_utf8(eval_dir) / "progress.bin";
+		const auto progress_path = CommandLine::get_binary_directory() / path_from_utf8(eval_dir) / "progress.bin";
 		std::ifstream progress_stream(progress_path, std::ios::binary);
 		sync_cout << "info string loading progress file : " << progress_path << sync_endl;
 		result = progress_stream.is_open()
@@ -904,10 +904,10 @@ void load_eval() {
         const Tools::Result result = [&] {
             if (dir_name != "<internal>") {
             #if !defined(__EMSCRIPTEN__)
-                auto abs_eval_path = Directory::GetBinaryFolder() / path_from_utf8(dir_name);
+                auto abs_eval_path = CommandLine::get_binary_directory() / path_from_utf8(dir_name);
             #else
                 // 📝 wasmでは評価関数ファイルはEmscriptenの仮想FS上にある。
-                //     Directory::GetBinaryFolder()はホスト側のパスを返すので前置せず、
+                //     CommandLine::get_binary_directory()はホスト側のパスを返すので前置せず、
                 //     EvalDirをそのまま仮想FS上のパスとして扱う。
                 auto abs_eval_path = path_from_utf8(dir_name);
             #endif

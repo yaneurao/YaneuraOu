@@ -1228,69 +1228,6 @@ namespace SystemIO
 };
 
 // --------------------
-//       Path
-// --------------------
-
-// C#にあるPathクラス的なもの。ファイル名の操作。
-// C#のメソッド名に合わせておく。
-namespace Path
-{
-	// path名とファイル名を結合して、それを返す。
-	// folder名のほうは空文字列でないときに、末尾に'/'か'\\'がなければそれを付与する。
-	// 与えられたfilenameが絶対Pathである場合、folderを連結せずに単にfilenameをそのまま返す。
-	// 与えられたfilenameが絶対Pathであるかの判定は、内部的にはPath::IsAbsolute()を用いて行う。
-	//
-	// 実際の連結のされ方については、UnitTestに例があるので、それも参考にすること。
-	std::string Combine(const std::string& folder, const std::string& filename);
-
-	// full path表現から、(フォルダ名をすべて除いた)ファイル名の部分を取得する。
-	std::string GetFileName(const std::string& path);
-
-	// full path表現から、(ファイル名だけを除いた)ディレクトリ名の部分を取得する。
-	std::string GetDirectoryName(const std::string& path);
-
-	// 絶対Pathであるかの判定。
-	// ※　std::filesystem::absolute() は MSYS2 で Windows の絶対パスの判定に失敗するらしいので自作。
-	//
-	// 絶対Pathの条件 :
-	//   "\\"(WindowsのUNC)で始まるか、"/"で始まるか(Windows / Linuxのroot)、"~"で始まるか、"C:"(ドライブレター + ":")で始まるか。
-	//
-	// 絶対Pathの例)
-	//   C:/YaneuraOu/Eval  ← Windowsのドライブレター付きの絶対Path
-	//   \\MyNet\MyPC\Eval  ← WindowsのUNC
-	//   ~myeval            ← Linuxのhome
-	//   /YaneuraOu/Eval    ← Windows、Linuxのroot
-	bool IsAbsolute(const std::string& path);
-
-	// ファイルが存在するかの確認
-	bool Exists(const std::string& path);
-
-};
-
-// --------------------
-//    Directory
-// --------------------
-
-// ディレクトリに存在するファイルの列挙用
-// C#のDirectoryクラスっぽい何か
-namespace Directory
-{
-	// 指定されたフォルダに存在するファイルをすべて列挙する。
-	// 列挙するときに引数extensionで列挙したいファイル名の拡張子を指定できる。(例 : ".bin")
-	// 拡張子として""を指定すればすべて列挙される。
-	std::vector<std::string> EnumerateFiles(const std::string& sourceDirectory, const std::string& extension);
-
-	// フォルダを作成する。
-	// working directory相対で指定する。文字列のパスはUTF-8で指定できる。
-	// ※　Windows環境だと、この関数名、WinAPIのCreateDirectoryというマクロがあって…。
-	// 　ゆえに、CreateDirectory()をやめて、CreateFolder()に変更する。
-	Tools::Result CreateFolder(const std::string& dir_name);
-
-	// 起動時のフォルダを返す。
-	std::filesystem::path GetBinaryFolder();
-}
-
-// --------------------
 //       Parser
 // --------------------
 

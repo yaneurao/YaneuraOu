@@ -2,9 +2,11 @@
 
 #include <array>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>		// std::setprecision()
 #include <limits>
+#include <system_error>
 #include <numeric>      // std::accumulate()
 
 #include "book.h"
@@ -237,11 +239,12 @@ namespace Book
 
 	static std::string resolve_book_filename_with_ybb_fallback(const std::string& filename)
 	{
-		if (Path::Exists(filename))
+		std::error_code ec;
+		if (std::filesystem::exists(path_from_utf8(filename), ec))
 			return filename;
 
 		const auto ybb_filename = ybb_book_name_from_db_name(filename);
-		if (!ybb_filename.empty() && Path::Exists(ybb_filename))
+		if (!ybb_filename.empty() && std::filesystem::exists(path_from_utf8(ybb_filename), ec))
 			return ybb_filename;
 
 		return filename;
@@ -266,6 +269,7 @@ namespace Book
 
 	static std::string resolve_priority_book_filename(const std::string& base_filename, int index)
 	{
+		std::error_code ec;
 		const auto stem = book_name_without_extension(base_filename);
 		if (stem.empty())
 			return std::string();
@@ -275,13 +279,13 @@ namespace Book
 		const auto primary_filename    = priority_book_filename(stem, index, primary_extension);
 		const auto secondary_filename  = priority_book_filename(stem, index, secondary_extension);
 
-		if (Path::Exists(primary_filename))
+		if (std::filesystem::exists(path_from_utf8(primary_filename), ec))
 		{
-			if (Path::Exists(secondary_filename))
+			if (std::filesystem::exists(path_from_utf8(secondary_filename), ec))
 				sync_cout << "info string priority book file exists twice. use : " << primary_filename << sync_endl;
 			return primary_filename;
 		}
-		if (Path::Exists(secondary_filename))
+		if (std::filesystem::exists(path_from_utf8(secondary_filename), ec))
 			return secondary_filename;
 
 		return std::string();
@@ -553,7 +557,7 @@ namespace Book
 		this->ignoreBookPly = ignore_book_ply_;
 
 		// フォルダ名を取り去ったものが"no_book"(定跡なし)もしくは"book.bin"(Aperyの定跡ファイル)であるかを判定する。
-		auto pure_filename = Path::GetFileName(filename);
+		auto pure_filename = path_from_utf8(filename).filename().u8string();
 		auto actual_filename = filename;
 		auto actual_pure_filename = pure_filename;
 
@@ -573,7 +577,7 @@ namespace Book
 		}
 		else {
 			actual_filename = resolve_book_filename_with_ybb_fallback(filename);
-			actual_pure_filename = Path::GetFileName(actual_filename);
+			actual_pure_filename = path_from_utf8(actual_filename).filename().u8string();
 			if (actual_filename != filename)
 				sync_cout << "info string book file fallback : " << filename << " -> " << actual_filename << sync_endl;
 
@@ -1426,7 +1430,7 @@ namespace Book
 	// Option["BookDir"]が定跡ファイルの入っているフォルダなのでこれを連結した定跡ファイルのファイル名を返す。
 	std::string BookMoveSelector::get_book_name() const
 	{
-        const auto abs_book_dir = Directory::GetBinaryFolder()
+        const auto abs_book_dir = CommandLine::get_binary_directory()
                                 / path_from_utf8(std::string(options["BookDir"]));
         return (abs_book_dir / path_from_utf8(std::string(options["BookFile"]))).u8string();
 	}

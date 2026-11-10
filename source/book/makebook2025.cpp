@@ -34,6 +34,7 @@
 #include <deque>
 #include <algorithm>
 #include <limits>
+#include <system_error>
 #include <random>
 #include <utility> // For std::forward
 #include <new>
@@ -268,11 +269,12 @@ namespace MakeBook2025
 
 	static string resolve_book_filename_with_ybb_fallback(const string& filename)
 	{
-		if (Path::Exists(filename))
+		std::error_code ec;
+		if (std::filesystem::exists(path_from_utf8(filename), ec))
 			return filename;
 
 		const auto ybb_filename = ybb_book_name_from_db_name(filename);
-		if (!ybb_filename.empty() && Path::Exists(ybb_filename))
+		if (!ybb_filename.empty() && std::filesystem::exists(path_from_utf8(ybb_filename), ec))
 			return ybb_filename;
 
 		return filename;
@@ -529,7 +531,7 @@ namespace MakeBook2025
 			if (!fast)
             {
                 std::error_code ignored;
-                std::filesystem::remove(Directory::GetBinaryFolder() / path_from_utf8(sfen_temp_path), ignored);
+                std::filesystem::remove(CommandLine::get_binary_directory() / path_from_utf8(sfen_temp_path), ignored);
             }
 		}
 
@@ -583,10 +585,10 @@ namespace MakeBook2025
 				}
 			}
 
-			string BOOK_DIR = book_dir;
+			const auto book_directory = path_from_utf8(book_dir);
 
-			readbook_path  = Path::Combine(BOOK_DIR, readbook_path);
-			writebook_path = Path::Combine(BOOK_DIR, writebook_path);
+			readbook_path  = (book_directory / path_from_utf8(readbook_path)).u8string();
+			writebook_path = (book_directory / path_from_utf8(writebook_path)).u8string();
 			sfen_temp_path = writebook_path + "." + SFEN_TEMP_FILENAME;
 
 			const auto actual_readbook_path = resolve_book_filename_with_ybb_fallback(readbook_path);
