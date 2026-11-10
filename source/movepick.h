@@ -1,23 +1,14 @@
 ﻿#ifndef MOVEPICK_H_INCLUDED
 #define MOVEPICK_H_INCLUDED
 
-#include "config.h"
-
-#include <array>
-//#include <cassert>
-#include <cmath>
-//#include <cstdint>
-//#include <cstdlib>
-#include <limits>
-//#include <type_traits>
-
 #include "history.h"
 #include "misc.h"
 #include "movegen.h"
 #include "types.h"
-#include "position.h"
 
 namespace YaneuraOu {
+
+class Position;
 
 enum Stages : i8;
 
@@ -65,8 +56,7 @@ class MovePicker {
     // thresholdは呼び出し元指定の枝刈りの閾値で、直前に取られた駒の価値ではない。
     // 先行するTT手は捕獲手かつpseudo_legalなら返し、SEEの条件は課さない。
     MovePicker(const Position&, Move /* ttMove_ */, int /* threshold_ */, const CapturePieceToHistory*
-#if STOCKFISH
-#else
+#if !STOCKFISH
     , bool generate_all_legal_moves
 #endif
     );
@@ -92,7 +82,7 @@ class MovePicker {
 
     const Position& pos;
 
-    // コンストラクタで渡されたhistroyのポインタを保存しておく変数。
+    // コンストラクタで渡されたhistoryのポインタを保存しておく変数。
     const ButterflyHistory*      mainHistory;
     const LowPlyHistory*         lowPlyHistory;
     const CapturePieceToHistory* captureHistory;
@@ -129,8 +119,7 @@ class MovePicker {
     // cf. https://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
     ExtMove moves[MAX_MOVES];
 
-#if STOCKFISH
-#else
+#if !STOCKFISH
     // Position::pseudo_legal()に渡す第2パラメーター。
     // 📝 やねうら王では、MovePickerのコンストラクタでもらう。
     bool generate_all_legal_moves;

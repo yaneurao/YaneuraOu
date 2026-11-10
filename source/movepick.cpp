@@ -1,15 +1,14 @@
 ﻿#include "movepick.h"
 
-#include <algorithm>
-//#include <cassert>
-#include <iterator>
+#include <cassert>
+#include <limits>
 
 #include "bitboard.h"
 #include "misc.h"
 #include "position.h"
 
 namespace YaneuraOu {
-using namespace Eval; // Eval::PieceValue
+using Eval::PieceValue;
 
 // 指し手生成・返却の段階。headerの前方宣言と同じYaneuraOu名前空間で定義する。
 enum Stages : i8 {
@@ -60,7 +59,12 @@ namespace {
 // limit未満の指し手の順序は規定しない。
 void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 
-	for (ExtMove *sortedEnd = begin, *p = begin + 1; p < end; ++p)
+    if (end - begin <= 1)
+        return;
+
+    ExtMove *sortedEnd = begin, *p = begin + 1;
+
+    for (; p < end; ++p)
 		if (p->value >= limit)
 		{
 			ExtMove tmp = *p, *q;
@@ -74,7 +78,7 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 		}
 }
 
-} // end of namespace
+} // namespace
 
 // 指し手オーダリング器
 
@@ -108,14 +112,13 @@ MovePicker::MovePicker(const Position&              p,
     ttMove(ttm),
     depth(d),
     ply(pl)
-#if STOCKFISH
-#else
+#if !STOCKFISH
     ,
     generate_all_legal_moves(generate_all_legal_moves)
 #endif
 {
     // 王手中は王手回避、王手なしではdepth > 0なら通常探索、それ以外は静止探索。
-    first_stage = pos.in_check() ? EVASION : depth > 0 ? GOOD_CAPTURE : QSEARCH;
+    first_stage = pos.checkers() ? EVASION : depth > 0 ? GOOD_CAPTURE : QSEARCH;
 
 #if STOCKFISH
     stage = ttm && pos.pseudo_legal(ttm) ? TT : INIT_FIRST_STAGE;
@@ -136,8 +139,7 @@ MovePicker::MovePicker(const Position&              p,
 // ただし、先に返すTT手は捕獲手かつpseudo_legalであることだけを確認し、SEEでは制限しない。
 
 MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceToHistory* cph
-#if STOCKFISH
-#else
+#if !STOCKFISH
     , bool generate_all_legal_moves
 #endif
 
@@ -145,9 +147,8 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
     pos(p),
     captureHistory(cph),
     ttMove(ttm),
-    threshold(Value(th))
-#if STOCKFISH
-#else
+    threshold(th)
+#if !STOCKFISH
     ,generate_all_legal_moves(generate_all_legal_moves)
 #endif
 
@@ -189,7 +190,7 @@ ExtMove* MovePicker::generate_and_score() {
                   "Wrong type");
 #endif
 
-	Color us = pos.side_to_move();
+	const Color us = pos.side_to_move();
 
 	// 自分より価値の安い駒で当たりになっているか
 
@@ -202,10 +203,10 @@ ExtMove* MovePicker::generate_and_score() {
 	{
 #if STOCKFISH
         threatByLesser[PAWN]   = 0;
-        threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.attacks_by<PAWN>(~us);
+        threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.threats_by(PAWN);
         threatByLesser[ROOK] =
-          pos.attacks_by<KNIGHT>(~us) | pos.attacks_by<BISHOP>(~us) | threatByLesser[KNIGHT];
-        threatByLesser[QUEEN] = pos.attacks_by<ROOK>(~us) | threatByLesser[ROOK];
+          pos.threats_by(KNIGHT) | pos.threats_by(BISHOP) | threatByLesser[KNIGHT];
+        threatByLesser[QUEEN] = pos.threats_by(ROOK) | threatByLesser[ROOK];
         threatByLesser[KING]  = 0;
 
 #else
@@ -243,15 +244,14 @@ ExtMove* MovePicker::generate_and_score() {
 		const Piece     capturedPiece = pos.piece_on(to);
 
 		if constexpr (Type == CAPTURES)
-		{
             // MVVとcaptureHistoryで採点する。ここではSEEを呼ばない。
             // CAPTURESは捕獲手だけを生成し、駒を取らない歩の成りは含めない。
 
 			m.value = (*captureHistory)[pc][to][type_of(capturedPiece)]
-						+ 7 * int(Eval::PieceValue[capturedPiece]);
+						+ 7 * PieceValue[capturedPiece];
             // GOOD_CAPTUREでは、このスコアからSEEの閾値（-cur->value / 18）を求める。
             // 駒の価値だけでなくcaptureHistoryも、良い捕獲手と後回しにする捕獲手の分類に影響する。
-		}
+
 #if STOCKFISH
 		else if constexpr (Type == QUIETS)
 #else
@@ -260,40 +260,45 @@ ExtMove* MovePicker::generate_and_score() {
 		{
             // 駒を取らない指し手を履歴で採点する。駒打ちや駒を取らない成りもここに含む。
             // この段階ではevaluate()を呼ばず、以下のスコアで探索順を決める。
+            // Use a local accumulator to eliminate redundant stores to m.value
+            // ローカル変数へ集計し、m.valueへの冗長な書き込みをなくす。
+
             // histories
             // 各種の履歴テーブル。
 
-			m.value  =  2 * (*mainHistory)[us][m.raw()];
-            m.value +=  2 * sharedHistory->pawn_entry(pos)[pc][to];
-			m.value +=      (*continuationHistory[0])[pc][to];
-			m.value +=      (*continuationHistory[1])[pc][to];
-			m.value +=      (*continuationHistory[2])[pc][to];
-			m.value +=      (*continuationHistory[3])[pc][to];
-			m.value +=      (*continuationHistory[5])[pc][to];
+            int value = 2 * (*mainHistory)[us][m.raw()];
+            value += 2 * sharedHistory->pawn_entry(pos)[pc][to];
+            value += (*continuationHistory[0])[pc][to];
+            value += (*continuationHistory[1])[pc][to];
+            value += (*continuationHistory[2])[pc][to];
+            value += (*continuationHistory[3])[pc][to];
+            value += (*continuationHistory[5])[pc][to];
 
-			// bonus for checks
+            // bonus for checks
             // SEEの条件を満たす王手にボーナスを加える。
-			m.value += ((pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 16384;
-			// これ、効果があるのか検証したほうが良さげ。
+            value += ((pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 16384;
+            // これ、効果があるのか検証したほうが良さげ。
 
 #if STOCKFISH
-			// penalty for moving to a square threatened by a lesser piece
-			// or bonus for escaping an attack by a lesser piece.
+            // penalty for moving to a square threatened by a lesser piece
+            // or bonus for escaping an attack by a lesser piece.
 
             // より価値の低い敵駒の利きへ移動する手にはペナルティ、
             // そのような利きから逃れる手にはボーナスを与える。
 
             int v = 20 * (bool(threatByLesser[pt] & from) - bool(threatByLesser[pt] & to));
-            m.value += PieceValue[pt] * v;
+            value += PieceValue[pt] * v;
 
-			// → Stockfishのコードそのままは書けない。
+            // → Stockfishのコードそのままは書けない。
 #endif
 
-			// lowPlyHistoryも加算
-			if (ply < LOW_PLY_HISTORY_SIZE)
-                m.value += 8 * (*lowPlyHistory)[ply][m.raw()] / (1 + ply);
-			
-		}
+            // lowPlyHistoryも加算
+            if (ply < LOW_PLY_HISTORY_SIZE)
+                value += 8 * (*lowPlyHistory)[ply][m.raw()] / (1 + ply);
+
+            m.value = value;
+
+        }
 		else // Type == EVASIONS || EVASIONS_ALL
 		{
 			// 王手回避の指し手をスコアリングする。
@@ -329,7 +334,7 @@ Move MovePicker::select(Pred filter) {
 }
 
 // This is the most important method of the MovePicker class. We emit one
-// new pseudo-legal move on every call until there are no more moves left,
+// new legal move on every call until there are no more moves left,
 // picking the move with the highest score from a list of generated moves.
 // MovePickerの中心となるメソッド。呼び出しごとに擬似合法手を一手返し、
 // 指し手が尽きるとMove::none()を返す。各段階の採点と並び順に従って選ぶ。
@@ -447,7 +452,7 @@ dispatch:
 
     default:
         ASSERT(false);
-        UNREACHABLE;
+        sf_unreachable();
     }
 }
 
