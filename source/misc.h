@@ -861,15 +861,6 @@ namespace Tools
 	// std::getline()ではなくこのこの関数を使うべき。
 	bool getline(std::ifstream& fs, std::string& s);
 
-	// 他言語にあるtry～finally構文みたいなの。
-	// SCOPE_EXIT()マクロの実装で使う。このクラスを直接使わないで。
-	struct __FINALLY__ {
-		__FINALLY__(std::function<void()> fn_) : fn(fn_) {}
-		~__FINALLY__() { fn(); }
-	private:
-		std::function<void()> fn;
-	};
-
 	// --------------------
 	//    ProgressBar
 	// --------------------
@@ -977,11 +968,6 @@ namespace Tools
 		static constexpr Result Ok() { return Result(ResultCode::Ok); }
 	};
 }
-
-// スコープを抜ける時に実行してくれる。BOOST::BOOST_SCOPE_EXITマクロみたいな何か。
-// 使用例) SCOPE_EXIT( x = 10 );
-#define SCOPE_EXIT(STATEMENT) Tools::__FINALLY__ __clean_up_object__([&]{ STATEMENT });
-
 
 // --------------------
 //  ファイル操作

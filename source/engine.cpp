@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <thread>
 
 #include "misc.h"
 #include "perft.h"
@@ -521,6 +523,55 @@ std::string Engine::thread_allocation_information_as_string() const {
 //  やねうら王独自拡張
 // --------------------
 
+namespace {
+
+// 初期化中のKeep Alive送信を管理する。スコープを抜けると停止・joinする。
+class KeepAliveThread {
+   public:
+    KeepAliveThread() :
+        thread([this] {
+            // スレッドが起動した
+            thread_started.store(true, std::memory_order_release);
+
+            int count = 0;
+            while (!thread_end.load(std::memory_order_acquire))
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                if (++count >= 50 /* 5秒 */)
+                {
+                    count = 0;
+                    sync_cout << sync_endl;  // 改行を送信する。
+
+                    // 定跡の読み込み部などで"info string.."で途中経過を出力する場合、
+                    // sync_cout ～ sync_endlを用いて送信しないと、この改行を送るタイミングとかち合うと
+                    // 変なところで改行されてしまうので注意。
+                }
+            }
+        }) {
+        // スレッド起動待ち
+        while (!thread_started.load(std::memory_order_acquire))
+            Tools::sleep(100);
+    }
+
+    ~KeepAliveThread() {
+        thread_end.store(true, std::memory_order_release);
+        thread.join();
+    }
+
+    KeepAliveThread(const KeepAliveThread&)            = delete;
+    KeepAliveThread& operator=(const KeepAliveThread&) = delete;
+
+   private:
+    // スレッドが起動したことを通知するためのフラグ
+    std::atomic_bool thread_started{false};
+    // このスコープを抜ける時に立つフラグ(スレッドを停止させる用)
+    std::atomic_bool thread_end{false};
+    // 定期的な改行送信用のスレッド。参照するフラグより後に構築する。
+    std::thread thread;
+};
+
+}
+
 // 💡 USIで"isready"に対して時間のかかる処理を実行したい時に用いる。
 void Engine::run_heavy_job(std::function<void()> job) {
     // --- Keep Alive的な処理 ---
@@ -537,40 +588,7 @@ void Engine::run_heavy_job(std::function<void()> job) {
     // このあと重い処理を行うのでスレッドの起動が遅延する可能性があるから、先にスレッドを生成して、そのスレッドが起動したことを
     // 確認してから処理を行う。
 
-    // スレッドが起動したことを通知するためのフラグ
-    std::atomic_bool thread_started{ false };
-
-    // この関数を抜ける時に立つフラグ(スレッドを停止させる用)
-    std::atomic_bool thread_end{ false };
-
-    // 定期的な改行送信用のスレッド
-    auto th = std::thread([&] {
-        // スレッドが起動した
-        thread_started.store(true, std::memory_order_release);
-
-        int count = 0;
-        while (!thread_end.load(std::memory_order_acquire))
-        {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            if (++count >= 50 /* 5秒 */)
-            {
-                count = 0;
-                sync_cout << sync_endl;  // 改行を送信する。
-
-                // 定跡の読み込み部などで"info string.."で途中経過を出力する場合、
-                // sync_cout ～ sync_endlを用いて送信しないと、この改行を送るタイミングとかち合うと
-                // 変なところで改行されてしまうので注意。
-            }
-        }
-    });
-    SCOPE_EXIT({
-        thread_end.store(true, std::memory_order_release);
-        th.join();
-    });
-
-    // スレッド起動待ち
-    while (!thread_started.load(std::memory_order_acquire))
-        Tools::sleep(100);
+    KeepAliveThread keep_alive;
 
     // --- Keep Alive的な処理ここまで ---
 
