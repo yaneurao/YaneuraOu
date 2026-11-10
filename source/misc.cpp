@@ -30,6 +30,7 @@
     #endif
     #include <direct.h>
     #include <windows.h>
+    #include <shellapi.h>
 #else
     #include <unistd.h>
 #endif
@@ -605,6 +606,27 @@ u64 hash_bytes(const char* data, usize size) {
 // Loggerをmisc.hに移さずに呼び出せるようにする。
 void start_logger(const fs::path& fname) { Logger::start(fname); }
 
+// Convert a wide string to an UTF8 string
+// ワイド文字列をUTF-8文字列へ変換する。
+std::string utf8_from_wstring(std::wstring_view s) {
+#ifdef _WIN32
+    if (s.empty())
+        return {};
+
+    int size =
+      WideCharToMultiByte(CP_UTF8, 0, s.data(), int(s.size()), nullptr, 0, nullptr, nullptr);
+    if (size <= 0)
+        return {};
+
+    std::string out(size, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, s.data(), int(s.size()), out.data(), size, nullptr, nullptr);
+    return out;
+#else
+    return std::string(s.begin(), s.end());
+#endif
+}
+
+
 // This utility allows us to handle filenames and paths with UTF8 encoding
 // UTF-8で指定されたファイル名やパスを扱うための変換関数。
 fs::path path_from_utf8(const std::string& path) {
@@ -629,6 +651,38 @@ fs::path path_from_utf8(const std::string& path) {
     return {path};
 #else
     return {path};
+#endif
+}
+
+
+// Constructor for the CommandLine class
+// 起動引数を設定する。グローバルインスタンスのset_arg()と同じ経路を使う。
+CommandLine::CommandLine(int _argc, char** _argv) { set_arg(_argc, _argv); }
+
+void CommandLine::set_arg(int _argc, char** _argv) {
+    argc = _argc;
+    argv = _argv;
+#ifdef _WIN32
+    // Convert any non-ANSI characters passed on the command line to UTF-8
+    // ANSIで表現できない文字を含む起動引数も、OSから取得してUTF-8へ変換する。
+    int wargc = 0;
+    if (LPWSTR* wargv = CommandLineToArgvW(GetCommandLineW(), &wargc))
+    {
+        // set_arg()が再度呼ばれた場合も、引数を前回分へ追加せず置き換える。
+        argv_utf8.clear();
+        argv_storage.clear();
+
+        for (int i = 0; i < wargc; ++i)
+            argv_storage.push_back(utf8_from_wstring(wargv[i]));
+        LocalFree(wargv);
+
+        for (std::string& s : argv_storage)
+            argv_utf8.push_back(s.data());
+        argv_utf8.push_back(nullptr);
+
+        argc = wargc;
+        argv = argv_utf8.data();
+    }
 #endif
 }
 

@@ -179,6 +179,9 @@ void start_logger(const std::filesystem::path& fname);
 // "123"みたいな文字列を123のように数値型(usize)に変換する。
 std::optional<usize> str_to_size_t(const std::string& s);
 
+// ワイド文字列をUTF-8へ変換する。WindowsのUnicode起動引数で使用する。
+std::string utf8_from_wstring(std::wstring_view s);
+
 // UTF-8のパスをOSのネイティブ形式へ変換する。
 // WindowsではUTF-8として不正な場合にANSIコードページで再試行する。
 std::filesystem::path path_from_utf8(const std::string& path);
@@ -665,13 +668,17 @@ inline u64 hash_string(const std::string& sv) { return hash_bytes(sv.data(), sv.
 
 struct CommandLine {
 public:
-	CommandLine() {}
-	CommandLine(int _argc, char** _argv) :
-		argc(_argc),
-		argv(_argv) {}
+    CommandLine() = default;
+    CommandLine(int _argc, char** _argv);
+
+    CommandLine(const CommandLine&)            = delete;
+    CommandLine& operator=(const CommandLine&) = delete;
+    CommandLine(CommandLine&&)                 = default;
+    CommandLine& operator=(CommandLine&&)      = default;
 
 	// コンストラクタでargc,argvを渡さなかった時に、あとから設定する。
-	void set_arg(int _argc, char** _argv) { argc = _argc, argv = _argv; }
+    // WindowsではOSからUnicodeの起動引数を取得し、UTF-8へ変換して保持する。
+    void set_arg(int _argc, char** _argv);
 
 	// 起動フォルダを返す
 	// 💡 文字列の末尾には`\`がついている。
@@ -686,11 +693,18 @@ public:
 	// cwd(current working directory)
 	static std::string get_working_directory();
 
-	int    argc;
-	char** argv;
+	int    argc = 0;
+	char** argv = nullptr;
 
 	// global object
 	static CommandLine g;
+
+   private:
+#ifdef _WIN32
+    // argvが指すUTF-8文字列とポインター配列。CommandLineと同じ寿命を持つ。
+    std::vector<std::string> argv_storage;
+    std::vector<char*>       argv_utf8;
+#endif
 };
 
 // --------------------
