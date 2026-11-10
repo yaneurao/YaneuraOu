@@ -19,7 +19,7 @@ namespace YaneuraOu {
 
 namespace SystemIO
 {
-	// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。末尾の改行は除去される。
+	// ファイルを丸読みする。存在しないなど、開けない場合はFileOpenErrorを返す。空行はスキップする。末尾の改行は除去される。
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
 	// 引数で渡されるtrimはtrueを渡すと末尾のスペース、タブがトリムされる。
 	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
@@ -43,9 +43,8 @@ namespace SystemIO
     }
 
 
-	// msys2、Windows Subsystem for Linuxなどのgcc/clangでコンパイルした場合、
-	// C++のstd::ifstreamで::read()は、一発で2GB以上のファイルの読み書きが出来ないのでそのためのwrapperである。
-	// 	※　注意　どのみち32bit環境ではsize_tが4バイトなので2(4?)GB以上のファイルは書き出せない。
+	// ファイルサイズを64bit対応の位置取得APIで調べ、1GB単位で読み込む。
+	// ファイルサイズはsize_tで表現できる範囲に限る。
 	//
 	// read_file_to_memory()の引数のcallback_funcは、ファイルがオープン出来た時点でそのファイルサイズを引数として
 	// callbackされるので、バッファを確保して、その先頭ポインタを返す関数を渡すと、そこに読み込んでくれる。
@@ -69,7 +68,7 @@ namespace SystemIO
         return WriteMemoryToFile(path_from_utf8(filename), ptr, size);
     }
 
-	// 通常のftell/fseekは2GBまでしか対応していないので特別なバージョンが必要である。
+	// Windowsの通常のftell/fseekは32bitの位置を扱うため、64bit対応版を使う。
 
 	size_t ftell64(FILE* f);
 	int fseek64(FILE* f, size_t offset, int origin);

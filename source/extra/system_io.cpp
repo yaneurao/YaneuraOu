@@ -29,7 +29,7 @@ namespace SystemIO
     }
 
 
-	// ファイルを丸読みする。ファイルが存在しなくともエラーにはならない。空行はスキップする。末尾の改行は除去される。
+	// ファイルを丸読みする。存在しないなど、開けない場合はFileOpenErrorを返す。空行はスキップする。末尾の改行は除去される。
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
 	Tools::Result ReadAllLines(const fs::path& filename, std::vector<std::string>& lines, bool trim)
 	{
@@ -96,51 +96,37 @@ namespace SystemIO
 		return Tools::ResultCode::Ok;
 	}
 
-	Tools::Result ReadFileToMemory(const fs::path& filename, std::function<void* (size_t)> callback_func)
-	{
-		// fstream、遅いので、FILEを用いて書き換える。
+    Tools::Result ReadFileToMemory(const fs::path& filename, std::function<void* (size_t)> callback_func)
+    {
+        // 起動フォルダ相対でのpath。途中で戻る場合もファイルを閉じる。
+        const auto path = CommandLine::get_binary_directory() / filename;
+        std::unique_ptr<FILE, decltype(&std::fclose)> fp(open_file(path, "rb"), &std::fclose);
+        if (!fp)
+            return Tools::ResultCode::FileOpenError;
 
-		// 起動フォルダ相対でのpath
-		const auto path = CommandLine::get_binary_directory() / filename;
+        // Windowsでも2GBを超えるファイルのサイズを取得できるようにする。
+        if (fseek64(fp.get(), 0, SEEK_END) != 0)
+            return Tools::ResultCode::FileReadError;
+        const size_t file_size = ftell64(fp.get());
+        if (file_size == size_t(-1) || fseek64(fp.get(), 0, SEEK_SET) != 0)
+            return Tools::ResultCode::FileReadError;
 
-		FILE* fp = open_file(path, "rb");
-		if (fp == nullptr)
-			return Tools::Result(Tools::ResultCode::FileOpenError);
+        // callbackでバッファを確保してもらう。nullptrなら読み込みを中断する。
+        void* ptr = callback_func(file_size);
+        if (ptr == nullptr)
+            return Tools::ResultCode::MemoryAllocationError;
 
-		std::fseek(fp, 0, SEEK_END);
-		size_t endPos = (size_t)std::ftell(fp);
-		std::fseek(fp, 0, SEEK_SET);
-		size_t beginPos = (size_t)std::ftell(fp);
-		size_t file_size = endPos - beginPos;
-
-		// ファイルサイズがわかったのでcallback_funcを呼び出してこの分のバッファを確保してもらい、
-		// そのポインターをもらう。
-		void* ptr = callback_func(file_size);
-
-		// バッファが確保できなかった場合や、想定していたファイルサイズと異なった場合は、
-		// nullptrを返すことになっている。このとき、読み込みを中断し、エラーリターンする。
-		// 原因は不明だが、メモリ割り当ての失敗なのでMemoryAllocationErrorを返しておく。
-		if (ptr == nullptr)
-			return Tools::Result(Tools::ResultCode::MemoryAllocationError);
-
-		// 細切れに読み込む
-
-		const size_t block_size = 1024 * 1024 * 1024; // 1回のreadで読み込む要素の数(1GB)
-		for (size_t pos = 0; pos < file_size; pos += block_size)
-		{
-			// 今回読み込むサイズ
-			size_t read_size = (pos + block_size < file_size) ? block_size : (file_size - pos);
-
-			if (std::fread((u8*)ptr + pos, 1, read_size, fp) != read_size)
-				// 指定サイズだけ読み込めていないということは、読み込み上のエラーである。
-				return Tools::Result(Tools::ResultCode::FileReadError);
-
-			//cout << ".";
-		}
-		std::fclose(fp);
-
-		return Tools::Result::Ok();
-	}
+        // 1回のreadで読み込む要素の数を1GBに制限する。
+        constexpr size_t block_size = 1024 * 1024 * 1024;
+        for (size_t pos = 0; pos < file_size;)
+        {
+            const size_t read_size = std::min(block_size, file_size - pos);
+            if (std::fread(static_cast<u8*>(ptr) + pos, 1, read_size, fp.get()) != read_size)
+                return Tools::ResultCode::FileReadError;
+            pos += read_size;
+        }
+        return Tools::Result::Ok();
+    }
 
 
 	Tools::Result WriteMemoryToFile(const fs::path& filename, void* ptr, size_t size)
@@ -170,30 +156,32 @@ namespace SystemIO
 		return Tools::Result::Ok();
 	}
 
-	// 通常のftell/fseekは2GBまでしか対応していないので特別なバージョンが必要である。
-	// 64bit環境でないと対応していない。まあいいや…。
-
-	size_t ftell64(FILE* f)
-	{
-#if defined(_MSC_VER)
-		return _ftelli64(f);
+    // WindowsではMSVC/MinGWともに64bitのファイル位置APIを使う。
+    size_t ftell64(FILE* f)
+    {
+#if defined(_WIN32)
+        const auto pos = _ftelli64(f);
 #elif defined(__GNUC__) && defined(IS_64BIT) && !(defined(__ANDROID__) && defined(__ANDROID_API__) && __ANDROID_API__ < 24) && !defined(__MACH__)
-		return ftello64(f);
+        const auto pos = ftello64(f);
 #else
-		return std::ftell(f);
+        const auto pos = std::ftell(f);
 #endif
-	}
+        // APIの失敗、またはsize_tで表現できない位置はエラーとして返す。
+        if (pos < 0 || static_cast<std::uint64_t>(pos) > std::numeric_limits<size_t>::max())
+            return size_t(-1);
+        return static_cast<size_t>(pos);
+    }
 
-	int fseek64(FILE* f, size_t offset, int origin)
-	{
-#if defined(_MSC_VER)
-		return _fseeki64(f, offset, origin);
+    int fseek64(FILE* f, size_t offset, int origin)
+    {
+#if defined(_WIN32)
+        return _fseeki64(f, offset, origin);
 #elif defined(__GNUC__) && defined(IS_64BIT) && !(defined(__ANDROID__) && defined(__ANDROID_API__) && __ANDROID_API__ < 24) && !defined(__MACH__)
-		return fseeko64(f, offset, origin);
+        return fseeko64(f, offset, origin);
 #else
-		return std::fseek(f, offset, origin);
+        return std::fseek(f, offset, origin);
 #endif
-	}
+    }
 
 	// --- TextFileReader
 
