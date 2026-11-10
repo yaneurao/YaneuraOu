@@ -366,9 +366,7 @@ std::string compiler_info() {
 	compiler += " AVX512";
 #endif
 
-#if defined(USE_BMI2)
-    compiler += " BMI2";
-#endif
+    compiler += (HasPext ? " BMI2" : "");
 
 #if defined(USE_AVX2)
 	compiler += " AVX2";

@@ -46,6 +46,12 @@
 
 namespace YaneuraOu {
 
+#ifdef USE_BMI2
+constexpr bool HasPext = true;
+#else
+constexpr bool HasPext = false;
+#endif
+
 class Position;
 
 // TTなどで使うキーは常に64bit。局面の完全なキーは設定に応じて切り替える。
