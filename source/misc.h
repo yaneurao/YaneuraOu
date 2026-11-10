@@ -545,14 +545,72 @@ class RelaxedAtomic {
 //       乱数
 // --------------------
 
+// xorshift64star Pseudo-Random Number Generator
+// This class is based on original code written and dedicated
+// to the public domain by Sebastiano Vigna (2014).
+// It has the following characteristics:
+//
+//  -  Outputs 64-bit numbers
+//  -  Passes Dieharder and SmallCrush test batteries
+//  -  Does not require warm-up, no zeroland to escape
+//  -  Internal state is a single 64-bit integer
+//  -  Period is 2^64 - 1
+//  -  Speed: 1.60 ns/call (Core i7 @3.40GHz)
+//
+// For further analysis see
+//   <http://vigna.di.unimi.it/ftp/papers/xorshift.pdf>
+
+// xorshift64starによる擬似乱数生成器。
+// Sebastiano Vignaが2014年に作成し、パブリックドメインとして公開した
+// 元のコードを基にしている。以下の特徴を持つ。
+//
+//  - 64bitの数値を出力する。
+//  - DieharderとSmallCrushの乱数検定群を通過している。
+//  - ウォームアップや、ゼロに偏った状態からの脱出処理が不要。
+//  - 内部状態は64bit整数1個。
+//  - 周期は2^64 - 1。
+//  - 速度は1呼び出しあたり1.60ns（Core i7 @3.40GHz）。
+//
+// 詳細な解析については以下を参照。
+//   <http://vigna.di.unimi.it/ftp/papers/xorshift.pdf>
+
 // 擬似乱数生成器
 // Stockfishで用いられているもの + 現在時刻によるseedの初期化機能。
 // UniformRandomNumberGenerator互換にして、std::shuffle()等でも使えるようにするべきか？
-struct PRNG
+class PRNG
 {
-	PRNG(u64 seed) : s(seed) { ASSERT_LV1(seed); }
 
-	// 時刻などでseedを初期化する。
+	u64 s;
+	u64 rand64() {
+		s ^= s >> 12, s ^= s << 25, s ^= s >> 27;
+		return s * 2685821657736338717LL;
+	}
+
+   public:
+	PRNG(u64 seed) :
+		s(seed) {
+		ASSERT_LV1(seed);
+	}
+
+	// 乱数を一つ取り出す。
+    template<typename T>
+    T rand() {
+        return T(rand64());
+    }
+
+#if STOCKFISH
+    // Special generator used to fast init magic numbers.
+    // Output values only have 1/8th of their bits set on average.
+    // magic定数を高速に初期化するための専用の乱数生成器。
+    // 出力では、平均して全ビットの1/8だけが1になる。
+    template<typename T>
+    T sparse_rand() {
+        return T(rand64() & rand64() & rand64());
+    }
+#else
+	// 🌈 やねうら王では、定跡選択にもこの乱数を用いるので、now()をseedとすると
+	//    並列実行するときに同じ指し手を選択してしまいかねない。
+	//    そこで、もうちょっと高精度な方法でseedを初期化する。
 	PRNG() {
 		// C++11のrandom_device()によるseedの初期化
 		// std::random_device rd; s = (u64)rd() + ((u64)rd() << 32);
@@ -566,29 +624,15 @@ struct PRNG
 			+ (u64)std::chrono::steady_clock::now().time_since_epoch().count();
 	}
 
-	// 乱数を一つ取り出す。
-	template<typename T> T rand() { return T(rand64()); }
-
 	// 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
 	u64 rand(u64 n) { return rand<u64>() % n; }
 
 	// 内部で使用している乱数seedを返す。
 	u64 get_seed() const { return s;  }
+#endif
 
-private:
-	u64 s;
-	u64 rand64() {
-		s ^= s >> 12, s ^= s << 25, s ^= s >> 27;
-		return s * 2685821657736338717LL;
-	}
 };
 
-// 乱数のseedを表示する。(デバッグ用)
-static std::ostream& operator<<(std::ostream& os, PRNG& prng)
-{
-	os << "PRNG::seed = " << std::hex << prng.get_seed() << std::dec;
-	return os;
-}
 
 // --------------------
 //  64bit×64bitの掛け算の上位64bitを取り出す関数
