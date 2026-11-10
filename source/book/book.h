@@ -7,6 +7,7 @@
 #include "../usi.h"
 #include "../testcmd/unit_test.h"
 
+#include <fstream>
 #include <memory>
 #include <mutex>
 #include <unordered_map>

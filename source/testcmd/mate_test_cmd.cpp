@@ -8,6 +8,7 @@
 
 // "test genmate ..."のように"test"コマンドの後続コマンドとして書く。
 
+#include <fstream>
 #include <sstream>
 
 #include "../mate/mate.h"

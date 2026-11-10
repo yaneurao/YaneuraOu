@@ -266,19 +266,21 @@ std::string engine_info(const std::string& engine_name,
 
 #endif
 
+// Returns a string trying to describe the compiler we use
 // 使用したコンパイラについての文字列を返す。
 std::string compiler_info() {
 
-#define make_version_string(major, minor, patch) stringify(major) "." stringify(minor) "." stringify(patch)
+#define make_version_string(major, minor, patch) \
+	stringify(major) "." stringify(minor) "." stringify(patch)
 
-	/// Predefined macros hell:
-	///
-	/// __GNUC__				Compiler is gcc, Clang or ICX
-	/// __clang__               Compiler is Clang or ICX
-	/// __INTEL_LLVM_COMPILER   Compiler is ICX
-	/// _MSC_VER				Compiler is MSVC
-	/// _WIN32					Building on Windows (any)
-	/// _WIN64					Building on Windows 64 bit
+	// Predefined macros hell:
+	//
+    // __GNUC__                Compiler is GCC, Clang or ICX
+	// __clang__               Compiler is Clang or ICX
+	// __INTEL_LLVM_COMPILER   Compiler is ICX
+    // _MSC_VER                Compiler is MSVC
+    // _WIN32                  Building on Windows (any)
+    // _WIN64                  Building on Windows 64 bit
 
 	std::string compiler = "\nCompiled by                : ";
 
@@ -542,7 +544,7 @@ void dbg_clear() {
 //  sync_out/sync_endl
 // --------------------
 
-// Used to serialize access to cout
+// Used to serialize access to std::cout
 // to avoid multiple threads writing at the same time.
 std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 
@@ -700,9 +702,7 @@ std::optional<usize> str_to_size_t(const std::string& s) {
     return static_cast<usize>(value);
 }
 
-// Reads the file as bytes.
-// Returns nullopt if the file does not exist.
-
+// Read the given file as bytes (returns std::nullopt if the file does not exist)
 // ファイルをバイトとして読み込みます。
 // ファイルが存在しない場合は nullopt を返します。
 
