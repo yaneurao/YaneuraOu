@@ -35,9 +35,6 @@
 
 #include "types.h"
 
-// やねうら王独自機能で使うヘッダー。
-#include "usi.h"
-
 
 namespace YaneuraOu {
 
@@ -238,11 +235,7 @@ std::string engine_info(const std::string& engine_name,
 #if defined(ENGINE_NAME_FROM_MAKEFILE)
 			// マクロの内容の文字列化
 			// cf. https://www.hiroom2.com/2015/09/07/c%E8%A8%80%E8%AA%9E%E3%81%AE-line-%E3%83%9E%E3%82%AF%E3%83%AD%E3%82%92%E3%83%97%E3%83%AA%E3%83%97%E3%83%AD%E3%82%BB%E3%83%83%E3%82%B5%E3%81%AE%E6%AE%B5%E9%9A%8E%E3%81%A7%E6%96%87%E5%AD%97%E5%88%97%E3%81%AB%E5%A4%89%E6%8F%9B%E3%81%99%E3%82%8B/
-#define STRINGIFY(n) #n
-#define TOSTRING(n) STRINGIFY(n)
-			TOSTRING(ENGINE_NAME_FROM_MAKEFILE)
-#undef STRINGIFY
-#undef TOSTRING
+			stringify(ENGINE_NAME_FROM_MAKEFILE)
 #else
 			engine_name
 #endif
@@ -705,14 +698,10 @@ std::optional<usize> str_to_size_t(const std::string& s) {
 // ファイルが存在しない場合は nullopt を返します。
 
 std::optional<std::string> read_file_to_string(const std::string& path) {
-
-	// 起動フォルダ相対でのpath
-	const auto full_path = CommandLine::get_binary_directory() / path_from_utf8(path);
-
-	std::ifstream f(full_path, std::ios_base::binary);
-	if (!f)
-		return std::nullopt;
-	return std::string(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
+    std::ifstream f(path, std::ios_base::binary);
+    if (!f)
+        return std::nullopt;
+    return std::string(std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>());
 }
 
 // Remove all spaces from a string
