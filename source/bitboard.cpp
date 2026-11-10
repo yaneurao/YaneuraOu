@@ -892,6 +892,33 @@ Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 // 角の利き
 Bitboard bishopEffect(const Square sq, const Bitboard& occupied)
 {
+#if defined(USE_AVX512)
+    // Compute all four diagonal rays in one register, preserving 128-bit borrows.
+    // 4本の斜め方向を1レジスタにまとめ、各128bit整数の桁借りを保って計算する。
+    const __m512i masks = _mm512_loadu_si512(&QUGIY_BISHOP_MASK[sq][0]);
+    const __m512i order = _mm512_setr_epi64(0, 1, 0, 1, 1, 0, 1, 0);
+    const __m512i reverseOdd = _mm512_broadcast_i64x2(
+      _mm_setr_epi8(0,1,2,3,4,5,6,7,15,14,13,12,11,10,9,8));
+    const __m512i occ = _mm512_and_si512(masks, _mm512_shuffle_epi8(
+      _mm512_permutexvar_epi64(order, _mm512_broadcast_i64x2(occupied.m)), reverseOdd));
+    const __mmask8 borrow = __mmask8(0x0f | ((_mm512_cmpeq_epi64_mask(occ,
+                                                     _mm512_setzero_si512()) & 0x0f) << 4));
+    const __m512i decremented = _mm512_mask_sub_epi64(occ, borrow, occ, _mm512_set1_epi64(1));
+    const __m512i changed = _mm512_ternarylogic_epi64(occ, decremented, masks, 0x28);
+    const __m512i restoreOrder = _mm512_setr_epi64(0, 4, 2, 6, 5, 1, 7, 3);
+    const __m512i restoreBytes = _mm512_setr_epi64(
+      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
+      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
+      0x0001020304050607LL, 0x08090a0b0c0d0e0fLL,
+      0x0001020304050607LL, 0x08090a0b0c0d0e0fLL);
+    const __m512i rays = _mm512_shuffle_epi8(
+      _mm512_permutexvar_epi64(restoreOrder, changed), restoreBytes);
+    const __m256i merged = _mm256_or_si256(_mm512_castsi512_si256(rays),
+                                         _mm512_extracti64x4_epi64(rays, 1));
+    Bitboard result;
+    result.m = _mm_or_si128(_mm256_castsi256_si128(merged), _mm256_extracti128_si256(merged, 1));
+    return result;
+#else
 	const Bitboard256 mask_lo =  QUGIY_BISHOP_MASK[sq][0];
 	const Bitboard256 mask_hi =  QUGIY_BISHOP_MASK[sq][1];
 
@@ -919,6 +946,7 @@ Bitboard bishopEffect(const Square sq, const Bitboard& occupied)
 	// byte_reverseして元の状態に戻して、重ね合わせる。
 	// hiの方には、右方向の利き、loは左方向の利きが得られている。
 	return (hi.byte_reverse() | lo).merge();
+#endif
 }
 
 // === 大駒の部分利き(SEEなどで用いる) ===
