@@ -4,6 +4,7 @@
 #include "../../config.h"
 #if defined(YANEURAOU_ENGINE_DEEP)
 
+#include <condition_variable>
 #include <thread>
 #include <set>
 
