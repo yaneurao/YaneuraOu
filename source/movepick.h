@@ -30,7 +30,6 @@ enum Stages : i8;
 // 指し手が尽きるとMove::none()を返す。alpha-beta探索を効率化するため、
 // MovePickerはカットオフを起こす可能性の高い手を先に返そうとする。
 //
-// やねうら王では擬似合法手を返し、呼び出し元の探索でpos.legal()を確認する。
 class MovePicker {
    public:
     // このクラスは指し手生成バッファが大きいので、コピーして使うような使い方は禁止。
@@ -54,14 +53,14 @@ class MovePicker {
 
     // 通常探索のProbCut用。SEEがthreshold以上の捕獲手を返す。
     // thresholdは呼び出し元指定の枝刈りの閾値で、直前に取られた駒の価値ではない。
-    // 先行するTT手は捕獲手かつpseudo_legalなら返し、SEEの条件は課さない。
+    // 先行するTT手は捕獲手かつ合法手なら返し、SEEの条件は課さない。
     MovePicker(const Position&, Move /* ttMove_ */, int /* threshold_ */, const CapturePieceToHistory*
 #if !STOCKFISH
     , bool generate_all_legal_moves
 #endif
     );
 
-    // 呼び出されるごとに新しいpseudo legalな指し手をひとつ返す。
+    // 呼び出されるごとに新しい合法手をひとつ返す。
     // 指し手が尽きればMove::none()が返る。
     // 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
     Move next_move();

@@ -214,19 +214,19 @@ MovePicker::MovePicker(const Position&              p,
     stage = ttm && pos.legal(ttm) ? TT : INIT_FIRST_STAGE;
 #else
     // やねうら王では、不成を省略するかどうかの指定もpseudo_legal()に渡す。
-    stage = ttm && pos.pseudo_legal(ttm, generate_all_legal_moves) ? TT : INIT_FIRST_STAGE;
+    stage = ttm && pos.pseudo_legal(ttm, generate_all_legal_moves) && pos.legal(ttm) ? TT : INIT_FIRST_STAGE;
 #endif
 
-    // TT手はpseudo_legalなら最初に返す。静止探索でも捕獲手には限定しない。
+    // TT手はpseudo_legalとlegalの両方を満たすなら最初に返す。静止探索でも捕獲手には限定しない。
     // TT手が無効なら、対応する指し手生成の段階から開始する。
-    // 最終的な合法性の確認と千日手への対処は呼び出し元の探索側で行う。
+    // 生成手はselect()で返却直前に合法性を確認する。千日手への対処は探索側で行う。
 }
 
 // MovePicker constructor for ProbCut: we generate captures with Static Exchange
 // Evaluation (SEE) greater than or equal to the given threshold.
 // ProbCut用のコンストラクタ。SEEが指定された閾値以上の捕獲手を返す。
 // thresholdは呼び出し元が指定する枝刈りの閾値（probCutBeta - ss->staticEval）。
-// ただし、先に返すTT手は捕獲手かつpseudo_legalであることだけを確認し、SEEでは制限しない。
+// ただし、先に返すTT手は捕獲手かつ合法手であることを確認し、SEEでは制限しない。
 
 MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceToHistory* cph
 #if !STOCKFISH
@@ -248,12 +248,12 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
     ASSERT_LV3(!pos.in_check());
 
     // PROBCUT段階ではSEEがthreshold以上の手を返す。
-    // 先行するTT手については、捕獲とpseudo_legalの条件だけを確認する。
+    // 先行するTT手については、捕獲と合法性の条件を確認する。
     first_stage = PROBCUT;
 #if STOCKFISH
     stage = ttm && pos.capture_stage(ttm) && pos.legal(ttm) ? TT : INIT_FIRST_STAGE;
 #else
-    stage = ttm && pos.capture(ttm) && pos.pseudo_legal(ttm, generate_all_legal_moves)
+    stage = ttm && pos.capture(ttm) && pos.pseudo_legal(ttm, generate_all_legal_moves) && pos.legal(ttm)
               ? TT : INIT_FIRST_STAGE;
 #endif
     // ⇨ qsearch()のTTと同様、置換表の指し手に関してはsee_geの条件、
@@ -418,7 +418,9 @@ Move MovePicker::select(Pred filter) {
 
 	for (; cur < endCur; ++cur)
 		// filter()のなかで*curにアクセスして判定するのでfilter()は引数を取らない。
-		if (*cur != ttMove && filter())
+        // Check legality only after the candidate passes the stage's filter.
+        // 段階ごとの選別を通過し、実際に返す候補だけ合法性を確認する。
+		if (*cur != ttMove && filter() && pos.legal(*cur))
 			return *cur++;
 
 	return Move::none();
@@ -427,10 +429,9 @@ Move MovePicker::select(Pred filter) {
 // This is the most important method of the MovePicker class. We emit one
 // new legal move on every call until there are no more moves left,
 // picking the move with the highest score from a list of generated moves.
-// MovePickerの中心となるメソッド。呼び出しごとに擬似合法手を一手返し、
+// MovePickerの中心となるメソッド。呼び出しごとに合法手を一手返し、
 // 指し手が尽きるとMove::none()を返す。各段階の採点と並び順に従って選ぶ。
 // 通常探索ではquietを部分ソートするため、全体の厳密なスコア降順とは限らない。
-// Stockfishの現行コメントはlegalだが、やねうら王は探索側でpos.legal()を確認する。
 // TT手は最初に返し、それ以降は重複を除外する。skipQuietsならquietを返さない。
 Move MovePicker::next_move() {
 

@@ -3702,6 +3702,42 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         }
     }
     {
+        auto section = tester.section("LegalMoveGeneration");
+
+        // ピンされた金は玉と飛車を結ぶ線上には動けるが、横には動けない。
+        pos_init("4k4/9/9/9/4r4/9/4G4/9/4K4 b - 1");
+        auto quiets = MoveList<LEGAL_ALL>(pos);
+        tester.test("pinned gold",
+                    quiets.contains(make_move(SQ_57, SQ_56, B_GOLD))
+                      && !quiets.contains(make_move(SQ_57, SQ_47, B_GOLD)));
+
+        // 王手している飛車の利きへ玉を動かす手は生成せず、合駒は生成する。
+        pos_init("4k4/9/9/9/4r4/9/9/9/4K4 b G 1");
+        auto evasions = MoveList<LEGAL_ALL>(pos);
+        tester.test("king safety and interposition",
+                    !evasions.contains(make_move(SQ_59, SQ_58, B_KING))
+                      && evasions.contains(make_move_drop(GOLD, SQ_58, BLACK)));
+
+        // 両王手は玉の移動だけで回避する。手駒があっても合駒は生成しない。
+        pos_init("4k4/9/9/9/4r4/9/6b2/9/4K4 b G 1");
+        auto doubleCheck = MoveList<LEGAL_ALL>(pos);
+        tester.test("double check",
+                    pos.checkers().more_than_one() && doubleCheck.size() != 0
+                      && std::all_of(doubleCheck.begin(), doubleCheck.end(), [&](Move move) {
+                             return !move.is_drop() && type_of(pos.moved_piece(move)) == KING
+                                 && pos.pseudo_legal_s<true>(move) && pos.legal(move);
+                         }));
+
+        // 王手となる歩打ちでも、打ち歩詰めならquiet/王手生成の両方から除く。
+        pos_init("4k4/9/3LGL3/9/9/9/9/9/4K4 b P 1");
+        const Move pawnMate = make_move_drop(PAWN, SQ_52, BLACK);
+        tester.test("illegal pawn-drop mate",
+                    !MoveList<QUIETS_ALL>(pos).contains(pawnMate)
+                      && !MoveList<CHECKS_ALL>(pos).contains(pawnMate)
+                      && MoveList<QUIETS_ALL>(pos).contains(make_move_drop(PAWN, SQ_42, BLACK)));
+    }
+
+    {
         // see_ge()のテスト
         auto      section = tester.section("see_ge");
         StateInfo s[512];

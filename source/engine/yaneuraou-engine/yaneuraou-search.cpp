@@ -3428,9 +3428,9 @@ Value Search::YaneuraOuWorker::search(
         while ((move = mp.next_move()) != Move::none())
         {
             ASSERT_LV3(move.is_ok());
-            ASSERT_LV5(pos.pseudo_legal_s<true>(move) && pos.legal_promote(move));
+            ASSERT_LV5(pos.pseudo_legal_s<true>(move) && pos.legal_promote(move) && pos.legal(move));
 
-            if (move == excludedMove || !pos.legal(move))
+            if (move == excludedMove)
                 continue;
 
             //assert(pos.capture_stage(move));
@@ -3512,36 +3512,20 @@ moves_loop:  // When in check, search starts here
     int moveCount = 0;
 
 	// -----------------------
-    // Step 13. Loop through all pseudo-legal moves until no moves remain
+    // Step 13. Loop through all legal moves until no moves remain
     //			or a beta cutoff occurs.
-    // Step 13. 擬似合法手をすべてループし、手がなくなるか
+    // Step 13. 合法手をすべてループし、手がなくなるか
     //          もしくはbetaカットオフが発生するまで繰り返します。
     // -----------------------
 
-	// 💡 MovePickerが返す指し手はpseudo-legalであることは保証されているが、
-	//     do_move()までにはlegalかどうかの判定が必要。
+    // MovePickerが返す指し手は合法性を満たす。
 
     while ((move = mp.next_move()) != Move::none())
     {
         ASSERT_LV3(move.is_ok());
-        ASSERT_LV5(pos.pseudo_legal_s<true>(move) && pos.legal_promote(move));
+        ASSERT_LV5(pos.pseudo_legal_s<true>(move) && pos.legal_promote(move) && pos.legal(move));
 
         if (move == excludedMove)
-            continue;
-
-        // Check for legality
-        // 指し手の合法性のチェック
-
-        /*
-		   📝 root nodeなら、rootMovesになければlegalではないのでこのチェックは不要だが、
-			   root nodeは全体から見ると極わずかなのでそのチェックを端折るほうが良いようだ。
-
-			   非合法手はほとんど含まれていないから、以前はこの判定はdo_move()の直前まで
-			   遅延させたほうが得だったが、do_move()するまでの枝刈りが増えてきたので、
-			   ここでやったほうが良いようだ。
-		*/
-
-        if (!pos.legal(move))
             continue;
 
         // At root obey the "searchmoves" option and skip moves not listed in Root
@@ -4910,27 +4894,19 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     );
 
 	// -----------------------
-    // Step 5. Loop through all pseudo-legal moves until no moves remain or a beta cutoff occurs.
-    // Step 5. 疑似合法手をすべてループ処理し、手が残らなくなるか、ベータカットオフが発生するまで続けます。
+    // Step 5. Loop through all legal moves until no moves remain or a beta cutoff occurs.
+    // Step 5. 合法手をすべてループ処理し、手が残らなくなるか、ベータカットオフが発生するまで続けます。
     // -----------------------
 
     while ((move = mp.next_move()) != Move::none())
     {
         //assert(move.is_ok());
 
-		// 🤔 MovePickerで生成された指し手はpseudo_legalであるはず。
+		// MovePickerが返す指し手は合法手である。
         ASSERT_LV3(pos.pseudo_legal_s<true>(move) && pos.legal_promote(move));
 
-		/*
-			合法手かどうかのチェック
-		
-			📓 指し手の合法性の判定は直前まで遅延させたほうが得だと思われていたのだが
-			   (これが非合法手である可能性はかなり低いので他の判定によりskipされたほうが得)
-			   Stockfish14から、静止探索でも、早い段階でlegal()を呼び出すようになった。
-		*/
-
-        if (!pos.legal(move))
-            continue;
+        // MovePickerが返却前に合法性を確認済み。
+        ASSERT_LV5(pos.legal(move));
 
 		//  局面を進める前の枝刈り
 
