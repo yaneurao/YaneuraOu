@@ -8,7 +8,9 @@
 #include "position.h"
 
 namespace YaneuraOu {
+#if !STOCKFISH
 using Eval::PieceValue;
+#endif
 
 // 指し手生成・返却の段階。headerの前方宣言と同じYaneuraOu名前空間で定義する。
 enum Stages : i8 {
@@ -53,8 +55,12 @@ namespace {
 // Load the Move, and the ExtMove value, into all lanes of 512-bit registers
 // 指し手とExtMoveのスコアを、それぞれ512bitレジスターの全レーンへ複製する。
 static void splat_extmove(const ExtMove& m, __m512i& move, __m512i& value) {
+#if STOCKFISH
+    move  = _mm512_set1_epi32(m.raw());
+#else
     // やねうら王のraw()は下位16bitのみなので、駒情報を含む32bit全体を保持する。
     move  = _mm512_set1_epi32(m.to_u32());
+#endif
     value = _mm512_set1_epi32(m.value);
 }
 
@@ -193,7 +199,7 @@ MovePicker::MovePicker(const Position&              p,
     first_stage = pos.checkers() ? EVASION : depth > 0 ? GOOD_CAPTURE : QSEARCH;
 
 #if STOCKFISH
-    stage = ttm && pos.pseudo_legal(ttm) ? TT : INIT_FIRST_STAGE;
+    stage = ttm && pos.legal(ttm) ? TT : INIT_FIRST_STAGE;
 #else
     // やねうら王では、不成を省略するかどうかの指定もpseudo_legal()に渡す。
     stage = ttm && pos.pseudo_legal(ttm, generate_all_legal_moves) ? TT : INIT_FIRST_STAGE;
@@ -233,7 +239,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
     // 先行するTT手については、捕獲とpseudo_legalの条件だけを確認する。
     first_stage = PROBCUT;
 #if STOCKFISH
-    stage = ttm && pos.capture_stage(ttm) && pos.pseudo_legal(ttm) ? TT : INIT_FIRST_STAGE;
+    stage = ttm && pos.capture_stage(ttm) && pos.legal(ttm) ? TT : INIT_FIRST_STAGE;
 #else
     stage = ttm && pos.capture(ttm) && pos.pseudo_legal(ttm, generate_all_legal_moves)
               ? TT : INIT_FIRST_STAGE;
@@ -371,7 +377,8 @@ ExtMove* MovePicker::generate_and_score() {
             m.value = value;
 
         }
-		else // Type == EVASIONS || EVASIONS_ALL
+		else // Type == EVASIONS
+			 // || EVASIONS_ALL
 		{
 			// 王手回避の指し手をスコアリングする。
 			if (pos.capture_stage(m))
