@@ -940,58 +940,6 @@ namespace Tools {
 		return b;
 	}
 
-	// マルチバイト文字列をワイド文字列に変換する。
-	// WindowsAPIを呼び出しているのでWindows環境専用。
-	wstring MultiByteToWideChar(const string& s)
-	{
-#if !defined(_WIN32)
-		return wstring(s.begin(), s.end()); // NotImplemented
-		// 漢字とか使われているとうまく変換できないけど、とりあえずASCII文字列なら
-		// 変換できるのでこれで凌いでおく。
-#else
-
-		// WindowsAPIのMultiByteToWideChar()を用いて変換するので
-		// Windows環境限定。
-
-		// 変換後の文字列を格納するのに必要なバッファサイズが不明なのでいったんその長さを問い合わせる。
-
-		int length = ::MultiByteToWideChar(
-			CP_THREAD_ACP,			// コードページ = 現在のスレッドのコードページ
-			MB_PRECOMPOSED,			// 文字の種類を指定するフラグ
-			s.c_str(),				// マップ元文字列のアドレス
-			(int)s.length() + 1,	// マップ元文字列のバイト数
-			nullptr,				// マップ先ワイド文字列を入れるバッファのアドレス
-			0						// バッファのサイズ
-		);
-
-		// マップ元文字列のバイト数だから、そこに0ではなくサイズを指定するなら
-		// s.length() + 1を指定しないといけない。
-
-		// ここをs.length()としてしまうと'\0'が変換されずに末尾にゴミが出る(´ω｀)
-		// ググって出てくるMultiByteToWideCharのサンプルプログラム、ここが間違ってるものが多すぎ。
-
-		// また::MultiByteToWideCharの返し値が0であることはない。
-		// ('\0'を格納するためにwchar_t 1文字分のバッファは少なくとも必要なので)
-
-		wchar_t* buffer = new wchar_t[length];
-		SCOPE_EXIT( delete[] buffer; );
-
-		int result = ::MultiByteToWideChar(
-			CP_THREAD_ACP,			// コードページ = 現在のスレッドのコードページ
-			MB_PRECOMPOSED,			// 文字の種類を指定するフラグ
-			s.c_str(),				// マップ元文字列のアドレス
-			(int)s.length() + 1,	// マップ元文字列のバイト数
-			buffer,					// マップ先ワイド文字列を入れるバッファのアドレス
-			length					// バッファのサイズ
-		);
-
-		if (result == 0)
-			return wstring(); // 何故かエラーなのだ…。
-
-		return wstring(buffer);
-#endif
-	}
-
 	// size_ : 全件でいくらあるかを設定する。
 	ProgressBar::ProgressBar(u64 size_)
 	{

@@ -845,26 +845,6 @@ namespace Tools
 	// name == nullptrのとき、途中経過は表示しない。
 	void memclear(YaneuraOu::ThreadPool& threads, const char* name, void* table, size_t size);
 
-	// insertion sort
-	// 昇順に並び替える。学習時のコードで使いたい時があるので用意してある。
-	template <typename T >
-	void insertion_sort(T* arr, int left, int right)
-	{
-		for (int i = left + 1; i < right; i++)
-		{
-			auto key = arr[i];
-			int j = i - 1;
-
-			// keyより大きな arr[0..i-1]の要素を現在処理中の先頭へ。
-			while (j >= left && (arr[j] > key))
-			{
-				arr[j + 1] = arr[j];
-				j = j - 1;
-			}
-			arr[j + 1] = key;
-		}
-	}
-
 	// 途中での終了処理のためのwrapper
 	// コンソールの出力が完了するのを待ちたいので3秒待ってから::exit(EXIT_FAILURE)する。
 	void exit();
@@ -880,10 +860,6 @@ namespace Tools
 	// そのため、ifstreamに対してgetline()を呼び出すときは、
 	// std::getline()ではなくこのこの関数を使うべき。
 	bool getline(std::ifstream& fs, std::string& s);
-
-	// マルチバイト文字列をワイド文字列に変換する。
-	// WindowsAPIを呼び出しているのでWindows環境専用。
-	std::wstring MultiByteToWideChar(const std::string& s);
 
 	// 他言語にあるtry～finally構文みたいなの。
 	// SCOPE_EXIT()マクロの実装で使う。このクラスを直接使わないで。
