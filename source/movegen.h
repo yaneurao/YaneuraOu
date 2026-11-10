@@ -2,7 +2,6 @@
 #define MOVEGEN_H_INCLUDED
 
 #include <algorithm>  // IWYU pragma: keep
-#include <cstddef>
 
 #include "misc.h"
 #include "types.h"
@@ -183,24 +182,6 @@ struct MoveList {
 	// last     : 生成された指し手の末尾の要素 + 1 を指すポインター。
     Move moveList[MAX_MOVES], *last;
 };
-
-// 以前のやねうら王との互換性のために用意。
-template<GenType Type>
-ExtMove* generateMoves(const Position& pos, ExtMove* moveList)
-{
-    auto moveList0 = static_cast<Move*>(moveList);
-    auto moveList1 = generate<Type>(pos, moveList0);
-
-	// これをexpandして返す。
-
-	// ⚠ 符号型にしておかないと i >= 0 が意味をなさない。
-	int size = int(moveList1 - moveList0);
-	for (int i = size - 1; i >= 0; --i)
-		// MoveからMoveExtへのコピー
-		moveList[i] = moveList0[i];
-
-	return moveList + size;
-}
 
 }  // namespace YaneuraOu
 

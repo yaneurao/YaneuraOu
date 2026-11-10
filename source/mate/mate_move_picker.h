@@ -35,39 +35,20 @@ namespace Mate {
 	public:
 		explicit MovePicker(const Position& pos)
 		{
-			// givesCheckを呼び出すのかのフラグ
-			bool doGivesCheck = false;
-			if (or_node) {
-				// ORノードなのですべての王手の指し手を生成。
+			// 王手中の攻め方は、回避手から逆王手になる手を選ぶ。
+			constexpr bool doGivesCheck = or_node && INCHECK;
+			constexpr GenType type = or_node && !INCHECK ? (GEN_ALL ? CHECKS_ALL : CHECKS)
+			                                            : (GEN_ALL ? EVASIONS_ALL : EVASIONS);
 
-				// dlshogi、ここ、王手になる指し手を生成して、自玉に王手がかかっている場合、
-				// 回避手になっているかをpseudo_legal()でチェックしているが、
-				// pseudo_legal()のほうはわりと重い処理なので、自玉に王手がかかっているなら
-				// evasionの指し手を生成して、それがgives_check()で王手の指し手になっているか
-				// 見たほうが自然では？
+			last = moveList;
+			for (Move move : MoveList<type>(pos))
+			{
+				if ((doGivesCheck && !pos.gives_check(move)) || !pos.legal(move))
+					continue;
 
-				if (INCHECK)
-				{
-					last = GEN_ALL ? generateMoves<EVASIONS_ALL>(pos, moveList) : generateMoves<EVASIONS>(pos, moveList);
-					// これが王手になるかはのちほどチェックする。
-					doGivesCheck = true;
-				}
-				else {
-					last = GEN_ALL ? generateMoves<CHECKS_ALL>(pos, moveList) : generateMoves<CHECKS>(pos, moveList);
-				}
+				ASSERT_LV3(last < moveList + MaxCheckMoves);
+				*last++ = move;
 			}
-			else {
-				// ANDノードなので回避の指し手のみを生成
-				// (王手になる指し手も含まれる)
-				last = GEN_ALL ? generateMoves<EVASIONS_ALL>(pos, moveList): generateMoves<EVASIONS>(pos, moveList);
-			}
-
-			// 以下の２つの指し手は除外する。
-			// 1. doGivesCheck==trueなのに、王手になる指し手ではない。
-			// 2. legalではない。
-			last = std::remove_if(moveList, last, [&](const auto& ml) {
-				return (doGivesCheck && !pos.gives_check(ml)) || !pos.legal(ml);
-			});
 
 			// それぞれの指し手に対して点数をつける。
 			if constexpr (MoveOrdering)

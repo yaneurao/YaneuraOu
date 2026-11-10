@@ -79,18 +79,11 @@ struct MovePicker
 	// or_node == trueなら攻め方の手番である。王手となる指し手をすべて生成する。
 	// or_node == falseなら受け方の手番である。王手回避の指し手だけをすべて生成する。
 	MovePicker(Position& pos, bool or_node) {
-		// たぬき詰めであれば段階的に指し手を生成する必要はない。
-		// 自分の手番なら王手の指し手(CHECKS)、
-		// 相手の手番ならば回避手(EVASIONS)を生成。
-		endMoves = or_node ?
-			generateMoves<CHECKS_ALL>(pos, moves) :
-			generateMoves<EVASIONS_ALL>(pos, moves);
-
-		// 非合法手が交じるとempty()でそのnodeが詰みかどうかが判定できなくなりややこしいので、
-		// ここで除外しておく。
-		endMoves = std::remove_if(moves, endMoves, [&pos](const auto& move) {
-			return !pos.legal(move);
-		});
+		// 攻め方は王手、受け方は王手回避の候補を生成する。
+		if (or_node)
+			generate_legal<CHECKS_ALL>(pos);
+		else
+			generate_legal<EVASIONS_ALL>(pos);
 	}
 
 	// 生成された指し手が空であるかの判定
@@ -98,13 +91,20 @@ struct MovePicker
 		return moves == endMoves;
 	}
 
-	ExtMove* begin() { return moves; }
-	ExtMove* end() { return endMoves; }
-	const ExtMove* begin() const { return moves; }
-	const ExtMove* end() const { return endMoves; }
+	const Move* begin() const { return moves; }
+	const Move* end() const { return endMoves; }
 
 private:
-	ExtMove moves[MAX_MOVES], *endMoves = moves;
+	template<GenType Type>
+	void generate_legal(const Position& pos)
+	{
+		// empty() で詰みを判定できるよう、合法手だけを格納する。
+		for (Move move : MoveList<Type>(pos))
+			if (pos.legal(move))
+				*endMoves++ = move;
+	}
+
+	Move moves[MAX_MOVES], *endMoves = moves;
 };
 
 // 置換表
