@@ -1,6 +1,13 @@
 ﻿#ifndef CONFIG_H_INCLUDED
 #define CONFIG_H_INCLUDED
 
+// NUMAなどで使うWindows 7以降のAPIを、最初のWindowsヘッダーから宣言させる。
+// ヘッダーを読み込んだ後で対象バージョンを上げても、宣言は追加されない。
+#if defined(_WIN32) && (!defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0601)
+    #undef _WIN32_WINNT
+    #define _WIN32_WINNT 0x0601
+#endif
+
 // ============================================================
 //
 //  やねうら王プロジェクト
