@@ -543,20 +543,6 @@ constexpr int MAX_PLY_NUM = 246;
 // memoryがalignされているかのassert
 #define ASSERT_ALIGNED(ptr, alignment) assert(reinterpret_cast<uintptr_t>(ptr) % alignment == 0)
 
-// --- declaration of unreachablity
-
-// switchにおいてdefaultに到達しないことを明示して高速化させる
-// 💡 デバッグ時は普通にしとかないと変なアドレスにジャンプして原因究明に時間がかかる。
-// 📝 StockfishでUtility::sf_assume(bool)が追加された。そちらも参考にすること。
-
-#if defined(_MSC_VER)
-#define UNREACHABLE ASSERT_LV3(false); __assume(0);
-#elif defined(__GNUC__)
-#define UNREACHABLE ASSERT_LV3(false); __builtin_unreachable();
-#else
-#define UNREACHABLE ASSERT_LV3(false);
-#endif
-
 // --- alignment tools
 
 // 構造体などのアライメントを揃えるための宣言子

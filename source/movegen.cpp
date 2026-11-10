@@ -1,6 +1,7 @@
 ﻿//   指し手生成ライブラリ
 
 #include "movegen.h"
+#include "misc.h"
 
 #include <iostream>
 
@@ -189,7 +190,7 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 			break;
 
 
-		default: UNREACHABLE; break;
+		default: ASSERT_LV3(false); sf_unreachable(); break;
 		}
 
 		return mlist;
@@ -422,7 +423,7 @@ template <Color Us> struct GenerateDropMoves {
 				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
 				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
 				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				default: UNREACHABLE;
+				default: ASSERT_LV3(false); sf_unreachable();
 				}
 			}
 			else
@@ -440,7 +441,7 @@ template <Color Us> struct GenerateDropMoves {
 				case 2: target1.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
 				case 3: target1.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
 				case 4: target1.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
-				default: UNREACHABLE;
+				default: ASSERT_LV3(false); sf_unreachable();
 				}
 
 				switch (num - nextToKnight) // 2段目に対する桂以外の駒打ちの指し手の生成(最大で5種の駒)
@@ -451,7 +452,7 @@ template <Color Us> struct GenerateDropMoves {
 				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
 				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
 				case 5: target2.foreach([&](Square sq) { Unroller<5>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
-				default: UNREACHABLE;
+				default: ASSERT_LV3(false); sf_unreachable();
 				}
 
 				switch (num) // 3～9段目に対する香を含めた指し手生成(最大で6種の駒)
@@ -462,7 +463,7 @@ template <Color Us> struct GenerateDropMoves {
 				case 4: target3.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
 				case 5: target3.foreach([&](Square sq) { Unroller<5>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
 				case 6: target3.foreach([&](Square sq) { Unroller<6>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				default: UNREACHABLE;
+				default: ASSERT_LV3(false); sf_unreachable();
 				}
 			}
 
@@ -651,7 +652,7 @@ struct make_move_target_general {
 		case PRO_SILVER: mlist = make_move_target<PRO_SILVER, Us, All>()(pos, from, effect & target, mlist); break;
 		case HORSE     : mlist = make_move_target<HORSE     , Us, All>()(pos, from, effect & target, mlist); break;
 		case DRAGON    : mlist = make_move_target<DRAGON    , Us, All>()(pos, from, effect & target, mlist); break;
-		default: UNREACHABLE;
+		default: ASSERT_LV3(false); sf_unreachable();
 		}
 		return mlist;
 	}
@@ -756,7 +757,8 @@ Move* make_move_check(const Position& pos, Piece pc, Square from, Square ksq, co
 	case DRAGON    : GEN_MOVE_HD_CHECK(DRAGON, dragonEffect); break;
 
 	default:
-		UNREACHABLE;
+		ASSERT_LV3(false);
+		sf_unreachable();
 	}
 	return mlist;
 }

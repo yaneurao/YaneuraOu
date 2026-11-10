@@ -1,4 +1,5 @@
 ﻿#include "mate.h"
+#include "../misc.h"
 
 #if defined(USE_MATE_1PLY) && !defined(LONG_EFFECT_LIBRARY)
 
@@ -313,7 +314,8 @@ namespace {
 						break;
 
 					default:
-						UNREACHABLE;
+						ASSERT_LV3(false);
+						sf_unreachable();
 					}
 
 					bb &= ~Bitboard(sq); // sqの地点邪魔なので消しておく。

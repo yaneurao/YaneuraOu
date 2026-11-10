@@ -1,4 +1,5 @@
 ﻿#include "../../config.h"
+#include "../../misc.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP)
 
@@ -761,7 +762,7 @@ float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, N
 				break;
 			}
 
-			default: UNREACHABLE;
+			default: ASSERT_LV3(false); sf_unreachable();
 		}
 
 		// ノードの展開は終わって、詰みであるなら、SetWin()/SetLose()等でそれがChildNodeに反映されている。

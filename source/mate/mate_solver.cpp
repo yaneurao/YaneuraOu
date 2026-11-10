@@ -1,4 +1,5 @@
 ﻿#include "mate.h"
+#include "../misc.h"
 #if defined(USE_MATE_SOLVER)
 #include "../position.h"
 #include "mate_move_picker.h"
@@ -146,7 +147,7 @@ namespace Mate {
 				found_mate = mated_even_ply<GEN_ALL>(pos, ply - 1) == Move::none() /* 回避手がない == 詰み */;
 				break;
 
-			default: UNREACHABLE;
+			default: ASSERT_LV3(false); sf_unreachable();
 			}
 
 			pos.undo_move(m);
@@ -225,7 +226,7 @@ namespace Mate {
 					// 詰みが見つからなかったら、逃れている。
 				break;
 
-			default: UNREACHABLE;
+			default: ASSERT_LV3(false); sf_unreachable();
 			}
 
 			pos.undo_move(m);

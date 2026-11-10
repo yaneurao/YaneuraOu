@@ -1,4 +1,5 @@
 ﻿#include "bitboard.h"
+#include "misc.h"
 #include "extra/long_effect.h"
 #include "mate/mate.h"
 #include "testcmd/unit_test.h"
@@ -814,7 +815,7 @@ Bitboard effects_from(Piece pc, Square sq)
 	//case B_QUEEN:  case W_QUEEN:  return bishopStepEffect(sq) | rookStepEffect(sq); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
 	case NO_PIECE: case PIECE_WHITE: return Bitboard(ZERO); // これも入れておかないと初期化が面倒になる。
 
-	default: UNREACHABLE; return Bitboard(1);
+	default: ASSERT_LV3(false); sf_unreachable(); return Bitboard(1);
 	}
 }
 
@@ -844,7 +845,7 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 	//case B_QUEEN:  case W_QUEEN:  return bishopEffect (sq, occ) | rookEffect(sq, occ); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
 	case NO_PIECE: case PIECE_WHITE: return Bitboard(ZERO); // これも入れておかないと初期化が面倒になる。
 
-	default: UNREACHABLE; return Bitboard(1);
+	default: ASSERT_LV3(false); sf_unreachable(); return Bitboard(1);
 	}
 }
 
@@ -935,7 +936,7 @@ Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied)
 	case Effect8::DIRECT_LU : return rayEffect<Effect8::DIRECT_LU>(sq, occupied);
 	case Effect8::DIRECT_L  : return rayEffect<Effect8::DIRECT_L >(sq, occupied);
 	case Effect8::DIRECT_LD : return rayEffect<Effect8::DIRECT_LD>(sq, occupied);
-	default: UNREACHABLE; return Bitboard(ZERO);
+	default: ASSERT_LV3(false); sf_unreachable(); return Bitboard(ZERO);
 	}
 }
 

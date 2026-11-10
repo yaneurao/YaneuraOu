@@ -2813,7 +2813,7 @@ bool Position::see_ge(Move m, Value threshold) const
 		case DIRECT_L : attackers |= rayEffect<DIRECT_L >(to, occupied) & pieces(ROOK_DRAGON); break;
 		case DIRECT_R : attackers |= rayEffect<DIRECT_R >(to, occupied) & pieces(ROOK_DRAGON); break;
 
-		default: UNREACHABLE; break;
+		default: ASSERT_LV3(false); sf_unreachable(); break;
 		}
 
         // clang-format on
@@ -3194,7 +3194,8 @@ Move Position::DeclarationWin() const
 	}
 
 	default:
-		UNREACHABLE;
+		ASSERT_LV3(false);
+		sf_unreachable();
 		return Move::none();
 	}
 }

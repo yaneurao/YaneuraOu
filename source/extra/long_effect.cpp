@@ -1,4 +1,5 @@
 ﻿#include "long_effect.h"
+#include "../misc.h"
 
 // namespace Effect8 { Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1]; }
 // → shogi.cppで定義している。LONG_EFFECT_LIBRARYが必要なときは、この定義も用意すること。
@@ -324,7 +325,7 @@ namespace LongEffect
       return Bitboard(ZERO);
 
     default:
-      UNREACHABLE; return Bitboard(ZERO);
+      ASSERT_LV3(false); sf_unreachable(); return Bitboard(ZERO);
     }
   }
 

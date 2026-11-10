@@ -172,7 +172,8 @@ namespace EvalIO {
 							case 4: n = *(s32*)src; break;
 							case 8: n = *(s64*)src; break;
 							default:
-								UNREACHABLE;
+								ASSERT_LV3(false);
+								sf_unreachable();
 							}
 						}
 						else {
@@ -188,7 +189,8 @@ namespace EvalIO {
 						case 4: *(s32*)dst = (s32)n; break;
 						case 8: *(s64*)dst = (s64)n; break;
 						default:
-							UNREACHABLE;
+							ASSERT_LV3(false);
+							sf_unreachable();
 						}
 
 						src += in_.element_size;

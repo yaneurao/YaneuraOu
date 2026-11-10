@@ -156,7 +156,8 @@ MateRepetitionState mate_repetition(const Position& pos,
             break;
 
         default :
-            UNREACHABLE;
+            ASSERT_LV3(false);
+            sf_unreachable();
         }
 
         if (plies_from_root < repetition_ply)
@@ -178,7 +179,8 @@ MateRepetitionState mate_repetition(const Position& pos,
                 break;
 
             default :
-                UNREACHABLE;
+                ASSERT_LV3(false);
+                sf_unreachable();
             }
         }
     }
@@ -202,7 +204,8 @@ MateRepetitionState mate_repetition(const Position& pos,
             break;
 
         default :
-            UNREACHABLE;
+            ASSERT_LV3(false);
+            sf_unreachable();
         }
 
         if (plies_from_root < repetition_ply)
@@ -223,7 +226,8 @@ MateRepetitionState mate_repetition(const Position& pos,
                 break;
 
             default :
-                UNREACHABLE;
+                ASSERT_LV3(false);
+                sf_unreachable();
             }
         }
     }
