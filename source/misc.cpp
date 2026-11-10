@@ -1,5 +1,7 @@
-﻿#include "misc.h"
+﻿#if !STOCKFISH
 #include "extra/tools.h"
+#endif
+#include "misc.h"
 
 #include <array>
 #include <atomic>
@@ -671,21 +673,31 @@ fs::path path_from_utf8(const std::string& path) {
 // Constructor for the CommandLine class
 // CommandLineクラスのコンストラクタ。
 // 起動引数を設定する。グローバルインスタンスのset_arg()と同じ経路を使う。
+
+#if STOCKFISH
+CommandLine::CommandLine(int _argc, char** _argv) :
+    argc(_argc),
+    argv(_argv) {
+#else
 CommandLine::CommandLine(int _argc, char** _argv) { set_arg(_argc, _argv); }
 
 void CommandLine::set_arg(int _argc, char** _argv) {
     argc = _argc;
     argv = _argv;
+
+#ifdef _WIN32
+    // 🌈 set_arg()が再度呼ばれた場合も、引数を前回分へ追加せず置き換える。
+    argv_utf8.clear();
+    argv_storage.clear();
+#endif
+#endif
+
 #ifdef _WIN32
     // Convert any non-ANSI characters passed on the command line to UTF-8
     // コマンドライン引数に含まれるANSIでは表現できない文字をUTF-8へ変換する。
     int wargc = 0;
     if (LPWSTR* wargv = CommandLineToArgvW(GetCommandLineW(), &wargc))
     {
-        // set_arg()が再度呼ばれた場合も、引数を前回分へ追加せず置き換える。
-        argv_utf8.clear();
-        argv_storage.clear();
-
         for (int i = 0; i < wargc; ++i)
             argv_storage.push_back(utf8_from_wstring(wargv[i]));
         LocalFree(wargv);
@@ -779,11 +791,12 @@ fs::path CommandLine::get_binary_directory() {
     return fs::absolute(get_binary_directory(
       g.argc > 0 && g.argv && g.argv[0] ? path_from_utf8(g.argv[0]) : fs::path{}));
 }
-#endif
 
 // CommandLine global object
 // 起動引数をプロセス全体で共有するCommandLineのグローバルオブジェクト。
 CommandLine CommandLine::g;
+
+#endif
 
 // On Windows, tell the console to use UTF8 encoding
 // Windowsではコンソールの入出力をUTF-8に設定する。
