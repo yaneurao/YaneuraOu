@@ -49,14 +49,69 @@ enum Stages : i8 {
 
 namespace {
 
-// -----------------------
-//   partial insertion sort
-// -----------------------
+#ifdef USE_AVX512
+// Load the Move, and the ExtMove value, into all lanes of 512-bit registers
+// 指し手とExtMoveのスコアを、それぞれ512bitレジスターの全レーンへ複製する。
+static void splat_extmove(const ExtMove& m, __m512i& move, __m512i& value) {
+    // やねうら王のraw()は下位16bitのみなので、駒情報を含む32bit全体を保持する。
+    move  = _mm512_set1_epi32(m.to_u32());
+    value = _mm512_set1_epi32(m.value);
+}
+
+// Sorts up to 16 moves.
+// 最大16手をソートする。
+struct MoveSorter {
+    static constexpr int MAX_ELEMENTS = 16;
+    __m512i              sortedValues, sortedMoves;
+
+    explicit MoveSorter(const ExtMove& first) {
+        splat_extmove(first, sortedMoves, sortedValues);
+
+        // Set the uninitialized move values to INT_MIN, so that they sort less than any other move
+        // 未使用レーンのスコアをINT_MINにして、実際の指し手より後ろに並ぶようにする。
+        sortedValues = _mm512_mask_set1_epi32(sortedValues, ~1, std::numeric_limits<int>::min());
+    }
+
+    void insert(const ExtMove& m) {
+        __m512i move, value;
+        splat_extmove(m, move, value);
+
+        // Mask of all elements except the insertion point
+        // 挿入位置以外の全要素を示すマスク。
+        assert(m.value != std::numeric_limits<int>::min());
+        const u16 expand = _kadd_mask16(_mm512_cmplt_epi32_mask(sortedValues, value), -1);
+
+        sortedValues = _mm512_mask_expand_epi32(value, expand, sortedValues);
+        sortedMoves  = _mm512_mask_expand_epi32(move, expand, sortedMoves);
+    }
+
+    void write_sorted(ExtMove* moves, isize count) const {
+        static_assert(sizeof(ExtMove) == 8);
+        assert(count <= MAX_ELEMENTS);
+
+        // Because values and moves are stored separately, we need to reassemble the ExtMoves
+        // スコアと指し手を別々に保持しているため、書き戻す際にExtMoveへ組み直す。
+        auto write = [&](int offset, const __m512i indices) {
+            const isize storeCount = count - offset;
+
+            if (storeCount > 0)
+            {
+                const __m512i extMoves =
+                  _mm512_permutex2var_epi32(sortedMoves, indices, sortedValues);
+                _mm512_mask_storeu_epi64(moves + offset, (1 << storeCount) - 1, extMoves);
+            }
+        };
+
+        write(0, _mm512_setr_epi32(0, 16, 1, 17, 2, 18, 3, 19, 4, 20, 5, 21, 6, 22, 7, 23));
+        write(8, _mm512_setr_epi32(8, 24, 9, 25, 10, 26, 11, 27, 12, 28, 13, 29, 14, 30, 15, 31));
+    }
+};
+#endif
+
 
 // Sort moves in descending order up to and including a given limit.
 // The order of moves smaller than the limit is left unspecified.
-// 指し手のスコアがlimit以上のものを降順に並べる。
-// limit未満の指し手の順序は規定しない。
+// 指し手のスコアがlimit以上のものを降順に並べる。limit未満の順序は規定しない。
 void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 
     if (end - begin <= 1)
@@ -64,18 +119,35 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 
     ExtMove *sortedEnd = begin, *p = begin + 1;
 
+#ifdef USE_AVX512
+    MoveSorter sorter(*begin);
     for (; p < end; ++p)
-		if (p->value >= limit)
-		{
-			ExtMove tmp = *p, *q;
-			*p          = *++sortedEnd;
-			for (q = sortedEnd; q != begin && *(q - 1) < tmp; --q)
-				// ■ 備考
-				// ここ、ExtMove同士の operator<()を呼び出している。
-				// これはExtMove::valueを比較するように定義されている。
-				*q = *(q - 1);
-			*q = tmp;
-		}
+    {
+        if (p->value >= limit)
+        {
+            if (sortedEnd - begin + 1 >= MoveSorter::MAX_ELEMENTS)  // sorter full
+                // ソーターが満杯なら、残りはスカラー処理へ回す。
+                break;
+
+            sorter.insert(*p);
+            *p = *++sortedEnd;
+        }
+    }
+    sorter.write_sorted(begin, sortedEnd - begin + 1);
+    // Use scalar implementation for any remaining elements
+    // 残りの要素にはスカラー版の処理を使う。
+#endif
+
+    for (; p < end; ++p)
+        if (p->value >= limit)
+        {
+            ExtMove tmp = *p, *q;
+            *p          = *++sortedEnd;
+            // ExtMoveのoperator<()はvalueを比較する。
+            for (q = sortedEnd; q != begin && *(q - 1) < tmp; --q)
+                *q = *(q - 1);
+            *q = tmp;
+        }
 }
 
 } // namespace
