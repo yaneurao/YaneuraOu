@@ -58,9 +58,11 @@ constexpr std::string_view version = "dev";
 // usual I/O functionality, all without changing a single line of code!
 // Idea from http://groups.google.com/group/comp.lang.c++/msg/1d941c0f26ea0d81
 
-// logging用のhack。streambufをこれでhookしてしまえば追加コードなしで普通に
-// cinからの入力とcoutへの出力をファイルにリダイレクトできる。
-// cf. http://groups.google.com/group/comp.lang.c++/msg/1d941c0f26ea0d81
+// ログ記録の仕組み。cin.rdbuf()とcout.rdbuf()を2つのTieオブジェクトに置き換え、
+// 標準入力と標準出力をファイルストリームにも記録する。
+// 通常の入出力機能を維持したまま、std::coutとstd::cinのログ記録を
+// 実行中に切り替えられる。呼び出し側のコードを変更する必要はない。
+// 着想元: http://groups.google.com/group/comp.lang.c++/msg/1d941c0f26ea0d81
 
 struct Tie: public std::streambuf {  // MSVC requires split streambuf for cin and cout
     // MSVCではcin用とcout用に別々のstreambufを用意する。
@@ -79,7 +81,7 @@ struct Tie: public std::streambuf {  // MSVC requires split streambuf for cin an
     int log(int c, const char* prefix) {
 
         static int last = '\n';  // Single log file
-                                  // 単一のログファイルにまとめる。
+                                  // 入出力で1つのログファイルを共有する。
 
         if (last == '\n')
             logBuf->sputn(prefix, 3);
@@ -147,17 +149,20 @@ class Logger {
 // For releases (non-dev builds) we only include the version number:
 //      Stockfish version
 
-// 現在のStockfishのバージョンのフルネームを返します。
+// 現在のStockfishの完全なバージョン名を返す。
 //
-// ローカルの開発用ビルドでは、gitからコミットSHAと
-// コミット日を付加しようとします。これに失敗した場合は、
-// ローカルのコンパイル日だけが設定され、「nogit」が指定されます：
+// ローカルでの開発用ビルドでは、gitのコミットSHAとコミット日を付加する。
+// 取得できない場合は、代わりにコンパイル日と「nogit」を使う。
 //      Stockfish dev-YYYYMMDD-SHA
 //      または
 //      Stockfish dev-YYYYMMDD-nogit
 //
-// リリース（開発版でない）ビルドでは、バージョン番号のみを含めます：
+// リリース用（開発版ではない）ビルドでは、日付やSHAを付けずバージョン番号を使う。
 //      Stockfish version
+//
+// やねうら王では、ソフト名とENGINE_VERSIONを使う。
+// ENGINE_VERSIONに小文字の「dev」が含まれる場合に日付とSHAを付加する。
+// GIT_DATEやGIT_SHAがビルド時に指定されていなければ、コンパイル日や「nogit」を使う。
 
 std::string engine_version_info() {
 	std::stringstream ss;
@@ -182,6 +187,7 @@ std::string engine_version_info() {
 
 		std::string       month, day, year;
 		std::stringstream date(__DATE__);  // From compiler, format is "Sep 21 2008"
+                                         // コンパイラーが提供する日付。書式は「Sep 21 2008」。
 
 		date >> month >> day >> year;
 		ss << year << std::setw(2) << std::setfill('0') << (1 + months.find(month) / 4)
@@ -272,6 +278,14 @@ std::string compiler_info() {
     // _MSC_VER                Compiler is MSVC
     // _WIN32                  Building on Windows (any)
     // _WIN64                  Building on Windows 64 bit
+	// 定義済みマクロによる複雑な判定:
+	//
+	// __GNUC__                コンパイラーがGCC、Clang、またはICX。
+	// __clang__               コンパイラーがClang、またはICX。
+	// __INTEL_LLVM_COMPILER   コンパイラーがICX。
+	// _MSC_VER                コンパイラーがMSVC。
+	// _WIN32                  Windows向けのビルド（32bit、64bitの両方）。
+	// _WIN64                  64bit Windows向けのビルド。
 
 	std::string compiler = "\nCompiled by                : ";
 
@@ -375,7 +389,7 @@ std::string compiler_info() {
 
 #if STOCKFISH
 	compiler += (HasPopCnt ? " POPCNT" : "");
-	// ⇨ このフラグ、やねうら王では持っていない。
+	// やねうら王にはHasPopCnt定数がないため、Stockfishとの比較用コードとしてのみ残す。
 #endif
 
 #if !defined(NDEBUG)
@@ -384,7 +398,7 @@ std::string compiler_info() {
 
 	compiler += "\nCompiler __VERSION__ macro : ";
 #ifdef __VERSION__
-	// __VERSION__が定義されているときだけ、その文字列を出力する。(MSVCだと定義されていないようだ..)
+	// 定義されている場合だけ、コンパイラーが提供するバージョン文字列を出力する。
 	compiler += __VERSION__;
 #else
 	compiler += "(undefined macro)";
@@ -532,11 +546,12 @@ void dbg_clear() {
 }
 
 // --------------------
-//  sync_out/sync_endl
+//  sync_cout/sync_endl
 // --------------------
 
 // Used to serialize access to std::cout
 // to avoid multiple threads writing at the same time.
+// 複数のスレッドが同時に書き込まないよう、std::coutへのアクセスを直列化する。
 std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 
 	static std::mutex m;
@@ -554,7 +569,7 @@ void sync_cout_start() { std::cout << IO_LOCK; }
 void sync_cout_end() { std::cout << IO_UNLOCK; }
 
 // Hash function based on public domain MurmurHash64A, by Austin Appleby.
-// Austin ApplebyによるパブリックドメインのMurmurHash64Aに基づく。
+// Austin Applebyがパブリックドメインとして公開したMurmurHash64Aに基づくハッシュ関数。
 u64 hash_bytes(const char* data, usize size) {
     const u64 m = 0xc6a4a7935bd1e995ull;
     const int r = 47;
@@ -594,11 +609,12 @@ u64 hash_bytes(const char* data, usize size) {
 }
 
 // Trampoline helper to avoid moving Logger to misc.h
-// Loggerをmisc.hに移さずに呼び出せるようにする。
+// Loggerをmisc.hへ移さずに利用できるようにする転送関数。
 void start_logger(const fs::path& fname) { Logger::start(fname); }
 
 // Convert a wide string to an UTF8 string
 // ワイド文字列をUTF-8文字列へ変換する。
+// Windows以外では、各要素をcharへコピーするだけで文字コード変換は行わない。
 std::string utf8_from_wstring(std::wstring_view s) {
 #ifdef _WIN32
     if (s.empty())
@@ -625,7 +641,7 @@ fs::path path_from_utf8(const std::string& path) {
     int u8len = static_cast<int>(path.size());
 
     // First attempt UTF-8, then fall back to ANSI for old GUIs like Arena
-    // まずUTF-8を試し、失敗したら古いGUI向けにANSIで再試行する。
+    // まずUTF-8として変換し、失敗したらArenaなどの古いGUI向けにANSIで再試行する。
     constexpr int CodePages[2] = {CP_UTF8, CP_ACP};
     for (int cp : CodePages)
     {
@@ -647,6 +663,7 @@ fs::path path_from_utf8(const std::string& path) {
 
 
 // Constructor for the CommandLine class
+// CommandLineクラスのコンストラクタ。
 // 起動引数を設定する。グローバルインスタンスのset_arg()と同じ経路を使う。
 CommandLine::CommandLine(int _argc, char** _argv) { set_arg(_argc, _argv); }
 
@@ -655,7 +672,7 @@ void CommandLine::set_arg(int _argc, char** _argv) {
     argv = _argv;
 #ifdef _WIN32
     // Convert any non-ANSI characters passed on the command line to UTF-8
-    // ANSIで表現できない文字を含む起動引数も、OSから取得してUTF-8へ変換する。
+    // コマンドライン引数に含まれるANSIでは表現できない文字をUTF-8へ変換する。
     int wargc = 0;
     if (LPWSTR* wargv = CommandLineToArgvW(GetCommandLineW(), &wargc))
     {
@@ -679,8 +696,8 @@ void CommandLine::set_arg(int _argc, char** _argv) {
 
 
 // Read a numerical value from the command line
-// コマンドラインから数字を読み取る。
-// "123"みたいな文字列を123のように数値型(usize)に変換する。エラーの場合は、std::nulloptが返る。
+// コマンドライン引数の数値を読み取る。
+// 「123」のような数値文字列をusizeへ変換する。変換できなければstd::nulloptを返す。
 std::optional<usize> str_to_size_t(const std::string& s) {
     if (s.empty() || s[0] == '-')
         return std::nullopt;
@@ -694,8 +711,8 @@ std::optional<usize> str_to_size_t(const std::string& s) {
 }
 
 // Read the given file as bytes (returns std::nullopt if the file does not exist)
-// ファイルをバイトとして読み込みます。
-// ファイルが存在しない場合は nullopt を返します。
+// 指定されたファイルをバイト列として読み込む。
+// ファイルが存在しない場合など、開けなければstd::nulloptを返す。
 
 std::optional<std::string> read_file_to_string(const std::string& path) {
     std::ifstream f(path, std::ios_base::binary);
@@ -705,14 +722,15 @@ std::optional<std::string> read_file_to_string(const std::string& path) {
 }
 
 // Remove all spaces from a string
-// スペース相当文字列を削除する。NUMAの処理でも使用する。
+// 文字列中のすべての空白文字を削除する。NUMAの処理でも使用する。
 void remove_whitespace(std::string& s) {
     s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c); }),
             s.end());
 }
 
 // Test if a string has only spaces
-// スペース相当文字列だけかを判定する。NUMAの処理でも使用する。
+// 文字列が空白文字だけで構成されているかを判定する。NUMAの処理でも使用する。
+// 空文字列の場合もtrueを返す。
 bool is_whitespace(std::string_view s) {
     return std::all_of(s.begin(), s.end(), [](unsigned char c) { return std::isspace(c); });
 }
@@ -721,7 +739,9 @@ bool is_whitespace(std::string_view s) {
 // Return the directory where our Stockfish binary sits. This is useful,
 // because when the NNUE network is not embedded in the binary, this directory
 // is one of the locations where we look for the NNUE file.
-// 実行ファイルの配置ディレクトリを返す。外部NNUEファイルの探索などに使う。
+// 実行ファイルが置かれているディレクトリを返す。
+// NNUEネットワークが実行ファイルに埋め込まれていない場合に、
+// NNUEファイルを探すディレクトリの一つとして使える。
 fs::path CommandLine::get_binary_directory(fs::path argv0) {
 
 #ifdef _WIN32
@@ -729,8 +749,10 @@ fs::path CommandLine::get_binary_directory(fs::path argv0) {
     // this does not depend on whether the CRT used a narrow or wide entry
     // point. Windows paths cannot exceed 32767 characters, so a fixed
     // buffer is always sufficient. Falls back to argv0 if the API fails.
-    // CRTのエントリーポイント形式に依存しないWindows APIを優先する。
-    // Windowsパスの最大長を収めるバッファを使い、失敗時はargv0へ戻る。
+    // Windowsが報告する実行ファイルのパスを優先する。_get_wpgmptrと異なり、
+    // CRTのエントリーポイントが狭文字版かワイド文字版かに依存しない。
+    // Windowsのパス長は最大32767文字なので、固定長のバッファで十分。
+    // APIが失敗した場合はargv0を使う。
     constexpr DWORD MaxPath = 32768;
     wchar_t         path[MaxPath];
 
@@ -754,6 +776,7 @@ fs::path CommandLine::get_binary_directory() {
 #endif
 
 // CommandLine global object
+// 起動引数をプロセス全体で共有するCommandLineのグローバルオブジェクト。
 CommandLine CommandLine::g;
 
 // On Windows, tell the console to use UTF8 encoding
