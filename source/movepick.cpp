@@ -123,6 +123,9 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
     if (end - begin <= 1)
         return;
 
+#if !STOCKFISH
+	// 🌈 これもやったほうが良いようだ。
+
     // With two moves, avoid setting up the vector sorter.
     // 2手なら必要な場合だけ交換し、ベクトルソーターの準備を省く。
     if (end - begin == 2)
@@ -135,6 +138,8 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
         }
         return;
     }
+#endif
+
     ExtMove *sortedEnd = begin, *p = begin + 1;
 
 #ifdef USE_AVX512
@@ -420,7 +425,15 @@ Move MovePicker::select(Pred filter) {
 		// filter()のなかで*curにアクセスして判定するのでfilter()は引数を取らない。
         // Check legality only after the candidate passes the stage's filter.
         // 段階ごとの選別を通過し、実際に返す候補だけ合法性を確認する。
+#if STOCKFISH
+        if (*cur != ttMove && filter())
+		// Stockfishでは、指し手生成で疑似合法手を生成するのではなく、
+		// いきなり合法手を生成するようになった。だから、ここでlegal判定は不要である。
+#else
+		// 将棋では、利き盤面を持っていないなら、いきなり合法手を生成するのはコストが大きい。
+		// ここで指し手を返すときにlegalityのチェックをしたほうが低コストとなる。
 		if (*cur != ttMove && filter() && pos.legal(*cur))
+#endif
 			return *cur++;
 
 	return Move::none();
