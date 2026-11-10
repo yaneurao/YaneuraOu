@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <sstream>
-#include <queue>
 #include <variant>
 
 #include "benchmark.h"
@@ -144,11 +143,33 @@ void USIEngine::init_search_update_listeners() {
     engine.set_on_verify_network([](const auto& s) { print_info_string(s); });
 }
 
+// 標準入力から1行もらう。Ctrl+Zが来れば"quit"が来たものとする。
+// また先行入力でqueueに積んでおくことができる。(次のread_command()で取り出される)
+std::string USIEngine::read_command()
+{
+	std::string cmd;
+	if (pending_commands.empty())
+	{
+		if (!std::getline(std::cin, cmd)) // 入力が来るかEOFがくるまでここで待機する。
+			cmd = "quit";
+	} else {
+		// 積んであるコマンドがあるならそれを実行する。
+		// 尽きれば"quit"だと解釈してdoループを抜ける仕様にすることはできるが、
+		// そうしてしまうとgoコマンド(これはノンブロッキングなので)の最中にquitが送られてしまう。
+		// ただ、
+		// YaneuraOu-mid.exe bench,quit
+		// のようなことは出来るのでPGOの役には立ちそうである。
+		cmd = pending_commands.front();
+		pending_commands.pop();
+	}
+	return cmd;
+}
+
 // USI応答部ループ
 void USIEngine::loop()
 {
     // 起動時コマンドは、マルチインスタンス時に注入先を選べるよう、
-    // 選択されたEngineのentry point側からstd_inputへ積む。
+    // 選択されたEngineのentry point側からコマンドキューへ積む。
 
 #if !defined(__EMSCRIPTEN__)
 
@@ -156,7 +177,7 @@ void USIEngine::loop()
 	while (true)
 	{
 		// 標準入力から1行取得。
-		std::string cmd = std_input.input();
+		std::string cmd = read_command();
 
 		// "quit"が来たらwhileを抜ける
 		if (usi_cmdexec(cmd))
@@ -1429,29 +1450,65 @@ void USIEngine::qsearch_psv(std::istringstream& is) {
 void USIEngine::unittest(std::istringstream& is) { Test::UnitTest(is, engine); }
 
 
-// コマンドラインに書かれているUSIコマンドをstd_inputに積む。
-void USIEngine::enqueue_command_line_commands(const CommandLine& cli) {
-    // コマンドラインから積まれたコマンドをstd_inputに積んでやる。
-    std_input.parse_args(cli);
+// コマンドラインに書かれているUSIコマンドをコマンドキューに積む。
+void USIEngine::enqueue_command_line_commands(const CommandLine& cli)
+{
+	// ファイルからコマンドの指定
+	if (cli.argc >= 3 && std::string(cli.argv[1]) == "file")
+	{
+		std::vector<std::string> cmds0;
+		SystemIO::ReadAllLines(cli.argv[2], cmds0);
+
+		// queueに変換する。
+		for (auto c : cmds0)
+			pending_commands.push(c);
+
+	} else {
+
+		std::string cmd;
+
+		// 引数として指定されたものを一つのコマンドとして実行する機能
+		// ただし、','が使われていれば、そこでコマンドが区切れているものとして解釈する。
+
+		for (int i = 1; i < cli.argc; ++i)
+		{
+			std::string s = cli.argv[i];
+
+			// sから前後のスペースを除去しないといけない。
+			while (!s.empty() && s.back() == ' ') s.pop_back();
+			while (!s.empty() && s.front() == ' ') s = s.substr(1, s.size() - 1);
+
+			if (s != ",")
+				cmd += s + " ";
+			else
+			{
+				pending_commands.push(cmd);
+				cmd = "";
+			}
+		}
+		if (cmd.size() != 0)
+			pending_commands.push(cmd);
+	}
 }
 
-// startup.txtなどのファイルに書かれているUSIコマンドをstd_inputに積む。
+
+// startup.txtなどのファイルに書かれているUSIコマンドをコマンドキューに積む。
 void USIEngine::enqueue_startup_file_commands(const std::string& filename) {
     std::vector<std::string> lines;
     if (SystemIO::ReadAllLines(filename, lines).is_ok())
     {
         for (auto& line : lines)
-            std_input.push(line);
+            pending_commands.push(line);
     }
 }
 
-// 単一エンジン起動用に、コマンドラインとstartup.txtのUSIコマンドをstd_inputに積む。
+// 単一エンジン起動用に、コマンドラインとstartup.txtのUSIコマンドをコマンドキューに積む。
 void USIEngine::enqueue_startup_commands(const CommandLine& cli) {
     enqueue_command_line_commands(cli);
     enqueue_startup_file_commands("startup.txt");
 }
 
-// ファイルからUSIコマンドをstd_inputに積む。
+// ファイルからUSIコマンドをコマンドキューに積む。
 void USIEngine::enqueue_command_from_file(std::istringstream& is) {
     std::string filename = "";
     is >> filename;
@@ -1463,7 +1520,7 @@ void USIEngine::enqueue_command_from_file(std::istringstream& is) {
         std::vector<std::string> lines;
         if (SystemIO::ReadAllLines(filename, lines).is_ok())
             for (auto& line : lines)
-                std_input.push(line);
+                pending_commands.push(line);
         else
             sync_cout << "Error : File Not Found." << sync_endl;
     }

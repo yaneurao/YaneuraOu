@@ -5,6 +5,7 @@
 #include <iosfwd>
 #include <map>
 #include <memory>
+#include <queue>
 #include <string>
 
 #include "engine.h"
@@ -136,18 +137,14 @@ public:
     // vector<Move>をUSIプロトコルで使う文字列に変換する。
     static std::string move(const std::vector<Move>& moves);
 
-	// USIコマンドを積むことができる標準入力
-	// 💡 ここにUSIコマンドを積むとそれが実行される。
-	StandardInput std_input;
-
-    // コマンドラインに書かれているUSIコマンドをstd_inputに積む。
+    // コマンドラインに書かれているUSIコマンドをコマンドキューに積む。
     // マルチインスタンス時に注入先を選べるよう、USIEngine::loop()からは呼び出さない。
     void enqueue_command_line_commands(const CommandLine& cli);
 
-    // startup.txtなどのファイルに書かれているUSIコマンドをstd_inputに積む。
+    // startup.txtなどのファイルに書かれているUSIコマンドをコマンドキューに積む。
     void enqueue_startup_file_commands(const std::string& filename);
 
-    // 単一エンジン起動用に、コマンドラインとstartup.txtのUSIコマンドをstd_inputに積む。
+    // 単一エンジン起動用に、コマンドラインとstartup.txtのUSIコマンドをコマンドキューに積む。
     void enqueue_startup_commands(const CommandLine& cli);
 
 	// このclassのUnitTest。
@@ -155,6 +152,12 @@ public:
 #endif
 
 private:
+    // 先行入力されたUSIコマンド。尽きれば標準入力から入力する。
+    std::queue<std::string> pending_commands;
+
+    // キューを優先して1行取得する。標準入力がEOFならquitを返す。
+    std::string read_command();
+
 	// 内包している思考エンジン
 #if STOCKFISH
 	// main関数にコマンドラインから渡された引数
@@ -222,7 +225,7 @@ private:
 #if !STOCKFISH
 	// 🌈 やねうら王独自拡張 🌈
 
-	// ファイルからUSIコマンドをstd_inputに積む。
+	// ファイルからUSIコマンドをコマンドキューに積む。
 	void enqueue_command_from_file(std::istringstream& is);
 
 	// option名とvalueを指定して、そのoption名があるなら、そのoptionの値を変更する。

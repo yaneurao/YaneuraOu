@@ -24,7 +24,6 @@
 #include <utility>
 #include <vector>
 
-#include <queue>
 #include <sstream>
 
 #if !defined(NO_PREFETCH) && (defined(_MSC_VER) || defined(__INTEL_COMPILER))
@@ -1383,31 +1382,6 @@ namespace StringExtension
 	// Pythonの delemiter.join(v) みたいなの。
 	// 例: v = [1,2,3] に対して ' '.join(v) == "1 2 3"
 	std::string Join(const std::vector<std::string>& v , const std::string& delimiter);
-};
-
-// --------------------
-// StandardInputWrapper
-// --------------------
-
-// 標準入力のwrapper
-// 事前にコマンドを積んだりできる。
-class StandardInput
-{
-public:
-	// 標準入力から1行もらう。Ctrl+Zが来れば"quit"が来たものとする。
-	// また先行入力でqueueに積んでおくことができる。(次のinput()で取り出される)
-	std::string input();
-
-	// 先行入力としてqueueに積む。(次のinput()で取り出される)
-	void push(const std::string& s);
-
-	// main()に引数として渡されたパラメーターを解釈してqueueに積む。
-	void parse_args(const CommandLine& cli);
-
-private:
-	// 先行入力されたものを積んでおくqueue。
-	// これが尽きれば標準入力から入力する。
-	std::queue<std::string> cmds;
 };
 
 // --------------------
