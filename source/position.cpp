@@ -2481,6 +2481,11 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
 #if defined(USE_CLASSIC_EVAL) && defined(EVAL_NNUE)
     // NNUEの場合、KPPT型と違って、手番が違う場合、計算なしに済ますわけにはいかない。
     st->accumulator.computed_score = false;
+#if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+    // A null move changes no FT feature, including when its parent was not evaluated.
+    // 親局面が未評価でも、null moveではFT特徴量の変化を記録しない。
+    st->dirtyPiece.dirty_num = 0;
+#endif
 #endif
 
 	// このタイミングでアドレスが確定するのでprefetchしたほうが良い。(かも)
