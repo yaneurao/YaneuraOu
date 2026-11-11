@@ -55,7 +55,7 @@ Value Score::to_value() const {
 
 	// Mateで保持している。
     int plies = get<Mate>().plies;
-    return (plies > 0) ? mate_in(plies) : mated_in(plies);
+    return (plies > 0) ? mate_in(plies) : mated_in(-plies);
 }
 #endif
 
