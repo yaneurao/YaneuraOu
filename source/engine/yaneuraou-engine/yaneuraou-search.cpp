@@ -2950,7 +2950,7 @@ Value Search::YaneuraOuWorker::search(
 
 		ss->staticEval = eval = (ss - 2)->staticEval;
         improving             = false;
-        goto moves_loop;
+        goto tt_cutoff;
     }
     else if (excludedMove)
         unadjustedStaticEval = eval = ss->staticEval;
@@ -3050,7 +3050,7 @@ Value Search::YaneuraOuWorker::search(
 
 	/*
 		📝 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
-		    王手のときはここにはこない。(上のinCheckのなかでMOVES_LOOPに突入。)
+		    王手のときはここにはこない。(上のinCheckの分岐からTT判定へ進む。)
 
 			is_ok()はMove::null()かのチェック。
 			1手前でMove::null()ではなく、王手がかかっておらず、駒を取る指し手ではなかったなら…。
@@ -3123,6 +3123,8 @@ Value Search::YaneuraOuWorker::search(
         depth++;
     if (priorReduction >= 2 && depth >= 2 && ss->staticEval + (ss - 1)->staticEval > 173)
         depth--;
+
+tt_cutoff:
 
     // Step 6. At non-PV nodes we check for an early TT cutoff. Note that we
     //         always check the validity of the TT value because of access races.
@@ -3245,6 +3247,11 @@ Value Search::YaneuraOuWorker::search(
             ttWriter.penalize(1);
         }
     }
+
+    // When in check, try the TT cutoff before skipping evaluation-based pruning.
+    // 王手中もTTによるカットを試してから、静的評価に基づく枝刈りをスキップする。
+    if (ss->inCheck)
+        goto moves_loop;
 
 	// -----------------------
     // Step 8. Razoring
