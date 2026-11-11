@@ -215,8 +215,13 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 		auto r = limits.rtime;
 #if 1
 		// 指し手が進むごとに減衰していく曲線にする。
-		if (ply)
-			r += (int)prng.rand((int)std::min(r * 0.5f, r * 10.0f / (ply)));
+        if (ply > 0)
+        {
+            const auto width = (int)std::min(r * 0.5f, r * 10.0f / ply);
+            // 短時間や終盤では幅が0になる。その場合は乱数を加算しない。
+            if (width > 0)
+                r += (int)prng.rand(width);
+        }
 #endif
 
 		remain_time = minimumTime = optimumTime = maximumTime = r;
