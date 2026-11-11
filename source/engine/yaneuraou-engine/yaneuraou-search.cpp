@@ -2838,22 +2838,13 @@ Value Search::YaneuraOuWorker::search(
 
             if (move != Move::none())
             {
-                /*
-					🤔 1手詰めスコアなので確実にvalue > alphaなはず。
-					    1手詰めは次のnodeで詰むという解釈
-
-					⚠ このとき、bestValueをvalue_to_tt()で変換してはならない。
-					    mate_in()はrootからの計算された詰みのスコアであるから、このまま置換表に格納してよい。
-                
-                		あるいは、VALUE_MATE - 1をvalue_to_tt()で変換したものを置換表に格納するかだが、
-					    その場合、returnで返す値を用意するのに再度変換が必要になるのでそういう書き方は良くない。
-				*/
-
+                // Return the root-relative score, but store the position-relative score in TT.
+                // 戻り値はルートからの詰み手数とし、TTには現在の局面からの手数へ変換して保存する。
                 bestValue = mate_in(ss->ply + 1);
 
                 ASSERT_LV3(pos.legal_promote(move));
                 if (!excludedMove)
-                    ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT,
+                    ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
                                     std::min(MAX_PLY - 1, depth + 6), move, VALUE_NONE,
                                     tt.generation());
 
@@ -2911,7 +2902,7 @@ Value Search::YaneuraOuWorker::search(
             ASSERT_LV3(pos.legal_promote(move));
             /*
 				if (!excludedMove)
-					ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT,
+					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
 						std::min(MAX_PLY - 1, depth + 6),
 						is_ok(move) ? move : MOVE_NONE, // MOVE_WINはMOVE_NONEとして書き出す。
 						VALUE_NONE, TT.generation());
@@ -4887,7 +4878,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 						//     置換表に保存する価値はない可能性があるが。
 						// 💡 [2025/10/6] SPSAした結果、この処理は入れたほうが良いということがわかった。
 
-						ttWriter.write(posKey, bestValue, ss->ttPv, BOUND_EXACT, DEPTH_QS, move,
+						ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT, DEPTH_QS, move,
                                        unadjustedStaticEval, tt.generation());
 
                     }
