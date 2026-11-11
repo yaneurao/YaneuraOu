@@ -318,6 +318,13 @@ void YaneuraOuEngine::resize_threads() {
     // 📌 探索の終了を待つ
     threads.wait_for_search_finished();
 
+    // Share one reductions table per engine, rebuilt before workers are created.
+    // 全Workerで1つのreductions表を共有する。SPSAの係数変更を反映するため、
+    // 探索終了を待ってからWorker生成前に再構築する。別Engineの表とは共有しない。
+    for (usize i = 1; i < reductions.size(); ++i)
+        reductions[i] = int(2763 / 128.0 * std::log(i));
+
+
     // 📌 スレッド数のリサイズ
 
     auto worker_factory = [&](SharedState& sharedState, const ThreadIds& ids)
@@ -631,6 +638,11 @@ constexpr int SEARCHEDLIST_CAPACITY = 32;
 constexpr int mainHistoryDefault    = 0;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
+inline int lmr_divisor(int depth) {
+    int d = std::min(depth, 16);
+    return 3000 + 7 * (d - 8) * (d - 8);
+}
+
 // (*Scalers):
 // The values with Scaler asterisks have proven non-linear scaling.
 // They are optimized to time controls of 180 + 1.8 and longer,
@@ -662,7 +674,10 @@ int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack*
                 + (*(ss - 4)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
                  : 8;
 
-    return 12153 * pcv + 8620 * micv + 12355 * (wnpcv + bnpcv) + 7982 * cntcv;
+    const int cntcv6 = m.is_ok()
+                      ? (*(ss - 6)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
+                      : 0;
+    return 12153 * pcv + 8620 * micv + 12355 * (wnpcv + bnpcv) + 7982 * cntcv + 6307 * cntcv6;
 }
 
 // Add correctionHistory value to raw staticEval and guarantee evaluation
@@ -695,6 +710,7 @@ void update_correction_history(const Position&          pos,
         const Piece  pc = pos.piece_on(to);
         (*(ss - 2)->continuationCorrectionHistory)[pc][to] << bonus * 126 / 128;
         (*(ss - 4)->continuationCorrectionHistory)[pc][to] << bonus * 63 / 128;
+        (*(ss - 6)->continuationCorrectionHistory)[pc][to] << bonus * 35 / 128;
     }
 }
 
@@ -735,7 +751,8 @@ void update_all_stats(const Position&          pos,
                       SearchedList&            quietsSearched,
                       SearchedList&            capturesSearched,
                       Depth                    depth,
-                      Move                     ttMove);
+                      Move                     ttMove,
+                      bool                     PvNode);
 
 
 bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
@@ -800,6 +817,7 @@ Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 	// Unpack the SharedState struct into member variables
     sharedHistory(sharedState.sharedHistories.at(ids.numaAccessToken.get_numa_index())),
     continuationHistory(sharedHistory.continuationHistory()),
+    reductions(engine.reductions),
 	// 残りは基底classであるSearch::Workerのほうでunpackする。
 	Search::Worker(sharedState, ids),
 	engine(engine),
@@ -831,6 +849,7 @@ void Search::YaneuraOuWorker::pre_start_searching() {
     //     やねうら王では、派生classのpre_start_thinking()以降で行う。
 #if STOCKFISH
     nmpMinPly       = 0;
+    seekMate        = false;
 #endif
     bestMoveChanges = 0;
     rootDepth = completedDepth = 0;
@@ -1462,12 +1481,19 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     // これが増えていない時、同じ深さを再度探索していることになる。(fail highし続けている)
     // 💡 あまり同じ深さでつっかえている時は、aspiration windowの幅を大きくしてやるなどして回避する必要がある。
     int searchAgainCounter = 0;
+    int failHighRecovery = 0;
 
     // 反復深化内で、現在のiterationの最終PVをGUIへ出力済みか。
     bool uciPvSent = false;
 
     // 💡 lowPlyHistoryは、試合開始時に1回だけではなく、"go"の度に初期化したほうが強い。
     lowPlyHistory.fill(98);
+
+    // Adjust main history for the new root position.
+    // 新しいルート局面の探索を始めるとき、以前のmain historyを減衰させる。
+    for (Color c : {BLACK, WHITE})
+        for (int i = 0; i < UINT_16_HISTORY_SIZE; ++i)
+            mainHistory[c][i] = mainHistory[c][i] * 729 / 1024;
 
     // Iterative deepening loop until requested to stop or the target depth is reached
     // 要求があるか、または目標深度に達するまで反復深化ループを実行します
@@ -1496,6 +1522,10 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
         // ------------------------
         // Lazy SMPのための初期化
+
+        // Do not tune these values. They are not intended for playing strength.
+        // 詰みを探すモードの閾値。通常対局の棋力調整用ではないのでSPSA対象にしない。
+        int seekMateThreshold = 750 + 220000 / (rootDepth * rootDepth);
         // ------------------------
 
         // Age out PV variability metric and signal the start of a new iteration.
@@ -1544,6 +1574,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         for (pvIdx = 0; pvIdx < multiPV; ++pvIdx)
         {
             lastIterationIdxPV = rootMoves[pvIdx].previousPV;
+            seekMate = rootMoves[pvIdx].previousScore != -VALUE_INFINITE
+                    && std::abs(rootMoves[pvIdx].previousScore) >= seekMateThreshold;
 
             // 📝 chessではtbRankの処理が必要らしい。将棋では関係なさげなのでコメントアウト。
             //     tbRankが同じ値のところまでしかsortしなくて良いらしい。
@@ -1628,6 +1660,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             // fail highした回数
             // 💡 fail highした回数分だけ探索depthを下げてやるほうが強いらしい。
             int failedHighCnt = 0;
+            if (!pvIdx)
+                failHighRecovery = std::max(0, failHighRecovery - 2);
 
             while (true)
             {
@@ -1640,8 +1674,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
                 // fail highするごとにdepthを下げていく処理
                 Depth adjustedDepth =
-                  std::max(1, rootDepth - failedHighCnt - 3 * (searchAgainCounter + 1) / 4);
-                rootDelta = beta - alpha;
+                  std::max(1, rootDepth - failedHighCnt - failHighRecovery - 3 * (searchAgainCounter + 1) / 4);
                 bestValue = search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
 
                 // Bring the best move to the front. It is critical that sorting
@@ -1732,6 +1765,11 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
                 assert(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
             }
+
+            // Gradually restore depth after reduced-depth fail-high searches.
+            // fail highによる深さ削減の後、反復をまたいで段階的に深さを戻す。
+            if (failedHighCnt > 0 && !pvIdx)
+                failHighRecovery = (failedHighCnt + 1) / 2 + 2;
 
             if (threads.stop && pvIdx)
             {
@@ -2053,12 +2091,13 @@ void YaneuraOuWorker::do_move(
   const bool capture, Stack* const ss) {
 
 #if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT) && !defined(NO_PREFETCH)
-    // 子局面の補正値が読むss-2/ss-4は、着手前にはss-1/ss-3に当たる。
+    // 子局面の補正値が読むss-2/ss-4/ss-6は、着手前にはss-1/ss-3/ss-5に当たる。
     if (ss != nullptr) {
         const auto pc = pos.moved_piece(move);
         const auto to = move.to_sq();
         _mm_prefetch(reinterpret_cast<const char*>(&(*(ss-1)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
         _mm_prefetch(reinterpret_cast<const char*>(&(*(ss-3)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
+        _mm_prefetch(reinterpret_cast<const char*>(&(*(ss-5)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
     }
 #endif
 
@@ -2148,9 +2187,6 @@ void YaneuraOuWorker::clear() {
                     for (auto& h : to)
                         h.fill(-523);
 
-	// reductions tableの初期化(これはWorkerごとが持つように変更された)
-    for (usize i = 1; i < reductions.size(); ++i)
-        reductions[i] = int(2763 / 128.0 * std::log(i));
 
 	// 📝 lowPlyHistoryの初期化は、対局ごとではなく、局面ごと("go"のごと)に変更された。
 
@@ -2544,6 +2580,7 @@ Value Search::YaneuraOuWorker::search(
     (ss - 1)->reduction = 0;
     ss->statScore       = 0;
     (ss + 2)->cutoffCnt = 0;
+    (ss + 1)->priorNMPFailHigh = 0;
 
 	// -----------------------
     // Step 4. Transposition table lookup.
@@ -2672,121 +2709,6 @@ Value Search::YaneuraOuWorker::search(
     //    これss->ttPVに保存してるけど、singularの判定等でsearchをss+1ではなくssで呼び出すことがあり、
     //    そのときにss->ttPvが破壊される。なので、破壊しそうなときは直前にローカル変数に保存するコードが書いてある。
 
-    // At non-PV nodes we check for an early TT cutoff
-    // 非PVノードでは、早期のTTカットオフを確認する
-
-	// 📝  PV nodeでは置換表の指し手では枝刈りしない。
-	//      PV nodeはごくわずかしかないし、重要な変化だから枝刈りしたくない。
-
-	if (!PvNode
-		&& !excludedMove
-		&& ttData.depth > depth - (ttData.value <= beta) // 置換表に登録されている探索深さのほうが深くて
-        && is_valid(ttData.value)   // Can happen when !ttHit or when access race in probe()
-							        // !ttHitの場合やprobe()でのアクセス競合時に発生する可能性がありうる。
-        && (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER))
-        && (cutNode == (ttData.value >= beta) || depth > 5))
-
-		/*
-		📝 解説
-		
-			ttValueが下界(真の評価値はこれより大きい)もしくはジャストな値で、かつttValue >= beta超えならbeta cutされる
-			ttValueが上界(真の評価値はこれより小さい)だが、tte->depth()のほうがdepthより深いということは、
-			今回の探索よりたくさん探索した結果のはずなので、今回よりは枝刈りが甘いはずだから、その値を信頼して
-			このままこの値でreturnして良い。
-	*/
-    {
-        // If ttMove is quiet, update move sorting heuristics on TT hit
-        // ttMoveがquietの指し手である場合、置換表ヒット時に指し手のソート用ヒューリスティクスを更新します。
-
-        if (ttData.move && ttData.value >= beta)
-        {
-			/*
-				📝 備考
-		
-					置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
-					捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
-		
-					ただし置換表の指し手には、hash衝突によりpseudo-leaglでない指し手である可能性がある。
-					update_quiet_stats()で、この指し手の移動元の駒を取得してCounter Moveとするが、
-					それがこの局面の手番側の駒ではないことがあるのでゆえにここでpseudo_legalのチェックをして、
-					Counter Moveに先手の指し手として後手の指し手が登録されるような事態を回避している。
-					その時に行われる誤ったβcut(枝刈り)は許容できる。(non PVで生じることなのでそこまで探索に対して悪い影響がない)
-					cf. https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
-
-					やねうら王ではttMoveがMove::win()であることはありうるので注意が必要。
-					is_ok(m)==falseの時、Position::to_move(m)がmをそのまま帰すことは保証されている。
-					そのためttMoveがMove::win()でありうる。これはstatのupdateをされると困るのでis_ok()で弾く必要がある。
-					is_ok()は、ttMove == Move::none()の時はfalseなのでこの条件を省略できる。
-					⇨　Move::win()書き出すの、筋が良くないし、入玉自体が超レアケースなので棋力に影響しないし、これやめることにする。
-
-					If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
-					置換表にhitした時に、ttMoveがquietの指し手であるなら、指し手並び替えheuristics(quiet_statsのこと)を更新する。
-			*/
-
-            // Bonus for a quiet ttMove that fails high
-            // fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
-
-            if (!ttCapture)
-                update_quiet_histories(pos, ss, *this, ttData.move,
-                                       std::min(130 * depth - 71, 1043));
-
-            // Extra penalty for early quiet moves of the previous ply
-            // 1手前の早い時点のquietの指し手に対する追加のペナルティ
-
-            // 💡 1手前がMove::null()であることを考慮する必要がある。
-
-            if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 4 && !priorCapture)
-                update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -2142);
-        }
-
-        // Partial workaround for the graph history interaction problem
-        // For high rule50 counts don't produce transposition table cutoffs.
-
-		// グラフ履歴の相互作用問題に対する部分的な回避策
-        // rule50カウントが高い場合は、トランスポジションテーブルによるカットオフを行いません。
-
-        // ⚠ 将棋では関係のないルールなので無視して良いが、pos.rule50_count < 96 が(チェスの)通常の状態なので、
-        //     if成立時のreturnはしなければならない。
-
-        // 🤔 比較してみたが、これを有効にするとR10ぐらい弱くなるっぽい。
-        //     全体を調整してからまた考える。
-#if 0
-		if (pos.rule50_count() < 96)
-        {
-            // TODO : 将棋でもこの処理必要なのか？
-
-            if (depth >= 8 && ttData.move
-#if STOCKFISH
-				&& pos.pseudo_legal(ttData.move)
-#else
-                && pos.pseudo_legal(ttData.move, search_options.generate_all_legal_moves)
-#endif
-				&& pos.legal(ttData.move)
-                && !is_decisive(ttData.value))
-            {
-#if STOCKFISH
-                pos.do_move(ttData.move, st);
-                Key nextPosKey                             = pos.key();
-#else
-                pos.do_move(ttData.move, st);
-                HASH_KEY nextPosKey                        = pos.hash_key();
-#endif
-				auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey, pos);
-                pos.undo_move(ttData.move);
-
-                // Check that the ttValue after the tt move would also trigger a cutoff
-                if (!is_valid(ttDataNext.value))
-                    return ttData.value;
-                if ((ttData.value >= beta) == (-ttDataNext.value >= beta))
-                    return ttData.value;
-            }
-            else
-                return ttData.value;
-        }
-#else
-        return ttData.value;
-#endif        
-    }
 
 	// -----------------------
     //     宣言勝ち
@@ -3181,17 +3103,132 @@ Value Search::YaneuraOuWorker::search(
     if (priorReduction >= 2 && depth >= 2 && ss->staticEval + (ss - 1)->staticEval > 173)
         depth--;
 
+    // At non-PV nodes we check for an early TT cutoff
+    // 非PVノードでは、早期のTTカットオフを確認する
+
+	// 📝  PV nodeでは置換表の指し手では枝刈りしない。
+	//      PV nodeはごくわずかしかないし、重要な変化だから枝刈りしたくない。
+
+    if (!PvNode && !excludedMove && is_valid(ttData.value)
+        && ttData.depth > depth - (ttData.value <= beta))
+    {
+        // Case A: TT entry can produce a cutoff.
+        // 十分な深さがあり、現在の窓に対するboundが正しければカットできる。
+        if ((ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER))
+            && (cutNode == (ttData.value >= beta) || depth > 5))
+
+    {
+        // If ttMove is quiet, update move sorting heuristics on TT hit
+        // ttMoveがquietの指し手である場合、置換表ヒット時に指し手のソート用ヒューリスティクスを更新します。
+
+        if (ttData.move && ttData.value >= beta)
+        {
+			/*
+				📝 備考
+
+					置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
+					捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
+
+					ただし置換表の指し手には、hash衝突によりpseudo-leaglでない指し手である可能性がある。
+					update_quiet_stats()で、この指し手の移動元の駒を取得してCounter Moveとするが、
+					それがこの局面の手番側の駒ではないことがあるのでゆえにここでpseudo_legalのチェックをして、
+					Counter Moveに先手の指し手として後手の指し手が登録されるような事態を回避している。
+					その時に行われる誤ったβcut(枝刈り)は許容できる。(non PVで生じることなのでそこまで探索に対して悪い影響がない)
+					cf. https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
+
+					やねうら王ではttMoveがMove::win()であることはありうるので注意が必要。
+					is_ok(m)==falseの時、Position::to_move(m)がmをそのまま帰すことは保証されている。
+					そのためttMoveがMove::win()でありうる。これはstatのupdateをされると困るのでis_ok()で弾く必要がある。
+					is_ok()は、ttMove == Move::none()の時はfalseなのでこの条件を省略できる。
+					⇨　Move::win()書き出すの、筋が良くないし、入玉自体が超レアケースなので棋力に影響しないし、これやめることにする。
+
+					If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
+					置換表にhitした時に、ttMoveがquietの指し手であるなら、指し手並び替えheuristics(quiet_statsのこと)を更新する。
+			*/
+
+            // Bonus for a quiet ttMove that fails high
+            // fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
+
+            if (!ttCapture)
+                update_quiet_histories(pos, ss, *this, ttData.move,
+                                       131 * depth);
+
+            // Extra penalty for early quiet moves of the previous ply
+            // 1手前の早い時点のquietの指し手に対する追加のペナルティ
+
+            // 💡 1手前がMove::null()であることを考慮する必要がある。
+
+            if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 4 && !priorCapture)
+                update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -2142);
+        }
+
+        // Partial workaround for the graph history interaction problem
+        // For high rule50 counts don't produce transposition table cutoffs.
+
+		// グラフ履歴の相互作用問題に対する部分的な回避策
+        // rule50カウントが高い場合は、トランスポジションテーブルによるカットオフを行いません。
+
+        // ⚠ 将棋では関係のないルールなので無視して良いが、pos.rule50_count < 96 が(チェスの)通常の状態なので、
+        //     if成立時のreturnはしなければならない。
+
+        // 🤔 比較してみたが、これを有効にするとR10ぐらい弱くなるっぽい。
+        //     全体を調整してからまた考える。
+#if 0
+		if (pos.rule50_count() < 96)
+        {
+            // TODO : 将棋でもこの処理必要なのか？
+
+            if (depth >= 8 && ttData.move
+#if STOCKFISH
+				&& pos.pseudo_legal(ttData.move)
+#else
+                && pos.pseudo_legal(ttData.move, search_options.generate_all_legal_moves)
+#endif
+				&& pos.legal(ttData.move)
+                && !is_decisive(ttData.value))
+            {
+#if STOCKFISH
+                pos.do_move(ttData.move, st);
+                Key nextPosKey                             = pos.key();
+#else
+                pos.do_move(ttData.move, st);
+                HASH_KEY nextPosKey                        = pos.hash_key();
+#endif
+				auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey, pos);
+                pos.undo_move(ttData.move);
+
+                // Check that the ttValue after the tt move would also trigger a cutoff
+                if (!is_valid(ttDataNext.value))
+                    return ttData.value;
+                if ((ttData.value >= beta) == (-ttDataNext.value >= beta))
+                    return ttData.value;
+            }
+            else
+                return ttData.value;
+        }
+#else
+        return ttData.value;
+#endif
+    }
+
+        // Case B: sufficient depth, but the bound points the wrong way.
+        // 深さは十分でもboundの向きが窓と逆なら、TTエントリーの深さを1下げる。
+        else if (depth > 5)
+        {
+            assert(!(ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER)));
+            ttWriter.penalize(1);
+        }
+    }
+
 	// -----------------------
     // Step 7. Razoring
     // -----------------------
 
     // If eval is really low, skip search entirely and return the qsearch value.
-    // For PvNodes, we must have a guard against mates being returned.
+    // 評価値が非常に低いallNodeでは通常探索を省き、qsearchの値を返す。
+    // 詰み探索モードでは、この枝刈りを行わない。
 
-	// 評価値が非常に低い場合、検索を完全にスキップして qsearch の値を返します。
-    // PvNode では、チェックメイトが返されるのを防ぐためのガードが必要です。
-
-    if (!PvNode && eval < alpha - 502 - 306 * depth * depth)
+    if (allNode && eval < alpha - 342 * depth && !seekMate)
         return qsearch<NonPV>(pos, ss, alpha, beta);
 
 	// -----------------------
@@ -3218,16 +3255,20 @@ Value Search::YaneuraOuWorker::search(
         // 💡 depth(残り探索深さ)に応じたfutility margin。
 
 		auto futility_margin = [&](Depth d) {
-            Value futilityMult = 76 - 21 * !ss->ttHit;
+            Value futilityMult = std::min(45 + d * 4, 85);
+            futilityMult -= 21 * !ss->ttHit;
 
             return futilityMult * d                                //
                  - (2686 * improving + 362 * opponentWorsening) * futilityMult / 1024
                  + std::abs(correctionValue) / 180600;
         };
 
-        if (!ss->ttPv && depth < 15 && eval >= beta && eval - futility_margin(depth) >= beta
+        if (!ss->ttPv && depth < (seekMate ? 6 : 19) && eval >= beta && eval - futility_margin(depth) >= beta
             && (!ttData.move || ttCapture) && !is_loss(beta) && !is_win(eval))
-            return (2 * beta + eval) / 3;
+        {
+            const int betaWeight = 661;
+            return (betaWeight * beta + (1024 - betaWeight) * eval) / 1024;
+        }
     }
 
 	// -----------------------
@@ -3236,7 +3277,9 @@ Value Search::YaneuraOuWorker::search(
     // -----------------------
 
     //  🖊 evalがbetaを超えているので1手パスしてもbetaは超えそう。だからnull moveを試す
-    if (cutNode && ss->staticEval >= beta - 16 * depth - 53 * improving + 378 && !excludedMove
+    if (cutNode
+        && ss->staticEval + 50 * ss->priorNMPFailHigh >= beta - 16 * depth - 53 * improving + 378
+        && !excludedMove
 #if STOCKFISH
         && pos.non_pawn_material(us)
     // 💡 盤上にpawn以外の駒がある ≒ pawnだけの終盤ではない。
@@ -3252,7 +3295,12 @@ Value Search::YaneuraOuWorker::search(
         // Null move dynamic reduction based on depth
         // (残り探索)深さと評価値に基づくnull moveの動的なreduction
 
-        Depth R = 7 + depth / 3;
+        // Odd threads reduce one ply less; a large evaluation margin allows more reduction.
+        // 奇数スレッドは1手浅く削減し、評価値がbetaを大きく超える場合は削減を増やす。
+        Depth R = 7 + depth / 3 + std::max((ss->staticEval - beta) / 256, 0) - int(threadIdx & 1);
+        R -= seekMate * R / 2;
+        R = std::max(R, 1);  // Keep runtime SPSA choices from turning NMP into an extension.
+                            // SPSAで小さな値を指定しても、NMPを逆に延長しない。
 
         ss->currentMove                   = Move::null();
         ss->continuationHistory           = &continuationHistory[0][0][NO_PIECE][0];
@@ -3279,7 +3327,10 @@ Value Search::YaneuraOuWorker::search(
             // これをもう少しちゃんと検証しなおす。
 
             if (nmpMinPly || depth < 16)
+            {
+                ++ss->priorNMPFailHigh;
                 return nullValue;
+            }
 
             ASSERT_LV3(!nmpMinPly);  // Recursive verification is not allowed
                                      // 再帰的な検証は認めていない。
@@ -3300,7 +3351,10 @@ Value Search::YaneuraOuWorker::search(
             nmpMinPly = 0;
 
             if (v >= beta)
+            {
+                ++ss->priorNMPFailHigh;
                 return nullValue;
+            }
         }
     }
 
@@ -3319,7 +3373,7 @@ Value Search::YaneuraOuWorker::search(
     // 十分な探索深さがある場合、置換表（TTMove）に手がないPVノードやCutノードについては探索深さを削減する。
     //（*Scaler）IIR をよりアグレッシブにすると、スケーリング効率が悪化する。
 
-    if (!ss->followPV && !allNode && depth >= 6 && !ttData.move && priorReduction <= 3)
+    if (!ss->followPV && !allNode && depth >= 6 && !ttData.move)
         depth--;
 
 #if OLD_CODE
@@ -3437,7 +3491,7 @@ moves_loop:  // When in check, search starts here
 
     probCutBeta = beta + 416;
     if ((ttData.bound & BOUND_LOWER) && ttData.depth >= depth - 4 && ttData.value >= probCutBeta
-        && !is_decisive(beta) && is_valid(ttData.value) && !is_decisive(ttData.value))
+        && !is_decisive(beta) && is_valid(ttData.value) && !is_decisive(ttData.value) && !seekMate)
         return probCutBeta;
 
 	// -----------------------
@@ -3542,10 +3596,13 @@ moves_loop:  // When in check, search starts here
         // 今回の指し手に関して新しいdepth(残り探索深さ)を計算する。
         newDepth = depth - 1;
 
-        int delta = beta - alpha;
+        // reduction()は1024倍した削減量を返す。
+        int r = reduction(improving, depth, moveCount);
 
-        // ⚠ reduction()では、depthを1024倍した値が返ってきている。
-        int r = reduction(improving, depth, moveCount, delta);
+        // Decrease reduction for PV nodes, independent of the aspiration window.
+        // aspiration windowの幅に依存させず、PVノードの削減量を小さくする。
+        if (PvNode)
+            r -= 512;
 
         // Increase reduction for ttPv nodes (*Scaler)
         // Larger values scale well
@@ -3645,10 +3702,10 @@ moves_loop:  // When in check, search starts here
 				// (*Scaler): Generally, lower divisors scales well
 				// 一般に、割る数（divisor）が小さいほどスケールしやすい。
 
-                lmrDepth += history / 3220;
+                lmrDepth += history / lmr_divisor(depth);
 
-                Value futilityValue = ss->staticEval + 42 + 151 * !bestMove + 120 * lmrDepth
-                                    + 86 * (ss->staticEval > alpha);
+                Value futilityValue =
+                  ss->staticEval + 120 * lmrDepth + 86 * (ss->staticEval > alpha) + 164;
 
                 // Futility pruning: parent node
                 // (*Scaler): Generally, more frequent futility pruning
@@ -3733,7 +3790,7 @@ moves_loop:  // When in check, search starts here
 		// singular延長をするnodeであるか。
         if (!rootNode && move == ttData.move && !excludedMove && depth >= 6 + ss->ttPv
             && is_valid(ttData.value) && !is_decisive(ttData.value) && (ttData.bound & BOUND_LOWER)
-            && ttData.depth >= depth - 3 && !is_shuffling(move, ss, pos))
+            && ttData.depth >= depth - 3 && !is_shuffling(move, ss, pos) && !seekMate)
         {
             /*
 				💡 このnodeについてある程度調べたことが置換表によって証明されている。(ttMove == moveなのでttMove != Move::none())
@@ -3803,7 +3860,15 @@ moves_loop:  // When in check, search starts here
 
             else if (value >= beta && !is_decisive(value))
             {
-                ttMoveHistory << std::max(-424 - 107 * depth, -3375);
+                ttMoveHistory << -424 - 107 * depth;
+
+                if (!ss->inCheck && value > ss->staticEval)
+                {
+                    const int bonus =
+                      std::clamp(int(value - ss->staticEval) * 664 / 1024,
+                                 -CORRECTION_HISTORY_LIMIT / 4, CORRECTION_HISTORY_LIMIT / 4);
+                    update_correction_history(pos, ss, *this, bonus);
+                }
                 return value;
             }
 
@@ -3822,27 +3887,11 @@ moves_loop:  // When in check, search starts here
             // いくつかの条件に基づいて他の手を優先してttMoveを減らします：
 
 
-            // If the ttMove is assumed to fail high over current beta
-            // ttMove が現在の beta を超えて fail high すると想定される場合
-
-            else if (ttData.value >= beta)
+            // If the ttMove is assumed to fail high over current beta or we are on a cutNode.
+            // ttMoveがbetaを超えると見込む場合、またはcutNodeでは負の延長を適用する。
+            else if (ttData.value >= beta || cutNode)
                 extension = -3;
 
-            // If we are on a cutNode but the ttMove is not assumed to fail high
-            // over current beta
-            // 現在のノードがカットノードであるが、ttMoveが現在のbetaを超えて
-            // fail highすると思われない場合
-
-            else if (cutNode)
-                extension = -2;
-
-            /*
-			  ⚠  王手延長に関して、Stockfishのコード、ここに持ってくる時には気をつけること！
-			       将棋では王手はわりと続くのでそのまま持ってくるとやりすぎの可能性が高い。
-
-			  📓 Stockfishで削除されたが、王手延長自体は何らかあった方が良い可能性はあるので条件を調整してはどうか。
-					Remove check extension : https://github.com/official-stockfish/Stockfish/commit/96837bc4396d205536cdaabfc17e4885a48b0588
-			*/
         }
 
 		// -----------------------
@@ -3926,6 +3975,11 @@ moves_loop:  // When in check, search starts here
 
         r -= ss->statScore * 428 / 4096;
 
+        // Reduce less when a quiet move must recover a deficit against alpha.
+        // quietな手ではalphaと評価値の差も削減量に反映する。決着値は除外する。
+        if (!capture && !is_decisive(alpha))
+            r += 3 * std::clamp(alpha - eval, -64, 96);
+
         // Scale up reductions for expected ALL nodes
         if (allNode)
             r += r * 273 / (256 * depth + 260);
@@ -3940,6 +3994,11 @@ moves_loop:  // When in check, search starts here
 		        late move(遅い指し手)とは、このnodeでMovePickerで生成されたのが、あとのほうの指し手のこと。
 		        Late Move Reductionは、遅い指し手の削減を意味していて、LMRと略される。
 		*/
+
+        // When seeking a mate, reduce checking moves less and other moves more.
+        // 詰み探索モードでは王手の削減を緩め、その他の手の削減を増やす。
+        if (seekMate && r > 0)
+            r += (givesCheck ? -r : r) / 4;
 
         if (depth >= 2 && moveCount > 1)
         {
@@ -4081,12 +4140,33 @@ moves_loop:  // When in check, search starts here
             // rootでこのRootMovesの指し手に対して探索したnode数を加算。
 			rm.effort += nodes - nodeCount;
 
-			rm.averageScore =
-              rm.averageScore != -VALUE_INFINITE ? (value + rm.averageScore) / 2 : value;
+            u64 N      = nodes - nodeCount;
+            u64 E_prev = std::max(u64(1), rm.effort - N);
 
-            rm.meanSquaredScore = rm.meanSquaredScore != -VALUE_INFINITE * VALUE_INFINITE
-                                  ? (value * std::abs(value) + rm.meanSquaredScore) / 2
-                                  : value * std::abs(value);
+            // Exponential moving average parameters for root move
+            // ルート手の探索ノード数に応じて、スコアの指数移動平均の重みを変える。
+            constexpr u64 Scale          = 32;
+            const u64     ChiNumerator   = 3;
+            const u64     ChiDenominator = 2;   // Chi = 3/2 = 1.5
+            constexpr u64 MinWeight      = 12;  // 37.5% minimum weight
+            constexpr u64 MaxWeight      = 24;  // 75% maximum weight
+
+            u64 w     = std::clamp((Scale * N * ChiDenominator)
+                                     / (N * ChiDenominator + ChiNumerator * E_prev),
+                                   MinWeight, MaxWeight);
+            u64 w_mss = std::min(w, u64(16));
+            i64 v2    = i64(value) * std::abs(value);
+
+            if (rm.averageScore == -VALUE_INFINITE)
+                rm.averageScore = value;
+            else
+                rm.averageScore = Value((value * w + rm.averageScore * (Scale - w)) / Scale);
+
+            if (rm.meanSquaredScore == -VALUE_INFINITE * VALUE_INFINITE)
+                rm.meanSquaredScore = value * std::abs(value);
+            else
+                rm.meanSquaredScore =
+                  Value((v2 * w_mss + int64_t(rm.meanSquaredScore) * (Scale - w_mss)) / Scale);
 
             // PV move or new best move?
             // PVの指し手か、新しいbest moveか？
@@ -4277,7 +4357,7 @@ moves_loop:  // When in check, search starts here
         // 💡 quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
 
         update_all_stats(pos, ss, *this, bestMove, prevSq, quietsSearched, capturesSearched, depth,
-                         ttData.move);
+                         ttData.move, PvNode);
         if (!PvNode)
             ttMoveHistory << (bestMove == ttData.move ? 805 : -787);
     }
@@ -5117,9 +5197,9 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 }
 
 // LMRのreductionの値を計算する。
-int Search::YaneuraOuWorker::reduction(bool i, Depth d, int mn, int delta) const {
+int Search::YaneuraOuWorker::reduction(bool i, Depth d, int mn) const {
     int reductionScale = reductions[d] * reductions[mn];
-    return reductionScale - delta * 585 / rootDelta + !i * reductionScale * 206 / 512 + 1133;
+    return reductionScale + !i * reductionScale * 206 / 512 + 1133;
 }
 
 // 📝 やねうら王では、下記のelapsed(), elapsed_time()は用いない。
@@ -5270,7 +5350,8 @@ void update_all_stats(const Position&          pos,
                       SearchedList&            quietsSearched,
                       SearchedList&            capturesSearched,
                       Depth                    depth,
-                      Move                     ttMove) {
+                      Move                     ttMove,
+                      bool                     PvNode) {
 
 
     CapturePieceToHistory& captureHistory = workerThread.captureHistory;
@@ -5280,6 +5361,12 @@ void update_all_stats(const Position&          pos,
     int bonus =
       std::min(128 * depth - 77, 1529) + 353 * (bestMove == ttMove) + (ss - 1)->statScore / 32;
     int malus = std::min(882 * depth - 204, 2122);
+
+    // Scale the non-PV bonus with the number of searched moves.
+    // non-PVでは調べた手数に応じてボーナスを増やす。中間積は32bit環境でも64bitとする。
+    if (!PvNode)
+        bonus += int(i64(bonus) * int(quietsSearched.size() + capturesSearched.size()) / 256);
+
 
     /*
 		📓 Stockfish 14ではcapture_or_promotion()からcapture()に変更された。[2022/3/23]
@@ -5354,18 +5441,29 @@ void update_all_stats(const Position&          pos,
 		⇨　Stockfish 16で3手前も見るようになった。
 */
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
-    static constexpr std::array<ConthistBonus, 6> conthist_bonuses = {
-      {{1, 1157}, {2, 648}, {3, 288}, {4, 576}, {5, 140}, {6, 441}}};
+    const std::array<ConthistBonus, 5> conthist_bonuses = {
+      {{1, 520}, {2, 390}, {3, 145}, {4, 251}, {6, 209}}};
+
+    // Multipliers for positive history consistency.
+    // 正のcontinuation historyが続くほど更新量を増やす。
+    const int CMHCMultipliers[] = {94, 103, 110, 106, 119, 126};
+    int positiveCount = 0;
 
     for (const auto [i, weight] : conthist_bonuses)
     {
-        // Only update the first 2 continuation histories if we are in check
-        // 王手がかかっている場合のみ、最初の2つのcontinuation historiesを更新する
-
+        // Only update the first 2 continuation histories if we are in check.
+        // 王手中は1手前・2手前のcontinuation historyだけを更新する。
         if (ss->inCheck && i > 2)
             break;
         if (((ss - i)->currentMove).is_ok())
-            (*(ss - i)->continuationHistory)[pc][to] << (bonus * weight / 1024) + 88 * (i < 2);
+        {
+            auto& historyEntry = (*(ss - i)->continuationHistory)[pc][to];
+            if (historyEntry > 0)
+                positiveCount++;
+
+            int multiplier = CMHCMultipliers[positiveCount];
+            historyEntry << int(i64(bonus) * weight * multiplier / 65536) + 73 * (i < 2);
+        }
     }
 }
 
@@ -5390,7 +5488,7 @@ void update_quiet_histories(
     update_continuation_histories(ss, pos.moved_piece(move), move.to_sq(), bonus * 955 / 1024);
 
 	workerThread.sharedHistory.pawn_entry(pos)[pos.moved_piece(move)][move.to_sq()]
-      << bonus * (bonus > 0 ? 850 : 550) / 1024;
+      << bonus * (bonus > -4 ? 850 : 550) / 1024;
 }
 
 } // namespace

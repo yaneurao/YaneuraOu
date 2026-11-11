@@ -304,6 +304,9 @@ struct Stack {
 
     // このnodeでのreductionの量
     int reduction;
+
+    // 同一ノードでこれまでにNMPがfail highした回数。
+    int priorNMPFailHigh;
 };
 
 
@@ -407,6 +410,12 @@ class YaneuraOuEngine: public Engine {
 
     // Stockfishとの互換性のために用意。
     Search::SearchManager* main_manager() { return &manager; }
+
+   private:
+    friend class YaneuraOuWorker;
+    // Worker間で共有するが、別EngineのSPSA設定とは独立したreductions表。
+    std::array<int, MAX_MOVES> reductions{};
+
 };
 
 // やねうら王の探索Worker
@@ -455,6 +464,7 @@ class YaneuraOuWorker: public Worker {
     SharedHistories& sharedHistory;
     // 添字は[inCheck][capture_stage]。実体はNUMAノード内で共有する。
     ContinuationHistory (&continuationHistory)[2][2];
+    const std::array<int, MAX_MOVES>& reductions;
 
    private:
     // 反復深化
@@ -497,8 +507,7 @@ class YaneuraOuWorker: public Worker {
     //                       上がっていないなら悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
     //   d     : depth
     //   mn    : move_count
-    //   delta : staticEvalとchildのeval(value)の差。これが低い時にreduction量を増やしたい。
-    int reduction(bool i, Depth d, int mn, int delta) const;
+    int reduction(bool i, Depth d, int mn) const;
 
 	// Pointer to the search manager, only allowed to be called by the main thread
     // 検索マネージャへのポインタ。メインスレッドからのみ呼び出すことが許可されています。
@@ -551,9 +560,10 @@ class YaneuraOuWorker: public Worker {
     RootMoves rootMoves;
 #endif
 
-    // aspiration searchで使う。
+    // 反復深化の探索深さと、最後に完了した深さ。
     Depth rootDepth, completedDepth;
-    Value rootDelta;
+    // 詰みを探すために一部の枝刈りを緩めるモード。
+    bool seekMate = false;
 
     // 現在のMultiPV候補について、前回の反復深化で得たPV。
     // 次の反復深化でこのPV lineを辿っている間は、IIRとquiet shallow pruningを抑制する。
@@ -570,14 +580,6 @@ class YaneuraOuWorker: public Worker {
     NumaReplicatedAccessToken numaAccessToken;
 #endif
 
-    // Reductions lookup table initialized at startup
-    // 起動時に初期化されるreductionsの参照表
-    // 💡 reductionとは、LMRで残り探索深さを減らすこと。
-    /*
-		📓	このテーブル、各workerが同じものを持っている。
-		    頻繁に参照するテーブルなのでこのほうが良いのだと思われる。
-	*/ 
-    std::array<int, MAX_MOVES> reductions;  // [depth or moveNumber]
 
 #if STOCKFISH
 	// やねうら王では、これらは基底classであるWorkerが持っている。
