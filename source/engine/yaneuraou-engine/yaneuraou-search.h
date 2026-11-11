@@ -146,6 +146,10 @@ struct Skill {
 // 💡 Stockfishの同名のclassとほぼ同じ内容。Stockfishのsearch.hにあるSearchManagerを参考にすること。
 // 🤔 YaneuraOuEngineの1インスタンスに対して、SearchManagerが1インスタンスあれば良いので、
 //     やねうら王では、YaneuraOuEngineのメンバーとして持たせることにする。
+// SearchManager manages the search from the main thread. It is responsible for
+// keeping track of the time, and storing data strictly related to the main thread.
+// SearchManagerはメインスレッドの探索を管理する。
+// 時間の追跡と、メインスレッド専用のデータの保持を担当する。
 class SearchManager {
    public:
     // 📝 やねうら王では、これはnamespace Searchで定義しておく。
@@ -422,6 +426,12 @@ class YaneuraOuEngine: public Engine {
 // 📌 Stockfishから拡張して、やねうら王はエンジンを自由に差し替えられるようになっているので、
 //     自分のWorkerを定義するには、Search::Worker classから派生させる。
 // 💡 このclassのコードは、Stockfishのsearch.hにあるWorker classを参考にすること。
+// Search::Worker is the class that does the actual search.
+// It is instantiated once per thread, and it is responsible for keeping track
+// of the search history, and storing data required for the search.
+// Search::Workerは実際の探索を担当するクラスで、スレッドごとに1つ生成される。
+// 探索履歴と探索に必要なデータを保持する。
+// やねうら王では、この役割を派生クラスYaneuraOuWorkerが担う。
 class YaneuraOuWorker: public Worker {
    public:
     // 💡 コンストラクタでWorkerのコンストラクタを初期化しないといけないので、
@@ -431,10 +441,14 @@ class YaneuraOuWorker: public Worker {
                     // 追加でYaneuraOuEngineからもらいたいもの
                     YaneuraOuEngine&    engine);
 
-    // "usinewgame"に対して呼び出される。対局前の初期化。
+    // Reset histories, usually before a new game.
+    // 通常は新しい対局の前に、履歴をリセットする。
     virtual void clear() override;
 
-    // "go"コマンドでの探索の開始時にmain threadから呼び出される。
+    // Called when the program receives the UCI 'go' command. It searches
+    // from the root position and outputs the "bestmove".
+    // goコマンドを受信したときに呼び出され、ルート局面から探索してbestmoveを出力する。
+    // やねうら王ではUSIのgoを扱う。補助スレッドでは探索のみを行う。
     virtual void start_searching() override;
 
 	// 📝 これは、やねうら王ではbase classで定義されている。
@@ -584,8 +598,8 @@ class YaneuraOuWorker: public Worker {
 #if STOCKFISH
 	// やねうら王では、これらは基底classであるWorkerが持っている。
 
-    // The main thread has a SearchManager, the others have a NullSearchManager
-    // メインスレッドは SearchManager を持ち、他のスレッドは NullSearchManager を持つ。
+    // The main thread has a SearchManager, the others have a nullptr
+    // メインスレッドはSearchManagerを持ち、他のスレッドはnullptrを持つ。
     std::unique_ptr<ISearchManager> manager;
 
     // 📝 tablebaseは将棋では使わない。

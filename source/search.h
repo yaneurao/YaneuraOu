@@ -96,7 +96,7 @@ struct PVMoves {
 // fail low). Score is normally set at -VALUE_INFINITE for all non-pv moves.
 
 // root(探索開始局面)での指し手として使われる。それぞれのroot moveに対して、
-// その指し手で進めたときのscore(評価値)とPVを持っている。(PVはfail lowしたときには信用できない)
+// その指し手のscore（評価値）とPVを保持する。fail lowした手では、PVはその手への反証手順となる。
 // scoreはnon-pvの指し手では-VALUE_INFINITEで初期化される。
 struct RootMove
 {
@@ -182,10 +182,12 @@ using RootMoves = std::vector<RootMove>;
 
 // goコマンドでの探索時に用いる、持ち時間設定などが入った構造体
 // "ponder"のフラグはここに含まれず、Threads.ponderにあるので注意。
+// LimitsType struct stores information sent by the caller about the analysis required.
+// LimitsTypeは、呼び出し側から指定された解析条件を保持する。
 struct LimitsType {
 
     // Init explicitly due to broken value-initialization of non POD in MSVC
-    // PODでない型をmemsetでゼロクリアすると破壊してしまうので明示的に初期化する。
+    // MSVCでは非POD型の値初期化に問題があるため、明示的に初期化する。
     LimitsType() {
 
         time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] /* = npmsec */ = movetime = TimePoint(0);
@@ -275,6 +277,11 @@ struct LimitsType {
 // UCIは、UCIオプション、スレッドプール、トランスポジションテーブルを保持する。
 // この構造体は、Search::Workerクラスへデータを簡単に渡すために使われる。
 
+// The UCI stores the uci options, thread pool, and transposition table.
+// This struct is used to easily forward data to the Search::Worker class.
+// UCI側が保持するオプション、スレッドプール、置換表などを
+// Search::Workerへまとめて渡すための構造体。
+// やねうら王ではUSIとEngineの構成に合わせて共通データを渡す。
 struct SharedState {
     SharedState(const OptionsMap&                                         optionsMap,
                 ThreadPool&                                               threadPool,
@@ -517,6 +524,9 @@ protected:
     TimePoint elapsed() const;
     TimePoint elapsed_time() const;
 
+    // Evaluate the current position of the game tree, from the point of view of
+    // the side to move.
+    // 手番側から見た、現在の探索木上の局面を評価する。
     Value evaluate(const Position&);
 #endif
 
