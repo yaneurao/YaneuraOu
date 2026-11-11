@@ -215,6 +215,10 @@ void Engine::wait_for_search_finished() {
 	threads.main_thread()->wait_for_search_finished();
 }
 
+bool Engine::is_searching() {
+    return threads.size() && threads.main_thread()->is_searching();
+}
+
 // "position"コマンドの下請け。
 // sfen文字列 + movesのあとに書かれていた(USIの)指し手文字列から、現在の局面を設定する。
 std::optional<PositionSetError> Engine::set_position(const std::string&              sfen,

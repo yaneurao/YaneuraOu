@@ -152,6 +152,9 @@ public:
 
 	void   wait_for_search_finished();
 
+    // 探索ジョブの終了を待たずに、実行中かを確認する。
+    bool is_searching();
+
 	// Threadの自身のスレッド番号を返す。0 origin。
 	// コンストラクタで渡したthread_idが返ってくる。
 	usize id() const { return idx; }

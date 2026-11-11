@@ -140,6 +140,9 @@ public:
 	// 💡 「blocking呼び出し」とは、完了するまでreturnしないような関数のこと。
     virtual void wait_for_search_finished() {};
 
+    // 探索中のisreadyに、探索の終了を待たず応答するための照会。
+    virtual bool is_searching() { return false; }
+
 	// set a new position, moves are in UCI format
     // 新しい局面を設定する。手はUCI形式で指定される
     // 💡 "position"コマンドの下請け。
@@ -364,6 +367,7 @@ class Engine: public IEngine {
     virtual void stop() override;
 
     virtual void wait_for_search_finished() override;
+    virtual bool is_searching() override;
     virtual std::optional<PositionSetError> set_position(const std::string&              sfen,
                                                          const std::vector<std::string>& moves) override;
 
@@ -525,6 +529,7 @@ class EngineWrapper: public IEngine {
     virtual void stop() override { engine->stop(); }
 
     virtual void wait_for_search_finished() override { engine->wait_for_search_finished(); }
+    virtual bool is_searching() override { return engine->is_searching(); }
     virtual std::optional<PositionSetError> set_position(const std::string&              sfen,
                                                          const std::vector<std::string>& moves) override {
         return engine->set_position(sfen, moves);

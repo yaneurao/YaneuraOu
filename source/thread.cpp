@@ -145,6 +145,11 @@ void Thread::wait_for_search_finished() {
     cv.wait(lk, [&] { return !searching; });
 }
 
+bool Thread::is_searching() {
+    std::lock_guard<std::mutex> lk(mutex);
+    return searching;
+}
+
 // Launching a function in the thread
 // スレッド内で関数を実行します
 
