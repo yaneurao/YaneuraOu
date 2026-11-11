@@ -28,7 +28,10 @@ class Option {
     // 値が変更された時に呼び出されるevent handlerの型。
     using OnChange = std::function<std::optional<std::string>(const Option&)>;
 
+#if !STOCKFISH
     Option(const OptionsMap*);
+#endif
+
     Option(OnChange = nullptr);
 
     // bool
@@ -112,7 +115,7 @@ class Option {
     // 📝 "usi"コマンド応答で、OptionsMapへの登録順に出力されてほしいので、
     //     カウンターを0から増やしていき、Option::idxが一致したものを表示していくようになっている。
     //     この変数は、そのためのもの。
-    usize idx;
+    usize idx = 0;
 
     // このOptionの設定値が変更された時に呼び出されるevent handler。
     OnChange on_change;
@@ -146,11 +149,11 @@ class OptionsMap {
     const Option& operator[](const std::string&) const;
 
     // Optionを一つ追加する。options_mapに追加される。
-    void add(const std::string& option_name, const Option& option);
+    void add(const std::string& /* option_name */, const Option& option);
 
     // 保持しているOptionのなかで、このoption_nameを持つものの数。
     // 💡 ある名前のoption項目を持っているかどうかを調べるのに使う。
-    usize count(const std::string& option_name) const;
+    usize count(const std::string& /* option_name */) const;
 
 #if !STOCKFISH
 
@@ -250,4 +253,4 @@ private:
 
 } // namespace YaneuraOu
 
-#endif  // #ifndef USI_OPTION_H_INCLUDED
+#endif  // #ifndef USIOPTION_H_INCLUDED
