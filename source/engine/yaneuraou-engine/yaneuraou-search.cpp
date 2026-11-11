@@ -1642,7 +1642,10 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
             // Reset aspiration window starting size
             // aspiration windowの開始サイズをリセットする。
-            delta     = 5 + threadIdx % 8 + std::abs(rootMoves[pvIdx].meanSquaredScore) / 9000;
+            // Keep the window nonempty even at the edge of the SPSA range.
+            // SPSAの範囲端でも探索窓の幅を正に保つ。古いparamsの除数0も防ぐ。
+            delta = std::max(1, 5 + int(threadIdx % 8)
+                                 + std::abs(rootMoves[pvIdx].meanSquaredScore) / std::max(9000, 1));
             Value avg = rootMoves[pvIdx].averageScore;
             alpha     = std::max(avg - delta, -VALUE_INFINITE);
             beta      = std::min(avg + delta,  VALUE_INFINITE);
@@ -1765,7 +1768,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 else
                     break;
 
-                delta += delta / 3;
+                delta += std::max(1, delta / 3);
 
                 assert(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
             }
@@ -3283,7 +3286,7 @@ tt_cutoff:
 
             return futilityMult * d                                //
                  - (2686 * improving + 362 * opponentWorsening) * futilityMult / 1024
-                 + std::abs(correctionValue) / 180600;
+                 + std::abs(correctionValue) / std::max(180600, 1);
         };
 
         if (!ss->ttPv && depth < (seekMate ? 6 : 19) && eval >= beta && eval - futility_margin(depth) >= beta
@@ -3833,7 +3836,7 @@ moves_loop:  // When in check, search starts here
 
             //  📍 このmargin値は評価関数の性質に合わせて調整されるべき。
 
-            Value singularBeta  = ttData.value - (60 + 66 * (ss->ttPv && !PvNode)) * depth / 55;
+            Value singularBeta  = ttData.value - (60 + 66 * (ss->ttPv && !PvNode)) * depth / std::max(55, 1);
             Depth singularDepth = newDepth / 2;
 
             // 💡 move(ttMove)の指し手を以下のsearch()での探索から除外。
@@ -3851,7 +3854,7 @@ moves_loop:  // When in check, search starts here
 
             if (value < singularBeta)
             {
-				int corrValAdj   = std::abs(correctionValue) / 210590;
+				int corrValAdj   = std::abs(correctionValue) / std::max(210590, 1);
                 int doubleMargin = -4 + 212 * PvNode - 182 * !ttCapture - corrValAdj
                                  - 906 * ttMoveHistory / 116517 - (ss->ply > rootDepth) * 44;
                 int tripleMargin = 73 + 320 * PvNode - 218 * !ttCapture + 92 * ss->ttPv - corrValAdj
@@ -3965,7 +3968,7 @@ moves_loop:  // When in check, search starts here
         r += 691;
 
         r -= moveCount * 65;
-        r -= std::abs(correctionValue) / 25600;
+        r -= std::abs(correctionValue) / std::max(25600, 1);
 
         // Increase reduction for cut nodes
         // カットノードのreductionを増やす
@@ -4022,7 +4025,7 @@ moves_loop:  // When in check, search starts here
         // Scale up reductions for expected ALL nodes
         // ALLノードと見込まれるノードでは、削減量を増やす。
         if (allNode)
-            r += r * 273 / (256 * depth + 260);
+            r += int(i64(r) * 273 / (256 * depth + 260));
 
 		// -----------------------
 		/*
@@ -4415,7 +4418,7 @@ moves_loop:  // When in check, search starts here
     else if (!priorCapture && prevSq != SQ_NONE)
     {
         int bonusScale = -232;
-        bonusScale -= (ss - 1)->statScore / 108;
+        bonusScale -= (ss - 1)->statScore / std::max(108, 1);
         bonusScale += std::min(59 * depth, 454);
         bonusScale += 169 * ((ss - 1)->moveCount > 8);
         bonusScale += 145 * (!ss->inCheck && bestValue <= ss->staticEval - 110);
@@ -4423,16 +4426,18 @@ moves_loop:  // When in check, search starts here
 
         bonusScale = std::max(bonusScale, 0);
 
-        const int scaledBonus = std::min(135 * depth - 80, 1400) * bonusScale;
+        // Widen before multiplying; SPSA can make bonusScale much larger.
+        // SPSAでbonusScaleが大きくなる場合も、乗算前に64bitへ拡張して桁あふれを防ぐ。
+        const i64 scaledBonus = i64(std::min(135 * depth - 80, 1400)) * bonusScale;
 
         update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
-                                      scaledBonus * 221 / 16384);
+                                      int(scaledBonus * 221 / 16384));
 
-        mainHistory[~us][((ss - 1)->currentMove).raw()] << scaledBonus * 235 / 32768;
+        mainHistory[~us][((ss - 1)->currentMove).raw()] << int(scaledBonus * 235 / 32768);
 
 		// TODO : これで合ってるか？あとで検証する。
         if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
-            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << scaledBonus * 290 / 8192;
+            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << int(scaledBonus * 290 / 8192);
     }
 
     // Bonus for prior capture countermove that caused the fail low

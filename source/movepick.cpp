@@ -514,7 +514,7 @@ dispatch:
 
     case GOOD_CAPTURE:
         if (Move move = select([&]() {
-                if (pos.see_ge(*cur, -cur->value / 18))
+                if (pos.see_ge(*cur, -cur->value / std::max(18, 1)))
                     return true;
                 *endBadMoves++ = *cur;
                 return false;
