@@ -470,7 +470,8 @@ class YaneuraOuWorker: public Worker {
 
     void do_move(Position& pos, const Move move, StateInfo& st, Stack* const ss);
     void
-    do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck, Stack* const ss);
+    do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck,
+            const bool capture, Stack* const ss);
     void do_null_move(Position& pos, StateInfo& st);
 
 	void undo_move(Position& pos, const Move move);
@@ -554,9 +555,9 @@ class YaneuraOuWorker: public Worker {
     Depth rootDepth, completedDepth;
     Value rootDelta;
 
-    // 前回の反復深化で確定したPV。
+    // 現在のMultiPV候補について、前回の反復深化で得たPV。
     // 次の反復深化でこのPV lineを辿っている間は、IIRとquiet shallow pruningを抑制する。
-    PVMoves lastIterationPV;
+    PVMoves lastIterationIdxPV;
 
 #if STOCKFISH
 	// 📓 やねうら王では、Engine classが持っている。

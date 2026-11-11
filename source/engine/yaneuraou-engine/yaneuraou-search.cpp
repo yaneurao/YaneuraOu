@@ -869,7 +869,7 @@ void Search::YaneuraOuWorker::start_searching() {
 #endif
 
     // 前回のgoで得たPVは今回の探索では使えないので、各Workerの探索開始時に破棄する。
-    lastIterationPV.clear();
+    lastIterationIdxPV.clear();
 
     // Non-main threads go directly to iterative_deepening()
     // メインスレッド以外は直接 iterative_deepening() へ進む
@@ -1543,6 +1543,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         // MultiPVのloop。MultiPVのためにこの局面の候補手をN個選出する。
         for (pvIdx = 0; pvIdx < multiPV; ++pvIdx)
         {
+            lastIterationIdxPV = rootMoves[pvIdx].previousPV;
+
             // 📝 chessではtbRankの処理が必要らしい。将棋では関係なさげなのでコメントアウト。
             //     tbRankが同じ値のところまでしかsortしなくて良いらしい。
             //     (そこ以降は、明らかに悪い指し手なので)
@@ -1811,14 +1813,28 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
         }  // multi pv loop
 
+        // Keep a proven mate and its matching PV if a later iteration loses it.
+        // 後の反復で詰みを見失っても、確定した詰みスコアと対応するPVを保持する。
+        const bool forgottenMate = lastBestScore != -VALUE_INFINITE
+                                && is_mate_or_mated(lastBestScore)
+                                && (std::abs(rootMoves[0].score) < std::abs(lastBestScore)
+                                    || rootMoves[0].is_inexact());
+
         if (!threads.stop)
         {
             completedDepth  = rootDepth;
 
-            if (lastIterationPV.empty() || rootMoves[0].pv[0] != lastIterationPV[0])
+            if (lastBestPV.empty() || rootMoves[0].pv[0] != lastBestPV[0])
                 lastBestMoveDepth = rootDepth;
 
-            lastIterationPV = rootMoves[0].pv;
+            // Do not replace shorter mate scores from a previous iteration.
+            // 前の反復で得た、より短い詰みのスコアを上書きしない。
+            if (!forgottenMate)
+            {
+                lastBestPV    = rootMoves[0].pv;
+                lastBestScore = rootMoves[0].score;
+            }
+
         }
 
         // An exact loss from an aborted first PV line cannot be trusted.
@@ -1826,7 +1842,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         // 先頭PVの探索を途中停止したときの確定した負けスコアは信用できない。
         // 完了済みの反復のスコアとPVへ戻す。深さ1で復元先がなければ未確定とする。
         const bool abortedLossSearch = threads.stop && !pvIdx && rootMoves[0].is_exact_loss();
-        if (abortedLossSearch)
+        if (abortedLossSearch || (rootMoves[0].score != -VALUE_INFINITE && forgottenMate))
         {
             if (!lastBestPV.empty())
             {
@@ -1844,13 +1860,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 if (mainThread)
                     uciPvSent = false;
             }
-            else
+            else if (abortedLossSearch)
                 rootMoves[0].inexactLower = true;
-        }
-        else if (!threads.stop)
-        {
-            lastBestPV    = rootMoves[0].pv;
-            lastBestScore = rootMoves[0].score;
         }
 
         // 🤔 探索深さが、mateの手数の2倍以上になったら、それより短い詰みが
@@ -2033,12 +2044,13 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
 void Search::YaneuraOuWorker::do_move(Position & pos, const Move move, StateInfo& st,
                                         Stack* const ss) {
-    do_move(pos, move, st, pos.gives_check(move), ss);
+    do_move(pos, move, st, pos.gives_check(move), pos.capture_stage(move), ss);
 }
 
 
 void YaneuraOuWorker::do_move(
-  Position& pos, const Move move, StateInfo& st, const bool givesCheck, Stack* const ss) {
+  Position& pos, const Move move, StateInfo& st, const bool givesCheck,
+  const bool capture, Stack* const ss) {
 
 #if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT) && !defined(NO_PREFETCH)
     // 子局面の補正値が読むss-2/ss-4は、着手前にはss-1/ss-3に当たる。
@@ -2050,7 +2062,6 @@ void YaneuraOuWorker::do_move(
     }
 #endif
 
-    bool capture = pos.capture_stage(move);
 
     // RelaxedAtomic increments use a relaxed load/store pair, avoiding locking instructions.
     // RelaxedAtomicの加算はrelaxedなload/storeで行い、ロック命令を避ける。
@@ -2342,8 +2353,8 @@ Value Search::YaneuraOuWorker::search(
     // Stockfishでは、このline上でIIRとquiet shallow pruningを抑制して、
     // 前回のPVを浅い枝刈りで壊しにくくしている。
     ss->followPV = rootNode
-                || ((ss - 1)->followPV && static_cast<usize>(ss->ply - 1) < lastIterationPV.size()
-                    && (ss - 1)->currentMove == lastIterationPV[ss->ply - 1]);
+                || ((ss - 1)->followPV && static_cast<usize>(ss->ply - 1) < lastIterationIdxPV.size()
+                    && (ss - 1)->currentMove == lastIterationIdxPV[ss->ply - 1]);
 
 #if defined(USE_CLASSIC_EVAL) && defined(USE_LAZY_EVALUATE)
 	// 📝 次のnodeに行くまでにevaluate()かevaluate_with_no_return()を呼び出すことを保証して
@@ -2359,13 +2370,13 @@ Value Search::YaneuraOuWorker::search(
         evaluated = true;
         return this->evaluate(pos);
     };
-    auto do_move = [&](Position & pos, Move move, StateInfo& st, bool givesCheck, Stack* ss) {
+    auto do_move = [&](Position & pos, Move move, StateInfo& st, bool givesCheck, bool capture, Stack* ss) {
         if (!evaluated)
         {
             evaluated = true;
             Eval::evaluate_with_no_return(pos);
         }
-        this->do_move(pos, move, st, givesCheck, ss);
+        this->do_move(pos, move, st, givesCheck, capture, ss);
     };
 
 	// 🤔 同じ名前で呼び分けできないので、
@@ -3839,15 +3850,18 @@ moves_loop:  // When in check, search starts here
         // Step 16. 指し手で進める
         // -----------------------
 
+        // Count the move itself in the root effort.
+        // ルートのeffortには、この着手自身による1ノードも含める。
+        u64 nodeCount = rootNode ? u64(nodes) : 0;
+
 		// 指し手で1手進める
-        do_move(pos, move, st, givesCheck, ss);
+        do_move(pos, move, st, givesCheck, capture, ss);
 
         // Add extension to new depth
         // 求まった延長する手数を新しいdepthに加算
 
 		newDepth += extension;
 
-		uint64_t nodeCount = rootNode ? uint64_t(nodes) : 0;
 
         // Decrease reduction for PvNodes (*Scaler)
         // Pv Nodesに対してreductionを減らす(*Scaler)
@@ -3935,23 +3949,12 @@ moves_loop:  // When in check, search starts here
 			      alpha値を更新しそうなら(fail highが起きたら)、full depthで探索しなおす。
 			*/
 
-            // In general we want to cap the LMR depth search at newDepth, but when
-            // reduction is negative, we allow this move a limited search extension
-            // beyond the first move depth.
-            // To prevent problems when the max value is less than the min value,
-            // std::clamp has been replaced by a more robust implementation.
-
-			// 一般的には LMR 探索の深さを newDepth で上限にしたいが、
-            // reduction が負の場合、この指し手には最初の指し手の深さを超えて
-            // 限定的な探索延長を許す。
-            // max 値が min 値より小さくなる問題を防ぐため、
-            // std::clamp はより堅牢な実装に置き換えられた。
-            /*
-                📓 C++の仕様上、std::clamp(x, min, max)は、min > maxの時に未定義動作であるから、
-			        clamp()を用いるのではなく、max()とmin()を組み合わせて書かないといけない。
-			*/
-
-			Depth d = std::max(1, std::min(newDepth - r / 1024, newDepth + 2)) + PvNode;
+            // In general we cap the LMR search at newDepth, allowing limited negative
+            // reductions. To avoid search explosion, do not extend deep relative to rootDepth.
+            // LMRは原則newDepthまでとし、負の削減による限定的な延長を許す。
+            // 探索の膨張を避けるため、ルート深さの2倍以深ではこの延長を認めない。
+            Depth d =
+              std::max(1, newDepth + std::min(-r / 1024, ss->ply < 2 * rootDepth ? 2 : 0)) + PvNode;
 
             ss->reduction = newDepth - d;
             value         = -search<NonPV>(pos, ss + 1, -(alpha + 1), -alpha, d, true);
@@ -4519,13 +4522,13 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         evaluated = true;
         return this->evaluate(pos);
     };
-    auto do_move = [&](Position& pos, Move move, StateInfo& st, bool givesCheck, Stack* ss) {
+    auto do_move = [&](Position& pos, Move move, StateInfo& st, bool givesCheck, bool capture, Stack* ss) {
         if (!evaluated)
         {
             evaluated = true;
             Eval::evaluate_with_no_return(pos);
         }
-        this->do_move(pos, move, st, givesCheck, ss);
+        this->do_move(pos, move, st, givesCheck, capture, ss);
     };
 #endif
 
@@ -4966,7 +4969,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
 		// 📝 1手動かして、再帰的にqsearch()を呼ぶ
 
-        do_move(pos, move, st, givesCheck, ss);
+        do_move(pos, move, st, givesCheck, capture, ss);
 
         value = -qsearch<nodeType, ReadTT>(pos, ss + 1, -beta, -alpha);
         undo_move(pos, move);

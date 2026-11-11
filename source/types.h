@@ -548,6 +548,21 @@ constexpr bool is_loss(Value value) {
 // Valueが詰み/詰まされ確定のスコアならtrue。
 constexpr bool is_decisive(Value value) { return is_win(value) || is_loss(value); }
 
+// A mate score excludes the tablebase range used for other decisive results.
+// 他の決着値用のTB範囲を除き、詰み・被詰みのスコアだけを判定する。
+constexpr bool is_mate(Value value) {
+    assert(is_valid(value));
+    return value >= VALUE_MATE_IN_MAX_PLY;
+}
+
+constexpr bool is_mated(Value value) {
+    assert(is_valid(value));
+    return value <= VALUE_MATED_IN_MAX_PLY;
+}
+
+constexpr bool is_mate_or_mated(Value value) { return is_mate(value) || is_mated(value); }
+
+
 
 // --------------------
 //        駒
