@@ -300,8 +300,11 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) { // diff:ignore
 
 			std::istringstream iss2(last_go_cmd_string);
             iss2 >> token; // 先頭の"go"を捨てる。
-            iss2 >> token; // "ponder"の文字列も捨てる。("go ponder"と連続してきているはず。
-            go(iss2);
+            // ponderの位置に依存せず制限を読み直し、通常探索として再開する。
+            // parse_limits()で開始時刻も今回のponderhit時刻へ更新する。
+            auto limits = parse_limits(iss2);
+            limits.ponderMode = false;
+            engine.go(limits);
 		}
 		else
 	        engine.set_ponderhit(false);
