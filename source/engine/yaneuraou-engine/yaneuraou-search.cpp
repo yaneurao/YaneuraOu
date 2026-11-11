@@ -853,10 +853,8 @@ void Search::YaneuraOuWorker::pre_start_searching() {
 
     // 📝 StockfishではThreadPool::start_thinking()で行っているが、
     //     やねうら王では、派生classのpre_start_thinking()以降で行う。
-#if STOCKFISH
     nmpMinPly       = 0;
     seekMate        = false;
-#endif
     bestMoveChanges = 0;
     rootDepth = completedDepth = 0;
 
@@ -6002,7 +6000,9 @@ bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
     pos.do_move(pv[0], st);
 
     auto [ttHit, ttData, ttWriter] = tt.probe(pos.key(), pos);
-    if (ttHit)
+    // A TT hit may contain only a score, without a usable move.
+    // TTにヒットしても、評価値だけで有効な指し手が登録されていない場合がある。
+    if (ttHit && ttData.move.is_ok())
     {
         Move m = ttData.move;
         //if (MoveList<LEGAL>(pos).contains(ttData.move))
