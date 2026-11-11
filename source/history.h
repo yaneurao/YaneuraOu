@@ -3,10 +3,11 @@
 
 #include <algorithm>
 #include <array>
-//#include <cassert>
+#include <atomic>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
-//#include <cstdlib>
+#include <cstdlib>
 #include <limits>
 #include <type_traits>  // IWYU pragma: keep
 // 📝 IWYU pragmaとは、Include What You Use（IWYU） というincludeを整理してくれるツールに対する指示コメント。
@@ -36,17 +37,6 @@ static_assert((PAWN_HISTORY_BASE_SIZE & (PAWN_HISTORY_BASE_SIZE - 1)) == 0,
 static_assert((CORRHIST_BASE_SIZE & (CORRHIST_BASE_SIZE - 1)) == 0,
               "CORRHIST_BASE_SIZE has to be a power of 2");
 
-inline u16 pawn_correction_history_index(const Position& pos) { return u16(pos.pawn_key()); }
-// 🌈 Stockfishではhash keyはuint64_tなので、そのままuint16_tにできるが、やねうら王では、
-//     Keyという構造体なので暗黙で64bitにすることはできない。ゆえに明示的なcastが必要となる。
-
-inline u16 minor_piece_index(const Position& pos) { return u16(pos.minor_piece_key()); }
-
-template<Color c>
-inline u16 non_pawn_index(const Position& pos) {
-    return u16(pos.non_pawn_key(c));
-}
-
 // StatsEntry is the container of various numerical statistics. We use a class
 // instead of a naked value to directly call history update operator<<() on
 // the entry. The first template parameter T is the base type of the array,
@@ -64,7 +54,10 @@ inline u16 non_pawn_index(const Position& pos) {
 template<typename T, int D, bool Shared = false>
 struct StatsEntry {
 
-    static_assert(std::is_arithmetic_v<T>, "Not an arithmetic type");
+    static_assert(std::is_integral_v<T> && std::is_signed_v<T>, "Not a signed integer type");
+    static_assert(D > 0 && D <= std::numeric_limits<T>::max()
+                    && D <= std::numeric_limits<int>::max() / D,
+                  "D can lead to overflows");
 
    private:
     // 共有しない場合はT、共有する場合はRelaxedAtomic<T>。
@@ -87,7 +80,7 @@ struct StatsEntry {
         T   val          = *this;
         *this            = val + clampedBonus - val * std::abs(clampedBonus) / D;
 
-        assert(std::abs(T(*this)) <= D);
+        ASSERT_LV3(std::abs(T(*this)) <= D);
 
 		// ※　この式は、Stockfishのコードそのまま。
 		// 試行錯誤の結果っぽくて、数学的な根拠はおそらくない。
@@ -110,7 +103,6 @@ struct StatsEntry {
 		// 📝 指数移動平均(EMA)みたいなことがしたい。
 		//     しかし、EMAだと制限Dを超えてしまうことがある。Dの範囲を守りながらEMAするには上記のような更新式になる。
 
-		ASSERT_LV3(std::abs(entry) <= D);
 	}
 };
 
@@ -137,23 +129,19 @@ using AtomicStats = MultiArray<StatsEntry<T, D, true>, Sizes...>;
 template<typename T, int SizeMultiplier>
 struct DynStats {
 	// s : スレッド数
-    explicit DynStats(usize s) {
-		// この配列のサイズ
-        size = s * SizeMultiplier;
-
-		// 実際に確保される領域(T型でsize個)
-        data = make_unique_large_page<T[]>(size);
-    }
+    explicit DynStats(usize s) :
+        size(s * SizeMultiplier),
+        data(make_unique_large_page<T[]>(size)) {}
 
     // Sets all values in the range to 0
 	// すべての要素を0にする。
 	// 📓 並列で呼び出すことを想定している。threadIdxがthread id、numaTotalがthreadの総数。 
     void clear_range(int value, usize threadIdx, usize numaTotal) {
-        usize start = uint64_t(threadIdx) * size / numaTotal;
+        usize start = u64(threadIdx) * size / numaTotal;
         assert(start < size);
 
 		// 最後のスレッドは、末尾まで。さもなくば、次のスレッドの開始点まで。
-        usize end = threadIdx + 1 == numaTotal ? size : uint64_t(threadIdx + 1) * size / numaTotal;
+        usize end = threadIdx + 1 == numaTotal ? size : u64(threadIdx + 1) * size / numaTotal;
 
         while (start < end)
             data[start++].fill(value);
@@ -165,11 +153,11 @@ struct DynStats {
 	// 配列の要素へのaccessor
 	T&     operator[](usize index) {
         assert(index < size);
-        return data.get()[index];
+        return data[index];
     }
     const T& operator[](usize index) const {
         assert(index < size);
-        return data.get()[index];
+        return data[index];
     }
 
    private:
@@ -235,7 +223,7 @@ using CapturePieceToHistory = Stats<i16, 10692, PIECE_NB, SQUARE_NB, PIECE_TYPE_
 // PieceToHistory is like ButterflyHistory but is addressed by a move's [piece][to]
 // PieceToHistoryは、ButterflyHistoryに似たものだが、指し手の[piece][to]で示される。
 
-using PieceToHistory = Stats<i16, 30000, PIECE_NB, SQUARE_NB>;
+using PieceToHistory = AtomicStats<i16, 30000, PIECE_NB, SQUARE_NB>;
 
 // ContinuationHistory is the combined history of a given pair of moves, usually
 // the current one given a previous one. The nested history table is based on
@@ -263,14 +251,11 @@ using PawnHistory =
 // これは、一部の探索ヒューリスティックで使用される静的評価を改善するために用いられる。
 
 enum CorrHistType {
-    Pawn,          // By color and pawn structure
-    Minor,         // By color and positions of minor pieces (Knight, Bishop)
-    NonPawn,       // By non-pawn material positions and color
     PieceTo,       // By [piece][to] move
     Continuation,  // Combined history of move pairs
 };
 /*
-	📓 CorrHistType(Correction History Type)
+	📓 UnifiedCorrectionHistoryが保持する補正履歴と、CorrHistTypeの分類
 
 		Pawn         : 歩の陣形(先後の区別はする)に対するもの
 		Minor        : minor piece(小駒。先後の区別はする)に対するもの。将棋では、香、桂、銀、金とその成り駒。
@@ -280,7 +265,7 @@ enum CorrHistType {
 */
 
 // Correction Historyのひとまとめにしたもの。
-// 歩、小駒、後手の大駒、先手の大駒
+// 歩、小駒、先後それぞれの歩以外の駒に対する補正。
 template<typename T, int D>
 struct CorrectionBundle {
     StatsEntry<T, D, true> pawn;
@@ -300,10 +285,7 @@ struct CorrectionBundle {
 namespace Detail {
 
 template<CorrHistType>
-struct CorrHistTypedef {
-    using type =
-      DynStats<Stats<i16, CORRECTION_HISTORY_LIMIT, COLOR_NB>, CORRHIST_BASE_SIZE>;
-};
+struct CorrHistTypedef;
 
 template<>
 struct CorrHistTypedef<PieceTo> {
@@ -315,11 +297,6 @@ struct CorrHistTypedef<Continuation> {
     using type = MultiArray<CorrHistTypedef<PieceTo>::type, PIECE_NB, SQUARE_NB>;
 };
 
-template<>
-struct CorrHistTypedef<NonPawn> {
-    using type = DynStats<Stats<i16, CORRECTION_HISTORY_LIMIT, COLOR_NB, COLOR_NB>,
-                          CORRHIST_BASE_SIZE>;
-};
 
 }
 
@@ -332,6 +309,12 @@ template<CorrHistType T>
 using CorrectionHistory = typename Detail::CorrHistTypedef<T>::type;
 
 using TTMoveHistory = StatsEntry<i16, 8192>;
+
+// The continuation histories are shared within a NUMA node and allocated on large pages.
+// continuation historyはNUMAノード内で共有し、large pageへ確保する。
+struct ContinuationHistoryBlock {
+    ContinuationHistory table[2][2];
+};
 
 
 // Set of histories shared between groups of threads. To avoid excessive
@@ -348,11 +331,14 @@ using TTMoveHistory = StatsEntry<i16, 8192>;
 struct SharedHistories {
     SharedHistories(usize threadCount) :
         correctionHistory(threadCount),
+        continuationHistoryBlock(make_unique_large_page<ContinuationHistoryBlock>()),
         pawnHistory(threadCount) {
         assert((threadCount & (threadCount - 1)) == 0 && threadCount != 0);
         sizeMinus1         = correctionHistory.get_size() - 1;
         pawnHistSizeMinus1 = pawnHistory.get_size() - 1;
     }
+
+    auto& continuationHistory() { return continuationHistoryBlock->table; }
 
     usize get_size() const { return sizeMinus1 + 1; }
 
@@ -386,8 +372,9 @@ struct SharedHistories {
         return correctionHistory[pos.non_pawn_key(c) & sizeMinus1];
     }
 
-    UnifiedCorrectionHistory correctionHistory;
-    PawnHistory              pawnHistory;
+    UnifiedCorrectionHistory               correctionHistory;
+    LargePagePtr<ContinuationHistoryBlock> continuationHistoryBlock;
+    PawnHistory                            pawnHistory;
 
    private:
     usize sizeMinus1, pawnHistSizeMinus1;

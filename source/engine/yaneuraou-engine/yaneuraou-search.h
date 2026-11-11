@@ -449,15 +449,12 @@ class YaneuraOuWorker: public Worker {
 
     CapturePieceToHistory captureHistory;
 
-    // コア数が多いか、長い持ち時間においては、ContinuationHistoryもスレッドごとに確保したほうが良いらしい。
-    // cf. https://github.com/official-stockfish/Stockfish/commit/5c58d1f5cb4871595c07e6c2f6931780b5ac05b5
-    // 添字の[2][2]は、[inCheck(王手がかかっているか)][capture_stage]
-    // →　この改造、レーティングがほぼ上がっていない。悪い改造のような気がする。
-    ContinuationHistory continuationHistory[2][2];
     CorrectionHistory<Continuation> continuationCorrectionHistory;
 
     TTMoveHistory    ttMoveHistory;
     SharedHistories& sharedHistory;
+    // 添字は[inCheck][capture_stage]。実体はNUMAノード内で共有する。
+    ContinuationHistory (&continuationHistory)[2][2];
 
    private:
     // 反復深化

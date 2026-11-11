@@ -799,6 +799,7 @@ Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 										 YaneuraOuEngine&          engine) :
 	// Unpack the SharedState struct into member variables
     sharedHistory(sharedState.sharedHistories.at(ids.numaAccessToken.get_numa_index())),
+    continuationHistory(sharedHistory.continuationHistory()),
 	// 残りは基底classであるSearch::Workerのほうでunpackする。
 	Search::Worker(sharedState, ids),
 	engine(engine),
@@ -2127,11 +2128,14 @@ void YaneuraOuWorker::clear() {
     //     あまり意味がないが、無駄ではないらしい。
     //     cf. Tweak history initialization : https://github.com/official-stockfish/Stockfish/commit/7d44b43b3ceb2eebc756709432a0e291f885a1d2
 
-	for (bool inCheck : {false, true})
-        for (StatsType c : {NoCaptures, Captures})
-            for (auto& to : continuationHistory[inCheck][c])
-                for (auto& h : to)
-                    h.fill(-523);
+    // Initialize the shared continuation history once per NUMA node.
+    // 共有continuation historyは、NUMAノードごとに先頭のスレッドだけが初期化する。
+    if (numaThreadIdx == 0)
+        for (bool inCheck : {false, true})
+            for (StatsType c : {NoCaptures, Captures})
+                for (auto& to : continuationHistory[inCheck][c])
+                    for (auto& h : to)
+                        h.fill(-523);
 
 	// reductions tableの初期化(これはWorkerごとが持つように変更された)
     for (usize i = 1; i < reductions.size(); ++i)
