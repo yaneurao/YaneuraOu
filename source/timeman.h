@@ -32,7 +32,12 @@ class TimeManagement {
     // 今回の思考時間を決定する。
     // optimum(),maximum(),minimum()に反映する。
 	// ⚠ optionsに"USI_Ponder"と"Stochastic_Ponder"オプションが含まれていること。
+#if STOCKFISH
     void init(Search::LimitsType& limits,
+#else
+    // やねうら王はnodes-as-timeによるlimitsの書換えを行わない。
+    void init(const Search::LimitsType& limits,
+#endif
               Color               us,
               int                 ply,
               const OptionsMap&   options,

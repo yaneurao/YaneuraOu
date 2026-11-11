@@ -91,7 +91,11 @@ void TimeManagement::add_options(OptionsMap& options) {
 //      1) 基本持ち時間 x（＋ 1手ごとの加算時間 z）
 //      2) y秒以内にx手指す（＋ 1手ごとの加算時間 z）
 
+#if STOCKFISH
 void TimeManagement::init(Search::LimitsType& limits,
+#else
+void TimeManagement::init(const Search::LimitsType& limits,
+#endif
                           Color               us,
                           int                 ply,
                           const OptionsMap&   options
