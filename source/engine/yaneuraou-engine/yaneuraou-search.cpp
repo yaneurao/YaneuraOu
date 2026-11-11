@@ -3101,11 +3101,23 @@ Value Search::YaneuraOuWorker::search(
 
     if (((ss - 1)->currentMove).is_ok() && !(ss - 1)->inCheck && !priorCapture)
     {
+#if STOCKFISH
         int evalDiff = std::clamp(-int((ss - 1)->staticEval + ss->staticEval), -214, 171) + 60;
         mainHistory[~us][((ss - 1)->currentMove).raw()] << evalDiff * 10;
         if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
             && ((ss - 1)->currentMove).type_of() != PROMOTION)
             sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << evalDiff * 12;
+#else
+        // やねうら王ではQ8化する。評価差と係数の積はQ16なので65536で割る。
+        // SPSAで係数を変更した場合も中間積が溢れないよう、乗算は64bitで行う。
+        const int evalDiffQ8 =
+          std::clamp(-int((ss - 1)->staticEval + ss->staticEval) * 256, -54784, 43776) + 15360;
+        mainHistory[~us][((ss - 1)->currentMove).raw()] << int(i64(evalDiffQ8) * 2560 / 65536);
+        if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
+            && ((ss - 1)->currentMove).type_of() != PROMOTION)
+            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq]
+              << int(i64(evalDiffQ8) * 3072 / 65536);
+#endif
     }
 
     // Set up the improving flag, which is true if current static evaluation is

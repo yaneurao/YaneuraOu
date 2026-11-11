@@ -342,8 +342,18 @@ ExtMove* MovePicker::generate_and_score() {
             // MVVとcaptureHistoryで採点する。ここではSEEを呼ばない。
             // CAPTURESは捕獲手だけを生成し、駒を取らない歩の成りは含めない。
 
+        {
+#if STOCKFISH
 			m.value = (*captureHistory)[pc][to][type_of(capturedPiece)]
 						+ 7 * PieceValue[capturedPiece];
+#else
+            // やねうら王ではQ8化する。係数は256倍し、合算後に整数へ戻す。
+            const int captureScoreQ8 =
+              256 * int((*captureHistory)[pc][to][type_of(capturedPiece)])
+              + 1792 * PieceValue[capturedPiece];
+            m.value = captureScoreQ8 / 256;
+#endif
+        }
             // GOOD_CAPTUREでは、このスコアからSEEの閾値（-cur->value / 18）を求める。
             // 駒の価値だけでなくcaptureHistoryも、良い捕獲手と後回しにする捕獲手の分類に影響する。
 
@@ -361,6 +371,7 @@ ExtMove* MovePicker::generate_and_score() {
             // histories
             // 各種の履歴テーブル。
 
+#if STOCKFISH
             int value = 2 * (*mainHistory)[us][m.raw()];
             value += 2 * sharedHistory->pawn_entry(pos)[pc][to];
             value += (*continuationHistory[0])[pc][to];
@@ -372,6 +383,20 @@ ExtMove* MovePicker::generate_and_score() {
             // bonus for checks
             // SEEの条件を満たす王手にボーナスを加える。
             value += ((pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 16384;
+#else
+            // やねうら王ではQ8化する。各項を合算してから一度だけ丸める。
+            int quietScoreQ8 = 512 * int((*mainHistory)[us][m.raw()]);
+            quietScoreQ8 += 512 * int(sharedHistory->pawn_entry(pos)[pc][to]);
+            quietScoreQ8 += 256 * int((*continuationHistory[0])[pc][to]);
+            quietScoreQ8 += 256 * int((*continuationHistory[1])[pc][to]);
+            quietScoreQ8 += 256 * int((*continuationHistory[2])[pc][to]);
+            quietScoreQ8 += 256 * int((*continuationHistory[3])[pc][to]);
+            quietScoreQ8 += 256 * int((*continuationHistory[5])[pc][to]);
+
+            // SEEの閾値と王手ボーナス自体の単位は従来どおり。
+            quietScoreQ8 += ((pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 256 * 16384;
+            int value = quietScoreQ8 / 256;
+#endif
             // これ、効果があるのか検証したほうが良さげ。
 
 #if STOCKFISH
@@ -388,8 +413,14 @@ ExtMove* MovePicker::generate_and_score() {
 #endif
 
             // lowPlyHistoryも加算
+#if STOCKFISH
             if (ply < LOW_PLY_HISTORY_SIZE)
                 value += 8 * (*lowPlyHistory)[ply][m.raw()] / (1 + ply);
+#else
+            // やねうら王ではQ8化する。plyによる除算とまとめて整数へ戻す。
+            if (ply < LOW_PLY_HISTORY_SIZE)
+                value += 2048 * int((*lowPlyHistory)[ply][m.raw()]) / (256 * (1 + ply));
+#endif
 
             m.value = value;
 
