@@ -186,6 +186,8 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 	// 終了時刻は0ならば未確定という意味である。
     startTime = ponderhitTime = limits.startTime;
     search_end                = 0;
+    // rtimeやmovetimeなどの早期returnでも、前回の秒読み状態を持ち越さない。
+    isFinalPush               = false;
 
 	// 今回の最大残り時間(これを超えてはならない)
 	// byoyomiの指定は残り時間にこの時点で加算して考える。
@@ -332,7 +334,6 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 	}
 
 	// 秒読みモードでかつ、持ち時間がないなら、最小思考時間も最大思考時間もその時間にしたほうが得
-    isFinalPush = false;
 	if (limits.byoyomi[us])
 	{
 		// 持ち時間が少ないなら(秒読み時間の1.2倍未満なら)、思考時間を使いきったほうが得

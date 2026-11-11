@@ -128,7 +128,7 @@ class TimeManagement {
     static constexpr TimePoint NoBound = std::numeric_limits<TimePoint>::max() / 2;
     TimePoint startTime;      // 💡 探索開始時刻。LimitsType startTimeの値。
 #else
-    bool      isFinalPush;    // 🌈 秒読みに突入しているので持ち時間を使い切るべきであるフラグ。
+    bool      isFinalPush = false;    // 🌈 秒読みに突入しているので持ち時間を使い切るべきであるフラグ。
 							  //     つまりはponderhitTimeから数えてminimumTime分は使って欲しい。
     TimePoint startTime;      // 💡 探索開始時刻。LimitsType startTimeの値。
     TimePoint ponderhitTime;  // 🌈 "ponderhit"した時刻。startTimeからの経過時間ではなく、Timer::now()の生の値。
