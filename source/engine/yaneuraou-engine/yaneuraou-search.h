@@ -625,15 +625,9 @@ class YaneuraOuWorker: public Worker {
 #endif
 
 #if STOCKFISH
-    // 📝 こちらは、StockfishではThreadPool::get_best_thread()の実装のために必要。
-    //     やねうら王では、YaneuraOuWorkerでget_best_thread()を実装しているのでこのfriendは不要。
     friend class Stockfish::ThreadPool;
 #else
 	// 🌈 以下、やねうら王独自追加 🌈
-
-    // 並列探索において一番良い思考をしたthreadの選出。
-    // 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
-    YaneuraOuWorker* get_best_thread() const;
 
 	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
     // 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。

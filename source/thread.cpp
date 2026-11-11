@@ -539,10 +539,70 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
     main_thread()->start_searching();
 }
 
-// ⚠ このメソッドは、やねうら王の標準探索エンジンでしか使わないので、
-//     YaneuraOuEngine側に移動させた。
-//Thread* ThreadPool::get_best_thread() const
+#if defined(YANEURAOU_ENGINE)
+// 並列探索において一番良い思考をしたthreadの選出。
+Thread* ThreadPool::get_best_thread() const {
 
+    Thread* bestThread = threads.front().get();
+    Value   minScore   = VALUE_INFINITE;
+
+    std::unordered_map<Move, i64, Move::MoveHash> votes(
+      2 * std::min(size(), bestThread->worker->rootMoves.size()));
+
+    for (auto&& th : threads)
+        minScore = std::min(minScore, th->worker->rootMoves[0].score);
+
+    // Vote according to score, and select the best thread
+    // 評価値に応じて投票し、最善のスレッドを選ぶ。
+    for (auto&& th : threads)
+        votes[th->worker->rootMoves[0].pv[0]] += th->worker->rootMoves[0].score - minScore + 14;
+
+    for (auto&& th : threads)
+    {
+        const auto& bestThreadMove = bestThread->worker->rootMoves[0];
+        const auto& newThreadMove  = th->worker->rootMoves[0];
+
+        const auto bestThreadMoveVote = votes[bestThreadMove.pv[0]];
+        const auto newThreadMoveVote  = votes[newThreadMove.pv[0]];
+
+        // Aborted (d1) searches may lead to inexact win (or loss) scores.
+        // 深さ1の探索を途中で打ち切ると、勝ち・負けの評価値が未確定の場合がある。
+        const bool bestThreadDecisive = bestThreadMove.score != -VALUE_INFINITE
+                                     && is_decisive(bestThreadMove.score)
+                                     && !bestThreadMove.is_inexact();
+        const bool newThreadDecisive = newThreadMove.score != -VALUE_INFINITE
+                                    && is_decisive(newThreadMove.score)
+                                    && !newThreadMove.is_inexact();
+
+        if (bestThreadDecisive)
+        {
+            // Make sure we pick the shortest mate / TB conversion.
+            // 詰み・詰まされや、テーブルベースで勝敗が確定した手の中で最短のものを選ぶ。
+            if (newThreadDecisive && std::abs(newThreadMove.score) > std::abs(bestThreadMove.score))
+            {
+#if STOCKFISH
+                assert((is_win(bestThreadMove.score) && is_win(newThreadMove.score))
+                       || (is_loss(bestThreadMove.score) && is_loss(newThreadMove.score)));
+#else
+                // 勝敗が食い違う場合は、従来どおり現在の候補を維持する。
+                if (is_win(bestThreadMove.score) != is_win(newThreadMove.score))
+                    continue;
+#endif
+
+                bestThread = th.get();
+            }
+        }
+        else if (newThreadDecisive
+                 || (!is_loss(newThreadMove.score)
+                     && (newThreadMoveVote > bestThreadMoveVote
+                         || (newThreadMoveVote == bestThreadMoveVote
+                             && newThreadMove.pv.size() > bestThreadMove.pv.size()))))
+            bestThread = th.get();
+    }
+
+    return bestThread;
+}
+#endif
 
 // Start non-main threads.
 // Will be invoked by main thread after it has started searching.

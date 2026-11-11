@@ -281,9 +281,10 @@ public:
 	// 💡 tablebaseにhitした回数。将棋では使わない。
 	u64               tb_hits() const;
 
-	// ⚠ これは、やねうら王の標準探索エンジンでしか使わないので、
-    //     YaneuraOuEngine側に移動させる。
-	Thread*  get_best_thread() const;
+#endif
+
+#if STOCKFISH || defined(YANEURAOU_ENGINE)
+    Thread* get_best_thread() const;
 #endif
 
 	// メイン以外のすべてのスレッドのstart_searching()を呼び出す。(並列探索の開始)

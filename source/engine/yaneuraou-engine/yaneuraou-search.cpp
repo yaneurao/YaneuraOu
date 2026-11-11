@@ -598,84 +598,6 @@ Value YaneuraOuEngine::evaluate() const {
     return Eval::evaluate(pos); // cpに変換するか？まあいいか…。
 }
 
-// 並列探索において一番良い思考をしたthreadの選出。
-// 💡 Stockfishでは ThreadPool::get_best_thread()に相当するもの。
-YaneuraOuWorker* YaneuraOuWorker::get_best_thread() const {
-
-    auto& threads = this->threads;
-
-    Thread* bestThread = threads.main_thread();
-    Value   minScore   = VALUE_NONE;
-
-    std::unordered_map<Move, int64_t, Move::MoveHash> votes(
-      2 * std::min(threads.size(), bestThread->worker->rootMoves.size()));
-
-    // Find the minimum score of all threads
-    for (auto&& th : threads)
-        minScore = std::min(minScore, th->worker->rootMoves[0].score);
-
-    // Vote according to score and depth, and select the best thread
-    auto thread_voting_value = [minScore](Thread* th) {
-        // Workerから派生させているのでdynamic_castしてしまう。
-		// ⚠ RTTIを有効化していないので単にstatic_castにする。
-        auto worker = static_cast<Search::YaneuraOuWorker*>(th->worker.get());
-        return (th->worker->rootMoves[0].score - minScore + 14) * int(worker->completedDepth);
-    };
-
-    for (auto&& th : threads)
-        votes[th->worker->rootMoves[0].pv[0]] += thread_voting_value(th.get());
-
-    for (auto&& th : threads)
-    {
-        const auto bestThreadScore = bestThread->worker->rootMoves[0].score;
-        const auto newThreadScore  = th->worker->rootMoves[0].score;
-
-        const auto& bestThreadPV = bestThread->worker->rootMoves[0].pv;
-        const auto& newThreadPV  = th->worker->rootMoves[0].pv;
-
-        const auto bestThreadMoveVote = votes[bestThreadPV[0]];
-        const auto newThreadMoveVote  = votes[newThreadPV[0]];
-
-        const bool bestThreadInProvenWin =
-          is_win(bestThreadScore) && !bestThread->worker->rootMoves[0].is_inexact();
-        const bool newThreadInProvenWin =
-          is_win(newThreadScore) && !th->worker->rootMoves[0].is_inexact();
-
-        const bool bestThreadInProvenLoss =
-          bestThread->worker->rootMoves[0].is_exact_loss();
-        const bool newThreadInProvenLoss =
-          th->worker->rootMoves[0].is_exact_loss();
-
-        // We make sure not to pick a thread with truncated principal variation
-        const bool betterVotingValue =
-          thread_voting_value(th.get()) * int(newThreadPV.size() > 2)
-          > thread_voting_value(bestThread) * int(bestThreadPV.size() > 2);
-
-        if (bestThreadInProvenWin)
-        {
-            // Make sure we pick the shortest mate / TB conversion
-            if (newThreadInProvenWin && newThreadScore > bestThreadScore)
-                bestThread = th.get();
-        }
-        else if (bestThreadInProvenLoss)
-        {
-            // Make sure we pick the shortest mated / TB conversion
-            if (newThreadInProvenLoss && newThreadScore < bestThreadScore)
-                bestThread = th.get();
-        }
-        else if (newThreadInProvenWin || newThreadInProvenLoss
-                 || (!is_loss(newThreadScore)
-                     && (newThreadMoveVote > bestThreadMoveVote
-                         || (newThreadMoveVote == bestThreadMoveVote && betterVotingValue))))
-            bestThread = th.get();
-    }
-
-    // Threadに対してworkerが得られるから、これはYaneuraOuWorker*なのでdynamic_castして返す。
-    // ⚠ RTTIを有効化していないので単にstatic_castにする。
-    //return dynamic_cast<YaneuraOuWorker*>(bestThread->worker.get());
-    return static_cast<YaneuraOuWorker*>(bestThread->worker.get());
-}
-
 // -----------------------------------------------------------
 // 📌 ここ以降はStockfishのsearch.cppを参考にしながら書く。 📌
 // -----------------------------------------------------------
@@ -1247,8 +1169,7 @@ SKIP_SEARCH:
 #if STOCKFISH
         bestThread = threads.get_best_thread()->worker.get();
 #else
-        // 💡 やねうら王では、get_best_thread()は、ThreadPoolからこのclassに移動させた。
-        bestThread = get_best_thread();
+        bestThread = toYaneuraOuWorker(threads.get_best_thread()->worker);
 #endif
 
     // 次回の探索のときに何らか使えるのでベストな指し手の評価値を保存しておく。
