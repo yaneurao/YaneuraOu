@@ -3776,7 +3776,15 @@ moves_loop:  // When in check, search starts here
                 // 負のSEEを持つ指し手を枝刈りする
                 // 💡 lmrDepthの2乗に比例するのでこのパラメーターの影響はすごく大きい。
 
-                if (!pos.see_ge(move, -25 * lmrDepth * lmrDepth))
+                // SPSA can make lmrDepth large. Widen before squaring, and bound the
+                // threshold so see_ge() subtraction is safe. Below -VALUE_INFINITE,
+                // SEE already succeeds because every piece value is smaller.
+                // SPSAでlmrDepthが大きくなり得るため、二乗する前に64bitへ拡張する。
+                // SEE内の減算も安全にするため閾値に下限を設ける。各駒の価値は
+                // VALUE_INFINITEより小さいので、この下限以下ではSEEは必ず成功する。
+                const Value seeMargin =
+                  Value(std::max<i64>(i64(-25) * lmrDepth * lmrDepth, -VALUE_INFINITE));
+                if (!pos.see_ge(move, seeMargin))
                     continue;
             }
         }
