@@ -190,10 +190,15 @@ void Thread::idle_loop() {
 }
 
 
-//Search::SearchManager* ThreadPool::main_manager() { return main_thread()->worker->main_manager(); }
+#if STOCKFISH
+Search::SearchManager* ThreadPool::main_manager() { return main_thread()->worker->main_manager(); }
+#endif
 
 u64 ThreadPool::nodes_searched() const { return accumulate(&Search::Worker::nodes); }
-//u64 ThreadPool::tb_hits() const { return accumulate(&Search::Worker::tbHits); }
+
+#if STOCKFISH
+u64 ThreadPool::tb_hits() const { return accumulate(&Search::Worker::tbHits); }
+#endif
 
 static usize next_power_of_two(u64 count) { return count > 1 ? (2ULL << msb(count - 1)) : 1; }
 
@@ -435,16 +440,19 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
 
     Search::RootMoves rootMoves;
 #if STOCKFISH
-    for (const auto& usiMove : limits.searchmoves)
+    for (const auto& uciMove : limits.searchmoves)
     {
-        auto move = USIEngine::to_move(pos, usiMove);
+        auto move = UCIEngine::to_move(pos, uciMove);
+
         if (move != Move::none())
             rootMoves.emplace_back(move);
     }
 
     if (rootMoves.empty())
-        for (const auto& m : MoveList<LEGAL_ALL>(pos))
+        for (const auto& m : MoveList<ALL>(pos))
             rootMoves.emplace_back(m);
+
+    Tablebases::Config tbConfig = Tablebases::rank_root_moves(options, pos, rootMoves);
 
 #else
 
@@ -475,9 +483,6 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
 
 #endif
 
-    //Tablebases::Config tbConfig = Tablebases::rank_root_moves(options, pos, rootMoves);
-    // ⇨  Tablebasesは将棋では用いないのでコメントアウト
-
     // After ownership transfer 'states' becomes empty, so if we stop the search
     // and call 'go' again without setting a new position states.get() == nullptr.
 
@@ -507,35 +512,22 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
             th->worker->limits = limits;
             th->worker->nodes = th->worker->tbHits = th->worker->bestMoveChanges = 0;
             th->worker->nmpMinPly                                                = 0;
-            th->worker->rootDepth = th->worker->completedDepth = 0;
-            th->worker->rootMoves                              = rootMoves;
+            th->worker->rootDepth                                                = 0;
+            th->worker->rootMoves                                                = rootMoves;
             th->worker->rootPos.set(pos.fen(), pos.is_chess960(), &th->worker->rootState);
             th->worker->rootState = setupStates->back();
             th->worker->tbConfig  = tbConfig;
 #else
-
             th->worker->limits = limits;
             th->worker->nodes  = 0;
-#endif
 
-			// 📝 tbHits、tbConfigは将棋では使わない。
-
-#if STOCKFISH
-            th->worker->nmpMinPly = 0;
-			th->worker->bestMoveChanges = 0;
-            th->worker->rootDepth = th->worker->completedDepth = 0;
-
-            // 🤔 やねうら王では、Worker派生classのpre_start_searching()で行うようにする。
-            //     やねうら王では、void Search::YaneuraOuWorker::pre_start_searching()で行っている。
-#endif
-
+            // 📝 tbHits、tbConfigは将棋では使わない。
             th->worker->rootMoves = rootMoves;
             th->worker->rootPos.set(pos.sfen(), &th->worker->rootState);
             th->worker->rootState = setupStates->back();
 
-#if !STOCKFISH
-			// ⚠ どうせなら、↑でworker->rootPos.set()が終わってから呼び出したい。
-			//     (rootPosを使って入玉判定などを行いたいため)
+            // rootPosの設定後に、通常探索側で探索開始時の初期化を行う。
+            // (rootPosを使って入玉判定などを行うため)
             th->worker->pre_start_searching();
 #endif
 		});
