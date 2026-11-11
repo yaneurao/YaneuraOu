@@ -2344,7 +2344,13 @@ Value Search::YaneuraOuWorker::search(
 #if defined(USE_CLASSIC_EVAL) && defined(USE_LAZY_EVALUATE)
 	// 📝 次のnodeに行くまでにevaluate()かevaluate_with_no_return()を呼び出すことを保証して
 	//     evaluate内の差分計算を促さなければならない。
+#if defined(EVAL_NNUE)
+    // A supported multi-ply FT can defer the parent's accumulator update.
+    // 複数手更新に対応するFTなら、親局面の累積器を事前に更新しなくてよい。
+    bool evaluated = Eval::NNUE::kUseMultiPly;
+#else
     bool evaluated = false;
+#endif
     auto evaluate  = [&](Position& pos) {
         evaluated = true;
         return this->evaluate(pos);
@@ -4486,7 +4492,13 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     moveCount                   = 0;
 
 #if defined(USE_CLASSIC_EVAL) && defined(USE_LAZY_EVALUATE)
+#if defined(EVAL_NNUE)
+    // A supported multi-ply FT can defer the parent's accumulator update.
+    // 複数手更新に対応するFTなら、親局面の累積器を事前に更新しなくてよい。
+    bool evaluated = Eval::NNUE::kUseMultiPly;
+#else
     bool evaluated = false;
+#endif
     auto evaluate  = [&](Position& pos) {
         evaluated = true;
         return this->evaluate(pos);

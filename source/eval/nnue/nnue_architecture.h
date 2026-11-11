@@ -5,6 +5,7 @@
 #define CLASSIC_NNUE_ARCHITECTURE_H_INCLUDED
 
 #include <cstdint>
+#include <type_traits>
 
 #include "../../config.h"
 
@@ -75,6 +76,18 @@ namespace Eval::NNUE {
 	static_assert(std::is_same<Network::OutputType, i64>::value, "");
 #else
 	static_assert(std::is_same<Network::OutputType, i32>::value, "");
+#endif
+
+#if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+    namespace Features {
+    template<Side AssociatedKing> class HalfKA_hm2;
+    }
+    // Multi-ply updates currently support this single feature set only.
+    // 複数手の差分更新は、現在この単一特徴量の組み合わせに対応する。
+    inline constexpr bool kUseMultiPly = std::is_same_v<
+      RawFeatures, Features::FeatureSet<Features::HalfKA_hm2<Features::Side::kFriend>>>;
+#else
+    inline constexpr bool kUseMultiPly = false;
 #endif
 
 	// Trigger for full calculation instead of difference calculation

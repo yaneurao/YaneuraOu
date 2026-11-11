@@ -24,6 +24,13 @@
 #define ENGINE_VERSION "9.80git"
 
 #endif
+// USE_LAZY_EVALUATE: 未指定なら無効、-Dのみなら1（従来動作）。
+// 2以上なら、対応するNNUE特徴量で計算済み累積器を最大その手数まで遡る。
+// 従来型評価関数では、値によらず従来どおり有効・無効だけを切り替える。
+#if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE < 1
+    #error USE_LAZY_EVALUATE must be a positive integer; omit it to disable lazy evaluation
+#endif
+
 // --------------------
 //  思考エンジンの種類
 // --------------------

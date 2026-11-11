@@ -18,7 +18,12 @@
 #include "nnue_architecture.h"
 #include "features/index_list.h"
 
+#if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+#include "features/half_ka_hm2.h"
+#endif
+
 #include <algorithm>  // std::clamp
+#include <array>
 #include <cstring>  // std::memset()
 
 // Lossless packed FT weights; keep unsupported builds on the original path.
@@ -28,7 +33,6 @@
 #endif
 
 #if defined(USE_FINNY_TABLES)
-#include <array>
 #include <cstdint>
 #include <memory>
 #endif
@@ -266,10 +270,89 @@ class FeatureTransformer {
 				update_accumulator<false>(pos);
 			return true;
 		}
-		return false;
-	}
+#if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+        if constexpr (kUseMultiPly) {
+#if defined(NNUE_FT_PACKED8)
+            if (sparse8_enabled_) return update_from_computed_ancestor<true>(pos);
+#endif
+            return update_from_computed_ancestor<false>(pos);
+        }
+#endif
+        return false;
+    }
 
-	void EnsureAccumulator(const Position& pos, bool refresh) const {
+#if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+    // Merge changes directly from a computed ancestor, skipping intermediate FT states.
+    // 計算済み祖先からの変化をまとめ、中間局面のFT計算を省略する。
+    template<bool Packed>
+    bool update_from_computed_ancestor(const Position& pos) const {
+        const auto* ancestor = pos.state();
+        std::array<BonaPiece, PIECE_NUMBER_NB> old_pieces[2];
+        std::array<bool, PIECE_NUMBER_NB> changed{};
+        const BonaPiece* current_pieces[2] = {
+          pos.eval_list()->piece_list_fb(), pos.eval_list()->piece_list_fw()};
+        for (int c = 0; c < COLOR_NB; ++c)
+            std::copy_n(current_pieces[c], PIECE_NUMBER_NB, old_pieces[c].begin());
+
+        int distance = 0;
+        while (ancestor && !ancestor->accumulator.computed_accumulation
+               && distance < USE_LAZY_EVALUATE) {
+            if (!ancestor->previous)
+                return false;
+            const auto& dirty = ancestor->dirtyPiece;
+            for (int n = 0; n < dirty.dirty_num; ++n) {
+                const auto piece = dirty.pieceNo[n];
+                // King moves change feature coordinates; fall back to the ordinary refresh.
+                // 玉の移動で特徴量の座標系が変わる場合は、従来のrefresh経路へ戻す。
+                if (piece >= PIECE_NUMBER_KING)
+                    return false;
+                changed[piece] = true;
+                for (int c = 0; c < COLOR_NB; ++c)
+                    old_pieces[c][piece] = dirty.changed_piece[n].old_piece.from[c];
+            }
+            ancestor = ancestor->previous;
+            ++distance;
+        }
+        if (!ancestor || !ancestor->accumulator.computed_accumulation)
+            return false;
+
+        auto& accumulator = pos.state()->accumulator;
+        for (int c = 0; c < COLOR_NB; ++c) {
+            const auto king_piece = current_pieces[c][PIECE_NUMBER_KING + c];
+            const Square king = static_cast<Square>((king_piece - f_king) % SQ_NB);
+            Features::IndexList removed, added;
+            for (int piece = 0; piece < PIECE_NUMBER_NB; ++piece) {
+                if (!changed[piece] || old_pieces[c][piece] == current_pieces[c][piece])
+                    continue;
+                removed.push_back(Features::HalfKA_hm2<Features::Side::kFriend>::MakeIndex(
+                  king, old_pieces[c][piece]));
+                added.push_back(Features::HalfKA_hm2<Features::Side::kFriend>::MakeIndex(
+                  king, current_pieces[c][piece]));
+            }
+#if defined(VECTOR)
+            update_accumulator_tiled<Packed>(ancestor->accumulator.accumulation[c][0],
+              accumulator.accumulation[c][0], [&](vec_t* acc, IndexType offset) {
+                  for (auto index : removed) sub_weight_from_tile<Packed>(acc, index, offset);
+                  for (auto index : added) add_weight_to_tile<Packed>(acc, index, offset);
+              });
+#else
+            auto* destination = accumulator.accumulation[c][0];
+            std::copy_n(ancestor->accumulator.accumulation[c][0], kHalfDimensions, destination);
+            for (auto index : removed)
+                for (IndexType j = 0; j < kHalfDimensions; ++j)
+                    destination[j] -= weights_[kHalfDimensions * index + j];
+            for (auto index : added)
+                for (IndexType j = 0; j < kHalfDimensions; ++j)
+                    destination[j] += weights_[kHalfDimensions * index + j];
+#endif
+        }
+        accumulator.computed_accumulation = true;
+        accumulator.computed_score = false;
+        return true;
+    }
+#endif
+
+    void EnsureAccumulator(const Position& pos, bool refresh) const {
 		if (refresh || !UpdateAccumulatorIfPossible(pos)) {
 #if defined(NNUE_FT_PACKED8)
 			if (sparse8_enabled_) refresh_accumulator<true>(pos);
