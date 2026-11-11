@@ -1007,8 +1007,8 @@ void Search::YaneuraOuWorker::start_searching() {
         // rootMoves.size() == 0だけど、玉で玉を取る指し手だけがあることは起こり得る。
         // (この理由から、玉を取る判定は、合法手がない判定より先にしなければならない)
 
-        probeMove.bestmove  = m;
-        probeMove.bestscore = mate_in(1);
+        probeResult.bestmove  = m;
+        probeResult.bestscore = mate_in(1);
         goto SKIP_SEARCH;
     }
 #endif
