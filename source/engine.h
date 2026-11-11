@@ -187,6 +187,7 @@ public:
     virtual void set_on_update_full(std::function<void(const InfoFull&)>&&) {}
     virtual void set_on_iter(std::function<void(const InfoIter&)>&&) {}
     virtual void set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) {}
+    virtual void set_on_start(std::function<void()>&&) {}
     virtual void set_on_verify_network(std::function<void(std::string_view)>&&) {}
 
 #if !STOCKFISH
@@ -377,6 +378,7 @@ class Engine: public IEngine {
     virtual void set_on_iter(std::function<void(const InfoIter&)>&&) override final;
     virtual void
     set_on_bestmove(std::function<void(std::string_view, std::string_view)>&&) override final;
+    virtual void set_on_start(std::function<void()>&&) override final;
     virtual void set_on_verify_network(std::function<void(std::string_view)>&&) override;
     virtual void set_on_update_string(std::function<void(std::string_view)>&&) override final;
     virtual std::function<void(std::string_view, std::string_view)>
@@ -546,6 +548,9 @@ class EngineWrapper: public IEngine {
     virtual void
     set_on_bestmove(std::function<void(std::string_view, std::string_view)>&& f) override final {
         engine->set_on_bestmove(std::move(f));
+    }
+    virtual void set_on_start(std::function<void()>&& f) override final {
+        engine->set_on_start(std::move(f));
     }
     virtual void set_on_verify_network(std::function<void(std::string_view)>&& f) override {
         engine->set_on_verify_network(std::move(f));

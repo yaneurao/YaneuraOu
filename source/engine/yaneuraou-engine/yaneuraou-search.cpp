@@ -906,6 +906,7 @@ void Search::YaneuraOuWorker::start_searching() {
 
     // 置換表の世代カウンターを進める(クリアではない)
     tt.new_search();
+    main_manager()->updates.onStart();
 
 #if STOCKFISH
 #else

@@ -377,6 +377,7 @@ using UpdateShort    = std::function<void(const InfoShort&)>;
 using UpdateFull     = std::function<void(const InfoFull&)>;
 using UpdateIter     = std::function<void(const InfoIteration&)>;
 using UpdateBestmove = std::function<void(std::string_view, std::string_view)>;
+using UpdateStart    = std::function<void()>;
 using UpdateInfo     = std::function<void(std::string_view)>;
 
 // 読み筋を出力するための関数を呼び出すlistener
@@ -385,6 +386,7 @@ struct UpdateContext {
     UpdateFull     onUpdateFull;     // PVを出力する時に用いる。
     UpdateIter     onIter;           // 反復深化で現在探索中の指し手。
     UpdateBestmove onBestmove;       // bestmoveを出力する時に用いる。
+    UpdateStart    onStart = []() {}; // メインワーカーが探索を開始する時に呼ぶ。
     UpdateInfo     onUpdateString;   // "info string "でそのまま出力する。
 };
 
