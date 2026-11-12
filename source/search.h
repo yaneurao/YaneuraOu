@@ -366,6 +366,7 @@ struct InfoFull: InfoShort {
     usize nodes;
 
     // NPS
+    // 1秒当たりの探索ノード数。
     usize nps;
 
 #if STOCKFISH
@@ -498,6 +499,7 @@ public:
 	// 📝 やねうら王では、以下は、派生class(YaneuraOuWorker)側で実装する。
 #if STOCKFISH
     // Public because they need to be updatable by the stats
+    // 統計更新処理から更新できるように、publicにする。
     ButterflyHistory mainHistory;
     LowPlyHistory    lowPlyHistory;
 
@@ -529,17 +531,20 @@ protected:
 	void undo_null_move(Position& pos);
 
     // This is the main search function, for both PV and non-PV nodes
+    // PVノードと非PVノードの両方で使うメインの探索関数。
     template<NodeType nodeType>
     Value
     search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, const bool cutNode);
 
     // Quiescence search function, which is called by the main search
+    // メイン探索から呼び出される静止探索関数。
     template<NodeType nodeType>
     Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
 
     int reduction(bool i, Depth d, int mn) const;
 
     // Pointer to the search manager, only allowed to be called by the main thread
+    // 探索マネージャーへのポインターを返す。メインスレッドからのみ呼び出せる。
     SearchManager* main_manager() const {
         assert(threadIdx == 0);
         assert(manager.get() != nullptr);
@@ -629,6 +634,7 @@ protected:
 	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
 
     // Used by NNUE
+    // NNUEで使用する。
     Eval::NNUE::AccumulatorStack  accumulatorStack;
     Eval::NNUE::AccumulatorCaches refreshTable;
 #endif

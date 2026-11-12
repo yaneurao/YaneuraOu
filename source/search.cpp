@@ -20,6 +20,7 @@ Search::Worker::Worker(SharedState& sharedState,
 #endif
 ) : 
     // Unpack the SharedState struct into member variables
+    // SharedState構造体の内容を各メンバー変数へ展開する。
 	// 🌈 これは、やねうら王ではYaneuraOuWorkerのほうが持っている。
     //sharedHistory(sharedState.sharedHistories.at(token.get_numa_index())),
 	options(sharedState.options),
@@ -53,6 +54,8 @@ Search::Worker::Worker(SharedState& sharedState,
 void Search::Worker::ensure_network_replicated() {
     // Access once to force lazy initialization.
     // We do this because we want to avoid initialization during search.
+    // 一度アクセスして、遅延初期化を実行しておく。
+    // 探索中に初期化が発生するのを避けるため。
     (void) (network[numaAccessToken]);
 }
 #endif
@@ -61,6 +64,7 @@ void Search::Worker::ensure_network_replicated() {
 // 💡　エンジン実装部で定義する。
 
 // Reset histories, usually before a new game
+// 通常、新しい対局の前に履歴をリセットする。
 //void Search::Worker::clear()
 // 💡　エンジン実装部で定義する。
 

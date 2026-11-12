@@ -10,6 +10,7 @@
 
 // -----------------------
 //   includes
+//   インクルード
 // -----------------------
 
 #include "../../search.h"
@@ -617,6 +618,7 @@ bool YaneuraOuEngine::qsearch_psv(const std::string& inputPath,
 }
 
 // utility functions
+// 補助関数
 
 void YaneuraOuEngine::trace_eval() const {
     StateListPtr trace_states(new std::deque<StateInfo>(1));
@@ -850,6 +852,7 @@ Search::Worker::Worker(SharedState& sharedState,
 	usize                          numaTotalThreads,
 	NumaReplicatedAccessToken       token) :
 	// Unpack the SharedState struct into member variables
+	// SharedState構造体の内容を各メンバー変数へ展開する。
 	sharedHistory(sharedState.sharedHistories.at(token.get_numa_index())),
 	continuationHistory(sharedHistory.continuationHistory()),
 	threadIdx(threadId),
@@ -878,6 +881,7 @@ Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 #endif
 										 YaneuraOuEngine&          engine) :
 	// Unpack the SharedState struct into member variables
+	// SharedState構造体の内容を各メンバー変数へ展開する。
     sharedHistory(sharedState.sharedHistories.at(ids.numaAccessToken.get_numa_index())),
     continuationHistory(sharedHistory.continuationHistory()),
     reductions(engine.reductions),
@@ -1508,6 +1512,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     {
         (ss - i)->continuationHistory =
           &continuationHistory[0][0][NO_PIECE][0];  // Use as a sentinel
+                                                    // 番兵として使う。
 
         (ss - i)->continuationCorrectionHistory = &continuationCorrectionHistory[NO_PIECE][0];
         (ss - i)->staticEval                    = VALUE_NONE;
@@ -1688,6 +1693,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
             // ------------------------
             // Aspiration window search
+            // アスピレーション窓による探索。
             // ------------------------
 
             /*
@@ -1952,6 +1958,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 break;
 
         }  // multi pv loop
+           // MultiPVループの終わり。
 
         // Keep a proven mate and its matching PV if a later iteration loses it.
         // 後の反復で詰みを見失っても、確定した詰みスコアと対応するPVを保持する。
@@ -3290,12 +3297,14 @@ Value Search::YaneuraOuWorker::search(
             TB::WDLScore   wdl = TB::probe_wdl(pos, &err);
 
             // Force check of time on the next occasion
+            // 次の機会に必ず時間を確認する。
             if (is_mainthread())
                 main_manager()->callsCnt = 0;
 
             if (err != TB::ProbeState::FAIL)
             {
                 // Preferable over fetch_add to avoid locking instructions
+                // ロック命令を避けるため、fetch_addよりこちらを使う。
                 ++tbHits;
 
                 int drawScore = tbConfig.useRule50 ? 1 : 0;
@@ -3303,6 +3312,7 @@ Value Search::YaneuraOuWorker::search(
                 Value tbValue = VALUE_TB - ss->ply;
 
                 // Use the range VALUE_TB to VALUE_TB_WIN_IN_MAX_PLY to score
+                // VALUE_TBからVALUE_TB_WIN_IN_MAX_PLYまでの範囲でスコアを付ける。
                 value = wdl < -drawScore ? -tbValue
                       : wdl > drawScore  ? tbValue
                                          : VALUE_DRAW + 2 * wdl * drawScore;
@@ -3620,6 +3630,7 @@ Value Search::YaneuraOuWorker::search(
                     return value - (probCutBeta - beta);
             }
         } // end of while
+          // whileループの終わり。
     }
 
 moves_loop:  // When in check, search starts here
@@ -4331,7 +4342,9 @@ moves_loop:  // When in check, search starts here
             constexpr u64 ChiNumerator   = 3;
             constexpr u64 ChiDenominator = 2;   // Chi = 3/2 = 1.5
             constexpr u64 MinWeight      = 12;  // 37.5% minimum weight
+                                                // 重みの下限は37.5%。
             constexpr u64 MaxWeight      = 24;  // 75% maximum weight
+                                                // 重みの上限は75%。
 
             u64 w     = std::clamp((Scale * N * ChiDenominator)
                                      / (N * ChiDenominator + ChiNumerator * E_prev),
@@ -4505,6 +4518,7 @@ moves_loop:  // When in check, search starts here
         if (move != bestMove && moveCount <= SEARCHEDLIST_CAPACITY)
             (capture ? capturesSearched : quietsSearched).push_back(move);
     } // end of while
+      // whileループの終わり。
 
 	// -----------------------
     // Step 23. Check for mate and stalemate, otherwise update bestmove/countermove stats
@@ -5289,6 +5303,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                     alpha = value;
                 else
                     break;  // Fail high
+                            // fail high（beta以上の値）。
             }
         }
     }
@@ -5333,9 +5348,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     if (!moveCount)
     {
         if (ss->inCheck)  // Checkmate!
+                          // 詰み。
         {
             assert(!MoveList<ALL>(pos).size());
             return mated_in(ss->ply);  // Plies to mate from the root
+                                       // ルートから詰みまでの手数。
         }
 
         // Only check for stalemate under specific conditions
@@ -5858,6 +5875,10 @@ void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
 // Keeps the search based PV for as long as it is verified to maintain the game
 // outcome, truncates afterwards. Finally, extends to mate the PV, providing a
 // possible continuation (but not a proven mating line).
+// TBスコア（詰みスコアではない）を持つ指し手のPVを修正・延長する。
+// 探索で得たPVは、勝敗の結果を維持すると確認できる部分まで残し、それ以降は切り詰める。
+// 最後に詰みに向けてPVを延長し、可能な継続手順を示す。
+// ただし、詰みが証明された手順とは限らない。
 void syzygy_extend_pv(const OptionsMap&         options,
                       const Search::LimitsType& limits,
                       Position&                 pos,
@@ -5886,11 +5907,13 @@ void syzygy_extend_pv(const OptionsMap&         options,
     std::list<StateInfo> sts;
 
     // Step 0, do the rootMove, no correction allowed, as needed for MultiPV in TB
+    // Step 0. TB内のMultiPVで必要なため、rootMoveを修正せずに指す。
     auto& stRoot = sts.emplace_back();
     pos.do_move(rootMove.pv[0], stRoot);
     int ply = 1;
 
     // Step 1, walk the PV to the last position in TB with correct decisive score
+    // Step 1. 正しい勝敗スコアを持つTB内の最後の局面まで、PVをたどる。
     while (usize(ply) < rootMove.pv.size())
     {
         Move& pvMove = rootMove.pv[ply];
@@ -5911,6 +5934,7 @@ void syzygy_extend_pv(const OptionsMap&         options,
         pos.do_move(pvMove, st);
 
         // Do not allow for repetitions or drawing moves along the PV in TB regime
+        // TBで結果が確定しているPV内では、局面の反復や引き分けになる手を許さない。
         if (config.rootInTB && ((rule50 && pos.is_draw(ply)) || pos.is_repetition(ply)))
         {
             pos.undo_move(pvMove);
@@ -5927,11 +5951,14 @@ void syzygy_extend_pv(const OptionsMap&         options,
     }
 
     // Resize the PV to the correct part
+    // 正しいと確認できた部分までPVを切り詰める。
     rootMove.pv.resize(ply);
 
     // Step 2, now extend the PV to mate, as if the user explored syzygy-tables.info
     // using top ranked moves (minimal DTZ), which gives optimal mates only for simple
     // endgames e.g. KRvK.
+    // Step 2. syzygy-tables.infoで最上位の手（DTZ最小）をたどるように、PVを詰みまで延長する。
+    // この方法で最適な詰み手順が得られるのは、KRvKなどの単純な終盤に限られる。
     while (!(rule50 && pos.is_draw(0)))
     {
         if (time_abort())
@@ -5945,25 +5972,32 @@ void syzygy_extend_pv(const OptionsMap&         options,
             pos.do_move(m, tmpSI);
             // Give a score of each move to break DTZ ties restricting opponent
             // mobility, but not giving the opponent a capture.
+            // DTZが同じ手の優先順位を決めるため、各手を採点する。
+            // 相手の合法手を減らしつつ、相手に駒を取る手を与えないようにする。
             for (const auto& mOpp : MoveList<ALL>(pos))
                 rm.tbRank -= pos.capture(mOpp) ? 100 : 1;
             pos.undo_move(m);
         }
 
         // Mate found
+        // 詰みが見つかった。
         if (legalMoves.empty())
             break;
 
         // Sort moves according to their above assigned rank.
         // This will break ties for moves with equal DTZ in rank_root_moves.
+        // 上で付けた順位に従って指し手を並べ替える。
+        // rank_root_movesでDTZが同じ手の優先順位を、この順序で決める。
         std::stable_sort(
           legalMoves.begin(), legalMoves.end(),
           [](const Search::RootMove& a, const Search::RootMove& b) { return a.tbRank > b.tbRank; });
 
         // The winning side tries to minimize DTZ, the losing side maximizes it
+        // 勝っている側はDTZを最小にし、負けている側は最大にする。
         TB::Config config = TB::rank_root_moves(options, pos, legalMoves, true, time_abort);
 
         // If DTZ is not available we might not find a mate, so we bail out
+        // DTZを利用できないと詰みまで到達できない可能性があるため、打ち切る。
         if (!config.rootInTB || config.cardinality > 0)
             break;
 
@@ -5985,14 +6019,23 @@ void syzygy_extend_pv(const OptionsMap&         options,
     // We adjust the score to match the found PV. Note that a TB loss score can be
     // displayed if the engine did not find a drawing move yet, but eventually search
     // will figure it out (e.g. 1kq5/q2r4/5K2/8/8/8/8/7Q w - - 96 1 )
+    // この関数で引き分けが見つかるのは例外的であり、rule50が無効なら起きない。
+    // また、勝ちのスコアを持ち、TBを利用して正しく指している通常のエンジン対局中にも起きない。
+    // ただし、最適でない50手カウンターの値を伴って到達した局面では、50手ルールで
+    // 引き分けになることがある。DTZカウンターを丸めたTBでは、上記の局面例のように
+    // その順位を常に正しく判定できるとは限らない。詳細は上記リンクを参照。
+    // 見つかったPVに合わせてスコアを修正する。引き分けにする手がまだ見つかっていない間は
+    // TBの負けスコアを表示する場合があるが、最終的には探索によって引き分けと判明する。
     if (pos.is_draw(0))
         v = VALUE_DRAW;
 
     // Undo the PV moves
+    // PVの各指し手を元に戻す。
     for (usize i = rootMove.pv.size(); i > 0; --i)
         pos.undo_move(rootMove.pv[i - 1]);
 
     // Inform if we couldn't get a full extension in time
+    // 制限時間内にPVを最後まで延長できなかった場合は通知する。
     if (time_abort())
         sync_cout
           << "info string Syzygy based PV extension requires more time, increase Move Overhead as needed."

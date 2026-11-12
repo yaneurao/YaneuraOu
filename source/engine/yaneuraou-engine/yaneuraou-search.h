@@ -96,6 +96,7 @@ struct SearchOptions
 
 struct Skill {
     // Lowest and highest Elo ratings used in the skill level calculation
+    // スキルレベルの計算に用いるEloレーティングの下限と上限。
     constexpr static int LowestElo  = 1320;
     constexpr static int HighestElo = 3190;
 
@@ -130,6 +131,7 @@ struct Skill {
 // 💡 やねうら王ではSkillLevelを実装しない。
 struct Skill {
     // dummy constructor
+    // 互換用の、何もしないコンストラクター。
     Skill(int, int) {}
 
     // 常にfalseを返す。つまり、手加減の無効化。
@@ -525,6 +527,7 @@ class YaneuraOuWorker: public Worker {
     //                       上がっていないなら悪化していく局面なので深く読んでも仕方ないからreduction量を心もち増やす。
     //   d     : depth
     //   mn    : move_count
+    //   dは探索深さ、mnは指し手番号。
     int reduction(bool i, Depth d, int mn) const;
 
 	// Pointer to the search manager, only allowed to be called by the main thread
