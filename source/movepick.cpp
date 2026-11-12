@@ -342,18 +342,18 @@ ExtMove* MovePicker::generate_and_score() {
             // MVVとcaptureHistoryで採点する。ここではSEEを呼ばない。
             // CAPTURESは捕獲手だけを生成し、駒を取らない歩の成りは含めない。
 
-        {
 #if STOCKFISH
-			m.value = (*captureHistory)[pc][to][type_of(capturedPiece)]
-						+ 7 * PieceValue[capturedPiece];
+            m.value =
+              (*captureHistory)[pc][to][type_of(capturedPiece)] + 7 * PieceValue[capturedPiece];
 #else
+        {
             // やねうら王ではQ8化する。係数は256倍し、合算後に整数へ戻す。
             const int captureScoreQ8 =
               256 * int((*captureHistory)[pc][to][type_of(capturedPiece)])
               + 1792 * PieceValue[capturedPiece];
             m.value = captureScoreQ8 / 256;
-#endif
         }
+#endif
             // GOOD_CAPTUREでは、このスコアからSEEの閾値（-cur->value / 18）を求める。
             // 駒の価値だけでなくcaptureHistoryも、良い捕獲手と後回しにする捕獲手の分類に影響する。
 
@@ -514,7 +514,7 @@ dispatch:
 
     case GOOD_CAPTURE:
         if (Move move = select([&]() {
-                if (pos.see_ge(*cur, -cur->value / std::max(18, 1)))
+                if (pos.see_ge(*cur, -cur->value / 18))
                     return true;
                 *endBadMoves++ = *cur;
                 return false;
