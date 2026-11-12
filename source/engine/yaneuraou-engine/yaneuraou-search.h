@@ -223,8 +223,6 @@ class SearchManager {
     // 探索を即座に終了させていいところまで探索が進んでいるフラグ。
     bool stopOnPonderhit;
 
-    size_t id;
-
     const UpdateContext& updates;
 
     // 🌈 やねうら王独自 🌈
@@ -496,7 +494,7 @@ class YaneuraOuWorker: public Worker {
     void
     do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck,
             const bool capture, Stack* const ss);
-    void do_null_move(Position& pos, StateInfo& st);
+    void do_null_move(Position& pos, StateInfo& st, Stack* const ss);
 
 	void undo_move(Position& pos, const Move move);
     void undo_null_move(Position& pos);
