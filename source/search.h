@@ -135,11 +135,11 @@ struct RootMove
 	// std::count(),std::find()などで指し手と比較するときに必要。
 	bool operator==(const Move& m) const { return pv[0] == m; }
 
+    // Sort in descending order
 	// sortするときに必要。std::stable_sort()で降順になって欲しいので比較の不等号を逆にしておく。
 	// 同じ値のときは、previousScoreも調べる。
 	bool operator<(const RootMove& m) const {
-		return m.score != score ? m.score < score
-								: m.previousScore < previousScore;
+        return m.score != score ? m.score < score : m.previousScore < previousScore;
 	}
 
 	// この指し手のためにどれだけのnodeを探索したか。
@@ -292,6 +292,10 @@ struct LimitsType {
 // UCI側が保持するオプション、スレッドプール、置換表などを
 // Search::Workerへまとめて渡すための構造体。
 // やねうら王ではUSIとEngineの構成に合わせて共通データを渡す。
+// The UCI stores the uci options, thread pool, and transposition table.
+// This struct is used to easily forward data to the Search::Worker class.
+// UCIはオプション・スレッドプール・置換表を保持し、
+// この構造体はそれらをSearch::Workerへまとめて渡すために用いる。
 struct SharedState {
     SharedState(const OptionsMap&                                         optionsMap,
                 ThreadPool&                                               threadPool,
@@ -526,7 +530,8 @@ protected:
 
     // This is the main search function, for both PV and non-PV nodes
     template<NodeType nodeType>
-    Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, const bool cutNode);
+    Value
+    search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, const bool cutNode);
 
     // Quiescence search function, which is called by the main search
     template<NodeType nodeType>

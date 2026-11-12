@@ -512,7 +512,12 @@ class YaneuraOuWorker: public Worker {
     // Quiescence search function, which is called by the main search
     // メイン探索から呼ばれる静止探索関数
     // 💡 search()から、残りdepthが小さくなった時に呼び出される。
+#if STOCKFISH
+    template<NodeType nodeType>
+#else
+    // PSV変換用のTT読取無効化。通常探索は既定のtrueを使う。
     template<NodeType nodeType, bool ReadTT = true>
+#endif
     Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
 
 	// LMRのreductionの値を計算する。
