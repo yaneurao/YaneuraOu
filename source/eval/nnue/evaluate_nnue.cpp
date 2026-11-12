@@ -3,7 +3,7 @@
 #include "../../config.h"
 #include "../../extra/tools.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include <algorithm>
 #include <array>
@@ -39,7 +39,7 @@ extern int FV_SCALE;
 //              旧評価関数のためのヘルパー
 // ============================================================
 
-#if defined(USE_CLASSIC_EVAL)
+#if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
 using namespace YaneuraOu;
 void add_options_(OptionsMap& options, ThreadPool& threads);
 
@@ -177,7 +177,7 @@ namespace NNUE {
 
 	int FV_SCALE = 16; // 水匠5では24がベストらしいのでエンジンオプション"FV_SCALE"で変更可能にした。
 
-#if defined(SFNNwoPSQT) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+#if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 namespace Progress {
 namespace {
 
@@ -294,7 +294,7 @@ int Parameters::BucketIndex(const Position& pos, int bucket_count) const {
     std::string GetArchitectureString() {
         const std::string base = "Features=" + FeatureTransformer::GetStructureString() +
 			",Network=" + Network::GetStructureString();
-#if defined(SFNNwoPSQT)
+#if defined(EVAL_SFNN)
 		return "ModelType=SFNNWithoutPsqt;" + base + "{LayerStack=" + std::to_string(kLayerStacks) + "}";
 #else
 		return base;
@@ -363,7 +363,7 @@ namespace {
 			sync_cout << "info string NNUE feature params read failed: " << result.to_string() << sync_endl;
 			return result;
 		}
-#if defined(SFNNwoPSQT) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+#if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 		const std::string eval_dir = Options["EvalDir"];
 		const auto progress_path = CommandLine::get_binary_directory() / path_from_utf8(eval_dir) / "progress.bin";
 		std::ifstream progress_stream(progress_path, std::ios::binary);
@@ -449,11 +449,11 @@ namespace {
     }
 
     // 差分計算ができるなら進める
-    static void UpdateAccumulatorIfPossible(const Position& pos) {
-        networks().feature_transformer.UpdateAccumulatorIfPossible(pos);
+    static void UpdateAccumulatorIfPossible(const Position& pos, AccumulatorState* state) {
+        networks().feature_transformer.UpdateAccumulatorIfPossible(pos, state);
     }
 
-#if defined(SFNNwoPSQT)
+#if defined(EVAL_SFNN)
     static_assert(NNUE_SFNN_HAND_BUCKETS == 1 || NNUE_SFNN_HAND_BUCKETS == 4
         || NNUE_SFNN_HAND_BUCKETS == 16 || NNUE_SFNN_HAND_BUCKETS == 64
         || NNUE_SFNN_HAND_BUCKETS == 256 || NNUE_SFNN_HAND_BUCKETS == 1024,
@@ -768,29 +768,31 @@ namespace {
 #endif
 
     // 評価値を計算する
-    static Value ComputeScore(const Position& pos, bool refresh = false) {
-        auto& accumulator = pos.state()->accumulator;
+    static Value ComputeScore(const Position& pos, AccumulatorState* state, bool refresh = false) {
+        auto& accumulator = accumulator_of(state);
+#if defined(EVAL_NNUE)
         if (!refresh && accumulator.computed_score) {
             return accumulator.score;
         }
+#endif
 
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
-#if defined(SFNNwoPSQT)
+#if defined(EVAL_SFNN)
         const auto bucket = stack_index_for_nnue(pos);
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
-        networks().feature_transformer.EnsureAccumulator(pos, refresh);
+        networks().feature_transformer.EnsureAccumulator(pos, refresh, state);
         const auto output = networks().network[bucket].PropagateFromAccumulator(
             accumulator.accumulation, pos.side_to_move(), buffer);
 #else
         alignas(kCacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
-        networks().feature_transformer.Transform(pos, transformed_features, refresh);
+        networks().feature_transformer.Transform(pos, transformed_features, refresh, state);
         const auto output = networks().network[bucket].Propagate(transformed_features, buffer);
 #endif
 #else
         alignas(kCacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
-        networks().feature_transformer.Transform(pos, transformed_features, refresh);
+        networks().feature_transformer.Transform(pos, transformed_features, refresh, state);
         const auto output = networks().network[0].Propagate(transformed_features, buffer);
 #endif
 
@@ -817,9 +819,11 @@ namespace {
         // 2) accumulator.scoreは、差分計算の時に用いないので書き換えて問題ない。
         score = std::clamp(score, -VALUE_MAX_EVAL, VALUE_MAX_EVAL);
 
+#if defined(EVAL_NNUE)
         accumulator.score = score;
         accumulator.computed_score = true;
-        return accumulator.score;
+#endif
+        return score;
     }
 
 }  // namespace NNUE
@@ -954,11 +958,22 @@ void load_eval() {
 // 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
 // なので、この関数の最適化は頑張らない。
 Value compute_eval(const Position& pos) {
-    return NNUE::ComputeScore(pos, true);
+#if defined(EVAL_SFNN)
+    NNUE::AccumulatorState state;
+    return NNUE::ComputeScore(pos, &state, true);
+#else
+    return NNUE::ComputeScore(pos, pos.state(), true);
+#endif
 }
 
 // 評価関数
 Value evaluate(const Position& pos) {
+#if defined(EVAL_SFNN)
+    // Standalone evaluation must not change a search worker's stack.
+    // 探索外の評価では、探索Workerのスタックを変更しない。
+    NNUE::AccumulatorState state;
+    return NNUE::ComputeScore(pos, &state);
+#else
     const auto& accumulator = pos.state()->accumulator;
     if (accumulator.computed_score) {
         return accumulator.score;
@@ -969,7 +984,7 @@ Value evaluate(const Position& pos) {
     // eval hashへの照会をskipする。
     if (!GlobalOptions.use_eval_hash) {
         ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
-        return NNUE::ComputeScore(pos);
+        return NNUE::ComputeScore(pos, pos.state());
     }
 #endif
 
@@ -984,7 +999,7 @@ Value evaluate(const Position& pos) {
     }
 #endif
 
-    Value score = NNUE::ComputeScore(pos);
+    Value score = NNUE::ComputeScore(pos, pos.state());
 #if defined(USE_EVAL_HASH)
     // せっかく計算したのでevaluate hash tableに保存しておく。
     entry.key = key;
@@ -994,12 +1009,21 @@ Value evaluate(const Position& pos) {
 #endif
 
     return score;
+#endif
 }
 
-// 差分計算ができるなら進める
-void evaluate_with_no_return(const Position& pos) {
-    NNUE::UpdateAccumulatorIfPossible(pos);
+#if defined(EVAL_SFNN)
+Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack) {
+    return NNUE::ComputeScore(pos, &stack.latest());
 }
+#endif
+
+// 差分計算ができるなら進める
+#if defined(EVAL_NNUE)
+void evaluate_with_no_return(const Position& pos) {
+    NNUE::UpdateAccumulatorIfPossible(pos, pos.state());
+}
+#endif
 
 // 現在の局面の評価値の内訳を表示する
 void print_eval_stat(Position& /*pos*/) {
@@ -1009,4 +1033,4 @@ void print_eval_stat(Position& /*pos*/) {
 } // namespace Eval
 } // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))

@@ -265,8 +265,8 @@ void YaneuraOuEngine::isready() {
 
 	// 🌈 やねうら王独自オプションの内容を設定などに反映させる。
 
-#if defined(USE_CLASSIC_EVAL)
-    // 📌 旧評価関数は、isreadyに対して呼び出す。
+#if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
+    // 📌 評価関数のパラメーターを読み込む。
     //     評価関数パラメーターの読み込み処理が必要。
     Engine::run_heavy_job([] { Eval::load_eval(); });
 
@@ -947,7 +947,7 @@ void Search::YaneuraOuWorker::start_searching() {
 #if STOCKFISH
     accumulatorStack.reset();
 #else
-#if defined(USE_SFNN)
+#if defined(EVAL_SFNN)
 	// やねうら王側、SFNNのときだけこの初期化が必要。
     // 探索の初回evaluate()では局面の差分更新ができないので
     // accumulatorの初回フラグをセットする。
@@ -2254,7 +2254,7 @@ void Search::YaneuraOuWorker::do_move(
     }
 #endif
 
-#if !STOCKFISH && defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT) && !defined(NO_PREFETCH)
+#if !STOCKFISH && defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN) && !defined(NO_PREFETCH)
     // 子局面の補正値が読むss-2/ss-4/ss-6は、着手前にはss-1/ss-3/ss-5に当たる。
     if (ss != nullptr) {
         const Piece  pc = pos.moved_piece(move);
@@ -2270,12 +2270,12 @@ void Search::YaneuraOuWorker::do_move(
     // RelaxedAtomicの加算はrelaxedなload/storeで行い、ロック命令を避ける。
     ++nodes;
 
-#if defined(EVAL_SFNN)
-
-    // accumulatorStackを用いる実装。
-
-    DirtyBoardData dirtyBoardData = pos.do_move(move, st, givesCheck, &tt, &sharedHistory);
-    accumulatorStack.push(dirtyBoardData);
+#if STOCKFISH
+    Dirties& dirties = accumulatorStack.push(pos);
+    pos.do_move(move, st, givesCheck, dirties, &sharedHistory);
+#elif defined(EVAL_SFNN)
+    Eval::NNUE::Dirties& dirties = accumulatorStack.push(pos);
+    pos.do_move(move, st, givesCheck, dirties, &tt, &sharedHistory);
 
 #else
 
@@ -2285,16 +2285,16 @@ void Search::YaneuraOuWorker::do_move(
 
     if (ss != nullptr)
     {
+#if STOCKFISH
+        auto& dirtyPiece = dirties.dirtyPiece;
+        ss->currentMove  = move;
+        ss->continuationHistory =
+          &continuationHistory[ss->inCheck][capture][dirtyPiece.pc][move.to_sq()];
+        ss->continuationCorrectionHistory =
+          &continuationCorrectionHistory[dirtyPiece.pc][move.to_sq()];
+#else
         // currentMove(現在探索中の指し手)の更新
         ss->currentMove = move;
-
-#if STOCKFISH
-        ss->currentMove = move;
-        ss->continuationHistory =
-          &continuationHistory[ss->inCheck][capture][dirtyBoardData.dp.pc][move.to_sq()];
-        ss->continuationCorrectionHistory =
-          &continuationCorrectionHistory[dirtyBoardData.dp.pc][move.to_sq()];
-#else
         // やねうら王とStockfishでは、DirtyPieceの構造が違うし、
         // やねうら王では、移動後の駒(成りの指し手なら成り駒)を使いたい。
         Piece dp_pc             = pos.moved_piece(move);
@@ -2320,8 +2320,13 @@ void Search::YaneuraOuWorker::undo_move(Position& pos, const Move move) {
 
 	pos.undo_move(move);
 
+#if STOCKFISH
+    accumulatorStack.pop();
+#else
+	// やねうら王ではSFNNのときだけaccumulatorStackを使う構造になっている。
 #if defined(EVAL_SFNN)
-    //accumulatorStack.pop();
+    accumulatorStack.pop();
+#endif
 #endif
 }
 
@@ -2370,8 +2375,7 @@ void Search::YaneuraOuWorker::clear() {
     refreshTable.clear(network[numaAccessToken]);
 #else
 #if defined(EVAL_SFNN)
-	// やねうら王では、SFNNのときだけこの処理が必要。
-    refreshTable.clear(network[numaAccessToken]);
+    accumulatorStack.reset();
 #endif
 #endif
 }
@@ -2382,7 +2386,7 @@ void Search::YaneuraOuWorker::clear() {
 // qsearchのleaf node局面を得られる。通常探索のinfo pv表示のようにTTを辿ってPVを延長しない。
 Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
 
-#if defined(USE_SFNN)
+#if defined(EVAL_SFNN)
     // 探索開始時と同様、初回evaluate()で差分更新を使わない状態に戻す。
     accumulatorStack.reset();
 #endif
@@ -4961,7 +4965,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                 unadjustedStaticEval = evaluate(pos);
 
 #if !STOCKFISH
-#if defined(USE_CLASSIC_EVAL)
+#if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
 			else if (PvNode) {
 				// 🌈 やねうら王独自
 				// TODO : SFNNでどうなのか検証すべき。
@@ -5427,10 +5431,7 @@ Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
 #else
 
 #if defined(EVAL_SFNN)
-	// 最新のStockfishのコード
-
-    return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack, refreshTable,
-                          optimism[pos.side_to_move()]);
+    return Eval::evaluate(pos, accumulatorStack);
 
 #else
 	return Eval::evaluate(pos);

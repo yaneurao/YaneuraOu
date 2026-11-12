@@ -2,7 +2,7 @@
 
 #include "../../../config.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "k.h"
 #include "index_list.h"
@@ -29,8 +29,7 @@ void K::AppendActiveIndices(
 // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
 void K::AppendChangedIndices(
     const Position& pos, Color perspective,
-    IndexList* removed, IndexList* added) {
-  const auto& dp = pos.state()->dirtyPiece;
+    IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
   if (dp.pieceNo[0] >= PIECE_NUMBER_KING) {
     removed->push_back(
         dp.changed_piece[0].old_piece.from[perspective] - fe_end);
@@ -43,4 +42,4 @@ void K::AppendChangedIndices(
 } // namespace Eval::NNUE::Features
 } // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))

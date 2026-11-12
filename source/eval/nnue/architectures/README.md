@@ -87,8 +87,10 @@ sparse input features
 
 SFNNは通常NNUEと同じくFeatureTransformerとaccumulatorを使うが、変換後特徴量と
 後段networkが通常NNUEと異なる。
+SFNNの累積値と着手の差分は探索Workerの`AccumulatorStack`で管理し、
+従来NNUEは`StateInfo`で管理する。`EVAL_SFNN`と`EVAL_NNUE`は排他的に定義する。
 
-`SFNN_*`でビルドすると`SFNNwoPSQT`が定義され、FeatureTransformerでは
+`SFNN_*`でビルドすると`EVAL_SFNN`が定義され、FeatureTransformerでは
 `USE_ELEMENT_WISE_MULTIPLY`が有効になる。この経路では、2視点分のaccumulatorを
 element-wise multiplyで混ぜて、最終的に`FT`次元の変換後特徴量を後段に渡す。
 そのため、SFNNのarchitecture名は`1024_7_64`のようになり、通常NNUEの
@@ -118,7 +120,7 @@ H1 が 8n    : shortcutなし。fc_0出力は H1。
 
 例えば`SFNN_halfka2_1024_7_64_k3k3`は`7`個のhidden出力と`1`個のshortcut出力を持つ。
 一方、`SFNN_halfka2_1024_8_64_k3k3`は`8`個のhidden出力だけを持ち、shortcutは使わない。
-`SFNNwoPSQT`という古い名前が残っている箇所があるが、shortcutの有無はこの`H1`規則で決まる。
+shortcutの有無はこの`H1`規則で決まる。
 
 SFNNでは`LayerStacks`個の後段networkを`nn.bin`に持ち、局面ごとに1つを選んで使う。
 例えば`k3k3`なら9個、`k21k21`なら441個、`k29k29`なら841個、`hand64_k3k3`なら576個、
@@ -208,7 +210,7 @@ little-endianで保存する。`progress.bin`のような外部ファイルは�
 囲む。
 
 ```cpp
-#if defined(SFNNwoPSQT) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+#if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 ```
 
 特に`StateInfo`に進行度計算キャッシュを追加する場合、progressを使わないarchitectureで
@@ -218,7 +220,7 @@ little-endianで保存する。`progress.bin`のような外部ファイルは�
 そのため、`position.h`側のprogress cacheも次のようにprogress有効時だけ定義する。
 
 ```cpp
-#if defined(SFNNwoPSQT) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
     Key nnue_progress_key;
     int64_t nnue_progress_sum;
     Square nnue_progress_sq_bk;

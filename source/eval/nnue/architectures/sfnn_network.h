@@ -7,7 +7,7 @@
 #include "../../../config.h"
 #include "../../../extra/tools.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../nnue_common.h"
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
@@ -202,6 +202,6 @@ struct SfnnNetwork {
 }  // namespace Eval::NNUE
 }  // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #endif // CLASSIC_NNUE_SFNN_NETWORK_H_INCLUDED

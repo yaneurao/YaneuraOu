@@ -341,8 +341,7 @@
 // 定義してもビルドエラーになる。
 // #define STOCKFISH
 
-// SFNNwoPSQT型の評価関数を使うときに定義するシンボル。(Makefileのなかで定義している)
-// #define SFNNwoPSQT
+// SFNN_XXXはEVAL_SFNN、NNUE_XXXはEVAL_NNUEとして排他的に構成する。
 
 // ===============================================================
 // ここ以降では、↑↑↑で設定した内容に基づき必要なdefineを行う。
@@ -362,10 +361,12 @@ constexpr int MAX_PLY_NUM = 246;
 
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
-#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_MATERIAL)
+#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_MATERIAL) || defined(YANEURAOU_ENGINE_SFNN)
 
 	#define YANEURAOU_ENGINE
-	#define USE_CLASSIC_EVAL
+	#if !defined(YANEURAOU_ENGINE_SFNN)
+		#define USE_CLASSIC_EVAL
+	#endif
 	#define USE_PARTIAL_KEY
 	#define USE_MATERIAL_VALUE
 	#define USE_EVAL_LIST
@@ -378,11 +379,11 @@ constexpr int MAX_PLY_NUM = 246;
 	// 定跡関連コマンド
 	#define ENABLE_MAKEBOOK_CMD
 
-	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE)
+	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_SFNN)
 		#define USE_DIFF_EVAL
 	#endif
 
-	#if defined(YANEURAOU_ENGINE_NNUE) && !defined(NNUE_EMBEDDING)
+	#if (defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_SFNN)) && !defined(NNUE_EMBEDDING)
 		// 📝 Stockfishでは、NNUE_EMBEDDING_OFFを定義した時にのみ、
 		//    評価関数パラメーターをファイルから読みこむ機能が有効になる。
 		//    (定義しないとincbinを用いて埋め込まれているものを読み込む)
@@ -427,8 +428,12 @@ constexpr int MAX_PLY_NUM = 246;
 		#define EVAL_KPP_KKPT
 	#endif
 
-	#if defined(YANEURAOU_ENGINE_NNUE)
-		#define EVAL_NNUE
+	#if (defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_SFNN))
+		#if defined(YANEURAOU_ENGINE_SFNN)
+			#define EVAL_SFNN
+		#else
+			#define EVAL_NNUE
+		#endif
 
 		// NNUEの使いたい評価関数アーキテクチャの選択
 		//
@@ -639,6 +644,10 @@ constexpr bool pretty_jp = false;
 	#endif
 #endif
 
+#if defined(EVAL_NNUE) && defined(EVAL_SFNN)
+#error EVAL_NNUE and EVAL_SFNN are mutually exclusive.
+#endif
+
 // 上位のCPUをターゲットとするなら、その下位CPUの命令はすべて使えるはずなので…。
 
 #if defined (USE_AVX512VNNI)
@@ -689,6 +698,8 @@ constexpr bool pretty_jp = false;
 	// hafeKPE9には利きが必要
 	#define LONG_EFFECT_LIBRARY
 	#define USE_BOARD_EFFECT_PREV
+#elif defined(EVAL_SFNN)
+	#define EVAL_TYPE_NAME "SFNN"
 #elif defined(EVAL_NNUE) // それ以外のNNUEなので標準NNUE halfKP256だと思われる。
 	#define EVAL_TYPE_NAME "NNUE"
 #elif defined(EVAL_DEEP)

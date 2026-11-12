@@ -5,7 +5,7 @@
 
 #include "../../config.h"
 
-#if defined(ENABLE_TEST_CMD) && defined(EVAL_NNUE)
+#if defined(ENABLE_TEST_CMD) && (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 namespace YaneuraOu {
 namespace Eval::NNUE {
@@ -16,6 +16,6 @@ void TestCommand(Position& pos, std::istream& stream);
 } // namespace Eval::NNUE
 } // namespace YaneuraOu
 
-#endif  // defined(ENABLE_TEST_CMD) && defined(EVAL_NNUE)
+#endif  // defined(ENABLE_TEST_CMD) && (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #endif

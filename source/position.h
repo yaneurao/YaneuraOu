@@ -12,7 +12,7 @@
 #include "evaluate.h"
 #include "types.h"
 
-#if defined(EVAL_NNUE)
+#if defined(EVAL_NNUE) || defined(EVAL_SFNN)
 #include "eval/nnue/nnue_accumulator.h"
 #endif
 
@@ -84,7 +84,7 @@ struct StateInfo {
     int continuousCheck[COLOR_NB];
 #endif
 
-#if defined(SFNNwoPSQT) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 	// NNUE progress bucket用の進行度計算キャッシュ。
 	HASH_KEY nnue_progress_key;
 	int64_t nnue_progress_sum;
@@ -648,6 +648,11 @@ public:
 	template <typename T = void>
     void do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt = nullptr,
                  const SharedHistories* history = nullptr);
+#if defined(EVAL_SFNN)
+    template <typename T = void>
+    void do_move(Move m, StateInfo& newSt, bool givesCheck, Eval::NNUE::Dirties& dirties,
+                 const T* tt = nullptr, const SharedHistories* history = nullptr);
+#endif
 #endif
 
 	// 💡 上記のdo_move()にはgivesCheckも渡さないといけないが、
@@ -1076,7 +1081,11 @@ private:
 	// do_move()の先後分けたもの。内部的に呼び出される。
     template<Color Us, typename T>
     void do_move_impl(Move m, StateInfo& st, bool givesCheck, const T* tt,
-                      const SharedHistories* history);
+                       const SharedHistories* history
+#if defined(EVAL_SFNN)
+                       , Eval::DirtyPiece* dirty
+#endif
+                       );
 
 	// undo_move()の先後分けたもの。内部的に呼び出される。
     template<Color Us>

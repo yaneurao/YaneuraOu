@@ -6,7 +6,7 @@
 
 #include "../../../config.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../../../position.h"
 #include "../nnue_architecture.h"
@@ -52,6 +52,6 @@ class IndexList
 } // namespace Eval::NNUE::Features
 } // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #endif // NNUE_FEATURES_INDEX_LIST_H_INCLUDED

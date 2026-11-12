@@ -452,9 +452,12 @@ endif
 ifneq (,$(IS_NNUE_EDITION))
 	ifeq ($(ENGINE_ARCH_UPPER),NNUE)
 	else
-		# NNUE_* または SFNN_* は標準NNUE型の亜種なので、とりあえず
-		# "YANEURAOU_ENGINE_NNUE"というシンボルを定義してやる。
-		CPPFLAGS += -DYANEURAOU_ENGINE_NNUE
+		# architecture名に応じて、従来NNUEとSFNNの構成を切り替える。
+		ifneq (,$(filter SFNN%,$(NNUE_ARCH_UPPER)))
+			CPPFLAGS += -DYANEURAOU_ENGINE_SFNN
+		else
+			CPPFLAGS += -DYANEURAOU_ENGINE_NNUE
+		endif
 
 		ifeq ($(ENGINE_ARCH_UPPER),NNUE_KP256)
 			CPPFLAGS += -DEVAL_NNUE_KP256
@@ -476,16 +479,14 @@ ifneq (,$(IS_NNUE_EDITION))
 
 		else ifeq ($(ENGINE_ARCH_UPPER),SFNN1536)
 			CPPFLAGS += -DYANEURAOU_ENGINE_SFNN1536
-			CPPFLAGS += -DSFNNwoPSQT
 		else
 			# 知らないNNUEのarchitectureなので、architecture headerを動的に生成する。
 			ARCH_HEADER_FILE = \"architectures/$(NNUE_ARCH).h\"
 			CPPFLAGS += -DNNUE_ARCHITECTURE_HEADER=$(ARCH_HEADER_FILE)
 			ARCH_GEN_SCRIPT = $(PYTHON) eval/nnue/architectures/nnue_arch_gen.py $(NNUE_ARCH) eval/nnue/architectures
 
-			# SFNN_* はPSQTなしSFNNなので、シンボル SFNNwoPSQT 定義しておく。
+			# SFNN_* の層形状に応じたSIMD経路を選択する。
 			ifneq (,$(filter SFNN%,$(NNUE_ARCH_UPPER)))
-				CPPFLAGS += -DSFNNwoPSQT
 				ifneq (,$(findstring _7_,$(NNUE_ARCH_UPPER)))
 					CPPFLAGS += -DNNUE_SFNN_HIDDEN1_7
 				endif

@@ -7,7 +7,7 @@
 #include "../../../config.h"
 #include "../../../extra/tools.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../nnue_common.h"
 #include <algorithm>
@@ -180,6 +180,6 @@ namespace Eval::NNUE::Layers {
 }  // namespace Eval::NNUE::Layers
 }  // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #endif // NNUE_LAYERS_SQR_CLIPPED_RELU_H_INCLUDED

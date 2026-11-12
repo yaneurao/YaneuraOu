@@ -2,7 +2,7 @@
 
 #include "../../../config.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "half_ka_hm1.h"
 #include "index_list.h"
@@ -62,11 +62,10 @@ namespace Eval::NNUE::Features {
 	template <Side AssociatedKing>
 	void HalfKA_hm1<AssociatedKing>::AppendChangedIndices(
 		const Position& pos, Color perspective,
-		IndexList* removed, IndexList* added) {
+		IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
 		BonaPiece* pieces;
 		Square sq_target_k;
 		GetPieces(pos, perspective, &pieces, &sq_target_k);
-		const auto& dp = pos.state()->dirtyPiece;
 		for (int i = 0; i < dp.dirty_num; ++i) {
 			const auto old_p = static_cast<BonaPiece>(
 				dp.changed_piece[i].old_piece.from[perspective]);
@@ -83,4 +82,4 @@ namespace Eval::NNUE::Features {
 }  // namespace Eval::NNUE::Features
 }  // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))

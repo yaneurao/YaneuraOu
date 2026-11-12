@@ -5,7 +5,7 @@
 
 #include "../../../config.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../../../evaluate.h"
 #include "features_common.h"
@@ -45,7 +45,7 @@ class HalfRelativeKP {
 
   // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
   static void AppendChangedIndices(const Position& pos, Color perspective,
-                                   IndexList* removed, IndexList* added);
+                                   IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp);
 
   // 玉の位置とBonaPieceから特徴量のインデックスを求める
   static IndexType MakeIndex(Square sq_k, BonaPiece p);
@@ -59,6 +59,6 @@ class HalfRelativeKP {
 } // namespace Eval::NNUE::Features
 } // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #endif

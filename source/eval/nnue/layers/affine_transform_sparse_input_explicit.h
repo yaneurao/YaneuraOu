@@ -7,7 +7,7 @@
 #include "../../../config.h"
 #include "../../../extra/tools.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../nnue_common.h"
 #include "affine_transform.h" // For affine_transform_unaligned
@@ -175,7 +175,7 @@ public:
                 return !stream.fail();
         }
 
-#if defined(USE_AVX512) && defined(SFNNwoPSQT)
+#if defined(USE_AVX512) && defined(EVAL_SFNN)
         // Fused EWM + sparse affine for 16 outputs (H1=15 with shortcut or H1=16).
         // Keep the existing on-disk and in-memory weight ordering.
         template <IndexType HalfDimensions, typename AccumulationType>
@@ -648,6 +648,6 @@ public:
 }  // namespace Eval::NNUE::Layers
 }  // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #endif  // NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_EXPLICIT_H_INCLUDED

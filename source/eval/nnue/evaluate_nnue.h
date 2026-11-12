@@ -7,7 +7,7 @@
 #include "../../config.h"
 #include "../../extra/tools.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "nnue_feature_transformer.h"
 #include "nnue_architecture.h"
@@ -15,7 +15,7 @@
 #include "../../memory.h"
 #include "../../shm.h"
 
-#if defined(SFNNwoPSQT)
+#if defined(EVAL_SFNN)
 #define NNUE_SFNN_KING_BUCKET_TYPE_NONE 0
 #define NNUE_SFNN_KING_BUCKET_TYPE_K3K3 1
 #define NNUE_SFNN_KING_BUCKET_TYPE_K9K9 2
@@ -81,7 +81,7 @@ class Position;
 namespace Eval::NNUE {
 
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
-#if !defined(SFNNwoPSQT)
+#if !defined(EVAL_SFNN)
 #error ENABLE_SFNN_16BIT_WEIGHT requires an SFNN architecture
 #endif
 	#define EvalFileDefaultName "nn16.bin"
@@ -89,7 +89,7 @@ namespace Eval::NNUE {
 	#define EvalFileDefaultName "nn.bin"
 #endif
 
-#if defined(SFNNwoPSQT) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+#if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 namespace Progress {
 
 	// SFNNのLayerStack選択に使う進行度計算パラメーター。
@@ -110,7 +110,7 @@ namespace Progress {
 
 	// Hash value of evaluation function structure
 	// 評価関数の構造のハッシュ値
-#if defined(SFNNwoPSQT)
+#if defined(EVAL_SFNN)
 	constexpr u32 kSfnnBaseHashValue = 0x3c203b32u;
 	constexpr u32 kHashValue = kSfnnBaseHashValue;
 	constexpr int kLayerStacks = LayerStacks;
@@ -125,7 +125,7 @@ namespace Progress {
 	// プロセス間共有メモリに直接配置できる。
 	struct NnueNetworks {
 		FeatureTransformer feature_transformer;
-#if defined(SFNNwoPSQT) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+#if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 		Progress::Parameters progress;
 #endif
 		Network network[kLayerStacks];
@@ -174,6 +174,6 @@ struct std::hash<YaneuraOu::Eval::NNUE::NnueNetworks> {
 	}
 };
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #endif // #ifndef NNUE_EVALUATE_NNUE_H_INCLUDED

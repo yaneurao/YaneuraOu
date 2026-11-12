@@ -6,7 +6,7 @@
 
 #include "position.h"
 #include "extra/tools.h"
-#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT) && !defined(NO_PREFETCH)
+#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN) && !defined(NO_PREFETCH)
 #include "history.h"
 #endif
 #include "misc.h"
@@ -1660,7 +1660,11 @@ Move Position::to_move(Move16 m16) const
 // ⚠ m として Move::none()はもちろん、Move::null() , Move::resign()などお断り。
 template<Color Us, typename T>
 void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* tt,
-                            [[maybe_unused]] const SharedHistories* history) {
+                            [[maybe_unused]] const SharedHistories* history
+#if defined(EVAL_SFNN)
+                            , Eval::DirtyPiece* dirty
+#endif
+                            ) {
 
     ASSERT_LV3(m.is_ok());
     ASSERT_LV3(&newSt != st);
@@ -1818,11 +1822,11 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
     int materialDiff;
 #endif
 
-#if defined(USE_CLASSIC_EVAL)
-
-#if defined(USE_EVAL_LIST)
+#if defined(EVAL_SFNN)
+    Eval::DirtyPiece scratch;
+    auto& dp = dirty ? *dirty : scratch;
+#elif defined(USE_CLASSIC_EVAL) && defined(USE_EVAL_LIST)
     auto& dp = st->dirtyPiece;
-#endif
 #endif
 
     if (m.is_drop())
@@ -2110,7 +2114,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
     st->hand_key  = h;
 
     st->hand = hand[them];
-#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT) && !defined(NO_PREFETCH)
+#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN) && !defined(NO_PREFETCH)
     // 次局面のキーが確定したので、王手情報・千日手の計算中に履歴を先読みする。
     if (history) {
         const auto pc = moved_piece(m);
@@ -2426,10 +2430,30 @@ template <typename T>
 void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt, const SharedHistories* history)
 {
     if (sideToMove == BLACK)
-        do_move_impl<BLACK, T>(m, newSt, givesCheck, tt, history);
+        do_move_impl<BLACK, T>(m, newSt, givesCheck, tt, history
+#if defined(EVAL_SFNN)
+                              , nullptr
+#endif
+                              );
     else
-        do_move_impl<WHITE, T>(m, newSt, givesCheck, tt, history);
+        do_move_impl<WHITE, T>(m, newSt, givesCheck, tt, history
+#if defined(EVAL_SFNN)
+                              , nullptr
+#endif
+                              );
 }
+
+#if defined(EVAL_SFNN)
+template <typename T>
+void Position::do_move(Move m, StateInfo& newSt, bool givesCheck,
+                       Eval::NNUE::Dirties& dirties, const T* tt,
+                       const SharedHistories* history) {
+    if (sideToMove == BLACK)
+        do_move_impl<BLACK, T>(m, newSt, givesCheck, tt, history, &dirties.dirtyPiece);
+    else
+        do_move_impl<WHITE, T>(m, newSt, givesCheck, tt, history, &dirties.dirtyPiece);
+}
+#endif
 
 // undo_move()を先後分けたdo_move_impl<>()を呼び出す。
 void Position::undo_move(Move m)
@@ -4055,6 +4079,12 @@ template bool Position::pseudo_legal_s< true>(const Move m) const;
 
 template void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const TranspositionTable* tt, const SharedHistories* history);
 template void Position::do_move(Move m, StateInfo& newSt, bool givesCheck, const void* tt, const SharedHistories* history);
+#if defined(EVAL_SFNN)
+template void Position::do_move(Move, StateInfo&, bool, Eval::NNUE::Dirties&,
+                                const TranspositionTable*, const SharedHistories*);
+template void Position::do_move(Move, StateInfo&, bool, Eval::NNUE::Dirties&,
+                                const void*, const SharedHistories*);
+#endif
 
 template void Position::do_null_move(StateInfo& st, const TranspositionTable& tt);
 template void Position::do_null_move(StateInfo& st, const int& tt);

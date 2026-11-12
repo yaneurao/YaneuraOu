@@ -647,6 +647,10 @@ class YaneuraOuWorker: public Worker {
 #else
 	// 🌈 以下、やねうら王独自追加 🌈
 
+#if defined(EVAL_SFNN)
+    Eval::NNUE::AccumulatorStack accumulatorStack;
+#endif
+
 	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
     // 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。
     YaneuraOuWorker* toYaneuraOuWorker(LargePagePtr<Worker>& worker) {

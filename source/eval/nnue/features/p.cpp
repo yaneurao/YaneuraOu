@@ -2,7 +2,7 @@
 
 #include "../../../config.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "p.h"
 #include "index_list.h"
@@ -27,8 +27,7 @@ void P::AppendActiveIndices(
 // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
 void P::AppendChangedIndices(
     const Position& pos, Color perspective,
-    IndexList* removed, IndexList* added) {
-  const auto& dp = pos.state()->dirtyPiece;
+    IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
   for (int i = 0; i < dp.dirty_num; ++i) {
     if (dp.pieceNo[i] >= PIECE_NUMBER_KING) continue;
     removed->push_back(dp.changed_piece[i].old_piece.from[perspective]);
@@ -39,4 +38,4 @@ void P::AppendChangedIndices(
 } // namespace Eval::NNUE::Features
 } // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))

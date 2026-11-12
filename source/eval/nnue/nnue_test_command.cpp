@@ -3,7 +3,7 @@
 #include "../../config.h"
 #include "../../extra/tools.h"
 
-#if defined(ENABLE_TEST_CMD) && defined(EVAL_NNUE)
+#if defined(ENABLE_TEST_CMD) && (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../../extra/all.h"
 #include "evaluate_nnue.h"
@@ -27,22 +27,115 @@ void TestAccumulator(Position&, std::istream& stream) {
     std::cout << "test_accumulator: games must be positive" << std::endl;
     return;
   }
+
+#if defined(EVAL_SFNN)
+  constexpr int max_ply = MAX_PLY;
+#else
   constexpr int max_ply = 256;
+#endif
   Position pos;
   auto states = std::make_unique<StateInfo[]>(max_ply);
   StateInfo root;
+#if defined(EVAL_SFNN)
+  auto stack = std::make_unique<AccumulatorStack>();
+  auto current_state = [&]() { return &stack->latest(); };
+  auto do_move = [&](Move move, StateInfo& st) {
+    auto& dirties = stack->push(pos);
+    pos.do_move(move, st, pos.gives_check(move), dirties);
+  };
+  auto undo_move = [&](Move move) { pos.undo_move(move); stack->pop(); };
+  auto evaluate = [&]() { return Eval::evaluate(pos, *stack); };
+#else
+  auto current_state = [&]() { return pos.state(); };
+  auto do_move = [&](Move move, StateInfo& st) { pos.do_move(move, st); };
+  auto undo_move = [&](Move move) { pos.undo_move(move); };
+  auto evaluate = [&]() { return Eval::evaluate(pos); };
+#endif
   PRNG prng(20261025);
   std::uint64_t moves = 0, pawn_moves = 0, pawn_captures = 0, promotions = 0, king_moves = 0, checksum = 0;
   for (int game = 0; game < games; ++game) {
     pos.set_hirate(&root);
-    Eval::compute_eval(pos);
+#if defined(EVAL_SFNN)
+    stack->reset();
+#endif
+    networks().feature_transformer.EnsureAccumulator(pos, true, current_state());
+#if defined(EVAL_SFNN)
+    // Cover delayed updates and null moves before testing ordinary one-ply updates.
+    // 通常の1手差分に加え、評価を省略した連続着手とnull moveも検証する。
+    PRNG delayed_prng(20261113 + game);
+    for (int delay = 1; delay <= 6; ++delay) {
+      const Value root_score = evaluate();
+      std::vector<Move> sequence;
+      for (int n = 0; n < delay; ++n) {
+        MoveList<LEGAL_ALL> legal(pos);
+        if (legal.size() == 0) break;
+        Move move = legal.begin()[delayed_prng.rand(legal.size())];
+        do_move(move, states[n]);
+        sequence.push_back(move);
+      }
+      if (!pos.checkers()) {
+        StateInfo null_state;
+        pos.do_null_move(null_state, 0);
+        // Also evaluate a child while the null move is still active.
+        // null moveを戻す前に子局面へ進み、null moveをまたぐ差分更新も検証する。
+        MoveList<LEGAL_ALL> null_legal(pos);
+        if (null_legal.size() != 0) {
+          const Move child = null_legal.begin()[delayed_prng.rand(null_legal.size())];
+          do_move(child, states[delay]);
+          const Value child_score = evaluate();
+          const auto child_accumulator = accumulator_of(current_state());
+          networks().feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+          if (child_score != evaluate()
+              || std::memcmp(child_accumulator.accumulation,
+                             accumulator_of(current_state()).accumulation,
+                             sizeof(child_accumulator.accumulation)) != 0) {
+            std::cout << "test_accumulator FAILED child after null move" << std::endl;
+            return;
+          }
+          undo_move(child);
+        }
+        if (evaluate() != Eval::evaluate(pos)) {
+          std::cout << "test_accumulator FAILED delayed null move" << std::endl;
+          return;
+        }
+        pos.undo_null_move();
+      }
+      if (evaluate() != Eval::evaluate(pos)) {
+        std::cout << "test_accumulator FAILED delayed update" << std::endl;
+        return;
+      }
+      const auto delayed = accumulator_of(current_state());
+      networks().feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+      if (std::memcmp(delayed.accumulation, accumulator_of(current_state()).accumulation,
+                      sizeof(delayed.accumulation)) != 0) {
+        std::cout << "test_accumulator FAILED delayed FT" << std::endl;
+        return;
+      }
+      for (auto it = sequence.rbegin(); it != sequence.rend(); ++it) {
+        undo_move(*it);
+        const Value ancestor_score = evaluate();
+        const auto ancestor = accumulator_of(current_state());
+        networks().feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+        if (ancestor_score != evaluate()
+            || std::memcmp(ancestor.accumulation, accumulator_of(current_state()).accumulation,
+                           sizeof(ancestor.accumulation)) != 0) {
+          std::cout << "test_accumulator FAILED backward update" << std::endl;
+          return;
+        }
+      }
+      if (evaluate() != root_score) {
+        std::cout << "test_accumulator FAILED delayed undo" << std::endl;
+        return;
+      }
+    }
+#endif
     for (int ply = 0; ply < max_ply; ++ply) {
       MoveList<LEGAL_ALL> legal(pos);
       if (legal.size() == 0) break;
       const Move move = legal.begin()[prng.rand(legal.size())];
-      const auto parent = pos.state()->accumulator;
-      pos.do_move(move, states[ply]);
-      const auto& dirty = pos.state()->dirtyPiece;
+      const auto parent = accumulator_of(current_state());
+      do_move(move, states[ply]);
+      const auto& dirty = current_state()->dirtyPiece;
       if (dirty.pieceNo[0] >= PIECE_NUMBER_KING) ++king_moves;
       for (int n = 0; n < dirty.dirty_num; ++n) {
         const int before = dirty.changed_piece[n].old_piece.fb;
@@ -55,48 +148,49 @@ void TestAccumulator(Position&, std::istream& stream) {
           }
         }
       }
-      Eval::evaluate_with_no_return(pos);
+      networks().feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE)
       // Check raw fc_0 outputs, including values hidden by FV_SCALE rounding.
       alignas(kCacheLineSize) TransformedFeatureType features[FeatureTransformer::kBufferSize];
-      networks().feature_transformer.Transform(pos, features, false);
+      networks().feature_transformer.Transform(pos, features, false, current_state());
       const auto& fc = networks().network[moves % kLayerStacks].fc_0;
       using Fc = std::remove_cv_t<std::remove_reference_t<decltype(fc)>>;
       alignas(kCacheLineSize) typename Fc::OutputBuffer separate, fused;
       fc.Propagate(features, separate);
       fc.template PropagateSfnn16FromAccumulator<kTransformedFeatureDimensions>(
-          pos.state()->accumulator.accumulation, pos.side_to_move(), fused);
+          accumulator_of(current_state()).accumulation, pos.side_to_move(), fused);
       if (std::memcmp(separate, fused, sizeof(typename Fc::OutputType) * Fc::kOutputDimensions) != 0) {
         std::cout << "test_accumulator FAILED fused fc_0 game " << game << " ply " << ply << std::endl;
         return;
       }
 #endif
-      const auto incremental = pos.state()->accumulator;
-      const Value score = Eval::evaluate(pos);
-      const Value cached_reference = Eval::compute_eval(pos);
+      const auto incremental = accumulator_of(current_state());
+      const Value score = evaluate();
+      networks().feature_transformer.EnsureAccumulator(pos, true, current_state());
+      const Value cached_reference = evaluate();
       if (score != cached_reference || std::memcmp(incremental.accumulation,
-          pos.state()->accumulator.accumulation, sizeof(incremental.accumulation)) != 0) {
+          accumulator_of(current_state()).accumulation, sizeof(incremental.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED cached refresh game " << game << " ply " << ply << std::endl;
         return;
       }
-      networks().feature_transformer.RefreshAccumulatorForTest(pos);
-      const Value reference = Eval::evaluate(pos);
+      networks().feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+      const Value reference = evaluate();
       if (score != reference || std::memcmp(incremental.accumulation,
-          pos.state()->accumulator.accumulation, sizeof(incremental.accumulation)) != 0) {
+          accumulator_of(current_state()).accumulation, sizeof(incremental.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED game " << game << " ply " << ply
                   << " sfen " << pos.sfen() << std::endl;
         return;
       }
       checksum = checksum * 6364136223846793005ULL + static_cast<std::uint64_t>(score);
-      pos.undo_move(move);
-      if (std::memcmp(parent.accumulation, pos.state()->accumulator.accumulation,
+      undo_move(move);
+      if (std::memcmp(parent.accumulation, accumulator_of(current_state()).accumulation,
                       sizeof(parent.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED undo" << std::endl;
         return;
       }
-      pos.do_move(move, states[ply]);
-      Eval::evaluate_with_no_return(pos);
-      if (std::memcmp(incremental.accumulation, pos.state()->accumulator.accumulation,
+      do_move(move, states[ply]);
+      networks().feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
+      if (std::memcmp(incremental.accumulation, accumulator_of(current_state()).accumulation,
                       sizeof(incremental.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED redo" << std::endl;
         return;
@@ -148,12 +242,12 @@ void TestFeatures(Position&) {
     }
     return index_sets;
   };
-  auto update_index_sets = [&](const Position& pos, auto* index_sets) {
+  auto update_index_sets = [&](const Position& pos, const Eval::DirtyPiece& dirty, auto* index_sets) {
     for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
       Features::IndexList removed_indices[2], added_indices[2];
       bool reset[2];
       RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i],
-                                        removed_indices, added_indices, reset);
+                                        removed_indices, added_indices, reset, dirty);
       for (const auto perspective : COLOR) {
         if (reset[perspective]) {
           (*index_sets)[i][perspective].clear();
@@ -197,10 +291,16 @@ void TestFeatures(Position&) {
 
       // 生成された指し手のなかからランダムに選び、その指し手で局面を進める。
       Move m = mg.begin()[prng.rand(mg.size())];
+#if defined(EVAL_SFNN)
+      Dirties dirties;
+      pos.do_move(m, state[ply], pos.gives_check(m), dirties);
+      const auto& dirty = dirties.dirtyPiece;
+#else
       pos.do_move(m, state[ply]);
-
+      const auto& dirty = pos.state()->dirtyPiece;
+#endif
       ++num_moves;
-      update_index_sets(pos, &index_sets);
+      update_index_sets(pos, dirty, &index_sets);
       ASSERT(index_sets == make_index_sets(pos));
     }
 
@@ -292,4 +392,4 @@ void TestCommand(Position& pos, std::istream& stream) {
 } // namespace Eval::NNUE
 } // namespace YaneuraOu
 
-#endif  // defined(ENABLE_TEST_CMD) && defined(EVAL_NNUE)
+#endif  // defined(ENABLE_TEST_CMD) && (defined(EVAL_NNUE) || defined(EVAL_SFNN))

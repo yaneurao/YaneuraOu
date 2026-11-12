@@ -7,15 +7,16 @@
 #include "../../config.h"
 #include "../../extra/tools.h"
 
-#if defined(EVAL_NNUE)
+#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
-#if defined(SFNNwoPSQT)
+#if defined(EVAL_SFNN)
 #define USE_ELEMENT_WISE_MULTIPLY
 #endif
 
 #include "../../types.h"
 #include "nnue_common.h"
 #include "nnue_architecture.h"
+#include "nnue_accumulator.h"
 #include "features/index_list.h"
 
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
@@ -27,7 +28,7 @@
 #include <cstring>  // std::memset()
 
 // Lossless packed FT weights; keep unsupported builds on the original path.
-#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(SFNNwoPSQT)
+#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN)
 #define NNUE_FT_PACKED8
 #include <vector>
 #endif
@@ -39,6 +40,36 @@
 
 namespace YaneuraOu {
 namespace Eval::NNUE {
+
+inline AccumulatorState* resolve_state([[maybe_unused]] const Position& pos,
+                                       AccumulatorState* state) {
+#if defined(EVAL_NNUE)
+    return state ? state : pos.state();
+#else
+    assert(state);
+    return state;
+#endif
+}
+
+inline Accumulator& accumulator_of(AccumulatorState* state) {
+#if defined(EVAL_SFNN)
+    return *state;
+#else
+    return state->accumulator;
+#endif
+}
+inline const Accumulator& accumulator_of(const AccumulatorState* state) {
+#if defined(EVAL_SFNN)
+    return *state;
+#else
+    return state->accumulator;
+#endif
+}
+inline void invalidate_score([[maybe_unused]] Accumulator& accumulator) {
+#if defined(EVAL_NNUE)
+    accumulator.computed_score = false;
+#endif
+}
 
 // If vector instructions are enabled, we update and refresh the
 // accumulator tile by tile such that each tile fits in the CPU's
@@ -183,8 +214,8 @@ class FeatureTransformer {
 	// Hash value embedded in the evaluation file
 	// 評価関数ファイルに埋め込むハッシュ値
 	static constexpr u32 GetHashValue() {
-#if defined(SFNNwoPSQT)
-		// 学習部と整合性とるの面倒なのでSFNNwoPSQTのときはこれに固定しておく。
+#if defined(EVAL_SFNN)
+		// 学習部と整合性とるの面倒なのでSFNNのときはこれに固定しておく。
 		return 0x5f134ab8u;
 #else
 		return RawFeatures::kHashValue ^ kOutputDimensions;
@@ -256,26 +287,27 @@ class FeatureTransformer {
 
 	// Proceed with the difference calculation if possible
 	// 可能なら差分計算を進める
-	bool UpdateAccumulatorIfPossible(const Position& pos) const {
-		const auto now = pos.state();
-		if (now->accumulator.computed_accumulation) {
+	bool UpdateAccumulatorIfPossible(const Position& pos, AccumulatorState* state) const {
+        state = resolve_state(pos, state);
+		const auto now = state;
+		if (accumulator_of(now).computed_accumulation) {
 			return true;
 		}
 		const auto prev = now->previous;
-		if (prev && prev->accumulator.computed_accumulation) {
+		if (prev && accumulator_of(prev).computed_accumulation) {
 #if defined(NNUE_FT_PACKED8)
-			if (sparse8_enabled_) update_accumulator<true>(pos);
+			if (sparse8_enabled_) update_accumulator<true>(pos, state);
 			else
 #endif
-				update_accumulator<false>(pos);
+				update_accumulator<false>(pos, state);
 			return true;
 		}
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
         if constexpr (kUseMultiPly) {
 #if defined(NNUE_FT_PACKED8)
-            if (sparse8_enabled_) return update_from_computed_ancestor<true>(pos);
+            if (sparse8_enabled_) return update_from_computed_ancestor<true>(pos, state);
 #endif
-            return update_from_computed_ancestor<false>(pos);
+            return update_from_computed_ancestor<false>(pos, state);
         }
 #endif
         return false;
@@ -285,8 +317,9 @@ class FeatureTransformer {
     // Merge changes directly from a computed ancestor, skipping intermediate FT states.
     // 計算済み祖先からの変化をまとめ、中間局面のFT計算を省略する。
     template<bool Packed>
-    bool update_from_computed_ancestor(const Position& pos) const {
-        const auto* ancestor = pos.state();
+    bool update_from_computed_ancestor(const Position& pos, AccumulatorState* state) const {
+        state = resolve_state(pos, state);
+        const auto* ancestor = state;
         std::array<BonaPiece, PIECE_NUMBER_NB> old_pieces[2];
         std::array<bool, PIECE_NUMBER_NB> changed{};
         const BonaPiece* current_pieces[2] = {
@@ -294,8 +327,10 @@ class FeatureTransformer {
         for (int c = 0; c < COLOR_NB; ++c)
             std::copy_n(current_pieces[c], PIECE_NUMBER_NB, old_pieces[c].begin());
 
+        // Count state links; SFNN stores no additional state for null moves.
+        // 前状態へのリンク数で数える。SFNNではnull move用の状態を積まない。
         int distance = 0;
-        while (ancestor && !ancestor->accumulator.computed_accumulation
+        while (ancestor && !accumulator_of(ancestor).computed_accumulation
                && distance < USE_LAZY_EVALUATE) {
             if (!ancestor->previous)
                 return false;
@@ -310,13 +345,14 @@ class FeatureTransformer {
                 for (int c = 0; c < COLOR_NB; ++c)
                     old_pieces[c][piece] = dirty.changed_piece[n].old_piece.from[c];
             }
-            ancestor = ancestor->previous;
             ++distance;
+            ancestor = ancestor->previous;
         }
-        if (!ancestor || !ancestor->accumulator.computed_accumulation)
+        if (!ancestor || !accumulator_of(ancestor).computed_accumulation
+            || distance > USE_LAZY_EVALUATE)
             return false;
 
-        auto& accumulator = pos.state()->accumulator;
+        auto& accumulator = accumulator_of(state);
         for (int c = 0; c < COLOR_NB; ++c) {
             const auto king_piece = current_pieces[c][PIECE_NUMBER_KING + c];
             const Square king = static_cast<Square>((king_piece - f_king) % SQ_NB);
@@ -330,14 +366,14 @@ class FeatureTransformer {
                   king, current_pieces[c][piece]));
             }
 #if defined(VECTOR)
-            update_accumulator_tiled<Packed>(ancestor->accumulator.accumulation[c][0],
+            update_accumulator_tiled<Packed>(accumulator_of(ancestor).accumulation[c][0],
               accumulator.accumulation[c][0], [&](vec_t* acc, IndexType offset) {
                   for (auto index : removed) sub_weight_from_tile<Packed>(acc, index, offset);
                   for (auto index : added) add_weight_to_tile<Packed>(acc, index, offset);
               });
 #else
             auto* destination = accumulator.accumulation[c][0];
-            std::copy_n(ancestor->accumulator.accumulation[c][0], kHalfDimensions, destination);
+            std::copy_n(accumulator_of(ancestor).accumulation[c][0], kHalfDimensions, destination);
             for (auto index : removed)
                 for (IndexType j = 0; j < kHalfDimensions; ++j)
                     destination[j] -= weights_[kHalfDimensions * index + j];
@@ -347,26 +383,86 @@ class FeatureTransformer {
 #endif
         }
         accumulator.computed_accumulation = true;
-        accumulator.computed_score = false;
+        invalidate_score(accumulator);
         return true;
     }
 #endif
 
-    void EnsureAccumulator(const Position& pos, bool refresh) const {
-		if (refresh || !UpdateAccumulatorIfPossible(pos)) {
+#if defined(EVAL_SFNN) && defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+    // A refreshed child can also supply uncomputed parent accumulators.
+    // 全計算した子局面から逆向きに差分更新し、未計算の親局面も準備する。
+    template<bool Packed>
+    void backward_update_incremental(const Position& pos, AccumulatorState* state) const {
+        int distance = 0;
+        while (state->previous && !state->previous->computed_accumulation) {
+            auto* parent = state->previous;
+            ++distance;
+            if (distance > USE_LAZY_EVALUATE)
+                break;
+            const auto& dirty = state->dirtyPiece;
+            bool kingMoved = false;
+            for (int n = 0; n < dirty.dirty_num; ++n)
+                kingMoved |= dirty.pieceNo[n] >= PIECE_NUMBER_KING;
+            if (kingMoved)
+                break;
+
+            // Until a king moves, all these states use the current feature coordinates.
+            // 玉が動く手の直前まで、各フレームは現在と同じ特徴量の座標系を使える。
+            Features::IndexList removed[2], added[2];
+            bool reset[2]{};
+            RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[0], removed, added,
+                                              reset, dirty);
+            for (const Color perspective : COLOR) {
+                assert(!reset[perspective]);
+                const auto* source = state->accumulation[perspective][0];
+                auto* target = parent->accumulation[perspective][0];
+#if defined(VECTOR)
+                update_accumulator_tiled<Packed>(source, target, [&](vec_t* acc, IndexType offset) {
+                    for (auto index : added[perspective]) sub_weight_from_tile<Packed>(acc, index, offset);
+                    for (auto index : removed[perspective]) add_weight_to_tile<Packed>(acc, index, offset);
+                });
+#else
+                std::copy_n(source, kHalfDimensions, target);
+                for (auto index : added[perspective])
+                    for (IndexType j = 0; j < kHalfDimensions; ++j)
+                        target[j] -= weights_[kHalfDimensions * index + j];
+                for (auto index : removed[perspective])
+                    for (IndexType j = 0; j < kHalfDimensions; ++j)
+                        target[j] += weights_[kHalfDimensions * index + j];
+#endif
+            }
+            parent->computed_accumulation = true;
+            state = parent;
+        }
+    }
+#endif
+
+    void EnsureAccumulator(const Position& pos, bool refresh, AccumulatorState* state) const {
+        state = resolve_state(pos, state);
+		if (refresh || !UpdateAccumulatorIfPossible(pos, state)) {
 #if defined(NNUE_FT_PACKED8)
-			if (sparse8_enabled_) refresh_accumulator<true>(pos);
+			if (sparse8_enabled_) refresh_accumulator<true>(pos, state);
 			else
 #endif
-				refresh_accumulator<false>(pos);
+				refresh_accumulator<false>(pos, state);
+#if defined(EVAL_SFNN) && defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+            if constexpr (kUseMultiPly) {
+#if defined(NNUE_FT_PACKED8)
+                if (sparse8_enabled_) backward_update_incremental<true>(pos, state);
+                else
+#endif
+                    backward_update_incremental<false>(pos, state);
+            }
+#endif
 		}
 	}
 
 #if defined(ENABLE_TEST_CMD)
 	// Independent reference for checking both incremental updates and Finny.
 	// Deliberately bypass all cached accumulators.
-	void RefreshAccumulatorForTest(const Position& pos) const {
-		auto& accumulator = pos.state()->accumulator;
+	void RefreshAccumulatorForTest(const Position& pos, AccumulatorState* state) const {
+        state = resolve_state(pos, state);
+		auto& accumulator = accumulator_of(state);
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList active_indices[2];
 			RawFeatures::AppendActiveIndices(pos, kRefreshTriggers[i], active_indices);
@@ -381,15 +477,16 @@ class FeatureTransformer {
 			}
 		}
 		accumulator.computed_accumulation = true;
-		accumulator.computed_score = false;
+		invalidate_score(accumulator);
 	}
 #endif
 
 	// Convert input features
 	// 入力特徴量を変換する
-	void Transform(const Position& pos, OutputType* output, bool refresh) const {
-		EnsureAccumulator(pos, refresh);
-		const auto& accumulation = pos.state()->accumulator.accumulation;
+	void Transform(const Position& pos, OutputType* output, bool refresh, AccumulatorState* state) const {
+        state = resolve_state(pos, state);
+		EnsureAccumulator(pos, refresh, state);
+		const auto& accumulation = accumulator_of(state).accumulation;
 
 #if defined(USE_ELEMENT_WISE_MULTIPLY)
 
@@ -1129,10 +1226,11 @@ class FeatureTransformer {
 	}
 
 	template <bool Packed = false>
-	void refresh_accumulator_with_finny_cache(const Position& pos) const {
+	void refresh_accumulator_with_finny_cache(const Position& pos, AccumulatorState* state) const {
+        state = resolve_state(pos, state);
 		auto& cache = finny_cache();
 
-		auto& accumulator = pos.state()->accumulator;
+		auto& accumulator = accumulator_of(state);
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList active_indices[2];
 			const auto trigger = kRefreshTriggers[i];
@@ -1148,22 +1246,23 @@ class FeatureTransformer {
 		}
 
 		accumulator.computed_accumulation = true;
-		accumulator.computed_score = false;
+		invalidate_score(accumulator);
 	}
 #endif
 
 	// Calculate cumulative value without using difference calculation
 	// 差分計算を用いずに累積値を計算する
 	template <bool Packed = false>
-	void refresh_accumulator(const Position& pos) const {
+	void refresh_accumulator(const Position& pos, AccumulatorState* state) const {
+        state = resolve_state(pos, state);
 #if defined(USE_FINNY_TABLES)
 		if constexpr (kUseFinnyTables) {
-			refresh_accumulator_with_finny_cache<Packed>(pos);
+			refresh_accumulator_with_finny_cache<Packed>(pos, state);
 			return;
 		}
 #endif
 
-		auto& accumulator = pos.state()->accumulator;
+		auto& accumulator = accumulator_of(state);
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList active_indices[2];
 			RawFeatures::AppendActiveIndices(pos, kRefreshTriggers[i], active_indices);
@@ -1181,19 +1280,20 @@ class FeatureTransformer {
 
 		accumulator.computed_accumulation = true;
 		// Stockfishでは fc27d15(2020-09-07) にcomputed_scoreが排除されているので確認
-		accumulator.computed_score = false;
+		invalidate_score(accumulator);
 	}
 
 	// Calculate cumulative value using difference calculation
 	// 差分計算を用いて累積値を計算する
 	template <bool Packed = false>
-	void update_accumulator(const Position& pos) const {
-		const auto& prev_accumulator = pos.state()->previous->accumulator;
-		auto&      accumulator      = pos.state()->accumulator;
+	void update_accumulator(const Position& pos, AccumulatorState* state) const {
+        state = resolve_state(pos, state);
+		const auto& prev_accumulator = accumulator_of(state->previous);
+		auto&      accumulator      = accumulator_of(state);
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList removed_indices[2], added_indices[2];
-			bool                reset[2];
-			RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset);
+			bool                reset[2]{};
+			RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset, state->dirtyPiece);
 #if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
 			if constexpr (Packed) {
 				for (int c = 0; c < COLOR_NB; ++c) {
@@ -1296,7 +1396,7 @@ class FeatureTransformer {
 
 		accumulator.computed_accumulation = true;
 		// Stockfishでは fc27d15(2020-09-07) にcomputed_scoreが排除されているので確認
-		accumulator.computed_score = false;
+		invalidate_score(accumulator);
 	}
 
 	// parameter type
@@ -1319,7 +1419,7 @@ class FeatureTransformer {
 } // namespace Eval::NNUE
 } // namespace YaneuraOu
 
-#endif  // defined(EVAL_NNUE)
+#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #if defined(NNUE_FT_PACKED8)
 #undef NNUE_FT_PACKED8

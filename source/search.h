@@ -623,7 +623,7 @@ protected:
 	// 置換表
     TranspositionTable& tt;
 
-#if defined(EVAL_SFNN)
+#if STOCKFISH
 	// TODO : あとで検討する
 
 	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
