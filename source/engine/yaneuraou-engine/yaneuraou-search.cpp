@@ -2018,7 +2018,20 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             double reduction =
               (1.455 + mainThread->previousTimeReduction) / (2.2375 * timeReduction);
             double bestMoveInstability = 1.04 + 1.8956 * totBestMoveChanges / threads.size();
-			double highBestMoveEffort  = completedDepth >= 10 && nodesEffort >= 92425 ? 0.666 : 1.0;
+            // Transition smoothly as more effort is concentrated on the best move.
+            // 最善手へ探索が集中するにつれて、時間補正を滑らかに変化させる。
+            // A positive span keeps independently tuned endpoints from crossing.
+            // 開始点と正の幅で指定し、SPSAで調整しても補間の両端が逆転しないようにする。
+            const int effortStart = 78000;
+            const int effortSpan = 16000;
+            const int effortMinimumQ10 = 682;
+            const int effortMinDepth = 10;
+            const double effortMinimum = std::clamp(effortMinimumQ10, 0, 1024) / 1024.0;
+            double highBestMoveEffort = completedDepth >= effortMinDepth
+              ? std::clamp(interpolate(i64(nodesEffort), i64(effortStart),
+                                       i64(effortStart) + std::max(effortSpan, 1), 1.0, effortMinimum),
+                           effortMinimum, 1.0)
+              : 1.0;
 
             double totalTime = mainThread->tm.optimum() * fallingEval * reduction
                              * bestMoveInstability * highBestMoveEffort;
