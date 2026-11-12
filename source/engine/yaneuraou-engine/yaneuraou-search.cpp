@@ -3059,33 +3059,6 @@ Value Search::YaneuraOuWorker::search(
 		unadjustedStaticEval = ttData.eval;
         if (!is_valid(unadjustedStaticEval))
             unadjustedStaticEval = evaluate(pos);
-
-#if !STOCKFISH
-#if defined(YANEURAOU_ENGINE_NNUE)
-#if defined(USE_LAZY_EVALUATE)
-        // 🌈 これ書かないとR70ぐらい弱くなる。
-        else if (PvNode)
-        {
-			unadjustedStaticEval = evaluate(pos);
-
-			/*
-				 🤔 : ここでevaluate() が必須な理由がよくわからない。
-				       Stockfishには無いのに…。なぜなのか…。
-
-				lazy_evaluate()に変える                        ⇨ 弱い(V8.38dev-n7)
-				unadjustedStaticEvalに代入せずに単にevaluate() ⇨ 特に弱くはなさそう(V838dev_n8)
-				結論的には、NNUEのevaluate_with_no_return()とevaluate()の挙動が違うのが原因っぽい。
-				これはあきませんわ…。
-			*/
-        }
-#else
-        // lazy evalを使わないなら、この時点でどうにかしておく。
-        else
-			unadjustedStaticEval = evaluate(pos);
-#endif
-#endif
-#endif
-
         ss->staticEval = eval = to_corrected_static_eval(unadjustedStaticEval, correctionValue);
 
         // ttValue can be used as a better position evaluation
