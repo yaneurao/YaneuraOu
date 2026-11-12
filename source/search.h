@@ -4,7 +4,7 @@
 #include <algorithm>
 //#include <cstdint>
 #include <cstring>
-//#include <vector>
+#include <vector>
 
 #include "config.h"
 
@@ -46,6 +46,12 @@ namespace Search {
 //  探索のときに使うPV
 // -----------------------
 
+// syzygy_extend_pv() may lead to PVs longer than MAX_PLY
+// ルートのPVはテーブルベースによる延長でMAX_PLYを超えることがある。
+struct RootPVMoves : public std::vector<Move> {
+    RootPVMoves() { reserve(MAX_PLY); }
+};
+
 struct PVMoves {
     Move        moves[MAX_PLY + 1];
     usize length = 0;
@@ -78,12 +84,16 @@ struct PVMoves {
         length = childPv ? childPv->length : 0;
 
         if (childPv)
-        {
             std::memcpy(moves + 1, childPv->moves, length * sizeof(Move));
-        }
 
         moves[0] = move;
         ++length;
+    }
+
+    PVMoves& operator=(const RootPVMoves& rhs) {
+        length = std::min(rhs.size(), usize(MAX_PLY));
+        std::memcpy(moves, rhs.data(), length * sizeof(Move));
+        return *this;
     }
 };
 
@@ -143,9 +153,6 @@ struct RootMove
 	// 次のiteration時の探索窓の範囲を決めるときに使う。
 	Value previousScore    = -VALUE_INFINITE;
 
-    // 前回の評価値が確定値であるか。MultiPVの途中停止時の復元に用いる。
-    bool previousScoreExact = false;
-
 	// aspiration searchの時に用いる。previousScoreの移動平均。
 	Value averageScore	   = -VALUE_INFINITE;
 
@@ -163,6 +170,9 @@ struct RootMove
 	// スコアが上界のみの未確定値であるか。
 	bool inexactUpper      = false;
 
+    // 前回の評価値が確定値であるか。MultiPVの途中停止時の復元に用いる。
+    bool previousScoreExact = false;
+
 	// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
 	int selDepth           = 0;
 
@@ -173,9 +183,9 @@ struct RootMove
 #endif
 
 	// この指し手で進めたときのpv
-	PVMoves pv;
+	RootPVMoves pv;
     // 前回の反復で得たPV。previousScoreと組にして保存する。
-    PVMoves previousPV;
+    RootPVMoves previousPV;
 };
 
 using RootMoves = std::vector<RootMove>;

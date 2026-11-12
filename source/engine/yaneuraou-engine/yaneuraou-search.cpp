@@ -1387,9 +1387,9 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     PVMoves pv;
 
     // 探索の安定性を評価するために前回のiteration時のbest PVを記録しておく。
-    PVMoves lastBestMovePV;
-    Depth   lastBestMoveDepth = 0;
-    Value   lastBestMoveScore = -VALUE_INFINITE;
+    RootPVMoves lastBestMovePV;
+    Depth       lastBestMoveDepth = 0;
+    Value       lastBestMoveScore = -VALUE_INFINITE;
 
     // alpha,beta         : aspiration searchの窓の範囲(alpha,beta)
     // delta              : apritation searchで窓を動かす大きさdelta
