@@ -28,10 +28,6 @@ class Option {
     // 値が変更された時に呼び出されるevent handlerの型。
     using OnChange = std::function<std::optional<std::string>(const Option&)>;
 
-#if !STOCKFISH
-    Option(const OptionsMap*);
-#endif
-
     Option(OnChange = nullptr);
 
     // bool
