@@ -2230,13 +2230,6 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     return uciPvSent;
 }
 
-#if !STOCKFISH
-void Search::YaneuraOuWorker::do_move(Position & pos, const Move move, StateInfo& st,
-                                        Stack* const ss) {
-    do_move(pos, move, st, pos.gives_check(move), pos.capture_stage(move), ss);
-}
-#endif
-
 void Search::YaneuraOuWorker::do_move(
   Position& pos, const Move move, StateInfo& st, const bool givesCheck,
   const bool capture, Stack* const ss) {
@@ -2607,16 +2600,6 @@ Value Search::YaneuraOuWorker::search(
         this->do_move(pos, move, st, givesCheck, capture, ss);
     };
 
-	// 🤔 同じ名前で呼び分けできないので、
-	//     こちらを名前を do_move_ にする。
-    auto do_move_ = [&](Position & pos, Move move, StateInfo& st, Stack* ss) {
-        if (!evaluated)
-        {
-            evaluated = true;
-            Eval::evaluate_with_no_return(pos);
-        }
-        this->do_move(pos, move, st, ss);
-    };
     auto do_null_move = [&](Position& pos, StateInfo& st, Stack* const ss) {
         if (!evaluated)
         {
@@ -2625,8 +2608,6 @@ Value Search::YaneuraOuWorker::search(
         }
         this->do_null_move(pos, st, ss);
     };
-#else
-    auto do_move_ = [&](Position& pos, Move move, StateInfo& st, Stack* ss) { this->do_move(pos, move, st, ss); };
 #endif
 #endif
 
@@ -3637,16 +3618,10 @@ tt_cutoff:
             if (move == excludedMove)
                 continue;
 
-            //assert(pos.capture_stage(move));
-            // ⚠ moveとして歩の成りも返ってくるが、これがcapture_stage()と一致するとは限らない。
-            //     MovePickerはprob cutの時に、
-            //    (GenerateAllLegalMovesオプションがオンであっても)歩の成らずは返してこないことを保証すべき。
+            capture = pos.capture_stage(move);
+            assert(capture);
 
-#if STOCKFISH
-            do_move(pos, move, st, ss);
-#else
-            do_move_(pos, move, st, ss);
-#endif
+            do_move(pos, move, st, pos.gives_check(move), capture, ss);
 
             // Perform a preliminary qsearch to verify that the move holds
             // この指し手がよさげであることを確認するための予備的なqsearch

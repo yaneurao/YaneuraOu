@@ -490,9 +490,8 @@ class YaneuraOuWorker: public Worker {
     // 📝 do_move()は、Worker::nodesをインクリメントする。
     //     do_null_move()は、nodesはインクリメントしない。
     // 💡 givesCheckはこの指し手moveで王手になるか。
-    //     これが事前にわかっているなら、do_move(move,st,givesCheck)を呼び出したほうが速い。
+    //     givesCheckとcapture_stage()の結果を呼び出し元から渡し、再計算を避ける。
 
-    void do_move(Position& pos, const Move move, StateInfo& st, Stack* const ss);
     void
     do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck,
             const bool capture, Stack* const ss);
