@@ -3037,11 +3037,7 @@ Value Search::YaneuraOuWorker::search(
     // Skip early pruning when in check
     // 王手がかかっているときは、early pruning(早期枝刈り)をスキップする
     if (ss->inCheck)
-    {
-		ss->staticEval = eval = (ss - 2)->staticEval;
-        improving             = false;
-        goto tt_cutoff;
-    }
+        ss->staticEval = eval = (ss - 2)->staticEval;
     else if (excludedMove)
         unadjustedStaticEval = eval = ss->staticEval;
     /*
@@ -3180,8 +3176,6 @@ Value Search::YaneuraOuWorker::search(
         depth++;
     if (priorReduction >= 2 && depth >= 2 && ss->staticEval + (ss - 1)->staticEval > 173)
         depth--;
-
-tt_cutoff:
 
     // Step 6. At non-PV nodes we check for an early TT cutoff. Note that we
     //         always check the validity of the TT value because of access races.
