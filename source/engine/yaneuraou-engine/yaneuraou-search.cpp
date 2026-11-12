@@ -61,6 +61,9 @@
 #include "../../book/book.h"
 #include "../../extra/tools.h"
 #include "../../mate/mate.h"
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+#include "../../eval/nnue/evaluate_nnue.h"
+#endif
 
 namespace YaneuraOu {
 
@@ -76,6 +79,17 @@ using namespace Eval;  // Eval::PieceValue
 //     https://github.com/yaneurao/YaneuraOu-ScriptCollection/tree/main/SPSA
 //                            %%TUNE_DECLARATION%%
 
+
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+YaneuraOuEngine::YaneuraOuEngine() : manager(updateContext) {
+    Eval::NNUE::set_network_numa_context(numaContext);
+}
+
+YaneuraOuEngine::~YaneuraOuEngine() {
+    wait_for_search_finished();
+    Eval::NNUE::release_network_numa_context(numaContext);
+}
+#endif
 
 // この構造体メンバーに対応するエンジンオプションを生やす
 void SearchOptions::add_options(OptionsMap& options) {
@@ -899,12 +913,16 @@ Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 #endif
 
 void Search::YaneuraOuWorker::ensure_network_replicated() {
-	// TODO : やねうら王側、これて要らんのか？
-	#if STOCKFISH
+#if STOCKFISH
     // Access once to force lazy initialization, avoiding initialization during search
     // 遅延初期化を一度だけ実行し、探索中に初期化が起きるのを避ける。
     (void) (network[numaAccessToken]);
-	#endif
+#elif defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+    // Options can resize threads before the first isready loads the weights.
+    // 初回isreadyで重みを読む前にも、オプション変更によってスレッドが作り直される。
+    if (Eval::NNUE::shared_networks)
+        (void) Eval::NNUE::networks(numaAccessToken);
+#endif
 }
 
 #if !STOCKFISH
@@ -5448,7 +5466,11 @@ Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
 #else
 
 #if defined(EVAL_SFNN)
+#if defined(ENABLE_NUMA_NETWORK_REPLICATION)
+    return Eval::evaluate(pos, accumulatorStack, numaAccessToken);
+#else
     return Eval::evaluate(pos, accumulatorStack);
+#endif
 
 #else
 	return Eval::evaluate(pos);

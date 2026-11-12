@@ -272,8 +272,28 @@ int Parameters::BucketIndex(const Position& pos, int bucket_count) const {
 } // namespace Progress
 #endif
 
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+    std::unique_ptr<LazyNumaReplicatedSystemWide<NnueNetworks>> shared_networks;
+    namespace {
+    NumaReplicationContext* network_numa_context = nullptr;
+    }
+
+    void set_network_numa_context(NumaReplicationContext& context) {
+        assert(!network_numa_context || network_numa_context == &context);
+        network_numa_context = &context;
+    }
+
+    void release_network_numa_context(NumaReplicationContext& context) {
+        if (network_numa_context != &context)
+            return;
+        shared_networks.reset();
+        network_numa_context = nullptr;
+        eval_loaded = false;
+    }
+#else
     // NNUE評価関数パラメーター（共有メモリまたはローカルメモリ上に配置）
     SystemWideSharedConstant<NnueNetworks> shared_networks;
+#endif
 
     // 評価関数ファイル名
     const char* const kFileName = EvalFileDefaultName;
@@ -330,7 +350,11 @@ namespace {
 	// 同じパラメータを持つ他プロセスが既に共有メモリを作成済みなら、そちらを参照する。
 	Tools::Result LoadAndShare(std::istream& stream, [[maybe_unused]] std::string* failed_file) {
 		// テンポラリ領域にパラメータを読み込む
-		auto tmp = make_unique_large_page<NnueNetworks>();
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+        auto tmp = std::make_unique<NnueNetworks>();
+#else
+        auto tmp = make_unique_large_page<NnueNetworks>();
+#endif
 
 		u32 hash_value;
 		std::string architecture;
@@ -390,7 +414,13 @@ namespace {
 			return Tools::ResultCode::FileCloseError;
 
 		// 共有メモリに配置（同一ハッシュの共有メモリが既に存在すればそちらを参照）
-		shared_networks = SystemWideSharedConstant<NnueNetworks>(*tmp);
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+        assert(network_numa_context);
+        shared_networks = std::make_unique<LazyNumaReplicatedSystemWide<NnueNetworks>>(
+          *network_numa_context, std::move(tmp));
+#else
+        shared_networks = SystemWideSharedConstant<NnueNetworks>(*tmp);
+#endif
 
 		return Tools::ResultCode::Ok;
 	}
@@ -714,15 +744,15 @@ namespace {
             + hand1024_single_bucket(pos.hand_of(~stm));
     }
 
-    static int progress_bucket(const Position& pos) {
+    static int progress_bucket(const Position& pos, [[maybe_unused]] const NnueNetworks& network) {
 #if NNUE_SFNN_PROGRESS_BUCKETS == 1
         return 0;
 #else
-        return networks().progress.BucketIndex(pos, NNUE_SFNN_PROGRESS_BUCKETS);
+        return network.progress.BucketIndex(pos, NNUE_SFNN_PROGRESS_BUCKETS);
 #endif
     }
 
-    static int stack_index_for_nnue(const Position& pos) {
+    static int stack_index_for_nnue(const Position& pos, [[maybe_unused]] const NnueNetworks& network) {
 #if NNUE_SFNN_HAND_BUCKETS == 1 && NNUE_SFNN_KING_BUCKETS == 9 && NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K3K3 && NNUE_SFNN_PROGRESS_BUCKETS == 1
         return king3_by_king3_bucket(pos);
 #else
@@ -757,7 +787,7 @@ namespace {
 #endif
 
 #if NNUE_SFNN_PROGRESS_BUCKETS != 1
-        idx = idx * NNUE_SFNN_PROGRESS_BUCKETS + progress_bucket(pos);
+        idx = idx * NNUE_SFNN_PROGRESS_BUCKETS + progress_bucket(pos, network);
 #endif
 
         if (idx < 0) idx = 0;
@@ -768,7 +798,8 @@ namespace {
 #endif
 
     // 評価値を計算する
-    static Value ComputeScore(const Position& pos, AccumulatorState* state, bool refresh = false) {
+    static Value ComputeScore(const Position& pos, AccumulatorState* state, bool refresh = false,
+                              const NnueNetworks& network = networks()) {
         auto& accumulator = accumulator_of(state);
 #if defined(EVAL_NNUE)
         if (!refresh && accumulator.computed_score) {
@@ -778,22 +809,22 @@ namespace {
 
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 #if defined(EVAL_SFNN)
-        const auto bucket = stack_index_for_nnue(pos);
+        const auto bucket = stack_index_for_nnue(pos, network);
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
-        networks().feature_transformer.EnsureAccumulator(pos, refresh, state);
-        const auto output = networks().network[bucket].PropagateFromAccumulator(
+        network.feature_transformer.EnsureAccumulator(pos, refresh, state);
+        const auto output = network.network[bucket].PropagateFromAccumulator(
             accumulator.accumulation, pos.side_to_move(), buffer);
 #else
         alignas(kCacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
-        networks().feature_transformer.Transform(pos, transformed_features, refresh, state);
-        const auto output = networks().network[bucket].Propagate(transformed_features, buffer);
+        network.feature_transformer.Transform(pos, transformed_features, refresh, state);
+        const auto output = network.network[bucket].Propagate(transformed_features, buffer);
 #endif
 #else
         alignas(kCacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
-        networks().feature_transformer.Transform(pos, transformed_features, refresh, state);
-        const auto output = networks().network[0].Propagate(transformed_features, buffer);
+        network.feature_transformer.Transform(pos, transformed_features, refresh, state);
+        const auto output = network.network[0].Propagate(transformed_features, buffer);
 #endif
 
         // VALUE_MAX_EVALより大きな値が返ってくるとaspiration searchがfail highして
@@ -1016,6 +1047,11 @@ Value evaluate(const Position& pos) {
 Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack) {
     return NNUE::ComputeScore(pos, &stack.latest());
 }
+#if defined(ENABLE_NUMA_NETWORK_REPLICATION)
+Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack, NumaReplicatedAccessToken token) {
+    return NNUE::ComputeScore(pos, &stack.latest(), false, NNUE::networks(token));
+}
+#endif
 #endif
 
 // 差分計算ができるなら進める

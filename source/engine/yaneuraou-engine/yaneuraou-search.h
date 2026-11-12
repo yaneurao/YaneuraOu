@@ -336,8 +336,13 @@ class YaneuraOuEngine: public Engine {
     using InfoIter  = Search::InfoIteration;
 #endif
 
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+    YaneuraOuEngine();
+    ~YaneuraOuEngine() override;
+#else
     YaneuraOuEngine(/* std::optional<std::string> path = std::nullopt */) :
         manager(updateContext) {}
+#endif
 
     // 📝 やねうら王では、CommandLine::gから取得できるので使わない。
     // const std::string binaryDirectory;

@@ -20,6 +20,9 @@
 
 namespace YaneuraOu {
 struct StateInfo;
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+class NumaReplicatedAccessToken;
+#endif
 
 namespace Eval {
 
@@ -56,6 +59,9 @@ namespace Eval {
 #if defined(EVAL_SFNN)
     namespace NNUE { class AccumulatorStack; }
     Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack);
+#if defined(ENABLE_NUMA_NETWORK_REPLICATION)
+    Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack, NumaReplicatedAccessToken token);
+#endif
 #endif
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
