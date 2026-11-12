@@ -1671,7 +1671,7 @@ class NumaReplicated: public NumaReplicatedBase {
 
 
 		実際の使い方。
-				const LazyNumaReplicated<Eval::Evaluator>& networks;
+				const LazyNumaReplicated<Eval::Evaluator>& network;
 		のように評価関数をLazyNumaReplicatedでくるむ。
 
 		以下のようなコードで、実際にnumaにアクセスする。まだ複製が完了していないnumaであれば、
@@ -1680,7 +1680,7 @@ class NumaReplicated: public NumaReplicatedBase {
 			void Search::Worker::ensure_network_replicated() {
 				// Access once to force lazy initialization.
 				// We do this because we want to avoid initialization during search.
-				(void) (networks[numaAccessToken]);
+				(void) (network[numaAccessToken]);
 			}
 
 */

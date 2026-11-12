@@ -159,6 +159,7 @@ class SearchManager {
     using UpdateFull     = std::function<void(const InfoFull&)>;
     using UpdateIter     = std::function<void(const InfoIteration&)>;
     using UpdateBestmove = std::function<void(std::string_view, std::string_view)>;
+    using UpdateStart    = std::function<void()>;
 
     // PVを設定した時に出力するためのlistener
     struct UpdateContext {
@@ -166,6 +167,7 @@ class SearchManager {
         UpdateFull     onUpdateFull;
         UpdateIter     onIter;
         UpdateBestmove onBestmove;
+        UpdateStart    onStart;
     };
 #endif
 
@@ -357,7 +359,7 @@ class YaneuraOuEngine: public Engine {
     // TranspositionTable tt;
 
     // TODO : あとで
-    //LazyNumaReplicatedSystemWide<Eval::NNUE::Networks> networks;
+    //LazyNumaReplicatedSystemWide<Eval::NNUE::Network> network;
 
     // Search::UpdateContext updateContext;
 
@@ -527,7 +529,8 @@ class YaneuraOuWorker: public Worker {
 #if STOCKFISH
     SearchManager* main_manager() const {
         assert(threadIdx == 0);
-        return static_cast<SearchManager*>(manager.get());
+        assert(manager.get() != nullptr);
+        return manager.get();
     }
 #else
     // 💡 Stockfishとの互換性のために用意。
@@ -539,7 +542,6 @@ class YaneuraOuWorker: public Worker {
 	//     このclassがelapsed()を持っているのでそちらを用いる。
 #if STOCKFISH
     TimePoint elapsed() const;
-    TimePoint elapsed_time() const;
 #endif
 
 	// 評価関数
@@ -598,7 +600,7 @@ class YaneuraOuWorker: public Worker {
 
     // The main thread has a SearchManager, the others have a nullptr
     // メインスレッドはSearchManagerを持ち、他のスレッドはnullptrを持つ。
-    std::unique_ptr<ISearchManager> manager;
+    std::unique_ptr<SearchManager> manager;
 
     // 📝 tablebaseは将棋では使わない。
     Tablebases::Config tbConfig;
@@ -607,7 +609,7 @@ class YaneuraOuWorker: public Worker {
     ThreadPool&                                     threads;
     TranspositionTable&                             tt;
 	// TODO : あとで考える。
-    //const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
+    //const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
 
 #endif
 
@@ -625,7 +627,7 @@ class YaneuraOuWorker: public Worker {
 	// TODO : あとでよく考える。
 
 	// NNUE評価関数のパラメーターがNumaごとにコピーされるようにする。
-	const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
+	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
 
 	// Used by NNUE
 	// NNUEで使う

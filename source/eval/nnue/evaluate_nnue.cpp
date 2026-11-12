@@ -158,15 +158,6 @@ namespace {
 		const unsigned int   size;
 	};
 
-	//EmbeddedNNUE get_embedded(EmbeddedNNUEType type) {
-	//	if (type == EmbeddedNNUEType::BIG)
-	//		return EmbeddedNNUE(gEmbeddedNNUEBigData, gEmbeddedNNUEBigEnd, gEmbeddedNNUEBigSize);
-	//	else
-	//		return EmbeddedNNUE(gEmbeddedNNUESmallData, gEmbeddedNNUESmallEnd, gEmbeddedNNUESmallSize);
-	//}
-
-	// ⇨  StockfishはNNUEとして大きなnetworkと小さなnetworkがある。
-
 	EmbeddedNNUE get_embedded() {
 #if defined(__EMSCRIPTEN__) && !defined(NNUE_EMBEDDING_OFF)
 		// embedded_nnue.cppは先頭ポインタとサイズしか提供しないので、終端はここで計算する。

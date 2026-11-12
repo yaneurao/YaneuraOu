@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
 #include <functional>
 #include <optional>
 #include <string>
@@ -203,23 +204,19 @@ public:
 	// ネットワーク(評価関数)関連
 
 	// ネットワークの読み込みができているか確認する。
-	// 読み込まれていなければload_networks()で読み込む。
+	// 読み込まれていなければload_network()で読み込む。
     virtual void verify_network() const {}
 
 	// TODO あとで考える。
 #if STOCKFISH
     // 評価関数の読み込み
-    void load_networks();
-
-	// Stockfishは大きいnetworkと小さいnetworkとがある。それぞれの読み込み。
-
-    void load_big_network(const std::string& file);
-    void load_small_network(const std::string& file);
+    std::unique_ptr<Eval::NNUE::Network> get_default_network();
+    void load_network(const std::filesystem::path& file);
 #endif
     // 評価関数パラメーターを保存する。
     // "export_net"コマンドに対して呼び出される。
 #if STOCKFISH
-    void         save_network(const std::pair<std::optional<std::string>, std::string> files[2]);
+    void         save_network(const std::optional<std::filesystem::path>& file);
 #else
     // 評価関数をファイルに保存する。
     virtual void save_network(const std::string& path) = 0;
@@ -296,7 +293,7 @@ public:
     OptionsMap                                         options;
     ThreadPool                                         threads;
     TranspositionTable                                 tt;
-    LazyNumaReplicatedSystemWide<Eval::NNUE::Networks> networks;
+    LazyNumaReplicatedSystemWide<Eval::NNUE::Network> network;
 
     Search::SearchManager::UpdateContext  updateContext;
     std::function<void(std::string_view)> onVerifyNetwork;
@@ -469,7 +466,7 @@ class Engine: public IEngine {
 	//     置換表を実際に確保しないなら、使用メモリは無視できると思うのでこうしておく。
     TranspositionTable tt;
 
-    //LazyNumaReplicated<Eval::NNUE::Networks> networks;
+    //LazyNumaReplicated<Eval::NNUE::Network> network;
     // TODO : あとで検討する
 
     // 読み筋を出力するためのlistener

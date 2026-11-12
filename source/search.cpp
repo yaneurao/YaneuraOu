@@ -10,7 +10,7 @@ namespace YaneuraOu {
 
 Search::Worker::Worker(SharedState& sharedState,
 #if STOCKFISH
-                       std::unique_ptr<ISearchManager> sm,
+                       std::unique_ptr<SearchManager> sm,
                        usize                           threadId,
                        usize                           numaThreadId,
                        usize                           numaTotalThreads,
@@ -37,8 +37,8 @@ Search::Worker::Worker(SharedState& sharedState,
     numaAccessToken(ids.numaAccessToken),
 #endif
 	tt(sharedState.tt)
-    //networks(sharedState.networks),
-	//refreshTable(networks[token])
+    //network(sharedState.network),
+	//refreshTable(network[token])
 {
     //clear();
 
@@ -53,7 +53,7 @@ Search::Worker::Worker(SharedState& sharedState,
 void Search::Worker::ensure_network_replicated() {
     // Access once to force lazy initialization.
     // We do this because we want to avoid initialization during search.
-    (void) (networks[numaAccessToken]);
+    (void) (network[numaAccessToken]);
 }
 #endif
 

@@ -297,14 +297,17 @@ struct SharedState {
                 ThreadPool&                                               threadPool,
                 TranspositionTable&                                       transpositionTable,
                 std::map<NumaIndex, SharedHistories>&                     sharedHists
-				// TODO : あとで考える。
-				//,const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& nets
+#if STOCKFISH
+                , const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& net
+#endif
 	) :
         options(optionsMap),
         threads(threadPool),
         tt(transpositionTable),
         sharedHistories(sharedHists)
-        //, networks(nets)
+#if STOCKFISH
+        , network(net)
+#endif
 	{}
 
     const OptionsMap&                                         options;
@@ -312,7 +315,9 @@ struct SharedState {
     TranspositionTable&                                       tt;
     std::map<NumaIndex, SharedHistories>&                     sharedHistories;
 
-	//const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
+#if STOCKFISH
+	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
+#endif
 };
 
 /*
@@ -385,7 +390,7 @@ struct InfoIteration {
 
 // 📌 読み筋を出力する時に呼び出すlistener
 // 🤔 StockfishではSearchManagerで定義されているが、
-//     やねうら王ではSearchManagerを採用しないので、namespace Searchで定義しておく。
+//     やねうら王では各探索エンジンで共用するため、namespace Searchで定義しておく。
 // 📝 UpdateInfoは、"info string ..."にそのまま出力する。
 //    やねうら王独自拡張。
 
@@ -434,11 +439,11 @@ public:
 
 	Worker(SharedState& sharedState,
 #if STOCKFISH
-	,std::unique_ptr<ISearchManager> sm,
+	std::unique_ptr<SearchManager> sm,
 	usize threadIdx,
 	usize numaThreadIdx,
 	usize numaTotal,
-	NumaReplicatedAccessToken numaAccessToken)
+	NumaReplicatedAccessToken numaAccessToken
 #else
           // 🌈 上記の4つの引数を一纏めにした構造体
           const ThreadIds& ids
@@ -493,11 +498,11 @@ public:
     LowPlyHistory    lowPlyHistory;
 
     CapturePieceToHistory           captureHistory;
-    ContinuationHistory             continuationHistory[2][2];
     CorrectionHistory<Continuation> continuationCorrectionHistory;
 
     TTMoveHistory    ttMoveHistory;
     SharedHistories& sharedHistory;
+    ContinuationHistory (&continuationHistory)[2][2];
 #endif
 
 protected:
@@ -509,30 +514,34 @@ protected:
 #if STOCKFISH
     //bool iterative_deepening();
 
-	void do_move(Position& pos, const Move move, StateInfo& st);
-	void do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck);
-	void do_null_move(Position& pos, StateInfo& st);
+    void do_move(Position&    pos,
+                 const Move   move,
+                 StateInfo&   st,
+                 const bool   givesCheck,
+                 const bool   capture,
+                 Stack* const ss);
+    void do_null_move(Position& pos, StateInfo& st, Stack* const ss);
 	void undo_move(Position& pos, const Move move);
 	void undo_null_move(Position& pos);
 
     // This is the main search function, for both PV and non-PV nodes
     template<NodeType nodeType>
-    Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, bool cutNode);
+    Value search(Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, const bool cutNode);
 
     // Quiescence search function, which is called by the main search
     template<NodeType nodeType>
     Value qsearch(Position& pos, Stack* ss, Value alpha, Value beta);
 
-    Depth reduction(bool i, Depth d, int mn, int delta) const;
+    int reduction(bool i, Depth d, int mn) const;
 
     // Pointer to the search manager, only allowed to be called by the main thread
     SearchManager* main_manager() const {
         assert(threadIdx == 0);
-        return static_cast<SearchManager*>(manager.get());
+        assert(manager.get() != nullptr);
+        return manager.get();
     }
 
     TimePoint elapsed() const;
-    TimePoint elapsed_time() const;
 
     // Evaluate the current position of the game tree, from the point of view of
     // the side to move.
@@ -592,8 +601,8 @@ protected:
     NumaReplicatedAccessToken numaAccessToken;
 
 	// 📝 派生class側で
-    //// The main thread has a SearchManager, the others have a NullSearchManager
-    //std::unique_ptr<ISearchManager> manager;
+    //// The main thread has a SearchManager, the others have a nullptr
+    //std::unique_ptr<SearchManager> manager;
 
 	// 📝 tablebaseは将棋では使わない。
     //Tablebases::Config tbConfig;
@@ -612,7 +621,7 @@ protected:
 #if defined(EVAL_SFNN)
 	// TODO : あとで検討する
 
-	const LazyNumaReplicatedSystemWide<Eval::NNUE::Networks>& networks;
+	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
 
     // Used by NNUE
     Eval::NNUE::AccumulatorStack  accumulatorStack;

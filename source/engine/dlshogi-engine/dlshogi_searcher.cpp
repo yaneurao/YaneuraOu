@@ -92,7 +92,7 @@ void DlshogiSearcher::InitGPU(const std::string& model_path, const std::string& 
 	// 探索の終了条件を満たしたかを監視するためのスレッド数
 	const int search_interruption_check_thread_num = 1;
 
-    engine.threads.set(engine.numaContext.get_numa_config(), {engine.options, engine.threads, engine.tt, engine.sharedHists /*, networks*/ },
+    engine.threads.set(engine.numaContext.get_numa_config(), {engine.options, engine.threads, engine.tt, engine.sharedHists /*, network*/ },
 					engine.updateContext, total_thread_num + search_interruption_check_thread_num , worker_factory);
 
 	// このタイミングで確保しなおす。

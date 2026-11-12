@@ -122,7 +122,7 @@ class UserEngine : public Engine
             return LargePagePtr<Worker>(p.release());  // Worker* に upcast
         };
 
-        threads.set(numaContext.get_numa_config(), {options, threads, tt, sharedHists /*, networks*/ },
+        threads.set(numaContext.get_numa_config(), {options, threads, tt, sharedHists /*, network*/ },
 					updateContext, options["Threads"], worker_factory);
 
 		// 📌 NUMAの設定

@@ -53,7 +53,7 @@ public:
          に対してbinder() とやるとこのoperatorが呼び出されて、
 	     NumaReplicatedAccessTokenがもらえる。
 	 
-	     そのあと (void) (networks[numaAccessToken]); とやると
+	     そのあと (void) (network[numaAccessToken]); とやると
 	     (これは、Search::Worker::ensure_network_replicated()で行っている)
 	     適切なNUMAに割り当てられるようになっている。
 	 
