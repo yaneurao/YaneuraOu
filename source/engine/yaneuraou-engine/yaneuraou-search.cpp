@@ -5714,12 +5714,12 @@ void update_all_stats(const Position&          pos,
 		⇨　Stockfish 16で3手前も見るようになった。
 */
 void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
-    const std::array<ConthistBonus, 5> conthist_bonuses = {
+    static constexpr std::array<ConthistBonus, 5> conthist_bonuses = {
       {{1, 520}, {2, 390}, {3, 145}, {4, 251}, {6, 209}}};
 
     // Multipliers for positive history consistency
     // 正のcontinuation historyが続くほど更新量を増やす。
-    const int CMHCMultipliers[] = {94, 103, 110, 106, 119, 126};
+    constexpr int CMHCMultipliers[] = {94, 103, 110, 106, 119, 126};
     int positiveCount = 0;
 
     for (const auto [i, weight] : conthist_bonuses)
