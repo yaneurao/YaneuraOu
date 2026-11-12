@@ -656,7 +656,6 @@ constexpr u64 NODES_LIMIT_OUTPUT = 10'000'000;
 
 // 💡 あるnodeで生成した指し手にbonusを与えるために、そのnodeで生成した指し手を良い順に保存しておく配列のcapacity。
 constexpr int SEARCHEDLIST_CAPACITY = 32;
-constexpr int mainHistoryDefault    = 0;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
 
@@ -2027,9 +2026,9 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             // If the bestMove is stable over several iterations, reduce time accordingly
             // bestMove が複数回のイテレーションで安定している場合、それに応じて時間を短縮する
 
-            double k      = 0.5189;
-            double center = lastBestMoveDepth + 11.57;
-            timeReduction = 0.723 + 0.79 / (1.104 + std::exp(-k * (rootDepth - center)));
+            timeReduction = std::clamp(
+              interpolate(double(rootDepth - lastBestMoveDepth), 4.96, 18.79, 0.639, 1.712), 0.629,
+              1.544);
             double reduction =
               (1.455 + mainThread->previousTimeReduction) / (2.2375 * timeReduction);
 
@@ -2049,40 +2048,42 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             }
 
             double bestMoveInstability = 1.04 + 1.8956 * totBestMoveChanges / threads.size();
+#if STOCKFISH
+            double highBestMoveEffort = std::clamp(
+              interpolate(i64(nodesEffort), i64(75800), i64(104510), 0.969, 0.714), 0.693, 0.838);
+#else
             // Transition smoothly as more effort is concentrated on the best move.
             // 最善手へ探索が集中するにつれて、時間補正を滑らかに変化させる。
             // A positive span keeps independently tuned endpoints from crossing.
             // 開始点と正の幅で指定し、SPSAで調整しても補間の両端が逆転しないようにする。
-            const int effortStart = 78000;
-            const int effortSpan = 16000;
-            const int effortMinimumQ10 = 682;
-            const int effortMinDepth = 10;
+            const int effortStart = 75800;
+            const int effortSpan = 28710;
+            // The historical parameter name denotes the interpolation endpoint.
+            // 従来のパラメーター名を引き継ぐが、この値は補間終点の係数を表す。
+            const int effortMinimumQ10 = 731;
+            const int effortMinDepth = 0;
             const double effortMinimum = effortMinimumQ10 / 1024.0;
-#if STOCKFISH
-            double highBestMoveEffort = rootDepth >= effortMinDepth
-              ? std::clamp(interpolate(i64(nodesEffort), i64(effortStart),
-                                       i64(effortStart) + effortSpan, 1.0, effortMinimum),
-                           effortMinimum, 1.0)
-              : 1.0;
-#else
             double highBestMoveEffort = rootDepth >= 10 && nodesEffort >= 92425 ? 0.666 : 1.0;
             // 最善手への集中度による時間配分の補間を0/1で比較する。
             if (1)
                 highBestMoveEffort = rootDepth >= effortMinDepth
               ? std::clamp(interpolate(i64(nodesEffort), i64(effortStart),
-                                       i64(effortStart) + effortSpan, 1.0, effortMinimum),
-                           effortMinimum, 1.0)
+                                       i64(effortStart) + effortSpan, 0.969, effortMinimum),
+                           0.693, 0.838)
               : 1.0;
 #endif
 
             double totalTime = mainThread->tm.optimum() * fallingEval * reduction
                              * bestMoveInstability * highBestMoveEffort;
 
-            // Cap used time to 0.5s for a better viewer experience
-            // 観戦時の待ち時間を抑えるため、使用時間を0.5秒に制限する。
-
             if (rootMoves.size() == 1)
-                totalTime = std::min(502.0, totalTime);
+                // Cap used time to 0.5s for a better viewer experience
+                // 観戦時の待ち時間を抑えるため、使用時間を0.5秒に制限する。
+#if STOCKFISH
+                totalTime = std::min(500.0 * std::max(limits.npmsec, TimePoint(1)), totalTime);
+#else
+                totalTime = std::min(500.0, totalTime);
+#endif
 	            // 🤔 やねうら王ではここ0でも良いような…？
 
 #if STOCKFISH
@@ -2099,7 +2100,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             // やねうら王で実際に用いる停止条件は、以下の分岐と秒読み処理に従う。
 
 #if STOCKFISH
-            if (elapsedTime > std::min(totalTime, double(mainThread->tm.maximum())))
+            if (elapsedTime > std::min(totalTime, double(mainThread->tm.maximum()))
+                || rootMoves[multiPV - 1].score >= mate_in(3) || rootMoves[0].score == mated_in(2))
             {
                 // 停止条件を満たした
 
@@ -2279,8 +2281,7 @@ void Search::YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move
 // 履歴をリセットする。通常は新しいゲームの前に実行される。
 void Search::YaneuraOuWorker::clear() {
 
-	// TODO : あとで調整する。pawnHistory.fill(-1238@);も。
-	mainHistory.fill(mainHistoryDefault);
+    mainHistory.fill(-5);
     captureHistory.fill(-678);
 
     // Each thread clears its part of the dynamically-sized shared histories.
