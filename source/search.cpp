@@ -11,9 +11,9 @@ namespace YaneuraOu {
 Search::Worker::Worker(SharedState& sharedState,
 #if STOCKFISH
                        std::unique_ptr<ISearchManager> sm,
-                       size_t                          threadIdx,
-                       size_t                          numaThreadId,
-                       size_t                          numaTotalThreads,
+                       usize                           threadId,
+                       usize                           numaThreadId,
+                       usize                           numaTotalThreads,
                        NumaReplicatedAccessToken       token
 #else
                        const ThreadIds& ids
@@ -25,7 +25,7 @@ Search::Worker::Worker(SharedState& sharedState,
 	options(sharedState.options),
 	threads(sharedState.threads),
 #if STOCKFISH
-	threadIdx(threadIdx),
+	threadIdx(threadId),
     numaThreadIdx(numaThreadId),
     numaTotal(numaTotalThreads),
     numaAccessToken(token),

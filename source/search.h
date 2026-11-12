@@ -134,7 +134,7 @@ struct RootMove
 
 	// この指し手のためにどれだけのnodeを探索したか。
 	// 💡 反復深化がもう1回回りそうかの判定に用いる。
-    uint64_t effort        = 0;
+    u64 effort             = 0;
 
 	// 今回の(反復深化の)iterationでの探索結果のスコア
 	Value score			   = -VALUE_INFINITE;
@@ -249,7 +249,7 @@ struct LimitsType {
     // 今回のgoコマンドでの指定されていた"nodes"(探索ノード数)の値。
     // これは、USIプロトコルで規定されているものの将棋所では送ってこない。ShogiGUIはたぶん送ってくる。
     // goコマンドで"nodes"が指定されていない場合は、"エンジンオプションの"NodesLimit"の値。
-    uint64_t nodes;
+    u64 nodes;
 
     // "go"コマンドに"ponder"が付随していたかのフラグ。
     // 💡 ponder探索中であるかのフラグは、別途SearchManager::ponderが持っている。

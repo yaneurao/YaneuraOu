@@ -119,7 +119,7 @@ struct Skill {
     bool time_to_pick(Depth depth) const { return depth == 1 + int(level); }
 
     // 手加減が有効のときはMultiPV = 4で探索
-    Move pick_best(const RootMoves&, size_t multiPV);
+    Move pick_best(const RootMoves&, usize multiPV);
 
     double level;
     Move   best = Move::none();
@@ -135,7 +135,7 @@ struct Skill {
     // 常にfalseを返す。つまり、手加減の無効化。
     bool enabled() { return false; }
     bool time_to_pick(Depth) const { return true; }
-    Move pick_best(const RootMoves&, size_t multiPV) { return Move::none(); }
+    Move pick_best(const RootMoves&, usize multiPV) { return Move::none(); }
     Move best = Move::none();
 };
 
@@ -178,10 +178,10 @@ class SearchManager {
     // 現在のPV(読み筋)をUpdateContext::onUpdateFull()で登録する。
     // tt      : このスレッドに属する置換表
     // depth   : 反復深化のiteration深さ。
-    void pv(Search::YaneuraOuWorker&  worker,
-            const ThreadPool&         threads,
-            const TranspositionTable& tt,
-            Depth                     depth);
+    void output_pv(Search::YaneuraOuWorker&   worker,
+                   const ThreadPool&         threads,
+                   const TranspositionTable& tt,
+                   Depth                     depth);
 
     // 🌈 start_searching()より前にUI threadから
     //		Worker::pre_start_searching()が呼び出され、virtualなので派生classの
@@ -364,7 +364,7 @@ class YaneuraOuEngine: public Engine {
     // Search::UpdateContext updateContext;
 
     // TODO : あとで
-    //std::function<void(std::string_view)> onVerifyNetworks;
+    //std::function<void(std::string_view)> onVerifyNetwork;
 
 	// historyの集めたやつ。
     std::map<NumaIndex, SharedHistories>  sharedHists;
@@ -552,7 +552,7 @@ class YaneuraOuWorker: public Worker {
     //LimitsType limits;
 
     // MultiPVの時の現在探索中のPVのindexと、PVの末尾
-    size_t pvIdx, pvLast;
+    usize pvIdx, pvLast;
 
     // nodes           : 探索node数これはbase classのほうにある。
     // tbHits          : tablebaseにhitした回数。将棋では使わない。
@@ -590,7 +590,7 @@ class YaneuraOuWorker: public Worker {
 	// numaTotal     : NUMA内のtotal thread数。numaTotalThreads。
 	// 📑この3つはコンストラクタで渡されたもの
 
-	size_t                    threadIdx, numaThreadIdx, numaTotal;
+	usize                     threadIdx, numaThreadIdx, numaTotal;
     NumaReplicatedAccessToken numaAccessToken;
 #endif
 

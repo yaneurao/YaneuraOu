@@ -630,6 +630,8 @@ using namespace Search;
 
 namespace {
 
+constexpr u64 NODES_LIMIT_OUTPUT = 10'000'000;
+
 // -----------------------
 //   探索用の評価値補整
 // -----------------------
@@ -1218,7 +1220,7 @@ SKIP_SEARCH:
     // Send again PV info if we have a new best thread
     // 新しいベストスレッドがあれば、再度PV情報を送信する
     if (bestThread != this)
-        main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
+        main_manager()->output_pv(*bestThread, threads, tt, bestThread->completedDepth);
 
     // 🤔 こんなにPV出力するの好きじゃないので省略。
     //     ただし、一度もPVを出力していないなら、出力すべきだと思う。
@@ -1295,7 +1297,7 @@ SKIP_SEARCH:
         }
         else
         {
-            main_manager()->pv(*bestThread, threads, tt, bestThread->completedDepth);
+            main_manager()->output_pv(*bestThread, threads, tt, bestThread->completedDepth);
         }
     }
 
@@ -1385,9 +1387,9 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     PVMoves pv;
 
     // 探索の安定性を評価するために前回のiteration時のbest PVを記録しておく。
-    Depth lastBestMoveDepth = 0;
-    Value lastBestScore     = -VALUE_INFINITE;
-    PVMoves lastBestPV;
+    PVMoves lastBestMovePV;
+    Depth   lastBestMoveDepth = 0;
+    Value   lastBestMoveScore = -VALUE_INFINITE;
 
     // alpha,beta         : aspiration searchの窓の範囲(alpha,beta)
     // delta              : apritation searchで窓を動かす大きさdelta
@@ -1737,9 +1739,9 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 //    また、go infiniteのときは、検討モードから使用しているわけで、PVは必ず出力する。
 
                 if (mainThread && multiPV == 1 && (bestValue <= alpha || bestValue >= beta)
-                    && nodes > 10000000
+                    && nodes > NODES_LIMIT_OUTPUT
 
-#if !SOTCKFISH
+#if !STOCKFISH
                     // 🌈 以下やねうら王独自拡張
                     && (rootDepth < 3
                         || search_options.lastPvInfoTime + search_options.computed_pv_interval
@@ -1749,10 +1751,10 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 #endif
                 )
 #if STOCKFISH
-                    main_manager()->pv(*this, threads, tt, rootDepth);
+                    main_manager()->output_pv(*this, threads, tt, rootDepth);
 #else
                 {
-                    main_manager()->pv(*this, threads, tt, rootDepth);
+                    main_manager()->output_pv(*this, threads, tt, rootDepth);
                     // 最後にPVを出力した時刻を格納しておく。
                     search_options.lastPvInfoTime = now();
                 }
@@ -1860,17 +1862,17 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             // Publish only ongoing searches here; the final PV is emitted after stop handling.
             // 途中停止時の最終PVは、以下の復元処理が済んでから出力する。
             if (mainThread && !threads.stop
-                && (pvIdx + 1 == multiPV || nodes > 10000000)
+                && (pvIdx + 1 == multiPV || nodes > NODES_LIMIT_OUTPUT)
 #if !STOCKFISH
                 // PVの出力間隔を超えている。
                 && search_options.lastPvInfoTime + search_options.computed_pv_interval <= now()
 #endif
             )
 #if STOCKFISH
-                main_manager()->pv(*this, threads, tt, rootDepth);
+                main_manager()->output_pv(*this, threads, tt, rootDepth);
 #else
             {
-                main_manager()->pv(*this, threads, tt, rootDepth);
+                main_manager()->output_pv(*this, threads, tt, rootDepth);
                 // 最後にPVを出力した時刻を格納しておく。
                 search_options.lastPvInfoTime = now();
                 uciPvSent = (pvIdx + 1 == multiPV);
@@ -1885,24 +1887,24 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
         // Keep a proven mate and its matching PV if a later iteration loses it.
         // 後の反復で詰みを見失っても、確定した詰みスコアと対応するPVを保持する。
-        const bool forgottenMate = lastBestScore != -VALUE_INFINITE
-                                && is_mate_or_mated(lastBestScore)
-                                && (std::abs(rootMoves[0].score) < std::abs(lastBestScore)
+        const bool forgottenMate = lastBestMoveScore != -VALUE_INFINITE
+                                && is_mate_or_mated(lastBestMoveScore)
+                                && (std::abs(rootMoves[0].score) < std::abs(lastBestMoveScore)
                                     || rootMoves[0].is_inexact());
 
         if (!threads.stop)
         {
             completedDepth  = rootDepth;
 
-            if (lastBestPV.empty() || rootMoves[0].pv[0] != lastBestPV[0])
+            if (lastBestMovePV.empty() || lastBestMovePV[0] != rootMoves[0].pv[0])
                 lastBestMoveDepth = rootDepth;
 
             // Do not replace (shorter) mate scores from a previous iteration
             // 前の反復で得た、より短い詰みのスコアを上書きしない。
             if (!forgottenMate)
             {
-                lastBestPV    = rootMoves[0].pv;
-                lastBestScore = rootMoves[0].score;
+                lastBestMovePV    = rootMoves[0].pv;
+                lastBestMoveScore = rootMoves[0].score;
             }
 
         }
@@ -1918,15 +1920,15 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         const bool abortedLossSearch = threads.stop && !pvIdx && rootMoves[0].is_exact_loss();
         if (abortedLossSearch || (rootMoves[0].score != -VALUE_INFINITE && forgottenMate))
         {
-            if (!lastBestPV.empty())
+            if (!lastBestMovePV.empty())
             {
                 // Bring the last best move to the front for best thread selection.
                 // 最後に得られた最善手を先頭に移動し、最適なスレッド選択のために備える。
                 // 💡 move_to_front()は、見つけたものを先頭に移動させ、元の先頭からそこまでは1つ後方にずらす。
-                Utility::move_to_front(rootMoves, [&lastPV = std::as_const(lastBestPV)](
+                Utility::move_to_front(rootMoves, [&lastPV = std::as_const(lastBestMovePV)](
                                                     const auto& rm) { return rm == lastPV[0]; });
-                rootMoves[0].pv    = lastBestPV;
-                rootMoves[0].score = rootMoves[0].uciScore = lastBestScore;
+                rootMoves[0].pv    = lastBestMovePV;
+                rootMoves[0].score = rootMoves[0].uciScore = lastBestMoveScore;
                 rootMoves[0].unset_inexact();
 
                 // 復元したPVをまだUSIへ出力したとは限らないため、最終出力を省略しない。
@@ -2014,7 +2016,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             && !mainThread->tm.search_end)
 #endif
         {
-            uint64_t nodesEffort =
+            u64 nodesEffort =
               rootMoves[0].effort * 100000 / std::max(usize(1), usize(nodes));
 
             double fallingEval =
@@ -2457,8 +2459,9 @@ Value Search::YaneuraOuWorker::search(
     // Stockfishでは、このline上でIIRとquiet shallow pruningを抑制して、
     // 前回のPVを浅い枝刈りで壊しにくくしている。
     ss->followPV = rootNode
-                || ((ss - 1)->followPV && static_cast<usize>(ss->ply - 1) < lastIterationIdxPV.size()
-                    && (ss - 1)->currentMove == lastIterationIdxPV[ss->ply - 1]);
+                || ((ss - 1)->followPV
+                    && (static_cast<usize>(ss->ply - 1) < lastIterationIdxPV.size()
+                        && (ss - 1)->currentMove == lastIterationIdxPV[ss->ply - 1]));
 
 #if defined(USE_CLASSIC_EVAL) && defined(USE_LAZY_EVALUATE)
 	// 📝 次のnodeに行くまでにevaluate()かevaluate_with_no_return()を呼び出すことを保証して
@@ -3659,7 +3662,7 @@ moves_loop:  // When in check, search starts here
 // 🤔 Stockfish本家のこの読み筋の出力、細かすぎるので時間をロスする。しないほうがいいと思う。
 #if STOCKFISH
 
-		if (rootNode && is_mainthread() && nodes > 10000000)
+		if (rootNode && is_mainthread() && nodes > NODES_LIMIT_OUTPUT)
         {
             main_manager()->updates.onIter(
               {depth, UCIEngine::move(move, pos.is_chess960()), moveCount + pvIdx});
@@ -5959,17 +5962,17 @@ void syzygy_extend_pv(const OptionsMap&         options,
 #endif
 
 
-void SearchManager::pv(Search::YaneuraOuWorker&  worker,
-                       const ThreadPool&         threads,
-                       const TranspositionTable& tt,
-                       Depth                     depth) {
+void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
+                              const ThreadPool&         threads,
+                              const TranspositionTable& tt,
+                              Depth                     depth) {
 
     const auto nodes     = threads.nodes_searched();
     auto&      rootMoves = worker.rootMoves;
     auto&      pos       = worker.rootPos;
     usize     multiPV   = std::min(usize(worker.options["MultiPV"]), rootMoves.size());
 #if STOCKFISH
-    uint64_t tbHits = threads.tb_hits() + (worker.tbConfig.rootInTB ? rootMoves.size() : 0);
+    u64 tbHits = threads.tb_hits() + (worker.tbConfig.rootInTB ? rootMoves.size() : 0);
 #endif
 
     for (usize i = 0; i < multiPV; ++i)
@@ -6084,9 +6087,9 @@ void SearchManager::pv(Search::YaneuraOuWorker&  worker,
         auto wdl = worker.options["UCI_ShowWDL"] ? UCIEngine::wdl(v, pos) : "";
 #endif
         assert(!(rootMoves[i].inexactLower && rootMoves[i].inexactUpper));
-        auto bound = rootMoves[i].inexactLower
-                     ? "lowerbound"
-                     : (rootMoves[i].inexactUpper ? "upperbound" : "");
+        auto bound = rootMoves[i].inexactLower ? "lowerbound"
+                     : rootMoves[i].inexactUpper ? "upperbound"
+                                                : "";
 
         InfoFull info;
 
