@@ -2307,7 +2307,7 @@ void Search::YaneuraOuWorker::clear() {
     // The constant-size continuation history is initialized by thread 0 of each NUMA node.
     // 各スレッドは、動的な共有履歴のうち自分の担当範囲を初期化する。
     // 固定サイズのcontinuation historyは、各NUMAノードの先頭スレッドだけが初期化する。
-    sharedHistory.correctionHistory.clear_range(0, numaThreadIdx, numaTotal);
+    sharedHistory.correctionHistory.clear_range(-5, numaThreadIdx, numaTotal);
     sharedHistory.pawnHistory.clear_range(-1238, numaThreadIdx, numaTotal);
 
     //     ほとんどの履歴エントリがいずれにせよ後で負になるため、
@@ -2339,6 +2339,7 @@ void Search::YaneuraOuWorker::clear() {
 #endif
 }
 
+#if !STOCKFISH
 // qsearch<PV>()をTT hitなし扱いで単独呼び出しするためのヘルパー。
 // qsearch内でStack::pvに構築されたPVをpvへ返すので、呼び出し側はこのPVをdo_move()して
 // qsearchのleaf node局面を得られる。通常探索のinfo pv表示のようにTTを辿ってPVを延長しない。
@@ -2380,6 +2381,7 @@ Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
 
     return qsearch<PV, false>(pos, ss, -VALUE_INFINITE, VALUE_INFINITE);
 }
+#endif
 
 // -----------------------
 //      通常探索
@@ -2536,6 +2538,8 @@ Value Search::YaneuraOuWorker::search(
                     && (static_cast<usize>(ss->ply - 1) < lastIterationIdxPV.size()
                         && (ss - 1)->currentMove == lastIterationIdxPV[ss->ply - 1]));
 
+#if !STOCKFISH
+// 🌈 evaluateをlazyにする拡張。
 #if defined(USE_CLASSIC_EVAL) && defined(USE_LAZY_EVALUATE)
 	// 📝 次のnodeに行くまでにevaluate()かevaluate_with_no_return()を呼び出すことを保証して
 	//     evaluate内の差分計算を促さなければならない。
@@ -2579,6 +2583,7 @@ Value Search::YaneuraOuWorker::search(
     };
 #else
     auto do_move_ = [&](Position& pos, Move move, StateInfo& st, Stack* ss) { this->do_move(pos, move, st, ss); };
+#endif
 #endif
 
 	// 📌 Timerの監視
@@ -2724,6 +2729,8 @@ Value Search::YaneuraOuWorker::search(
     (ss + 2)->cutoffCnt = 0;
     (ss + 1)->priorNMPFailHigh = 0;
 
+    const auto correctionValue = correction_value(*this, pos, ss);
+
 	// -----------------------
     // Step 4. Transposition table lookup
     // Step 4. 置換表の参照
@@ -2860,65 +2867,9 @@ Value Search::YaneuraOuWorker::search(
     //     宣言勝ち
     // -----------------------
 
-    // Step 7. Tablebases probe
-    // ⚠ StockfishのStep 5.のコードはtablebase(終盤データベース)で将棋には関係ないので割愛。
+#if !STOCKFISH
 
-#if STOCKFISH
-    if (!rootNode && !excludedMove && tbConfig.cardinality)
-    {
-        int piecesCount = pos.count<ALL_PIECES>();
-
-        if (piecesCount <= tbConfig.cardinality
-            && (piecesCount < tbConfig.cardinality || depth >= tbConfig.probeDepth)
-            && pos.rule50_count() == 0 && !pos.can_castle(ANY_CASTLING))
-        {
-            TB::ProbeState err;
-            TB::WDLScore   wdl = Tablebases::probe_wdl(pos, &err);
-
-            // Force check of time on the next occasion
-            if (is_mainthread())
-                main_manager()->callsCnt = 0;
-
-            if (err != TB::ProbeState::FAIL)
-            {
-                // Preferable over fetch_add to avoid locking instructions
-                ++tbHits;
-
-                int drawScore = tbConfig.useRule50 ? 1 : 0;
-
-                Value tbValue = VALUE_TB - ss->ply;
-
-                // Use the range VALUE_TB to VALUE_TB_WIN_IN_MAX_PLY to score
-                value = wdl < -drawScore ? -tbValue
-                      : wdl > drawScore  ? tbValue
-                                         : VALUE_DRAW + 2 * wdl * drawScore;
-
-                Bound b = wdl < -drawScore ? BOUND_UPPER
-                        : wdl > drawScore  ? BOUND_LOWER
-                                           : BOUND_EXACT;
-
-                if (b == BOUND_EXACT || (b == BOUND_LOWER ? value >= beta : value <= alpha))
-                {
-                    ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, b,
-                                   std::min(MAX_PLY - 1, depth + 6), Move::none(), VALUE_NONE,
-                                   tt.generation());
-
-                    return value;
-                }
-
-                if (PvNode)
-                {
-                    if (b == BOUND_LOWER)
-                        bestValue = value, alpha = std::max(alpha, bestValue);
-                    else
-                        maxValue = value;
-                }
-            }
-        }
-    }
-#else
-
-	// これは将棋にはないが、将棋には代わりに宣言勝ちというのがある。
+	// 将棋にはtablebaseはないが、代わりに宣言勝ちというのがある。
     // 宣言勝ちと1手詰めだと1手詰めの方が圧倒的に多いので、まず1手詰め判定を行う。
 
     // 🌈 以下は、やねうら王独自のコード 🌈
@@ -3056,8 +3007,7 @@ Value Search::YaneuraOuWorker::search(
     // Step 5. 局面の静的評価
     // -----------------------
 
-    Value      unadjustedStaticEval = VALUE_NONE;
-    const auto correctionValue      = correction_value(*this, pos, ss);
+    Value unadjustedStaticEval = VALUE_NONE;
 
     // Skip early pruning when in check
     // 王手がかかっているときは、early pruning(早期枝刈り)をスキップする
@@ -3159,39 +3109,6 @@ Value Search::YaneuraOuWorker::search(
 	// -----------------------
     //   evalベースの枝刈り
     // -----------------------
-
-    // Use static evaluation difference to improve quiet move ordering
-    // 静的評価の差を利用して、静かな手の順序付けを改善します。
-
-	/*
-		📝 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
-		    王手のときはここにはこない。(上のinCheckの分岐からTT判定へ進む。)
-
-			is_ok()はMove::null()かのチェック。
-			1手前でMove::null()ではなく、王手がかかっておらず、駒を取る指し手ではなかったなら…。
-	*/
-
-
-    if (((ss - 1)->currentMove).is_ok() && !(ss - 1)->inCheck && !priorCapture)
-    {
-#if STOCKFISH
-        int evalDiff = std::clamp(-int((ss - 1)->staticEval + ss->staticEval), -214, 171) + 60;
-        mainHistory[~us][((ss - 1)->currentMove).raw()] << evalDiff * 10;
-        if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
-            && ((ss - 1)->currentMove).type_of() != PROMOTION)
-            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << evalDiff * 12;
-#else
-        // やねうら王ではQ8化する。評価差と係数の積はQ16なので65536で割る。
-        // SPSAで係数を変更した場合も中間積が溢れないよう、乗算は64bitで行う。
-        const int evalDiffQ8 =
-          std::clamp(-int((ss - 1)->staticEval + ss->staticEval) * 256, -54784, 43776) + 15360;
-        mainHistory[~us][((ss - 1)->currentMove).raw()] << int(i64(evalDiffQ8) * 2560 / 65536);
-        if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
-            && ((ss - 1)->currentMove).type_of() != PROMOTION)
-            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq]
-              << int(i64(evalDiffQ8) * 3072 / 65536);
-#endif
-    }
 
     // Set up the improving flag, which is true if current static evaluation is
     // bigger than the previous static evaluation at our turn (if we were in
@@ -3330,7 +3247,7 @@ tt_cutoff:
 
                 // Check that the ttValue after the tt move would also trigger a cutoff
                 // TT手を指した後の保存値も、同じ方向のカットを支持するか確認する。
-                if (!ttHitNext || !is_valid(ttDataNext.value))
+                if (!is_valid(ttDataNext.value))
                     return ttData.value;
                 if ((ttData.value >= beta) == (-ttDataNext.value >= beta))
                     return ttData.value;
@@ -3361,10 +3278,100 @@ tt_cutoff:
         }
     }
 
+    // Step 7. Tablebases probe
+    // Step 7. 終盤データベースの照会。将棋では使用しない。
+
+#if STOCKFISH
+    if (!rootNode && !excludedMove && tbConfig.cardinality)
+    {
+        int piecesCount = pos.count<ALL_PIECES>();
+
+        if (piecesCount <= tbConfig.cardinality
+            && (piecesCount < tbConfig.cardinality || depth >= tbConfig.probeDepth)
+            && pos.rule50_count() == 0 && !pos.can_castle(ANY_CASTLING))
+        {
+            TB::ProbeState err;
+            TB::WDLScore   wdl = Tablebases::probe_wdl(pos, &err);
+
+            // Force check of time on the next occasion
+            if (is_mainthread())
+                main_manager()->callsCnt = 0;
+
+            if (err != TB::ProbeState::FAIL)
+            {
+                // Preferable over fetch_add to avoid locking instructions
+                ++tbHits;
+
+                int drawScore = tbConfig.useRule50 ? 1 : 0;
+
+                Value tbValue = VALUE_TB - ss->ply;
+
+                // Use the range VALUE_TB to VALUE_TB_WIN_IN_MAX_PLY to score
+                value = wdl < -drawScore ? -tbValue
+                      : wdl > drawScore  ? tbValue
+                                         : VALUE_DRAW + 2 * wdl * drawScore;
+
+                Bound b = wdl < -drawScore ? BOUND_UPPER
+                        : wdl > drawScore  ? BOUND_LOWER
+                                           : BOUND_EXACT;
+
+                if (b == BOUND_EXACT || (b == BOUND_LOWER ? value >= beta : value <= alpha))
+                {
+                    ttWriter.write(posKey, value_to_tt(value, ss->ply), ss->ttPv, b,
+                                   std::min(MAX_PLY - 1, depth + 6), Move::none(), VALUE_NONE,
+                                   tt.generation());
+
+                    return value;
+                }
+
+                if (PvNode)
+                {
+                    if (b == BOUND_LOWER)
+                        bestValue = value, alpha = std::max(alpha, bestValue);
+                    else
+                        maxValue = value;
+                }
+            }
+        }
+    }
+#endif
+
     // When in check, try the TT cutoff before skipping evaluation-based pruning.
     // 王手中もTTによるカットを試してから、静的評価に基づく枝刈りをスキップする。
     if (ss->inCheck)
         goto moves_loop;
+
+    // Use static evaluation difference to improve quiet move ordering
+    // 静的評価の差を利用して、静かな手の順序付けを改善します。
+
+	/*
+		📝 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
+		    王手中、またはTTカットで探索を終了する場合は、ここでは履歴を更新しない。
+
+			is_ok()はMove::null()かのチェック。
+			1手前でMove::null()ではなく、王手がかかっておらず、駒を取る指し手ではなかったなら…。
+	*/
+
+
+    if (((ss - 1)->currentMove).is_ok() && !(ss - 1)->inCheck && !priorCapture)
+    {
+#if STOCKFISH
+        int evalDiff = std::clamp(-int((ss - 1)->staticEval + ss->staticEval), -189, 194) + 60;
+        mainHistory[~us][((ss - 1)->currentMove).raw()] << evalDiff * 11;
+        if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
+            && ((ss - 1)->currentMove).type_of() != PROMOTION)
+            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << evalDiff * 13;
+#else
+        // やねうら王ではQ8化する。評価差と係数の積はQ16なので65536で割る。
+        const int evalDiffQ8 =
+          std::clamp(-int((ss - 1)->staticEval + ss->staticEval) * 256, -48384, 49664) + 15360;
+        mainHistory[~us][((ss - 1)->currentMove).raw()] << evalDiffQ8 * 2816 / 65536;
+        if (!ttHit && type_of(pos.piece_on(prevSq)) != PAWN
+            && ((ss - 1)->currentMove).type_of() != PROMOTION)
+            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq]
+              << evalDiffQ8 * 3328 / 65536;
+#endif
+    }
 
 	// -----------------------
     // Step 8. Razoring
@@ -3892,8 +3899,7 @@ moves_loop:  // When in check, search starts here
 #endif
 
                 // Futility pruning: parent node
-                // (*Scaler): Generally, more frequent futility pruning
-				// scales well
+                // (*Scaler): Generally, more frequent futility pruning scales well
 
                 // Futility枝刈り: 親ノード
                 // (*Scaler): 一般的に、より頻繁な無駄枝刈りはよくスケールする
@@ -4355,8 +4361,8 @@ moves_loop:  // When in check, search starts here
             // Exponential moving average parameters for root move
             // ルート手の探索ノード数に応じて、スコアの指数移動平均の重みを変える。
             constexpr u64 Scale          = 32;
-            const u64     ChiNumerator   = 3;
-            const u64     ChiDenominator = 2;   // Chi = 3/2 = 1.5
+            constexpr u64 ChiNumerator   = 3;
+            constexpr u64 ChiDenominator = 2;   // Chi = 3/2 = 1.5
             constexpr u64 MinWeight      = 12;  // 37.5% minimum weight
             constexpr u64 MaxWeight      = 24;  // 75% maximum weight
 
@@ -4604,7 +4610,8 @@ moves_loop:  // When in check, search starts here
         bonusScale = std::max(bonusScale, 0);
 
 #if STOCKFISH
-        // scaledBonus ranges from 0 to roughly 2.3M, overflows happen for multipliers larger than 900
+        // scaledBonus ranges from 0 to roughly 2.3M, overflows happen for
+        // multipliers larger than 900
         // scaledBonusはおよそ0〜230万で、900を超える乗数では桁あふれが起きる。
         const int scaledBonus = std::min(150 * depth - 85, 1337) * bonusScale;
 #else
@@ -4626,8 +4633,9 @@ moves_loop:  // When in check, search starts here
     // Bonus for prior capture countermove that caused the fail low
     // 前のfail lowを引き起こしたcapture countermoveに対するボーナス
 
-    else if (priorCapture && prevSq != SQ_NONE)
+    else if (prevSq != SQ_NONE)
     {
+        assert(priorCapture);
         Piece capturedPiece = pos.captured_piece();
         assert(capturedPiece != NO_PIECE);
         captureHistory[pos.piece_on(prevSq)][prevSq][type_of(capturedPiece)] << 1018;
@@ -4683,8 +4691,8 @@ moves_loop:  // When in check, search starts here
                        moveCount != 0 ? depth : std::min(MAX_PLY - 1, depth + 6), bestMove,
                        unadjustedStaticEval, tt.generation());
 
-    // Adjust correction history if the best move is not a capture
-    // and the error direction matches whether we are above/below bounds.
+    // Adjust correction history if the best move is not a capture and
+    // the error direction matches whether we are above/below bounds.
 	// 最善手がキャプチャ（駒取り）でない場合、
 	// かつ誤差の方向が上限／下限を超えているかどうかと一致する場合には、
 	// 補正履歴(correction history)を調整する。
@@ -4700,10 +4708,9 @@ moves_loop:  // When in check, search starts here
     }
 
 	// 👉 qsearch()内の末尾にあるassertの文の説明を読むこと。
-	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
-
     // The search is now complete
     // 探索が完了した。
+	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
     return bestValue;
 }
 
@@ -5414,10 +5421,9 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 		  よってsearch(),qsearch()のassertは次のように書くべきである。
 	*/
 
-	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
-
     // The search is now complete
     // 探索が完了した。
+	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
     return bestValue;
 }
 
@@ -5738,7 +5744,8 @@ void update_quiet_histories(
 // 📌 Skill class、やねうら王ではサポートしない。
 #if STOCKFISH
 // When playing with strength handicap, choose the best move among a set of
-// RootMoves using a statistical rule dependent on 'level'. Idea by Heinz van Saanen.
+// RootMoves using a statistical rule dependent on 'level'.
+// Idea by Heinz van Saanen.
 
 // 手加減が有効であるなら、best moveを'level'に依存する統計ルールに基づくRootMovesの集合から選ぶ。
 // Heinz van Saanenのアイデア。
@@ -5959,8 +5966,8 @@ void syzygy_extend_pv(const OptionsMap&         options,
             auto&     rm = legalMoves.emplace_back(m);
             StateInfo tmpSI;
             pos.do_move(m, tmpSI);
-            // Give a score of each move to break DTZ ties restricting opponent mobility,
-            // but not giving the opponent a capture.
+            // Give a score of each move to break DTZ ties restricting opponent
+            // mobility, but not giving the opponent a capture.
             for (const auto& mOpp : MoveList<ALL>(pos))
                 rm.tbRank -= pos.capture(mOpp) ? 100 : 1;
             pos.undo_move(m);
