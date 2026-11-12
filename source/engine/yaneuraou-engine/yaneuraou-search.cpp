@@ -4600,34 +4600,27 @@ moves_loop:  // When in check, search starts here
 	*/
     else if (!priorCapture && prevSq != SQ_NONE)
     {
-        int bonusScale = -232;
-        bonusScale -= (ss - 1)->statScore / 108;
-        bonusScale += std::min(59 * depth, 454);
-        bonusScale += 169 * ((ss - 1)->moveCount > 8);
-        bonusScale += 145 * (!ss->inCheck && bestValue <= ss->staticEval - 110);
-        bonusScale += 154 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 73);
+        int bonusScale = -241;
+        bonusScale -= (ss - 1)->statScore / 98;
+        bonusScale += std::min(59 * depth, 420);
+        bonusScale += 186 * ((ss - 1)->moveCount > 9);
+        bonusScale += 142 * (!ss->inCheck && bestValue <= ss->staticEval - 106);
+        bonusScale += 159 * (!(ss - 1)->inCheck && bestValue <= -(ss - 1)->staticEval - 68);
 
         bonusScale = std::max(bonusScale, 0);
 
-#if STOCKFISH
         // scaledBonus ranges from 0 to roughly 2.3M, overflows happen for
         // multipliers larger than 900
         // scaledBonusはおよそ0〜230万で、900を超える乗数では桁あふれが起きる。
         const int scaledBonus = std::min(150 * depth - 85, 1337) * bonusScale;
-#else
-        // Widen before multiplying; SPSA can make bonusScale much larger.
-        // SPSAでbonusScaleが大きくなる場合も、乗算前に64bitへ拡張して桁あふれを防ぐ。
-        const i64 scaledBonus = i64(std::min(135 * depth - 80, 1400)) * bonusScale;
-#endif
 
         update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq,
-                                      int(scaledBonus * 221 / 16384));
+                                      scaledBonus * 263 / 16384);
 
-        mainHistory[~us][((ss - 1)->currentMove).raw()] << int(scaledBonus * 235 / 32768);
+        mainHistory[~us][((ss - 1)->currentMove).raw()] << scaledBonus * 215 / 32768;
 
-		// TODO : これで合ってるか？あとで検証する。
         if (type_of(pos.piece_on(prevSq)) != PAWN && ((ss - 1)->currentMove).type_of() != PROMOTION)
-            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << int(scaledBonus * 290 / 8192);
+            sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << scaledBonus * 324 / 8192;
     }
 
     // Bonus for prior capture countermove that caused the fail low
@@ -5596,17 +5589,20 @@ void update_all_stats(const Position&          pos,
     int malus = std::min(882 * depth - 204, 2122);
 
     // Scale the non-PV bonus with the number of searched moves.
-    // non-PVでは調べた手数に応じてボーナスを増やす。中間積は32bit環境でも64bitとする。
+    // non-PVでは調べた手数に応じてボーナスを増やす。
 #if !STOCKFISH
     // 非PVのhistory bonusを探索手数で増やす方針を0/1で比較する。
     if (1)
 #endif
     if (!PvNode)
+#if STOCKFISH
         // Important: don't remove the cast to a 64-bit number else the multiplication
         // can overflow on 32-bit platforms which would change the bench signature
-        // 64bit型へのキャストを削除しないこと。
-        // 32bit環境で中間積がオーバーフローすると、benchの探索結果が変わってしまう。
-        bonus += int(i64(bonus) * int(quietsSearched.size() + capturesSearched.size()) / 256);
+        // 64bit型へのキャストを削除すると、32bit環境の乗算であふれ、benchの結果が変わり得る。
+        bonus += int(bonus * u64(quietsSearched.size() + capturesSearched.size()) / 256);
+#else
+        bonus += bonus * int(quietsSearched.size() + capturesSearched.size()) / 256;
+#endif
 
 
     /*
@@ -5710,7 +5706,7 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
             if (0)
                 multiplier = CMHCMultipliers[positiveCount];
 #endif
-            historyEntry << int(i64(bonus) * weight * multiplier / 65536) + 73 * (i < 2);
+            historyEntry << bonus * weight * multiplier / 65536 + 73 * (i < 2);
         }
     }
 }
