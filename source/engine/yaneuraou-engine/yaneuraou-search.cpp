@@ -1229,9 +1229,13 @@ SKIP_SEARCH:
 #endif
 
 #if STOCKFISH
-    // Send again PV info if we have a new best thread
-    // 新しいベストスレッドがあれば、再度PV情報を送信する
-    if (bestThread != this)
+    if (bestThread->rootMoves[0].pv.size() == 1
+        && bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos))
+        uciPvSent = false;
+
+    // Send PV info if it has changed since last output in iterative_deepening()
+    // 反復深化中の最後の出力からPVが変わっていれば、PV情報を送る。
+    if (!uciPvSent || bestThread != this)
         main_manager()->output_pv(*bestThread, threads, tt, bestThread->rootDepth);
 
     // 🤔 こんなにPV出力するの好きじゃないので省略。
@@ -1329,18 +1333,17 @@ SKIP_SEARCH:
               << "info string elapsed_from_ponderhit = " << now() - tm.ponderhitTime << sync_endl;
 	*/
 
-    std::string ponder;
-
 #if STOCKFISH
     // In rare cases, output_pv() may change the ponder move through syzygy_extend_pv()
     // まれにoutput_pv()がsyzygy_extend_pv()を通じてponder手を変更することがある。
-    if (bestThread->rootMoves[0].pv.size() > 1
-        || bestThread->rootMoves[0].extract_ponder_from_tt(tt, rootPos))
+    std::string ponder;
+    if (bestThread->rootMoves[0].pv.size() > 1)
         ponder = UCIEngine::move(bestThread->rootMoves[0].pv[1], rootPos.is_chess960());
 
     auto bestmove = UCIEngine::move(bestThread->rootMoves[0].pv[0], rootPos.is_chess960());
 #else
 
+	std::string ponder;
 	std::string bestmove;
     if (search_skipped)
     {
@@ -3024,11 +3027,10 @@ Value Search::YaneuraOuWorker::search(
     Value      unadjustedStaticEval = VALUE_NONE;
     const auto correctionValue      = correction_value(*this, pos, ss);
 
-	if (ss->inCheck)
+    // Skip early pruning when in check
+    // 王手がかかっているときは、early pruning(早期枝刈り)をスキップする
+    if (ss->inCheck)
     {
-        // Skip early pruning when in check
-        // 王手がかかっているときは、early pruning(早期枝刈り)をスキップする
-
 		ss->staticEval = eval = (ss - 2)->staticEval;
         improving             = false;
         goto tt_cutoff;
@@ -3261,7 +3263,7 @@ tt_cutoff:
 
             // 💡 1手前がMove::null()であることを考慮する必要がある。
 
-            if (prevSq != SQ_NONE && (ss - 1)->moveCount <= 4 && !priorCapture)
+            if (prevSq != SQ_NONE && (ss - 1)->moveCount < 5 && !priorCapture)
                 update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -2142);
         }
 
@@ -3382,10 +3384,16 @@ tt_cutoff:
                              + std::abs(correctionValue) / 180600;
 
         if (eval - futilityMargin >= beta)
+#if STOCKFISH
+            return (661 * beta + 363 * eval) / 1024;
+#else
         {
+            // Keep the weights complementary when tuning the blend.
+            // SPSAでは重みの合計を1024に保ち、混合によって評価値の範囲が広がるのを防ぐ。
             const int betaWeight = 661;
             return (betaWeight * beta + (1024 - betaWeight) * eval) / 1024;
         }
+#endif
     }
 
 	// -----------------------
@@ -3445,9 +3453,9 @@ tt_cutoff:
 
         undo_null_move(pos);
 
-        if (nullValue >= beta && !is_win(nullValue))
         // Do not return unproven mate or TB scores
         // 証明されていないmate scoreやTB scoreはreturnで返さない。
+        if (nullValue >= beta && !is_win(nullValue))
         {
             // 1手パスしてもbetaを上回りそうであることがわかったので
             // これをもう少しちゃんと検証しなおす。
@@ -3458,15 +3466,13 @@ tt_cutoff:
                 return nullValue;
             }
 
-            ASSERT_LV3(!nmpMinPly);  // Recursive verification is not allowed
-                                     // 再帰的な検証は認めていない。
+            // Recursive verification is not allowed
+            // 再帰的な検証は認めていない。
+            ASSERT_LV3(!nmpMinPly);
 
-            // Do verification search at high depths, with null move pruning disabled
-            // until ply exceeds nmpMinPly.
-            //
-            // 💡 null move枝刈りを無効化して、plyがnmpMinPlyを超えるまで
-            //     高いdepthで検証のための探索を行う。
-
+            // Do verification search at high depths, with null move pruning
+            // disabled until ply exceeds nmpMinPly.
+            // 深い探索では、plyがnmpMinPlyを超えるまでnull move枝刈りを無効化し、検証探索を行う。
             nmpMinPly = ss->ply + 3 * (depth - R) / 4;
 
             // 📝 nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。
@@ -3688,11 +3694,9 @@ moves_loop:  // When in check, search starts here
 // 🤔 Stockfish本家のこの読み筋の出力、細かすぎるので時間をロスする。しないほうがいいと思う。
 #if STOCKFISH
 
-		if (rootNode && is_mainthread() && nodes > NODES_LIMIT_OUTPUT)
-        {
+        if (rootNode && is_mainthread() && nodes > NODES_LIMIT_OUTPUT)
             main_manager()->updates.onIter(
               {depth, UCIEngine::move(move, pos.is_chess960()), moveCount + pvIdx});
-        }
 #endif
 
         // 💡 次のnodeのpvをクリアしておく。
@@ -6020,15 +6024,17 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
             syzygy_extend_pv(worker.options, worker.limits, pos, rootMoves[i], v, multiPV);
 #endif
 
+#if !STOCKFISH
         // A score from the previous iteration must use that iteration's PV too.
         // 前回の反復のスコアを表示するときは、PVもその反復のものを使う。
         // 最初の反復に入る前にstopされた場合は、前回PVがまだないので現在の合法手を使う。
         const auto& pvMoves = usePreviousScore && !rootMoves[i].previousPV.empty()
                                 ? rootMoves[i].previousPV : rootMoves[i].pv;
+#endif
 
         std::string pv;
 #if STOCKFISH
-        for (Move m : pvMoves)
+        for (Move m : usePreviousScore ? rootMoves[i].previousPV : rootMoves[i].pv)
             pv += UCIEngine::move(m, pos.is_chess960()) + " ";
 #else
 		// 🌈 やねうら王では、consideration_modeのときは置換表からPVをかき集める。

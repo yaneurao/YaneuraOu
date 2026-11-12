@@ -174,19 +174,14 @@ void Engine::add_options() {
 
 // NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。
 bool Engine::set_numa_config_from_option(const std::string& o) {
-	if (o == "auto" || o == "system")
-	{
-		numaContext.set_numa_config(NumaConfig::from_system(DefaultNumaPolicy));
-	}
-	else if (o == "hardware")
-	{
-		// Don't respect affinity set in the system.
-		numaContext.set_numa_config(NumaConfig::from_system(DefaultNumaPolicy, false));
-	}
-	else if (o == "none")
-	{
-		numaContext.set_numa_config(NumaConfig{});
-	}
+    if (o == "auto" || o == "system")
+        numaContext.set_numa_config(NumaConfig::from_system(DefaultNumaPolicy));
+    else if (o == "hardware")
+        // Don't respect affinity set in the system.
+        // システムで設定されたアフィニティーを考慮しない。
+        numaContext.set_numa_config(NumaConfig::from_system(DefaultNumaPolicy, false));
+    else if (o == "none")
+        numaContext.set_numa_config(NumaConfig{});
 	else
 	{
         auto parsed = NumaConfig::from_string(o);
