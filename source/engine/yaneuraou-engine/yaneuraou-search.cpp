@@ -1793,7 +1793,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 else
                     break;
 
-                delta += std::max(1, delta / 3);
+                delta += 47 * delta / 128;
 
                 assert(alpha >= -VALUE_INFINITE && beta <= VALUE_INFINITE);
             }
