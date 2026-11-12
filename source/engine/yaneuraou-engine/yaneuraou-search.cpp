@@ -3494,8 +3494,6 @@ tt_cutoff:
     // 🤔 将棋でもこれに相当する条件が必要かも。
 #endif
         && ss->ply >= nmpMinPly
-        // 同じ手番側に連続してnull moveを適用しない
-        && !is_loss(beta)
         // Limit dynamic NMP reductions in deeply negative windows.
         // 深い負の探索窓では、評価差に応じたNMPの過大な削減を避ける。閾値は将棋用に調整する。
         && beta >= -2000
