@@ -670,22 +670,22 @@ inline int lmr_divisor(int depth) {
 // すべてのパラメータについては、より長い持ち時間での検証が必要です。
 
 int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack* const ss) {
-    const Color us    = pos.side_to_move();
-    const auto  m     = (ss - 1)->currentMove;
+    const Color us     = pos.side_to_move();
+    const auto  m      = (ss - 1)->currentMove;
     const auto& shared = w.sharedHistory;
     const int   pcv    = shared.pawn_correction_entry(pos)[us].pawn;
     const int   micv   = shared.minor_piece_correction_entry(pos)[us].minor;
     const int   wnpcv  = shared.nonpawn_correction_entry<WHITE>(pos)[us].nonPawnWhite;
     const int   bnpcv  = shared.nonpawn_correction_entry<BLACK>(pos)[us].nonPawnBlack;
     const int   cntcv =
-      m.is_ok() ? (*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
-                + (*(ss - 4)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
-                 : 8;
+      m.is_ok()
+          ? 7885
+              * ((*(ss - 2)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
+                 + (*(ss - 4)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()])
+            + 6307 * (*(ss - 6)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
+          : 80695;
 
-    const int cntcv6 = m.is_ok()
-                      ? (*(ss - 6)->continuationCorrectionHistory)[pos.piece_on(m.to_sq())][m.to_sq()]
-                      : 0;
-    return 12153 * pcv + 8620 * micv + 12355 * (wnpcv + bnpcv) + 7982 * cntcv + 6307 * cntcv6;
+    return 13806 * pcv + 9512 * micv + 11615 * (wnpcv + bnpcv) + cntcv;
 }
 
 // Add correctionHistory value to raw staticEval and guarantee evaluation
@@ -768,12 +768,12 @@ void update_all_stats(const Position&          pos,
 // added in #6447 as non-regression, and so its parameters should not be tuned.
 // 手の往復を検出し、探索の膨張を抑える。
 // このコードは#6447で非退行を確認して導入されたため、係数は調整しない。
-// やねうら王では以下のSTOCKFISH分岐を参照用に残し、将棋側はfalseを返す。
+// やねうら王では将棋固有の駒打ちを除外して判定する。
 bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
 #if STOCKFISH
-    if (pos.capture_stage(move) || pos.rule50_count() < 11)
+    if (pos.capture_stage(move) || pos.rule50_count() < 10)
         return false;
-    if (pos.state()->pliesFromNull <= 6 || ss->ply < 18)
+    if (pos.state()->pliesFromNull < 6 || ss->ply < 20)
         return false;
     return move.from_sq() == (ss - 2)->currentMove.to_sq()
         && (ss - 2)->currentMove.from_sq() == (ss - 4)->currentMove.to_sq();
@@ -782,7 +782,7 @@ bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
     if (pos.capture_stage(move) || move.is_drop())
         return false;
 
-    if (pos.state()->pliesFromNull <= 6 || ss->ply < 18)
+    if (pos.state()->pliesFromNull < 6 || ss->ply < 20)
         return false;
 
     const Move move2 = (ss - 2)->currentMove;
