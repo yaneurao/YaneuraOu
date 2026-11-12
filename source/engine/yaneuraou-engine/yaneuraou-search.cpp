@@ -1559,16 +1559,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
         // Signal the start of a new iteration
         // 新しい反復の開始を通知する。
-        // やねうら王では、この場所でPV変動量の減衰も行う。
-
-        // 📝 bestMoveが変化した回数を記録しているが、反復深化の世代が一つ進むので、
-        //     古い世代の情報として重みを低くしていく。
-
         if (mainThread)
-        {
-            totBestMoveChanges /= 2;
             uciPvSent = false;
-        }
 
         // Save the last iteration's scores before the first PV line is searched and
         // all the move scores except the (new) PV are set to -VALUE_INFINITE.
@@ -1582,7 +1574,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         {
             rootMoves[i].previousScore      = rootMoves[i].score;
             rootMoves[i].previousPV         = rootMoves[i].pv;
-            rootMoves[i].previousScoreExact = i < multiPV && !rootMoves[i].is_inexact();
+            rootMoves[i].previousScoreExact = i < multiPV;
         }
 
         // 将棋では全root moveを同じrankとして扱うため、pvFirstは0のまま使う。
@@ -2005,16 +1997,6 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         if (skill.enabled() && skill.time_to_pick(rootDepth))
             skill.pick_best(rootMoves, multiPV);
 
-        // Age out and update PV variability metric
-        // PVの変動量を更新する。過去の値の減衰は反復の先頭で行っている。
-
-        for (auto&& th : threads)
-        {
-            auto yw = toYaneuraOuWorker(th->worker);
-            totBestMoveChanges += yw->bestMoveChanges;
-            yw->bestMoveChanges = 0;
-        }
-
         // Do we have time for the next iteration? Can we stop searching now?
         // 次の反復を行う時間はあるか？今すぐ探索を止められるか？
 #if STOCKFISH
@@ -2041,6 +2023,22 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             timeReduction = 0.723 + 0.79 / (1.104 + std::exp(-k * (rootDepth - center)));
             double reduction =
               (1.455 + mainThread->previousTimeReduction) / (2.2375 * timeReduction);
+
+            // Age out and update PV variability metric
+            // PVの変動量を減衰させ、各スレッドの最善手の変化回数を加算する。
+            totBestMoveChanges /= 2;
+            for (auto&& th : threads)
+            {
+#if STOCKFISH
+                totBestMoveChanges += th->worker->bestMoveChanges;
+                th->worker->bestMoveChanges = 0;
+#else
+                auto yw = toYaneuraOuWorker(th->worker);
+                totBestMoveChanges += yw->bestMoveChanges;
+                yw->bestMoveChanges = 0;
+#endif
+            }
+
             double bestMoveInstability = 1.04 + 1.8956 * totBestMoveChanges / threads.size();
             // Transition smoothly as more effort is concentrated on the best move.
             // 最善手へ探索が集中するにつれて、時間補正を滑らかに変化させる。
