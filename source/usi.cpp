@@ -1500,14 +1500,6 @@ Value USIEngine::cp_to_value(int v) {
 // "isready"コマンドのhandler
 void USIEngine::isready() {
 
-    // 探索中は初期化・設定の再読込を行わず、そのまま応答する。
-    // 終了待ちに入ると、同じ入力スレッドで後続のstopを処理できなくなる。
-    if (engine.is_searching())
-    {
-        sync_cout << "readyok" << sync_endl;
-        return;
-    }
-
 	auto& options = engine.get_options();
 
 	// 🌈 カレントフォルダに"engine_options.txt"があれば
