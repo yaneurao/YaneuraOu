@@ -472,8 +472,8 @@ public:
     Bitboard pieces(Color c, PieceTypes... pts) const;
 
 	// sのマスにある駒を返す。
-    // 💡 sq == SQ_NBの時、NO_PIECEが返ることは保証されている。
-    Piece piece_on(Square sq) const;
+    // 💡 s == SQ_NBの時、NO_PIECEが返ることは保証されている。
+    Piece piece_on(Square s) const;
 
 	// (盤上の)駒の配列をもらう。
 #if STOCKFISH

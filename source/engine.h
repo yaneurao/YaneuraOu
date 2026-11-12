@@ -299,7 +299,7 @@ public:
     LazyNumaReplicatedSystemWide<Eval::NNUE::Networks> networks;
 
     Search::SearchManager::UpdateContext  updateContext;
-    std::function<void(std::string_view)> onVerifyNetworks;
+    std::function<void(std::string_view)> onVerifyNetwork;
     std::map<NumaIndex, SharedHistories>  sharedHists;
 #else
 	// スレッドプール(探索用スレッド)の取得
@@ -476,7 +476,7 @@ class Engine: public IEngine {
     Search::UpdateContext updateContext;
 
     // TODO : あとで検討する
-    std::function<void(std::string_view)> onVerifyNetworks;
+    std::function<void(std::string_view)> onVerifyNetwork;
 
     std::map<NumaIndex, SharedHistories>  sharedHists;
 
