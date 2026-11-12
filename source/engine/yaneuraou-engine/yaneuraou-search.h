@@ -579,8 +579,8 @@ class YaneuraOuWorker: public Worker {
     RootMoves rootMoves;
 #endif
 
-    // 反復深化の探索深さと、最後に完了した深さ。
-    Depth rootDepth, completedDepth;
+    // 現在探索中、または最後に開始した反復深化の深さ。
+    Depth rootDepth;
     // 詰みを探すために一部の枝刈りを緩めるモード。
     bool seekMate = false;
 

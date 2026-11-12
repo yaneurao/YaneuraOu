@@ -877,7 +877,7 @@ void Search::YaneuraOuWorker::pre_start_searching() {
     nmpMinPly       = 0;
     seekMate        = false;
     bestMoveChanges = 0;
-    rootDepth = completedDepth = 0;
+    rootDepth = 0;
 
     // 各WorkerのPosition::set_ekr()を呼び出して入玉ルールを反映させる必要がある。
     auto& search_options = main_manager()->search_options;
@@ -1232,7 +1232,7 @@ SKIP_SEARCH:
     // Send again PV info if we have a new best thread
     // 新しいベストスレッドがあれば、再度PV情報を送信する
     if (bestThread != this)
-        main_manager()->output_pv(*bestThread, threads, tt, bestThread->completedDepth);
+        main_manager()->output_pv(*bestThread, threads, tt, bestThread->rootDepth);
 
     // 🤔 こんなにPV出力するの好きじゃないので省略。
     //     ただし、一度もPVを出力していないなら、出力すべきだと思う。
@@ -1309,7 +1309,7 @@ SKIP_SEARCH:
         }
         else
         {
-            main_manager()->output_pv(*bestThread, threads, tt, bestThread->completedDepth);
+            main_manager()->output_pv(*bestThread, threads, tt, bestThread->rootDepth);
         }
     }
 
@@ -1905,8 +1905,6 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
         if (!threads.stop)
         {
-            completedDepth  = rootDepth;
-
             if (lastBestMovePV.empty() || lastBestMovePV[0] != rootMoves[0].pv[0])
                 lastBestMoveDepth = rootDepth;
 
@@ -2040,7 +2038,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
             double k      = 0.5189;
             double center = lastBestMoveDepth + 11.57;
-            timeReduction = 0.723 + 0.79 / (1.104 + std::exp(-k * (completedDepth - center)));
+            timeReduction = 0.723 + 0.79 / (1.104 + std::exp(-k * (rootDepth - center)));
             double reduction =
               (1.455 + mainThread->previousTimeReduction) / (2.2375 * timeReduction);
             double bestMoveInstability = 1.04 + 1.8956 * totBestMoveChanges / threads.size();
@@ -2054,16 +2052,16 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             const int effortMinDepth = 10;
             const double effortMinimum = effortMinimumQ10 / 1024.0;
 #if STOCKFISH
-            double highBestMoveEffort = completedDepth >= effortMinDepth
+            double highBestMoveEffort = rootDepth >= effortMinDepth
               ? std::clamp(interpolate(i64(nodesEffort), i64(effortStart),
                                        i64(effortStart) + effortSpan, 1.0, effortMinimum),
                            effortMinimum, 1.0)
               : 1.0;
 #else
-            double highBestMoveEffort = completedDepth >= 10 && nodesEffort >= 92425 ? 0.666 : 1.0;
+            double highBestMoveEffort = rootDepth >= 10 && nodesEffort >= 92425 ? 0.666 : 1.0;
             // 最善手への集中度による時間配分の補間を0/1で比較する。
             if (1)
-                highBestMoveEffort = completedDepth >= effortMinDepth
+                highBestMoveEffort = rootDepth >= effortMinDepth
               ? std::clamp(interpolate(i64(nodesEffort), i64(effortStart),
                                        i64(effortStart) + effortSpan, 1.0, effortMinimum),
                            effortMinimum, 1.0)
@@ -5805,14 +5803,6 @@ void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
     if (ponder)
         return;
 
-	if (
-    // Later we rely on the fact that we can at least use the mainthread previous
-    // root-search score and PV in a multithreaded environment to prove mated-in scores.
-
-    // 後で、少なくともメインスレッドの直前の
-    // ルート探索のスコアとPVをマルチスレッド環境で利用して、
-    // 詰みのスコアを証明できるという事実に依存している。
-
     /*
 				📓 time managementを行う時に、
 
@@ -5833,12 +5823,11 @@ void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
 			*/
 
 #if STOCKFISH
-      worker.completedDepth >= 1
-      && ((worker.limits.use_time_management() && (elapsed > tm.maximum() || stopOnPonderhit)) || (worker.limits.movetime && elapsed >= worker.limits.movetime)
-          || (worker.limits.nodes && worker.threads.nodes_searched() >= worker.limits.nodes)))
+    if ((worker.limits.use_time_management() && (elapsed > tm.maximum() || stopOnPonderhit))
+        || (worker.limits.movetime && elapsed >= worker.limits.movetime)
+        || (worker.limits.nodes && worker.threads.nodes_searched() >= worker.limits.nodes))
         worker.threads.stop = true;
 #else
-      worker.completedDepth >= 1)
     {
         if (
           // 3.

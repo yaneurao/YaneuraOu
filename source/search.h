@@ -590,7 +590,7 @@ protected:
 	// 📝 派生class側で
 #if STOCKFISH
     // 探索した深さ。
-    //Depth rootDepth, completedDepth;
+    //Depth rootDepth;
 
     // aspiration searchのroot delta
     //Value rootDelta;
