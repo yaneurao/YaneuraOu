@@ -3273,13 +3273,12 @@ tt_cutoff:
         // チェスではrule50が大きい場合にTTカットを避ける。将棋にはこの条件を適用しない。
 
         // 🤔 以前の探索で比較したときはR10ぐらい弱くなるっぽかった。
-        //     今回の探索では有効にし、検査を始める深さをSPSAで調整する。0なら従来どおり検査しない。
+        //     今回の探索では有効にし、検査を始める深さをSPSAで調整する。
 #if STOCKFISH
         if (pos.rule50_count() < 96)
         {
 #endif
-            const int ttChildProbeDepth = 7;
-            if (ttChildProbeDepth > 0 && depth >= ttChildProbeDepth && ttData.move
+            if (depth >= 7 && ttData.move
 #if STOCKFISH
                 && pos.legal(ttData.move)
 #else
@@ -3563,7 +3562,7 @@ tt_cutoff:
                       search_options.generate_all_legal_moves);
 #endif
 
-        Depth      probCutDepth = depth - 4;
+        Depth      probCutDepth = depth - (improving ? 5 : 3);
 
 		// 💡 試行回数は2回(cutNodeなら4回)までとする。(よさげな指し手を3つ試して駄目なら駄目という扱い)
         //     cf. Do move-count pruning in probcut : https://github.com/official-stockfish/Stockfish/commit/b87308692a434d6725da72bbbb38a38d3cac1d5f
@@ -3806,12 +3805,7 @@ moves_loop:  // When in check, search starts here
                 // 駒取りや王手に対するSEE（静的交換評価）に基づく枝刈り
 				// ステイルメイト（引き分け）を狙うために、最後の駒を犠牲にする手の枝刈りは避ける
 
-                // Allow a positive SEE threshold when capture history is poor.
-                // 捕獲履歴が悪い場合は、正のSEEを要求できるようにする。
-                // The default floor is below the range reached by the tuned coefficients.
-                // 既定の下限は、調整範囲内の係数で生じるmarginよりも小さくしてある。
-                const int captureSeeMarginFloor = -1024;
-                int margin = std::max(167 * depth + captHist * 34 / 1024, captureSeeMarginFloor);
+                int margin = 167 * depth + captHist * 34 / 1024;
 #if STOCKFISH
 				if ((alpha >= VALUE_DRAW || pos.non_pawn_material(us) != PieceValue[movedPiece])
 #else
@@ -3895,15 +3889,7 @@ moves_loop:  // When in check, search starts here
                 // 負のSEEを持つ指し手を枝刈りする
                 // 💡 lmrDepthの2乗に比例するのでこのパラメーターの影響はすごく大きい。
 
-                // SPSA can make lmrDepth large. Widen before squaring, and bound the
-                // threshold so see_ge() subtraction is safe. Below -VALUE_INFINITE,
-                // SEE already succeeds because every piece value is smaller.
-                // SPSAでlmrDepthが大きくなり得るため、二乗する前に64bitへ拡張する。
-                // SEE内の減算も安全にするため閾値に下限を設ける。各駒の価値は
-                // VALUE_INFINITEより小さいので、この下限以下ではSEEは必ず成功する。
-                const Value seeMargin =
-                  Value(std::max<i64>(i64(-25) * lmrDepth * lmrDepth, -VALUE_INFINITE));
-                if (!pos.see_ge(move, seeMargin))
+                if (!pos.see_ge(move, -25 * lmrDepth * lmrDepth))
                     continue;
             }
         }
@@ -4143,11 +4129,10 @@ moves_loop:  // When in check, search starts here
             ss->statScore = 863 * int(PieceValue[pos.captured_piece()]) / 128
                           + captureHistory[movedPiece][move.to_sq()][type_of(pos.captured_piece())];
         else
-            // 📊【計測資料 11.】statScoreの計算でcontHist[3]も調べるかどうか。
-            // 🤔 contHist[5]も/2とかで入れたほうが良いのでは…。誤差か…？
-            ss->statScore = 2 * mainHistory[us][move.raw()]
-                          + (*contHist[0])[movedPiece][move.to_sq()]
-                          + (*contHist[1])[movedPiece][move.to_sq()];
+            ss->statScore =
+              (2252 * mainHistory[us][move.raw()] + 1126 * (*contHist[0])[movedPiece][move.to_sq()]
+               + 1093 * (*contHist[1])[movedPiece][move.to_sq()])
+              / 1024;
 
         // Decrease/increase reduction for moves with a good/bad history
         // 良い/悪い履歴を持つ手に対して、reductionを減らす/増やす
@@ -4162,7 +4147,7 @@ moves_loop:  // When in check, search starts here
         // Scale up reductions for expected ALL nodes
         // ALLノードと見込まれるノードでは、削減量を増やす。
         if (allNode)
-            r += int(i64(r) * 273 / (256 * depth + 260));
+            r += r * 276 / (256 * depth + 268);
 
 		// -----------------------
 		/*
