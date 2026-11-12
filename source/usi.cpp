@@ -282,8 +282,7 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) { // diff:ignore
 #else
     {
         // Stochastic Ponder中にhitした。
-        if (engine.get_options().count("Stochastic_Ponder")
-            && engine.get_options()["Stochastic_Ponder"])
+        if (stochastic_ponder_rewound)
         {
 			// 思考をいったん停止。このときbestmoveを出力されると困るので抑制してから。
             auto on_bestmove = engine.get_on_bestmove();
@@ -297,6 +296,7 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) { // diff:ignore
             std::istringstream iss1(last_position_cmd_string);
             iss1 >> token; // 先頭の"position"を捨てる。
             position(iss1);
+            stochastic_ponder_rewound = false;
 
 			std::istringstream iss2(last_go_cmd_string);
             iss2 >> token; // 先頭の"go"を捨てる。
@@ -734,23 +734,35 @@ void USIEngine::go(std::istringstream& is)
 		engine.go(limits);
 #else
 	{
-		// Stochastic Ponderが有効なときに"go ponder"が送られてきたら、
-		// last_position_cmd_stringから1手戻した局面に変更してからgo ponderする。
-		if (limits.ponderMode && engine.get_options().count("Stochastic_Ponder")
-			&& engine.get_options()["Stochastic_Ponder"])
-		{
-            auto s = last_position_cmd_string;
-			// 最初("position")と最後(最後の指し手)のtokenを捨てる。
+        stochastic_ponder_rewound = false;
+        // Stochastic Ponderでは、moves節の最後の指し手だけを除いて1手戻す。
+        // 履歴がなければ元の局面のまま通常のponderを行う。
+        if (limits.ponderMode && engine.get_options().count("Stochastic_Ponder")
+            && engine.get_options()["Stochastic_Ponder"])
+        {
+            std::istringstream command(last_position_cmd_string);
+            std::string token, previousPosition;
+            bool moves = false;
+            usize lastMove = std::string::npos;
+            while (command >> token)
+            {
+                if (moves)
+                    lastMove = previousPosition.size();
+                previousPosition += token + ' ';
+                if (token == "moves")
+                    moves = true;
+            }
 
-			// 最後のスペース位置
-			std::size_t last_space  = s.find_last_of(' ');
-			std::istringstream iss(s.substr(0,last_space));
-			// 先頭の"position"を捨てる
-            std::string             token;
-            iss >> token;
-
-            position(iss);
-		}
+            if (lastMove != std::string::npos)
+            {
+                previousPosition.resize(lastMove);
+                std::istringstream previous(previousPosition);
+                previous >> token;  // Skip "position".
+                                    // 先頭の"position"を読み飛ばす。
+                position(previous);
+                stochastic_ponder_rewound = true;
+            }
+        }
 
 		engine.go(limits);
 	}

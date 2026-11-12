@@ -259,7 +259,8 @@ private:
 
 		1. GUIから送られてきた"position"コマンドのコマンドラインを丸ごと保存しておく。
 		2. GUIから送られてきた"go ponder"コマンドのコマンドラインを丸ごと保存しておく。
-		3. GUIから"go ponder"が送られてきたときに、1.で保存した局面の1手前の局面をrootとして、そこから探索する。
+		3. GUIから"go ponder"が送られてきたときに、1.のmoves節にある最後の指し手を除き、その局面から探索する。
+		   指し手履歴がない場合は、元の局面で通常のponderを行う。
 		4. GUIから"ponderhit"が送られてきたときに、2.で保存しておいたコマンド列から"ponder"の文字列を取り除き(無視して)実行する。
 	*/
 
@@ -268,6 +269,9 @@ private:
 
 	// 上記2.
 	std::string last_go_cmd_string;
+
+    // 今回のponderで実際に1手戻した場合だけ、ponderhit時に元の局面へ戻す。
+    bool stochastic_ponder_rewound = false;
 #endif
 };
 
