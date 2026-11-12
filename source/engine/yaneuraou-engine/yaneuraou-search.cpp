@@ -358,6 +358,8 @@ void YaneuraOuEngine::resize_threads() {
     threads.ensure_network_replicated();
 }
 
+#if !STOCKFISH
+
 // 置換表の割り当て
 void YaneuraOuEngine::set_tt_size(usize mb){
 	wait_for_search_finished();
@@ -370,6 +372,8 @@ int YaneuraOuEngine::get_hashfull(int maxAge) const
 {
 	return tt.hashfull(maxAge);
 }
+
+// 🌈 qsearch_csvコマンド用。(教師データをqsearchのpv leafに置換するコマンド)
 
 namespace {
 
@@ -610,6 +614,8 @@ Value YaneuraOuEngine::evaluate() const {
     return Eval::evaluate(pos); // cpに変換するか？まあいいか…。
 }
 
+#endif
+
 // -----------------------------------------------------------
 // 📌 ここ以降はStockfishのsearch.cppを参考にしながら書く。 📌
 // -----------------------------------------------------------
@@ -618,7 +624,14 @@ Value YaneuraOuEngine::evaluate() const {
 #if STOCKFISH
 namespace Stockfish {
 // 💡 このファイルの冒頭でnamespace YaneuraOu { と書いているのでコメントアウト。
+#endif
 
+inline int lmr_divisor(int depth) {
+    int d = std::min(depth, 16);
+    return 3000 + 7 * (d - 8) * (d - 8);
+}
+
+#if STOCKFISH
 // 将棋では、Tablebasesは用いない。
 namespace TB = Tablebases;
 
@@ -646,10 +659,6 @@ constexpr int SEARCHEDLIST_CAPACITY = 32;
 constexpr int mainHistoryDefault    = 0;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
-inline int lmr_divisor(int depth) {
-    int d = std::min(depth, 16);
-    return 3000 + 7 * (d - 8) * (d - 8);
-}
 
 // (*Scalers):
 // The values with Scaler asterisks have proven non-linear scaling.
@@ -905,9 +914,6 @@ void Search::YaneuraOuWorker::start_searching() {
     accumulatorStack.reset();
 #endif
 
-    // 前回のgoで得たPVは今回の探索では使えないので、各Workerの探索開始時に破棄する。
-    lastIterationIdxPV.clear();
-
     // Non-main threads go directly to iterative_deepening()
     // メインスレッド以外は直接 iterative_deepening() へ進む
 
@@ -920,8 +926,10 @@ void Search::YaneuraOuWorker::start_searching() {
     // 📌 ここ以下のコードは、main threadで"go"に対して実行される。
     //     "go"のごとに初期化しないといけないものはここで行う。
 
-    // iterative_deepening()内で最終PVをすでに出力したか。
+#if !STOCKFISH
+    // 定跡などで探索をスキップした場合も、最終PVの出力判定に使う。
     bool uciPvSent = false;
+#endif
 
     // 📌 今回の思考時間の設定。
     //     これは、ponderhitした時にponderhitにパラメーターが付随していれば
@@ -1095,7 +1103,11 @@ void Search::YaneuraOuWorker::start_searching() {
     //    start_searching()の先頭には、main thread以外であれば即座に
     //    iterative_deepning()を呼び出すようになっているので、これにより並列探索が開始できる。
 
+#if STOCKFISH
+    bool uciPvSent = iterative_deepening();
+#else
     uciPvSent = iterative_deepening();  // main thread start searching
+#endif
     // 💡 main threadも並列探索に加わる。
 
     // When we reach the maximum depth, we can arrive here without a raise of
@@ -1205,11 +1217,11 @@ SKIP_SEARCH:
     Skill skill = Skill(20, 0);
 #endif
 
-    if (int(options["MultiPV"]) == 1 && !limits.depth && !limits.mate && !skill.enabled()
-        && rootMoves[0].pv[0] != Move::none())
 #if STOCKFISH
+    if (!limits.depth && !skill.enabled())
         bestThread = threads.get_best_thread()->worker.get();
 #else
+    if (!search_skipped && !limits.depth && !limits.mate && !skill.enabled())
         bestThread = toYaneuraOuWorker(threads.get_best_thread()->worker);
 #endif
 
@@ -1661,7 +1673,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             seekMate = rootMoves[pvIdx].previousScore != -VALUE_INFINITE
                     && std::abs(rootMoves[pvIdx].previousScore) >= seekMateThreshold;
 
-#if 0
+#if STOCKFISH
             // Adjust optimism based on root move's averageScore
             // ルート手の averageScore に基づいて楽観度を調整する
 			optimism[us]  = 137 * avg / (std::abs(avg) + 91);
@@ -1940,6 +1952,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 rootMoves[0].inexactLower = true;
         }
 
+#if !STOCKFISH
+
         // 🤔 探索深さが、mateの手数の2倍以上になったら、それより短い詰みが
         //     見つかることは稀だし、探索を停止させて良いと思う。(やねうら王独自)
         // 💡 multi_pvのときは一つのpvで詰みを見つけただけでは停止するのは良くないので
@@ -1961,31 +1975,30 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 && (bestValue - (-VALUE_MATE) + 2) * 5 / 2 < (Value) (rootDepth))
                 break;
         }
+#endif
+
+        // 💡 UCIでは"go mate 5"のようにmateのあと手数が送られてくる仕様。
+        //     USIでは"go mate"のあとは思考時間がやってくるので、早期リタイアできない。
+#if STOCKFISH
+        // Have we found a "mate in x" after a completed iteration?
+        // 完了した反復で「x手詰み」が見つかったか。
+        if (limits.mate && !threads.stop && is_mate_or_mated(rootMoves[0].score)
+            && VALUE_MATE - std::abs(rootMoves[0].score) <= 2 * limits.mate)
+            threads.stop = true;
+#endif
 
         if (!mainThread)
             continue;
 
+#if !STOCKFISH
         // 🌈 ponder用の指し手として、2手目の指し手を保存しておく。
         //     これがmain threadのものだけでいいかどうかはよくわからないが。
         //     とりあえず、無いよりマシだろう。(やねうら王独自拡張)
 
         if (rootMoves[0].pv.size() > 1)
             mainThread->ponder_candidate = rootMoves[0].pv[1];
-
-        // Have we found a "mate in x" after a completed iteration?
-        // 完了した反復で「x手詰み」が見つかったか。
-
-        // 💡 UCIでは"go mate 5"のようにmateのあと手数が送られてくる仕様。
-        //     USIでは"go mate"のあとは思考時間がやってくるので、早期リタイアできない。
-#if STOCKFISH
-        if (limits.mate && rootMoves[0].score == rootMoves[0].usiScore
-            && ((rootMoves[0].score >= VALUE_MATE_IN_MAX_PLY
-                 && VALUE_MATE - rootMoves[0].score <= 2 * limits.mate)
-                || (rootMoves[0].score != -VALUE_INFINITE
-                    && rootMoves[0].score <= VALUE_MATED_IN_MAX_PLY
-                    && VALUE_MATE + rootMoves[0].score <= 2 * limits.mate)))
-            threads.stop = true;
 #endif
+
 
         // If the skill level is enabled and time is up, pick a sub-optimal best move
         // スキルレベルが有効で、かつ時間切れの場合、最適でないベストムーブを選ぶ。
@@ -2145,20 +2158,26 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     // If the skill level is enabled, swap the best PV line with the sub-optimal one
     // スキルレベルが有効なら、最善のPVを選択された次善の手順と入れ替える。
     if (skill.enabled())
-        std::swap(rootMoves[0],
-                  *std::find(rootMoves.begin(), rootMoves.end(),
-                             skill.best ? skill.best : skill.pick_best(rootMoves, multiPV)));
+    {
+        Move pick = skill.best ? skill.best : skill.pick_best(rootMoves, multiPV);
+        if (pick != rootMoves[0].pv[0])
+        {
+            std::swap(rootMoves[0], *std::find(rootMoves.begin(), rootMoves.end(), pick));
+            uciPvSent = false;
+        }
+    }
 
     return uciPvSent;
 }
 
+#if !STOCKFISH
 void Search::YaneuraOuWorker::do_move(Position & pos, const Move move, StateInfo& st,
                                         Stack* const ss) {
     do_move(pos, move, st, pos.gives_check(move), pos.capture_stage(move), ss);
 }
+#endif
 
-
-void YaneuraOuWorker::do_move(
+void Search::YaneuraOuWorker::do_move(
   Position& pos, const Move move, StateInfo& st, const bool givesCheck,
   const bool capture, Stack* const ss) {
 
@@ -2258,7 +2277,7 @@ void Search::YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move
 
 // Reset histories, usually before a new game
 // 履歴をリセットする。通常は新しいゲームの前に実行される。
-void YaneuraOuWorker::clear() {
+void Search::YaneuraOuWorker::clear() {
 
 	// TODO : あとで調整する。pawnHistory.fill(-1238@);も。
 	mainHistory.fill(mainHistoryDefault);
