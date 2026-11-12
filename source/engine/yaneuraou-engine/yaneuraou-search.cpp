@@ -29,18 +29,18 @@
 #include <string>
 #include <utility>
 
-// やねうら王独自の処理で使用する標準ヘッダー。
-#include <cstring>  // memset()
-#include <fstream>
-#include <iomanip>
-#include <sstream>
-
 #include "../../bitboard.h"
 #include "../../evaluate.h"
 #include "../../history.h"
 #include "../../misc.h"
 #include "../../movegen.h"
 #include "../../movepick.h"
+
+#if STOCKFISH
+#include "nnue/network.h"
+#include "nnue/nnue_accumulator.h"
+// TODO : やねうら王側も同じ構造にすべきか？
+#endif
 #include "../../position.h"
 #include "../../thread.h"
 #include "../../timeman.h"
@@ -48,6 +48,13 @@
 #include "../../types.h"
 #include "../../usi.h"
 #include "../../usioption.h"
+
+#if !STOCKFISH
+// やねうら王独自の処理で使用する標準ヘッダー。
+#include <cstring>  // memset()
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 
 #include "yaneuraou-search.h"
 #include "../../book/book.h"
@@ -377,8 +384,6 @@ void YaneuraOuEngine::resize_threads() {
     threads.ensure_network_replicated();
 }
 
-#if !STOCKFISH
-
 // 置換表の割り当て
 void YaneuraOuEngine::set_tt_size(usize mb){
 	wait_for_search_finished();
@@ -633,17 +638,14 @@ Value YaneuraOuEngine::evaluate() const {
     return Eval::evaluate(pos); // cpに変換するか？まあいいか…。
 }
 
+} // namespace YaneuraOu
 #endif
 
 // -----------------------------------------------------------
 // 📌 ここ以降はStockfishのsearch.cppを参考にしながら書く。 📌
 // -----------------------------------------------------------
 
-
-#if STOCKFISH
-namespace Stockfish {
-// 💡 このファイルの冒頭でnamespace YaneuraOu { と書いているのでコメントアウト。
-#endif
+namespace YaneuraOu {
 
 inline int lmr_divisor(int depth) {
     int d = std::min(depth, 16);
@@ -677,6 +679,20 @@ constexpr u64 NODES_LIMIT_OUTPUT = 10'000'000;
 constexpr int SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
+#if STOCKFISH
+
+// Reductions lookup table indexed by depth or move number.
+// 深さまたは指し手番号を添字とする削減量の参照表。
+const std::array<int, MAX_MOVES> reductions = [] {
+    std::array<int, MAX_MOVES> table{};
+    for (usize i = 1; i < table.size(); ++i)
+        table[i] = int(2872 / 128.0 * std::log(i));
+    return table;
+}();
+
+// 📝 やねうら王では、SPSAの対象とするため、この処理はworker初期化のところに移動させた。
+
+#endif
 
 // (*Scalers):
 // The values with Scaler asterisks have proven non-linear scaling.
@@ -848,7 +864,7 @@ Search::Worker::Worker(SharedState& sharedState,
 	refreshTable(network[token]) {
 	clear();
 }
-#endif
+#else
 
 Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 #if STOCKFISH
@@ -876,16 +892,18 @@ Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 	// 🤔 ThreadPool::resize_thread()→ThreadPool::set()でThreadPool::clear()が呼び出されて、
 	//     そのなかでWorker::clear()が呼び出されるから、ここで呼び出す必要はないと思う。
 }
+#endif
 
 void Search::YaneuraOuWorker::ensure_network_replicated() {
-	// TODO : あとで評価関数を実装する。
-	#if 0
+	// TODO : やねうら王側、これて要らんのか？
+	#if STOCKFISH
     // Access once to force lazy initialization, avoiding initialization during search
     // 遅延初期化を一度だけ実行し、探索中に初期化が起きるのを避ける。
     (void) (network[numaAccessToken]);
 	#endif
 }
 
+#if !STOCKFISH
 void Search::YaneuraOuWorker::pre_start_searching() {
 
 	if (is_mainthread())
@@ -923,13 +941,18 @@ void Search::YaneuraOuWorker::pre_start_searching() {
         }
     }
 }
+#endif
 
 void Search::YaneuraOuWorker::start_searching() {
-
+#if STOCKFISH
+    accumulatorStack.reset();
+#else
 #if defined(USE_SFNN)
+	// やねうら王側、SFNNのときだけこの初期化が必要。
     // 探索の初回evaluate()では局面の差分更新ができないので
     // accumulatorの初回フラグをセットする。
     accumulatorStack.reset();
+#endif
 #endif
 
     // Non-main threads go directly to iterative_deepening()
@@ -1064,25 +1087,35 @@ void Search::YaneuraOuWorker::start_searching() {
     {
         // rootで指し手がない = (将棋だと)詰みの局面である
 
+#if !STOCKFISH
+		// Stockfishは合法手なしなら、その場で通知・bestmove出力をしてreturnするため以下の処理は不要。
+		// やねうら王はponder・infinite時の終了待ちを共通経路で処理している。
+
         probeResult.bestmove  = Move::resign();
         probeResult.bestscore = mated_in(1);
 
 		// 💡 このあとrootMoves[0]にアクセスして、アクセス違反になるのを防ぐため。
         rootMoves.emplace_back(Move::none());
+#endif
 
 #if STOCKFISH
         main_manager()->updates.onUpdateNoMoves(
           {0, {rootPos.checkers() ? -VALUE_MATE : VALUE_DRAW, rootPos}});
+
+        main_manager()->updates.onBestmove(UCIEngine::move(Move::none()), "");
+        return;
+
         // 💡 チェスだと王手されていないなら引き分けだが、将棋だとつねに負け。
 #else
 		// やねうら王では、このあと、probeResultを用いる時用にPVを出力するので、そこで行う。
-#endif
-
         goto SKIP_SEARCH;
+#endif
     }
 
+#if !STOCKFISH
+
     // ---------------------
-    //    宣言勝ち判定
+    //   🌈 宣言勝ち判定
     // ---------------------
 
     {
@@ -1100,7 +1133,9 @@ void Search::YaneuraOuWorker::start_searching() {
             goto SKIP_SEARCH;
         }
     }
+#endif
 
+#if !STOCKFISH
     // ---------------------
     //     定跡の選択部
     // ---------------------
@@ -1108,6 +1143,7 @@ void Search::YaneuraOuWorker::start_searching() {
     probeResult = engine.book.probe(rootPos, main_manager()->updates);
     if (probeResult.bestmove)
         goto SKIP_SEARCH;
+#endif
 
     // ---------------------
     //    通常の思考処理
@@ -1152,22 +1188,25 @@ void Search::YaneuraOuWorker::start_searching() {
     //     ちなみにStockfishのほう、ここのコードに長らく同期上のバグがあった。
     //     やねうら王のほうは、かなり早くからこの構造で書いていた。後にStockfishがこの書き方に追随した。
 
+#if !STOCKFISH
     // 普通に探索したのでskipしたかのフラグをfalseにする。
     // 💡やねうら王独自
     search_skipped = false;
 
 SKIP_SEARCH:
+#endif
 
     while (!threads.stop && (main_manager()->ponder || limits.infinite))
     {
         // Busy wait for a stop or a ponder reset
         // stop か ponder reset を待つ間のビジーウェイト
 
+#if !STOCKFISH
         //	こちらの思考は終わっているわけだから、ある程度細かく待っても問題ない。
         // (思考のためには計算資源を使っていないので。)
         Tools::sleep(1);
         // ⚠ Stockfishのコード、ここ、busy waitになっているが、さすがにそれは良くないと思う。
-
+#endif
 
         /*
 			📓 ここでPVを出力したほうがいいかも？
@@ -2334,8 +2373,13 @@ void Search::YaneuraOuWorker::clear() {
 
 	// 📝 lowPlyHistoryの初期化は、対局ごとではなく、局面ごと("go"のごと)に変更された。
 
-#if defined(EVAL_SFNN)
+#if STOCKFISH
     refreshTable.clear(network[numaAccessToken]);
+#else
+#if defined(EVAL_SFNN)
+	// やねうら王では、SFNNのときだけこの処理が必要。
+    refreshTable.clear(network[numaAccessToken]);
+#endif
 #endif
 }
 
@@ -3291,7 +3335,7 @@ tt_cutoff:
             && pos.rule50_count() == 0 && !pos.can_castle(ANY_CASTLING))
         {
             TB::ProbeState err;
-            TB::WDLScore   wdl = Tablebases::probe_wdl(pos, &err);
+            TB::WDLScore   wdl = TB::probe_wdl(pos, &err);
 
             // Force check of time on the next occasion
             if (is_mainthread())
@@ -3550,29 +3594,6 @@ tt_cutoff:
     if (!protectPreviousPV && !allNode && depth >= 6 && !ttData.move)
 #endif
         depth--;
-
-#if OLD_CODE
-    // 🌈 以前のコードのほうが強い可能性がある。
-
-	if (    PvNode
-		&& !ttData.move)
-		depth -= 3;
-
-	// Use qsearch if depth <= 0
-	// (depthをreductionした結果、)もしdepth <= 0ならqsearchを用いる
-
-	if (depth <= 0)
-		return qsearch<PV>(pos, ss, alpha, beta);
-
-	// For cutNodes, if depth is high enough, decrease depth by 2 if there is no ttMove,
-	// or by 1 if there is a ttMove with an upper bound.
-
-	// カットノードの場合、深さが十分にある場合は、ttMoveがない場合に深さを2減らし、
-	// ttMoveが上限値を持つ場合は深さを1減らします。
-
-	if (cutNode && depth >= 7 && (!ttData.move || ttData.bound == BOUND_UPPER))
-		depth -= 1 + !ttData.move;
-#endif
         
 	// -----------------------
     // Step 12. ProbCut
@@ -3797,7 +3818,9 @@ moves_loop:  // When in check, search starts here
         // 📊 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
 
         if (!rootNode
-            //&& pos.non_pawn_material(us)
+#if STOCKFISH
+            && pos.non_pawn_material(us)
+#endif
             && !is_loss(bestValue))
         {
             // Skip quiet moves if movecount exceeds our threshold
@@ -4084,14 +4107,14 @@ moves_loop:  // When in check, search starts here
 
         }
 
+        // Count the move itself in the root effort.
+        // ルートのeffortには、この着手自身による1ノードも含める。
+        u64 nodeCount = rootNode ? u64(nodes) : 0;
+
 		// -----------------------
         // Step 17. Make the move
         // Step 17. 指し手を進める
         // -----------------------
-
-        // Count the move itself in the root effort.
-        // ルートのeffortには、この着手自身による1ノードも含める。
-        u64 nodeCount = rootNode ? u64(nodes) : 0;
 
 		// 指し手で1手進める
         do_move(pos, move, st, givesCheck, capture, ss);
@@ -4807,6 +4830,8 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     ss->inCheck                 = pos.checkers();
     moveCount                   = 0;
 
+#if !STOCKFISH
+// 🌈 evaluateをlazyにする独自拡張。
 #if defined(USE_CLASSIC_EVAL) && defined(USE_LAZY_EVALUATE)
 #if defined(EVAL_NNUE)
     // A supported multi-ply FT can defer the parent's accumulator update.
@@ -4827,6 +4852,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         }
         this->do_move(pos, move, st, givesCheck, capture, ss);
     };
+#endif
 #endif
 
 #if STOCKFISH
@@ -4902,9 +4928,9 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     if (ss->ply >= MAX_PLY || pos.game_ply() > search_options.max_moves_to_draw)
         return draw_value(REPETITION_DRAW, us) + value_draw(nodes);
 
-    ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
-
 #endif
+
+    ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
 
     // -----------------------
     // Step 3. Transposition table lookup
@@ -4971,7 +4997,6 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     Value unadjustedStaticEval = VALUE_NONE;
     if (ss->inCheck)
-    {
         /*
 			📓	bestValueはalphaとは違う。
 				王手がかかっているときは-VALUE_INFINITEを初期値として、
@@ -4979,7 +5004,6 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 				alphaとは区別しなければならない。
 		*/
         bestValue = futilityBase = -VALUE_INFINITE;
-	}
     else
     {
         const auto correctionValue = correction_value(*this, pos, ss);
@@ -4995,12 +5019,15 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
             unadjustedStaticEval = ttData.eval;
             if (!is_valid(unadjustedStaticEval))
                 unadjustedStaticEval = evaluate(pos);
+
+#if !STOCKFISH
 #if defined(USE_CLASSIC_EVAL)
 			else if (PvNode) {
 				// 🌈 やねうら王独自
+				// TODO : SFNNでどうなのか検証すべき。
 				unadjustedStaticEval = evaluate(pos);
-				// ⇨ NNUEだとこれ入れたほうが強い可能性が…。
 			}
+#endif
 #endif
 
 			ss->staticEval = bestValue =
@@ -5023,6 +5050,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         }
         else
         {
+#if !STOCKFISH
             // -----------------------
             //  🌈 一手詰め判定
             // -----------------------
@@ -5059,20 +5087,12 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                     return bestValue;
                 }
             }
-
-			// 📌 ここからStockfishの元のコード 📌
+#endif
 
             unadjustedStaticEval = evaluate(pos);
 
             ss->staticEval = bestValue =
 				to_corrected_static_eval(unadjustedStaticEval, correctionValue);
-
-#if 0       // 以前のコード
-            unadjustedStaticEval =
-              (ss - 1)->currentMove != Move::null()
-                ? evaluate(pos)
-                : -(ss - 1)->staticEval;
-#endif
 
         }
 
@@ -6221,9 +6241,12 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
 // 予想手がないと、ponderが有効でも次に考える指し手がなくなるためである。
 
 bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
-                                              Position&                 pos,
-                                              Move                      ponder_candidate) {
-
+                                              Position&                 pos
+#if !STOCKFISH
+// 🌈 やねうら王では、反復深化で見つかったponder候補の手も使う。
+                                              ,Move                      ponder_candidate
+#endif
+                                              ) {
 
 #if STOCKFISH
     assert(pv.size() == 1 && pv[0] != Move::none());
@@ -6241,14 +6264,21 @@ bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
 
     pos.do_move(pv[0], st);
 
+#if STOCKFISH
+    if (!pos.is_draw(1))
+    {
+        auto [ttHit, ttData, ttWriter] = tt.probe(pos.key());
+        if (ttHit && ttData.move && pos.legal(ttData.move))
+            pv.push_back(ttData.move);
+    }
+#else
     auto [ttHit, ttData, ttWriter] = tt.probe(pos.key(), pos);
+
     // A TT hit may contain only a score, without a usable move.
     // TTにヒットしても、評価値だけで有効な指し手が登録されていない場合がある。
     if (ttHit && ttData.move.is_ok())
     {
         Move m = ttData.move;
-        //if (MoveList<LEGAL>(pos).contains(ttData.move))
-        // ⇨ Stockfishのこのコード、pseudo_legalとlegalで十分なのではないか？
         if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
             pv.push_back(m);
     }
@@ -6260,6 +6290,7 @@ bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
         if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
             pv.push_back(m);
     }
+#endif
 
     pos.undo_move(pv[0]);
     return pv.size() > 1;
@@ -6297,4 +6328,4 @@ static EngineFuncRegister r(engine_main, "YaneuraOuEngine", 0);
 }
 #endif
 
-#endif // YANEURAOU_ENGINE
+#endif // defined (YANEURAOU_ENGINE)
