@@ -5089,10 +5089,19 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
         if (bestValue >= beta)
         {
-            if (!is_decisive(bestValue))
-                // bestValueを少しbetaのほうに寄せる。
-                bestValue = (bestValue + beta) / 2;
+            assert(!is_decisive(bestValue));
+#if STOCKFISH
+            bestValue = (441 * bestValue + 583 * beta) / 1024;
+#else
+            const int standPatWeight = 441;
+            bestValue = (standPatWeight * bestValue + (1024 - standPatWeight) * beta) / 1024;
+#endif
 
+#if STOCKFISH
+            if (!ss->ttHit)
+                ttWriter.write(posKey, VALUE_NONE, false, BOUND_LOWER, DEPTH_UNSEARCHED,
+                               Move::none(), unadjustedStaticEval, tt.generation());
+#else
             // Keep the raw static evaluation, without treating stand pat as a searched value.
             // 生の静的評価は保存するが、stand patを探索済みの値としては保存しない。
             // The switch is available to SPSA for an independent comparison of the old policy.
@@ -5102,6 +5111,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                 ttWriter.write(posKey, storeStandPatValue ? value_to_tt(bestValue, ss->ply) : VALUE_NONE,
                                false, BOUND_LOWER, DEPTH_UNSEARCHED, Move::none(),
                                unadjustedStaticEval, tt.generation());
+#endif
             return bestValue;
         }
 
@@ -5156,13 +5166,15 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     while ((move = mp.next_move()) != Move::none())
     {
-        //assert(move.is_ok());
-
+#if STOCKFISH
+        assert(move.is_ok());
+#else
 		// MovePickerが返す指し手は合法手である。
         ASSERT_LV3(pos.pseudo_legal_s<true>(move) && pos.legal_promote(move));
 
         // MovePickerが返却前に合法性を確認済み。
         ASSERT_LV5(pos.legal(move));
+#endif
 
 		//  局面を進める前の枝刈り
 
@@ -5449,6 +5461,11 @@ TimePoint Search::Worker::elapsed() const {
 // 手番側から見た、現在の探索木上の局面を評価する。
 Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
 
+#if STOCKFISH
+    return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack, refreshTable,
+                          optimism[pos.side_to_move()]);
+#else
+
 #if defined(EVAL_SFNN)
 	// 最新のStockfishのコード
 
@@ -5457,6 +5474,8 @@ Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
 
 #else
 	return Eval::evaluate(pos);
+#endif
+
 #endif
 }
 
@@ -5614,10 +5633,9 @@ void update_all_stats(const Position&          pos,
     {
         update_quiet_histories(pos, ss, workerThread, bestMove, bonus * 806 / 1024);
 
-        int actualMalus = malus * 1113 / 1024;
         // Decrease stats for all non-best quiet moves
-        // 最善でないquietの指し手すべての統計を減少させる
-
+        // 最善手以外のすべてのquiet手について履歴値を減らす。
+        int actualMalus = malus * 1113 / 1024;
         for (Move move : quietsSearched)
         {
             actualMalus = actualMalus * 977 / 1024;
@@ -5939,8 +5957,10 @@ void syzygy_extend_pv(const OptionsMap&         options,
             break;
         }
 
-        // Full PV shown will thus be validated and end in TB.
-        // If we cannot validate the full PV in time, we do not show it.
+        // Full PV shown will thus be validated and end in TB. If we cannot
+        // validate the full PV in time, we do not show it.
+        // 表示するPV全体は検証され、終盤データベースの局面で終わる。
+        // 制限時間内にPV全体を検証できなければ、そのPVは表示しない。
         if (config.rootInTB && time_abort())
             break;
     }
@@ -6192,28 +6212,32 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
 
 // Called in case we have no ponder move before exiting the search,
 // for instance, in case we stop the search during a fail high at root.
-// We try hard to have a ponder move to return to the GUI,
-// otherwise in case of 'ponder on' we have nothing to think about.
+// We try hard to have a ponder move to return to the GUI, otherwise
+// in case of 'ponder on' we have nothing to think about.
 
 // 探索を終了する前にponder moveがない場合に呼び出されます。
 // 例えば、rootでfail highが発生して探索を中断した場合などです。
-// GUIに返すponder moveをできる限り準備しようとしますが、
-// そうでない場合、「ponder on」の際に考えるべきものが何もなくなります。
+// GUIに返す予想手をできる限り見つける。
+// 予想手がないと、ponderが有効でも次に考える指し手がなくなるためである。
 
 bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
                                               Position&                 pos,
                                               Move                      ponder_candidate) {
-    StateInfo st;
 
+
+#if STOCKFISH
+    assert(pv.size() == 1 && pv[0] != Move::none());
+
+#else
     ASSERT_LV3(pv.size() == 1);
 
-    // 💡 Stockfishでは if (pv[0] == Move::none()) となっているが、
-    //     詰みの局面が"ponderhit"で返ってくることがあるので、
-    //     ここでのpv[0] == Move::resign()であることがありうる。
-    //     だから、やねうら王では、ここは、is_ok()で判定する。
+    // 将棋では投了や宣言勝ちを返す場合もあるため、通常の指し手であることを確認する。
+    // Move::resign()やMove::win()で局面を進めてはいけない。
 
     if (!pv[0].is_ok())
         return false;
+#endif
+    StateInfo st;
 
     pos.do_move(pv[0], st);
 
@@ -6243,6 +6267,7 @@ bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
 
 }  // namespace YaneuraOu
 
+#if !STOCKFISH
 using namespace YaneuraOu;
 namespace {
 
@@ -6270,5 +6295,6 @@ void engine_main() {
 // このentry pointを登録しておく。
 static EngineFuncRegister r(engine_main, "YaneuraOuEngine", 0);
 }
+#endif
 
 #endif // YANEURAOU_ENGINE
