@@ -83,6 +83,11 @@ class Option {
     friend class Engine;
     friend class Tune;
 
+#if !STOCKFISH
+    // 固定設定の読込用。代入の返却型を変えず、値を受理したかを呼出側へ返す。
+    Option& assign(const std::string&, bool& accepted);
+#endif
+
     // このオプション設定のdefaultの値、現在の値、type。
     // 💡 typeは USIプロトコルのsetoptionの時に指定できるオプションの型名。
     /*
