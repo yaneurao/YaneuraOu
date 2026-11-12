@@ -1,5 +1,4 @@
 ﻿#include "../../config.h"
-#include "../../extra/tools.h"
 
 #if defined (YANEURAOU_ENGINE)
 
@@ -16,24 +15,44 @@
 #include "../../search.h"
 
 #include <algorithm>
+#include <array>
+#include <atomic>
+#include <cassert>
+#include <chrono>
+#include <cmath>
 #include <cstdint>
-#include <sstream>
+#include <cstdlib>
+#include <initializer_list>
+#include <iostream>
+#include <list>
+#include <ratio>
+#include <string>
+#include <utility>
+
+// やねうら王独自の処理で使用する標準ヘッダー。
+#include <cstring>  // memset()
 #include <fstream>
 #include <iomanip>
-#include <cmath>	// std::log(),std::pow(),std::round()
-#include <cstring>	// memset()
+#include <sstream>
 
-#include "yaneuraou-search.h"
+#include "../../bitboard.h"
+#include "../../evaluate.h"
+#include "../../history.h"
 #include "../../misc.h"
+#include "../../movegen.h"
 #include "../../movepick.h"
 #include "../../position.h"
 #include "../../thread.h"
+#include "../../timeman.h"
 #include "../../tt.h"
 #include "../../types.h"
-#include "../../book/book.h"
 #include "../../usi.h"
+#include "../../usioption.h"
+
+#include "yaneuraou-search.h"
+#include "../../book/book.h"
+#include "../../extra/tools.h"
 #include "../../mate/mate.h"
-#include "../../tune.h"
 
 namespace YaneuraOu {
 

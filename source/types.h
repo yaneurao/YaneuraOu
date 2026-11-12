@@ -1234,3 +1234,6 @@ extern void engine_main();
 
 
 #endif // #ifndef TYPES_H_INCLUDED
+
+#include "tune.h"  // Global visibility to tuning setup
+// チューニング設定を全体から利用できるようにする。
