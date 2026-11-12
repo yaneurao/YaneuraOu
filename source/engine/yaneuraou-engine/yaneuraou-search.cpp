@@ -641,7 +641,7 @@ using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
 inline int lmr_divisor(int depth) {
     int d = std::min(depth, 16);
-    return 3000 + 7 * (d - 8) * (d - 8);
+    return std::max(3000 + 7 * (d - 8) * (d - 8), 1);
 }
 
 // (*Scalers):
@@ -1499,7 +1499,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     // 新しいルート局面の探索を始めるとき、以前のmain historyを減衰させる。
     for (Color c : {BLACK, WHITE})
         for (int i = 0; i < UINT_16_HISTORY_SIZE; ++i)
-            mainHistory[c][i] = mainHistory[c][i] * 729 / 1024;
+            mainHistory[c][i] = mainHistory[c][i] * std::clamp(729, 0, 1024) / 1024;
 
     // Iterative deepening loop until requested to stop or the target depth is reached
     // 要求があるか、または目標深度に達するまで反復深化ループを実行します
@@ -3300,7 +3300,7 @@ tt_cutoff:
         if (!ss->ttPv && depth < (seekMate ? 6 : 19) && eval >= beta && eval - futility_margin(depth) >= beta
             && (!ttData.move || ttCapture) && !is_loss(beta) && !is_win(eval))
         {
-            const int betaWeight = 661;
+            const int betaWeight = std::clamp(661, 0, 1024);
             return (betaWeight * beta + (1024 - betaWeight) * eval) / 1024;
         }
     }
@@ -3336,7 +3336,7 @@ tt_cutoff:
 
         // Odd threads reduce one ply less; a large evaluation margin allows more reduction.
         // 奇数スレッドは1手浅く削減し、評価値がbetaを大きく超える場合は削減を増やす。
-        Depth R = 7 + depth / 3 + std::max((ss->staticEval - beta) / 256, 0) - int(threadIdx & 1);
+        Depth R = 7 + depth / 3 + std::max((ss->staticEval - beta) / std::max(256, 1), 0) - int(threadIdx & 1);
         R -= seekMate * R / 2;
         R = std::max(R, 1);  // Keep runtime SPSA choices from turning NMP into an extension.
                             // SPSAで小さな値を指定しても、NMPを逆に延長しない。
@@ -4207,8 +4207,8 @@ moves_loop:  // When in check, search starts here
             // Exponential moving average parameters for root move
             // ルート手の探索ノード数に応じて、スコアの指数移動平均の重みを変える。
             constexpr u64 Scale          = 32;
-            const u64     ChiNumerator   = 3;
-            const u64     ChiDenominator = 2;   // Chi = 3/2 = 1.5
+            const u64     ChiNumerator   = std::max(3, 1);
+            const u64     ChiDenominator = std::max(2, 1);   // Chi = 3/2 = 1.5
             constexpr u64 MinWeight      = 12;  // 37.5% minimum weight
             constexpr u64 MaxWeight      = 24;  // 75% maximum weight
 
@@ -5432,7 +5432,7 @@ void update_all_stats(const Position&          pos,
         // can overflow on 32-bit platforms which would change the bench signature
         // 64bit型へのキャストを削除しないこと。
         // 32bit環境で中間積がオーバーフローすると、benchの探索結果が変わってしまう。
-        bonus += int(i64(bonus) * int(quietsSearched.size() + capturesSearched.size()) / 256);
+        bonus += int(i64(bonus) * int(quietsSearched.size() + capturesSearched.size()) / std::max(256, 1));
 
 
     /*
