@@ -337,6 +337,10 @@
 // ⚠ ビルドするときにsourceフォルダ直下に"nn.bin"を配置すること。
 // #define NNUE_EMBEDDING
 
+// SFNNの評価関数の重みをOSのNUMAノード別に複製する（既定では無効）。
+// L3単位など、同じOSノードに属する論理ノードでは共有メモリを再利用する。
+// #define ENABLE_NUMA_NETWORK_REPLICATION
+
 // このシンボルはStockfishの元のコードを示すのに用いる。
 // 定義してもビルドエラーになる。
 // #define STOCKFISH
