@@ -3176,52 +3176,47 @@ tt_cutoff:
                 update_continuation_histories(ss - 1, pos.piece_on(prevSq), prevSq, -2142);
         }
 
-        // Partial workaround for the graph history interaction problem
+        // Partial workaround for the graph history interaction problem.
         // For high rule50 counts don't produce transposition table cutoffs.
+        // グラフ履歴の相互作用問題に対する部分的な回避策。
+        // チェスではrule50が大きい場合にTTカットを避ける。将棋にはこの条件を適用しない。
 
-		// グラフ履歴の相互作用問題に対する部分的な回避策
-        // rule50カウントが高い場合は、トランスポジションテーブルによるカットオフを行いません。
-
-        // ⚠ 将棋では関係のないルールなので無視して良いが、pos.rule50_count < 96 が(チェスの)通常の状態なので、
-        //     if成立時のreturnはしなければならない。
-
-        // 🤔 比較してみたが、これを有効にするとR10ぐらい弱くなるっぽい。
-        //     全体を調整してからまた考える。
-#if 0
-		if (pos.rule50_count() < 96)
-        {
-            // TODO : 将棋でもこの処理必要なのか？
-
-            if (depth >= 8 && ttData.move
+        // 🤔 以前の探索で比較したときはR10ぐらい弱くなるっぽかった。
+        //     今回の探索では有効にし、検査を始める深さをSPSAで調整する。0なら従来どおり検査しない。
 #if STOCKFISH
-				&& pos.pseudo_legal(ttData.move)
+        if (pos.rule50_count() < 96)
+        {
+#endif
+            const int ttChildProbeDepth = 7;
+            if (ttChildProbeDepth > 0 && depth >= ttChildProbeDepth && ttData.move
+#if STOCKFISH
+                && pos.legal(ttData.move)
 #else
                 && pos.pseudo_legal(ttData.move, search_options.generate_all_legal_moves)
+                && pos.legal(ttData.move)
 #endif
-				&& pos.legal(ttData.move)
                 && !is_decisive(ttData.value))
             {
+                pos.do_move(ttData.move, st);
+                Key nextPosKey = pos.key();
 #if STOCKFISH
-                pos.do_move(ttData.move, st);
-                Key nextPosKey                             = pos.key();
+                auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey);
 #else
-                pos.do_move(ttData.move, st);
-                HASH_KEY nextPosKey                        = pos.hash_key();
+                auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey, pos);
 #endif
-				auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey, pos);
                 pos.undo_move(ttData.move);
 
-                // Check that the ttValue after the tt move would also trigger a cutoff
-                if (!is_valid(ttDataNext.value))
+                // Check that the ttValue after the tt move would also trigger a cutoff.
+                // TT手を指した後の保存値も、同じ方向のカットを支持するか確認する。
+                if (!ttHitNext || !is_valid(ttDataNext.value))
                     return ttData.value;
                 if ((ttData.value >= beta) == (-ttDataNext.value >= beta))
                     return ttData.value;
             }
             else
                 return ttData.value;
+#if STOCKFISH
         }
-#else
-        return ttData.value;
 #endif
     }
 
@@ -3314,6 +3309,9 @@ tt_cutoff:
         && ss->ply >= nmpMinPly
         // 同じ手番側に連続してnull moveを適用しない
         && !is_loss(beta)
+        // Limit dynamic NMP reductions in deeply negative windows.
+        // 深い負の探索窓では、評価差に応じたNMPの過大な削減を避ける。閾値は将棋用に調整する。
+        && beta >= -2000
     )
     {
         ASSERT_LV3((ss - 1)->currentMove != Move::null());
@@ -3702,7 +3700,12 @@ moves_loop:  // When in check, search starts here
                 // 駒取りや王手に対するSEE（静的交換評価）に基づく枝刈り
 				// ステイルメイト（引き分け）を狙うために、最後の駒を犠牲にする手の枝刈りは避ける
 
-                int margin = std::max(167 * depth + captHist * 34 / 1024, 0);
+                // Allow a positive SEE threshold when capture history is poor.
+                // 捕獲履歴が悪い場合は、正のSEEを要求できるようにする。
+                // The default floor is below the range reached by the tuned coefficients.
+                // 既定の下限は、調整範囲内の係数で生じるmarginよりも小さくしてある。
+                const int captureSeeMarginFloor = -1024;
+                int margin = std::max(167 * depth + captHist * 34 / 1024, captureSeeMarginFloor);
 #if STOCKFISH
 				if ((alpha >= VALUE_DRAW || pos.non_pawn_material(us) != PieceValue[movedPiece])
 #else
@@ -3999,7 +4002,7 @@ moves_loop:  // When in check, search starts here
         // For first picked move (ttMove) reduce reduction
         // 最初に選ばれた指し手（ttMove）ではreductionを減らす
 
-        if (move == ttData.move)
+        else if (move == ttData.move)
             r -= 2239;
 
         if (capture)
@@ -4923,10 +4926,15 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                 // bestValueを少しbetaのほうに寄せる。
                 bestValue = (bestValue + beta) / 2;
 
+            // Keep the raw static evaluation, without treating stand pat as a searched value.
+            // 生の静的評価は保存するが、stand patを探索済みの値としては保存しない。
+            // The switch is available to SPSA for an independent comparison of the old policy.
+            // 従来の保存方針とも独立に比較できるよう、SPSAで切り替え可能にする。
+            const int storeStandPatValue = 0;
             if (!ss->ttHit)
-                ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), false, BOUND_LOWER,
-                               DEPTH_UNSEARCHED, Move::none(), unadjustedStaticEval,
-                               tt.generation());
+                ttWriter.write(posKey, storeStandPatValue ? value_to_tt(bestValue, ss->ply) : VALUE_NONE,
+                               false, BOUND_LOWER, DEPTH_UNSEARCHED, Move::none(),
+                               unadjustedStaticEval, tt.generation());
             return bestValue;
         }
 
