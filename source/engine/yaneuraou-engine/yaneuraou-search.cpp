@@ -648,14 +648,7 @@ using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
 inline int lmr_divisor(int depth) {
     int d = std::min(depth, 16);
-#if !STOCKFISH
-    // 深さ依存のLMR history除数を0/1で比較する。
-    if (1)
-#endif
-        return 3000 + 7 * (d - 8) * (d - 8);
-#if !STOCKFISH
-    return 3220;
-#endif
+    return 3000 + 7 * (d - 8) * (d - 8);
 }
 
 // (*Scalers):
@@ -4111,7 +4104,7 @@ moves_loop:  // When in check, search starts here
 #if !STOCKFISH
         bool discountTTMove = true;
         // cutoffCnt加算時はTT手のLMR割引をしない方針を0/1で比較する。
-        if (1)
+        if (0)
             discountTTMove = (ss + 1)->cutoffCnt <= 1;
 #endif
         if ((ss + 1)->cutoffCnt > 1)
@@ -5669,7 +5662,7 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
 #else
             int multiplier = 64;
             // 正のcontinuation historyの連続数による増幅を0/1で比較する。
-            if (1)
+            if (0)
                 multiplier = CMHCMultipliers[positiveCount];
 #endif
             historyEntry << int(i64(bonus) * weight * multiplier / 65536) + 73 * (i < 2);
