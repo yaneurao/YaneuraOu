@@ -234,7 +234,7 @@ void USIEngine::loop()
 	// yaneuraOu.wasm
 	// ここでループしてしまうと、ブラウザのメインスレッドがブロックされてしまう。
 #endif
-#endif
+#endif // diff:ignore
 } // diff:ignore
 
 // USIEngine::loop()の下請け。
