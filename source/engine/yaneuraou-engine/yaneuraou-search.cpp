@@ -168,6 +168,9 @@ void SearchManager::pre_start_searching(YaneuraOuWorker& worker) {
 // 💡 Stockfishでは、Engine::Engine()で行っている。
 void YaneuraOuEngine::add_options() {
 
+    // Threads/NumaPolicy/USI_Hashは、設定ファイルを読み終えたisready()で反映する。
+    deferResourceOptions = true;
+
 	// 📌 基本設定(base classのadd_options()を呼び出してやる)
 
 	Engine::add_options();
@@ -182,11 +185,9 @@ void YaneuraOuEngine::add_options() {
         }));
 #else
 	// 🌈 やねうら王では、default値を1024に変更。
+    // 設定時には確保しない。Threadsなどの指定順による一時的な大容量確保を避ける。
     options.add(  //
-        "USI_Hash", Option(1024, 1, MaxHashMB, [this](const Option& o) {
-            set_tt_size(o);
-            return std::nullopt;
-        }));
+        "USI_Hash", Option(1024, 1, MaxHashMB));
 #endif
 
 	// その局面での上位N個の候補手を調べる機能
@@ -278,6 +279,14 @@ void YaneuraOuEngine::add_options() {
 // "isready"のタイミングでの初期化処理。
 void YaneuraOuEngine::isready() {
 
+    wait_for_search_finished();
+    if (pendingNumaConfig)
+    {
+        hashNeedsReallocation = true;
+        numaContext.set_numa_config(std::move(*pendingNumaConfig));
+        pendingNumaConfig.reset();
+    }
+
 	// 🌈 やねうら王独自オプションの内容を設定などに反映させる。
 
 #if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
@@ -359,6 +368,8 @@ void YaneuraOuEngine::resize_threads() {
     // 📌 探索の終了を待つ
     threads.wait_for_search_finished();
 
+    hashNeedsReallocation |= threads.size() != usize(options["Threads"]);
+
     // Reductions lookup table indexed by depth or move number.
     // 深さまたは指し手番号を添字にするreductionsの参照表。
     // 全Workerで1つの表を共有する。SPSAの係数変更を反映するため、
@@ -402,7 +413,8 @@ void YaneuraOuEngine::resize_threads() {
 // 置換表の割り当て
 void YaneuraOuEngine::set_tt_size(usize mb){
 	wait_for_search_finished();
-	tt.resize(mb, threads);
+	tt.resize(mb, threads, hashNeedsReallocation);
+    hashNeedsReallocation = false;
 }
 
 // 置換表の使用率を返す。

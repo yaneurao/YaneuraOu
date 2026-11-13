@@ -442,6 +442,10 @@ class Engine: public IEngine {
 #endif   
     // 📌 エンジンを実装するために必要な最低限のコンポーネント
 
+    // 設定変更ではリソースを作り直さず、派生エンジンのisready()でまとめて反映する。
+    bool deferResourceOptions = false;
+    std::optional<NumaConfig> pendingNumaConfig;
+
     //const std::string binaryDirectory;
     // 📝 やねうら王では、CommandLine::gから取得できるので不要。
 

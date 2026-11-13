@@ -276,7 +276,7 @@ void TTWriter::penalize(int penalty) {
 // 置換表は複数のClusterから構成され、各Clusterは
 // ClusterSize個のTTEntryから構成される。
 
-void TranspositionTable::resize(usize mbSize, ThreadPool& threads) {
+void TranspositionTable::resize(usize mbSize, ThreadPool& threads, bool force) {
 #if STOCKFISH
     aligned_large_pages_free(table);
 
@@ -303,12 +303,12 @@ void TranspositionTable::resize(usize mbSize, ThreadPool& threads) {
 	// これを掛け算するから2の倍数である。
 	ASSERT_LV3((newClusterCount & 1) == 0);
 
-	// 同じサイズなら確保しなおす必要はない。
+	// 同じサイズなら再利用する。ただし、NUMA/スレッド構成の変更時は再配置する。
 
 	// Stockfishのコード、問答無用で確保しなおしてゼロクリアしているが、
 	// ゼロクリアの時間も馬鹿にならないのであまり良いとは言い難い。
 
-	if (newClusterCount == clusterCount)
+	if (newClusterCount == clusterCount && !force)
 		return;
 
 	aligned_large_pages_free(table);

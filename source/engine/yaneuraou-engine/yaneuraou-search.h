@@ -362,6 +362,9 @@ class YaneuraOuEngine: public Engine {
     // Worker間で共有するが、別EngineのSPSA設定とは独立したreductions表。
     std::array<int, MAX_MOVES> reductions{};
 
+    // NUMA/スレッド構成を変更した場合、同サイズのTTも再配置する。
+    bool hashNeedsReallocation = false;
+
 };
 
 // やねうら王の探索Worker
