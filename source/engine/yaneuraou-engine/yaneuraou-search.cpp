@@ -1,6 +1,6 @@
 ﻿#include "../../config.h"
 
-#if defined (YANEURAOU_ENGINE)
+#if defined(YANEURAOU_ENGINE)
 
 // -----------------------
 //  やねうら王 標準探索部
@@ -6334,4 +6334,4 @@ static EngineFuncRegister r(engine_main, "YaneuraOuEngine", 0);
 }
 #endif
 
-#endif // defined (YANEURAOU_ENGINE)
+#endif // defined(YANEURAOU_ENGINE)

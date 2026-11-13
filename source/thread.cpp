@@ -57,7 +57,8 @@ Thread::Thread(Search::SharedState& sharedState,
     wait_for_search_finished();
 
 #if STOCKFISH
-	run_custom_job([this, &binder, &sharedState /*, &sm*/, n]() {
+
+	run_custom_job([this, &binder, &sharedState , &sm, n]() {
 #else
 	run_custom_job([this, &binder, &sharedState , n , worker_factory]() {
 #endif
@@ -602,7 +603,7 @@ Thread* ThreadPool::get_best_thread() const {
 
     return bestThread;
 }
-#endif
+#endif // defined(YANEURAOU_ENGINE)
 
 // Start non-main threads.
 // Will be invoked by main thread after it has started searching.
