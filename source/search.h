@@ -97,8 +97,69 @@ struct PVMoves {
     }
 };
 
-// 💡 Stockfishのここにあった"struct Stack"は、
-//     engine/yaneuraou-engine/yaneuraou-search.h に移動させた。
+#if defined(YANEURAOU_ENGINE)
+// -----------------------
+//  探索のときに使うStack
+// -----------------------
+
+// Stack struct keeps track of the information we need to remember from nodes
+// shallower and deeper in the tree during the search. Each search thread has
+// its own array of Stack objects, indexed by the current ply.
+
+// Stack構造体は、検索中にツリーの浅いノードや深いノードから記憶する必要がある情報を管理します。
+// 各検索スレッドは、現在の深さ（ply）に基づいてインデックスされた、独自のStackオブジェクトの配列を持っています。
+
+struct Stack {
+    // PVへのポインター。
+    PVMoves* pv;
+
+    // historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
+    PieceToHistory* continuationHistory;
+
+    // [pc][to]のペアに対する correction history。
+    CorrectionHistory<PieceTo>* continuationCorrectionHistory;
+
+    // rootからの手数。rootならば0。
+    int ply;
+
+    // そのスレッドの探索においてこの局面で現在選択されている指し手
+    Move currentMove;
+
+    // singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
+    Move excludedMove;
+
+    // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+    Value staticEval;
+
+    // 一度計算したhistoryの合計値をcacheしておくのに用いる。
+    int statScore;
+
+    // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+    int moveCount;
+
+    // この局面で王手がかかっていたかのフラグ
+    bool inCheck;
+
+    // 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
+    bool ttPv;
+
+    // 置換表にhitしたかのフラグ
+    bool ttHit;
+
+    // 前回の反復深化で得たPVを辿っているnodeか。
+    // Stockfishでは、このPV line上では一部の浅い枝刈りを抑制する。
+    bool followPV;
+
+    // cut off(betaを超えたので枝刈りとしてreturn)した回数。
+    int cutoffCnt;
+
+    // このnodeでのreductionの量
+    int reduction;
+
+    // 同一ノードでこれまでにNMPがfail highした回数。
+    int priorNMPFailHigh;
+};
+#endif // defined(YANEURAOU_ENGINE)
 
 
 // RootMove struct is used for moves at the root of the tree. For each root move
@@ -396,8 +457,6 @@ struct InfoIteration {
 // 📌 読み筋を出力する時に呼び出すlistener
 // 🤔 StockfishではSearchManagerで定義されているが、
 //     やねうら王では各探索エンジンで共用するため、namespace Searchで定義しておく。
-// 📝 UpdateInfoは、"info string ..."にそのまま出力する。
-//    やねうら王独自拡張。
 
 // Infoを更新した時のcallback。このcallbackを行うと標準出力に出力する。
 using UpdateShort    = std::function<void(const InfoShort&)>;
@@ -405,7 +464,11 @@ using UpdateFull     = std::function<void(const InfoFull&)>;
 using UpdateIter     = std::function<void(const InfoIteration&)>;
 using UpdateBestmove = std::function<void(std::string_view, std::string_view)>;
 using UpdateStart    = std::function<void()>;
+#if !STOCKFISH
+// 📝 UpdateInfoは、"info string ..."にそのまま出力する。
+//    やねうら王独自拡張。
 using UpdateInfo     = std::function<void(std::string_view)>;
+#endif
 
 // 読み筋を出力するための関数を呼び出すlistener
 struct UpdateContext {
@@ -413,8 +476,10 @@ struct UpdateContext {
     UpdateFull     onUpdateFull;     // PVを出力する時に用いる。
     UpdateIter     onIter;           // 反復深化で現在探索中の指し手。
     UpdateBestmove onBestmove;       // bestmoveを出力する時に用いる。
-    UpdateStart    onStart = []() {}; // メインワーカーが探索を開始する時に呼ぶ。
+    UpdateStart    onStart;         // メインワーカーが探索を開始する時に呼ぶ。
+#if !STOCKFISH
     UpdateInfo     onUpdateString;   // "info string "でそのまま出力する。
+#endif
 };
 
 // Search::Worker is the class that does the actual search.
@@ -628,9 +693,11 @@ protected:
 	// 置換表
     TranspositionTable& tt;
 
+    // やねうら王では、評価パラメーターはEval::NNUE::shared_networksで管理する。
+    // SFNNのaccumulatorStackは派生クラスYaneuraOuWorkerが保持する。
+    // refreshTableに相当するFinnyキャッシュはFeatureTransformer内のthread_local変数で保持する。
+    // SFNNのNUMA別複製はENABLE_NUMA_NETWORK_REPLICATIONを定義したときだけ有効になる。
 #if STOCKFISH
-	// TODO : あとで検討する
-
 	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
 
     // Used by NNUE
