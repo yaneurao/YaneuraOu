@@ -1,12 +1,13 @@
 ﻿#include "bitboard.h"
+
+#include <iostream>
+#include <ostream>
+
 #include "misc.h"
 #include "extra/long_effect.h"
 #include "mate/mate.h"
 #include "testcmd/unit_test.h"
 
-#include <sstream>
-
-using namespace std;
 namespace YaneuraOu {
 
 // ----- Bitboard const
@@ -117,17 +118,20 @@ using namespace BB_Table;
 
 // ----------------------------------------------------------------------------------------------
 
-// Bitboardを表示する(USI形式ではない) デバッグ用
+// Prints an ASCII representation of a bitboard to the output stream.
+// Useful for debugging.
+// 標準出力でのデバッグに使う、BitboardのASCII表現を出力する。
+// StockfishのBitboards::pretty()に対応し、将棋側では従来どおりostreamへ直接書き込む。
 std::ostream& operator<<(std::ostream& os, const Bitboard& board)
 {
 	for (Rank rank = RANK_1; rank <= RANK_9; ++rank)
 	{
 		for (File file = FILE_9; file >= FILE_1; --file)
 			os << ((board & (file | rank)) ? " *" : " .");
-		os << endl;
+		os << std::endl;
 	}
 	// 連続して表示させるときのことを考慮して改行を最後に入れておく。
-	os << endl;
+	os << std::endl;
 	return os;
 }
 
@@ -631,7 +635,7 @@ std::ostream& operator<<(std::ostream& os, const Bitboard256& board)
 		print_rank(b1,r);
 		os << ' ';
 		print_rank(b2,r);
-		os << endl;
+		os << std::endl;
 	}
 	return os;
 }
@@ -972,8 +976,8 @@ Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied)
 void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 {
 	//Bitboard b(SQ_75);
-	//cout << lanceEffect<WHITE>(SQ_71, b) << endl;
-	//cout << lanceEffect<WHITE>(SQ_72, b) << endl;
+	//std::cout << lanceEffect<WHITE>(SQ_71, b) << std::endl;
+	//std::cout << lanceEffect<WHITE>(SQ_72, b) << std::endl;
 
 	auto section1 = tester.section("Bitboard");
 
@@ -1032,14 +1036,14 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 				bool ok0 = (p0 == p0_table[(int)pt]);
 				if (!ok0)
 				{
-					cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in Bitboard(ZERO) , pop_count = " << p0 << endl;
-					cout << bb0 << endl;
+					std::cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in Bitboard(ZERO) , pop_count = " << p0 << std::endl;
+					std::cout << bb0 << std::endl;
 				}
 				bool ok1 = (p1 == p1_table[(int)pt]);
 				if (!ok1)
 				{
-					cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in Bitboard(1) , pop_count = " << p1 << endl;
-					cout << bb1 << endl;
+					std::cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in Bitboard(1) , pop_count = " << p1 << std::endl;
+					std::cout << bb1 << std::endl;
 				}
 				all_ok &= ok0 & ok1;
 			}

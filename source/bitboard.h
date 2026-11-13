@@ -2,14 +2,15 @@
 #define BITBOARD_H_INCLUDED
 
 #include <algorithm>
+#include <cassert>
+#include <iosfwd>
 
 #include "types.h"
 #include "misc.h"
 
 namespace YaneuraOu {
 
-namespace Bitboards
-{
+namespace Bitboards {
 	// Bitboard関連のテーブル初期化のための関数
 	void init();
 }
@@ -298,7 +299,9 @@ inline Bitboard& Bitboard::insert64(u64 u)
 	return *this;
 }
 
-// Square型との演算子
+// Overloads of bitwise operators between a Bitboard and a Square for testing
+// whether a given bit is set in a bitboard, and for setting and clearing bits.
+// 指定した升のビットの検査・設定・反転に使う、BitboardとSquare間のビット演算子。
 Bitboard operator|(const Bitboard& b, Square s);
 Bitboard operator&(const Bitboard& b, Square s);
 Bitboard operator^(const Bitboard& b, Square s);
@@ -489,6 +492,9 @@ namespace BB_Table
 	// 廃止 →　代わりにBitboard<1>()を用いる。	
 }
 
+// rank_bb() and file_bb() return a bitboard representing all the squares on
+// the given file or rank.
+// 指定した筋または段にある全升を表すBitboardを返す。
 static const Bitboard file_bb(File f) { return BB_Table::FILE_BB[f]; }
 static const Bitboard rank_bb(Rank r) { return BB_Table::RANK_BB[r]; }
 
@@ -1074,8 +1080,9 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
 //   Stockfishとの互換性のために用意
 // --------------------
 
-/// pawn_attacks_bb() returns the squares attacked by pawns of the given color
-/// from the squares in the given bitboard.
+// Returns the squares attacked by pawns of the given color
+// from the squares in the given bitboard.
+// 指定した手番の歩が、渡されたBitboardの各升から利かせる升を返す。
 
 // pawn_attacks_bb()は、手番C側の利き。
 // b : 手番C側の歩のBitboardを渡す。
@@ -1128,7 +1135,7 @@ inline Bitboard attacks_bb(Square s, Bitboard occupied) {
 #if STOCKFISH
 inline Square lsb(Bitboard b) {
 #else
-inline i8 lsb(uint64_t b) {
+inline i8 lsb(u64 b) {
 #endif
 	assert(b);
 
@@ -1151,11 +1158,9 @@ inline i8 lsb(uint64_t b) {
         _BitScanForward(&idx, i32(b));
         return i8(idx);
     }
-    else
-    {
-        _BitScanForward(&idx, i32(b >> 32));
-        return i8(idx + 32);
-    }
+
+    _BitScanForward(&idx, i32(b >> 32));
+    return i8(idx + 32);
     #endif
 #else  // Compiler is neither GCC nor MSVC compatible
     #error "Compiler not supported."
@@ -1168,7 +1173,7 @@ inline i8 lsb(uint64_t b) {
 #if STOCKFISH
 inline Square msb(Bitboard b) {
 #else
-inline i8 msb(uint64_t b) {
+inline i8 msb(u64 b) {
 #endif
     assert(b);
 
@@ -1192,11 +1197,9 @@ inline i8 msb(uint64_t b) {
         _BitScanReverse(&idx, i32(b >> 32));
         return i8(idx + 32);
     }
-    else
-    {
-        _BitScanReverse(&idx, i32(b));
-        return i8(idx);
-    }
+
+    _BitScanReverse(&idx, i32(b));
+    return i8(idx);
     #endif
 #else  // Compiler is neither GCC nor MSVC compatible
     #error "Compiler not supported."
@@ -1204,10 +1207,10 @@ inline i8 msb(uint64_t b) {
 }
 
 
-/// least_significant_square_bb() returns the bitboard of the least significant
-/// square of a non-zero bitboard. It is equivalent to square_bb(lsb(bb)).
-
-// pop_lsb()の、Bitboardを返す版。
+// Returns the bitboard of the least significant
+// square of a non-zero bitboard. It is equivalent to square_bb(lsb(bb)).
+// 0でないBitboardの最下位の升だけを立てたBitboardを返す。
+// Stockfishではsquare_bb(lsb(bb))と等価で、将棋側では2つの64bit領域を考慮する。
 // ※　Stockfishとの互換性のために用意。
 
 inline Bitboard least_significant_square_bb(Bitboard b) {
