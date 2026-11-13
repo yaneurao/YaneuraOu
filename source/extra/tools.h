@@ -45,7 +45,7 @@ namespace Tools {
 	// 進捗を表示しながら並列化してゼロクリア
 	// Stockfishではtt.cppにこのコードがあるのだが、独自の置換表を確保したいときに
 	// これが独立していないと困るので、ここに用意する。
-	// nameは"Hash" , "eHash"などクリアしたいものの名前を書く。
+	// nameは"Hash" , "MateHash"などクリアしたいものの名前を書く。
 	// メモリクリアの途中経過が出力されるときにその名前(引数nameで渡している)が出力される。
 	// name == nullptrのとき、途中経過は表示しない。
 	void memclear(YaneuraOu::ThreadPool& threads, const char* name, void* table, std::size_t size);

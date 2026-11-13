@@ -186,31 +186,15 @@ namespace Eval {
 		EvalSum operator + (const EvalSum & rhs) const { return EvalSum(*this) += rhs; }
 		EvalSum operator - (const EvalSum & rhs) const { return EvalSum(*this) -= rhs; }
 
-		// evaluate hashでatomicに操作できる必要があるのでそのための操作子
-		void encode()
-		{
-#if defined USE_AVX2
-			// EvalSum は atomic にコピーされるので key が合っていればデータも合っている。
-#else
-			key ^= data[0] ^ data[1] ^ data[2];
-#endif
-		}
-		// decode()はencode()の逆変換だが、xorなので逆変換も同じ変換。
-		void decode() { encode(); }
-
 		// 評価値が計算済みであるかを判定する。
 		// このEvalSumに値が入っていないときは、Position::do_move()にて
 		// p[0][0]にVALUE_NOT_EVALUATEDを設定することになっている。
 		bool evaluated() const { return p[0][0] != VALUE_NOT_EVALUATED; }
 
 		union {
-			// array<.. , 3>でいいが、この下のstructに合わせてpaddingしておく。
+			// KPP・KK/KKPの3成分を保持し、4番目は32バイトのSIMD演算用パディングとする。
 			std::array<std::array<int32_t, 2>, 4> p;
 
-			struct {
-				u64 data[3];
-				u64 key; // EVAL_HASH用。pos.key() >> 1 したもの。
-			};
 #if defined(USE_AVX2)
 			__m256i mm;
 			__m128i m[2];

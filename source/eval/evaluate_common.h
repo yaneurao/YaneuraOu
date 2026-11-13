@@ -23,10 +23,6 @@ namespace Eval
 
 #endif
 
-#if defined(USE_EVAL_HASH)
-	// prefetchする関数
-	void prefetch_evalhash(const u64 key);
-#endif
 
 	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。
 	// パラメーターの分析などに用いる。

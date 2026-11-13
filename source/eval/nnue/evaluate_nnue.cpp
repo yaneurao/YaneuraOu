@@ -24,10 +24,6 @@
 #include "../../memory.h"
 #include "../../usi.h"
 
-#if defined(USE_EVAL_HASH)
-#include "../evalhash.h"
-#endif
-
 #include "evaluate_nnue.h"
 #include "nnue_common.h"
 
@@ -41,22 +37,19 @@ extern int FV_SCALE;
 
 #if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
 using namespace YaneuraOu;
-void add_options_(OptionsMap& options, ThreadPool& threads);
+void add_options_(OptionsMap& options);
 
 namespace {
 YaneuraOu::OptionsMap* options_ptr;
-YaneuraOu::ThreadPool* threads_ptr;
 }
 
-// 📌 旧Options、旧Threadsとの互換性のための共通のマクロ 📌
+// 📌 旧Optionsとの互換性のためのマクロ 📌
 #define Options (*options_ptr)
-#define Threads (*threads_ptr)
 
 namespace YaneuraOu::Eval {
-void add_options(OptionsMap& options, ThreadPool& threads) {
+void add_options(OptionsMap& options, ThreadPool&) {
     options_ptr = &options;
-    threads_ptr = &threads;
-    add_options_(options, threads);
+    add_options_(options);
 }
 }
 // ============================================================
@@ -66,7 +59,7 @@ bool        eval_loaded   = false;
 std::string last_eval_dir = "None";
 
 // 📌 この評価関数で追加したいエンジンオプションはここで追加する。
-void add_options_(OptionsMap& options, ThreadPool& threads) {
+void add_options_(OptionsMap& options) {
 
 #if defined(NNUE_EMBEDDING_OFF)
     const char* default_eval_dir = "eval";
@@ -99,7 +92,7 @@ void add_options_(OptionsMap& options, ThreadPool& threads) {
 #endif
 
     // NNUEのFV_SCALEの値
-    Options.add("FV_SCALE", Option(16, 1, 128, [&](const Option& o) {
+    Options.add("FV_SCALE", Option(16, 1, 128, [](const Option& o) {
                     YaneuraOu::Eval::NNUE::FV_SCALE = int(o);
                     return std::nullopt;
                 }));
@@ -859,60 +852,6 @@ namespace {
 
 }  // namespace NNUE
 
-#if defined(USE_EVAL_HASH)
-
-// HashTableに評価値を保存するために利用するクラス
-struct alignas(16) ScoreKeyValue {
-#if defined(USE_SSE2)
-    ScoreKeyValue() = default;
-    ScoreKeyValue(const ScoreKeyValue & other) {
-        static_assert(sizeof(ScoreKeyValue) == sizeof(__m128i),
-            "sizeof(ScoreKeyValue) should be equal to sizeof(__m128i)");
-        _mm_store_si128(&as_m128i, other.as_m128i);
-    }
-    ScoreKeyValue& operator=(const ScoreKeyValue & other) {
-        _mm_store_si128(&as_m128i, other.as_m128i);
-        return *this;
-    }
-#endif
-
-    // evaluate hashでatomicに操作できる必要があるのでそのための操作子
-    void encode() {
-#if defined(USE_SSE2)
-        // ScoreKeyValue は atomic にコピーされるので key が合っていればデータも合っている。
-#else
-        key ^= score;
-#endif
-    }
-    // decode()はencode()の逆変換だが、xorなので逆変換も同じ変換。
-    void decode() { encode(); }
-
-    union {
-        struct {
-            std::uint64_t key;
-            std::uint64_t score;
-        };
-#if defined(USE_SSE2)
-        __m128i as_m128i;
-#endif
-    };
-};
-
-// evaluateしたものを保存しておくHashTable(俗にいうehash)
-
-struct EvaluateHashTable : HashTable<ScoreKeyValue> {};
-
-EvaluateHashTable g_evalTable;
-void EvalHash_Resize(size_t mbSize) { g_evalTable.resize(mbSize); }
-void EvalHash_Clear() { g_evalTable.clear(); };
-
-// prefetchする関数も用意しておく。
-void prefetch_evalhash(const u64 key) {
-    constexpr auto mask = ~((u64)0x1f);
-    prefetch((void*)((u64)g_evalTable[key] & mask));
-}
-#endif
-
 // 評価関数ファイルを読み込む
 void load_eval() {
     // 評価関数パラメーターを読み込み済みであるなら帰る。
@@ -1005,41 +944,7 @@ Value evaluate(const Position& pos) {
     NNUE::AccumulatorState state;
     return NNUE::ComputeScore(pos, &state);
 #else
-    const auto& accumulator = pos.state()->accumulator;
-    if (accumulator.computed_score) {
-        return accumulator.score;
-    }
-
-#if defined(USE_GLOBAL_OPTIONS)
-    // GlobalOptionsでeval hashを用いない設定になっているなら
-    // eval hashへの照会をskipする。
-    if (!GlobalOptions.use_eval_hash) {
-        ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
-        return NNUE::ComputeScore(pos, pos.state());
-    }
-#endif
-
-#if defined(USE_EVAL_HASH)
-    // evaluate hash tableにはあるかも。
-    const HASH_KEY key = pos.state()->key();
-    ScoreKeyValue entry = *g_evalTable[key];
-    entry.decode();
-    if (entry.key == key) {
-        // あった！
-        return Value(entry.score);
-    }
-#endif
-
-    Value score = NNUE::ComputeScore(pos, pos.state());
-#if defined(USE_EVAL_HASH)
-    // せっかく計算したのでevaluate hash tableに保存しておく。
-    entry.key = key;
-    entry.score = score;
-    entry.encode();
-    *g_evalTable[key] = entry;
-#endif
-
-    return score;
+    return NNUE::ComputeScore(pos, pos.state());
 #endif
 }
 

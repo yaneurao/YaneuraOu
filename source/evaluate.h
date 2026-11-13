@@ -404,13 +404,6 @@ namespace Eval {
 	};
 #endif // defined(USE_EVAL_LIST)
 
-#if defined(USE_EVAL_HASH)
-	// EvalHashのリサイズ
-	void EvalHash_Resize(size_t mbSize);
-
-	// EvalHashのクリア
-	void EvalHash_Clear();
-#endif
 
 
 } // namespace Eval
