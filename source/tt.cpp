@@ -276,7 +276,11 @@ void TTWriter::penalize(int penalty) {
 // 置換表は複数のClusterから構成され、各Clusterは
 // ClusterSize個のTTEntryから構成される。
 
+#if STOCKFISH
+void TranspositionTable::resize(usize mbSize, ThreadPool& threads) {
+#else
 void TranspositionTable::resize(usize mbSize, ThreadPool& threads, bool force) {
+#endif
 #if STOCKFISH
     aligned_large_pages_free(table);
 

@@ -106,7 +106,11 @@ public:
 	// Set TT size in MiB
 	// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。[MiB]単位。
 
-	void resize(usize mbSize, ThreadPool& threads, bool force = false);  // Set TT size in MiB
+#if STOCKFISH
+    void resize(usize mbSize, ThreadPool& threads);
+#else
+    void resize(usize mbSize, ThreadPool& threads, bool force = false);  // Set TT size in MiB
+#endif
 
 	// Re-initialize memory, multithreaded
 	// メモリを再初期化、マルチスレッド対応
