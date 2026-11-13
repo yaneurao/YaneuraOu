@@ -1,10 +1,17 @@
-﻿#include <algorithm>
+﻿#include "position.h"
+
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cctype>
+#include <cstddef>
+#include <cstring>
 #include <iostream>
 #include <sstream>
-#include <cstring> // std::memset()
 #include <stack>
+#include <vector>
 
-#include "position.h"
+#include "bitboard.h"
 #include "extra/tools.h"
 #if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN) && !defined(NO_PREFETCH)
 #include "history.h"
@@ -20,7 +27,8 @@
 #include "eval/evaluate_common.h"
 #endif
 
-using namespace std;
+using std::string;
+
 namespace YaneuraOu {
 
 #if !STOCKFISH
@@ -225,10 +233,13 @@ void Position::set_castling_right(Color c, Square rfrom) {
 }
 #endif
 
-// Sets king attacks to detect if a move gives check
-// 移動によってチェック（王手）になるかを検出するために、kingへの利きを設定する
+// Sets pinners and where stm can give check. Squares threatened by ~stm are
+// computed lazily by compute_threats().
+// ピンしている駒と、手番側の駒が王手できる升を設定する。
+// Stockfishでは非手番側の利きをcompute_threats()で遅延計算する。
+// 将棋側はその利きテーブルを持たず、王手に必要な情報を更新する。
 #if STOCKFISH
-void Position::set_check_info() const {
+void Position::set_extra_bitboards() const {
 
     update_slider_blockers(WHITE);
     update_slider_blockers(BLACK);
@@ -244,7 +255,7 @@ void Position::set_check_info() const {
 }
 #else
 template<bool doNullMove, Color Us>
-void Position::set_check_info() const {
+void Position::set_extra_bitboards() const {
 
     // 🌈　やねうら王独自の改良
     //      null moveのときは前の局面でこの情報は設定されているので更新する必要がない。
@@ -311,7 +322,7 @@ void Position::set_state() const {
     st->nonPawnMaterial[WHITE] = st->nonPawnMaterial[BLACK] = VALUE_ZERO;
     st->checkersBB = attackers_to(square<KING>(sideToMove)) & pieces(~sideToMove);
 
-    set_check_info();
+    set_extra_bitboards();
 
 #else
 
@@ -334,7 +345,7 @@ void Position::set_state() const {
     st->checkersBB = attackers_to(square<KING>(sideToMove)) & pieces(~sideToMove);
 
     // 王手情報の初期化
-    set_check_info<false>();
+    set_extra_bitboards<false>();
 #endif
 
 
@@ -480,11 +491,11 @@ std::optional<PositionSetError> Position::set(const std::string& sfen, StateInfo
         if (!(ss >> token))
             return PositionSetError("Invalid SFEN. Unexpected end of stream.");
 
-        if (isspace(token))
+        if (std::isspace(token))
             break;
 
         // 数字は、空の升の数なのでその分だけ筋(File)を進める
-        if (isdigit(token))
+        if (std::isdigit(token))
         {
             int skip = token - '0';
             if (skip < 1 || skip > 9)
@@ -573,7 +584,7 @@ std::optional<PositionSetError> Position::set(const std::string& sfen, StateInfo
         return PositionSetError(std::string("Invalid SFEN. Invalid side to move: ")
                                 + std::string(1, char(token)));
     sideToMove = (token == 'w' ? WHITE : BLACK);
-    if (!(ss >> token) || !isspace(token))
+    if (!(ss >> token) || !std::isspace(token))
         return PositionSetError("Invalid SFEN. Expected whitespace after side to move.");
 
     //    手駒
@@ -592,20 +603,20 @@ std::optional<PositionSetError> Position::set(const std::string& sfen, StateInfo
 
         hand_token_read = true;
 
-        if (isspace(token))
+        if (std::isspace(token))
             break;
 
         // 手駒なし
         if (token == '-')
             break;
 
-        if (isdigit(token))
+        if (std::isdigit(token))
             // 駒の枚数。歩だと18枚とかあるので前の値を10倍して足していく。
             ct = (token - '0') + ct * 10;
         else if ((idx = PieceToCharBW.find(token)) != string::npos)
         {
             // 個数が省略されていれば1という扱いをする。
-            ct = max(ct, 1);
+            ct = std::max(ct, 1);
             Piece pc = Piece(idx);
             PieceType rpc = raw_type_of(Piece(idx));
             if (rpc < PIECE_HAND_ZERO || PIECE_HAND_NB <= rpc || is_promoted(pc))
@@ -641,13 +652,13 @@ std::optional<PositionSetError> Position::set(const std::string& sfen, StateInfo
     // if an inner rook is associated with the castling right, the castling tag is
     // replaced by the file letter of the involved rook, as for the Shredder-FEN.
 
-    while ((ss >> token) && !isspace(token))
+    while ((ss >> token) && !std::isspace(token))
     {
         Square rsq;
-        Color  c    = islower(token) ? BLACK : WHITE;
+        Color  c    = std::islower(token) ? BLACK : WHITE;
         Piece  rook = make_piece(c, ROOK);
 
-        token = char(toupper(token));
+        token = char(std::toupper(token));
 
         if (token == 'K')
             for (rsq = relative_square(c, SQ_H1); piece_on(rsq) != rook; --rsq)
@@ -749,7 +760,7 @@ std::optional<PositionSetError> Position::set(const std::string& sfen, StateInfo
 #if ASSERT_LV >= 3
     // これassertにしてしまうと、先手玉のいない局面や駒落ちの局面で落ちて困る。
     if (!is_ok(*this))
-        std::cout << "info string Illigal Position?" << endl;
+        std::cout << "info string Illigal Position?" << std::endl;
 		// ⚠ UnitTestで駒落ちのテストをするので、そのときに引っかかるが…。
 #endif
 #endif
@@ -1160,22 +1171,22 @@ std::ostream& operator<<(std::ostream& os, const Position& pos)
 	{
 		for (File f = FILE_9; f >= FILE_1; --f)
 			os << pretty(pos.board[f | r]);
-		os << endl;
+		os << std::endl;
 	}
 
 #if !defined (PRETTY_JP)
 	// 手駒
-	os << "BLACK HAND : " << pos.hand[BLACK] << " , WHITE HAND : " << pos.hand[WHITE] << endl;
+	os << "BLACK HAND : " << pos.hand[BLACK] << " , WHITE HAND : " << pos.hand[WHITE] << std::endl;
 
 	// 手番
-	os << "Turn = " << pos.sideToMove << endl;
+	os << "Turn = " << pos.sideToMove << std::endl;
 #else
-	os << "先手 手駒 : " << pos.hand[BLACK] << " , 後手 手駒 : " << pos.hand[WHITE] << endl;
-	os << "手番 = " << pos.sideToMove << endl;
+	os << "先手 手駒 : " << pos.hand[BLACK] << " , 後手 手駒 : " << pos.hand[WHITE] << std::endl;
+	os << "手番 = " << pos.sideToMove << std::endl;
 #endif
 
 	// sfen文字列もおまけで表示させておく。(デバッグのときに便利)
-	os << "sfen " << pos.sfen() << endl;
+	os << "sfen " << pos.sfen() << std::endl;
 
 	return os;
 }
@@ -1193,7 +1204,7 @@ std::string Position::moves_from_start(bool is_pretty) const
 		p = p->previous;
 	}
 
-	stringstream ss;
+	std::stringstream ss;
 	while (states.size())
 	{
 		auto& top = states.top();
@@ -1234,7 +1245,8 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 			) & pieces(c);
 }
 
-// 指し手が、(敵玉に)王手になるかをテストする。
+// Tests whether a legal move gives a check
+// 合法手が敵玉への王手になるかを判定する。
 
 bool Position::gives_check(Move m) const
 {
@@ -1656,7 +1668,12 @@ Move Position::to_move(Move16 m16) const
 //      局面を進める/戻す
 // ----------------------------------
 
-// 指し手で盤面を1手進める。
+// Makes a move, and saves all information necessary
+// to a StateInfo object. The move is assumed to be legal.
+// If a pointer to the shared histories is passed, their entries for the
+// new position will be prefetched.
+// 合法手で盤面を1手進め、戻すために必要な情報をStateInfoへ保存する。
+// 共有履歴へのポインタを渡した場合は、新局面の履歴エントリーを先読みする。
 // ⚠ m として Move::none()はもちろん、Move::null() , Move::resign()などお断り。
 template<Color Us, typename T>
 void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* tt,
@@ -2129,7 +2146,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 
 
     // このタイミングで王手関係の情報を更新しておいてやる。
-    set_check_info<false>();
+    set_extra_bitboards<false>();
 
     // Calculate the repetition info. It is the ply distance from the previous
     // occurrence of the same position, negative in the 3-fold case, or zero
@@ -2456,15 +2473,19 @@ void Position::do_move(Move m, StateInfo& newSt, bool givesCheck,
 #endif
 
 // undo_move()を先後分けたdo_move_impl<>()を呼び出す。
-void Position::undo_move(Move m)
-{
+// Unmakes a move. When it returns, the position should
+// be restored to exactly the same state as before the move was made.
+// 指し手を戻し、指す前とまったく同じ局面へ復元する。
+void Position::undo_move(Move m) {
 	if (sideToMove == BLACK)
 		undo_move_impl<WHITE>(m); // 1手前の手番が返らないとややこしいので入れ替えておく。
 	else
 		undo_move_impl<BLACK>(m);
 }
 
-// null move searchに使われる。手番だけ変更する。
+// Used to do a "null move": it flips
+// the side to move without executing any move on the board.
+// null move用。盤上の駒を動かさずに手番を反転する。
 template <typename T>
 void Position::do_null_move(StateInfo& newSt, const T& tt) {
 
@@ -2494,7 +2515,7 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
 
     sideToMove = ~sideToMove;
 
-    set_check_info();
+    set_extra_bitboards();
 
     st->repetition = 0;
 
@@ -2545,7 +2566,7 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
 	ASSERT_LV3(st->continuousCheck[sideToMove] == 0);
     st->continuousCheck[~sideToMove] = 0;
 
-	set_check_info<true>();
+	set_extra_bitboards<true>();
 
 #if !defined(ENABLE_QUICK_DRAW)
 	st->repetition       = 0;
@@ -2564,18 +2585,20 @@ void Position::do_null_move(StateInfo& newSt) {
     do_null_move<int>(newSt, 0);
 }
 
-void Position::undo_null_move()
-{
-	ASSERT_LV3(!checkers());
+// Must be used to undo a "null move"
+// null moveを戻すときに使用する。
+void Position::undo_null_move() {
 
-	st = st->previous;
-	sideToMove = ~sideToMove;
+    ASSERT_LV3(!checkers());
+
+    st         = st->previous;
+    sideToMove = ~sideToMove;
 }
 
 
 
 // Tests if the SEE (Static Exchange Evaluation)
-// value of move is greater or equal to the given threshold. We'll use an
+// value of the move is greater or equal to the given threshold. We'll use an
 // algorithm similar to alpha-beta pruning with a null window.
 
 
@@ -2597,7 +2620,7 @@ void Position::undo_null_move()
 // このseeの最終的な値が、しきい値threshold以上になるかどうかを判定するのがsee_ge()である。
 // こういう設計にすることで早期にthresholdを超えないことが確定した時点でreturn出来る。
 
-bool Position::see_ge(Move m, Value threshold) const
+bool Position::see_ge(Move m, int threshold) const
 {
 	ASSERT_LV3(m.is_ok());
 
@@ -3256,7 +3279,7 @@ void Position::flip() {
     f += token + " ";
 
     std::transform(f.begin(), f.end(), f.begin(),
-                   [](char c) { return char(islower(c) ? toupper(c) : tolower(c)); });
+                   [](char c) { return char(std::islower(c) ? std::toupper(c) : std::tolower(c)); });
 
     ss >> token;  // En passant square
     f += (token == "-" ? token : token.replace(1, 1, token[1] == '3' ? "6" : "3"));
@@ -3829,7 +3852,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         // packed sfenのテスト
         auto section = tester.section("PackedSfen");
 
-        vector<string> test_sfens = {
+        std::vector<string> test_sfens = {
           "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w -",
           "lns1kgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w -",
           "lnsgkgsnl/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGK4 w -",
@@ -3844,7 +3867,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
 			board.to_psfen(psfen)
 			print(np.array2string(psfen, separator=', '))
 		*/
-        vector<PackedSfen> packed_sfens = {
+        std::vector<PackedSfen> packed_sfens = {
           {89,  164, 81, 34, 12,  171, 68, 252, 44,  167, 68, 56, 94,  137, 240, 72,
            132, 87,  34, 60, 167, 68,  56, 86,  137, 248, 88, 70, 137, 48,  188, 126},
           {89, 164, 81,  34, 12, 171, 68,  252, 44,  167, 68, 56, 94,  137, 240, 72,
@@ -3921,7 +3944,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
                     // clang-format on
 
                     //if (!ok)
-                    //    tester.test("game " + to_string(i) + " ply = " + to_string(j), ok);
+                    //    tester.test("game " + std::to_string(i) + " ply = " + std::to_string(j), ok);
                 }
             }
             tester.test("partial hash key", ok);
@@ -3958,7 +3981,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
             {
                 u64 nodes = perft(pos, d);
                 u64 pn    = p_nodes[d];
-                tester.test("depth " + to_string(d) + " = " + to_string(pn),
+                tester.test("depth " + std::to_string(d) + " = " + std::to_string(pn),
                             nodes == pn && pos.pos_is_ok());
             }
         }
@@ -3973,7 +3996,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
             {
                 u64 nodes = perft(pos, d);
                 u64 pn    = p_nodes[d];
-                tester.test("depth " + to_string(d) + " = " + to_string(nodes),
+                tester.test("depth " + std::to_string(d) + " = " + std::to_string(nodes),
                             nodes == pn && pos.pos_is_ok());
             }
         }
@@ -4064,7 +4087,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
                 }
 
                 // 今回のゲームのなかでおかしいものがなかったか
-                tester.test(string("game ") + to_string(i + 1), !fail);
+                tester.test(string("game ") + std::to_string(i + 1), !fail);
             }
         }
     }

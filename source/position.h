@@ -2,10 +2,13 @@
 #define POSITION_H_INCLUDED
 
 #include <array>
+#include <cassert>
 #include <deque>
-#include <memory> // For std::unique_ptr
+#include <iosfwd>
+#include <memory>
 #include <optional>
 #include <stdexcept>
+#include <string>
 
 #include "bitboard.h"
 #include "extra/tools.h"
@@ -129,15 +132,8 @@ struct StateInfo {
 	// 現局面で手番側に対して王手をしている駒のbitboard
 	Bitboard checkersBB;
 
-	// 一つ前の局面に遡るためのポインタ。
-	// この値としてnullptrが設定されているケースは、
-	// 1) root node
-	// 2) 直前がnull move
-	// のみである。
-	// 評価関数を差分計算するときに、
-	// 1)は、compute_eval()を呼び出して差分計算しないからprevious==nullで問題ない。
-	// 2)は、このnodeのEvalSum sum(これはdo_move_null()でコピーされている)から
-	//   計算出来るから問題ない。
+    // 一つ前の局面に遡るためのポインタ。開始局面ではnullptr。
+    // 通常手・null moveのどちらでも、直前のStateInfoへつなぐ。
 	StateInfo* previous;
 
 	// 動かすと手番側の王に対して空き王手になるかも知れない駒の候補
@@ -313,10 +309,15 @@ struct PackedSfenHash {
 	}
 };
 
-// 盤面
-class Position
-{
-public:
+// Position class stores information regarding the board representation as
+// pieces, side to move, hash keys, castling info, etc. Important methods are
+// do_move() and undo_move(), used by the search to update node info when
+// traversing the search tree.
+// Positionクラスは、駒の配置、手番、ハッシュキーなどの局面情報を保持する。
+// do_move()とundo_move()は、探索木をたどる際に局面情報を更新する重要なメソッドである。
+// 将棋では手駒や入玉ルールも保持する。
+class Position {
+   public:
     // Positionで用いるZobristテーブルの初期化
     // 起動時に呼び出す。
     static void init();
@@ -342,8 +343,8 @@ public:
 		局面を遡るために、rootまでの局面の情報が必要であるから、それを引数のsiで渡してやる。
 	*/
 #if STOCKFISH
-	Position& set(const std::string& fenStr,bool isChess960, StateInfo* si);
-    Position& set(const std::string& code, Color c, StateInfo* si);
+	std::optional<PositionSetError> set(const std::string& fenStr, bool isChess960, StateInfo* si);
+    std::optional<PositionSetError> set(const std::string& code, Color c, StateInfo* si);
 #else
     std::optional<PositionSetError> set(const std::string& sfenStr, StateInfo* si);
 
@@ -412,13 +413,6 @@ public:
 
 		return m.moved_after_piece();
 	}
-
-	// 指し手mで移動させた駒(成りの指し手である場合は、成った後の駒)
-    // 💡 Stockfishの探索部で用いているので、それと互換性を保つために用意。
-    // 📝 Stockfishでは移動させた駒(moved_piece_before())を期待しているが、
-	//     moved_piece_after()にしたほうが強いっぽいので、やねうら王では
-	//     moved_piece()は、moved_piece_after()のaliasとする。
-    Piece moved_piece(Move m) const;
 
 
 	// 定跡DBや置換表から取り出したMove16(16bit型の指し手)を32bit化する。
@@ -526,22 +520,22 @@ public:
     // -----------------------
 
 	// 現局面で王手している駒
-	Bitboard checkers() const { return st->checkersBB; }
+	Bitboard checkers() const;
 
 	// c側の玉に対してpinしている駒(その駒をc側の玉との直線上から動かしたときにc側の玉に王手となる)
-	Bitboard blockers_for_king(Color c) const { return st->blockersForKing[c]; }
+	Bitboard blockers_for_king(Color c) const;
 
 	// ↑のtemplate版
 	template <Color C>
 	Bitboard blockers_for_king() const { return st->blockersForKing[C]; }
 
 	// 現局面で駒Ptを動かしたときに王手となる升を表現するBitboard
-	Bitboard check_squares(PieceType pt) const { ASSERT_LV3(pt!= NO_PIECE_TYPE && pt < PIECE_TYPE_NB); return st->checkSquares[pt]; }
+	Bitboard check_squares(PieceType pt) const;
 
 	// c側の玉に対してpinしている駒
 	// ※ pinされているではなく、pinしているということに注意。
 	// 　すなわち、pinされている駒が移動した時に、この大駒によって王が素抜きにあう。
-	Bitboard pinners(Color c) const { return st->pinners[c]; }
+	Bitboard pinners(Color c) const;
 
 #if !STOCKFISH
 	// c側の玉に対して、指し手mが空き王手となるのか。
@@ -562,7 +556,7 @@ public:
 	// occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして。
 	// sq == SQ_NBでの呼び出しは合法。Bitboard(ZERO)が返る。
 
-	Bitboard attackers_to(Square sq) const { return attackers_to(sq, pieces()); }
+	Bitboard attackers_to(Square sq) const;
     Bitboard attackers_to(Square sq, const Bitboard& occ) const;
 
 #if STOCKFISH
@@ -625,57 +619,8 @@ public:
 	// c側の駒Ptの利きのある升を表現するBitboardを返す。(MovePickerで用いている。)
 	template<Color C , PieceType Pt> Bitboard attacks_by() const;
 
-    // -----------------------
-	// Doing and undoing moves
-	// 局面を進める/戻す
-    // -----------------------
-
-	// 指し手で盤面を1手進める
-	// m = 指し手。mとして非合法手を渡してはならない。
-	// info = StateInfo。局面を進めるときに捕獲した駒などを保存しておくためのバッファ。
-	// このバッファはこのdo_move()の呼び出し元の責任において確保されている必要がある。
-	// givesCheck = mの指し手によって王手になるかどうか。
-	// この呼出までにst.checkInfo.update(pos)が呼び出されている必要がある。
-    /*
-		📓 Stockfish 17.1からTTのprefetchのために引数でTranspositionTable*を
-			渡すようになったが、やねうら王では、このclassをPosition classと癒着したくない。
-			そこで、第四引数をtemplate T*にするが、ここに何も指定しないということもできてほしい。
-	*/
-#if STOCKFISH
-    void do_move(Move m, StateInfo& newSt, bool givesCheck, const TranspositionTable* tt);
-#else
-    // historyは省略可能。探索で次局面の履歴を先読みするときだけ渡す。
-	template <typename T = void>
-    void do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt = nullptr,
-                 const SharedHistories* history = nullptr);
-#if defined(EVAL_SFNN)
-    template <typename T = void>
-    void do_move(Move m, StateInfo& newSt, bool givesCheck, Eval::NNUE::Dirties& dirties,
-                 const T* tt = nullptr, const SharedHistories* history = nullptr);
-#endif
-#endif
-
-	// 💡 上記のdo_move()にはgivesCheckも渡さないといけないが、
-	//     mで王手になるかどうかがわからないときはこちらの関数を用いる。
-    template<typename T = void>
-    void do_move(Move m, StateInfo& newSt, const T* tt = nullptr) {
-        do_move(m, newSt, gives_check(m), tt);
-    }
-
-	// do_move()で進めた局面を1手戻す。
-	void undo_move(Move m);
-
-	// null move用のdo_move()
-	// 📝 Tのところには、TranspositionTable ttを渡すことができる。
-
-	void do_null_move(StateInfo& st);
-
-	template<typename T>
-    void do_null_move(StateInfo& st, const T& tt);
-
-	// null move用のundo_move()
-	void undo_null_move();
-
+    // Properties of moves
+    // 指し手の性質。
 	// --- legality(指し手の合法性)のチェック
 
 	// 生成した指し手(CAPTUREとかNON_CAPTUREとか)が、合法であるかどうかをテストする。
@@ -692,6 +637,7 @@ public:
 	// 歩の不成に関しては、この関数は常にtrueを返す。(合法扱い)
 	bool legal(Move m) const;
 
+#if !STOCKFISH
 	// mがpseudo_legalな指し手であるかを判定する。
     /*
 	    📓　pseudo_legalとは
@@ -732,6 +678,91 @@ public:
 	// これをチェックするための関数。成れる条件を満たしていない場合、falseが返る。
 	bool legal_promote(Move m) const;
 
+#endif
+
+	// 捕獲する指し手であるか。
+    bool capture(Move m) const;
+
+	// capture_or_pawn_promotion()みたいなもの。
+	/*
+	    📓 Stockfishでは、この関数は、「捕獲する指し手かQUEENにpromoteする
+			指し手かのどちらかであるか」を判定する。
+
+			Stockfishとの互換性のために用意。
+			やねうら王では、capture()と同義。
+	*/
+    bool capture_stage(Move m) const;
+
+	// 指し手mで王手になるかを判定する。
+	// 前提条件 : 指し手mはpseudo-legal(擬似合法)の指し手であるものとする。
+	// (つまり、mのfromにある駒は自駒であることは確定しているものとする。)
+	bool gives_check(Move m) const;
+
+	// 指し手mで移動させた駒(成りの指し手である場合は、成った後の駒)
+    // 💡 Stockfishの探索部で用いているので、それと互換性を保つために用意。
+    // 📝 Stockfishでは移動させた駒(moved_piece_before())を期待しているが、
+	//     moved_piece_after()にしたほうが強いっぽいので、やねうら王では
+	//     moved_piece()は、moved_piece_after()のaliasとする。
+    Piece moved_piece(Move m) const;
+
+	// 直前の指し手によって捕獲した駒。先後の区別あり。
+	Piece captured_piece() const;
+
+    // -----------------------
+	// Doing and undoing moves
+	// 局面を進める/戻す
+    // -----------------------
+
+	// 指し手で盤面を1手進める
+	// m = 指し手。mとして非合法手を渡してはならない。
+	// info = StateInfo。局面を進めるときに捕獲した駒などを保存しておくためのバッファ。
+	// このバッファはこのdo_move()の呼び出し元の責任において確保されている必要がある。
+	// givesCheck = mの指し手によって王手になるかどうか。
+	// 王手情報は局面設定や直前のdo_move()/do_null_move()で更新されている。
+    /*
+		📓 Stockfish 17.1からTTのprefetchのために引数でTranspositionTable*を
+			渡すようになったが、やねうら王では、このclassをPosition classと癒着したくない。
+			そこで、第四引数をtemplate T*にするが、ここに何も指定しないということもできてほしい。
+	*/
+#if STOCKFISH
+    void do_move(Move                   m,
+                 StateInfo&             newSt,
+                 bool                   givesCheck,
+                 Dirties&               dirties,
+                 const SharedHistories* worker = nullptr);
+#else
+    // historyは省略可能。探索で次局面の履歴を先読みするときだけ渡す。
+	template <typename T = void>
+    void do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt = nullptr,
+                 const SharedHistories* history = nullptr);
+#if defined(EVAL_SFNN)
+    template <typename T = void>
+    void do_move(Move m, StateInfo& newSt, bool givesCheck, Eval::NNUE::Dirties& dirties,
+                 const T* tt = nullptr, const SharedHistories* history = nullptr);
+#endif
+#endif
+
+	// 💡 上記のdo_move()にはgivesCheckも渡さないといけないが、
+	//     mで王手になるかどうかがわからないときはこちらの関数を用いる。
+    template<typename T = void>
+    void do_move(Move m, StateInfo& newSt, const T* tt = nullptr) {
+        do_move(m, newSt, gives_check(m), tt);
+    }
+
+	// do_move()で進めた局面を1手戻す。
+	void undo_move(Move m);
+
+	// null move用のdo_move()
+	// 📝 Tのところには、TranspositionTable ttを渡すことができる。
+
+	void do_null_move(StateInfo& st);
+
+	template<typename T>
+    void do_null_move(StateInfo& st, const T& tt);
+
+	// null move用のundo_move()
+	void undo_null_move();
+
 	// --- Evaluation
 
 #if defined(USE_EVAL_LIST)
@@ -742,7 +773,7 @@ public:
 	// 指し手mのsee(Static Exchange Evaluation : 静的取り合い評価)において
 	// v(しきい値)以上になるかどうかを返す。
 	// see_geのgeはgreater or equal(「以上」の意味)の略。
-	bool see_ge(Move m, Value threshold = VALUE_ZERO) const;
+	bool see_ge(Move m, int threshold = 0) const;
 
 
     // -----------------------
@@ -828,7 +859,7 @@ public:
 
     // 現在の局面に対応するStateInfoを返す。
     // たとえば、state()->capturedPieceであれば、前局面で捕獲された駒が格納されている。
-    StateInfo* state() const { return st; }
+    StateInfo* state() const;
 
 	// put_piece()やremove_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
     // bitboardの整合性を保つこと。
@@ -907,11 +938,6 @@ public:
 	Bitboard pinned_pieces(Square from, Square to) const;
 
 
-	// 指し手mで王手になるかを判定する。
-	// 前提条件 : 指し手mはpseudo-legal(擬似合法)の指し手であるものとする。
-	// (つまり、mのfromにある駒は自駒であることは確定しているものとする。)
-	bool gives_check(Move m) const;
-
 	// 手番側の駒をfromからtoに移動させると素抜きに遭うのか？
 	bool discovered(Square from, Square to, Square ourKing, const Bitboard& pinned) const
 	{
@@ -925,9 +951,6 @@ public:
 
 	// 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
 	bool is_mated() const;
-
-	// 直前の指し手によって捕獲した駒。先後の区別あり。
-	Piece captured_piece() const { return st->capturedPiece; }
 
 	// 捕獲する指し手か、成りの指し手であるかを判定する。
 	bool capture_or_promotion(Move m) const { return m.is_promote() || capture(m); }
@@ -952,19 +975,6 @@ public:
 		auto pr = raw_type_of(moved_piece_after(m));
 		return (m.is_promote() && (pr == PAWN || pr == BISHOP || pr == ROOK)) || capture(m);
 	}
-
-	// 捕獲する指し手であるか。
-    bool capture(Move m) const;
-
-	// capture_or_pawn_promotion()みたいなもの。
-	/*
-	    📓 Stockfishでは、この関数は、「捕獲する指し手かQUEENにpromoteする
-			指し手かのどちらかであるか」を判定する。
-
-			Stockfishとの互換性のために用意。
-			やねうら王では、capture()と同義。
-	*/
-    bool capture_stage(Move m) const;
 
 	// 入玉時の宣言勝ち
     /*
@@ -1050,17 +1060,17 @@ private:
 	void set_state() const;
 
 #if STOCKFISH
-    void set_check_info() const;
+    void set_extra_bitboards() const;
 #else
 	// 王手になるbitboard等を更新する。set_state()とdo_move()から呼び出される。
 	// 🌈 null moveのときは利きの更新を少し端折れるのでフラグを渡すことにした。
 	template <bool doNullMove,Color Us>
-	void set_check_info() const;
+	void set_extra_bitboards() const;
 
 	template <bool doNullMove>
-	void set_check_info() const
+	void set_extra_bitboards() const
 	{
-		sideToMove == BLACK ? set_check_info<doNullMove, BLACK>() : set_check_info<doNullMove, WHITE>();
+		sideToMove == BLACK ? set_extra_bitboards<doNullMove, BLACK>() : set_extra_bitboards<doNullMove, WHITE>();
 	}
 #endif
 
@@ -1074,7 +1084,8 @@ private:
                      Square&           rfrom,
                      Square&           rto,
                      DirtyPiece* const dp = nullptr);
-    HASH_KEY  adjust_key50(HASH_KEY k) const;
+    template<bool AfterMove = false>
+    HASH_KEY adjust_key50(HASH_KEY k) const;
 
 #endif
 
@@ -1271,14 +1282,25 @@ inline Square Position::castling_rook_square(CastlingRights cr) const {
 }
 #endif
 
-// 🚧
+inline Bitboard Position::attackers_to(Square sq) const { return attackers_to(sq, pieces()); }
 
+inline Bitboard Position::checkers() const { return st->checkersBB; }
+
+inline Bitboard Position::blockers_for_king(Color c) const { return st->blockersForKing[c]; }
+
+inline Bitboard Position::pinners(Color c) const { return st->pinners[c]; }
+
+inline Bitboard Position::check_squares(PieceType pt) const {
+    ASSERT_LV3(pt != NO_PIECE_TYPE && pt < PIECE_TYPE_NB);
+    return st->checkSquares[pt];
+}
 
 #if STOCKFISH
 inline HASH_KEY Position::key() const { return adjust_key50(st->key); }
 
+template<bool AfterMove>
 inline HASH_KEY Position::adjust_key50(HASH_KEY k) const {
-    return st->rule50 < 14 ? k : k ^ make_key((st->rule50 - 14) / 8);
+    return st->rule50 < 14 - AfterMove ? k : k ^ make_key((st->rule50 - (14 - AfterMove)) / 8);
 }
 #else
 inline HASH_KEY Position::key() const { return st->key(); }
@@ -1320,30 +1342,41 @@ inline bool Position::is_chess960() const { return chess960; }
 
 inline bool Position::capture(Move m) const {
     assert(m.is_ok());
-    return (!empty(m.to_sq()) && m.type_of() != CASTLING) || m.type_of() == EN_PASSANT;
+    const MoveType mt = m.type_of();
+
+    if (mt == NORMAL || mt == PROMOTION)
+        return !empty(m.to_sq());
+
+    return mt == EN_PASSANT;
 }
 #else
 inline bool Position::capture(Move m) const {
     ASSERT_LV3(m.is_ok());
-    return !m.is_drop() && piece_on(m.to_sq()) != NO_PIECE;
+    return !m.is_drop() && !empty(m.to_sq());
 }
 #endif
 
 
-// returns true if a move is generated from the capture stage
-// having also queen promotions covered, i.e. consistency with the capture stage move generation
-// is needed to avoid the generation of duplicate moves.
-
-// キャプチャ段階で生成された指し手であれば true を返す
-// クイーン昇格も含めてカバーする。つまり、キャプチャ段階での指し手生成との整合性を
-// 保つ必要があり、重複した指し手の生成を避けるためである。
-// 💡 「キャプチャ段階」とは、MovePickerでの指し手生成のうち捕獲する指し手の生成フェーズのこと。
-
+// Returns true if a move is generated from the capture stage, having also
+// queen promotions covered, i.e. consistency with the capture stage move
+// generation is needed to avoid the generation of duplicate moves.
+// 捕獲段階で生成される指し手ならtrueを返す。Stockfishではクイーンへの成りも含み、
+// 重複生成を避けるため、捕獲段階の指し手生成と判定条件を一致させる必要がある。
+// 将棋側は捕獲段階で実際の捕獲だけを生成するため、capture()と同じ判定にする。
 inline bool Position::capture_stage(Move m) const
 {
 #if STOCKFISH
-    assert(is_ok(m));
-    return  capture(m) || promotion_type(m) == QUEEN;
+    assert(m.is_ok());
+
+    const MoveType mt = m.type_of();
+
+    if (mt == NORMAL)
+        return !empty(m.to_sq());
+
+    if (mt == PROMOTION)
+        return !empty(m.to_sq()) || m.promotion_type() == QUEEN;
+
+    return mt == EN_PASSANT;
 #else
 
     // 📊　V7.73y3とy4,y5の比較。
@@ -1354,6 +1387,8 @@ inline bool Position::capture_stage(Move m) const
     return capture(m);
 #endif
 }
+
+inline Piece Position::captured_piece() const { return st->capturedPiece; }
 
 // 駒を配置して、内部的に保持しているBitboard、pieceCountも更新する。
 inline void Position::put_piece(Piece pc, Square s) {
@@ -1389,6 +1424,8 @@ inline void Position::remove_piece(Square s) {
 #endif
 }
 
+inline StateInfo* Position::state() const { return st; }
+
 #if !STOCKFISH
 
 // put_pieceの手駒版
@@ -1406,6 +1443,7 @@ inline void Position::remove_hand_piece(Color c, PieceType pr)
     //pieceCount[make_piece(c, pr)]--;
     //pieceCount[make_piece(c, ALL_PIECES)]--;
 }
+
 
 inline bool is_ok(Position& pos) { return pos.pos_is_ok(); }
 #endif
