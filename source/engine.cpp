@@ -90,6 +90,10 @@ void Engine::add_base_options() {
 
     options.add(  //
       "NumaPolicy", Option("auto", [this](const Option& o) {
+          // 注意: Stockfish def601ccにも残る挙動を維持している。
+          // 不正値を拒否しても、Option::currentValueは元に戻らない。
+          // NUMA構成自体は維持されるが、後のThreadPool::set()はその不正な文字列を読み、
+          // none/auto以外としてバインドを有効にする場合がある。上流の修正時に見直す。
           if (!set_numa_config_from_option(o))
               return "NumaPolicy: invalid value '" + std::string(o) + "', keeping previous config.";
           return numa_config_information_as_string() + "\n"

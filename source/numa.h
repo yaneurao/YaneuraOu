@@ -829,6 +829,9 @@ class NumaConfig {
         NumaIndex n = 0;
         for (auto&& nodeStr : split(s, ":"))
         {
+            // 注意: Stockfish def601ccと同様、数値化できない部分は下のヘルパーが読み捨てる。
+            // そのため、例えば0-15:16-31xは拒否されず、0-15だけの構成として採用される。
+            // 入力全体の妥当性を保証する処理ではない。上流の修正時に見直す。
             auto indices = indices_from_shortened_string(std::string(nodeStr));
             if (!indices.empty())
             {
