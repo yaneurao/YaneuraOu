@@ -1,5 +1,5 @@
-﻿#ifndef _BOOK_H_INCLUDED_
-#define _BOOK_H_INCLUDED_
+﻿#ifndef BOOK_H_INCLUDED
+#define BOOK_H_INCLUDED
 
 #include "../types.h"
 #include "../extra/tools.h"

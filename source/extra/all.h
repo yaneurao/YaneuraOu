@@ -1,5 +1,5 @@
-﻿#ifndef __ALL_H_INCLUDED__
-#define __ALL_H_INCLUDED__
+﻿#ifndef ALL_H_INCLUDED
+#define ALL_H_INCLUDED
 
 // すべてのheaderを読み込むheader
 // 実験時などで手っ取り早くすべてのheaderを読み込んでしまいたいときに使う。
@@ -27,4 +27,4 @@
 // これもおまけしておく。
 using namespace std;
 
-#endif // ndef __ALL_H_INCLUDED__
+#endif // ndef ALL_H_INCLUDED

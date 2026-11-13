@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の差分計算用のクラス
 
-#ifndef CLASSIC_NNUE_ACCUMULATOR_H_
-#define CLASSIC_NNUE_ACCUMULATOR_H_
+#ifndef CLASSIC_NNUE_ACCUMULATOR_H_INCLUDED
+#define CLASSIC_NNUE_ACCUMULATOR_H_INCLUDED
 
 #include "../../config.h"
 

@@ -1,5 +1,5 @@
-﻿#ifndef _BITOP_H_
-#define _BITOP_H_
+﻿#ifndef BITOP_H_INCLUDED
+#define BITOP_H_INCLUDED
 
 //
 //   bit operation library

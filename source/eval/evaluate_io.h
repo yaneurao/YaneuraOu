@@ -1,5 +1,5 @@
-﻿#ifndef _EVALUATE_IO_H_
-#define _EVALUATE_IO_H_
+﻿#ifndef EVALUATE_IO_H_INCLUDED
+#define EVALUATE_IO_H_INCLUDED
 
 // あらゆる形式の評価関数のファイル←→メモリ間、ファイル←→ファイル間の入力/出力、フォーマットの変換を行なう。
 
@@ -203,4 +203,4 @@ namespace EvalIO {
 } // namespace EvalIO
 } // namespace YaneuraOu
 
-#endif // _EVALUATE_IO_H_
+#endif // EVALUATE_IO_H_INCLUDED

@@ -1,5 +1,5 @@
-﻿#ifndef __PV_MATE_SEARCH_H__
-#define __PV_MATE_SEARCH_H__
+﻿#ifndef PV_MATE_SEARCH_H_INCLUDED
+#define PV_MATE_SEARCH_H_INCLUDED
 
 #include "../../config.h"
 #if defined(YANEURAOU_ENGINE_DEEP)

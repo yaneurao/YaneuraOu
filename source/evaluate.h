@@ -1,5 +1,5 @@
-﻿#ifndef _EVALUATE_H_
-#define _EVALUATE_H_
+﻿#ifndef EVALUATE_H_INCLUDED
+#define EVALUATE_H_INCLUDED
 
 #include "config.h"
 #include "types.h"
@@ -416,4 +416,4 @@ namespace Eval {
 } // namespace Eval
 } // namespace YaneuraOu
 
-#endif // #ifndef _EVALUATE_H_
+#endif // #ifndef EVALUATE_H_INCLUDED

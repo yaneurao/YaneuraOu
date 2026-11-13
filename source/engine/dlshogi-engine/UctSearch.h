@@ -1,5 +1,5 @@
-﻿#ifndef __UCTSEARCH_H_INCLUDED__
-#define __UCTSEARCH_H_INCLUDED__
+﻿#ifndef UCTSEARCH_H_INCLUDED
+#define UCTSEARCH_H_INCLUDED
 
 #include "../../config.h"
 #if defined(YANEURAOU_ENGINE_DEEP)
@@ -369,4 +369,4 @@ void select_nth_child_node(const Node* uct_node, int n , int (&indices)[MAX_MOVE
 
 #endif
 
-#endif // ndef __UCTSEARCH_H_INCLUDED__
+#endif // ndef UCTSEARCH_H_INCLUDED

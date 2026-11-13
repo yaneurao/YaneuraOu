@@ -1,5 +1,5 @@
-﻿#ifndef _EVAL_SUM_H_
-#define _EVAL_SUM_H_
+﻿#ifndef EVAL_SUM_H_INCLUDED
+#define EVAL_SUM_H_INCLUDED
 
 #include "../types.h"
 #include <array>

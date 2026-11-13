@@ -1,5 +1,5 @@
-﻿#ifndef __NN_H_INCLUDED__
-#define __NN_H_INCLUDED__
+﻿#ifndef NN_H_INCLUDED
+#define NN_H_INCLUDED
 #include "../../config.h"
 #include "../../extra/tools.h"
 
@@ -64,4 +64,4 @@ namespace Eval::dlshogi {
 } // namespace YaneuraOu
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
-#endif // ndef __NN_H_INCLUDED__
+#endif // ndef NN_H_INCLUDED

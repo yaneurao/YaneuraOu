@@ -1,5 +1,5 @@
-﻿#ifndef __POLICY_VALUE_CACHE_H_INCLUDED__
-#define __POLICY_VALUE_CACHE_H_INCLUDED__
+﻿#ifndef POLICY_VALUE_CACHE_H_INCLUDED
+#define POLICY_VALUE_CACHE_H_INCLUDED
 
 #include "../../config.h"
 
@@ -131,4 +131,4 @@ private:
 
 #endif // defined(YANEURAOU_ENGINE_DEEP) && defined(ENABLE_NN_CACHE)
 
-#endif // ndef __POLICY_VALUE_CACHE_H_INCLUDED__
+#endif // ndef POLICY_VALUE_CACHE_H_INCLUDED

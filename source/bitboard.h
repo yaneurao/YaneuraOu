@@ -1,5 +1,5 @@
-﻿#ifndef _BITBOARD_H_
-#define _BITBOARD_H_
+﻿#ifndef BITBOARD_H_INCLUDED
+#define BITBOARD_H_INCLUDED
 
 #include <algorithm>
 
@@ -1222,4 +1222,4 @@ inline Bitboard least_significant_square_bb(Bitboard b) {
 
 } // namespace YaneuraOu
 
-#endif // #ifndef _BITBOARD_H_
+#endif // #ifndef BITBOARD_H_INCLUDED

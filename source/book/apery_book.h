@@ -19,8 +19,8 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef APERY_BOOK_HPP
-#define APERY_BOOK_HPP
+#ifndef APERY_BOOK_H_INCLUDED
+#define APERY_BOOK_H_INCLUDED
 
 #include <unordered_map>
 #include "../types.h"
@@ -56,4 +56,4 @@ private:
 } // namespace Book
 } // namespace YaneuraOu
 
-#endif // #ifndef APERY_BOOK_HPP
+#endif // #ifndef APERY_BOOK_H_INCLUDED

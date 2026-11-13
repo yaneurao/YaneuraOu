@@ -1,5 +1,5 @@
-﻿#ifndef __DLSHOGI_MIN_H_INCLUDED__
-#define __DLSHOGI_MIN_H_INCLUDED__
+﻿#ifndef DLSHOGI_MIN_H_INCLUDED
+#define DLSHOGI_MIN_H_INCLUDED
 #include "../../config.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP)
@@ -65,4 +65,4 @@ namespace dlshogi {
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 
-#endif // ifndef __DLSHOGI_MIN_H_INCLUDED__
+#endif // ifndef DLSHOGI_MIN_H_INCLUDED

@@ -1,5 +1,5 @@
-﻿#ifndef __DLSHOGI_SEARCHER_H_INCLUDED__
-#define __DLSHOGI_SEARCHER_H_INCLUDED__
+﻿#ifndef DLSHOGI_SEARCHER_H_INCLUDED
+#define DLSHOGI_SEARCHER_H_INCLUDED
 #include "../../config.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP)
@@ -357,4 +357,4 @@ namespace dlshogi {
 } // namespace dlshogi
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
-#endif // ndef __DLSHOGI_SEARCHER_H_INCLUDED__
+#endif // ndef DLSHOGI_SEARCHER_H_INCLUDED

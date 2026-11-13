@@ -1,5 +1,5 @@
-﻿#ifndef __SEARCH_OPTIONS_H_INCLUDED__
-#define __SEARCH_OPTIONS_H_INCLUDED__
+﻿#ifndef SEARCH_OPTIONS_H_INCLUDED
+#define SEARCH_OPTIONS_H_INCLUDED
 #include "../../config.h"
 
 #if defined(YANEURAOU_ENGINE_DEEP)
@@ -108,4 +108,4 @@ struct SearchOptions {
 
 #endif // defined(YANEURAOU_ENGINE_DEEP)
 
-#endif // ndef __SEARCH_OPTIONS_H_INCLUDED__
+#endif // ndef SEARCH_OPTIONS_H_INCLUDED

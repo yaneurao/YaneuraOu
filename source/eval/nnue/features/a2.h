@@ -1,8 +1,8 @@
 // NNUE評価関数の入力特徴量A2の定義
 // 玉を含む全駒のBonaPiece。後手玉を自玉と同じplaneにマージするv2エンコーディング。
 
-#ifndef CLASSIC_NNUE_FEATURES_A2_H
-#define CLASSIC_NNUE_FEATURES_A2_H
+#ifndef CLASSIC_NNUE_FEATURES_A2_H_INCLUDED
+#define CLASSIC_NNUE_FEATURES_A2_H_INCLUDED
 
 #include "../../../config.h"
 

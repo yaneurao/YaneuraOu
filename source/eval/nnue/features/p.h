@@ -1,7 +1,7 @@
 ﻿// NNUE評価関数の入力特徴量Pの定義
 
-#ifndef CLASSIC_NNUE_FEATURES_P_H
-#define CLASSIC_NNUE_FEATURES_P_H
+#ifndef CLASSIC_NNUE_FEATURES_P_H_INCLUDED
+#define CLASSIC_NNUE_FEATURES_P_H_INCLUDED
 
 #include "../../../config.h"
 

@@ -1,5 +1,5 @@
-﻿#ifndef _LONG_EFFECT_H_
-#define _LONG_EFFECT_H_
+﻿#ifndef LONG_EFFECT_H_INCLUDED
+#define LONG_EFFECT_H_INCLUDED
 
 // 遠方駒による利きのライブラリ
 // Bitboard/Byteboardに対して8近傍,24近傍を高速に求める等
@@ -348,5 +348,5 @@ namespace LongEffect
 
 #endif // LONG_EFFECT_LIBRARY
 
-#endif // _LONG_EFFECT_H_
+#endif // LONG_EFFECT_H_INCLUDED
 
