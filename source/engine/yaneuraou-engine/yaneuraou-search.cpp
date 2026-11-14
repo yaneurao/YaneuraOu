@@ -831,8 +831,7 @@ void update_all_stats(const Position&          pos,
                       SearchedList&            quietsSearched,
                       SearchedList&            capturesSearched,
                       Depth                    depth,
-                      Move                     ttMove,
-                      bool                     PvNode);
+                      Move                     ttMove);
 
 
 // Detect shuffling moves in order to limit search explosions. This code was
@@ -4498,7 +4497,7 @@ moves_loop:  // When in check, search starts here
         // 💡 quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
 
         update_all_stats(pos, ss, *this, bestMove, prevSq, quietsSearched, capturesSearched, depth,
-                         ttData.move, PvNode);
+                         ttData.move);
         if (!PvNode)
             ttMoveHistory << (bestMove == ttData.move ? 805 : -787);
     }
@@ -5492,8 +5491,7 @@ void update_all_stats(const Position&          pos,
                       SearchedList&            quietsSearched,
                       SearchedList&            capturesSearched,
                       Depth                    depth,
-                      Move                     ttMove,
-                      bool                     PvNode) {
+                      Move                     ttMove) {
 
 
     CapturePieceToHistory& captureHistory = workerThread.captureHistory;
@@ -5504,17 +5502,10 @@ void update_all_stats(const Position&          pos,
       std::min(128 * depth - 77, 1529) + 353 * (bestMove == ttMove) + (ss - 1)->statScore / 32;
     int malus = std::min(882 * depth - 204, 2122);
 
-    // Scale the non-PV bonus with the number of searched moves.
-    // non-PVでは調べた手数に応じてボーナスを増やす。
-    if (!PvNode)
-#if STOCKFISH
-        // Important: don't remove the cast to a 64-bit number else the multiplication
-        // can overflow on 32-bit platforms which would change the bench signature
-        // 64bit型へのキャストを削除すると、32bit環境の乗算であふれ、benchの結果が変わり得る。
-        bonus += int(bonus * u64(quietsSearched.size() + capturesSearched.size()) / 256);
-#else
-        bonus += bonus * int(quietsSearched.size() + capturesSearched.size()) / 256;
-#endif
+    // Important: don't remove the cast to a 64-bit number else the multiplication
+    // can overflow on 32-bit platforms which would change the bench signature
+    // 64bit型へのキャストを削除すると、32bit環境の乗算であふれ、benchの結果が変わり得る。
+    bonus += int(bonus * u64(quietsSearched.size() + capturesSearched.size()) / 256);
 
 
     /*
