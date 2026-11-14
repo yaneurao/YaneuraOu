@@ -321,7 +321,7 @@ class SharedMemoryBackend {
             const DWORD err    = GetLastError();
             last_error_message = GetLastErrorAsString(err);
             status             = Status::MapViewError;
-            cleanup_partial();
+            cleanup();
             return;
         }
 
@@ -334,7 +334,7 @@ class SharedMemoryBackend {
             const DWORD err    = GetLastError();
             last_error_message = GetLastErrorAsString(err);
             status             = Status::MutexCreateError;
-            cleanup_partial();
+            cleanup();
             return;
         }
 
@@ -345,7 +345,7 @@ class SharedMemoryBackend {
             last_error_message = GetLastErrorAsString(err);
             status             = Status::MutexWaitError;
             CloseHandle(hMutex);
-            cleanup_partial();
+            cleanup();
             return;
         }
 
@@ -371,24 +371,11 @@ class SharedMemoryBackend {
             const DWORD err    = GetLastError();
             last_error_message = GetLastErrorAsString(err);
             status             = Status::MutexReleaseError;
-            cleanup_partial();
+            cleanup();
             return;
         }
 
         status = Status::Success;
-    }
-
-    void cleanup_partial() {
-        if (pMap != nullptr)
-        {
-            UnmapViewOfFile(pMap);
-            pMap = nullptr;
-        }
-        if (hMapFile)
-        {
-            CloseHandle(hMapFile);
-            hMapFile = 0;
-        }
     }
 
     void cleanup() {
