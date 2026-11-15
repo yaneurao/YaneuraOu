@@ -98,7 +98,7 @@ namespace Mate
 {
 	// 超高速1手詰め判定、本体。
 	template <Color Us>
-	Move mate_1ply_imp(const Position& pos)
+	SYSV_ABI Move mate_1ply_imp(const Position& pos)
 	{
 		Square from, to;
 		auto them = ~Us;

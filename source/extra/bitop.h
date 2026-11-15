@@ -65,6 +65,12 @@ using s64 = i64;
 #define FORCE_INLINE inline
 #endif
 
+#if defined(_WIN64) && (defined(__GNUC__) || defined(__clang__))
+#define SYSV_ABI __attribute__((sysv_abi))
+#else
+#define SYSV_ABI
+#endif
+
 // ----------------------------
 //     POPCNT(SSE4.2の命令)
 // ----------------------------
