@@ -1248,6 +1248,14 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 // Tests whether a legal move gives a check
 // 合法手が敵玉への王手になるかを判定する。
 
+namespace {
+FORCE_INLINE bool test_bit(const Bitboard& b, Square sq) {
+    const unsigned u = unsigned(sq);
+    const unsigned k = u >= 63;
+    return (b.p[k] >> ((u - 63 * k) & 63)) & 1;
+}
+}
+
 bool Position::gives_check(Move m) const
 {
 	// 指し手がおかしくないか
@@ -1258,7 +1266,7 @@ bool Position::gives_check(Move m) const
 
 	// 駒打ち・移動する指し手どちらであってもmove_piece_after(m)で移動後の駒が取得できるので
 	// 直接王手の処理は共通化できる。
-	if (st->checkSquares[type_of(moved_piece_after(m))] & to)
+	if (test_bit(st->checkSquares[type_of(moved_piece_after(m))], to))
 		return true;
 
 	// -- 移動する指し手ならば、これで開き王手になるかどうかの判定が必要。
@@ -1268,9 +1276,8 @@ bool Position::gives_check(Move m) const
 
 	// 開き王手になる駒の候補があるとして、fromにあるのがその駒で、fromからtoは玉と直線上にないなら
 	// 前提条件より、fromにあるのが自駒であることは確定しているので、pieces(sideToMove)は不要。
-	return  !m.is_drop()
-		&& (((blockers_for_king(~sideToMove) /*& pieces(sideToMove)*/) & from)
-		&&  !aligned(from, to, square<KING>(~sideToMove)));
+	return (!m.is_drop() & test_bit(blockers_for_king(~sideToMove), from))
+		&& !aligned(from, to, square<KING>(~sideToMove));
 }
 
 // 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
