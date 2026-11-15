@@ -4038,6 +4038,9 @@ moves_loop:  // When in check, search starts here
 
 		newDepth += extension;
 
+        if (!(!PvNode && depth == 1 && newDepth <= 0))
+        {
+
 
         // Step 18. Compute and apply late moves reductions/extensions (LMR)
         // Step 18. 遅い指し手の削減量／延長量を計算し、適用する（LMR）
@@ -4127,6 +4130,7 @@ moves_loop:  // When in check, search starts here
         // 詰み探索モードでは、王手でない手の削減を増やし、王手の削減を減らす。
         if (seekMate && r > 0)
             r += (givesCheck ? -r : r) / 4;
+        }
 
         // Apply the computed LMR
         // 計算したLMRを適用する。
@@ -5092,6 +5096,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 			 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 		*/
 
+        bool seeOk = false;
 		if (!is_loss(bestValue))
         {
             // Futility pruning and moveCount pruning
@@ -5148,6 +5153,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
                     bestValue = std::max(bestValue, std::min(alpha, futilityBase));
                     continue;
                 }
+                seeOk = alpha - futilityBase >= -73;
             }
 
             // Skip non-captures
@@ -5167,7 +5173,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 					 captureの時の歩損は、歩で取る、同角、同角みたいな局面なのでそこにはあまり意味なさげ。
 			*/
 
-            if (!pos.see_ge(move, -73))
+            if (!seeOk && !pos.see_ge(move, -73))
                 continue;
         }
 
