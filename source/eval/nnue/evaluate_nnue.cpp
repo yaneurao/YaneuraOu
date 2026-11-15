@@ -29,6 +29,7 @@
 
 namespace YaneuraOu::Eval::NNUE {
 extern int FV_SCALE;
+extern ExactDivider FV_SCALE_DIVIDER;
 }
  
 // ============================================================
@@ -94,6 +95,7 @@ void add_options_(OptionsMap& options) {
     // NNUEのFV_SCALEの値
     Options.add("FV_SCALE", Option(16, 1, 128, [](const Option& o) {
                     YaneuraOu::Eval::NNUE::FV_SCALE = int(o);
+                    YaneuraOu::Eval::NNUE::FV_SCALE_DIVIDER = ExactDivider(std::uint32_t(int(o)));
                     return std::nullopt;
                 }));
 
@@ -168,6 +170,7 @@ namespace YaneuraOu {
 namespace Eval {
 namespace NNUE {
 
+	ExactDivider FV_SCALE_DIVIDER(16);
 	int FV_SCALE = 16; // 水匠5では24がベストらしいのでエンジンオプション"FV_SCALE"で変更可能にした。
 
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
@@ -836,7 +839,7 @@ namespace {
         auto score = static_cast<Value>(std::clamp<i64>(
             output[0] / FV_SCALE, -VALUE_MAX_EVAL, VALUE_MAX_EVAL));
 #else
-        auto score = static_cast<Value>(output[0] / FV_SCALE);
+        auto score = static_cast<Value>(FV_SCALE_DIVIDER.divide(output[0]));
 #endif
 
         // 1) ここ、下手にclipすると学習時には影響があるような気もするが…。

@@ -163,6 +163,30 @@ void prefetch(const void* addr) {
 }
 #endif
 
+class ExactDivider {
+   public:
+    constexpr ExactDivider() = default;
+    constexpr explicit ExactDivider(std::uint32_t d) :
+        magic(d > 1 ? ~std::uint64_t(0) / d + 1 : 0),
+        divisor(d) {}
+
+    constexpr int divide(int n) const {
+#if defined(__SIZEOF_INT128__)
+        if (magic == 0)
+            return n;
+        const std::uint32_t a = n < 0 ? 0u - std::uint32_t(n) : std::uint32_t(n);
+        const int q = int(std::uint64_t((unsigned __int128) magic * a >> 64));
+        return n < 0 ? -q : q;
+#else
+        return n / int(divisor);
+#endif
+    }
+
+   private:
+    std::uint64_t magic = 0;
+    std::uint32_t divisor = 1;
+};
+
 // --------------------
 //  logger
 // --------------------

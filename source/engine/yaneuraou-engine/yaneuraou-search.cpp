@@ -699,6 +699,17 @@ namespace {
 
 constexpr u64 NODES_LIMIT_OUTPUT = 10'000'000;
 
+template<int Mul, int Add>
+constexpr std::array<ExactDivider, MAX_PLY + 1> make_depth_dividers() {
+    std::array<ExactDivider, MAX_PLY + 1> t{};
+    for (int d = 0; d <= MAX_PLY; ++d)
+        t[d] = ExactDivider(std::uint32_t(Mul * d + Add));
+    return t;
+}
+
+constexpr auto AllNodeDivider      = make_depth_dividers<256, 268>();
+constexpr auto DepthPlusOneDivider = make_depth_dividers<1, 1>();
+
 // -----------------------
 //   探索用の評価値補整
 // -----------------------
@@ -3764,7 +3775,7 @@ moves_loop:  // When in check, search starts here
             // Skip quiet moves if movecount exceeds our threshold
             // movecountが閾値を超えた場合、quietの手をスキップします
 
-            if (moveCount >= (3 + depth * depth) / (2 - improving))
+            if (moveCount >= (3 + depth * depth) >> (1 - improving))
                 mp.skip_quiet_moves();
 
             // Reduced depth of the next LMR search
@@ -4114,7 +4125,7 @@ moves_loop:  // When in check, search starts here
         // Scale up reductions for expected ALL nodes
         // ALLノードと見込まれるノードでは、削減量を増やす。
         if (allNode)
-            r += r * 276 / (256 * depth + 268);
+            r += AllNodeDivider[depth].divide(r * 276);
 
 		// -----------------------
 		/*
@@ -4464,7 +4475,7 @@ moves_loop:  // When in check, search starts here
     // fail highの場合に最良値を調整する
 
     if (bestValue >= beta && !is_decisive(bestValue) && !is_decisive(alpha))
-        bestValue = (bestValue * depth + beta) / (depth + 1);
+        bestValue = DepthPlusOneDivider[depth].divide(bestValue * depth + beta);
 
     // All legal moves have been searched: if there are no legal moves, it
     // must be a mate or a stalemate (just a fail low score if we are in a
