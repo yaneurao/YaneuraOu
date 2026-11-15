@@ -1181,6 +1181,14 @@ class FeatureTransformer {
 			}
 		}
 #endif
+#if !defined(NO_PREFETCH)
+		if constexpr (!Packed) {
+			if (!rebuild) {
+				prefetch_weight_rows(removed_indices);
+				prefetch_weight_rows(added_indices);
+			}
+		}
+#endif
 		if (rebuild) {
 #if defined(VECTOR)
 			const auto* source = trigger_index == 0 ? biases_ : nullptr;
@@ -1285,6 +1293,16 @@ class FeatureTransformer {
 
 	// Calculate cumulative value using difference calculation
 	// 差分計算を用いて累積値を計算する
+#if !defined(NO_PREFETCH)
+	void prefetch_weight_rows(const Features::IndexList& indices) const {
+		constexpr usize kRowBytes = usize(kHalfDimensions) * sizeof(WeightType);
+		const auto* base = reinterpret_cast<const char*>(weights_);
+		for (const auto index : indices)
+			for (usize b = 0; b < kRowBytes; b += kCacheLineSize)
+				YaneuraOu::prefetch(base + kRowBytes * index + b);
+	}
+#endif
+
 	template <bool Packed = false>
 	void update_accumulator(const Position& pos, AccumulatorState* state) const {
         state = resolve_state(pos, state);
@@ -1300,6 +1318,16 @@ class FeatureTransformer {
 					if (!reset[c]) {
 						prefetch_sparse8_columns(removed_indices[c]);
 						prefetch_sparse8_columns(added_indices[c]);
+					}
+				}
+			}
+#endif
+#if !defined(NO_PREFETCH)
+			if constexpr (!Packed) {
+				for (int c = 0; c < COLOR_NB; ++c) {
+					if (!reset[c]) {
+						prefetch_weight_rows(removed_indices[c]);
+						prefetch_weight_rows(added_indices[c]);
 					}
 				}
 			}
