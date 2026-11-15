@@ -796,6 +796,10 @@ class Position {
 	// これを計算するのはあまり得策ではないが、詰将棋ルーチンでは置換表を投機的に
 	// prefetchできるとずいぶん速くなるのでこの関数を用意しておく。
 	HASH_KEY key_after(Move m) const;
+
+#if defined(USE_PARTIAL_KEY)
+	void partial_keys_after(Move m, HASH_KEY& pawn, HASH_KEY& minor, HASH_KEY nonPawn[COLOR_NB]) const;
+#endif
 #endif
 
     // -----------------------

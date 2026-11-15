@@ -479,7 +479,6 @@ Move MovePicker::select(Pred filter) {
 // TT手は最初に返し、それ以降は重複を除外する。skipQuietsならquietを返さない。
 Move MovePicker::next_move() {
 
-    constexpr int goodQuietThreshold = -14000;
 dispatch:
     switch (stage)
     {
@@ -589,6 +588,30 @@ dispatch:
     default:
         ASSERT(false);
         sf_unreachable();
+    }
+}
+
+Move MovePicker::peek() const {
+    switch (stage)
+    {
+    case GOOD_CAPTURE :
+    case BAD_MOVES :
+    case QSEARCH :
+    case EVASION :
+    case PROBCUT :
+        for (const ExtMove* p = cur; p < endCur; ++p)
+            if (*p != ttMove)
+                return *p;
+        return Move::none();
+
+    case GOOD_QUIET :
+        for (const ExtMove* p = cur; p < endCur; ++p)
+            if (*p != ttMove && p->value > goodQuietThreshold)
+                return *p;
+        return Move::none();
+
+    default :
+        return Move::none();
     }
 }
 

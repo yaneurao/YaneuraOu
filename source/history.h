@@ -372,6 +372,17 @@ struct SharedHistories {
         return correctionHistory[pos.non_pawn_key(c) & sizeMinus1];
     }
 
+#if defined(USE_PARTIAL_KEY)
+    void prefetch_correction_after(const Position& pos, Move m) const {
+        HASH_KEY pawn, minor, nonPawn[COLOR_NB];
+        pos.partial_keys_after(m, pawn, minor, nonPawn);
+        prefetch(&correctionHistory[pawn & sizeMinus1]);
+        prefetch(&correctionHistory[minor & sizeMinus1]);
+        prefetch(&correctionHistory[nonPawn[BLACK] & sizeMinus1]);
+        prefetch(&correctionHistory[nonPawn[WHITE] & sizeMinus1]);
+    }
+#endif
+
     UnifiedCorrectionHistory               correctionHistory;
     LargePagePtr<ContinuationHistoryBlock> continuationHistoryBlock;
     PawnHistory                            pawnHistory;

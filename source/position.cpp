@@ -2255,6 +2255,35 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 }
 
 // ある指し手を指した後のhash keyを返す。
+#if defined(USE_PARTIAL_KEY)
+void Position::partial_keys_after(Move m, HASH_KEY& pawn, HASH_KEY& minor, HASH_KEY nonPawn[COLOR_NB]) const {
+    pawn           = st->pawnKey;
+    minor          = st->minorPieceKey;
+    nonPawn[BLACK] = st->nonPawnKey[BLACK];
+    nonPawn[WHITE] = st->nonPawnKey[WHITE];
+
+    auto xor_piece = [&](Piece pc, Square s) {
+        if (type_of(pc) == PAWN)
+            pawn ^= Zobrist::psq[pc][s];
+        else
+        {
+            if (is_minor_piece(pc))
+                minor ^= Zobrist::psq[pc][s];
+            nonPawn[color_of(pc)] ^= Zobrist::psq[pc][s];
+        }
+    };
+
+    const Square to = m.to_sq();
+    if (!m.is_drop())
+    {
+        xor_piece(piece_on(m.from_sq()), m.from_sq());
+        if (const Piece captured = piece_on(to))
+            xor_piece(captured, to);
+    }
+    xor_piece(moved_piece(m), to);
+}
+#endif
+
 HASH_KEY Position::key_after(Move m) const {
 
     Color Us = side_to_move();

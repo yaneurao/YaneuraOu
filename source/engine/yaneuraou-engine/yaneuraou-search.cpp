@@ -3585,6 +3585,19 @@ Value Search::YaneuraOuWorker::search(
             capture = pos.capture_stage(move);
             assert(capture);
 
+#if !STOCKFISH
+            if (const Move la = mp.peek(); la != Move::none())
+            {
+                prefetch(tt.get_cluster(pos.key_after(la), ~pos.side_to_move()));
+                const Piece  laPc = pos.moved_piece(la);
+                const Square laTo = la.to_sq();
+                prefetch(&(*(ss - 1)->continuationCorrectionHistory)[laPc][laTo]);
+                prefetch(&(*(ss - 3)->continuationCorrectionHistory)[laPc][laTo]);
+#if defined(USE_PARTIAL_KEY)
+                sharedHistory.prefetch_correction_after(pos, la);
+#endif
+            }
+#endif
             do_move(pos, move, st, pos.gives_check(move), capture, ss);
 
             // Perform a preliminary qsearch to verify that the move holds
@@ -4031,6 +4044,19 @@ moves_loop:  // When in check, search starts here
         // -----------------------
 
 		// 指し手で1手進める
+#if !STOCKFISH
+        if (const Move la = mp.peek(); la != Move::none())
+        {
+            prefetch(tt.get_cluster(pos.key_after(la), ~pos.side_to_move()));
+            const Piece  laPc = pos.moved_piece(la);
+            const Square laTo = la.to_sq();
+            prefetch(&(*(ss - 1)->continuationCorrectionHistory)[laPc][laTo]);
+            prefetch(&(*(ss - 3)->continuationCorrectionHistory)[laPc][laTo]);
+#if defined(USE_PARTIAL_KEY)
+            sharedHistory.prefetch_correction_after(pos, la);
+#endif
+        }
+#endif
         do_move(pos, move, st, givesCheck, capture, ss);
 
         // Add extension to new depth
@@ -5178,6 +5204,19 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
 		// 📝 1手動かして、再帰的にqsearch()を呼ぶ
 
+#if !STOCKFISH
+        if (const Move la = mp.peek(); la != Move::none())
+        {
+            prefetch(tt.get_cluster(pos.key_after(la), ~pos.side_to_move()));
+            const Piece  laPc = pos.moved_piece(la);
+            const Square laTo = la.to_sq();
+            prefetch(&(*(ss - 1)->continuationCorrectionHistory)[laPc][laTo]);
+            prefetch(&(*(ss - 3)->continuationCorrectionHistory)[laPc][laTo]);
+#if defined(USE_PARTIAL_KEY)
+            sharedHistory.prefetch_correction_after(pos, la);
+#endif
+        }
+#endif
         do_move(pos, move, st, givesCheck, capture, ss);
 
 #if STOCKFISH

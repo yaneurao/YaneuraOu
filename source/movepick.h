@@ -68,6 +68,8 @@ class MovePicker {
     // 以降のnext_move()でquietを省略し、生成済みの悪いquietも返却対象から外す。
     void skip_quiet_moves();
 
+    Move peek() const;
+
    private:
     template<typename Pred>
     Move select(Pred);
@@ -112,6 +114,8 @@ class MovePicker {
 
     // next_move()で、quietな指し手をskipするかのフラグ
     bool skipQuiets = false;
+
+    static constexpr int goodQuietThreshold = -14000;
 
     // 指し手生成バッファ
     // 最大合法手の数 = 593
