@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <limits>
+#include <memory>
 
 #include "bitboard.h"
 #include "misc.h"
@@ -174,6 +175,29 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 }
 
 } // namespace
+
+namespace {
+
+constexpr usize MovePickerArenaSize = usize(MAX_PLY + 10) * 3 * MAX_MOVES;
+
+thread_local std::unique_ptr<ExtMove[]> movePickerArena;
+thread_local ExtMove*                   movePickerTop = nullptr;
+
+}
+
+ExtMove* MovePicker::acquire_moves() {
+    if (movePickerTop == nullptr)
+    {
+        movePickerArena.reset(new ExtMove[MovePickerArenaSize]);
+        movePickerTop = movePickerArena.get();
+    }
+    assert(movePickerTop + MAX_MOVES <= movePickerArena.get() + MovePickerArenaSize);
+    ExtMove* m = movePickerTop;
+    movePickerTop += MAX_MOVES;
+    return m;
+}
+
+MovePicker::~MovePicker() { movePickerTop = moves; }
 
 // 指し手オーダリング器
 

@@ -68,6 +68,8 @@ class MovePicker {
     // 以降のnext_move()でquietを省略し、生成済みの悪いquietも返却対象から外す。
     void skip_quiet_moves();
 
+    ~MovePicker();
+
    private:
     template<typename Pred>
     Move select(Pred);
@@ -78,6 +80,8 @@ class MovePicker {
     // GenType == EVASIONS : 王手回避の指し手のオーダリング
     template<GenType T>
     ExtMove* generate_and_score();
+
+    static ExtMove* acquire_moves();
 
     const Position& pos;
 
@@ -116,7 +120,7 @@ class MovePicker {
     // 指し手生成バッファ
     // 最大合法手の数 = 593
     // cf. https://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
-    ExtMove moves[MAX_MOVES];
+    ExtMove* moves = acquire_moves();
 
 #if !STOCKFISH
     // Position::pseudo_legal()に渡す第2パラメーター。
