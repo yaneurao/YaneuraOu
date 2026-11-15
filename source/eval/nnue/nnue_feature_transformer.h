@@ -1290,6 +1290,10 @@ class FeatureTransformer {
         state = resolve_state(pos, state);
 		const auto& prev_accumulator = accumulator_of(state->previous);
 		auto&      accumulator      = accumulator_of(state);
+#if !defined(NO_PREFETCH)
+		for (usize b = 0; b < sizeof(prev_accumulator.accumulation); b += kCacheLineSize)
+			YaneuraOu::prefetch(reinterpret_cast<const char*>(prev_accumulator.accumulation) + b);
+#endif
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList removed_indices[2], added_indices[2];
 			bool                reset[2]{};
