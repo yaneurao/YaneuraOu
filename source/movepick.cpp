@@ -326,6 +326,10 @@ ExtMove* MovePicker::generate_and_score() {
     MoveList<Type> ml(pos);  // move generation
                             // 指し手を生成する。
 
+    if constexpr (Type == CAPTURES)
+        for (auto move : ml)
+            prefetch(&(*captureHistory)[pos.moved_piece(move)][move.to_sq()][type_of(pos.piece_on(move.to_sq()))]);
+
     ExtMove* it = cur;
     for (auto move : ml)
     {
