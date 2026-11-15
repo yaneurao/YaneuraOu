@@ -14,6 +14,7 @@
 #endif
 
 #include "../../types.h"
+#include "../../memory.h"
 #include "nnue_common.h"
 #include "nnue_architecture.h"
 #include "nnue_accumulator.h"
@@ -1003,9 +1004,9 @@ class FeatureTransformer {
 	};
 
 	FinnyCache& finny_cache() const {
-		static thread_local std::unique_ptr<FinnyCache> cache;
+		static thread_local LargePagePtr<FinnyCache> cache;
 		if (!cache)
-			cache = std::make_unique<FinnyCache>();
+			cache = make_unique_large_page<FinnyCache>();
 		if (cache->owner != this || cache->generation != finny_generation_)
 			cache->reset(this, finny_generation_);
 		return *cache;
