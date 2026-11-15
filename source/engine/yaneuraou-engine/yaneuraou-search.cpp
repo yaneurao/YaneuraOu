@@ -1049,13 +1049,14 @@ void Search::YaneuraOuWorker::start_searching() {
 
     // 引き分け時の値として現在の手番に応じた値を設定してやる。
     Color us         = rootPos.side_to_move();
-    int   draw_value = (int) ((us == BLACK ? options["DrawValueBlack"] : options["DrawValueWhite"])
+    Color me         = limits.ponderMode && options.count("Stochastic_Ponder") && options["Stochastic_Ponder"] ? ~us : us;
+    int   draw_value = (int) ((me == BLACK ? options["DrawValueBlack"] : options["DrawValueWhite"])
                             * Eval::PawnValue / 100);
 
     // 探索のleaf nodeでは、相手番(root_color != side_to_move)である場合、 +draw_valueではなく、-draw_valueを設定してやらないと非対称な探索となって良くない。
     // 例) 自分は引き分けを勝ち扱いだと思って探索しているなら、相手は、引き分けを負けとみなしてくれないと非対称になる。
-    drawValueTable[REPETITION_DRAW][us]  = +draw_value;
-    drawValueTable[REPETITION_DRAW][~us] = -draw_value;
+    drawValueTable[REPETITION_DRAW][me]  = +draw_value;
+    drawValueTable[REPETITION_DRAW][~me] = -draw_value;
 
     // 今回、通常探索をしたかのフラグ
     // このフラグがtrueなら(定跡にhitしたり1手詰めを発見したりしたので)探索をスキップした。
