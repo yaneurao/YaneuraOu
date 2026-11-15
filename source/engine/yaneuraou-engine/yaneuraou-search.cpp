@@ -3347,6 +3347,11 @@ Value Search::YaneuraOuWorker::search(
     }
 #endif
 
+#if !STOCKFISH
+    if (ttData.move.is_ok())
+        prefetch(tt.get_cluster(pos.key_after(ttData.move), ~pos.side_to_move()));
+#endif
+
     // When in check, try the TT cutoff before skipping evaluation-based pruning.
     // 王手中もTTによるカットを試してから、静的評価に基づく枝刈りをスキップする。
     if (ss->inCheck)
