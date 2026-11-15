@@ -346,7 +346,7 @@ namespace {
 #if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
         auto tmp = std::make_unique<NnueNetworks>();
 #else
-        auto tmp = make_unique_large_page<NnueNetworks>();
+        auto tmp = make_unique_aligned<NnueNetworks>();
 #endif
 
 		u32 hash_value;
