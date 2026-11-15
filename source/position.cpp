@@ -2129,6 +2129,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
     // 更新されたhash keyをStateInfoに書き戻す。
     st->board_key = k;
     st->hand_key  = h;
+    rep_enter();
 
     st->hand = hand[them];
 #if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN) && !defined(NO_PREFETCH)
@@ -2169,7 +2170,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
     //   ここで非常に時間がかかり、R40程度弱くなってしまう。
 
     // 最低でも4手はないと同一局面に戻ってこない。
-    if (end >= 4)
+    if (end >= 4 && !rep_none(end))
     {
         StateInfo* stp = st->previous->previous;
         for (int i = 4; i <= end; i += 2)
@@ -2432,6 +2433,7 @@ void Position::undo_move_impl(Move m) {
     sideToMove = Us;  // Usは先後入れ替えて呼び出されているはず。
 
     // --- StateInfoを巻き戻す
+    rep_leave();
     st = st->previous;
 
     --gamePly;
@@ -2543,6 +2545,7 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
     sideToMove = ~sideToMove;
 
 	st->board_key ^= Zobrist::side;
+	rep_enter();
 
 	// 🌈 やねうら王では、TTを引数に取らないこともできるように
 	//     template引数で実装している。
@@ -2591,6 +2594,7 @@ void Position::undo_null_move() {
 
     ASSERT_LV3(!checkers());
 
+    rep_leave();
     st         = st->previous;
     sideToMove = ~sideToMove;
 }
@@ -2936,6 +2940,9 @@ RepetitionState Position::is_repetition(int ply) const
 
 	// 少なくとも4手かけないと千日手にはならないから、4手前から調べていく。
 	if (end < 4)
+		return REPETITION_NONE;
+
+	if (rep_none(end))
 		return REPETITION_NONE;
 
 	StateInfo* stp = st->previous->previous;

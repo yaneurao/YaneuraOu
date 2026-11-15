@@ -1171,6 +1171,15 @@ private:
     // undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
     StateInfo* st;
 
+    static constexpr int kRepSlots = 4096;
+    static size_t rep_slot(const HASH_KEY& k) { return size_t(Key64(k) >> 1) & (kRepSlots - 1); }
+    void rep_enter() { ++rep_cnt[rep_slot(st->board_key)]; ++rep_depth; }
+    void rep_leave() { auto& c = rep_cnt[rep_slot(st->board_key)]; c -= (c != 0); if (--rep_depth < rep_lw) rep_lw = rep_depth; }
+    bool rep_none(int end) const { return rep_depth - end > rep_lw && rep_cnt[rep_slot(st->board_key)] < 2; }
+    uint16_t rep_cnt[kRepSlots];
+    int rep_depth;
+    int rep_lw;
+
 	// 初期局面からの手数(初期局面 == 1)
     int gamePly;
 
