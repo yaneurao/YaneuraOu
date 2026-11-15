@@ -1125,6 +1125,14 @@ const std::string Position::sfen_to_flipped_sfen(std::string sfen)
 
 // put_piece(),remove_piece(),xor_piece()を用いたあとに呼び出す必要がある。
 // これらは指し手生成や1手詰め判定の時に用いる。
+namespace {
+constexpr u32 UpdateBitboardsTypes = ~((1u << PAWN) | (1u << LANCE) | (1u << KNIGHT) | (1u << NO_PIECE_TYPE));
+
+inline bool needs_update_bitboards(Piece a, Piece b, Piece c) {
+    return (((1u << type_of(a)) | (1u << type_of(b)) | (1u << type_of(c))) & UpdateBitboardsTypes) != 0;
+}
+}
+
 void Position::update_bitboards()
 {
 	// 王・馬・龍を合成したbitboard
@@ -1739,7 +1747,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 #if STOCKFISH
     ++st->rule50;
 #endif
-    ++st->pliesFromNull;
+    st->pliesFromNull = st->previous->pliesFromNull + 1;
 
 #if STOCKFISH
     Color us   = sideToMove;
@@ -1912,7 +1920,8 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         st->capturedPiece = NO_PIECE;
 
         // put_piece()などを用いたのでupdateする
-        update_bitboards();
+        if (needs_update_bitboards(pc, pc, NO_PIECE))
+            update_bitboards();
 
 #if defined(USE_MATERIAL_VALUE)
         // 駒打ちなので駒割りの変動なし。
@@ -2058,7 +2067,8 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 
         // put_piece()などを用いたのでupdateする。
         // ROOK_DRAGONなどをこの直後で用いるのでここより後ろにやるわけにはいかない。
-        update_bitboards();
+        if (needs_update_bitboards(moved_pc, moved_after_pc, st->capturedPiece))
+            update_bitboards();
 
         // 王手している駒のbitboardを更新する。
         if (givesCheck)
@@ -2426,7 +2436,8 @@ void Position::undo_move_impl(Move m) {
 
     // put_piece()などを使ったのでbitboardを更新する。
     // kingSquareは自前で更新したのでupdate_kingSquare()を呼び出す必要はない。
-    update_bitboards();
+    if (needs_update_bitboards(moved_pc, moved_after_pc, st->capturedPiece))
+        update_bitboards();
 
     // --- 相手番に変更
     sideToMove = Us;  // Usは先後入れ替えて呼び出されているはず。
