@@ -244,10 +244,15 @@ struct alignas(16) Bitboard
 	template <typename T> FORCE_INLINE void foreach(T t) const
 	{
 		u64 p0 = this->extract64<0>();
-		while (p0) t( (Square)pop_lsb(p0));
-
 		u64 p1 = this->extract64<1>();
-		while (p1) t( (Square)(pop_lsb(p1) + 63));
+		while (p0 | p1)
+		{
+			const bool   low = p0 != 0;
+			const Square sq  = Square(LSB64(low ? p0 : p1) + (low ? 0 : 63));
+			p1 = low ? p1 : BLSR(p1);
+			p0 = BLSR(p0);
+			t(sq);
+		}
 	}
 
 	// Bitboard bbに対して、1であるbitのSquareがsqに入ってきて、このときにTを呼び出す。
@@ -258,10 +263,15 @@ struct alignas(16) Bitboard
 	template <typename T> FORCE_INLINE void foreach_part(T t) const
 	{
 		u64 p0 = this->extract64<0>();
-		while (p0) { t( (Square)(pop_lsb(p0)     ),0); }
-
 		u64 p1 = this->extract64<1>();
-		while (p1) { t( (Square)(pop_lsb(p1) + 63),1); }
+		while (p0 | p1)
+		{
+			const bool   low = p0 != 0;
+			const Square sq  = Square(LSB64(low ? p0 : p1) + (low ? 0 : 63));
+			p1 = low ? p1 : BLSR(p1);
+			p0 = BLSR(p0);
+			t(sq, low ? 0 : 1);
+		}
 	}
 
 	// UnitTest
