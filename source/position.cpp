@@ -2718,6 +2718,38 @@ bool Position::see_ge(Move m, int threshold) const
         // ビットボード 'attackers' に追加する。
 
         // 歩で取れるなら、まず歩で取る。
+#if !STOCKFISH
+        {
+            const u64 lo  = stmAttackers.extract64<0>();
+            const u64 hi  = stmAttackers.extract64<1>();
+            auto      has = [&](PieceType pt) -> unsigned {
+                const Bitboard q = pieces(pt);
+                return unsigned(((lo & q.extract64<0>()) | (hi & q.extract64<1>())) != 0);
+            };
+            const unsigned mask = has(PAWN) | has(LANCE) << 1 | has(KNIGHT) << 2 | has(SILVER) << 3
+                                | has(GOLDS) << 4 | has(BISHOP) << 5 | has(ROOK) << 6 | has(HORSE) << 7
+                                | has(DRAGON) << 8 | 1u << 9;
+            const int k = lsb(u64(mask));
+
+            static constexpr int SeeValue[10] = {
+              int(PawnValue),  int(LanceValue), int(KnightValue),     int(SilverValue),      int(GoldValue),
+              int(BishopValue), int(RookValue), int(Eval::HorseValue), int(Eval::DragonValue), 0};
+            static constexpr PieceType SeeType[9] = {PAWN, LANCE, KNIGHT, SILVER, GOLDS, BISHOP, ROOK, HORSE, DRAGON};
+
+            if (k == 9)
+                return (attackers & ~pieces(stm)) ? res ^ 1 : res;
+
+            bb = stmAttackers & pieces(SeeType[k]);
+            if ((swap = SeeValue[k] - swap) < res)
+                break;
+
+            if (k == 2)
+            {
+                occupied ^= least_significant_square_bb(bb);
+                continue;
+            }
+        }
+#else
         if ((bb = stmAttackers & pieces(PAWN)))
         {
             // この時点で、歩で取れることは確定した。
@@ -2824,6 +2856,7 @@ bool Position::see_ge(Move m, int threshold) const
               // If we "capture" with the king but the opponent still has attackers,
               // reverse the result.
             return (attackers & ~pieces(stm)) ? res ^ 1 : res;
+#endif
 
 #if !STOCKFISH
         /*
