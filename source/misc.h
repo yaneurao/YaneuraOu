@@ -286,6 +286,19 @@ static inline const u16  Le             = 1;
 static inline const bool IsLittleEndian = *reinterpret_cast<const char*>(&Le) == 1;
 
 
+#if STOCKFISH
+// 📝 やねうら王では使っていない。
+
+// std::swap is not constexpr until C++20
+// std::swapがconstexprになるのはC++20以降。
+template<typename T>
+constexpr void swap_constexpr(T& a, T& b) {
+    T tmp = a;
+    a     = b;
+    b     = tmp;
+}
+#endif
+
 // --------------------
 //      ValueList
 // --------------------
@@ -754,11 +767,13 @@ void move_to_front(std::vector<T>& vec, Predicate pred) {
     #define sf_always_inline inline
 #endif
 
-// Windows x86-64のGCC/Clangで、対象関数にSystem V AMD64の呼び出し規約を指定する。
+#if !STOCKFISH
+// 🌈 Windows x86-64のGCC/Clangで、対象関数にSystem V AMD64の呼び出し規約を指定する。
 #if defined(_WIN64) && defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
     #define SYSV_ABI __attribute__((sysv_abi))
 #else
     #define SYSV_ABI
+#endif
 #endif
 
 #if defined(__clang__)
