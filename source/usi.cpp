@@ -302,7 +302,7 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) { // diff:ignore
 			std::istringstream iss2(last_go_cmd_string);
             iss2 >> token; // 先頭の"go"を捨てる。
             // ponderの位置に依存せず制限を読み直し、通常探索として再開する。
-            // parse_limits()で開始時刻も今回のponderhit時刻へ更新する。
+            // 開始時刻は処理冒頭で保存したponderhit時刻とし、探索停止待ちや局面復元の時間も含める。
             auto limits = parse_limits(iss2);
             limits.startTime  = ponderhitTime;
             limits.ponderMode = false;
