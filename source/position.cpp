@@ -1123,7 +1123,17 @@ const std::string Position::sfen_to_flipped_sfen(std::string sfen)
 }
 
 
-// put_piece(),remove_piece(),xor_piece()を用いたあとに呼び出す必要がある。
+namespace {
+// 不成の歩・香・桂は合成Bitboardに含まれないため、それらだけが変化する手では再計算を省ける。
+// 成りや捕獲による変化を含め、移動前・移動後・捕獲された駒を調べる。
+constexpr u32 UpdateBitboardsTypes = ~((1u << PAWN) | (1u << LANCE) | (1u << KNIGHT) | (1u << NO_PIECE_TYPE));
+
+inline bool needs_update_bitboards(Piece a, Piece b, Piece c) {
+    return (((1u << type_of(a)) | (1u << type_of(b)) | (1u << type_of(c))) & UpdateBitboardsTypes) != 0;
+}
+}
+
+// put_piece(),remove_piece(),xor_piece()で合成Bitboardに関わる駒を変更したあとに呼び出す。
 // これらは指し手生成や1手詰め判定の時に用いる。
 void Position::update_bitboards()
 {
@@ -1912,7 +1922,8 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         st->capturedPiece = NO_PIECE;
 
         // put_piece()などを用いたのでupdateする
-        update_bitboards();
+        if (needs_update_bitboards(pc, pc, NO_PIECE))
+            update_bitboards();
 
 #if defined(USE_MATERIAL_VALUE)
         // 駒打ちなので駒割りの変動なし。
@@ -2058,7 +2069,8 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
 
         // put_piece()などを用いたのでupdateする。
         // ROOK_DRAGONなどをこの直後で用いるのでここより後ろにやるわけにはいかない。
-        update_bitboards();
+        if (needs_update_bitboards(moved_pc, moved_after_pc, st->capturedPiece))
+            update_bitboards();
 
         // 王手している駒のbitboardを更新する。
         if (givesCheck)
@@ -2426,7 +2438,8 @@ void Position::undo_move_impl(Move m) {
 
     // put_piece()などを使ったのでbitboardを更新する。
     // kingSquareは自前で更新したのでupdate_kingSquare()を呼び出す必要はない。
-    update_bitboards();
+    if (needs_update_bitboards(moved_pc, moved_after_pc, st->capturedPiece))
+        update_bitboards();
 
     // --- 相手番に変更
     sideToMove = Us;  // Usは先後入れ替えて呼び出されているはず。
