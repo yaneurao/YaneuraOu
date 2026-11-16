@@ -94,10 +94,9 @@ using vec_t = __m512i;
 #define vec_zero() _mm512_setzero_si512()
 #if defined(NNUE_FT_REGS)
 static_assert(NNUE_FT_REGS >= 1 && NNUE_FT_REGS <= 24, "NNUE_FT_REGS must be in [1, 24]");
-// FT 2304 is the measured configuration; keep other widths unchanged.
-static constexpr IndexType kNumRegs = kTransformedFeatureDimensions == 2304 ? NNUE_FT_REGS : 8;
+static constexpr IndexType kNumRegs = NNUE_FT_REGS;
 #else
-static constexpr IndexType kNumRegs = kTransformedFeatureDimensions == 2304 ? 24 : 8;
+static constexpr IndexType kNumRegs = 24;
 #endif
 
 #elif defined(USE_AVX2)
