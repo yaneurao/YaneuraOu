@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
 
 #include "misc.h"
@@ -541,31 +543,28 @@ class KeepAliveThread {
    public:
     KeepAliveThread() :
         thread([this] {
-            // スレッドが起動した
-            thread_started.store(true, std::memory_order_release);
-
-            int count = 0;
-            while (!thread_end.load(std::memory_order_acquire))
+            std::unique_lock<std::mutex> lk(mutex);
+            thread_started = true;
+            cv.notify_all();
+            while (!cv.wait_for(lk, std::chrono::seconds(5), [this] { return thread_end; }))
             {
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                if (++count >= 50 /* 5秒 */)
-                {
-                    count = 0;
-                    sync_cout << sync_endl;  // 改行を送信する。
+                sync_cout << sync_endl;  // 改行を送信する。
 
-                    // 定跡の読み込み部などで"info string.."で途中経過を出力する場合、
-                    // sync_cout ～ sync_endlを用いて送信しないと、この改行を送るタイミングとかち合うと
-                    // 変なところで改行されてしまうので注意。
-                }
+                // 定跡の読み込み部などで"info string.."で途中経過を出力する場合、
+                // sync_cout ～ sync_endlを用いて送信しないと、この改行を送るタイミングとかち合うと
+                // 変なところで改行されてしまうので注意。
             }
         }) {
-        // スレッド起動待ち
-        while (!thread_started.load(std::memory_order_acquire))
-            Tools::sleep(100);
+        std::unique_lock<std::mutex> lk(mutex);
+        cv.wait(lk, [this] { return thread_started; });
     }
 
     ~KeepAliveThread() {
-        thread_end.store(true, std::memory_order_release);
+        {
+            std::lock_guard<std::mutex> lk(mutex);
+            thread_end = true;
+        }
+        cv.notify_all();
         thread.join();
     }
 
@@ -573,10 +572,12 @@ class KeepAliveThread {
     KeepAliveThread& operator=(const KeepAliveThread&) = delete;
 
    private:
+    std::mutex              mutex;
+    std::condition_variable cv;
     // スレッドが起動したことを通知するためのフラグ
-    std::atomic_bool thread_started{false};
+    bool                    thread_started = false;
     // このスコープを抜ける時に立つフラグ(スレッドを停止させる用)
-    std::atomic_bool thread_end{false};
+    bool thread_end = false;
     // 定期的な改行送信用のスレッド。参照するフラグより後に構築する。
     std::thread thread;
 };
