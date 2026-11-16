@@ -719,7 +719,7 @@ namespace Mate {
 
 	// 1手で詰むならばその指し手を返す。なければMOVE_NONEを返す
 	template <Color Us>
-	Move mate_1ply_imp(const Position& pos)
+	SYSV_ABI Move mate_1ply_imp(const Position& pos)
 	{
 		ASSERT_LV3(!pos.checkers());
 

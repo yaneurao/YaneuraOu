@@ -2620,7 +2620,7 @@ void Position::undo_null_move() {
 // このseeの最終的な値が、しきい値threshold以上になるかどうかを判定するのがsee_ge()である。
 // こういう設計にすることで早期にthresholdを超えないことが確定した時点でreturn出来る。
 
-bool Position::see_ge(Move m, int threshold) const
+SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 {
 	ASSERT_LV3(m.is_ok());
 

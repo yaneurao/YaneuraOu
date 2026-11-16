@@ -2459,7 +2459,7 @@ Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
 // cutNode : LMRで悪そうな指し手に対してreduction量を増やすnode
 
 template<NodeType nodeType>
-Value Search::YaneuraOuWorker::search(
+SYSV_ABI Value Search::YaneuraOuWorker::search(
   Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, const bool cutNode) {
     // -----------------------
     //     nodeの種類

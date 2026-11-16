@@ -27,7 +27,7 @@ namespace Mate {
 
 	// mate_1ply()の手番をtemplateにしたやつ。
 	template <Color Us>
-	Move mate_1ply_imp(const Position& pos);
+	SYSV_ABI Move mate_1ply_imp(const Position& pos);
 
 	// 利きのある場所への取れない近接王手からの3手詰め
 	// 詰みがある場合は、その1手目の指し手を返す。詰みがない場合は、MOVE_NONEが返る。

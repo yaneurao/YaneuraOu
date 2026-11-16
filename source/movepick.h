@@ -63,7 +63,7 @@ class MovePicker {
     // 呼び出されるごとに新しい合法手をひとつ返す。
     // 指し手が尽きればMove::none()が返る。
     // 置換表の指し手(ttMove)を返したあとは、それを取り除いた指し手を返す。
-    Move next_move();
+    SYSV_ABI Move next_move();
 
     // 以降のnext_move()でquietを省略し、生成済みの悪いquietも返却対象から外す。
     void skip_quiet_moves();

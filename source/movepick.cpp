@@ -477,7 +477,7 @@ Move MovePicker::select(Pred filter) {
 // 指し手が尽きるとMove::none()を返す。各段階の採点と並び順に従って選ぶ。
 // 通常探索ではquietを部分ソートするため、全体の厳密なスコア降順とは限らない。
 // TT手は最初に返し、それ以降は重複を除外する。skipQuietsならquietを返さない。
-Move MovePicker::next_move() {
+SYSV_ABI Move MovePicker::next_move() {
 
     constexpr int goodQuietThreshold = -14000;
 dispatch:
