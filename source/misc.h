@@ -754,6 +754,13 @@ void move_to_front(std::vector<T>& vec, Predicate pred) {
     #define sf_always_inline inline
 #endif
 
+// Windows x86-64のGCC/Clangで、対象関数にSystem V AMD64の呼び出し規約を指定する。
+#if defined(_WIN64) && defined(__x86_64__) && (defined(__GNUC__) || defined(__clang__))
+    #define SYSV_ABI __attribute__((sysv_abi))
+#else
+    #define SYSV_ABI
+#endif
+
 #if defined(__clang__)
     #define sf_assume(cond) __builtin_assume(cond)
 #elif defined(__GNUC__)
