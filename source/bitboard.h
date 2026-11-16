@@ -273,29 +273,18 @@ struct alignas(16) Bitboard
 #pragma GCC diagnostic warning "-Wmaybe-uninitialized"
 #endif
 
-// p[n]を取り出す。SSE4の命令が使えるときはそれを使う。
 template <int n>
 inline u64 Bitboard::extract64() const
 {
 	static_assert(n == 0 || n == 1, "");
-#if defined(USE_SSE41) && defined(IS_64BIT)
-	return (u64)(_mm_extract_epi64(m, n));
-#else
 	return p[n];
-#endif
 }
 
 template <int n>
 inline Bitboard& Bitboard::insert64(u64 u)
 {
 	static_assert(n == 0 || n == 1, "");
-#if defined(USE_SSE41) && defined(IS_64BIT)
-	m = _mm_insert_epi64(m, u, n);
-	// ⇨ gcc/clangだと32bit環境で、この命令が定義されていなくてコンパイルエラーになる。
-	//		コンパイラ側のバグっぽい。仕方ないので、この命令を使うのは64bit環境の時のみにする。
-#else
 	p[n] = u;
-#endif
 	return *this;
 }
 
