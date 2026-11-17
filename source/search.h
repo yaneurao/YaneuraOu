@@ -272,6 +272,7 @@ struct LimitsType {
         rtime                           = 0;
 #if !STOCKFISH
         disablePvInterval               = false;
+        stochasticPonderRewound         = false;
 #endif
     }
 
@@ -339,6 +340,10 @@ struct LimitsType {
 
     // benchコマンド中はPV出力間隔の抑制を無効化して、最終info nodesを安定して取得する。
     bool disablePvInterval;
+
+    // Stochastic Ponderで実際に1手戻した探索か。履歴がなく戻せない場合はfalse。
+    // trueならrootの手番は自分ではなく相手なので、引き分けの評価もその前提で設定する。
+    bool stochasticPonderRewound;
 #endif
 };
 

@@ -763,6 +763,9 @@ void USIEngine::go(std::istringstream& is)
                                     // 先頭の"position"を読み飛ばす。
                 position(previous);
                 stochastic_ponder_rewound = true;
+                // オプションのON/OFFではなく、実際に巻き戻したことを探索側へ伝える。
+                // 履歴がない通常のponderや、ponderhit後の再探索ではfalseのままにする。
+                limits.stochasticPonderRewound = true;
             }
         }
 
