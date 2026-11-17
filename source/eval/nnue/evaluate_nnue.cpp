@@ -501,7 +501,8 @@ namespace {
         || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K21K21 && NNUE_SFNN_KING_BUCKETS == 441)
         || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K29K29 && NNUE_SFNN_KING_BUCKETS == 841)
         || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K9K9Z && NNUE_SFNN_KING_BUCKETS == 81)
-        || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K13K13Z && NNUE_SFNN_KING_BUCKETS == 169),
+        || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K13K13Z && NNUE_SFNN_KING_BUCKETS == 169)
+        || (NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K3K3Z && NNUE_SFNN_KING_BUCKETS == 9),
         "NNUE_SFNN_KING_BUCKET_TYPE does not match NNUE_SFNN_KING_BUCKETS");
     static_assert(NNUE_SFNN_PROGRESS_BUCKETS == 1 || NNUE_SFNN_PROGRESS_BUCKETS == 2
         || NNUE_SFNN_PROGRESS_BUCKETS == 3 || NNUE_SFNN_PROGRESS_BUCKETS == 4
@@ -523,6 +524,23 @@ namespace {
             f_rank = 8 - f_rank;
 
         return (f_rank / 3) * 3 + e_rank / 3;
+    }
+
+    // k3k3zでは、自陣最奥段を0、最奥から2段目を1、それ以外を2とする。
+    // nn.binの後段networkはこの順に並ぶ。1～7段を0とする逆順では別の重みを選んでしまう。
+    // 手番側の分類を上位、相手側を下位として9通りのindexを作る。
+    static int king3_zone_by_king3_zone_bucket(const Position& pos) {
+        const auto stm = pos.side_to_move();
+        int own_rank = int(pos.square<KING>(stm)) % 9;
+        int enemy_rank = int(pos.square<KING>(~stm)) % 9;
+
+        if (stm == BLACK)
+            enemy_rank = 8 - enemy_rank;
+        else
+            own_rank = 8 - own_rank;
+
+        static constexpr int rank_to_bucket[9] = {2, 2, 2, 2, 2, 2, 2, 1, 0};
+        return rank_to_bucket[own_rank] * 3 + rank_to_bucket[enemy_rank];
     }
 
     // レイヤースタックの選択。双方の玉の段に応じて81通りに分岐させる。
@@ -767,6 +785,8 @@ namespace {
 
 #if NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K3K3
         idx = idx * 9 + king3_by_king3_bucket(pos);
+#elif NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K3K3Z
+        idx = idx * 9 + king3_zone_by_king3_zone_bucket(pos);
 #elif NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K9K9
         idx = idx * 81 + king9_by_king9_bucket(pos);
 #elif NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K9K9Z

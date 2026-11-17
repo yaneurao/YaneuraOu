@@ -63,7 +63,7 @@ if "SFNNWOP" in arch_upper_for_validation:
     raise SystemExit(1)
 
 if "LS9" in arch_upper_for_validation.split('_'):
-    print("Error! : ls9 is no longer supported. Use no suffix, hand4/16/64/64z/256/1024, k3k3, k9k9, k9k9z, k13k13z, k21k21, k29k29, or their long names.")
+    print("Error! : ls9 is no longer supported. Use no suffix, hand4/16/64/64z/256/1024, k3k3, k3k3z, k9k9, k9k9z, k13k13z, k21k21, k29k29, or their long names.")
     raise SystemExit(1)
 
 # 出力ファイル名
@@ -123,6 +123,8 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
     normalized = layer_stack_spec
     for long_name, short_name in {
             "KING3_BY_KING3": "K3K3",
+            "KING3Z_BY_KING3Z": "K3K3Z",
+            "KING3ZONE_BY_KING3ZONE": "K3K3Z",
             "KING9_BY_KING9": "K9K9",
             "KING9Z_BY_KING9Z": "K9K9Z",
             "KING9ZONE_BY_KING9ZONE": "K9K9Z",
@@ -152,6 +154,7 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
     }
     king_map = {
         "K3K3": (9, 1),
+        "K3K3Z": (9, 7),
         "K9K9": (81, 2),
         "K21K21": (21 * 21, 3),
         "K29K29": (29 * 29, 4),
@@ -185,7 +188,7 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
             progress_buckets = int(raw)
         else:
             print(f"Error! : unknown SFNN layer stack token {token} in {layer_stack_spec}.")
-            print("Error! : SFNN layer stack tokens are hand4/16/64/64z/256/1024, k3k3/k9k9/k9k9z/k13k13z/k21k21/k29k29, and progress2/3/4/8/16/32.")
+            print("Error! : SFNN layer stack tokens are hand4/16/64/64z/256/1024, k3k3/k3k3z/k9k9/k9k9z/k13k13z/k21k21/k29k29, and progress2/3/4/8/16/32.")
             raise SystemExit(1)
 
     canonical = "_".join([name for name in [hand_name, king_name, progress_name] if name])
