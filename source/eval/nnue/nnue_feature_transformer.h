@@ -31,6 +31,7 @@
 // Lossless packed FT weights; keep unsupported builds on the original path.
 #if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN)
 #define NNUE_FT_PACKED8
+#include <limits>
 #include <vector>
 #endif
 
@@ -775,7 +776,10 @@ class FeatureTransformer {
 		i16 residual;
 	};
 	static_assert(sizeof(Sparse8Correction) == 4);
-	static_assert(kHalfDimensions == 2304, "NNUE_FT_SPARSE8 currently supports FT2304 only");
+	// Packed rows and SIMD tiles use the actual FT width; only correction positions are u16.
+	// 重みの列とSIMDタイルはFT幅に追従する。補正位置がu16に収まることだけを確認する。
+	static_assert(kHalfDimensions - 1 <= std::numeric_limits<u16>::max(),
+	              "NNUE_FT_SPARSE8 correction positions must fit in u16");
 	static constexpr usize kSparse8Bytes = usize(kHalfDimensions) * kInputDimensions;
 
 	void prepare_sparse8_weights() {

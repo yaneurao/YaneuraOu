@@ -830,7 +830,7 @@ AVX512（`USE_AVX512`定義時）かつFT幅2304の場合は、FTタイルに24�
 | EXTRA_CPPFLAGS | 対象 |
 | --- | --- |
 | `-DNNUE_FT_SPECIALIZED` | 通常更新のremove 1/add 1とremove 2/add 2を固定本数のループで処理する。 |
-| `-DNNUE_FT_SPARSE8` | AVX512・SFNN・FT幅2304専用。FT重みを8bit＋少数の補正値として格納し、差分更新の重み転送量を減らす。 |
+| `-DNNUE_FT_SPARSE8` | AVX512・SFNN向け。FT1024・1536・2304などで、FT重みを8bit＋少数の補正値として格納し、差分更新の重み転送量を減らす。 |
 | `-DNNUE_FT_REGS=8` / `12` / `24` | AVX512かつFT幅2304のFTタイル用レジスタ数を上書きする。 |
 | `-DNNUE_FINNY_CANCEL` | Finnyで発生したremove/addを多重集合として比較し、相殺分を除く。 |
 | `-DNNUE_SFNN_FUSED_FT` | EWM変換と疎入力の第1層を融合する。生成architectureの16出力・FT幅128の倍数・8bit重み向け。 |
