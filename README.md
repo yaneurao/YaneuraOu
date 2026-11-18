@@ -139,10 +139,13 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 # 姉妹プロジェクト
 
-| [BulletOu](https://github.com/yaneurao/BulletOu) | [ShogiMultiAgent](https://github.com/yaneurao/ShogiMultiAgent) |
-| --- | --- |
-| <a href="https://github.com/yaneurao/BulletOu"><img src="https://github.com/yaneurao/YaneuraOu/wiki/images/BulletOu-banner-s.png" alt="BulletOu" width="300" height="100"></a> | <a href="https://github.com/yaneurao/ShogiMultiAgent"><img src="https://github.com/yaneurao/ShogiMultiAgent/raw/main/docs/images/ShogiMultiAgent-banner600x200.jpg" alt="ShogiMultiAgent" width="300" height="100"></a> |
-| GPUを用いたやねうら王評価関数の高速学習器 | 将棋AIの対局サーバーに複数のエンジンを同時接続できるGUI |
+<p>
+<a href="https://github.com/yaneurao/BulletOu"><img src="https://github.com/yaneurao/YaneuraOu/wiki/images/BulletOu-banner-s.png" alt="BulletOu" width="300" height="100"></a>&emsp;
+<a href="https://github.com/yaneurao/ShogiMultiAgent"><img src="https://github.com/yaneurao/ShogiMultiAgent/raw/main/docs/images/ShogiMultiAgent-banner600x200.jpg" alt="ShogiMultiAgent" width="300" height="100"></a>
+</p>
+
+[BulletOu](https://github.com/yaneurao/BulletOu) - GPUを用いたやねうら王評価関数の高速学習器<br/>
+[ShogiMultiAgent](https://github.com/yaneurao/ShogiMultiAgent) - 将棋AIの対局サーバーに複数のエンジンを同時接続
 
 
 
