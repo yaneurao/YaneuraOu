@@ -50,10 +50,23 @@ jobs:
           sudo apt install -y clang-15
         if: ${{ matrix.compiler == 'clang++-15' }}
 
-      - name: install ONNXRUNTIME
+      - name: install ONNX Runtime from NuGet
+        # GitHub Releasesに依存せず、Microsoft公式NuGetからヘッダーとLinuxライブラリを取得する。
+        # NuGetには1.11.1がないため、同一パッケージの1.12.1に固定する。
         run: |
-          curl --create-dirs -RLo ${HOME}/resource/onnxruntime-linux-x64-1.11.1.tgz https://github.com/microsoft/onnxruntime/releases/download/v1.11.1/onnxruntime-linux-x64-1.11.1.tgz
-          tar xvf ${HOME}/resource/onnxruntime-linux-x64-1.11.1.tgz -C ${HOME}
+          onnxruntime_version=1.12.1
+          onnxruntime_dir="${RUNNER_TEMP}/onnxruntime-linux-x64-${onnxruntime_version}"
+          onnxruntime_package="${RUNNER_TEMP}/microsoft.ml.onnxruntime.${onnxruntime_version}.nupkg"
+          curl --fail --show-error --location --retry 3 --connect-timeout 30 --max-time 300 \
+            --output "${onnxruntime_package}" \
+            "https://api.nuget.org/v3-flatcontainer/microsoft.ml.onnxruntime/${onnxruntime_version}/microsoft.ml.onnxruntime.${onnxruntime_version}.nupkg"
+          mkdir -p "${onnxruntime_dir}/include" "${onnxruntime_dir}/lib"
+          unzip -jo "${onnxruntime_package}" 'build/native/include/*' -d "${onnxruntime_dir}/include"
+          unzip -jo "${onnxruntime_package}" 'runtimes/linux-x64/native/libonnxruntime.so' -d "${onnxruntime_dir}/lib"
+          # NuGetのファイル名とELFのSONAMEの両方でロードできるようにする。
+          ln -sfn libonnxruntime.so "${onnxruntime_dir}/lib/libonnxruntime.so.${onnxruntime_version}"
+          echo "ONNXRUNTIME_ROOT=${onnxruntime_dir}" >> "${GITHUB_ENV}"
+          echo "LD_LIBRARY_PATH=${onnxruntime_dir}/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" >> "${GITHUB_ENV}"
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_ORT_CPU' }}
 
       - name: install CUDA, TensorRT
@@ -74,9 +87,9 @@ jobs:
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_TENSOR_RT' }}
 
       - name: make YANEURAOU_ENGINE_DEEP_ORT_CPU
-        run: ./main/tools/build/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I${HOME}/onnxruntime-linux-x64-1.11.1/include EXTRA_LDFLAGS=-L${HOME}/onnxruntime-linux-x64-1.11.1/lib"
+        run: ./main/tools/build/build.sh -e ${{ matrix.edition }} -c ${{ matrix.compiler }} -t ${{ matrix.target }} -a ${{ matrix.archcpu }} -x "EXTRA_CPPFLAGS=-I${ONNXRUNTIME_ROOT}/include EXTRA_LDFLAGS=-L${ONNXRUNTIME_ROOT}/lib"
         if: ${{ matrix.edition == 'YANEURAOU_ENGINE_DEEP_ORT_CPU' }}
-        # ONNXRUNTIME版のビルド済みバイナリ実行時、 `${HOME}/onnxruntime-linux-x64-1.11.1/lib` のディレクトリを環境変数 `LD_LIBRARY_PATH` に追加するか、
+        # ONNXRUNTIME版のビルド済みバイナリ実行時、ライブラリの配置先を環境変数 `LD_LIBRARY_PATH` に追加するか、
         # ライブラリ検索パス(`/usr/local/lib` など)の下にコピーし、root権限にてldconfigを実行してライブラリキャッシュを更新する。
 
       - name: make YANEURAOU_ENGINE_DEEP_TENSOR_RT
