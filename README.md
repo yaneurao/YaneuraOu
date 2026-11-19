@@ -32,6 +32,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 
 # やねうら王エンジンの大会での戦績
 
+- 2026年 文部科学大臣杯第7回世界将棋AI電竜戦本戦 『水匠』優勝。(探索部やねうら王V9.90改)
 - 2026年 第7回電竜戦TSECノー相居飛車指定局面と先手持ち時間０戦
   - 第1部『Ryfamate』優勝(NNUEとDL系の合議でNNUE探索部がやねうら王)
   - 第2部『水匠』優勝(探索部やねうら王V9.60)
@@ -140,7 +141,7 @@ YaneuraOu is the World's Strongest Shogi engine(AI player) , WCSC29 1st winner ,
 # 姉妹プロジェクト
 
 <p>
-<a href="https://github.com/yaneurao/BulletOu"><img src="https://github.com/yaneurao/YaneuraOu/wiki/images/BulletOu-banner-s.png" alt="BulletOu" width="300" height="100"></a>&emsp;
+<a href="https://github.com/yaneurao/BulletOu"><img src="https://github.com/yaneurao/BulletOu/raw/shogi-support/docs/images/BulletOu-banner-600x200.jpg" alt="BulletOu" width="300" height="100"></a>&emsp;
 <a href="https://github.com/yaneurao/ShogiMultiAgent"><img src="https://github.com/yaneurao/ShogiMultiAgent/raw/main/docs/images/ShogiMultiAgent-banner600x200.jpg" alt="ShogiMultiAgent" width="300" height="100"></a>
 </p>
 
