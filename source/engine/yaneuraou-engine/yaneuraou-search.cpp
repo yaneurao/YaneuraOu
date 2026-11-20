@@ -4971,7 +4971,8 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 						//     置換表に保存する価値はない可能性があるが。
 						// 💡 [2025/10/6] SPSAした結果、この処理は入れたほうが良いということがわかった。
 
-						ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT, DEPTH_QS, move,
+                        // qsearchではss->ttPvを更新しないため、現在のTT情報から求めたpvHitを使う。
+						ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), pvHit, BOUND_EXACT, DEPTH_QS, move,
                                        unadjustedStaticEval, tt.generation());
 
                     }
