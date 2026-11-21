@@ -1059,10 +1059,8 @@ void Search::YaneuraOuWorker::start_searching() {
     drawValueTable[REPETITION_DRAW][me]  = +draw_value;
     drawValueTable[REPETITION_DRAW][~me] = -draw_value;
 
-    // 今回、通常探索をしたかのフラグ
-    // このフラグがtrueなら(定跡にhitしたり1手詰めを発見したりしたので)探索をスキップした。
+    // 定跡・宣言勝ち・合法手なし等で、通常探索を省略したかのフラグ。
     bool search_skipped = true;
-    bool bookHit = false;
 
     // 🌈 ponder用の指し手の初期化
     //    やねうら王では、ponderの指し手がないとき、一つ前のiterationのときのPV上の(相手の)指し手を用いるという独自仕様。
@@ -1178,10 +1176,7 @@ void Search::YaneuraOuWorker::start_searching() {
 
     probeResult = engine.book.probe(rootPos, main_manager()->updates);
     if (probeResult.bestmove)
-    {
-        bookHit = true;
         goto SKIP_SEARCH;
-    }
 #endif
 
     // ---------------------
@@ -1326,12 +1321,13 @@ SKIP_SEARCH:
     main_manager()->bestPreviousScore        = bestThread->rootMoves[0].score;
     main_manager()->bestPreviousAverageScore = bestThread->rootMoves[0].averageScore;
 #else
-    // 定跡ではRootMoveを探索していないため、選択した定跡手のcpを内部評価値へ戻して使う。
-    // 探索中の平均値もないので、前回平均スコアには同じ定跡スコアを使う。
-    const Value bookScore = bookHit ? probeResult.bestscore.to_value() : VALUE_NONE;
-    main_manager()->bestPreviousScore = bookHit ? bookScore : bestThread->rootMoves[0].score;
+    // 通常探索を省略した場合は、定跡や宣言勝ち・投了のスコアを内部評価値へ戻して使う。
+    // 探索中の平均値もないので、前回平均スコアには同じ値を使う。
+    const Value previousScore =
+      search_skipped ? probeResult.bestscore.to_value() : bestThread->rootMoves[0].score;
+    main_manager()->bestPreviousScore = previousScore;
     main_manager()->bestPreviousAverageScore =
-      bookHit ? bookScore : bestThread->rootMoves[0].averageScore;
+      search_skipped ? previousScore : bestThread->rootMoves[0].averageScore;
 #endif
 #if !STOCKFISH
 	// 次回に手番が今回と異なるかを検出するためにgame_ply()を保存しておく。
