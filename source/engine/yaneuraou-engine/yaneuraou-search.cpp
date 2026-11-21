@@ -4909,6 +4909,15 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
             pvHit = false;
         }
     }
+    // PVではTT値だけでカットせず、1手詰めのスコアがある通常手を実際に探索する。
+    const bool ttMate = PvNode && ttData.move.is_ok()
+                     && ttData.value == mate_in(ss->ply + 1);
+
+    // トライの勝ちは子局面の詰み判定では確認できないので、着手前に確認する。
+    // 通常の入玉ルールではDeclarationWin()を追加で呼ばない。
+    if (ttMate && search_options.enteringKingRule == EKR_TRY_RULE
+        && pos.DeclarationWin() == ttData.move)
+        return mate_in(ss->ply + 1);
 #endif
 
     // -----------------------
@@ -5124,7 +5133,12 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 			 加算してもalpha値を超えそうにないならこの指し手は枝刈りしてしまう。
 		*/
 
-		if (!is_loss(bestValue))
+#if STOCKFISH
+        if (!is_loss(bestValue))
+#else
+        // TTに1手詰めとして保存された手は、非捕獲・手数・SEEなどで捨てずに確認する。
+        if (!is_loss(bestValue) && !(ttMate && move == ttData.move))
+#endif
         {
             // Futility pruning and moveCount pruning
             // futility枝刈りとmove countに基づく枝刈り
