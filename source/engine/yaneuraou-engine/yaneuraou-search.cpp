@@ -2861,13 +2861,6 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 			置換表にhitしなければMove::none()
 			RootNodeであるなら、(MultiPVなどでも)現在注目している1手だけがベストの指し手と仮定できるから、
 			それが置換表にあったものとして指し手を進める。
-	
-		⚠
-	
-		    TTにMove::win()も指し手として書き出す場合は、
-		    tte->move()にはMove::win()も含まれている可能性がある。
-		    この時、pos.to_move(MOVE_WIN) == Move::win()なので、ttMove == Move::win()となる。
-		    ⇨ 現状のやねうら王では、Move::win()はTTに書き出さない。
 	*/
 
 	ttData.move  = rootNode ? rootMoves[pvIdx].pv[0]
@@ -2885,6 +2878,21 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
       ttHit ? value_from_tt(ttData.value, ss->ply, pos.rule50_count()) : VALUE_NONE;
 #else
       ttHit ? value_from_tt(ttData.value, ss->ply) : VALUE_NONE;
+#endif
+
+#if !STOCKFISH
+    // MOVE_WINは通常手として捕獲判定や履歴更新に渡さず、宣言勝ちを再確認する。
+    if (ttData.move == Move::win())
+    {
+        if (!rootNode && excludedMove != Move::win() && pos.DeclarationWin() == Move::win())
+            return mate_in(ss->ply + 1);
+
+        // 成立しない終局マーカーの手・評価値は利用しない。
+        ttData.move  = Move::none();
+        ttData.value = VALUE_NONE;
+        ttData.eval  = VALUE_NONE;
+        ttHit = ss->ttHit = false;
+    }
 #endif
 
 	// 📝 置換表の指し手にpseudo_legalではない指し手が混じっていたら、
@@ -2926,9 +2934,40 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 #if !STOCKFISH
 
 	// 将棋にはtablebaseはないが、代わりに宣言勝ちというのがある。
-    // 宣言勝ちと1手詰めだと1手詰めの方が圧倒的に多いので、まず1手詰め判定を行う。
+    // 通常手をTTへ保存する前に、宣言勝ちを確認する。両方成立する局面もMOVE_WINとして保存する。
 
     // 🌈 以下は、やねうら王独自のコード 🌈
+
+	// -----------------------
+    //      宣言勝ちか？
+    // -----------------------
+
+	// 置換表にhitしていないときは宣言勝ちの判定をまだやっていないということなので今回やる。
+    // PvNodeでは置換表の指し手を信用してはいけないので毎回やる。
+    if (!ttData.move || PvNode)
+    {
+        // 💡 王手がかかってようがかかってまいが、宣言勝ちの判定は正しい。
+        //     (トライルールのとき王手を回避しながら入玉することはありうるので)
+        //     トライルールのときここで返ってくるのは16bitのmoveだが、置換表に格納するには問題ない。
+        move = pos.DeclarationWin();
+        if (move != Move::none())
+        {
+            bestValue = mate_in(
+                ss->ply + 1);  // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
+
+            ASSERT_LV3(pos.legal_promote(move));
+            // 点数制の宣言勝ちは終局マーカーとして保存する。トライルールの保存は従来どおり行わない。
+            // 除外手探索の結果は、除外のない局面のTTへ書き込まない。
+            if (!excludedMove && move == Move::win())
+                ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
+                               std::min(MAX_PLY - 1, depth + 6), move, VALUE_NONE,
+                               tt.generation());
+
+            return bestValue;
+        }
+        // このあと1手詰めも確認してから、通常手や静的評価をTTへ保存する。
+    }
+
 
     // -----------------------
     //    1手詰みか？
@@ -3014,47 +3053,6 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         }
 	}
 
-	// -----------------------
-    //      宣言勝ちか？
-    // -----------------------
-
-	// 置換表にhitしていないときは宣言勝ちの判定をまだやっていないということなので今回やる。
-    // PvNodeでは置換表の指し手を信用してはいけないので毎回やる。
-    if (!ttData.move || PvNode)
-    {
-        // 💡 王手がかかってようがかかってまいが、宣言勝ちの判定は正しい。
-        //     (トライルールのとき王手を回避しながら入玉することはありうるので)
-        //     トライルールのときここで返ってくるのは16bitのmoveだが、置換表に格納するには問題ない。
-        move = pos.DeclarationWin();
-        if (move != Move::none())
-        {
-            bestValue = mate_in(
-                ss->ply + 1);  // 1手詰めなのでこの次のnodeで(指し手がなくなって)詰むという解釈
-
-            ASSERT_LV3(pos.legal_promote(move));
-            /*
-				if (!excludedMove)
-					ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), ss->ttPv, BOUND_EXACT,
-						std::min(MAX_PLY - 1, depth + 6),
-						is_ok(move) ? move : MOVE_NONE, // MOVE_WINはMOVE_NONEとして書き出す。
-						VALUE_NONE, TT.generation());
-			*/
-
-			/*
-				📝  is_ok(m)は、MOVE_WINではない通常の指し手(トライルールの時の51玉のような指し手)は
-					 その指手を置換表に書き出すという処理。
-            
-					 probe()でttData.move == MOVE_WINのケースを完全に考慮するのは非常に難しい。
-             　		 MOVE_WINの値は、置換表に書き出さないほうがいいと思う。
-            
-					 また、置換表にわざと書き込まないことによって、次にこのnodeに訪問したときに
-					 再度入玉判定を行い、枝刈りされることを期待している。
-			*/
-
-            return bestValue;
-        }
-        // 🤔 1手詰めと宣言勝ちがなかったのでこの時点でもsave()したほうがいいような気がしなくもない。
-    }
 
 #endif // STOCKFISH
 
@@ -3213,11 +3211,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 					その時に行われる誤ったβcut(枝刈り)は許容できる。(non PVで生じることなのでそこまで探索に対して悪い影響がない)
 					cf. https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
 
-					やねうら王ではttMoveがMove::win()であることはありうるので注意が必要。
-					is_ok(m)==falseの時、Position::to_move(m)がmをそのまま帰すことは保証されている。
-					そのためttMoveがMove::win()でありうる。これはstatのupdateをされると困るのでis_ok()で弾く必要がある。
-					is_ok()は、ttMove == Move::none()の時はfalseなのでこの条件を省略できる。
-					⇨　Move::win()書き出すの、筋が良くないし、入玉自体が超レアケースなので棋力に影響しないし、これやめることにする。
+                    MOVE_WINはTT読み出し後に処理済みなので、ここへ通常手として渡さない。
 
 					If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
 					置換表にhitした時に、ttMoveがquietの指し手であるなら、指し手並び替えheuristics(quiet_statsのこと)を更新する。
@@ -4891,6 +4885,32 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 				この値を信頼して、この値でreturnして良い。
 		*/
 
+#if !STOCKFISH
+    // TTに通常手がなければ、PV・non-PVともに点数制の宣言勝ちを確認する。
+    // non-PVの保存済み勝ちスコアは上のTTカットで返る。PVではMOVE_WINを再確認する。
+    if (!ttData.move || ttData.move == Move::win())
+    {
+        move = pos.DeclarationWin();
+        if (move == Move::win())
+        {
+            bestValue = mate_in(ss->ply + 1);
+            ttWriter.write(posKey, value_to_tt(bestValue, ss->ply), pvHit, BOUND_EXACT,
+                           DEPTH_QS, move, VALUE_NONE, tt.generation());
+            return bestValue;
+        }
+
+        // トライルールが返す通常手は、ここでは終局マーカーとして扱わない。
+        if (ttData.move == Move::win())
+        {
+            ttData.move  = Move::none();
+            ttData.value = VALUE_NONE;
+            ttData.eval  = VALUE_NONE;
+            ttHit = ss->ttHit = false;
+            pvHit = false;
+        }
+    }
+#endif
+
     // -----------------------
     // Step 4. Static evaluation of the position
     // Step 4. この局面の静止評価
@@ -6043,8 +6063,14 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
                     if (m == Move::none())
                         break;
 
-                    // 置換表にはpseudo_legalではない指し手が含まれるのでそれを弾く。
-                    if (!(pos.pseudo_legal_s<true>(m) && pos.legal(m)))
+                    // 宣言勝ちは再確認し、下で終局マーカーを出力してPVを打ち切る。
+                    if (m == Move::win())
+                    {
+                        if (pos.DeclarationWin() != Move::win())
+                            break;
+                    }
+                    // 通常手はpseudo_legalとlegalを確認してから局面を進める。
+                    else if (!(pos.pseudo_legal_s<true>(m) && pos.legal(m)))
                         break;
                 }
                 // leaf node末尾にMove::resign()があることはないが、
