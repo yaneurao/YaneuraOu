@@ -338,7 +338,11 @@ ExtMove* MovePicker::generate_and_score() {
 		const PieceType pt            = type_of(pc);
 		const Piece     capturedPiece = pos.piece_on(to);
 
+#if STOCKFISH
 		if constexpr (Type == CAPTURES)
+#else
+        if constexpr (Type == CAPTURES || Type == CAPTURES_ALL)
+#endif
             // MVVとcaptureHistoryで採点する。ここではSEEを呼ばない。
             // CAPTURESは捕獲手だけを生成し、駒を取らない歩の成りは含めない。
 
