@@ -34,6 +34,9 @@ struct ProbeResult {
     //     ValueからならScore::from_internal_score()で変換したものを設定する。
     Score bestscore = 0;
 
+    // 選択した定跡手の探索深さ。定跡以外の探索省略では0。
+    int depth = 0;
+
     // pondermove(なければMOVE_NONE)
     Move pondermove;
 
@@ -364,17 +367,19 @@ protected:
 	// GenerateAllLegalMovesがfalseの時、歩の不成の指し手を返さないことも保証する。
 	// 但し、ponderMoveが合法手であることは保証しない。
 	//
-	// 以下の3つの変数は、この関数がtrueを返した時のみ有効。
+	// 以下の出力引数は、この関数がtrueを返した時のみ有効。
 	// isRoot     : rootPosは、最初に渡されたrootPosと同じrootの局面。
 	// bestMove   : 今回選択された指し手
 	// ponderMove : bestMoveの次の定跡の指し手 
 	// value      : bestMoveの評価値。
+	// depth      : bestMoveの定跡に記録された探索深さ。
     bool probe_impl(Position&                    rootPos,
                     bool                         isRoot,
                     const Search::UpdateContext& updates,
                     Move16&                      bestMove,
                     Move16&                      ponderMove,
                     Value&                       value,
+                    int&                         depth,
                     bool                         forceHit = false);
 
 	// 定跡のpv文字列を生成して返す。

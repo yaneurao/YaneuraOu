@@ -1402,7 +1402,7 @@ SKIP_SEARCH:
             // 💡 このとき、rootMovesの情報を使わないようにしたい。
 
             InfoFull info;
-            info.depth     = 0;
+            info.depth     = probeResult.depth;
             info.selDepth  = 0;
             info.multiPV   = 1;
             info.score     = probeResult.bestscore;

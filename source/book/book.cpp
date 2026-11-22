@@ -1508,7 +1508,8 @@ namespace Book
                 // さらに指し手を進める
                 Move16 bestMove16, ponderMove16;
                 Value  value;
-                if (probe_impl(pos, false, updates, bestMove16, ponderMove16, value,
+                int    depth;
+                if (probe_impl(pos, false, updates, bestMove16, ponderMove16, value, depth,
                                 true /* 強制的にhitさせる */))
                 {
                     // hitした
@@ -1549,7 +1550,7 @@ namespace Book
     }
 
 	// probe()の下請け
-	bool BookMoveSelector::probe_impl(Position& rootPos, bool isRoot, const Search::UpdateContext& updates , Move16& bestMove , Move16& ponderMove , Value& value, bool forceHit)
+	bool BookMoveSelector::probe_impl(Position& rootPos, bool isRoot, const Search::UpdateContext& updates , Move16& bestMove , Move16& ponderMove , Value& value, int& depth, bool forceHit)
 	{
 		if (!forceHit)
 		{
@@ -1807,6 +1808,7 @@ namespace Book
 			bestMove   = bestBookMove.move;
 			ponderMove = bestBookMove.ponder;
 			value      = Value(bestBookMove.value);
+            depth      = bestBookMove.depth;
 
 			// ponderが登録されていなければ、bestMoveで一手進めてそこの局面のbestを拾ってくる。
 			if (!ponderMove.is_ok())
@@ -1844,7 +1846,8 @@ namespace Book
 
 		Move16 bestMove16, ponderMove16;
 		Value value;
-		if (probe_impl(pos, true, updates, bestMove16, ponderMove16, value))
+        int   depth;
+		if (probe_impl(pos, true, updates, bestMove16, ponderMove16, value, depth))
 		{
             Move bestMove = pos.to_move(bestMove16);
 
@@ -1853,6 +1856,7 @@ namespace Book
 
             result.bestmove   = bestMove;
             result.bestscore  = Score::from_internal_value(value);
+            result.depth      = depth;
 
 			// ponderMoveが合法手であることも保証する。
             StateInfo si;
