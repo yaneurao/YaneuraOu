@@ -2710,38 +2710,17 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 	            return value_from_tt(draw_value(draw_type, pos.side_to_move()), ss->ply);
         }
 
-		// 📌 将棋では手数を超えたら無条件で引き分け扱い。
-        if (threads.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY
-            || pos.game_ply() > search_options.max_moves_to_draw)
+        if (threads.stop.load(std::memory_order_relaxed) || ss->ply >= MAX_PLY)
             return draw_value(REPETITION_DRAW, pos.side_to_move()) + value_draw(nodes);
+
+        // 最後の許容手で詰ませた場合は、手数上限による引き分けより勝敗を優先する。
+        // 例：上限256手なら、257手目の局面で合法手がなければ負け、それ以外は引き分け。
+        // 256手目に合法手があっても、その手で相手を詰ませることがあるので確認が必要。
+        // 連続王手の千日手などは上で判定済み。合法手生成は上限超過時にだけ行う。
+        if (pos.game_ply() > search_options.max_moves_to_draw)
+            return pos.is_mated() ? mated_in(ss->ply)
+                                 : draw_value(REPETITION_DRAW, pos.side_to_move()) + value_draw(nodes);
 #endif
-
-		/*
-		📝 備考
-
-			256手ルールで
-			1. 256手目の局面で判定を行う場合は、
-				「詰まされていない、かつ、連続王手の千日手が成立していない」ならば、
-				引き分けとしてreturnして良い。
-
-			2. 257手目の局面で判定を行う場合は、
-				この局面に到達したということは、256手目の局面で合法手があったということだから、
-				引き分けとしてreturnして良い。
-
-			ということになる。1.の方式でやったほうが、256手目の局面で指し手生成とか
-			1手ずつ試していくのとかが丸ごと端折れるので探索効率は良いのだが、コードが複雑になる。
-
-			2.の方式でやっていいならば、257手目の局面なら単にreturnするだけで済む。
-			探索効率は少し悪いが、コードは極めてシンプルになる。
-
-			また、256手ルールで256手目である指し手を指して、257手目の局面で連続王手の千日手が
-			成立するときはこれは非合法手扱いをすべきだと思う。
-
-			だから、2.の方式で判定するときは、この連続王手の千日手判定を先にやってから、
-			257手目の局面であるかの判定を行う必要がある。
-
-			上記のコードは、そうなっている。
-		*/
 
 		// -----------------------
 
@@ -4822,9 +4801,14 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         return draw_value(REPETITION_DRAW, us);
 #endif
 
-    // 最大手数の到達
-    if (ss->ply >= MAX_PLY || pos.game_ply() > search_options.max_moves_to_draw)
+    if (ss->ply >= MAX_PLY)
         return draw_value(REPETITION_DRAW, us) + value_draw(nodes);
+
+    // 本探索と同様、最後の許容手での詰みを手数上限の引き分けより優先する。
+    // 通常の局面では追加の合法手生成を行わない。
+    if (pos.game_ply() > search_options.max_moves_to_draw)
+        return pos.is_mated() ? mated_in(ss->ply)
+                             : draw_value(REPETITION_DRAW, us) + value_draw(nodes);
 
 #endif
 
