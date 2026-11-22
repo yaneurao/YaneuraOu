@@ -939,9 +939,17 @@ void Search::YaneuraOuWorker::ensure_network_replicated() {
 #if !STOCKFISH
 void Search::YaneuraOuWorker::pre_start_searching() {
 
-	if (is_mainthread())
+    if (is_mainthread())
+    {
         // 🌈 Stockfishでthread.cppにあった初期化の一部はSearchManager::pre_start_searching()に移動させた。
-        main_manager()->pre_start_searching(*this);
+        auto& mainManager = *main_manager();
+        mainManager.pre_start_searching(*this);
+
+        // goの準備完了を待ってからUSI側がponderhitを受け付けるため、時間管理もここで初期化する。
+        // 探索開始後に初期化すると、先に受信したponderhitの時刻を上書きしてしまう。
+        mainManager.tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options,
+                            mainManager.search_options.max_moves_to_draw);
+    }
 
     // 📝 StockfishではThreadPool::start_thinking()で行っているが、
     //     やねうら王では、派生classのpre_start_thinking()以降で行う。
@@ -1006,18 +1014,13 @@ void Search::YaneuraOuWorker::start_searching() {
 #endif
 
     // 📌 今回の思考時間の設定。
-    //     これは、ponderhitした時にponderhitにパラメーターが付随していれば
-    //     再計算するする必要性があるので、いずれにせよ呼び出しておく必要がある。
-    // 💡 やねうら王では、originalTimeAdjustは用いない。
-
 #if STOCKFISH
     main_manager()->tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options,
                             main_manager()->originalTimeAdjust);
 #else
     auto& mainManager = *main_manager();
-
-    mainManager.tm.init(limits, rootPos.side_to_move(), rootPos.game_ply(), options,
-                        mainManager.search_options.max_moves_to_draw);
+    // 時間管理はpre_start_searching()で初期化済み。ponderhitの時刻を上書きしない。
+    // Stochastic Ponderの再探索でも、limits.startTimeに保存された受信時刻を維持する。
 #endif
 
     // 📌 置換表のTTEntryの世代を進める。

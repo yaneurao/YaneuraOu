@@ -235,9 +235,15 @@ void FukauraOuWorker::pre_start_searching() {
 	// 入玉ルールを反映させる必要がある。
     rootPos.set_ekr(searcher.search_options.enteringKingRule);
 
-	if (is_mainthread())
+    if (is_mainthread())
+    {
         // 🌈 Stockfishでthread.cppにあった初期化の一部はSearchManager::pre_start_searching()に移動させた。
         searcher.search_limits.ponder = limits.ponderMode;
+
+        // goの準備中に時間管理も初期化し、後からponderhitの時刻を上書きしない。
+        // Stochastic Ponderの再探索は、受信時刻を保持したlimits.startTimeを使う。
+        searcher.SetLimits(rootPos, limits);
+    }
 }
 
 
@@ -252,9 +258,6 @@ void FukauraOuWorker::start_searching()
 
     // 開始局面の手番をglobalに格納しておいたほうが便利。
     searcher.search_limits.root_color = rootPos.side_to_move();
-
-    // "NodesLimit"の値など、今回の"go"コマンドによって決定した値が反映される。
-    searcher.SetLimits(rootPos, limits);
 
     // "position"コマンドが送られずに"go"がきた。
     if (engine.game_root_sfen.empty())
