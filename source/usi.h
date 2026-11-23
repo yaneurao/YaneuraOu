@@ -1,6 +1,7 @@
 ﻿#ifndef USI_H_INCLUDED
 #define USI_H_INCLUDED
 
+#include <functional>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -197,6 +198,7 @@ private:
 	void          benchmark(std::istream& args);
 	void          position(std::istringstream& is);
 	void          setoption(std::istringstream& is);
+    void apply_idle(const std::function<void()>& mutate);
 	u64 perft(const Search::LimitsType&);
 
 #if !STOCKFISH

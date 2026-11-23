@@ -424,11 +424,11 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) { // diff:ignore
         if (is >> filename)
             file = path_from_utf8(filename);
 
-        engine.save_network(file);
+        apply_idle([&] { engine.save_network(file); });
 #else
     std::string file;
     is >> file;
-    engine.save_network(file);
+    apply_idle([&] { engine.save_network(file); });
 #endif
     }
 
@@ -1060,10 +1060,16 @@ void USIEngine::benchmark(std::istream& args) {
 
 }
 
+// 探索を停止し、終了を待ってから変更処理を実行する。
+void USIEngine::apply_idle(const std::function<void()>& mutate) {
+    engine.stop();
+    engine.wait_for_search_finished();
+    mutate();
+}
+
 // "setoption"コマンド応答。
 void USIEngine::setoption(std::istringstream& is) {
-    engine.wait_for_search_finished();
-    engine.get_options().setoption(is);
+    apply_idle([&] { engine.get_options().setoption(is); });
 }
 
 u64 USIEngine::perft(const Search::LimitsType& limits) {
