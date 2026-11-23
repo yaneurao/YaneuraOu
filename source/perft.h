@@ -2,6 +2,7 @@
 #define PERFT_H_INCLUDED
 
 #include <cstdint>
+#include <memory>
 #include <variant>
 
 #include "movegen.h"
@@ -59,19 +60,19 @@ perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
     const auto start = now();
 #endif
 
-	Position  p;
+    std::unique_ptr<Position> p = std::make_unique<Position>();
 
 #if STOCKFISH
-    if (auto err = p.set(fen, isChess960))
+    if (auto err = p->set(fen, isChess960))
         return {*err};
 
-    return perft<true>(p, depth);
+    return perft<true>(*p, depth);
 #else
-    if (auto err = p.set(fen))
+    if (auto err = p->set(fen))
         return {*err};
 
 	// 🌈 やねうら王では、NPS(leaf nodeの数/elapsed)と計測に要した時間も出力する。
-	auto nodes = perft<true>(p, depth);
+	auto nodes = perft<true>(*p, depth);
     auto elapsed = now() - start + 1; // ゼロ割防止のために +1
 
 	sync_cout << "Elapsed Time = " << elapsed << " [ms]" << sync_endl;
