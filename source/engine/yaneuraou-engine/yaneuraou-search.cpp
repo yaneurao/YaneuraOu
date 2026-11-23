@@ -1653,9 +1653,16 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         // ------------------------
         // Lazy SMPのための初期化
 
+#if STOCKFISH
         // Do not tune these values. They are not intended for playing strength.
         // 詰みを探すモードの閾値。通常対局の棋力調整用ではないのでSPSA対象にしない。
         int seekMateThreshold = 750 + 220000 / (rootDepth * rootDepth);
+#else
+        // Tune only the score threshold in shogi; keep the depth-dependent term fixed.
+        // 将棋では切り替え評価値だけを調整し、深さに応じた項は固定する。
+        const int seekMateThresholdBase = 750;
+        int seekMateThreshold = seekMateThresholdBase + 220000 / (rootDepth * rootDepth);
+#endif
         // ------------------------
 
         // Signal the start of a new iteration
@@ -2098,18 +2105,41 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         {
             u64 nodesEffort = rootMoves[0].effort * 100000 / std::max(u64(1), totalEffort);
 
+#if STOCKFISH
             double fallingEval =
               (11.48 + 2.30 * (mainThread->bestPreviousAverageScore - rootMoves[0].score)
                + 1.1 * (mainThread->iterValue[iterIdx] - rootMoves[0].score))
               / 100.0;
+#else
+            // Use one sensitivity for both score differences to preserve their relative weights.
+            // 2つの評価差の重みの比を保ち、共通の感度だけを調整する。
+            const int fallingEvalSensitivityQ10 = 1024;
+            const double fallingEvalSensitivity = fallingEvalSensitivityQ10 / 1024.0;
+            double fallingEval =
+              (11.48 + (2.30 * fallingEvalSensitivity)
+                         * (mainThread->bestPreviousAverageScore - rootMoves[0].score)
+               + (1.1 * fallingEvalSensitivity)
+                   * (mainThread->iterValue[iterIdx] - rootMoves[0].score))
+              / 100.0;
+#endif
             fallingEval = std::clamp(fallingEval, 0.576, 1.728);
 
             // If the bestMove is stable over several iterations, reduce time accordingly
             // bestMove が複数回のイテレーションで安定している場合、それに応じて時間を短縮する
 
+#if STOCKFISH
             timeReduction = std::clamp(
               interpolate(double(rootDepth - lastBestMoveDepth), 4.96, 18.79, 0.639, 1.712), 0.629,
               1.544);
+#else
+            // Move the start of the stability response, keeping the other endpoint fixed.
+            // 安定度に応じた補間の開始位置だけを動かし、終点は固定する。
+            const int stableBestMoveStartCenti = 496;
+            timeReduction = std::clamp(
+              interpolate(double(rootDepth - lastBestMoveDepth), stableBestMoveStartCenti / 100.0,
+                          18.79, 0.639, 1.712),
+              0.629, 1.544);
+#endif
             double reduction =
               (1.468 + mainThread->previousTimeReduction) / (2.284 * timeReduction);
 
@@ -2128,7 +2158,16 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 #endif
             }
 
+#if STOCKFISH
             double bestMoveInstability = 1.077 + 2.229 * totBestMoveChanges / threads.size();
+#else
+            // Tune the response to best-move changes while keeping the baseline multiplier fixed.
+            // 基準の倍率は固定し、最善手の変化に対する反応だけを調整する。
+            const int bestMoveInstabilitySensitivityMilli = 2229;
+            double bestMoveInstability =
+              1.077 + (bestMoveInstabilitySensitivityMilli / 1000.0)
+                        * totBestMoveChanges / threads.size();
+#endif
 #if STOCKFISH
             double highBestMoveEffort = std::clamp(
               interpolate(i64(nodesEffort), i64(75800), i64(104510), 0.969, 0.714), 0.693, 0.838);
@@ -2210,6 +2249,10 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 					 を呼び出すこと。
 			*/
 
+            // A fraction of the time budget at which starting another iteration is still allowed.
+            // 次の反復を開始してよい、時間予算に対する経過時間の割合。
+            const int increaseDepthRatioPercent = 50;
+
 			if (elapsedTime > std::min(totalTime, double(mainThread->tm.maximum())))
             {
 				if (mainThread->ponder)
@@ -2220,7 +2263,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             }
             else
                 main_manager()->increaseDepth =
-                  mainThread->ponder || elapsedTime <= totalTime * 0.50;
+                  mainThread->ponder
+                  || elapsedTime <= totalTime * (increaseDepthRatioPercent / 100.0);
 #endif
         }
 
@@ -3434,8 +3478,17 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 
         // Odd threads reduce one ply less; cap the evaluation margin's contribution near the root.
         // 奇数スレッドは1手浅く削減し、ルート付近では評価差による追加削減を制限する。
+#if STOCKFISH
         Depth R = 7 + depth / 3 + std::clamp((ss->staticEval - beta) / 256, 0, ss->ply / 2)
                 - int(threadIdx & 1);
+#else
+        // Scale the ply-dependent cap without tuning the basic reduction or its depth divisor.
+        // 基本削減量と深さの除数を固定し、plyに応じた上限の強さだけを調整する。
+        const int nmpPlyCapQ10 = 512;
+        Depth R = 7 + depth / 3
+                + std::clamp((ss->staticEval - beta) / 256, 0, ss->ply * nmpPlyCapQ10 / 1024)
+                - int(threadIdx & 1);
+#endif
         R -= seekMate * R / 2;
 
         // 💡  null moveなので、王手はかかっていなくて駒取りでもない。
