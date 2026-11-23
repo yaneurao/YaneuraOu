@@ -85,6 +85,15 @@ class SharedMemoryRegistry {
     }
 };
 
+// A process may own several SharedMemory instances for the same segment.
+// Give every server its own endpoint instead of relying on the PID alone.
+// 同一プロセスが同じセグメントのSharedMemoryを複数所有する場合がある。
+// PIDだけに依存せず、各サーバーに固有の接続口を割り当てる。
+inline u64 next_socket_id() noexcept {
+    static std::atomic<u64> sequence{0};
+    return sequence.fetch_add(1, std::memory_order_relaxed);
+}
+
 }  // namespace detail
 
 
@@ -230,7 +239,8 @@ class SharedMemory {
         name_(name),
         shared_dir_(tempRoot.prefix + "/" + make_sentinel_base(name)),
         init_lock_path_(shared_dir_ + "/init_lock"),
-        socket_path_(shared_dir_ + "/" + std::to_string(getpid()) + ".sock") {}
+        socket_path_(shared_dir_ + "/" + std::to_string(getpid()) + "."
+                     + std::to_string(detail::next_socket_id()) + ".sock") {}
 
     ~SharedMemory() noexcept {
         if (!socket_path_.empty())

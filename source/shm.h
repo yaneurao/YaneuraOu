@@ -339,7 +339,11 @@ class SharedMemoryBackend {
         }
 
         DWORD wait_result = WaitForSingleObject(hMutex, INFINITE);
-        if (wait_result != WAIT_OBJECT_0)
+        // WAIT_ABANDONED also grants ownership. In that case the initialization
+        // flag below determines whether the previous owner completed its work.
+        // WAIT_ABANDONEDでも所有権は取得される。その場合、前の所有者が初期化を
+        // 完了したかどうかは、以下の初期化済みフラグで判断する。
+        if (wait_result != WAIT_OBJECT_0 && wait_result != WAIT_ABANDONED)
         {
             const DWORD err    = GetLastError();
             last_error_message = GetLastErrorAsString(err);
