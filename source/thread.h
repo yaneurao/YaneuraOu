@@ -11,13 +11,13 @@
 #include "memory.h"
 #include "misc.h"
 #include "numa.h"
-#include "position.h"
 #include "search.h"
 #include "thread_native.h"
 
 namespace YaneuraOu {
 
 class OptionsMap;
+class Position;
 #if STOCKFISH
 using Value = int;
 // これ参照していないので削除すべきだと思う。

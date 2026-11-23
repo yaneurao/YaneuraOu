@@ -4,7 +4,6 @@
 #include <cassert>
 #include <cmath>     // std::abs
 #include <cstdlib>
-#include <deque>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -17,7 +16,11 @@
 #include "history.h"
 #include "memory.h"
 #include "movegen.h"
+#include "position.h"
 #include "search.h"
+#if STOCKFISH
+#include "syzygy/tbprobe.h"
+#endif
 #include "timeman.h"
 #include "types.h"
 #include "usi.h"
@@ -33,8 +36,11 @@ namespace YaneuraOu {
 // 'searching' および 'exit' は、すでに設定されている必要がある点に注意してください。
 
 Thread::Thread(Search::SharedState& sharedState,
-               //std::unique_ptr<Search::SearchManager> sm,
+#if STOCKFISH
+               std::unique_ptr<Search::SearchManager> sm,
+#else
                Search::WorkerFactory          worker_factory,
+#endif
                usize                         n,               // threadIdx
                usize                         numaN,           // numaThreadIdx
                usize                         totalNumaCount,  // numaTotal
@@ -51,33 +57,38 @@ Thread::Thread(Search::SharedState& sharedState,
         std::exit(EXIT_FAILURE);
     }
 
+#if STOCKFISH
+    wait_for_search_finished();
+
+    run_custom_job([this, &binder, &sharedState, &sm, n]() {
+        // Use the binder to [maybe] bind the threads to a NUMA node before doing
+        // the Worker allocation. Ideally we would also allocate the SearchManager
+        // here, but that's minor.
+        // Workerのメモリを確保する前に、必要ならbinderでスレッドをNUMAノードへ固定する。
+        // 理想的にはSearchManagerもここで確保したいが、その影響は小さい。
+        this->numaAccessToken = binder();
+        this->worker          = make_unique_large_page<Search::Worker>(
+          sharedState, std::move(sm), n, idxInNuma, totalNuma, this->numaAccessToken);
+    });
+
+    wait_for_search_finished();
+#else
 #if !defined(__EMSCRIPTEN__)
 
     // スレッドはsearching == trueで開始するので、idle_loop()で待機状態になるまで待つ。
     wait_for_search_finished();
 
-#if STOCKFISH
-
-	run_custom_job([this, &binder, &sharedState , &sm, n]() {
-#else
-	run_custom_job([this, &binder, &sharedState , n , worker_factory]() {
-#endif
-		// Use the binder to [maybe] bind the threads to a NUMA node before doing
+    run_custom_job([this, &binder, &sharedState, n, worker_factory]() {
+        // Use the binder to [maybe] bind the threads to a NUMA node before doing
         // the Worker allocation. Ideally we would also allocate the SearchManager
         // here, but that's minor.
-
-        // スレッドを Worker 割り当ての前に NUMA ノードに（必要なら）バインドするために binder を使う。
-        // 理想的にはここで SearchManager も割り当てたいが、それは些細なことだ。
+        // Workerのメモリを確保する前に、必要ならbinderでスレッドをNUMAノードへ固定する。
+        // 理想的にはSearchManagerもここで確保したいが、その影響は小さい。
 
         this->numaAccessToken = binder();
-#if STOCKFISH
-        this->worker = make_unique_large_page<Search::Worker>(
-          sharedState, std::move(sm), n, idxInNuma, totalNuma, this->numaAccessToken);
-#else
 		// 🌈 やねうら王では、ここでworker_factoryを使ってWorker派生classを生成する。
 		this->worker = std::move(worker_factory(sharedState,
 												{n, idxInNuma, totalNuma, this->numaAccessToken}));
-#endif
     });
 
     // Workerを生成するジョブが完了するまで待つ。
@@ -100,6 +111,7 @@ Thread::Thread(Search::SharedState& sharedState,
     this->numaAccessToken = binder();
     this->worker          = std::move(
       worker_factory(sharedState, {n, idxInNuma, totalNuma, this->numaAccessToken}));
+#endif // !defined(__EMSCRIPTEN__)
 #endif
 }
 
@@ -213,10 +225,14 @@ static usize next_power_of_two(u64 count) { return count > 1 ? (2ULL << msb(coun
 
 void ThreadPool::set(const NumaConfig&   numaConfig,
                      Search::SharedState sharedState,
+#if STOCKFISH
+                     const Search::SearchManager::UpdateContext& updateContext
+#else
                      const Search::UpdateContext& updateContext,
                      // 🤔 やねうら王ではさらに抽象化する。
                      usize                       requested_threads,
                      const Search::WorkerFactory& worker_factory
+#endif
 ) {
 
     /*  📓
