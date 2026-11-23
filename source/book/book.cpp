@@ -1862,7 +1862,7 @@ namespace Book
             StateInfo si;
             pos.do_move(bestMove, si);
             Move ponderMove = pos.to_move(ponderMove16);
-            if (pos.pseudo_legal_s<true>(ponderMove) && pos.legal(ponderMove))
+            if (ponderMove.is_ok() && pos.pseudo_legal_s<true>(ponderMove) && pos.legal(ponderMove))
                 result.pondermove = ponderMove;
             pos.undo_move(bestMove);
         }
