@@ -1,10 +1,10 @@
 ﻿#ifndef ENGINE_H_INCLUDED
 #define ENGINE_H_INCLUDED
 
-#include <cstddef>
-#include <cstdint>
-#include <filesystem>
 #include <functional>
+#include <filesystem>
+#include <map>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -13,16 +13,18 @@
 #include <vector>
 
 #include "misc.h"
-#include "evaluate.h"
-//#include "nnue/network.h"
+#include "history.h"
 #include "numa.h"
 #include "position.h"
 #include "search.h"
-//#include "syzygy/tbprobe.h"  // for Stockfish::Depth
 #include "thread.h"
 #include "tt.h"
 #include "types.h"
 #include "usioption.h"
+
+#if !STOCKFISH
+#include "evaluate.h"
+#endif
 
 namespace YaneuraOu {
 

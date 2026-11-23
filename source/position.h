@@ -3,16 +3,22 @@
 
 #include <array>
 #include <cassert>
-#include <deque>
 #include <iosfwd>
 #include <optional>
 #include <stdexcept>
 #include <string>
 
 #include "bitboard.h"
+#include "misc.h"
+#include "types.h"
+
+#if !STOCKFISH
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+#include <deque>
+#endif
 #include "extra/tools.h"
 #include "evaluate.h"
-#include "types.h"
+#endif
 
 #if defined(EVAL_NNUE) || defined(EVAL_SFNN)
 #include "eval/nnue/nnue_accumulator.h"
@@ -545,8 +551,8 @@ class Position {
 	// occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして。
 	// sq == SQ_NBでの呼び出しは合法。Bitboard(ZERO)が返る。
 
-	Bitboard attackers_to(Square sq) const;
-    Bitboard attackers_to(Square sq, const Bitboard& occ) const;
+	Bitboard attackers_to(Square s) const;
+    Bitboard attackers_to(Square s, const Bitboard& occupied) const;
 
 #if STOCKFISH
     // これはcastlingの判定のためのもの。将棋では使わない。
@@ -567,7 +573,7 @@ class Position {
     }
 
     template<Color C>
-    Bitboard attackers_to(Square sq, const Bitboard& occ) const;
+    Bitboard attackers_to(Square s, const Bitboard& occupied) const;
 
     // 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
     Bitboard attackers_to_pawn(Color c, Square pawn_sq) const;
@@ -1302,7 +1308,7 @@ inline Square Position::castling_rook_square(CastlingRights cr) const {
 }
 #endif
 
-inline Bitboard Position::attackers_to(Square sq) const { return attackers_to(sq, pieces()); }
+inline Bitboard Position::attackers_to(Square s) const { return attackers_to(s, pieces()); }
 
 inline Bitboard Position::checkers() const { return st->checkersBB; }
 

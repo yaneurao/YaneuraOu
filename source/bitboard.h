@@ -3,10 +3,13 @@
 
 #include <algorithm>
 #include <cassert>
-#include <iosfwd>
 
 #include "types.h"
 #include "misc.h"
+
+#if !STOCKFISH
+#include <iosfwd>
+#endif
 
 namespace YaneuraOu {
 

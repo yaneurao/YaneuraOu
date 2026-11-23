@@ -2,9 +2,9 @@
 #define EVALUATE_H_INCLUDED
 
 #include "config.h"
-#include "types.h"
+#include <string>
 
-#include <functional>
+#include "types.h"
 
 // -------------------------------------
 //   評価関数に対応するheaderの読み込み
@@ -19,6 +19,8 @@
 // -------------------------------------
 
 namespace YaneuraOu {
+
+class Position;
 struct StateInfo;
 #if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
 class NumaReplicatedAccessToken;

@@ -2,21 +2,24 @@
 #define SEARCH_H_INCLUDED
 
 #include <algorithm>
-//#include <cstdint>
-#include <cstring>
+#include <array>
+#include <atomic>
+#include <cassert>
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
+#include <string_view>
 #include <vector>
+#include <cstring>
 
 #include "config.h"
 
 #include "history.h"
 #include "misc.h"
-//#include "nnue/network.h"
-//#include "nnue/nnue_accumulator.h"
 #include "numa.h"
 #include "position.h"
 #include "score.h"
-//#include "syzygy/tbprobe.h"
-//#include "timeman.h"
 #include "timeman.h"
 #include "types.h"
 
@@ -48,7 +51,7 @@ namespace Search {
 
 // syzygy_extend_pv() may lead to PVs longer than MAX_PLY
 // ルートのPVはテーブルベースによる延長でMAX_PLYを超えることがある。
-struct RootPVMoves : public std::vector<Move> {
+struct RootPVMoves: public std::vector<Move> {
     RootPVMoves() { reserve(MAX_PLY); }
 };
 
@@ -695,7 +698,7 @@ protected:
     TranspositionTable& tt;
 
     // やねうら王では、評価パラメーターはEval::NNUE::shared_networksで管理する。
-    // SFNNのaccumulatorStackは派生クラスYaneuraOuWorkerが保持する。
+    // SFNN・従来NNUEのaccumulatorStackは派生クラスYaneuraOuWorkerが保持する。
     // refreshTableに相当するFinnyキャッシュはFeatureTransformer内のthread_local変数で保持する。
     // SFNNのNUMA別複製はENABLE_NUMA_NETWORK_REPLICATIONを定義したときだけ有効になる。
 #if STOCKFISH

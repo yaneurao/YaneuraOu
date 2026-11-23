@@ -1,5 +1,6 @@
 ﻿#include "bitboard.h"
 
+#if !STOCKFISH
 #include <iostream>
 #include <ostream>
 
@@ -7,6 +8,7 @@
 #include "extra/long_effect.h"
 #include "mate/mate.h"
 #include "testcmd/unit_test.h"
+#endif
 
 namespace YaneuraOu {
 
