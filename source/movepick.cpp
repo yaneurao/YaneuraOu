@@ -326,6 +326,29 @@ ExtMove* MovePicker::generate_and_score() {
     MoveList<Type> ml(pos);  // move generation
                             // 指し手を生成する。
 
+#if STOCKFISH
+    const auto* mainHist = Type != CAPTURES ? &(*mainHistory)[us] : nullptr;
+    const auto* pawnHist = Type == QUIETS ? &sharedHistory->pawn_entry(pos) : nullptr;
+    const auto* ch0      = Type != CAPTURES ? continuationHistory[0] : nullptr;
+    const auto* ch1      = Type == QUIETS ? continuationHistory[1] : nullptr;
+    const auto* ch2      = Type == QUIETS ? continuationHistory[2] : nullptr;
+    const auto* ch3      = Type == QUIETS ? continuationHistory[3] : nullptr;
+    const auto* ch5      = Type == QUIETS ? continuationHistory[5] : nullptr;
+    const auto* lph =
+      Type == QUIETS && ply < LOW_PLY_HISTORY_SIZE ? &(*lowPlyHistory)[ply] : nullptr;
+#else
+    constexpr bool captures = Type == CAPTURES || Type == CAPTURES_ALL;
+    constexpr bool quiets   = Type == QUIETS || Type == QUIETS_ALL;
+    const auto* mainHist = !captures ? &(*mainHistory)[us] : nullptr;
+    const auto* pawnHist = quiets ? &sharedHistory->pawn_entry(pos) : nullptr;
+    const auto* ch0      = !captures ? continuationHistory[0] : nullptr;
+    const auto* ch1      = quiets ? continuationHistory[1] : nullptr;
+    const auto* ch2      = quiets ? continuationHistory[2] : nullptr;
+    const auto* ch3      = quiets ? continuationHistory[3] : nullptr;
+    const auto* ch5      = quiets ? continuationHistory[5] : nullptr;
+    const auto* lph = quiets && ply < LOW_PLY_HISTORY_SIZE ? &(*lowPlyHistory)[ply] : nullptr;
+#endif
+
     ExtMove* it = cur;
     for (auto move : ml)
     {
@@ -376,26 +399,22 @@ ExtMove* MovePicker::generate_and_score() {
             // 各種の履歴テーブル。
 
 #if STOCKFISH
-            int value = 2 * (*mainHistory)[us][m.raw()];
-            value += 2 * sharedHistory->pawn_entry(pos)[pc][to];
-            value += (*continuationHistory[0])[pc][to];
-            value += (*continuationHistory[1])[pc][to];
-            value += (*continuationHistory[2])[pc][to];
-            value += (*continuationHistory[3])[pc][to];
-            value += (*continuationHistory[5])[pc][to];
-
-            // bonus for checks
-            // SEEの条件を満たす王手にボーナスを加える。
-            value += ((pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 16384;
+            int value = 2 * (*mainHist)[m.raw()];
+            value += 2 * (*pawnHist)[pc][to];
+            value += (*ch0)[pc][to];
+            value += (*ch1)[pc][to];
+            value += (*ch2)[pc][to];
+            value += (*ch3)[pc][to];
+            value += (*ch5)[pc][to];
 #else
             // やねうら王ではQ8化する。各項を合算してから一度だけ丸める。
-            int quietScoreQ8 = 512 * int((*mainHistory)[us][m.raw()]);
-            quietScoreQ8 += 512 * int(sharedHistory->pawn_entry(pos)[pc][to]);
-            quietScoreQ8 += 256 * int((*continuationHistory[0])[pc][to]);
-            quietScoreQ8 += 256 * int((*continuationHistory[1])[pc][to]);
-            quietScoreQ8 += 256 * int((*continuationHistory[2])[pc][to]);
-            quietScoreQ8 += 256 * int((*continuationHistory[3])[pc][to]);
-            quietScoreQ8 += 256 * int((*continuationHistory[5])[pc][to]);
+            int quietScoreQ8 = 512 * int((*mainHist)[m.raw()]);
+            quietScoreQ8 += 512 * int((*pawnHist)[pc][to]);
+            quietScoreQ8 += 256 * int((*ch0)[pc][to]);
+            quietScoreQ8 += 256 * int((*ch1)[pc][to]);
+            quietScoreQ8 += 256 * int((*ch2)[pc][to]);
+            quietScoreQ8 += 256 * int((*ch3)[pc][to]);
+            quietScoreQ8 += 256 * int((*ch5)[pc][to]);
 
             // SEEの閾値と王手ボーナス自体の単位は従来どおり。
             quietScoreQ8 += ((pos.check_squares(pt) & to) && pos.see_ge(m, -75)) * 256 * 16384;
@@ -418,12 +437,17 @@ ExtMove* MovePicker::generate_and_score() {
 
             // lowPlyHistoryも加算
 #if STOCKFISH
-            if (ply < LOW_PLY_HISTORY_SIZE)
-                value += 8 * (*lowPlyHistory)[ply][m.raw()] / (1 + ply);
+            if (lph)
+                value += 8 * (*lph)[m.raw()] / (1 + ply);
+
+            // bonus for checks
+            // SEEの条件を満たす王手にボーナスを加える。
+            if ((pos.check_squares(pt) & to) && pos.see_ge(m, -75))
+                value += 16384;
 #else
             // やねうら王ではQ8化する。plyによる除算とまとめて整数へ戻す。
-            if (ply < LOW_PLY_HISTORY_SIZE)
-                value += 2048 * int((*lowPlyHistory)[ply][m.raw()]) / (256 * (1 + ply));
+            if (lph)
+                value += 2048 * int((*lph)[m.raw()]) / (256 * (1 + ply));
 #endif
 
             m.value = value;
@@ -440,7 +464,7 @@ ExtMove* MovePicker::generate_and_score() {
 
 			else
 				// それ以外の指し手に関してはhistoryの値の順番
-				m.value = (*mainHistory)[us][m.raw()] + (*continuationHistory[0])[pc][to];
+                m.value = (*mainHist)[m.raw()] + (*ch0)[pc][to];
 		}
 	}
     return it;
