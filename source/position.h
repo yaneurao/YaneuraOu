@@ -1300,20 +1300,20 @@ inline HASH_KEY Position::key() const { return adjust_key50(st->key); }
 
 template<bool AfterMove>
 inline HASH_KEY Position::adjust_key50(HASH_KEY k) const {
-    return st->rule50 < 14 - AfterMove ? k : k ^ make_key((st->rule50 - (14 - AfterMove)) / 8);
+    return st->rule50 < 14 - AfterMove ? k : k ^ (make_key((st->rule50 - (14 - AfterMove)) / 8) << 1);
 }
 #else
 inline HASH_KEY Position::key() const { return st->key(); }
 #endif
 
 #if defined(USE_PARTIAL_KEY)
-inline HASH_KEY Position::pawn_key() const { return st->pawnKey; }
+inline HASH_KEY Position::pawn_key() const { return st->pawnKey ^ HASH_KEY(sideToMove); }
 
 inline HASH_KEY Position::material_key() const { return st->materialKey; }
 
-inline HASH_KEY Position::minor_piece_key() const { return st->minorPieceKey; }
+inline HASH_KEY Position::minor_piece_key() const { return st->minorPieceKey ^ HASH_KEY(sideToMove); }
 
-inline HASH_KEY Position::non_pawn_key(Color c) const { return st->nonPawnKey[c]; }
+inline HASH_KEY Position::non_pawn_key(Color c) const { return st->nonPawnKey[c] ^ HASH_KEY(sideToMove); }
 #else
 
 // 使わないのでダミーの値を返すようにしておく。

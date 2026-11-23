@@ -176,8 +176,8 @@ public:
 
 		keyを元にClusterのindexを求めて、そのCluster* を返す。
 
-		Stockfishとは違い、引数にこの局面の手番(side_to_move)を渡しているのは、
-		手番をCluster indexのbit 0に埋めることで、手番が異なれば、異なる
+		Stockfishとは違い、keyのbit0に格納した手番をCluster indexのbit0に埋めることで、
+		手番が異なれば、異なる
 		TT Clusterになることを保証するため。
 
 		これは、将棋では駒の移動が上下対称ではないので、先手の指し手が(TT raceで)
@@ -185,13 +185,7 @@ public:
 		必要になって嫌だからである。
 	*/ 
 
-#if STOCKFISH
     Cluster* get_cluster(const Key key) const;
-#else
-	// 🌈 やねうら王では、
-	// 手番のよってTTを分割しているので、side_to_moveが引数として必要となる。
-	Cluster* get_cluster(const Key key, Color side_to_move) const;
-#endif
 
 	static void UnitTest(Test::UnitTester& unittest, IEngine& engine);
 

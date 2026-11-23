@@ -63,7 +63,7 @@ namespace Zobrist {
 HASH_KEY psq[PIECE_NB][SQUARE_NB];
 HASH_KEY enpassant[FILE_NB];
 HASH_KEY castling[CASTLING_RIGHT_NB];
-HASH_KEY side, noPawns;
+HASH_KEY side;
 
 #else
 
@@ -82,11 +82,6 @@ HASH_KEY psq[PIECE_NB][SQ_NB_PLUS1];
 // 枚数ごとにhash keyのtableを用意するのは嫌なので、加算型にしてある。
 HASH_KEY hand[COLOR_NB][PIECE_HAND_NB];
 
-#if defined(USE_PARTIAL_KEY)
-// 歩の陣形に関して盤上に歩が一枚もない時のhash key
-HASH_KEY noPawns;
-#endif
-
 #endif
 };
 
@@ -99,7 +94,9 @@ void Position::init() {
 
 	// 乱数で初期化するコード
 	auto set_rand = [&](HASH_KEY& h) {
-        auto r1 = rng.rand<u64>();
+        // Reserve the least significant bit for the side to move.
+        // 最下位bitを手番用に空ける。手駒キーを加減算しても、このbitは変化しない。
+        auto r1 = rng.rand<u64>() << 1;
         auto r2 = rng.rand<u64>();
         auto r3 = rng.rand<u64>();
         auto r4 = rng.rand<u64>();
@@ -108,11 +105,7 @@ void Position::init() {
 
 	SET_HASH(Zobrist::zero, 0, 0, 0, 0);
 
-	set_rand(Zobrist::side);
-
-#if defined(USE_PARTIAL_KEY)
-    set_rand(Zobrist::noPawns);
-#endif
+    SET_HASH(Zobrist::side, 1, 0, 0, 0);
 
 	// 64bit hash keyは256bit hash keyの下位64bitという解釈をすることで、256bitと64bitのときとでhash keyの下位64bitは合致するようにしておく。
 	// これは定跡DBなどで使うときにこの性質が欲しいからである。
@@ -315,10 +308,11 @@ void Position::set_state() const {
 
 #if STOCKFISH
 
-    st->key = st->materialKey = 0;
+    st->key                  = sideToMove;
+    st->materialKey          = 0;
     st->minorPieceKey         = 0;
     st->nonPawnKey[WHITE] = st->nonPawnKey[BLACK] = 0;
-    st->pawnKey                                   = Zobrist::noPawns;
+    st->pawnKey                                   = 0;
     st->nonPawnMaterial[WHITE] = st->nonPawnMaterial[BLACK] = VALUE_ZERO;
     st->checkersBB = attackers_to(square<KING>(sideToMove)) & pieces(~sideToMove);
 
@@ -335,7 +329,7 @@ void Position::set_state() const {
     st->materialKey       = Zobrist::zero;
     st->minorPieceKey     = Zobrist::zero;
     st->nonPawnKey[WHITE] = st->nonPawnKey[BLACK] = Zobrist::zero;
-    st->pawnKey                                   = Zobrist::noPawns;
+    st->pawnKey                                   = Zobrist::zero;
 
 #endif
     // 歩以外の駒の価値。やねうら王では使っていない。
@@ -400,9 +394,6 @@ void Position::set_state() const {
 #if STOCKFISH
     if (st->epSquare != SQ_NONE)
         st->key ^= Zobrist::enpassant[file_of(st->epSquare)];
-
-    if (sideToMove == BLACK)
-        st->key ^= Zobrist::side;
 
     st->key ^= Zobrist::castling[st->castlingRights];
 
@@ -1457,7 +1448,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 		// 打てない段に打つ歩・香・桂の指し手はそもそも生成されていない。
 		// 置換表のhash衝突で、後手の指し手が先手の指し手にならないことは保証されている。
-		// (先手の手番の局面と後手の手番の局面とのhash keyはbit0で区別しているので)
+        // (hash keyのbit0を手番とし、TTもこのbitで先後のクラスタを分離しているので)
 
 		// しかし、Counter Moveの手は手番に関係ないので(駒種を保持していないなら)取り違える可能性があるため
 		// (しかも、その可能性はそこそこ高い)、ここで合法性をチェックする必要がある。
@@ -1876,7 +1867,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         if constexpr (std::is_same_v<T, TranspositionTable>)
         {
             const auto key = k ^ h;
-            prefetch(tt->get_cluster(key, them));
+            prefetch(tt->get_cluster(key));
         }
 
 #if defined(USE_PARTIAL_KEY) & 0
@@ -2036,7 +2027,7 @@ void Position::do_move_impl(Move m, StateInfo& newSt, bool givesCheck, const T* 
         if constexpr (std::is_same_v<T, TranspositionTable>)
         {
             const auto key = k ^ h;
-            prefetch(tt->get_cluster(key, them));
+            prefetch(tt->get_cluster(key));
         }
 
 #if defined(USE_EVAL_LIST)
@@ -2551,8 +2542,7 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
     // 　prefetchのスケジューラーが処理しきれない可能性が…。
     // CPUによっては有効なので一応やっておく。
 
-	// 📝 以下のprefetchのget_cluster()でやねうら王は、この時の手番が必要なので
-    //     先に手番を変えておく。
+    // null move後の手番とキーを更新してから、そのキーでTTを先読みする。
     sideToMove = ~sideToMove;
 
 	st->board_key ^= Zobrist::side;
@@ -2562,7 +2552,7 @@ void Position::do_null_move(StateInfo& newSt, const T& tt) {
 	if constexpr (std::is_same_v<T, TranspositionTable>)
     {
         const auto key = st->key();
-        prefetch(tt.get_cluster(key, sideToMove));
+        prefetch(tt.get_cluster(key));
     }
 
 	st->pliesFromNull = 0;

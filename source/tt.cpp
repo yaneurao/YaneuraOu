@@ -303,7 +303,7 @@ void TranspositionTable::resize(usize mbSize, ThreadPool& threads, bool force) {
 
 	// clusterCountは偶数でなければならない。
 	// この理由については、TranspositionTable::get_cluster()のコメントを見よ。
-	// しかし、1024 * 1024 / sizeof(Cluster)の部分、sizeof(Cluster)==64なので、
+	// しかし、1024 * 1024 / sizeof(Cluster)の部分、sizeof(Cluster)==32なので、
 	// これを掛け算するから2の倍数である。
 	ASSERT_LV3((newClusterCount & 1) == 0);
 
@@ -454,7 +454,8 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) cons
 
 #else
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, const Position& pos) const {
-    Cluster* const cluster = get_cluster(key, pos.side_to_move());
+    ASSERT_LV3((key & 1) == pos.side_to_move());
+    Cluster* const cluster = get_cluster(key);
 #endif
 
     auto&          tte     = cluster->entry;
@@ -543,11 +544,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, cons
 // keyを元にClusterのindexを求めて、そのCluster*を返す。
 // ※　ここで渡されるkeyのbit 0は局面の手番フラグ(Position::side_to_move())であると仮定している。
 
-#if STOCKFISH
 Cluster* TranspositionTable::get_cluster(const Key key) const {
-#else
-Cluster* TranspositionTable::get_cluster(const Key key, Color side_to_move) const {
-#endif
 
 #if STOCKFISH
 
@@ -564,7 +561,7 @@ Cluster* TranspositionTable::get_cluster(const Key key, Color side_to_move) cons
 		📓
 
 		やねうら王では、cluster indexのbit0(先後フラグ) に手番が反映される必要がある。
-		このときclusterCountが奇数だと、(index & ~(u64)1) | side_to_move のようにしたときに、
+		このときclusterCountが奇数だと、(index & ~(u64)1) | (key & 1) のようにしたときに、
 		(clusterCount - 1)が上限であるべきなのにclusterCountになりかねない。
 
 		そこでclusterCountは偶数であるという制約を課す。
@@ -574,9 +571,8 @@ Cluster* TranspositionTable::get_cluster(const Key key, Color side_to_move) cons
 	// 💡 key * clusterCount / 2^64 をするので、indexは 0 ～ clusterCount-1 の範囲となる。
 	uint64_t index = mul_hi64((u64)key, clusterCount);
 
-	// indexは0～ clusterCount -1の範囲にある。このbit 0を手番に変更する。
-	// ⚠ Colorの実体はuint8で、0,1の値しか取らないものとする。
-	return &table[(index & ~1) | side_to_move];
+    // indexのbit0にキーの手番bitを埋め、先後のTTクラスタを分離する。
+    return &table[(index & ~1) | (key & 1)];
 
 #endif
 }
