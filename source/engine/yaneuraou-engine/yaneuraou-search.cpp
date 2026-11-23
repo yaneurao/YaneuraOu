@@ -25,7 +25,7 @@
 #include <cstdlib>
 #include <initializer_list>
 #include <iostream>
-#include <list>
+#include <memory>
 #include <ratio>
 #include <string>
 #include <utility>
@@ -682,12 +682,12 @@ inline int lmr_divisor(int depth) {
 // 将棋では、Tablebasesは用いない。
 namespace TB = Tablebases;
 
-void syzygy_extend_pv(const OptionsMap& options,
-	const Search::LimitsType& limits,
-	Stockfish::Position& pos,
-	Stockfish::Search::RootMove& rootMove,
-	Value& v,
-    const usize multiPV);
+void syzygy_extend_pv(const OptionsMap&            options,
+                      const Search::LimitsType&    limits,
+                      Stockfish::Position&         root,
+                      Stockfish::Search::RootMove& rootMove,
+                      Value&                       v,
+                      const usize                  multiPV);
 
 using namespace Search;
 // 💡 冒頭で書いたのでコメントアウト。
@@ -839,7 +839,7 @@ bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
 #if STOCKFISH
     if (pos.capture_stage(move) || pos.rule50_count() < 10)
         return false;
-    if (pos.state()->pliesFromNull < 6 || ss->ply < 20)
+    if (pos.plies_from_null() < 6 || ss->ply < 20)
         return false;
     return move.from_sq() == (ss - 2)->currentMove.to_sq()
         && (ss - 2)->currentMove.from_sq() == (ss - 4)->currentMove.to_sq();
@@ -848,7 +848,7 @@ bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
     if (pos.capture_stage(move) || move.is_drop())
         return false;
 
-    if (pos.state()->pliesFromNull < 6 || ss->ply < 20)
+    if (pos.plies_from_null() < 6 || ss->ply < 20)
         return false;
 
     const Move move2 = (ss - 2)->currentMove;
@@ -2246,7 +2246,10 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         Move pick = skill.best ? skill.best : skill.pick_best(rootMoves, multiPV);
         if (pick != rootMoves[0].pv[0])
         {
+            const auto bestScore = rootMoves[0].score;
             std::swap(rootMoves[0], *std::find(rootMoves.begin(), rootMoves.end(), pick));
+            if (is_loss(rootMoves[0].score) && rootMoves[0].score < bestScore)
+                rootMoves[0].inexactLower = true;
             uciPvSent = false;
         }
     }
@@ -5805,7 +5808,7 @@ void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
 // ただし、詰みが証明された手順とは限らない。
 void syzygy_extend_pv(const OptionsMap&         options,
                       const Search::LimitsType& limits,
-                      Position&                 pos,
+                      Position&                 root,
                       RootMove&                 rootMove,
                       Value&                    v,
                       const usize               multiPV) {
@@ -5828,6 +5831,14 @@ void syzygy_extend_pv(const OptionsMap&         options,
     if (time_abort())
         return;
 
+    // Walk the PV on a copy that is never undone: the PV may exceed the
+    // MAX_HIST states a Position keeps.
+    // PVはPositionが保持するMAX_HIST手分の状態を超えることがあるため、
+    // 局面のコピー上で進め、undoは行わない。
+    std::unique_ptr<Position> walker = std::make_unique<Position>();
+    Position&                 pos    = *walker;
+    pos.set(root.fen(), root.is_chess960());
+    pos.copy_state_infos(root);
 
     // Step 0, do the rootMove, no correction allowed, as needed for MultiPV in TB
     // Step 0. TB内のMultiPVで必要なため、rootMoveを修正せずに指す。
@@ -5950,11 +5961,6 @@ void syzygy_extend_pv(const OptionsMap&         options,
     // TBの負けスコアを表示する場合があるが、最終的には探索によって引き分けと判明する。
     if (pos.is_draw(0))
         v = VALUE_DRAW;
-
-    // Undo the PV moves
-    // PVの各指し手を元に戻す。
-    for (usize i = rootMove.pv.size(); i > 0; --i)
-        pos.undo_move(rootMove.pv[i - 1]);
 
     // Inform if we couldn't get a full extension in time
     // 制限時間内にPVを最後まで延長できなかった場合は通知する。

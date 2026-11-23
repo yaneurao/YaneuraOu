@@ -790,6 +790,9 @@ class Position {
     // 現局面の手番を返す。
     Color side_to_move() const;
 
+    // 最後のnull move以降の手数を返す。
+    int plies_from_null() const;
+
     // (将棋の)開始局面からの手数を返す。
     // 平手の開始局面なら1が返る。(0ではない)
     int game_ply() const;
@@ -1349,6 +1352,8 @@ inline Value Position::non_pawn_material() const {
     return non_pawn_material(WHITE) + non_pawn_material(BLACK);
 }
 #endif
+
+inline int Position::plies_from_null() const { return st->pliesFromNull; }
 
 inline int Position::game_ply() const { return gamePly; }
 
