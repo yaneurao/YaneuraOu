@@ -3452,9 +3452,10 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         // 残り深さに基づくnull moveの動的な削減量。
         // 奇数番号のスレッドでは、削減を1手少なくする。
 
-        // Odd threads reduce one ply less; a large evaluation margin allows more reduction.
-        // 奇数スレッドは1手浅く削減し、評価値がbetaを大きく超える場合は削減を増やす。
-        Depth R = 7 + depth / 3 + std::max((ss->staticEval - beta) / 256, 0) - int(threadIdx & 1);
+        // Odd threads reduce one ply less; cap the evaluation margin's contribution near the root.
+        // 奇数スレッドは1手浅く削減し、ルート付近では評価差による追加削減を制限する。
+        Depth R = 7 + depth / 3 + std::clamp((ss->staticEval - beta) / 256, 0, ss->ply / 2)
+                - int(threadIdx & 1);
         R -= seekMate * R / 2;
 
         // 💡  null moveなので、王手はかかっていなくて駒取りでもない。
