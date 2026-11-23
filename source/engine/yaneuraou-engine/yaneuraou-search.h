@@ -513,9 +513,6 @@ class YaneuraOuWorker: public Worker {
     // 💡depthとPV lineに対するUSI infoで出力するselDepth。
     int selDepth, nmpMinPly;
 
-	// 探索時に評価値に楽観的バイアスを与えるために用いるパラメーター。
-	Value optimism[COLOR_NB];
-
 #if STOCKFISH
 	// 探索開始局面とrootでのStateInfo
 	// 📝 やねうら王では、Engine classが持っている。

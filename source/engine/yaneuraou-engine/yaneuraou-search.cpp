@@ -1519,13 +1519,10 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
     // alpha,beta         : aspiration searchの窓の範囲(alpha,beta)
     // delta              : apritation searchで窓を動かす大きさdelta
-    // us                 : この局面の手番側
     // timeReduction      : 読み筋が安定しているときに時間を短縮するための係数。
     // totBestMoveChanges : 直近でbestMoveが変化した回数の統計。読み筋の安定度の目安にする。
     // iterIdx            : 反復深化の時に1回ごとのbest valueを保存するための配列へのindex。0から3までの値をとる。
-    Value  alpha, beta;
-    Value  bestValue     = -VALUE_INFINITE;
-    Color  us            = rootPos.side_to_move();
+    Value  alpha, beta, bestValue;
     double timeReduction = 1, totBestMoveChanges = 0;
     int    delta, iterIdx                        = 0;
 
@@ -1774,16 +1771,6 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
             seekMate = rootMoves[pvIdx].previousScore != -VALUE_INFINITE
                     && std::abs(rootMoves[pvIdx].previousScore) >= seekMateThreshold;
-
-#if STOCKFISH
-            // Adjust optimism based on root move's averageScore
-            // ルート手の averageScore に基づいて楽観度を調整する
-            optimism[us]  = 456 * avg / (std::abs(avg) + 85);
-            optimism[~us] = -optimism[us];
-#endif
-
-			// 🤔 このoptimismは、StockfishのNNUE評価関数で何やら使っているようなのだが…。
-            //     TODO : あとで検討する。
 
             // Start with a small aspiration window and, in the case of a fail
             // high/low, enlarge the window progressively.
@@ -5391,8 +5378,7 @@ TimePoint Search::Worker::elapsed() const {
 Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
 
 #if STOCKFISH
-    return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack, refreshTable,
-                          optimism[pos.side_to_move()]);
+    return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack, refreshTable);
 #else
 
 #if defined(EVAL_SFNN)

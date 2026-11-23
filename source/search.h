@@ -643,8 +643,6 @@ protected:
 	// 📝 派生class側で。
 #if STOCKFISH
     int selDepth, nmpMinPly;
-
-    Value optimism[COLOR_NB];
 #endif
 
 	// 🤔 外部からrootMovesにアクセスしたいことがあるので、やねうら王では
