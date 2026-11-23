@@ -5,11 +5,16 @@
 #include "timeman.h"
 
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 
 #include "search.h"
-#include "thread.h"
 #include "types.h"
+#include "usioption.h"
+
+#if !STOCKFISH
 #include "usi.h"
+#endif
 
 namespace YaneuraOu {
 
@@ -19,6 +24,7 @@ TimePoint TimeManagement::maximum() const { return maximumTime; }
 #if STOCKFISH
 void TimeManagement::clear() {
     availableNodes    = -1;  // When in 'nodes as time' mode
+    // nodes-as-timeモードの未初期化状態。
     previousMovesToGo = 0;
 }
 
@@ -27,8 +33,158 @@ void TimeManagement::advance_nodes_time(i64 nodes) {
     availableNodes = std::max(i64(0), availableNodes - nodes);
 }
 
-#else
+// Called at the beginning of the search and calculates
+// the bounds of time allowed for the current game ply. We currently support:
+//      1) x basetime (+ z increment)
+//      2) x moves in y seconds (+ z increment)
+// 探索開始時に、その手番で使用する思考時間の範囲を計算する。
+// 対応する時間制御は、基本持ち時間＋加算、または一定手数ごとの持ち時間＋加算。
+void TimeManagement::init(Search::LimitsType& limits,
+                          Color               us,
+                          int                 ply,
+                          const OptionsMap&   options,
+                          double&             originalTimeAdjust) {
+    TimePoint npmsec = TimePoint(options["nodestime"]);
 
+    // If we have no time, we don't need to fully initialize TM.
+    // startTime is used by movetime and useNodesTime is used in elapsed calls.
+    // 持ち時間がなければ時間管理の完全な初期化は不要。
+    // startTimeはmovetimeで、useNodesTimeはelapsedの呼び出しで使用する。
+    startTime    = limits.startTime;
+    useNodesTime = npmsec != 0;
+
+    if (useNodesTime)
+        limits.movetime *= npmsec;
+
+    if (limits.time[us] == 0)
+    {
+        optimumTime = maximumTime = NoBound;
+        return;
+    }
+
+    TimePoint moveOverhead = TimePoint(options["Move Overhead"]);
+
+    // optScale is a percentage of available time to use for the current move.
+    // maxScale is a multiplier applied to optimumTime.
+    // optScaleは残り時間のうち今回の指し手に使う割合。
+    // maxScaleは最適思考時間に掛ける倍率。
+    double optScale, maxScale;
+
+    // If we have to play in 'nodes as time' mode, then convert from time
+    // to nodes, and use resulting values in time management formulas.
+    // WARNING: to avoid time losses, the given npmsec (nodes per millisecond)
+    // must be much lower than the real engine speed.
+    // nodes-as-timeモードでは時間をノード数に換算し、時間管理の式に使用する。
+    // 時間切れを避けるには、npmsecを実際の探索速度より十分低く設定する必要がある。
+    if (useNodesTime)
+    {
+        if (availableNodes == -1)  // Only once at game start
+        // 対局開始時の一度だけ初期化する。
+        {
+            // First time limit includes increment (both are in milliseconds)
+            // 最初の持ち時間には加算時間も含まれる。いずれもミリ秒単位。
+            availableNodes = npmsec * limits.time[us];
+            cyclicBudget   = npmsec * (limits.time[us] - limits.inc[us]);
+        }
+        else if (limits.movestogo > 0 && limits.movestogo > previousMovesToGo && cyclicBudget > 0)
+            availableNodes += cyclicBudget;
+
+        previousMovesToGo = limits.movestogo;
+
+        // Convert from milliseconds to nodes
+        // ミリ秒をノード数に換算する。
+        limits.time[us] = TimePoint(availableNodes);
+        limits.inc[us] *= npmsec;
+        limits.npmsec = npmsec;
+        moveOverhead *= npmsec;
+    }
+
+    // These numbers are used where multiplications, divisions,
+    // or comparisons with constants are involved.
+    // 定数との乗算・除算・比較に用いるスケールと、ミリ秒に戻した持ち時間。
+    const i64       scaleFactor = useNodesTime ? npmsec : 1;
+    const TimePoint scaledTime  = std::max(TimePoint(1), limits.time[us] / scaleFactor);
+
+    // Maximum move horizon
+    // 時間配分で考慮する残り手数の上限。
+    int mtg = limits.movestogo ? std::min(limits.movestogo, 50) : 50;
+
+    // If less than one second, gradually reduce mtg.
+    // In cyclic time controls we keep the actual movestogo as horizon.
+    // 残り1秒未満ではmtgを徐々に減らす。
+    // 一定手数ごとの時間制御では、実際のmovestogoを用いる。
+    if (scaledTime < 1000 && limits.movestogo == 0)
+        mtg = int(scaledTime * 0.05);
+
+    // Make sure timeLeft is > 0 since we may use it as a divisor
+    // 除数として使用するため、timeLeftを正に保つ。
+    TimePoint timeLeft = std::max(TimePoint(1), limits.time[us] + limits.inc[us] * (mtg - 1)
+                                                  - moveOverhead * (2 + mtg));
+
+    // x basetime (+ z increment)
+    // If there is a healthy increment, timeLeft can exceed the actual available
+    // game time for the current move, so also cap to a percentage of available game time.
+    // 基本持ち時間x（＋1手ごとの加算時間z）。
+    // 加算が十分多いとtimeLeftが実際の残り時間を超えるため、使用割合にも上限を設ける。
+    if (limits.movestogo == 0)
+    {
+        // Extra time according to timeLeft
+        // timeLeftに応じて思考時間を調整する。
+        if (originalTimeAdjust < 0)
+            originalTimeAdjust = 0.3272 * std::log10(timeLeft) - 0.4141;
+
+        // Calculate time constants based on current time left.
+        // 現在の残り時間に基づいて時間配分の定数を計算する。
+        double logTimeInSec = std::log10(scaledTime / 1000.0);
+        double optConstant  = std::min(0.0029869 + 0.00033554 * logTimeInSec, 0.004905);
+        double maxConstant  = std::max(3.3744 + 3.0608 * logTimeInSec, 3.1441);
+
+        optScale = std::min(0.012112 + std::pow(ply + 3.22713, 0.46866) * optConstant,
+                            0.19404 * limits.time[us] / timeLeft)
+                 * originalTimeAdjust;
+
+        maxScale = std::min(6.873, maxConstant + ply / 12.352);
+    }
+
+    // x moves in y seconds (+ z increment)
+    // y秒以内にx手指す（＋1手ごとの加算時間z）。
+    else
+    {
+        optScale = std::min((0.88 + ply / 116.4) / mtg, 0.88 * limits.time[us] / timeLeft);
+        maxScale = 1.3 + 0.11 * mtg;
+    }
+
+    // Decrease time usage if behind in time.
+    // This is skipped in two cases:
+    // - if the nodestime option is used we can't calculate the opponent nodes budget in a deterministic way.
+    // - if we use a cyclic time management (like 40/10) calculating time advantage for the last move (movestogo = 1)
+    //   can be vastly off, because if the opponent had done his last move before us his time budget includes already
+    //   the next cycle time increment but our not. This leads to a unnecessary big decrease in time usage which favors blunders.
+    // Warning: don't remove this conditions.
+    // 相手より残り時間が少なければ使用時間を減らす。
+    // ただし、相手のノード予算を決定論的に計算できないnodes-as-timeでは行わない。
+    // また、一定手数ごとの時間制御でmovestogoが1のときは、相手だけが次の周期の
+    // 持ち時間を加算済みの場合があり、不必要な時間短縮で悪手を誘発するので行わない。
+    // これらの条件を取り除かないこと。
+    if (!useNodesTime && limits.movestogo != 1)
+    {
+        double timeAdvantage =
+          (limits.time[us] - limits.time[~us]) / (1.0 + limits.time[us] + limits.time[~us]);
+        optScale *= 1 + 0.9 * std::min(timeAdvantage, 0.0);
+    }
+
+    // Limit the maximum possible time for this move
+    // 今回の指し手に使用できる時間の上限を設定する。
+    optimumTime = TimePoint(std::max(1.0, optScale * timeLeft));
+    maximumTime =
+      TimePoint(std::max(double(optimumTime), std::min(0.8097 * limits.time[us] - moveOverhead,
+                                                       maxScale * optimumTime)));
+
+    if (options["Ponder"])
+        optimumTime += optimumTime / 4;
+}
+
+#else
 TimePoint TimeManagement::minimum() const { return minimumTime; }
 void  TimeManagement::clear() {}
 
@@ -79,7 +235,6 @@ void TimeManagement::add_options(OptionsMap& options) {
 
 }
 
-#endif
 
 // Called at the beginning of the search and calculates
 // the bounds of time allowed for the current game ply. We currently support:
@@ -91,24 +246,11 @@ void TimeManagement::add_options(OptionsMap& options) {
 //      1) 基本持ち時間 x（＋ 1手ごとの加算時間 z）
 //      2) y秒以内にx手指す（＋ 1手ごとの加算時間 z）
 
-#if STOCKFISH
-void TimeManagement::init(Search::LimitsType& limits,
-#else
 void TimeManagement::init(const Search::LimitsType& limits,
-#endif
-                          Color               us,
-                          int                 ply,
-                          const OptionsMap&   options
-#if STOCKFISH
-                          ,
-                          double& originalTimeAdjust
-// 💡 やねうら王では使わないことにする。
-#else
-                          ,
-                          int max_moves_to_draw
-#endif
-
-) {
+                          Color                     us,
+                          int                       ply,
+                          const OptionsMap&         options,
+                          int                       max_moves_to_draw) {
 
     // 📝 探索開始時刻をコピーしておく。
     //     以降、elapsed_time()は、ここからの経過時間を返す。
@@ -135,45 +277,6 @@ void TimeManagement::init_(const Search::LimitsType& limits,
                            int                 ply,
                            const OptionsMap&   options, int max_moves_to_draw) {
 
-#if STOCKFISH
-	TimePoint npmsec = TimePoint(options["nodestime"]);
-	// nodes as timeモード。やねうら王では用いない。
-
-    // If we have no time, we don't need to fully initialize TM.
-    // startTime is used by movetime and useNodesTime is used in elapsed calls.
-    startTime    = limits.startTime;
-
-	useNodesTime = npmsec != 0;
-
-    if (limits.time[us] == 0)
-        return;
-
-	TimePoint npmsec = Options["nodestime"];
-
-	// npmsecがUSI optionで指定されていれば、時間の代わりに、ここで指定されたnode数をベースに思考を行なう。
-	// nodes per millisecondの意味。
-	// nodes as timeモードで対局しなければならないなら、時間をノード数に変換して、
-	// 持ち時間制御の計算式では、この結果の値を用いる。
-	if (npmsec)
-	{
-		// ゲーム開始時に1回だけ
-		if (!availableNodes)
-			availableNodes = npmsec * limits.time[us];
-		
-		// ミリ秒をnode数に変換する
-		limits.time[us] = TimePoint(availableNodes);
-		for (auto c : COLOR)
-		{
-			limits.inc[c] *= npmsec;
-			limits.byoyomi[c] *= npmsec;
-		}
-		limits.rtime *= npmsec;
-		limits.npmsec = npmsec;
-
-		// NetworkDelay , MinimumThinkingTimeなどもすべてnpmsecを掛け算しないといけないな…。
-		// 1000で繰り上げる必要もあるしなー。これtime managementと極めて相性が悪いのでは。
-	}
-#endif
 
 	// ネットワークのDelayを考慮して少し減らすべき。
 	// かつ、minimumとmaximumは端数をなくすべき
@@ -352,7 +455,6 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 	maximumTime = std::min(round_up(maximumTime), remain_time);
 }
 
-#if !STOCKFISH
 
 // 1秒単位で繰り上げてdelayを引く。
 // ただし、remain_timeよりは小さくなるように制限する。
@@ -418,6 +520,7 @@ void TimeManagement::set_search_end(TimePoint e) {
     // 💡 search_endの値は、startTimeからの経過時間なので。
     search_end = round_up(std::max(t1, t2)) + ponderhitTime - startTime;
 }
+
 #endif
 
 } // namespace YaneuraOu
