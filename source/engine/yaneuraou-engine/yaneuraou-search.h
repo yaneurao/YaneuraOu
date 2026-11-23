@@ -271,12 +271,10 @@ class YaneuraOuEngine: public Engine {
     using InfoIter  = Search::InfoIteration;
 #endif
 
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
-    YaneuraOuEngine();
-    ~YaneuraOuEngine() override;
-#else
     YaneuraOuEngine(/* std::optional<std::string> path = std::nullopt */) :
         manager(updateContext) {}
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    ~YaneuraOuEngine() override { wait_for_search_finished(); }
 #endif
 
     // 📝 やねうら王では、CommandLine::gから取得できるので使わない。
@@ -363,6 +361,9 @@ class YaneuraOuEngine: public Engine {
 
     // NUMA/スレッド構成を変更した場合、同サイズのTTも再配置する。
     bool hashNeedsReallocation = false;
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    bool networkNeedsReload = true;
+#endif
 
 };
 
@@ -589,6 +590,7 @@ class YaneuraOuWorker: public Worker {
 #else
 	// 🌈 以下、やねうら王独自追加 🌈
 
+    const Eval::NetworkStorage& network;
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     Eval::NNUE::AccumulatorStack accumulatorStack;
 #else

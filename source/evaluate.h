@@ -22,23 +22,38 @@ namespace YaneuraOu {
 
 class Position;
 struct StateInfo;
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+class NumaReplicationContext;
 class NumaReplicatedAccessToken;
+template<typename T> class LazyNumaReplicatedSystemWide;
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+namespace Eval::NNUE { struct NnueNetworks; }
 #endif
 
 namespace Eval {
+
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    using NetworkStorage = LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>;
+#else
+    // Keep network access uniform for engines without NNUE weights.
+    // NNUEの重みを持たないエンジンでも、同じ形でネットワークを参照できるようにする。
+    class NetworkStorage {
+       public:
+        explicit NetworkStorage(NumaReplicationContext&) {}
+        const NetworkStorage& operator[](const NumaReplicatedAccessToken&) const { return *this; }
+    };
+#endif
 
 #if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
 	// 評価関数の初期化。これは起動直後に1度だけ呼び出される。
 	// 💡 引数で受け取ったoptionsを用いて、
 	//     評価関数に必要なエンジンオプションを追加することができる。
+#if defined(USE_CLASSIC_EVAL) && !defined(EVAL_NNUE)
 	void add_options(OptionsMap& options, ThreadPool& threads);
 
 	// 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
 	// あるいは差分計算が不可能なときに呼び出される。
 	Value compute_eval(const Position& pos);
 
-#if defined(USE_CLASSIC_EVAL)
 	// 評価関数本体
 	// このあとのdo_move()のあとのevaluate()で差分計算ができるように、
 	// 現在の前局面から差分計算ができるときだけ計算しておく。
@@ -54,19 +69,21 @@ namespace Eval {
 	// 時間のかかる評価関数の初期化処理はここに書くこと。
 	// これは、"isready"コマンドの応答時に(毎回)呼び出される。
 	// ⚠ EvalDir(評価関数フォルダ)が変更になったあと、isreadyが再度送られてきたら読みなおす処理は自分で書くこと。
-	void load_eval();
-
-	// 評価関数本体
-	Value evaluate(const Position& pos);
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    void load_eval(LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>& network,
+                   const OptionsMap& options);
     namespace NNUE { class AccumulatorStack; }
-    Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack);
+    Value evaluate(const NNUE::NnueNetworks& network, const Position& pos);
+    Value evaluate(const NNUE::NnueNetworks& network, const Position& pos,
+                   NNUE::AccumulatorStack& stack);
 #if defined(EVAL_NNUE)
-    void evaluate_with_no_return(const Position& pos, NNUE::AccumulatorStack& stack);
+    void evaluate_with_no_return(const NNUE::NnueNetworks& network, const Position& pos,
+                                 NNUE::AccumulatorStack& stack);
 #endif
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
-    Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack, NumaReplicatedAccessToken token);
-#endif
+#else
+    void load_eval();
+    // 評価関数本体
+    Value evaluate(const Position& pos);
 #endif
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)

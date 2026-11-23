@@ -881,17 +881,17 @@ dummy `nn.bin`の生成処理は`source/eval/nnue/architectures/nnue_dummy_gen.p
 新しい入力特徴量やLayerStack方式を追加するときは、生成器、探索時bucket計算、
 学習器側のbucket計算を同時に更新すること。
 
-## SFNNのNUMAノード別重み複製（任意）
+## NNUE/SFNNのNUMAノード別重み複製
 
-`EXTRA_CPPFLAGS`に`-DENABLE_NUMA_NETWORK_REPLICATION`を追加すると、SFNNの重みを
-Stockfishと同じ`LazyNumaReplicatedSystemWide`でNUMAノード別に配置する。
-既定では無効で、従来の全スレッド共通の重みを使用する。
+NNUE/SFNNの重みは、Stockfishと同じ`LazyNumaReplicatedSystemWide`で
+NUMAノード別に配置する。追加のビルドオプションは不要。
+Engineが重みを所有し、`isready`で読み込んだ後、各Workerが必要なノードの複製を参照する。
 
 ```sh
 make -j tournament COMPILER=clang++ \
   YANEURAOU_EDITION=YANEURAOU_ENGINE_SFNN_halfkahm2_2304_15_64_k9k9_progress8 \
   TARGET_CPU=AVX512VNNI \
-  EXTRA_CPPFLAGS='-DUSE_LAZY_EVALUATE=4 -DUSE_FINNY_TABLES -DUSE_FINNY_RESET -DNNUE_FT_SPARSE8 -DENABLE_NUMA_NETWORK_REPLICATION'
+  EXTRA_CPPFLAGS='-DUSE_LAZY_EVALUATE=4 -DUSE_FINNY_TABLES -DUSE_FINNY_RESET -DNNUE_FT_SPARSE8'
 ```
 
 `NumaPolicy`は従来どおり指定する。`auto`では必要に応じてバインドし、`none`では

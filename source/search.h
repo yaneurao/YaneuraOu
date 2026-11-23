@@ -15,6 +15,9 @@
 
 #include "config.h"
 
+#if !STOCKFISH
+#include "evaluate.h"
+#endif
 #include "history.h"
 #include "misc.h"
 #include "numa.h"
@@ -372,15 +375,15 @@ struct SharedState {
                 std::map<NumaIndex, SharedHistories>&                     sharedHists
 #if STOCKFISH
                 , const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& net
+#else
+                , const Eval::NetworkStorage& net
 #endif
 	) :
         options(optionsMap),
         threads(threadPool),
         tt(transpositionTable),
-        sharedHistories(sharedHists)
-#if STOCKFISH
-        , network(net)
-#endif
+        sharedHistories(sharedHists),
+        network(net)
 	{}
 
     const OptionsMap&                                         options;
@@ -390,6 +393,8 @@ struct SharedState {
 
 #if STOCKFISH
 	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
+#else
+    const Eval::NetworkStorage& network;
 #endif
 };
 
@@ -697,10 +702,9 @@ protected:
 	// 置換表
     TranspositionTable& tt;
 
-    // やねうら王では、評価パラメーターはEval::NNUE::shared_networksで管理する。
+    // network参照は派生クラスYaneuraOuWorkerが保持する。
     // SFNN・従来NNUEのaccumulatorStackは派生クラスYaneuraOuWorkerが保持する。
     // refreshTableに相当するFinnyキャッシュはFeatureTransformer内のthread_local変数で保持する。
-    // SFNNのNUMA別複製はENABLE_NUMA_NETWORK_REPLICATIONを定義したときだけ有効になる。
 #if STOCKFISH
 	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
 

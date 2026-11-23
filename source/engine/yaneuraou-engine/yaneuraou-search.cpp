@@ -61,7 +61,7 @@
 #include "../../book/book.h"
 #include "../../extra/tools.h"
 #include "../../mate/mate.h"
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
 #include "../../eval/nnue/evaluate_nnue.h"
 #endif
 
@@ -79,17 +79,6 @@ using namespace Eval;  // Eval::PieceValue
 //     https://github.com/yaneurao/YaneuraOu-ScriptCollection/tree/main/SPSA
 //                            %%TUNE_DECLARATION%%
 
-
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
-YaneuraOuEngine::YaneuraOuEngine() : manager(updateContext) {
-    Eval::NNUE::set_network_numa_context(numaContext);
-}
-
-YaneuraOuEngine::~YaneuraOuEngine() {
-    wait_for_search_finished();
-    Eval::NNUE::release_network_numa_context(numaContext);
-}
-#endif
 
 // この構造体メンバーに対応するエンジンオプションを生やす
 void SearchOptions::add_options(OptionsMap& options) {
@@ -174,6 +163,39 @@ void YaneuraOuEngine::add_options() {
 	// 📌 基本設定(base classのadd_options()を呼び出してやる)
 
 	Engine::add_options();
+
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+#if defined(NNUE_EMBEDDING_OFF)
+    const char* default_eval_dir = "eval";
+#else
+    // メモリから読み込む。
+    const char* default_eval_dir = "<internal>";
+#endif
+    options.add("EvalDir", Option(default_eval_dir,
+      [this, last = std::string(default_eval_dir)](const Option& o) mutable {
+          const std::string dir = o;
+          if (last != dir)
+          {
+              // 評価関数フォルダが変わったとき、次のisreadyで重みを読み直す。
+              last = dir;
+              networkNeedsReload = true;
+          }
+          return std::nullopt;
+      }));
+#if defined(__EMSCRIPTEN__)
+    // wasmではJS側が仮想FSへ書き込んだ評価関数ファイルを指定する。
+    // 同名のファイルが置き換わる場合もあるため、毎回読み直す。
+    options.add("EvalFile", Option(EvalFileDefaultName, [this](const Option&) {
+        networkNeedsReload = true;
+        return std::nullopt;
+    }));
+#endif
+    // NNUEのFV_SCALEの値。
+    options.add("FV_SCALE", Option(16, 1, 128, [](const Option& o) {
+        Eval::NNUE::FV_SCALE = int(o);
+        return std::nullopt;
+    }));
+#endif
 
 	// 📌 この探索部が用いるオプションの追加。
 
@@ -292,7 +314,15 @@ void YaneuraOuEngine::isready() {
 #if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
     // 📌 評価関数のパラメーターを読み込む。
     //     評価関数パラメーターの読み込み処理が必要。
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    if (networkNeedsReload)
+    {
+        Engine::run_heavy_job([this] { Eval::load_eval(network, options); });
+        networkNeedsReload = false;
+    }
+#else
     Engine::run_heavy_job([] { Eval::load_eval(); });
+#endif
 
     // 初期化タイミングがなかったので、
     // このタイミングで平手の局面に初期化しておく。
@@ -393,11 +423,7 @@ void YaneuraOuEngine::resize_threads() {
 		return LargePagePtr<Worker>(p.release());  // Worker* に upcast
     };
 
-    threads.set(numaContext.get_numa_config(), {options, threads, tt, sharedHists
-#if STOCKFISH
-                                                , network
-#endif
-                                               },
+    threads.set(numaContext.get_numa_config(), {options, threads, tt, sharedHists, network},
                 updateContext , options["Threads"], worker_factory);
 
 	// 置換表の割り当て
@@ -661,7 +687,11 @@ void YaneuraOuEngine::trace_eval() const {
 // 現在の局面の評価値を出力する。
 Value YaneuraOuEngine::evaluate() const {
 	verify_network();
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    return Eval::evaluate(*network, pos);
+#else
     return Eval::evaluate(pos); // cpに変換するか？まあいいか…。
+#endif
 }
 
 } // namespace YaneuraOu
@@ -909,7 +939,8 @@ Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 	// 残りは基底classであるSearch::Workerのほうでunpackする。
 	Search::Worker(sharedState, ids),
 	engine(engine),
-	manager(engine.manager)
+	manager(engine.manager),
+    network(sharedState.network)
 {
 
     //clear();
@@ -920,16 +951,9 @@ Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 #endif
 
 void Search::YaneuraOuWorker::ensure_network_replicated() {
-#if STOCKFISH
     // Access once to force lazy initialization, avoiding initialization during search
     // 遅延初期化を一度だけ実行し、探索中に初期化が起きるのを避ける。
     (void) (network[numaAccessToken]);
-#elif defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
-    // Options can resize threads before the first isready loads the weights.
-    // 初回isreadyで重みを読む前にも、オプション変更によってスレッドが作り直される。
-    if (Eval::NNUE::shared_networks)
-        (void) Eval::NNUE::networks(numaAccessToken);
-#endif
 }
 
 #if !STOCKFISH
@@ -2652,7 +2676,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         {
             evaluated = true;
             #if defined(EVAL_NNUE)
-            Eval::evaluate_with_no_return(pos, accumulatorStack);
+            Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack);
 #else
             Eval::evaluate_with_no_return(pos);
 #endif
@@ -2665,7 +2689,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         {
             evaluated = true;
             #if defined(EVAL_NNUE)
-            Eval::evaluate_with_no_return(pos, accumulatorStack);
+            Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack);
 #else
             Eval::evaluate_with_no_return(pos);
 #endif
@@ -4758,7 +4782,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         {
             evaluated = true;
             #if defined(EVAL_NNUE)
-            Eval::evaluate_with_no_return(pos, accumulatorStack);
+            Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack);
 #else
             Eval::evaluate_with_no_return(pos);
 #endif
@@ -5426,11 +5450,7 @@ Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
 #else
 
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
-    return Eval::evaluate(pos, accumulatorStack, numaAccessToken);
-#else
-    return Eval::evaluate(pos, accumulatorStack);
-#endif
+    return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack);
 
 #else
 	return Eval::evaluate(pos);

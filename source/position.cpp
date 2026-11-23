@@ -794,7 +794,7 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
     st->materialValue = Eval::material(*this);
 #endif
 
-#if defined(USE_CLASSIC_EVAL)
+#if defined(USE_CLASSIC_EVAL) && !defined(EVAL_NNUE)
     Eval::compute_eval(*this);
 #endif
 

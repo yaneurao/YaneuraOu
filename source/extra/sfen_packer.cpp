@@ -706,7 +706,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen, bool mirror
 	st->materialValue = Eval::material(*this);
 #endif
 
-#if defined(USE_CLASSIC_EVAL)
+#if defined(USE_CLASSIC_EVAL) && !defined(EVAL_NNUE)
 	Eval::compute_eval(*this);
 #endif
 

@@ -20,7 +20,7 @@ namespace {
 
 // Check the actual int16 accumulator, not only the rounded final score.
 // Exercise both perspectives, promotions, captures, fallback paths and undo.
-void TestAccumulator(Position&, std::istream& stream) {
+void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
   int games = 100;
   stream >> games;
   if (games <= 0) {
@@ -38,13 +38,14 @@ void TestAccumulator(Position&, std::istream& stream) {
     pos.do_move(move, pos.gives_check(move), dirties);
   };
   auto undo_move = [&](Move move) { pos.undo_move(move); stack->pop(); };
-  auto evaluate = [&]() { return Eval::evaluate(pos, *stack); };
+  auto evaluate = [&]() { return Eval::evaluate(network, pos, *stack); };
+  auto fresh_evaluate = [&]() { return Eval::evaluate(network, pos); };
   PRNG prng(20261025);
   std::uint64_t moves = 0, pawn_moves = 0, pawn_captures = 0, promotions = 0, king_moves = 0, checksum = 0;
   for (int game = 0; game < games; ++game) {
     pos.set_hirate();
     stack->reset();
-    networks().feature_transformer.EnsureAccumulator(pos, true, current_state());
+    network.feature_transformer.EnsureAccumulator(pos, true, current_state());
     // Cover delayed updates and null moves before testing ordinary one-ply updates.
     // 通常の1手差分に加え、評価を省略した連続着手とnull moveも検証する。
     PRNG delayed_prng(20261113 + game);
@@ -69,7 +70,7 @@ void TestAccumulator(Position&, std::istream& stream) {
           do_move(child);
           const Value child_score = evaluate();
           const auto child_accumulator = accumulator_of(current_state());
-          networks().feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+          network.feature_transformer.RefreshAccumulatorForTest(pos, current_state());
           if (child_score != evaluate()
               || std::memcmp(child_accumulator.accumulation,
                              accumulator_of(current_state()).accumulation,
@@ -79,18 +80,18 @@ void TestAccumulator(Position&, std::istream& stream) {
           }
           undo_move(child);
         }
-        if (evaluate() != Eval::evaluate(pos)) {
+        if (evaluate() != fresh_evaluate()) {
           std::cout << "test_accumulator FAILED delayed null move" << std::endl;
           return;
         }
         pos.undo_null_move();
       }
-      if (evaluate() != Eval::evaluate(pos)) {
+      if (evaluate() != fresh_evaluate()) {
         std::cout << "test_accumulator FAILED delayed update" << std::endl;
         return;
       }
       const auto delayed = accumulator_of(current_state());
-      networks().feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+      network.feature_transformer.RefreshAccumulatorForTest(pos, current_state());
       if (std::memcmp(delayed.accumulation, accumulator_of(current_state()).accumulation,
                       sizeof(delayed.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED delayed FT" << std::endl;
@@ -100,7 +101,7 @@ void TestAccumulator(Position&, std::istream& stream) {
         undo_move(*it);
         const Value ancestor_score = evaluate();
         const auto ancestor = accumulator_of(current_state());
-        networks().feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+        network.feature_transformer.RefreshAccumulatorForTest(pos, current_state());
         if (ancestor_score != evaluate()
             || std::memcmp(ancestor.accumulation, accumulator_of(current_state()).accumulation,
                            sizeof(ancestor.accumulation)) != 0) {
@@ -132,12 +133,12 @@ void TestAccumulator(Position&, std::istream& stream) {
           }
         }
       }
-      networks().feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
+      network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE)
       // Check raw fc_0 outputs, including values hidden by FV_SCALE rounding.
       alignas(kCacheLineSize) TransformedFeatureType features[FeatureTransformer::kBufferSize];
-      networks().feature_transformer.Transform(pos, features, false, current_state());
-      const auto& fc = networks().network[moves % kLayerStacks].fc_0;
+      network.feature_transformer.Transform(pos, features, false, current_state());
+      const auto& fc = network.network[moves % kLayerStacks].fc_0;
       using Fc = std::remove_cv_t<std::remove_reference_t<decltype(fc)>>;
       alignas(kCacheLineSize) typename Fc::OutputBuffer separate, fused;
       fc.Propagate(features, separate);
@@ -150,14 +151,14 @@ void TestAccumulator(Position&, std::istream& stream) {
 #endif
       const auto incremental = accumulator_of(current_state());
       const Value score = evaluate();
-      networks().feature_transformer.EnsureAccumulator(pos, true, current_state());
+      network.feature_transformer.EnsureAccumulator(pos, true, current_state());
       const Value cached_reference = evaluate();
       if (score != cached_reference || std::memcmp(incremental.accumulation,
           accumulator_of(current_state()).accumulation, sizeof(incremental.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED cached refresh game " << game << " ply " << ply << std::endl;
         return;
       }
-      networks().feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+      network.feature_transformer.RefreshAccumulatorForTest(pos, current_state());
       const Value reference = evaluate();
       if (score != reference || std::memcmp(incremental.accumulation,
           accumulator_of(current_state()).accumulation, sizeof(incremental.accumulation)) != 0) {
@@ -173,7 +174,7 @@ void TestAccumulator(Position&, std::istream& stream) {
         return;
       }
       do_move(move);
-      networks().feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
+      network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
       if (std::memcmp(incremental.accumulation, accumulator_of(current_state()).accumulation,
                       sizeof(incremental.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED redo" << std::endl;
@@ -184,7 +185,7 @@ void TestAccumulator(Position&, std::istream& stream) {
       if (!pos.checkers()) {
         const Value parent_score = evaluate();
         pos.do_null_move();
-        if (evaluate() != Eval::evaluate(pos)) {
+        if (evaluate() != fresh_evaluate()) {
           std::cout << "test_accumulator FAILED computed parent null move" << std::endl;
           return;
         }
@@ -364,14 +365,17 @@ void PrintInfo(std::istream& stream) {
 }  // namespace
 
 // NNUE評価関数に関するUSI拡張コマンド
-void TestCommand(Position& pos, std::istream& stream) {
+void TestCommand(IEngine& engine, std::istream& stream) {
+  Position& pos = engine.get_position();
   std::string sub_command;
   stream >> sub_command;
 
   if (sub_command == "test_features") {
     TestFeatures(pos);
   } else if (sub_command == "test_accumulator") {
-    TestAccumulator(pos, stream);
+    TestAccumulator(
+      engine.get_network(),
+      stream);
   } else if (sub_command == "info") {
     PrintInfo(stream);
   } else {

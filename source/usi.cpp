@@ -126,7 +126,7 @@ void USIEngine::set_engine(IEngine& _engine) {
     //     期待するコードになっているので呼び出して初期化してやる。
     //     また、その時にエンジンオプションを追加する。
 
-#if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
+#if defined(USE_CLASSIC_EVAL) && !defined(EVAL_NNUE)
     Eval::add_options(engine.get_options(), engine.get_threads());
 #endif
 

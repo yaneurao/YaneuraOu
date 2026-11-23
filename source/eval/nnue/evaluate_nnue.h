@@ -14,9 +14,7 @@
 #include "../../misc.h"
 #include "../../memory.h"
 #include "../../shm.h"
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
 #include "../../numa.h"
-#endif
 
 #if defined(EVAL_SFNN)
 #define NNUE_SFNN_KING_BUCKET_TYPE_NONE 0
@@ -137,26 +135,7 @@ namespace Progress {
 	static_assert(std::is_trivially_copyable_v<NnueNetworks>,
 		"NnueNetworks must be trivially copyable for shared memory support");
 
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
-    extern std::unique_ptr<LazyNumaReplicatedSystemWide<NnueNetworks>> shared_networks;
-
-    // The single YaneuraOu engine owns the context; release replicas before it is destroyed.
-    // NUMAコンテキストは単一のYaneuraOuエンジンが持つ。破棄前に複製を解放する。
-    void set_network_numa_context(NumaReplicationContext& context);
-    void release_network_numa_context(NumaReplicationContext& context);
-
-    inline const NnueNetworks& networks(NumaReplicatedAccessToken token) {
-        return (*shared_networks)[token];
-    }
-    inline const NnueNetworks& networks() { return **shared_networks; }
-#else
-    // NNUE評価関数パラメーター（共有メモリまたはローカルメモリ上に配置）
-    extern SystemWideSharedConstant<NnueNetworks> shared_networks;
-
-    // 共有メモリ上のNnueNetworksへのconst参照を返すヘルパー。
-    // 評価関数の呼び出しで毎回使われるので、インライン化する。
-    inline const NnueNetworks& networks() { return *shared_networks; }
-#endif
+    extern int FV_SCALE;
 
 	// 評価関数ファイル名
 	extern const char* const kFileName;
@@ -174,10 +153,13 @@ namespace Progress {
 
 	// 評価関数パラメータを読み込む
 	// On a sidecar read failure, replace failed_file with its path.
-	Tools::Result ReadParameters(std::istream& stream, std::string* failed_file = nullptr);
+    // 補助ファイルの読み込みに失敗したとき、failed_fileにそのパスを設定する。
+    Tools::Result ReadParameters(LazyNumaReplicatedSystemWide<NnueNetworks>& network,
+                                const OptionsMap& options, std::istream& stream,
+                                std::string* failed_file = nullptr);
 
 	// 評価関数パラメータを書き込む
-	bool WriteParameters(std::ostream& stream);
+	bool WriteParameters(const NnueNetworks& network, std::ostream& stream);
 
 } // namespace Eval::NNUE
 } // namespace YaneuraOu

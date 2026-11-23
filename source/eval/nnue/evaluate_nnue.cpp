@@ -27,79 +27,6 @@
 #include "evaluate_nnue.h"
 #include "nnue_common.h"
 
-namespace YaneuraOu::Eval::NNUE {
-extern int FV_SCALE;
-}
- 
-// ============================================================
-//              旧評価関数のためのヘルパー
-// ============================================================
-
-#if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
-using namespace YaneuraOu;
-void add_options_(OptionsMap& options);
-
-namespace {
-YaneuraOu::OptionsMap* options_ptr;
-}
-
-// 📌 旧Optionsとの互換性のためのマクロ 📌
-#define Options (*options_ptr)
-
-namespace YaneuraOu::Eval {
-void add_options(OptionsMap& options, ThreadPool&) {
-    options_ptr = &options;
-    add_options_(options);
-}
-}
-// ============================================================
-
-// 評価関数を読み込み済みであるか
-bool        eval_loaded   = false;
-std::string last_eval_dir = "None";
-
-// 📌 この評価関数で追加したいエンジンオプションはここで追加する。
-void add_options_(OptionsMap& options) {
-
-#if defined(NNUE_EMBEDDING_OFF)
-    const char* default_eval_dir = "eval";
-#else
-	// メモリから読み込む。
-    const char* default_eval_dir = "<internal>";
-#endif
-    Options.add("EvalDir", Option(default_eval_dir, [](const Option& o) {
-                    std::string eval_dir = std::string(o);
-                    if (last_eval_dir != eval_dir)
-                    {
-                        // 評価関数フォルダ名の変更に際して、評価関数ファイルの読み込みフラグをクリアする。
-                        last_eval_dir = eval_dir;
-                        eval_loaded   = false;
-                    }
-                    return std::nullopt;
-                }));
-
-#if defined(__EMSCRIPTEN__)
-    // 📝 wasmでは評価関数ファイル名をJS側から指定できるようにする。
-    //     JS側はEmscriptenの仮想FSにファイルを書き出したあと、
-    //     "setoption name EvalFile value ..."を送ってくる。
-    // ⚠ load_eval()はwasmのとき、EvalDirが"<internal>"でもOptions["EvalFile"]を
-    //     参照するので、埋め込み版でもこのOptionは必要。
-    Options.add("EvalFile", Option(EvalFileDefaultName, [](const Option&) {
-                    // 評価関数ファイル名の変更に際して、読み込みフラグをクリアする。
-                    eval_loaded = false;
-                    return std::nullopt;
-                }));
-#endif
-
-    // NNUEのFV_SCALEの値
-    Options.add("FV_SCALE", Option(16, 1, 128, [](const Option& o) {
-                    YaneuraOu::Eval::NNUE::FV_SCALE = int(o);
-                    return std::nullopt;
-                }));
-
-}
-#endif
-
 // Macro to embed the default efficiently updatable neural network (NNUE) file
 // data in the engine binary (using incbin.h, by Dale Weiler).
 // This macro invocation will declare the following three variables
@@ -265,29 +192,6 @@ int Parameters::BucketIndex(const Position& pos, int bucket_count) const {
 } // namespace Progress
 #endif
 
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
-    std::unique_ptr<LazyNumaReplicatedSystemWide<NnueNetworks>> shared_networks;
-    namespace {
-    NumaReplicationContext* network_numa_context = nullptr;
-    }
-
-    void set_network_numa_context(NumaReplicationContext& context) {
-        assert(!network_numa_context || network_numa_context == &context);
-        network_numa_context = &context;
-    }
-
-    void release_network_numa_context(NumaReplicationContext& context) {
-        if (network_numa_context != &context)
-            return;
-        shared_networks.reset();
-        network_numa_context = nullptr;
-        eval_loaded = false;
-    }
-#else
-    // NNUE評価関数パラメーター（共有メモリまたはローカルメモリ上に配置）
-    SystemWideSharedConstant<NnueNetworks> shared_networks;
-#endif
-
     // 評価関数ファイル名
     const char* const kFileName = EvalFileDefaultName;
 
@@ -341,13 +245,11 @@ namespace {
 
 	// テンポラリにパラメータを読み込み、共有メモリに配置する。
 	// 同じパラメータを持つ他プロセスが既に共有メモリを作成済みなら、そちらを参照する。
-	Tools::Result LoadAndShare(std::istream& stream, [[maybe_unused]] std::string* failed_file) {
+	Tools::Result LoadAndShare(
+        LazyNumaReplicatedSystemWide<NnueNetworks>& network, [[maybe_unused]] const OptionsMap& options,
+        std::istream& stream, [[maybe_unused]] std::string* failed_file) {
 		// テンポラリ領域にパラメータを読み込む
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
         auto tmp = std::make_unique<NnueNetworks>();
-#else
-        auto tmp = make_unique_aligned<NnueNetworks>();
-#endif
 
 		u32 hash_value;
 		std::string architecture;
@@ -381,7 +283,7 @@ namespace {
 			return result;
 		}
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
-		const std::string eval_dir = Options["EvalDir"];
+		const std::string eval_dir = options["EvalDir"];
 		const auto progress_path = CommandLine::get_binary_directory() / path_from_utf8(eval_dir) / "progress.bin";
 		std::ifstream progress_stream(progress_path, std::ios::binary);
 		sync_cout << "info string loading progress file : " << progress_path << sync_endl;
@@ -407,13 +309,7 @@ namespace {
 			return Tools::ResultCode::FileCloseError;
 
 		// 共有メモリに配置（同一ハッシュの共有メモリが既に存在すればそちらを参照）
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
-        assert(network_numa_context);
-        shared_networks = std::make_unique<LazyNumaReplicatedSystemWide<NnueNetworks>>(
-          *network_numa_context, std::move(tmp));
-#else
-        shared_networks = SystemWideSharedConstant<NnueNetworks>(*tmp);
-#endif
+        network = std::move(tmp);
 
 		return Tools::ResultCode::Ok;
 	}
@@ -451,29 +347,28 @@ namespace {
     }
 
     	// 評価関数パラメータを読み込む
-    Tools::Result ReadParameters(std::istream& stream, std::string* failed_file) {
-        return LoadAndShare(stream, failed_file);
+    Tools::Result ReadParameters(
+        LazyNumaReplicatedSystemWide<NnueNetworks>& network, const OptionsMap& options,
+        std::istream& stream, std::string* failed_file) {
+        return LoadAndShare(
+          network, options,
+          stream, failed_file);
     }
     // 評価関数パラメータを書き込む
-    bool WriteParameters(std::ostream& stream) {
+    bool WriteParameters(const NnueNetworks& network, std::ostream& stream) {
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
-        const auto qb = networks().network[0].weight_scale;
+        const auto qb = network.network[0].weight_scale;
         if (!WriteHeader(stream, kHashValue, Nn16Architecture(qb))) return false;
         for (int i = 0; i < 4; ++i)
             stream.put(static_cast<char>((qb >> (8 * i)) & 255));
 #else
         if (!WriteHeader(stream, kHashValue, GetArchitectureString())) return false;
 #endif
-        if (!Detail::WriteParameters<FeatureTransformer>(stream, networks().feature_transformer)) return false;
+        if (!Detail::WriteParameters<FeatureTransformer>(stream, network.feature_transformer)) return false;
         for (int i = 0; i < kLayerStacks; ++i) {
-            if (!Detail::WriteParameters<Network>(stream, networks().network[i])) return false;
+            if (!Detail::WriteParameters<Network>(stream, network.network[i])) return false;
         }
         return !stream.fail();
-    }
-
-    // 差分計算ができるなら進める
-    static void UpdateAccumulatorIfPossible(const Position& pos, AccumulatorState* state) {
-        networks().feature_transformer.UpdateAccumulatorIfPossible(pos, state);
     }
 
 #if defined(EVAL_SFNN)
@@ -811,8 +706,8 @@ namespace {
 #endif
 
     // 評価値を計算する
-    static Value ComputeScore(const Position& pos, AccumulatorState* state, bool refresh = false,
-                              const NnueNetworks& network = networks()) {
+    static Value ComputeScore(const NnueNetworks& network, const Position& pos,
+                              AccumulatorState* state, bool refresh = false) {
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 #if defined(EVAL_SFNN)
         const auto bucket = stack_index_for_nnue(pos, network);
@@ -862,18 +757,15 @@ namespace {
 }  // namespace NNUE
 
 // 評価関数ファイルを読み込む
-void load_eval() {
-    // 評価関数パラメーターを読み込み済みであるなら帰る。
-    if (eval_loaded)
-        return;
+void load_eval(LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>& network, const OptionsMap& options) {
 
     {
-        const std::string dir_name = Options["EvalDir"];
+        const std::string dir_name = options["EvalDir"];
     #if !defined(__EMSCRIPTEN__)
 		const std::string file_name = NNUE::kFileName;
 #else
 		// WASM
-        const std::string file_name = Options["EvalFile"];
+        const std::string file_name = options["EvalFile"];
     #endif
         std::string failed_file = file_name;
         const Tools::Result result = [&] {
@@ -893,7 +785,9 @@ void load_eval() {
 				if (!stream.is_open())
 					return Tools::Result(Tools::ResultCode::FileNotFound);
 
-                return NNUE::ReadParameters(stream, &failed_file);
+                return NNUE::ReadParameters(
+                  network, options,
+                  stream, &failed_file);
             }
             else {
                 // C++ way to prepare a buffer for a memory stream
@@ -913,7 +807,9 @@ void load_eval() {
                 std::istream stream(&buffer);
                 sync_cout << "info string loading eval file : <internal>" << sync_endl;
 
-                return NNUE::ReadParameters(stream, &failed_file);
+                return NNUE::ReadParameters(
+                  network, options,
+                  stream, &failed_file);
             }
         }();
 
@@ -926,46 +822,25 @@ void load_eval() {
             Tools::exit();
         }
 
-		// 評価関数ファイルの読み込みが完了した。
-		eval_loaded = true;
     }
 }
 
 
-// 評価関数。差分計算ではなく全計算する。
-// Position::set()で一度だけ呼び出される。(以降は差分計算)
-// 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
-// なので、この関数の最適化は頑張らない。
-Value compute_eval(const Position& pos) {
-    NNUE::AccumulatorState state;
-    return NNUE::ComputeScore(pos, &state, true);
-}
-
-Value evaluate(const Position& pos) {
+Value evaluate(const NNUE::NnueNetworks& network, const Position& pos) {
     // Standalone evaluation must not change a search worker's stack.
     // 探索外の評価では、探索Workerのスタックを変更しない。
     NNUE::AccumulatorState state;
-    return NNUE::ComputeScore(pos, &state);
+    return NNUE::ComputeScore(network, pos, &state);
 }
 
-Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack) {
-    return NNUE::ComputeScore(pos, &stack.latest());
+Value evaluate(const NNUE::NnueNetworks& network, const Position& pos, NNUE::AccumulatorStack& stack) {
+    return NNUE::ComputeScore(network, pos, &stack.latest());
 }
-#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
-Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack, NumaReplicatedAccessToken token) {
-    return NNUE::ComputeScore(pos, &stack.latest(), false, NNUE::networks(token));
-}
-#endif
 
 #if defined(EVAL_NNUE)
-void evaluate_with_no_return(const Position& pos, NNUE::AccumulatorStack& stack) {
-    NNUE::UpdateAccumulatorIfPossible(pos, &stack.latest());
-}
-
-void evaluate_with_no_return(const Position& pos) {
-    // No worker stack is available to this standalone helper.
-    // 探索外の補助関数にはWorkerの累積値スタックを渡さない。
-    (void) pos;
+void evaluate_with_no_return(const NNUE::NnueNetworks& network, const Position& pos,
+                             NNUE::AccumulatorStack& stack) {
+    network.feature_transformer.UpdateAccumulatorIfPossible(pos, &stack.latest());
 }
 #endif
 

@@ -24,6 +24,9 @@
 
 #if !STOCKFISH
 #include "evaluate.h"
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+#include "eval/nnue/evaluate_nnue.h"
+#endif
 #endif
 
 namespace YaneuraOu {
@@ -232,6 +235,9 @@ public:
 
     // 🌈 "e"コマンド。現在の局面に対して評価関数を呼び出して評価値を返す。
     virtual Value evaluate() const = 0;
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    virtual const Eval::NNUE::NnueNetworks& get_network() const = 0;
+#endif
 
 	// OptionsMap(エンジンオプション)を取得
 
@@ -388,6 +394,9 @@ class Engine: public IEngine {
 
     virtual void              trace_eval() const override;
     virtual Value             evaluate() const override;
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    const Eval::NNUE::NnueNetworks& get_network() const override { return *network; }
+#endif
     virtual const OptionsMap& get_options() const override;
     virtual OptionsMap&       get_options() override;
 
@@ -470,8 +479,7 @@ class Engine: public IEngine {
 	//     置換表を実際に確保しないなら、使用メモリは無視できると思うのでこうしておく。
     TranspositionTable tt;
 
-    //LazyNumaReplicated<Eval::NNUE::Network> network;
-    // TODO : あとで検討する
+    Eval::NetworkStorage network;
 
     // 読み筋を出力するためのlistener
     Search::UpdateContext updateContext;
@@ -568,6 +576,9 @@ class EngineWrapper: public IEngine {
 
     virtual void trace_eval() const override { engine->trace_eval(); }
     virtual Value evaluate() const override { return engine->evaluate(); }
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    const Eval::NNUE::NnueNetworks& get_network() const override { return engine->get_network(); }
+#endif
 
     virtual const OptionsMap& get_options() const override { return engine->get_options(); }
     virtual OptionsMap&       get_options() override { return engine->get_options(); }

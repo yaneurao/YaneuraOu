@@ -50,7 +50,8 @@ constexpr NumaAutoPolicy DefaultNumaPolicy = BundledL3Policy{32};
 
 Engine::Engine() :
 	numaContext(NumaConfig::from_system(DefaultNumaPolicy)),
-	threads()
+	threads(),
+    network(numaContext)
 {
 
 #if !defined(USE_CLASSIC_EVAL)
@@ -402,7 +403,7 @@ void Engine::resize_threads() {
 		{ return make_unique_large_page<Search::Worker>(sharedState, ids); };
 
     threads.set(numaContext.get_numa_config(),
-                {options, threads, tt, sharedHists /*, network */ }, /* これはSharedState 相当 */
+                {options, threads, tt, sharedHists, network}, /* これはSharedState 相当 */
 				updateContext,
                 options["Threads"],
 				worker_factory);
