@@ -1823,6 +1823,11 @@ class LazyNumaReplicatedSystemWide: public NumaReplicatedBase {
     using ReplicatorFuncType = std::function<T(const T&)>;
 
 
+    // Defer loading the source until the engine is ready.
+    // エンジンの準備ができるまで、複製元の読み込みを遅らせる。
+    explicit LazyNumaReplicatedSystemWide(NumaReplicationContext& ctx) :
+        NumaReplicatedBase(ctx) {}
+
     LazyNumaReplicatedSystemWide(NumaReplicationContext& ctx, std::unique_ptr<T>&& source) :
         NumaReplicatedBase(ctx) {
         prepare_replicate_from(std::move(source));
@@ -1881,6 +1886,11 @@ class LazyNumaReplicatedSystemWide: public NumaReplicatedBase {
     }
 
     void on_numa_config_changed() override {
+        // The engine may change NUMA policy before loading the source.
+        // 複製元の読み込みより先にNUMA設定が変更される場合がある。
+        if (instances.empty())
+            return;
+
         // Use the first one as the source. It doesn't matter which one we use,
         // because they all must be identical, but the first one is guaranteed to exist.
         auto source = std::make_unique<T>(*instances[0]);
