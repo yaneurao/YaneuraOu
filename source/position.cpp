@@ -1,29 +1,37 @@
 ﻿#include "position.h"
 
-#include <memory>
-
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <cctype>
 #include <cstddef>
 #include <cstring>
+#include <initializer_list>
+#include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
+#include <string_view>
+
+#if !STOCKFISH
 #include <stack>
 #include <vector>
+#endif
 
 #include "bitboard.h"
-#include "extra/tools.h"
 #if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN) && !defined(NO_PREFETCH)
 #include "history.h"
 #endif
 #include "misc.h"
+#include "movegen.h"
+
+#if !STOCKFISH
+#include "extra/tools.h"
 #include "tt.h"
 #include "mate/mate.h"
 #include "book/book.h"
-#include "movegen.h"
 #include "testcmd/unit_test.h"
+#endif
 
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
 #include "eval/evaluate_common.h"
@@ -1012,32 +1020,32 @@ void Position::update_slider_blockers(Color c) const {
 
 // 🌈 sq == SQ_NBでの呼び出しは合法。この時、Bitboard(ZERO)が返る。
 
-Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const {
+Bitboard Position::attackers_to(Square s, const Bitboard& occupied) const {
     // clang-format off
 
-	ASSERT_LV3(sq <= SQ_NB);
+	ASSERT_LV3(s <= SQ_NB);
 
     // sqの地点に敵駒ptをおいて、その利きに自駒のptがあればsqに利いているということだ。
     return
       // 先手の歩・桂・銀・金・HDK
-      ((  (pawnEffect<WHITE>(sq)   & pieces(PAWN))
-		| (knightEffect<WHITE>(sq) & pieces(KNIGHT))
-        | (silverEffect<WHITE>(sq) & pieces(SILVER_HDK))
-        | (goldEffect<WHITE>(sq)   & pieces(GOLDS_HDK)))
+      ((  (pawnEffect<WHITE>(s)   & pieces(PAWN))
+		| (knightEffect<WHITE>(s) & pieces(KNIGHT))
+        | (silverEffect<WHITE>(s) & pieces(SILVER_HDK))
+        | (goldEffect<WHITE>(s)   & pieces(GOLDS_HDK)))
        & pieces(BLACK))
       |
 
       // 後手の歩・桂・銀・金・HDK
-      (((pawnEffect<BLACK>(sq)     & pieces(PAWN))
-		| (knightEffect<BLACK>(sq) & pieces(KNIGHT))
-        | (silverEffect<BLACK>(sq) & pieces(SILVER_HDK))
-        | (goldEffect<BLACK>(sq)   & pieces(GOLDS_HDK)))
+      (((pawnEffect<BLACK>(s)     & pieces(PAWN))
+		| (knightEffect<BLACK>(s) & pieces(KNIGHT))
+        | (silverEffect<BLACK>(s) & pieces(SILVER_HDK))
+        | (goldEffect<BLACK>(s)   & pieces(GOLDS_HDK)))
        & pieces(WHITE))
 
       // 先後の角・飛・香
-      | (bishopEffect(sq, occ)     & pieces(BISHOP_HORSE))
-      | (rookEffect(sq, occ)       & (pieces(ROOK_DRAGON) | (pieces(BLACK, LANCE) & lanceStepEffect<WHITE>(sq))
-      | (pieces(WHITE, LANCE)      & lanceStepEffect<BLACK>(sq))
+      | (bishopEffect(s, occupied)     & pieces(BISHOP_HORSE))
+      | (rookEffect(s, occupied)       & (pieces(ROOK_DRAGON) | (pieces(BLACK, LANCE) & lanceStepEffect<WHITE>(s))
+      | (pieces(WHITE, LANCE)      & lanceStepEffect<BLACK>(s))
         // 香も、StepEffectでマスクしたあと飛車の利きを使ったほうが香の利きを求めなくて済んで速い。
     ));
 

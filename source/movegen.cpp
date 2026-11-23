@@ -1,16 +1,21 @@
 ﻿//   指し手生成ライブラリ
 
 #include "movegen.h"
-#include "misc.h"
 
-#include <iostream>
+#include <cassert>
+#include <initializer_list>
 
+#include "bitboard.h"
 #include "position.h"
+
+#if !STOCKFISH
+#include <iostream>
+#include "misc.h"
+#endif
 
 // clang-format off
 // 🌈 indentに特別な意味があるので、clang-formatはこのファイルでは無効化しておく。
 
-using namespace std;
 namespace YaneuraOu {
 
 using namespace BB_Table;
@@ -36,7 +41,7 @@ bool pseudo_legal_check(const Position& pos, Move* mlist_start, Move* mlist_end)
 #if 0
 	if (!all_ok)
 	{
-		sync_cout << "Error! : A non-pseudo legal move was generated." << endl
+		sync_cout << "Error! : A non-pseudo legal move was generated." << std::endl
 			      << pos << sync_endl;
 
 		for (auto it = mlist_start; it != mlist_end; ++it)
@@ -60,7 +65,7 @@ bool pseudo_legal_check(const Position& pos, Move* mlist_start, Move* mlist_end)
 // fromにあるpcをtargetの升に移動させる指し手の生成。
 // 遅いので駒王手の指し手生成のときにしか使わない。
 template <PieceType Pt, Color Us, bool All> struct make_move_target {
-	FORCE_INLINE Move* operator()(const Position& pos, Square from, const Bitboard& target_, Move* mlist)
+	FORCE_INLINE Move* operator()(const Position& pos, Square from, const Bitboard& target_, Move* moveList)
 	{
 		Square to;
 		Bitboard target = target_;
@@ -75,12 +80,12 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 				to = from + (Us == BLACK ? SQ_U : SQ_D); // to = target.pop(); より少し速い
 				if (canPromote(Us, to))
 				{
-					*mlist++ = make_move_promote(from, to , Us, Pt);
+					*moveList++ = make_move_promote(from, to , Us, Pt);
 					if (All && rank_of(to) != (Us == BLACK ? RANK_1 : RANK_9))
-						*mlist++ = make_move(from, to , Us, Pt);
+						*moveList++ = make_move(from, to , Us, Pt);
 				}
 				else
-					*mlist++ = make_move(from, to , Us, Pt);
+					*moveList++ = make_move(from, to , Us, Pt);
 			}
 			break;
 
@@ -88,13 +93,13 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 		case LANCE:
 		{
 			target2 = target & enemy_field(Us);
-			target2.foreach([&](Square to) { *mlist++ = make_move_promote(from, to , Us , Pt); });
+			target2.foreach([&](Square to) { *moveList++ = make_move_promote(from, to , Us , Pt); });
 
 			// 不成で移動する升
 			target &= All ? (Us == BLACK ? BB_Table::ForwardRanksBB[WHITE][RANK_1] : BB_Table::ForwardRanksBB[BLACK][RANK_9]) :
 							(Us == BLACK ? BB_Table::ForwardRanksBB[WHITE][RANK_2] : BB_Table::ForwardRanksBB[BLACK][RANK_8]);
 
-			target.foreach([&](Square to) { *mlist++ = make_move(from,to , Us , Pt); });
+			target.foreach([&](Square to) { *moveList++ = make_move(from,to , Us , Pt); });
 		}
 		break;
 
@@ -105,9 +110,9 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 			{
 				to = target.pop();
 				if (canPromote(Us, to))
-					*mlist++ = make_move_promote(from, to  , Us, Pt);
+					*moveList++ = make_move_promote(from, to  , Us, Pt);
 				if ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))
-					*mlist++ = make_move(from, to , Us, Pt);
+					*moveList++ = make_move(from, to , Us, Pt);
 			}
 		}
 		break;
@@ -118,8 +123,8 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 			if (enemy_field(Us) & from) {
 				// 敵陣からなら成れることは確定している
 				target.foreach([&](Square to) {
-					*mlist++ = make_move_promote(from, to , Us, Pt);
-					*mlist++ = make_move(from, to  , Us, Pt);
+					*moveList++ = make_move_promote(from, to , Us, Pt);
+					*moveList++ = make_move(from, to  , Us, Pt);
 				});
 			}
 			else
@@ -127,23 +132,23 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 				// 非敵陣からなので敵陣への移動のみ成り
 				target2 = target & enemy_field(Us);
 				target2.foreach([&](Square to) {
-					*mlist++ = make_move_promote(from, to , Us, Pt);
-					*mlist++ = make_move(from, to , Us, Pt);
+					*moveList++ = make_move_promote(from, to , Us, Pt);
+					*moveList++ = make_move(from, to , Us, Pt);
 				});
 				target &= ~enemy_field(Us);
-				target.foreach([&](Square to) { *mlist++ = make_move(from,to , Us,Pt); });
+				target.foreach([&](Square to) { *moveList++ = make_move(from,to , Us,Pt); });
 			}
 		}
 		break;
 
 		// 成れない駒
 		case GOLD: case PRO_PAWN: case PRO_LANCE: case PRO_KNIGHT: case PRO_SILVER: case HORSE: case DRAGON: case KING:
-			target.foreach([&](Square to) { *mlist++ = make_move(from,to , Us, Pt); });
+			target.foreach([&](Square to) { *moveList++ = make_move(from,to , Us, Pt); });
 			break;
 
 			// 成れない駒。(対象の駒は不明)
 		case GPM_GHDK:
-			target.foreach([&](Square to) { *mlist++ = make_move(from, to, pos.piece_on(from)); });
+			target.foreach([&](Square to) { *moveList++ = make_move(from, to, pos.piece_on(from)); });
 			break;
 
 			// 成れるなら成る駒。ただしAllのときは不成も生成。
@@ -151,20 +156,20 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 			// 移動元が敵陣なら無条件で成れる
 			if (canPromote(Us, from)) {
 				target.foreach([&](Square to) {
-					*mlist++ = make_move_promote(from,to , Us,Pt);
-					if (All) *mlist++ = make_move(from,to , Us,Pt);
+					*moveList++ = make_move_promote(from,to , Us,Pt);
+					if (All) *moveList++ = make_move(from,to , Us,Pt);
 				});
 			}
 			else
 			{
 				target2 = target & enemy_field(Us);
 				target2.foreach([&](Square to) {
-					*mlist++ = make_move_promote(from,to , Us,Pt);
-					if (All) *mlist++ = make_move(from,to , Us,Pt);
+					*moveList++ = make_move_promote(from,to , Us,Pt);
+					if (All) *moveList++ = make_move(from,to , Us,Pt);
 				});
 
 				target &= ~enemy_field(Us);
-				target.foreach([&](Square to) { *mlist++ = make_move(from,to , Us,Pt); });
+				target.foreach([&](Square to) { *moveList++ = make_move(from,to , Us,Pt); });
 			}
 			break;
 
@@ -172,20 +177,20 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 		case GPM_BR:
 			if (canPromote(Us, from)) {
 				target.foreach([&](Square to){
-					*mlist++ = make_move_promote(from,to , pos.piece_on(from));
-					if (All) *mlist++ = make_move(from,to , pos.piece_on(from))  ;
+					*moveList++ = make_move_promote(from,to , pos.piece_on(from));
+					if (All) *moveList++ = make_move(from,to , pos.piece_on(from))  ;
 				});
 			}
 			else
 			{
 				target2 = target & enemy_field(Us);
 				target2.foreach([&](Square to){
-					*mlist++ = make_move_promote(from,to, pos.piece_on(from));
-					if (All) *mlist++ = make_move(from,to, pos.piece_on(from));
+					*moveList++ = make_move_promote(from,to, pos.piece_on(from));
+					if (All) *moveList++ = make_move(from,to, pos.piece_on(from));
 				});
 
 				target &= ~enemy_field(Us);
-				target.foreach([&](Square to) { *mlist++ = make_move(from,to , pos.piece_on(from)); });
+				target.foreach([&](Square to) { *moveList++ = make_move(from,to , pos.piece_on(from)); });
 			}
 			break;
 
@@ -193,13 +198,13 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 		default: ASSERT_LV3(false); sf_unreachable(); break;
 		}
 
-		return mlist;
+		return moveList;
 	}
 };
 
 // 指し手生成のうち、一般化されたもの。香・桂・銀はこの指し手生成を用いる。
 template <GenType Type, PieceType Pt, Color Us, bool All> struct GeneratePieceMoves {
-	FORCE_INLINE Move* operator()(const Position&pos, Move*mlist, const Bitboard& target) {
+	FORCE_INLINE Move* operator()(const Position&pos, Move*moveList, const Bitboard& target) {
 		// 盤上の駒pc(香・桂・銀)に対して
 		auto pieces = pos.pieces(Us, Pt);
 		const auto occ = pos.pieces();
@@ -216,16 +221,16 @@ template <GenType Type, PieceType Pt, Color Us, bool All> struct GeneratePieceMo
 				Bitboard(1); // error
 
 			target2 &= target;
-			mlist = make_move_target<Pt, Us, All>()(pos, from, target2, mlist);
+			moveList = make_move_target<Pt, Us, All>()(pos, from, target2, moveList);
 		}
 
-		return mlist;
+		return moveList;
 	}
 };
 
 // 歩の移動による指し手生成
 template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, PAWN, Us, All> {
-	FORCE_INLINE Move* operator()(const Position&pos, Move*mlist, const Bitboard& target)
+	FORCE_INLINE Move* operator()(const Position&pos, Move*moveList, const Bitboard& target)
 	{
 		// 盤上の自駒の歩に対して
 		auto pieces = pos.pieces(Us, PAWN);
@@ -243,7 +248,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, PAWN
 			// 歩が成れるときは成る指し手しか生成しない。
 			if (canPromote(Us, to))
 			{
-				*mlist++ = make_move_promote(from, to , Us, PAWN);
+				*moveList++ = make_move_promote(from, to , Us, PAWN);
 
 				// ただしAll(全合法手を生成するとき)だけは不成も生成
 				// また、移動先の升が1段目は、成れないのでその指し手生成は除外
@@ -255,19 +260,19 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, PAWN
 					//	continue;
 					// →　CAPTURE_PRO_PLUS_ALLは実装ややこしいから廃止する。
 
-					*mlist++ = make_move(from, to, Us, PAWN);
+					*moveList++ = make_move(from, to, Us, PAWN);
 				}
 			}
 			else
-				*mlist++ = make_move(from, to , Us, PAWN);
+				*moveList++ = make_move(from, to , Us, PAWN);
 		}
-		return mlist;
+		return moveList;
 	}
 };
 
 // 角・飛による移動による指し手生成。これらの駒は成れるなら絶対に成る
 template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_BR, Us, All> {
-	FORCE_INLINE Move* operator()(const Position&pos, Move*mlist, const Bitboard& target)
+	FORCE_INLINE Move* operator()(const Position&pos, Move*moveList, const Bitboard& target)
 	{
 		// 角と飛に対して(馬と龍は除く)
 		auto pieces = pos.pieces(Us,BISHOP,ROOK);
@@ -280,15 +285,15 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 			// fromの升にある駒をfromの升においたときの利き
 			auto target2 = effects_from(pos.piece_on(from), from, occ) & target;
 
-			mlist = make_move_target<GPM_BR, Us, All>()(pos, from, target2, mlist);
+			moveList = make_move_target<GPM_BR, Us, All>()(pos, from, target2, moveList);
 		}
-		return mlist;
+		return moveList;
 	}
 };
 
 // 成れない駒による移動による指し手。(金相当の駒・馬・龍・王)
 template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_GHDK, Us, All> {
-	FORCE_INLINE Move* operator()(const Position&pos, Move*mlist, const Bitboard& target)
+	FORCE_INLINE Move* operator()(const Position&pos, Move*moveList, const Bitboard& target)
 	{
 		// 金相当の駒・馬・龍・玉に対して
 		auto pieces = pos.pieces(Us,GOLDS,HDK);
@@ -300,15 +305,15 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 			// fromの升にある駒をfromの升においたときの利き
 			auto target2 = effects_from(pos.piece_on(from), from, occ) & target;
 
-			mlist = make_move_target<GPM_GHDK, Us, All>()(pos, from, target2, mlist);
+			moveList = make_move_target<GPM_GHDK, Us, All>()(pos, from, target2, moveList);
 		}
-		return mlist;
+		return moveList;
 	}
 };
 
 // 玉を除く成れない駒による移動による指し手。(金相当の駒・馬・龍)
 template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_GHD, Us, All> {
-	FORCE_INLINE Move* operator()(const Position&pos, Move*mlist, const Bitboard& target)
+	FORCE_INLINE Move* operator()(const Position&pos, Move*moveList, const Bitboard& target)
 	{
 		// 金相当の駒・馬・龍に対して
 		auto pieces = pos.pieces(Us,GOLDS,HORSE,DRAGON);
@@ -320,9 +325,9 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 			// fromの升にある駒をfromの升においたときの利き
 			const auto pc = pos.piece_on(from);
 			auto target2 = effects_from(pc, from, occ) & target;
-			target2.foreach([&](Square to) { *mlist++ = make_move(from,to,pc); });
+			target2.foreach([&](Square to) { *moveList++ = make_move(from,to,pc); });
 		}
-		return mlist;
+		return moveList;
 	}
 };
 
@@ -333,7 +338,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 
 // 駒打ちの指し手生成
 template <Color Us> struct GenerateDropMoves {
-	Move* operator()(const Position&pos, Move*mlist, const Bitboard& target) {
+	Move* operator()(const Position&pos, Move*moveList, const Bitboard& target) {
 
 		// 相手の手番
 		constexpr Color Them = ~Us;
@@ -342,7 +347,7 @@ template <Color Us> struct GenerateDropMoves {
 		const Hand hand = pos.hand_of(Us);
 		// 手駒を持っていないならば終了
 		if (hand == 0)
-			return mlist;
+			return moveList;
 
 		// --- 歩を打つ指し手生成
 		if (hand_exists(hand, PAWN))
@@ -374,7 +379,7 @@ template <Color Us> struct GenerateDropMoves {
 
 			// targetで表現される升に歩を打つ指し手の生成。
 			target2.foreach([&](Square sq) {
-				*mlist++ = make_move_drop(PAWN , sq , Us );
+				*moveList++ = make_move_drop(PAWN , sq , Us );
 			});
 
 		}
@@ -419,10 +424,10 @@ template <Color Us> struct GenerateDropMoves {
 
 				switch (num)
 				{
-				case 1: target2.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 1: target2.foreach([&](Square sq) { Unroller<1>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
+				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
+				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
+				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
 				default: ASSERT_LV3(false); sf_unreachable();
 				}
 			}
@@ -437,48 +442,48 @@ template <Color Us> struct GenerateDropMoves {
 				switch (num - nextToLance) // 1段目に対する香・桂以外の駒打ちの指し手生成(最大で4種の駒)
 				{
 				case 0: break; // 香・桂以外の持ち駒がないケース
-				case 1: target1.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
-				case 2: target1.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
-				case 3: target1.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
-				case 4: target1.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i + nextToLance] + sq); }); }); break;
+				case 1: target1.foreach([&](Square sq) { Unroller<1>()([&](int i){ *moveList++ = Move(drops[i + nextToLance] + sq); }); }); break;
+				case 2: target1.foreach([&](Square sq) { Unroller<2>()([&](int i){ *moveList++ = Move(drops[i + nextToLance] + sq); }); }); break;
+				case 3: target1.foreach([&](Square sq) { Unroller<3>()([&](int i){ *moveList++ = Move(drops[i + nextToLance] + sq); }); }); break;
+				case 4: target1.foreach([&](Square sq) { Unroller<4>()([&](int i){ *moveList++ = Move(drops[i + nextToLance] + sq); }); }); break;
 				default: ASSERT_LV3(false); sf_unreachable();
 				}
 
 				switch (num - nextToKnight) // 2段目に対する桂以外の駒打ちの指し手の生成(最大で5種の駒)
 				{
 				case 0: break; // 桂以外の持ち駒がないケース
-				case 1: target2.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
-				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
-				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
-				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
-				case 5: target2.foreach([&](Square sq) { Unroller<5>()([&](int i){ *mlist++ = Move(drops[i + nextToKnight] + sq); }); }); break;
+				case 1: target2.foreach([&](Square sq) { Unroller<1>()([&](int i){ *moveList++ = Move(drops[i + nextToKnight] + sq); }); }); break;
+				case 2: target2.foreach([&](Square sq) { Unroller<2>()([&](int i){ *moveList++ = Move(drops[i + nextToKnight] + sq); }); }); break;
+				case 3: target2.foreach([&](Square sq) { Unroller<3>()([&](int i){ *moveList++ = Move(drops[i + nextToKnight] + sq); }); }); break;
+				case 4: target2.foreach([&](Square sq) { Unroller<4>()([&](int i){ *moveList++ = Move(drops[i + nextToKnight] + sq); }); }); break;
+				case 5: target2.foreach([&](Square sq) { Unroller<5>()([&](int i){ *moveList++ = Move(drops[i + nextToKnight] + sq); }); }); break;
 				default: ASSERT_LV3(false); sf_unreachable();
 				}
 
 				switch (num) // 3～9段目に対する香を含めた指し手生成(最大で6種の駒)
 				{
-				case 1: target3.foreach([&](Square sq) { Unroller<1>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				case 2: target3.foreach([&](Square sq) { Unroller<2>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				case 3: target3.foreach([&](Square sq) { Unroller<3>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				case 4: target3.foreach([&](Square sq) { Unroller<4>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				case 5: target3.foreach([&](Square sq) { Unroller<5>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
-				case 6: target3.foreach([&](Square sq) { Unroller<6>()([&](int i){ *mlist++ = Move(drops[i] + sq); }); }); break;
+				case 1: target3.foreach([&](Square sq) { Unroller<1>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
+				case 2: target3.foreach([&](Square sq) { Unroller<2>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
+				case 3: target3.foreach([&](Square sq) { Unroller<3>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
+				case 4: target3.foreach([&](Square sq) { Unroller<4>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
+				case 5: target3.foreach([&](Square sq) { Unroller<5>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
+				case 6: target3.foreach([&](Square sq) { Unroller<6>()([&](int i){ *moveList++ = Move(drops[i] + sq); }); }); break;
 				default: ASSERT_LV3(false); sf_unreachable();
 				}
 			}
 
 		}
 
-		return mlist;
+		return moveList;
 	}
 };
 
 
 // 手番側が王手がかかっているときに、王手を回避する手を生成する。
 template<Color Us, bool All>
-Move* generate_evasions(const Position& pos, Move* mlist)
+Move* generate_evasions(const Position& pos, Move* moveList)
 {
-	Move* mlist_org = mlist;
+	Move* mlist_org = moveList;
 
 	// この実装において引数のtargetは無視する。
 
@@ -523,7 +528,7 @@ Move* generate_evasions(const Position& pos, Move* mlist)
 	// これがまだ自殺手である可能性もあるが、それはis_legal()でチェックすればいいと思う。
 
 	Bitboard bb = kingEffect(ksq) & ~(pos.pieces(Us) | sliderAttacks);
-	while (bb) { Square to = bb.pop(); *mlist++ = make_move(ksq, to , Us, KING); }
+	while (bb) { Square to = bb.pop(); *moveList++ = make_move(ksq, to , Us, KING); }
 
 	// 両王手(checkersCnt == 2)であるなら、王の移動のみが回避手となる。ゆえにこれで指し手生成は終了。
 	// 1以下なら、両王手ではないので..
@@ -543,18 +548,18 @@ Move* generate_evasions(const Position& pos, Move* mlist)
 		const Bitboard target2 = target1 | checksq;
 
 		// あとはNON_EVASIONS扱いで普通に指し手生成。
-		mlist = GeneratePieceMoves<NON_EVASIONS, PAWN   , Us, All>()(pos, mlist, target2);
-		mlist = GeneratePieceMoves<NON_EVASIONS, LANCE  , Us, All>()(pos, mlist, target2);
-		mlist = GeneratePieceMoves<NON_EVASIONS, KNIGHT , Us, All>()(pos, mlist, target2);
-		mlist = GeneratePieceMoves<NON_EVASIONS, SILVER , Us, All>()(pos, mlist, target2);
-		mlist = GeneratePieceMoves<NON_EVASIONS, GPM_BR , Us, All>()(pos, mlist, target2);
-		mlist = GeneratePieceMoves<NON_EVASIONS, GPM_GHD, Us, All>()(pos, mlist, target2); // 玉は除かないといけない
-		mlist = GenerateDropMoves<Us>()(pos, mlist, target1);
+		moveList = GeneratePieceMoves<NON_EVASIONS, PAWN   , Us, All>()(pos, moveList, target2);
+		moveList = GeneratePieceMoves<NON_EVASIONS, LANCE  , Us, All>()(pos, moveList, target2);
+		moveList = GeneratePieceMoves<NON_EVASIONS, KNIGHT , Us, All>()(pos, moveList, target2);
+		moveList = GeneratePieceMoves<NON_EVASIONS, SILVER , Us, All>()(pos, moveList, target2);
+		moveList = GeneratePieceMoves<NON_EVASIONS, GPM_BR , Us, All>()(pos, moveList, target2);
+		moveList = GeneratePieceMoves<NON_EVASIONS, GPM_GHD, Us, All>()(pos, moveList, target2); // 玉は除かないといけない
+		moveList = GenerateDropMoves<Us>()(pos, moveList, target1);
 	}
 
-	ASSERT_LV5(pseudo_legal_check(pos, mlist_org, mlist));
+	ASSERT_LV5(pseudo_legal_check(pos, mlist_org, moveList));
 
-	return mlist;
+	return moveList;
 }
 
 // ----------------------------------
@@ -562,13 +567,13 @@ Move* generate_evasions(const Position& pos, Move* mlist)
 // ----------------------------------
 
 // 指し手の生成器本体
-// mlist : 指し手を返して欲しい指し手生成バッファのアドレス
+// moveList : 指し手を返して欲しい指し手生成バッファのアドレス
 // Us : 生成するほうの手番
 // All : 歩・香の2段目での不成や角・飛の不成などをすべて生成するのか。
 // 返し値 : 生成した指し手の終端
 // generateのほうから内部的に呼び出される。(直接呼び出さないこと。)
 template<GenType Type, Color Us, bool All>
-Move* generate_general(const Position& pos, Move* mlist, Square recapSq = SQ_NB) {
+Move* generate_general(const Position& pos, Move* moveList, Square recapSq = SQ_NB) {
 
 	// --- 駒の移動による指し手
 
@@ -580,7 +585,7 @@ Move* generate_general(const Position& pos, Move* mlist, Square recapSq = SQ_NB)
 
 	static_assert(Type != EVASIONS_ALL && Type != NON_EVASIONS_ALL && Type != RECAPTURES_ALL, "*_ALL is not allowed.");
 
-	Move* mlist_org = mlist;
+	Move* mlist_org = moveList;
 	constexpr Color Them = ~Us;
 	
 	// 歩以外の駒の移動先
@@ -601,27 +606,27 @@ Move* generate_general(const Position& pos, Move* mlist, Square recapSq = SQ_NB)
 
 	// 各駒による移動の指し手の生成
 	// 歩の指し手は歩のBitboardをbit shiftすることで移動先が一発で求まるので特別扱い
-	mlist = GeneratePieceMoves<Type, PAWN    , Us, All>()(pos, mlist, targetPawn);
+	moveList = GeneratePieceMoves<Type, PAWN    , Us, All>()(pos, moveList, targetPawn);
 
 	// 香・桂・銀は成れるなら成らない手の他に成る手も生成する駒。これらによる移動の指し手
-	mlist = GeneratePieceMoves<Type, LANCE   , Us, All>()(pos, mlist, target);
-	mlist = GeneratePieceMoves<Type, KNIGHT  , Us, All>()(pos, mlist, target);
-	mlist = GeneratePieceMoves<Type, SILVER  , Us, All>()(pos, mlist, target);
+	moveList = GeneratePieceMoves<Type, LANCE   , Us, All>()(pos, moveList, target);
+	moveList = GeneratePieceMoves<Type, KNIGHT  , Us, All>()(pos, moveList, target);
+	moveList = GeneratePieceMoves<Type, SILVER  , Us, All>()(pos, moveList, target);
 
 	// 角・飛による移動による指し手生成。これらの駒は成れるなら絶対に成る
-	mlist = GeneratePieceMoves<Type, GPM_BR  , Us, All>()(pos, mlist, target);
+	moveList = GeneratePieceMoves<Type, GPM_BR  , Us, All>()(pos, moveList, target);
 
 	// 金相当の駒・馬・龍・王による移動による指し手。(成れない駒による移動による指し手)
-	mlist = GeneratePieceMoves<Type, GPM_GHDK, Us, All>()(pos, mlist, target);
+	moveList = GeneratePieceMoves<Type, GPM_GHDK, Us, All>()(pos, moveList, target);
 
 	// --- 駒打ち
 	// →　オーダリング性能改善のためにDropをもう少し細分化できるといいのだが、なかなか簡単ではなさげ。
 	if (Type == QUIETS || Type == QUIETS_PRO_MINUS || Type == NON_EVASIONS)
-		mlist = GenerateDropMoves<Us>()(pos, mlist, pos.empties());
+		moveList = GenerateDropMoves<Us>()(pos, moveList, pos.empties());
 
-	ASSERT_LV5(pseudo_legal_check(pos,mlist_org, mlist));
+	ASSERT_LV5(pseudo_legal_check(pos,mlist_org, moveList));
 
-	return mlist;
+	return moveList;
 }
 
 // -----------------------------------------------------
@@ -632,42 +637,42 @@ Move* generate_general(const Position& pos, Move* mlist, Square recapSq = SQ_NB)
 // ptの駒をfromに置いたときの移動する指し手を生成する。ただし、targetで指定された升のみ。
 template <Color Us, bool All>
 struct make_move_target_general {
-	Move* operator()(const Position& pos, Piece pc, Square from, const Bitboard& target, Move* mlist) {
+	Move* operator()(const Position& pos, Piece pc, Square from, const Bitboard& target, Move* moveList) {
 
 		ASSERT_LV2(pc != NO_PIECE);
 		auto effect = effects_from(pc, from, pos.pieces());
 		switch (type_of(pc))
 		{
-		case PAWN      : mlist = make_move_target<PAWN      , Us, All>()(pos, from, effect & target, mlist); break;
-		case LANCE     : mlist = make_move_target<LANCE     , Us, All>()(pos, from, effect & target, mlist); break;
-		case KNIGHT    : mlist = make_move_target<KNIGHT    , Us, All>()(pos, from, effect & target, mlist); break;
-		case SILVER    : mlist = make_move_target<SILVER    , Us, All>()(pos, from, effect & target, mlist); break;
-		case GOLD      : mlist = make_move_target<GOLD      , Us, All>()(pos, from, effect & target, mlist); break;
-		case BISHOP    : mlist = make_move_target<BISHOP    , Us, All>()(pos, from, effect & target, mlist); break;
-		case ROOK      : mlist = make_move_target<ROOK      , Us, All>()(pos, from, effect & target, mlist); break;
-		case KING      : mlist = make_move_target<KING      , Us, All>()(pos, from, effect & target, mlist); break;
-		case PRO_PAWN  : mlist = make_move_target<PRO_PAWN  , Us, All>()(pos, from, effect & target, mlist); break;
-		case PRO_LANCE : mlist = make_move_target<PRO_LANCE , Us, All>()(pos, from, effect & target, mlist); break;
-		case PRO_KNIGHT: mlist = make_move_target<PRO_KNIGHT, Us, All>()(pos, from, effect & target, mlist); break;
-		case PRO_SILVER: mlist = make_move_target<PRO_SILVER, Us, All>()(pos, from, effect & target, mlist); break;
-		case HORSE     : mlist = make_move_target<HORSE     , Us, All>()(pos, from, effect & target, mlist); break;
-		case DRAGON    : mlist = make_move_target<DRAGON    , Us, All>()(pos, from, effect & target, mlist); break;
+		case PAWN      : moveList = make_move_target<PAWN      , Us, All>()(pos, from, effect & target, moveList); break;
+		case LANCE     : moveList = make_move_target<LANCE     , Us, All>()(pos, from, effect & target, moveList); break;
+		case KNIGHT    : moveList = make_move_target<KNIGHT    , Us, All>()(pos, from, effect & target, moveList); break;
+		case SILVER    : moveList = make_move_target<SILVER    , Us, All>()(pos, from, effect & target, moveList); break;
+		case GOLD      : moveList = make_move_target<GOLD      , Us, All>()(pos, from, effect & target, moveList); break;
+		case BISHOP    : moveList = make_move_target<BISHOP    , Us, All>()(pos, from, effect & target, moveList); break;
+		case ROOK      : moveList = make_move_target<ROOK      , Us, All>()(pos, from, effect & target, moveList); break;
+		case KING      : moveList = make_move_target<KING      , Us, All>()(pos, from, effect & target, moveList); break;
+		case PRO_PAWN  : moveList = make_move_target<PRO_PAWN  , Us, All>()(pos, from, effect & target, moveList); break;
+		case PRO_LANCE : moveList = make_move_target<PRO_LANCE , Us, All>()(pos, from, effect & target, moveList); break;
+		case PRO_KNIGHT: moveList = make_move_target<PRO_KNIGHT, Us, All>()(pos, from, effect & target, moveList); break;
+		case PRO_SILVER: moveList = make_move_target<PRO_SILVER, Us, All>()(pos, from, effect & target, moveList); break;
+		case HORSE     : moveList = make_move_target<HORSE     , Us, All>()(pos, from, effect & target, moveList); break;
+		case DRAGON    : moveList = make_move_target<DRAGON    , Us, All>()(pos, from, effect & target, moveList); break;
 		default: ASSERT_LV3(false); sf_unreachable();
 		}
-		return mlist;
+		return moveList;
 	}
 };
 
 // promoteかどうかを呼び出し元で選択できるmake_move_target
 template <PieceType Pt, Color Us, bool All, bool Promote>
-Move* make_move_target_pro(Square from, const Bitboard& target, Move* mlist)
+Move* make_move_target_pro(Square from, const Bitboard& target, Move* moveList)
 {
 	auto bb = target;
 	while (bb)
 	{
 		auto to = bb.pop();
 		if (Promote)
-			*mlist++ = make_move_promote(from, to , Us, Pt);
+			*moveList++ = make_move_promote(from, to , Us, Pt);
 		else
 		{
 			if (   ((Pt == PAWN) &&
@@ -681,15 +686,15 @@ Move* make_move_target_pro(Square from, const Bitboard& target, Move* mlist)
 				|| ((Pt == BISHOP || Pt == ROOK) && (!(canPromote(Us, from) || canPromote(Us, to)) || All))
 				)
 
-				*mlist++ = make_move(from, to , Us, Pt);
+				*moveList++ = make_move(from, to , Us, Pt);
 		}
 	}
-	return mlist;
+	return moveList;
 }
 
 // pcをfromにおいたときにksqにいる敵玉に対して王手になる移動による指し手の生成
 template <Color Us, bool All>
-Move* make_move_check(const Position& pos, Piece pc, Square from, Square ksq, const Bitboard& target, Move* mlist)
+Move* make_move_check(const Position& pos, Piece pc, Square from, Square ksq, const Bitboard& target, Move* moveList)
 {
 	// Xで成るとYになる駒に関する王手になる指し手生成
 	// 移動元が敵陣でないなら、移動先が敵陣でないと成れない。
@@ -697,9 +702,9 @@ Move* make_move_check(const Position& pos, Piece pc, Square from, Square ksq, co
     dst = X_Effect(Us, from) & Y_Effect(~Us, ksq) & target;            \
     if (!(enemy_field(Us) & from))                                     \
       dst &= enemy_field(Us);                                          \
-    mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
+    moveList = make_move_target_pro<X, Us, All, true>(from, dst, moveList);  \
     dst = X_Effect(Us, from) & X_Effect(~Us, ksq) & target;            \
-    mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); }
+    moveList = make_move_target_pro<X, Us, All, false>(from, dst, moveList); }
 
 	// ↑のX==LANCEのとき
 	// 同じ筋にある敵玉と香との間には一つ以上の駒があるはず(ないとしたら、玉が取れるので非合法局面)
@@ -709,10 +714,10 @@ Move* make_move_check(const Position& pos, Piece pc, Square from, Square ksq, co
     dst = X_Effect(Us, from,occ) & Y_Effect(~Us, ksq) & target;        \
     if (!(enemy_field(Us) & from))                                     \
       dst &= enemy_field(Us);                                          \
-    mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
+    moveList = make_move_target_pro<X, Us, All, true>(from, dst, moveList);  \
     if (file_of(from) == file_of(ksq) && !(between_bb(from, ksq) & occ).more_than_one()){ \
       dst = pos.pieces(~Us) & between_bb(from, ksq) & target;            \
-      mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); \
+      moveList = make_move_target_pro<X, Us, All, false>(from, dst, moveList); \
     }}
 
 	// ↑のBISHOP,ROOK用
@@ -721,20 +726,20 @@ Move* make_move_check(const Position& pos, Piece pc, Square from, Square ksq, co
   dst = X_Effect(from,occ) & Y_Effect(ksq,occ) & target;               \
     if (!(enemy_field(Us) & from))                                     \
       dst &= enemy_field(Us);                                          \
-    mlist = make_move_target_pro<X, Us, All, true>(from, dst, mlist);  \
+    moveList = make_move_target_pro<X, Us, All, true>(from, dst, moveList);  \
     dst = X_Effect(from,occ) & X_Effect(ksq,occ) & target;             \
-    mlist = make_move_target_pro<X, Us, All, false>(from, dst, mlist); }
+    moveList = make_move_target_pro<X, Us, All, false>(from, dst, moveList); }
 
 	// ↑の成れない駒用
 #define GEN_MOVE_GOLD_CHECK(X,X_Effect) {                              \
   dst = X_Effect(Us, from) & X_Effect(~Us, ksq) & target;              \
-  mlist = make_move_target<X, Us, All>()(pos,from, dst, mlist); }
+  moveList = make_move_target<X, Us, All>()(pos,from, dst, moveList); }
 
 	// ↑のHORSE,DRAGON駒用
 #define GEN_MOVE_HD_CHECK(X,X_Effect) {                                \
   occ = pos.pieces();                                                  \
   dst = X_Effect(from,occ) & X_Effect(ksq,occ) & target;               \
-  mlist = make_move_target<X, Us, All>()(pos,from, dst, mlist); }
+  moveList = make_move_target<X, Us, All>()(pos,from, dst, moveList); }
 
 	Bitboard dst, occ;
 	switch (type_of(pc))
@@ -760,27 +765,27 @@ Move* make_move_check(const Position& pos, Piece pc, Square from, Square ksq, co
 		ASSERT_LV3(false);
 		sf_unreachable();
 	}
-	return mlist;
+	return moveList;
 }
 
 // 王手になる駒打ち
 
 template <Color Us, PieceType Pt> struct GenerateCheckDropMoves {
-	Move* operator()(const Position& , const Bitboard& target, Move* mlist)
+	Move* operator()(const Position& , const Bitboard& target, Move* moveList)
 	{
 		auto bb = target;
 		while (bb)
 		{
 			auto to = bb.pop();
-			*mlist++ = make_move_drop(Pt, to , Us);
+			*moveList++ = make_move_drop(Pt, to , Us);
 		}
-		return mlist;
+		return moveList;
 	}
 };
 
 // 歩だけ特殊化(2歩の判定/打ち歩詰め判定が必要なため)
 template <Color Us> struct GenerateCheckDropMoves<Us, PAWN> {
-	Move* operator()(const Position& pos, const Bitboard& target, Move* mlist)
+	Move* operator()(const Position& pos, const Bitboard& target, Move* moveList)
 	{
 		auto bb = target;
 		if (bb) // 歩を打って王手になる箇所は1箇所しかないのでwhileである必要はない。
@@ -789,16 +794,16 @@ template <Color Us> struct GenerateCheckDropMoves<Us, PAWN> {
 
 			// 二歩と打ち歩詰めでないならこの指し手を生成。
 			if (pos.legal_pawn_drop(Us, to))
-				*mlist++ = make_move_drop(PAWN, to , Us);
+				*moveList++ = make_move_drop(PAWN, to , Us);
 		}
-		return mlist;
+		return moveList;
 	}
 };
 
 
 // 指し手の生成器本体(王手専用)
 template<GenType Type, Color Us, bool All>
-Move* generate_checks(const Position& pos, Move* mlist)
+Move* generate_checks(const Position& pos, Move* moveList)
 {
 	// --- 駒の移動による王手
 
@@ -854,11 +859,11 @@ Move* generate_checks(const Position& pos, Move* mlist)
 		// いまの敵玉とfromを通る直線上の升と違うところに移動させれば開き王手が確定する。その直線を求める。
 		auto pin_line = line_bb(themKing, from);
 		
-		mlist = make_move_target_general<Us, All>()(pos, pos.piece_on(from), from, pin_line.andnot(target) , mlist);
+		moveList = make_move_target_general<Us, All>()(pos, pos.piece_on(from), from, pin_line.andnot(target) , moveList);
 
 		if (x & from)
 			// 直接王手にもなるので↑で生成した~line_bb以外の升への指し手を生成。
-			mlist = make_move_check<Us, All>(pos, pos.piece_on(from), from, themKing, pin_line & target, mlist);
+			moveList = make_move_check<Us, All>(pos, pos.piece_on(from), from, themKing, pin_line & target, moveList);
 	}
 
 	// yに被覆しないx
@@ -868,7 +873,7 @@ Move* generate_checks(const Position& pos, Move* mlist)
 		auto from = src.pop();
 
 		// 直接王手のみ。
-		mlist = make_move_check<Us, All>(pos, pos.piece_on(from), from, themKing, target, mlist);
+		moveList = make_move_check<Us, All>(pos, pos.piece_on(from), from, themKing, target, moveList);
 	}
 
 	// --- 駒打ちによる王手
@@ -877,21 +882,21 @@ Move* generate_checks(const Position& pos, Move* mlist)
 
 	Hand h = pos.hand_of(Us);
 	if (hand_exists(h, PAWN))
-		mlist = GenerateCheckDropMoves<Us, PAWN>()(pos, pos.check_squares(PAWN) & empties, mlist);
+		moveList = GenerateCheckDropMoves<Us, PAWN>()(pos, pos.check_squares(PAWN) & empties, moveList);
 	if (hand_exists(h, LANCE))
-		mlist = GenerateCheckDropMoves<Us, LANCE>()(pos, pos.check_squares(LANCE) & empties, mlist);
+		moveList = GenerateCheckDropMoves<Us, LANCE>()(pos, pos.check_squares(LANCE) & empties, moveList);
 	if (hand_exists(h, KNIGHT))
-		mlist = GenerateCheckDropMoves<Us, KNIGHT>()(pos, pos.check_squares(KNIGHT) & empties, mlist);
+		moveList = GenerateCheckDropMoves<Us, KNIGHT>()(pos, pos.check_squares(KNIGHT) & empties, moveList);
 	if (hand_exists(h, SILVER))
-		mlist = GenerateCheckDropMoves<Us, SILVER>()(pos, pos.check_squares(SILVER) & empties, mlist);
+		moveList = GenerateCheckDropMoves<Us, SILVER>()(pos, pos.check_squares(SILVER) & empties, moveList);
 	if (hand_exists(h, GOLD))
-		mlist = GenerateCheckDropMoves<Us, GOLD>()(pos, pos.check_squares(GOLD) & empties, mlist);
+		moveList = GenerateCheckDropMoves<Us, GOLD>()(pos, pos.check_squares(GOLD) & empties, moveList);
 	if (hand_exists(h, BISHOP))
-		mlist = GenerateCheckDropMoves<Us, BISHOP>()(pos, pos.check_squares(BISHOP) & empties, mlist);
+		moveList = GenerateCheckDropMoves<Us, BISHOP>()(pos, pos.check_squares(BISHOP) & empties, moveList);
 	if (hand_exists(h, ROOK))
-		mlist = GenerateCheckDropMoves<Us, ROOK>()(pos, pos.check_squares(ROOK) & empties, mlist);
+		moveList = GenerateCheckDropMoves<Us, ROOK>()(pos, pos.check_squares(ROOK) & empties, moveList);
 
-	return mlist;
+	return moveList;
 }
 
 
@@ -901,30 +906,30 @@ Move* generate_checks(const Position& pos, Move* mlist)
 
 // generate_general()を先後分けて実体化するための踏み台
 template<GenType Type, bool All>
-Move* generate(const Position& pos, Move* mlist, Square sq = SQ_NB)
+Move* generate(const Position& pos, Move* moveList, Square sq = SQ_NB)
 {
-	return pos.side_to_move() == BLACK ? generate_general<Type, BLACK, All>(pos, mlist, sq) : generate_general<Type, WHITE, All>(pos, mlist, sq);
+	return pos.side_to_move() == BLACK ? generate_general<Type, BLACK, All>(pos, moveList, sq) : generate_general<Type, WHITE, All>(pos, moveList, sq);
 }
 
 // 同じく、Evasionsの指し手生成を呼ぶための踏み台
 template<bool All>
-Move* generateEvasionMoves(const Position& pos, Move* mlist)
+Move* generateEvasionMoves(const Position& pos, Move* moveList)
 {
-	return pos.side_to_move() == BLACK ? generate_evasions<BLACK, All>(pos, mlist) : generate_evasions<WHITE, All>(pos, mlist);
+	return pos.side_to_move() == BLACK ? generate_evasions<BLACK, All>(pos, moveList) : generate_evasions<WHITE, All>(pos, moveList);
 }
 
 // 同じく、Checksの指し手生成を呼ぶための踏み台
 template<GenType Type, bool All>
-Move* generateChecksMoves(const Position& pos, Move* mlist)
+Move* generateChecksMoves(const Position& pos, Move* moveList)
 {
-	return pos.side_to_move() == BLACK ? generate_checks<Type, BLACK, All>(pos, mlist) : generate_checks<Type, WHITE, All>(pos, mlist);
+	return pos.side_to_move() == BLACK ? generate_checks<Type, BLACK, All>(pos, moveList) : generate_checks<Type, WHITE, All>(pos, moveList);
 }
 
 
 
 // 一般的な指し手生成
 template<GenType Type>
-Move* generate(const Position& pos, Move* mlist, Square recapSq)
+Move* generate(const Position& pos, Move* moveList, Square recapSq)
 {
 	// 歩の不成などを含め、すべての指し手を生成するのか。
 	// Typeの末尾に"ALL"とついているものがその対象。
@@ -939,15 +944,15 @@ Move* generate(const Position& pos, Move* mlist, Square recapSq)
 
 		// 合法性な指し手のみを生成する。
 		// 自殺手や打ち歩詰めが含まれているのでそれを取り除く。かなり重い。ゆえにLEGALは特殊な状況でしか使うべきではない。
-		auto last = pos.in_check() ? generateEvasionMoves<All>(pos, mlist) : generate<NON_EVASIONS, All>(pos, mlist);
+		auto last = pos.in_check() ? generateEvasionMoves<All>(pos, moveList) : generate<NON_EVASIONS, All>(pos, moveList);
 
 		// 合法ではない指し手を末尾の指し手と入れ替え
-		while (mlist != last)
+		while (moveList != last)
 		{
-			if (!pos.legal(*mlist))
-				*mlist = *(--last);
+			if (!pos.legal(*moveList))
+				*moveList = *(--last);
 			else
-				++mlist;
+				++moveList;
 		}
 		return last;
 	}
@@ -955,24 +960,24 @@ Move* generate(const Position& pos, Move* mlist, Square recapSq)
 	// 王手生成
 	if (Type == CHECKS || Type == CHECKS_ALL || Type == QUIET_CHECKS || Type == QUIET_CHECKS_ALL)
 	{
-		auto last = generateChecksMoves<Type, All>(pos, mlist);
+		auto last = generateChecksMoves<Type, All>(pos, moveList);
 
 		// 王手がかかっている局面においては王手生成において、回避手になっていない指し手も含まれるので(王手放置での駒打ち等)
 		// pseudo_legal()でない指し手はここで除外する。これはレアケースなので少々の無駄は許容する。
 		if (pos.in_check())
-			while (mlist != last)
+			while (moveList != last)
 			{
-				if (!pos.pseudo_legal_s<All>(*mlist))
-					*mlist = *(--last);
+				if (!pos.pseudo_legal_s<All>(*moveList))
+					*moveList = *(--last);
 				else
-					++mlist;
+					++moveList;
 			}
 		return last;
 	}
 
 	// 回避手
 	if (Type == EVASIONS || Type == EVASIONS_ALL)
-		return generateEvasionMoves<All>(pos, mlist);
+		return generateEvasionMoves<All>(pos, moveList);
 
 	// 上記のもの以外
 	// ただし、NON_EVASIONS_ALL , RECAPTURES_ALLは、ALLではないほうを呼び出す必要がある。
@@ -986,49 +991,49 @@ Move* generate(const Position& pos, Move* mlist, Square recapSq)
 		Type == QUIETS_ALL            ? QUIETS            :
 		Type == QUIETS_PRO_MINUS_ALL  ? QUIETS_PRO_MINUS  :
 		Type; // さもなくば元のまま。
-	return generate<Type2, All>(pos, mlist, recapSq);
+	return generate<Type2, All>(pos, moveList, recapSq);
 }
 
 template<GenType Type>
-Move* generate(const Position& pos, Move* mlist)
+Move* generate(const Position& pos, Move* moveList)
 {
 	static_assert(Type != RECAPTURES && Type != RECAPTURES_ALL, "RECAPTURES , not allowed.");
-	return generate<Type>(pos, mlist, SQ_NB);
+	return generate<Type>(pos, moveList, SQ_NB);
 }
 
 
 // テンプレートの実体化。これを書いておかないとリンクエラーになる。
 // .h(ヘッダー)ではなく.cppのほうに書くことでコンパイル時間を節約できる。
 
-template Move* generate<QUIETS                >(const Position& pos, Move* mlist);
-template Move* generate<CAPTURES              >(const Position& pos, Move* mlist);
+template Move* generate<QUIETS                >(const Position& pos, Move* moveList);
+template Move* generate<CAPTURES              >(const Position& pos, Move* moveList);
 
-template Move* generate<QUIETS_ALL            >(const Position& pos, Move* mlist);
-template Move* generate<CAPTURES_ALL          >(const Position& pos, Move* mlist);
+template Move* generate<QUIETS_ALL            >(const Position& pos, Move* moveList);
+template Move* generate<CAPTURES_ALL          >(const Position& pos, Move* moveList);
 
-template Move* generate<QUIETS_PRO_MINUS      >(const Position& pos, Move* mlist);
-template Move* generate<QUIETS_PRO_MINUS_ALL  >(const Position& pos, Move* mlist);
+template Move* generate<QUIETS_PRO_MINUS      >(const Position& pos, Move* moveList);
+template Move* generate<QUIETS_PRO_MINUS_ALL  >(const Position& pos, Move* moveList);
 
-template Move* generate<CAPTURES_PRO_PLUS     >(const Position& pos, Move* mlist);
-template Move* generate<CAPTURES_PRO_PLUS_ALL >(const Position& pos, Move* mlist);
+template Move* generate<CAPTURES_PRO_PLUS     >(const Position& pos, Move* moveList);
+template Move* generate<CAPTURES_PRO_PLUS_ALL >(const Position& pos, Move* moveList);
 
-template Move* generate<EVASIONS              >(const Position& pos, Move* mlist);
-template Move* generate<EVASIONS_ALL          >(const Position& pos, Move* mlist);
+template Move* generate<EVASIONS              >(const Position& pos, Move* moveList);
+template Move* generate<EVASIONS_ALL          >(const Position& pos, Move* moveList);
 
-template Move* generate<NON_EVASIONS          >(const Position& pos, Move* mlist);
-template Move* generate<NON_EVASIONS_ALL      >(const Position& pos, Move* mlist);
+template Move* generate<NON_EVASIONS          >(const Position& pos, Move* moveList);
+template Move* generate<NON_EVASIONS_ALL      >(const Position& pos, Move* moveList);
 
-template Move* generate<LEGAL                 >(const Position& pos, Move* mlist);
-template Move* generate<LEGAL_ALL             >(const Position& pos, Move* mlist);
+template Move* generate<LEGAL                 >(const Position& pos, Move* moveList);
+template Move* generate<LEGAL_ALL             >(const Position& pos, Move* moveList);
 
-template Move* generate<CHECKS                >(const Position& pos, Move* mlist);
-template Move* generate<CHECKS_ALL            >(const Position& pos, Move* mlist);
+template Move* generate<CHECKS                >(const Position& pos, Move* moveList);
+template Move* generate<CHECKS_ALL            >(const Position& pos, Move* moveList);
 
-template Move* generate<QUIET_CHECKS          >(const Position& pos, Move* mlist);
-template Move* generate<QUIET_CHECKS_ALL      >(const Position& pos, Move* mlist);
+template Move* generate<QUIET_CHECKS          >(const Position& pos, Move* moveList);
+template Move* generate<QUIET_CHECKS_ALL      >(const Position& pos, Move* moveList);
 
-template Move* generate<RECAPTURES            >(const Position& pos, Move* mlist, Square recapSq);
-template Move* generate<RECAPTURES_ALL        >(const Position& pos, Move* mlist, Square recapSq);
+template Move* generate<RECAPTURES            >(const Position& pos, Move* moveList, Square recapSq);
+template Move* generate<RECAPTURES_ALL        >(const Position& pos, Move* moveList, Square recapSq);
 
 } // namespace YaneuraOu
 

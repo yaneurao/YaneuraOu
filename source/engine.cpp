@@ -1,20 +1,37 @@
 ﻿#include "engine.h"
-#include "extra/tools.h"
 
 #include <algorithm>
-#include <atomic>
+#include <cassert>
+#include <filesystem>
+#include <iosfwd>
+#include <memory>
+#include <ostream>
+#include <sstream>
+#include <string_view>
+#include <utility>
+#include <vector>
+
+#if !STOCKFISH
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <thread>
+#endif
 
+#include "evaluate.h"
 #include "misc.h"
+#include "numa.h"
 #include "perft.h"
+#include "position.h"
 #include "search.h"
-#include "thread.h"
 #include "types.h"
+#include "usi.h"
 #include "usioption.h"
+
+#if !STOCKFISH
+#include "extra/tools.h"
 #include "book/book.h"
+#endif
 
 namespace YaneuraOu {
 
@@ -433,12 +450,11 @@ void Engine::trace_eval() const {
 	// 🌈 やねうら王では、Engine派生classで定義する。
 #if STOCKFISH
 
-    Position     p;
-
-	p.set(pos.fen(), options["UCI_Chess960"]);
+    std::unique_ptr<Position> p = std::make_unique<Position>();
+    p->set(pos.fen(), options["UCI_Chess960"]);
 
     verify_network();
-	sync_cout << "\n" << Eval::trace(p, *network) << sync_endl;
+	sync_cout << "\n" << Eval::trace(*p, *network) << sync_endl;
 #endif
 }
 
@@ -473,60 +489,60 @@ int Engine::get_hashfull(int maxAge) const { return 0; }
 #endif
 
 std::vector<std::pair<usize, usize>> Engine::get_bound_thread_count_by_numa_node() const {
-	auto                                   counts = threads.get_bound_thread_count_by_numa_node();
-	const NumaConfig& cfg = numaContext.get_numa_config();
-	std::vector<std::pair<usize, usize>> ratios;
-	NumaIndex                              n = 0;
-	for (; n < counts.size(); ++n)
-		ratios.emplace_back(counts[n], cfg.num_cpus_in_numa_node(n));
-	if (!counts.empty())
-		for (; n < cfg.num_numa_nodes(); ++n)
-			ratios.emplace_back(0, cfg.num_cpus_in_numa_node(n));
-	return ratios;
+    auto                                 counts = threads.get_bound_thread_count_by_numa_node();
+    const NumaConfig&                    cfg    = numaContext.get_numa_config();
+    std::vector<std::pair<usize, usize>> ratios;
+    NumaIndex                            n = 0;
+    for (; n < counts.size(); ++n)
+        ratios.emplace_back(counts[n], cfg.num_cpus_in_numa_node(n));
+    if (!counts.empty())
+        for (; n < cfg.num_numa_nodes(); ++n)
+            ratios.emplace_back(0, cfg.num_cpus_in_numa_node(n));
+    return ratios;
 }
 
 std::string Engine::get_numa_config_as_string() const {
-	return numaContext.get_numa_config().to_string();
+    return numaContext.get_numa_config().to_string();
 }
 
 std::string Engine::numa_config_information_as_string() const {
-	auto cfgStr = get_numa_config_as_string();
-	return "Available processors: " + cfgStr;
+    auto cfgStr = get_numa_config_as_string();
+    return "Available processors: " + cfgStr;
 }
 
 std::string Engine::thread_binding_information_as_string() const {
-	auto              boundThreadsByNode = get_bound_thread_count_by_numa_node();
-	std::stringstream ss;
-	if (boundThreadsByNode.empty())
-		return ss.str();
+    auto              boundThreadsByNode = get_bound_thread_count_by_numa_node();
+    std::stringstream ss;
+    if (boundThreadsByNode.empty())
+        return ss.str();
 
-	bool isFirst = true;
+    bool isFirst = true;
 
-	for (auto&& [current, total] : boundThreadsByNode)
-	{
-		if (!isFirst)
-			ss << ":";
-		ss << current << "/" << total;
-		isFirst = false;
-	}
+    for (auto&& [current, total] : boundThreadsByNode)
+    {
+        if (!isFirst)
+            ss << ":";
+        ss << current << "/" << total;
+        isFirst = false;
+    }
 
-	return ss.str();
+    return ss.str();
 }
 
 std::string Engine::thread_allocation_information_as_string() const {
-	std::stringstream ss;
+    std::stringstream ss;
 
-	usize threadsSize = threads.size();
-	ss << "Using " << threadsSize << (threadsSize > 1 ? " threads" : " thread");
+    usize threadsSize = threads.size();
+    ss << "Using " << threadsSize << (threadsSize > 1 ? " threads" : " thread");
 
-	auto boundThreadsByNodeStr = thread_binding_information_as_string();
-	if (boundThreadsByNodeStr.empty())
-		return ss.str();
+    auto boundThreadsByNodeStr = thread_binding_information_as_string();
+    if (boundThreadsByNodeStr.empty())
+        return ss.str();
 
-	ss << " with NUMA node thread binding: ";
-	ss << boundThreadsByNodeStr;
+    ss << " with NUMA node thread binding: ";
+    ss << boundThreadsByNodeStr;
 
-	return ss.str();
+    return ss.str();
 }
 
 // --------------------

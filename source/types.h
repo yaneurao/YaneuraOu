@@ -19,11 +19,13 @@
 #include <cstdint>
 #include <type_traits>
 
+#if !STOCKFISH
 #include <iostream>     // iostreamに対する<<使うので仕方ない
 #include <string>       // std::string使うので仕方ない
 #include <algorithm>    // std::max()を使うので仕方ない
 #include <limits>		// std::numeric_limitsを使うので仕方ない
 #include <vector>       // std::vector
+#endif
 
 #include "misc.h"
 #include "extra/bitop.h"
@@ -522,14 +524,6 @@ constexpr Value VALUE_MIN_EVAL = -VALUE_MAX_EVAL;
 // 16bitの範囲で収まるとは限らないため、もっと大きな数にしておく必要がある。
 constexpr Value VALUE_NOT_EVALUATED = INT32_MAX;
 
-// ply手で詰ませるときのスコア
-constexpr Value mate_in(int ply) { return (Value)(VALUE_MATE - ply); }
-
-// ply手で詰まされるときのスコア
-// 💡 現局面で詰まされているなら、mated_in(1)
-constexpr Value mated_in(int ply) { return (Value)(-VALUE_MATE + ply); }
-
-
 // ValueがVALUE_NONEでなければtrue。
 constexpr bool is_valid(Value value) { return value != VALUE_NONE; }
 
@@ -562,6 +556,12 @@ constexpr bool is_mated(Value value) {
 
 constexpr bool is_mate_or_mated(Value value) { return is_mate(value) || is_mated(value); }
 
+// ply手で詰ませるときのスコア
+constexpr Value mate_in(int ply) { return VALUE_MATE - ply; }
+
+// ply手で詰まされるときのスコア
+// 💡 現局面で詰まされているなら、mated_in(1)
+constexpr Value mated_in(int ply) { return -VALUE_MATE + ply; }
 
 
 // --------------------
