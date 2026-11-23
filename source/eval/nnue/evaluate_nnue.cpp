@@ -813,17 +813,11 @@ namespace {
     // 評価値を計算する
     static Value ComputeScore(const Position& pos, AccumulatorState* state, bool refresh = false,
                               const NnueNetworks& network = networks()) {
-        auto& accumulator = accumulator_of(state);
-#if defined(EVAL_NNUE)
-        if (!refresh && accumulator.computed_score) {
-            return accumulator.score;
-        }
-#endif
-
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 #if defined(EVAL_SFNN)
         const auto bucket = stack_index_for_nnue(pos, network);
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
+        auto& accumulator = accumulator_of(state);
         network.feature_transformer.EnsureAccumulator(pos, refresh, state);
         const auto output = network.network[bucket].PropagateFromAccumulator(
             accumulator.accumulation, pos.side_to_move(), buffer);
@@ -859,14 +853,9 @@ namespace {
         auto score = static_cast<Value>(output[0] / FV_SCALE);
 #endif
 
-        // 1) ここ、下手にclipすると学習時には影響があるような気もするが…。
-        // 2) accumulator.scoreは、差分計算の時に用いないので書き換えて問題ない。
+        // ここ、下手にclipすると学習時には影響があるような気もするが…。
         score = std::clamp(score, -VALUE_MAX_EVAL, VALUE_MAX_EVAL);
 
-#if defined(EVAL_NNUE)
-        accumulator.score = score;
-        accumulator.computed_score = true;
-#endif
         return score;
     }
 

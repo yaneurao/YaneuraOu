@@ -61,9 +61,6 @@ void TestAccumulator(Position&, std::istream& stream) {
       if (!pos.checkers()) {
 
         pos.do_null_move(0);
-#if defined(EVAL_NNUE)
-        stack->push_null_move(pos);
-#endif
         // Also evaluate a child while the null move is still active.
         // null moveを戻す前に子局面へ進み、null moveをまたぐ差分更新も検証する。
         MoveList<LEGAL_ALL> null_legal(pos);
@@ -87,9 +84,6 @@ void TestAccumulator(Position&, std::istream& stream) {
           return;
         }
         pos.undo_null_move();
-#if defined(EVAL_NNUE)
-        stack->pop();
-#endif
       }
       if (evaluate() != Eval::evaluate(pos)) {
         std::cout << "test_accumulator FAILED delayed update" << std::endl;
@@ -187,21 +181,14 @@ void TestAccumulator(Position&, std::istream& stream) {
       }
       // Also test null from a computed, non-root parent with nonzero DirtyPiece.
       // DirtyPieceを持つ評価済みの非ルート局面からもnull moveを検証する。
-      // 探索と同様、MAX_PLYに達した局面からは次のフレームを積まない。
-      if (ply + 1 < max_ply && !pos.checkers()) {
+      if (!pos.checkers()) {
         const Value parent_score = evaluate();
         pos.do_null_move();
-#if defined(EVAL_NNUE)
-        stack->push_null_move(pos);
-#endif
         if (evaluate() != Eval::evaluate(pos)) {
           std::cout << "test_accumulator FAILED computed parent null move" << std::endl;
           return;
         }
         pos.undo_null_move();
-#if defined(EVAL_NNUE)
-        stack->pop();
-#endif
         if (evaluate() != parent_score) {
           std::cout << "test_accumulator FAILED computed parent null undo" << std::endl;
           return;

@@ -2333,9 +2333,6 @@ void Search::YaneuraOuWorker::do_null_move(Position& pos, Stack* const ss) {
     pos.do_null_move();
 #else
     pos.do_null_move(tt);
-#if defined(EVAL_NNUE)
-    accumulatorStack.push_null_move(pos);
-#endif
 #endif
     ss->currentMove                   = Move::null();
     // null moveなので、王手中でも駒取りでもない履歴の番兵を使う。
@@ -2357,12 +2354,7 @@ void Search::YaneuraOuWorker::undo_move(Position& pos, const Move move) {
 #endif
 }
 
-void Search::YaneuraOuWorker::undo_null_move(Position& pos) {
-    pos.undo_null_move();
-#if defined(EVAL_NNUE)
-    accumulatorStack.pop();
-#endif
-}
+void Search::YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
 
 
 // Reset histories, usually before a new game

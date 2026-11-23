@@ -14,22 +14,17 @@
 
 #include <array>
 #include <cassert>
-#include <cstring>
 
 namespace YaneuraOu {
 namespace Eval::NNUE {
 
 // 入力特徴量をアフィン変換した結果を保持するクラス
-// 従来NNUEでは最終評価値も保持する。SFNNでは手番に依存しないFT累積値だけを保持する。
+// SFNN・従来NNUEとも、手番に依存しないFT累積値だけを保持する。
 // AVX-512命令を使用する場合に64bytesのアライメントが要求される。
 struct alignas(64) Accumulator {
   i16
       accumulation[2][kRefreshTriggers.size()][kTransformedFeatureDimensions];
   bool computed_accumulation = false;
-#if defined(EVAL_NNUE)
-  Value score = VALUE_ZERO;
-  bool computed_score = false;
-#endif
 };
 
 // Changes are written directly into the next accumulator frame.
@@ -54,9 +49,6 @@ class AccumulatorStack {
         size = 1;
         auto& st = latest();
         st.computed_accumulation = false;
-#if defined(EVAL_NNUE)
-        st.computed_score = false;
-#endif
         st.previous = nullptr;
         st.dirtyPiece.dirty_num = 0;
     }
@@ -66,26 +58,10 @@ class AccumulatorStack {
         auto* previous = &latest();
         auto& st = accumulators[size++];
         st.computed_accumulation = false;
-#if defined(EVAL_NNUE)
-        st.computed_score = false;
-#endif
         st.previous = previous;
         st.dirtyPiece.dirty_num = 0;
         return st;
     }
-
-#if defined(EVAL_NNUE)
-    void push_null_move(const Position& pos) noexcept {
-        auto* previous = &latest();
-        push(pos);
-        // Copy bytes even when the parent FT has not been computed yet.
-        // 親のFTが未計算でも、未初期化の要素を値として読み出さずバイト列でコピーする。
-        std::memcpy(latest().accumulation, previous->accumulation,
-                    sizeof(latest().accumulation));
-        latest().computed_accumulation = previous->computed_accumulation;
-        latest().computed_score = false;
-    }
-#endif
 
     void pop() noexcept {
         assert(size > 1);

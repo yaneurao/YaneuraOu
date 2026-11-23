@@ -51,11 +51,6 @@ inline AccumulatorState* resolve_state([[maybe_unused]] const Position& pos,
 
 inline Accumulator& accumulator_of(AccumulatorState* state) { return *state; }
 inline const Accumulator& accumulator_of(const AccumulatorState* state) { return *state; }
-inline void invalidate_score([[maybe_unused]] Accumulator& accumulator) {
-#if defined(EVAL_NNUE)
-    accumulator.computed_score = false;
-#endif
-}
 
 // If vector instructions are enabled, we update and refresh the
 // accumulator tile by tile such that each tile fits in the CPU's
@@ -312,8 +307,8 @@ class FeatureTransformer {
         for (int c = 0; c < COLOR_NB; ++c)
             std::copy_n(current_pieces[c], PIECE_NUMBER_NB, old_pieces[c].begin());
 
-        // Count state links; SFNN stores no additional state for null moves.
-        // 前状態へのリンク数で数える。SFNNではnull move用の状態を積まない。
+        // Count state links; null moves share the current accumulator state.
+        // 前状態へのリンク数で数える。null moveは現在の累積値の状態を共有する。
         int distance = 0;
         while (ancestor && !accumulator_of(ancestor).computed_accumulation
                && distance < USE_LAZY_EVALUATE) {
@@ -368,7 +363,6 @@ class FeatureTransformer {
 #endif
         }
         accumulator.computed_accumulation = true;
-        invalidate_score(accumulator);
         return true;
     }
 #endif
@@ -462,7 +456,6 @@ class FeatureTransformer {
 			}
 		}
 		accumulator.computed_accumulation = true;
-		invalidate_score(accumulator);
 	}
 #endif
 
@@ -1234,7 +1227,6 @@ class FeatureTransformer {
 		}
 
 		accumulator.computed_accumulation = true;
-		invalidate_score(accumulator);
 	}
 #endif
 
@@ -1267,8 +1259,6 @@ class FeatureTransformer {
 		}
 
 		accumulator.computed_accumulation = true;
-		// Stockfishでは fc27d15(2020-09-07) にcomputed_scoreが排除されているので確認
-		invalidate_score(accumulator);
 	}
 
 	// Calculate cumulative value using difference calculation
@@ -1383,8 +1373,6 @@ class FeatureTransformer {
 		}
 
 		accumulator.computed_accumulation = true;
-		// Stockfishでは fc27d15(2020-09-07) にcomputed_scoreが排除されているので確認
-		invalidate_score(accumulator);
 	}
 
 	// parameter type
