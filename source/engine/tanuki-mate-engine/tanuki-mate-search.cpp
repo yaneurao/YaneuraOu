@@ -315,10 +315,12 @@ public:
 	ThreadPool& threads;
 	OptionsMap& options;
 	Search::LimitsType* limits_ptr;
+    RelaxedAtomic<u64>* node_counter;
 
-	void set_limits(Search::LimitsType& limits)
+	void set_limits(Search::LimitsType& limits, RelaxedAtomic<u64>& nodes)
 	{
 		this->limits_ptr = &limits;
+        node_counter = &nodes;
 	}
 
 	// 詰将棋探索のエントリポイント
@@ -473,6 +475,10 @@ public:
 			threads.stop = true;
 			return;
 		}
+
+        // Position::do_move()はノード数を加算しないため、DFPNの訪問時に自分で数える。
+        // 根局面も1ノードとし、上限到達による打ち切りでは加算しない。
+        ++*node_counter;
 
 		auto& entry = transposition_table.LookUp(n, root_color);
 
@@ -995,7 +1001,7 @@ public:
 	//     そのあと非メインスレッドに対してstart_searching()を呼び出すのは、threads.start_searching()を呼び出すと良い。
 	virtual void start_searching() override
 	{
-		mateClass.set_limits(limits);
+		mateClass.set_limits(limits, nodes);
 
 		if (pv_check.size() != 0) {
 			mateClass.pv_check_from_table(rootPos, pv_check);
