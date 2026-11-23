@@ -44,6 +44,8 @@
 
 // We support linux very well, but we explicitly do NOT support Android,
 // because there is no affected systems, not worth maintaining.
+// Linuxには十分対応しているが、Androidには明示的に対応しない。
+// NUMAの影響を受ける対象システムがなく、保守に見合わないため。
 #if defined(__linux__) && !defined(__ANDROID__)
     #if !defined(_GNU_SOURCE)
         #define _GNU_SOURCE
@@ -54,6 +56,7 @@
     #if _WIN32_WINNT < 0x0601
         #undef _WIN32_WINNT
         #define _WIN32_WINNT 0x0601  // Force to include needed API prototypes
+        // 必要なAPIの宣言がヘッダーから読み込まれるようにする。
     #endif
 
     #if !defined(NOMINMAX)
@@ -102,6 +105,7 @@ inline const CpuIndex SYSTEM_THREADS_NB = std::max<CpuIndex>(1, get_hardware_con
 
 // On Windows each processor group can have up to 64 processors.
 // https://learn.microsoft.com/en-us/windows/win32/procthread/processor-groups
+// Windowsの各プロセッサグループには、最大64個のプロセッサを含められる。
 static constexpr usize WIN_PROCESSOR_GROUP_SIZE = 64;
 
 struct WindowsAffinity {
@@ -305,9 +309,7 @@ inline WindowsAffinity get_process_affinity() {
 	// またがっているはずです。しかし、呼ばれていた場合は、1つのグループにのみ限定されているはずです。
 
     std::vector<USHORT> groupAffinity;  // We need to capture this later and capturing
-
-	// We need to capture this later and capturing
-    // from structured bindings requires c++20.
+                                        // from structured bindings requires c++20.
 
 	// これを後でキャプチャする必要があり、構造化束縛からのキャプチャにはC++20が必要です。
 
@@ -444,6 +446,7 @@ inline WindowsAffinity get_process_affinity() {
 }
 
 // Type machinery used to emulate Cache->GroupCount
+// Cache->GroupCountをエミュレートするための型の仕組み。
 
 template<typename T, typename = void>
 struct HasGroupCount: std::false_type {};
@@ -456,6 +459,7 @@ template<typename T, typename Pred, std::enable_if_t<HasGroupCount<T>::value, bo
 std::set<CpuIndex> readCacheMembers(const T* info, Pred&& is_cpu_allowed) {
     std::set<CpuIndex> cpus;
     // On Windows 10 this will read a 0 because GroupCount doesn't exist
+    // Windows 10ではGroupCountが存在しないため、ここでは0が読み取られる。
     int groupCount = std::max(info->Cache.GroupCount, WORD(1));
     for (WORD procGroup = 0; procGroup < groupCount; ++procGroup)
     {
@@ -583,10 +587,13 @@ struct L3Domain {
 };
 
 // Use system NUMA nodes
+// OSのNUMAノードを使う。
 struct SystemNumaPolicy {};
 // Use system-reported L3 domains
+// OSが報告するL3ドメインを使う。
 struct L3DomainsPolicy {};
 // Group system-reported L3 domains until they reach bundleSize
+// bundleSizeに達するまで、OSが報告するL3ドメインをまとめる。
 struct BundledL3Policy {
     usize bundleSize;
 };
@@ -669,6 +676,7 @@ class NumaConfig {
 
 #if !((defined(__linux__) && !defined(__ANDROID__)) || defined(_WIN64))
         // Fallback for unsupported systems.
+        // 対応していないシステム向けの代替処理。
         for (CpuIndex c = 0; c < SYSTEM_THREADS_NB; ++c)
             cfg.add_cpu_to_node(NumaIndex{0}, c);
 #else
@@ -843,6 +851,7 @@ class NumaConfig {
             }
         }
         if (n == 0)  // failed to parse any nodes
+            // ノードを1つも読み取れなかった。
             return std::nullopt;
 
         cfg.customAffinity = true;
@@ -1045,6 +1054,8 @@ class NumaConfig {
 
         // We yield this thread just to be sure it gets rescheduled.
         // This is defensive, allowed because this code is not performance critical.
+        // 再スケジュールされるよう、ここでスレッドの実行権を譲る。
+        // この処理は速度が重要な箇所ではないため、念のための措置を取れる。
         sched_yield();
 
 #elif defined(_WIN64)
@@ -1296,6 +1307,7 @@ class NumaConfig {
             else if (parts.size() == 2)
             {
                 constexpr usize MaxIndices = 1 << 20;  // prevent oom
+                // メモリ枯渇を防ぐ。
                 auto cfirst = str_to_size_t(std::string(parts[0]));
                 auto clast  = str_to_size_t(std::string(parts[1]));
                 if (cfirst.has_value() && clast.has_value() && *clast - *cfirst < MaxIndices)
@@ -1312,6 +1324,10 @@ class NumaConfig {
     // On Linux we read from standardized kernel sysfs, with a fallback to single NUMA
     // node. On Windows we utilize GetNumaProcessorNodeEx, which has its quirks, see
     // comment for Windows implementation of get_process_affinity.
+    // プロセッサとNUMAノードの対応をシステムへ問い合わせる。
+    // Linuxでは標準化されたカーネルのsysfsを読み、取得できなければ単一NUMAノードとして扱う。
+    // WindowsではGetNumaProcessorNodeExを使う。このAPIの注意点については、
+    // get_process_affinity()のWindows実装にあるコメントを参照。
     template<typename Pred>
     static NumaConfig from_system_numa([[maybe_unused]] bool   respectProcessAffinity,
                                        [[maybe_unused]] Pred&& is_cpu_allowed) {
@@ -1323,6 +1339,9 @@ class NumaConfig {
         // any thread can be scheduled on all processors.
         // We try to gather this information from the sysfs first
         // https://www.kernel.org/doc/Documentation/ABI/stable/sysfs-devices-node
+        // Linuxにはプロセッサグループがなく、どのスレッドもすべてのプロセッサへ
+        // 割り当てられるため、処理は単純になる。
+        // まずsysfsからこの情報を取得する。
 
         bool useFallback = false;
         auto fallback    = [&]() {
@@ -1331,6 +1350,7 @@ class NumaConfig {
         };
 
         // /sys/devices/system/node/online contains information about active NUMA nodes
+        // /sys/devices/system/node/onlineには、稼働中のNUMAノードの情報がある。
         auto nodeIdsStr = read_file_to_string("/sys/devices/system/node/online");
         if (!nodeIdsStr.has_value() || nodeIdsStr->empty())
             fallback();
@@ -1346,6 +1366,8 @@ class NumaConfig {
                 // Now, we only bail if the file does not exist. Some nodes may be
                 // empty, that's fine. An empty node still has a file that appears
                 // to have some whitespace, so we need to handle that.
+                // ファイルが存在しない場合だけ、取得を断念する。空のノードがあっても問題ない。
+                // 空のノードにも空白を含むファイルがあるため、それを扱えるようにする。
                 if (!cpuIdsStr.has_value())
                 {
                     fallback();
@@ -1393,6 +1415,7 @@ class NumaConfig {
 #else
 
         abort();  // should not reach here
+        // ここに到達してはならない。
 
 #endif
 
@@ -1404,6 +1427,7 @@ class NumaConfig {
       bool respectProcessAffinity, usize bundleSize, [[maybe_unused]] Pred&& is_cpu_allowed) {
         // Get the normal system configuration so we know to which NUMA node
         // each L3 domain belongs.
+        // 各L3ドメインが属するNUMAノードを知るため、通常のシステム構成を取得する。
         NumaConfig systemConfig =
           NumaConfig::from_system(SystemNumaPolicy{}, respectProcessAffinity);
         std::vector<L3Domain> l3Domains;
@@ -1463,6 +1487,7 @@ class NumaConfig {
                 }
             }
             // Variable length data structure, advance to next
+            // 可変長のデータ構造なので、現在の要素のサイズだけ進めて次の要素を得る。
             info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(
               reinterpret_cast<char*>(info) + info->Size);
         }
@@ -1489,6 +1514,7 @@ class NumaConfig {
             bool changed;
             // Scan through pairs and merge them. With roughly equal L3 sizes, should give
             // a decent distribution.
+            // 組ごとに調べて結合する。L3のサイズがほぼ等しければ、適度に分散できるはず。
             do
             {
                 changed = false;
@@ -1502,6 +1528,7 @@ class NumaConfig {
                     }
                 }
                 // ds.size() has decreased if changed is true, so this loop will terminate
+                // changedがtrueならds.size()が減っているので、このループは必ず終了する。
             } while (changed);
             for (const L3Domain& d : ds)
             {
@@ -1683,6 +1710,8 @@ class NumaReplicated: public NumaReplicatedBase {
 			void Search::Worker::ensure_network_replicated() {
 				// Access once to force lazy initialization.
 				// We do this because we want to avoid initialization during search.
+				// 一度参照して遅延初期化を実行する。
+				// 探索中に初期化が起きるのを避けるため。
 				(void) (network[numaAccessToken]);
 			}
 
@@ -1823,10 +1852,12 @@ class LazyNumaReplicatedSystemWide: public NumaReplicatedBase {
     using ReplicatorFuncType = std::function<T(const T&)>;
 
 
+#if !STOCKFISH
     // Defer loading the source until the engine is ready.
     // エンジンの準備ができるまで、複製元の読み込みを遅らせる。
     explicit LazyNumaReplicatedSystemWide(NumaReplicationContext& ctx) :
         NumaReplicatedBase(ctx) {}
+#endif
 
     LazyNumaReplicatedSystemWide(NumaReplicationContext& ctx, std::unique_ptr<T>&& source) :
         NumaReplicatedBase(ctx) {
@@ -1886,13 +1917,17 @@ class LazyNumaReplicatedSystemWide: public NumaReplicatedBase {
     }
 
     void on_numa_config_changed() override {
+#if !STOCKFISH
         // The engine may change NUMA policy before loading the source.
         // 複製元の読み込みより先にNUMA設定が変更される場合がある。
         if (instances.empty())
             return;
+#endif
 
         // Use the first one as the source. It doesn't matter which one we use,
         // because they all must be identical, but the first one is guaranteed to exist.
+        // 先頭のインスタンスを複製元として使う。すべて同一なのでどれを使ってもよいが、
+        // 先頭のインスタンスは必ず存在することが保証されている。
         auto source = std::make_unique<T>(*instances[0]);
         prepare_replicate_from(std::move(source));
     }
@@ -1905,7 +1940,9 @@ class LazyNumaReplicatedSystemWide: public NumaReplicatedBase {
         const NumaConfig& cfg     = get_numa_config();
         const NumaConfig& cfg_sys = NumaConfig::from_system(SystemNumaPolicy{}, false);
         // as a discriminator, locate the hardware/system numadomain this cpuindex belongs to
+        // 識別子を得るため、このCPUが属するハードウェア上のNUMAドメインを調べる。
         CpuIndex    cpu     = *cfg.nodes[idx].begin();  // get a CpuIndex from NumaIndex
+        // NumaIndexからCpuIndexを1つ得る。
         NumaIndex   sys_idx = cfg_sys.is_cpu_assigned(cpu) ? cfg_sys.nodeByCpu.at(cpu) : 0;
         std::string s       = cfg_sys.to_string() + "$" + std::to_string(sys_idx);
         return static_cast<usize>(hash_string(s));
@@ -1921,6 +1958,7 @@ class LazyNumaReplicatedSystemWide: public NumaReplicatedBase {
 
         std::unique_lock<std::mutex> lock(mutex);
         // Check again for races.
+        // 競合に備えて、ロック取得後にもう一度確認する。
         if (instances[idx] != nullptr)
             return;
 
@@ -1938,6 +1976,9 @@ class LazyNumaReplicatedSystemWide: public NumaReplicatedBase {
         // Note that we cannot move here as we need to reallocate the data
         // on the correct NUMA node.
         // Even in the case of a single NUMA node we have to copy since it's shared memory.
+        // まず、先頭のインスタンスが存在するようにすればよい。
+        // 正しいNUMAノード上にデータを確保し直す必要があるので、ここではmoveできない。
+        // 共有メモリを使うため、NUMAノードが1つだけの場合でもコピーが必要。
         if (cfg.requires_memory_replication())
         {
             assert(cfg.num_numa_nodes() > 0);
@@ -1947,6 +1988,7 @@ class LazyNumaReplicatedSystemWide: public NumaReplicatedBase {
             });
 
             // Prepare others for lazy init.
+            // 残りのノードは、必要になったときに遅延初期化する。
             instances.resize(cfg.num_numa_nodes());
         }
         else

@@ -525,4 +525,4 @@ void TimeManagement::set_search_end(TimePoint e) {
 
 } // namespace YaneuraOu
 
-#endif
+#endif // defined(USE_TIME_MANAGEMENT)

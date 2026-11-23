@@ -105,7 +105,7 @@ public:
 #if STOCKFISH
         // 💡 StockfishではEngineのコンストラクタでは、起動path(main関数で渡されたargv[0])を渡す。
         //     やねうら王では、起動フォルダはCommandLine::gから取得できるので不要。
-        IEngine(std::optional<std::string> path = std::nullopt);
+        IEngine(std::optional<std::filesystem::path> path = std::nullopt);
 #else
         IEngine() {}
 #endif
@@ -283,7 +283,7 @@ public:
 
 #if STOCKFISH
    private:
-    const std::string binaryDirectory;
+    const std::filesystem::path binaryDirectory;
 #endif
 
 	// 🌈 エンジンに追加オプションを設定したいときは、この関数をoverrideする。
@@ -457,7 +457,7 @@ class Engine: public IEngine {
     bool deferResourceOptions = false;
     std::optional<NumaConfig> pendingNumaConfig;
 
-    //const std::string binaryDirectory;
+    //const std::filesystem::path binaryDirectory;
     // 📝 やねうら王では、CommandLine::gから取得できるので不要。
 
     // Numaの管理用(どのNumaを使うかというIDみたいなもの)

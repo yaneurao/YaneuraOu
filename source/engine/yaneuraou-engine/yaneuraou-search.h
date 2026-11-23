@@ -271,7 +271,7 @@ class YaneuraOuEngine: public Engine {
     using InfoIter  = Search::InfoIteration;
 #endif
 
-    YaneuraOuEngine(/* std::optional<std::string> path = std::nullopt */) :
+    YaneuraOuEngine(/* std::optional<std::filesystem::path> path = std::nullopt */) :
         manager(updateContext) {}
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     ~YaneuraOuEngine() override { wait_for_search_finished(); }
