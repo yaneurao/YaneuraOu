@@ -289,7 +289,6 @@ class YaneuraOuEngine: public Engine {
     // 📝 やねうら王では、base classであるEngine classが持っている。
 #if STOCKFISH
     Position     pos;
-    StateListPtr states;
 
     OptionsMap options;
     ThreadPool threads;
@@ -438,9 +437,9 @@ class YaneuraOuWorker: public Worker {
     //     givesCheckとcapture_stage()の結果を呼び出し元から渡し、再計算を避ける。
 
     void
-    do_move(Position& pos, const Move move, StateInfo& st, const bool givesCheck,
+    do_move(Position& pos, const Move move, const bool givesCheck,
             const bool capture, Stack* const ss);
-    void do_null_move(Position& pos, StateInfo& st, Stack* const ss);
+    void do_null_move(Position& pos, Stack* const ss);
 
 	void undo_move(Position& pos, const Move move);
     void undo_null_move(Position& pos);
@@ -514,10 +513,10 @@ class YaneuraOuWorker: public Worker {
     int selDepth, nmpMinPly;
 
 #if STOCKFISH
-	// 探索開始局面とrootでのStateInfo
+	// 探索開始局面
 	// 📝 やねうら王では、Engine classが持っている。
     Position  rootPos;
-    StateInfo rootState;
+
     RootMoves rootMoves;
 #endif
 
@@ -590,7 +589,7 @@ class YaneuraOuWorker: public Worker {
 #else
 	// 🌈 以下、やねうら王独自追加 🌈
 
-#if defined(EVAL_SFNN)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     Eval::NNUE::AccumulatorStack accumulatorStack;
 #endif
 

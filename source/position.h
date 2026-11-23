@@ -5,7 +5,6 @@
 #include <cassert>
 #include <deque>
 #include <iosfwd>
-#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -32,12 +31,12 @@ struct SharedHistories;
 
 // StateInfo struct stores information needed to restore a Position object to
 // its previous state when we retract a move. Whenever a move is made on the
-// board (by calling Position::do_move), a StateInfo object must be passed.
+// board (by calling Position::do_move), its state is stored in Position.
 
 // StateInfo構造体は、指し手を戻す際にPositionオブジェクトを
 // 以前の状態に復元するために必要な情報を格納する。
 // 盤上で指し手が行われるたびに（Position::do_moveを呼び出す際に）、
-// StateInfoオブジェクトを渡さなければならない。
+// Position内部に次のStateInfoを保存する。
 
 // 💡 StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが
 //     面倒なものを詰め込んでおくための構造体。
@@ -77,7 +76,7 @@ struct StateInfo {
     int rule50;
 #endif
 
-	// 遡り可能な手数(previousポインタを用いて局面を遡るときに用いる)
+	// null moveを越えずに遡り可能な手数
 	int pliesFromNull;
 
 #if STOCKFISH
@@ -132,9 +131,6 @@ struct StateInfo {
 	// 現局面で手番側に対して王手をしている駒のbitboard
 	Bitboard checkersBB;
 
-    // 一つ前の局面に遡るためのポインタ。開始局面ではnullptr。
-    // 通常手・null moveのどちらでも、直前のStateInfoへつなぐ。
-	StateInfo* previous;
 
 	// 動かすと手番側の王に対して空き王手になるかも知れない駒の候補
 	// チェスの場合、駒がほとんどが大駒なのでこれらを動かすと必ず開き王手となる。
@@ -200,11 +196,8 @@ struct StateInfo {
 
 #endif
 
-#if defined(EVAL_NNUE)
-	Eval::NNUE::Accumulator accumulator;
-#endif
 
-#if defined (USE_EVAL_LIST)
+#if defined(USE_EVAL_LIST) && !defined(EVAL_NNUE)
 	// 評価値の差分計算の管理用
 	Eval::DirtyPiece dirtyPiece;
 #endif
@@ -223,17 +216,6 @@ struct StateInfo {
 // --------------------
 //     局面の定数
 // --------------------
-
-/// A list to keep track of the position states along the setup moves (from the
-/// start position to the position just before the search starts). Needed by
-/// 'draw by repetition' detection. Use a std::deque because pointers to
-/// elements are not invalidated upon list resizing.
-
-// setup moves("position"コマンドで設定される、現局面までの指し手)に沿った局面の状態を追跡するためのStateInfoのlist。
-// 千日手の判定のためにこれが必要。std::dequeを使っているのは、StateInfoがポインターを内包しているので、resizeに対して
-// 無効化されないように。
-using StateList    = std::deque<StateInfo>;
-using StateListPtr = std::unique_ptr<StateList>;
 
 // このエラーは、局面設定時にエンジンが扱えない局面・指し手を検出した時に返す。
 // 特に不正な指し手を通常手として進めて盤面を壊すようなケースを避けるために用いる。
@@ -338,19 +320,15 @@ class Position {
     // -----------------------
 
     // sfen文字列で盤面を設定する
-    /* 📓 StateInfoとは？
-
-		局面を遡るために、rootまでの局面の情報が必要であるから、それを引数のsiで渡してやる。
-	*/
+    // StateInfoはPosition内部に保持する。スレッド間のコピーはcopy_state_infos()を使う。
 #if STOCKFISH
-	std::optional<PositionSetError> set(const std::string& fenStr, bool isChess960, StateInfo* si);
-    std::optional<PositionSetError> set(const std::string& code, Color c, StateInfo* si);
+	std::optional<PositionSetError> set(const std::string& fenStr, bool isChess960);
+    std::optional<PositionSetError> set(const std::string& code, Color c);
 #else
-    std::optional<PositionSetError> set(const std::string& sfenStr, StateInfo* si);
+    std::optional<PositionSetError> set(const std::string& sfenStr);
 
 	// 平手の初期盤面を設定する。
-    // siについては、上記のset()にある説明を読むこと。
-    std::optional<PositionSetError> set_hirate(StateInfo* si) { return set(StartSFEN, si); }
+    std::optional<PositionSetError> set_hirate() { return set(StartSFEN); }
 #endif
 
 	// 局面のsfen文字列を取得する
@@ -432,7 +410,18 @@ class Position {
 	// 
 	// ※　これを MAX_PLY に設定すると初手からのチェックになるが、将棋はチェスと異なり
 	// 　　終局までの平均手数がわりと長いので、そこまでするとスピードダウンしてR40ほど弱くなる。
-	void set_max_repetition_ply(int ply){ max_repetition_ply = ply;}
+	// Reject a window that could overwrite the root history during a full-depth search.
+    // 最大深さの探索でルート以前の履歴を上書きする長さは拒否する。失敗時は設定を維持する。
+    bool set_max_repetition_ply(int ply) {
+        if (ply < 0)
+            return false;
+#if !defined(YANEURAOU_MATE_ENGINE) && !defined(TANUKI_MATE_ENGINE)
+        if (usize(ply) + MAX_PLY >= MAX_HIST)
+            return false;
+#endif
+        max_repetition_ply = ply;
+        return true;
+    }
 
 	// -----------------------
     // Position representation
@@ -715,39 +704,34 @@ class Position {
 
 	// 指し手で盤面を1手進める
 	// m = 指し手。mとして非合法手を渡してはならない。
-	// info = StateInfo。局面を進めるときに捕獲した駒などを保存しておくためのバッファ。
-	// このバッファはこのdo_move()の呼び出し元の責任において確保されている必要がある。
+	// StateInfoはPosition内部のリングバッファに保存する。
 	// givesCheck = mの指し手によって王手になるかどうか。
 	// 王手情報は局面設定や直前のdo_move()/do_null_move()で更新されている。
     /*
 		📓 Stockfish 17.1からTTのprefetchのために引数でTranspositionTable*を
 			渡すようになったが、やねうら王では、このclassをPosition classと癒着したくない。
-			そこで、第四引数をtemplate T*にするが、ここに何も指定しないということもできてほしい。
+			そこで、TTの引数をtemplate T*にするが、ここに何も指定しないということもできてほしい。
 	*/
 #if STOCKFISH
     void do_move(Move                   m,
-                 StateInfo&             newSt,
                  bool                   givesCheck,
                  Dirties&               dirties,
                  const SharedHistories* worker = nullptr);
 #else
     // historyは省略可能。探索で次局面の履歴を先読みするときだけ渡す。
 	template <typename T = void>
-    void do_move(Move m, StateInfo& newSt, bool givesCheck, const T* tt = nullptr,
+    void do_move(Move m, bool givesCheck, const T* tt = nullptr,
                  const SharedHistories* history = nullptr);
-#if defined(EVAL_SFNN)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     template <typename T = void>
-    void do_move(Move m, StateInfo& newSt, bool givesCheck, Eval::NNUE::Dirties& dirties,
+    void do_move(Move m, bool givesCheck, Eval::NNUE::Dirties& dirties,
                  const T* tt = nullptr, const SharedHistories* history = nullptr);
 #endif
 #endif
 
 	// 💡 上記のdo_move()にはgivesCheckも渡さないといけないが、
 	//     mで王手になるかどうかがわからないときはこちらの関数を用いる。
-    template<typename T = void>
-    void do_move(Move m, StateInfo& newSt, const T* tt = nullptr) {
-        do_move(m, newSt, gives_check(m), tt);
-    }
+    void do_move(Move m) { do_move(m, gives_check(m)); }
 
 	// do_move()で進めた局面を1手戻す。
 	void undo_move(Move m);
@@ -755,10 +739,10 @@ class Position {
 	// null move用のdo_move()
 	// 📝 Tのところには、TranspositionTable ttを渡すことができる。
 
-	void do_null_move(StateInfo& st);
+	void do_null_move();
 
 	template<typename T>
-    void do_null_move(StateInfo& st, const T& tt);
+    void do_null_move(const T& tt);
 
 	// null move用のundo_move()
 	void undo_null_move();
@@ -860,6 +844,26 @@ class Position {
     // 現在の局面に対応するStateInfoを返す。
     // たとえば、state()->capturedPieceであれば、前局面で捕獲された駒が格納されている。
     StateInfo* state() const;
+
+    static constexpr usize MAX_HIST = 512;
+    // Copy only the history needed by shogi repetition detection.
+    // 千日手判定に必要な過去の履歴を、自分の領域へコピーする。
+    void copy_state_infos(const Position& other);
+    void copy_from(const Position& other);
+    // Used for repeated UCT rollouts after copy_from(), without copying history again.
+    // copy_from()後のUCT反復では、履歴を再コピーせず盤面と履歴の位置だけ戻す。
+    void reset_to_root(const Position& root);
+    StateInfo* previous_state(usize distance = 1) const {
+        assert(distance <= stateIdx);
+#if !defined(YANEURAOU_MATE_ENGINE) && !defined(TANUKI_MATE_ENGINE)
+        assert(distance < MAX_HIST);
+#endif
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+        return const_cast<StateInfo*>(&stateInfos[stateIdx - distance]);
+#else
+        return const_cast<StateInfo*>(&stateInfos[(stateIdx - distance) & (MAX_HIST - 1)]);
+#endif
+    }
 
 	// put_piece()やremove_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
     // bitboardの整合性を保つこと。
@@ -1003,10 +1007,10 @@ class Position {
 	static std::string sfen_unpack(const PackedSfen& sfen);
 
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
-	// pos.set(sfen_unpack(data),si); と等価。
+	// pos.set(sfen_unpack(data)); と等価。
 	// 渡された局面に問題があって、エラーのときはTools::Result::SomeErrorを返す。
 	// PackedSfenにgamePlyは含まないので復元できない。そこを設定したいのであれば引数で指定すること。
-	Tools::Result set_from_packed_sfen(const PackedSfen& sfen , StateInfo * si , bool mirror=false , int gamePly_ = 0);
+	Tools::Result set_from_packed_sfen(const PackedSfen& sfen , bool mirror=false , int gamePly_ = 0);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);
@@ -1091,9 +1095,9 @@ private:
 
 	// do_move()の先後分けたもの。内部的に呼び出される。
     template<Color Us, typename T>
-    void do_move_impl(Move m, StateInfo& st, bool givesCheck, const T* tt,
+    void do_move_impl(Move m, bool givesCheck, const T* tt,
                        const SharedHistories* history
-#if defined(EVAL_SFNN)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
                        , Eval::DirtyPiece* dirty
 #endif
                        );
@@ -1165,11 +1169,6 @@ private:
     Bitboard castlingPath[CASTLING_RIGHT_NB];
 #endif
 
-	// 現局面に対応するStateInfoのポインタ。
-    // do_move()で次の局面に進むときは次の局面のStateInfoへの参照をdo_move()の引数として渡される。
-    //   このとき、undo_move()で戻れるようにStateInfo::previousに前のstの値を設定しておく。
-    // undo_move()で前の局面に戻るときはStateInfo::previousから辿って戻る。
-    StateInfo* st;
 
 	// 初期局面からの手数(初期局面 == 1)
     int gamePly;
@@ -1195,6 +1194,24 @@ private:
 #endif
 
 #endif
+
+    // State storage is last: copying the board must not copy the entire ring.
+    // 状態の領域は末尾に置き、盤面だけのコピーにリング全体を巻き込まない。
+    // Keep a logical index; mask only when accessing the ring. This also bounds valid history.
+    // 添字は論理的に数え、配列アクセス時だけマスクする。有効な履歴長もこの添字から得る。
+    usize stateIdx = 0;
+    StateInfo* st = nullptr;
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+    // Dedicated mate solvers retain unbounded history until their planned rewrite.
+    // 専用詰将棋探索は作り直すまで、深さを制限しない履歴を保持する。
+    std::deque<StateInfo> stateInfos{1};
+#else
+    static_assert(MAX_HIST >= MAX_PLY + 17);
+    StateInfo stateInfos[MAX_HIST];
+#endif
+    void reset_state();
+    StateInfo* push_state();
+    void pop_state();
 };
 
 

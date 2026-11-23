@@ -56,10 +56,13 @@ namespace Eval {
 
 	// 評価関数本体
 	Value evaluate(const Position& pos);
-#if defined(EVAL_SFNN)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     namespace NNUE { class AccumulatorStack; }
     Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack);
-#if defined(ENABLE_NUMA_NETWORK_REPLICATION)
+#if defined(EVAL_NNUE)
+    void evaluate_with_no_return(const Position& pos, NNUE::AccumulatorStack& stack);
+#endif
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
     Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack, NumaReplicatedAccessToken token);
 #endif
 #endif

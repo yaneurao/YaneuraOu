@@ -422,7 +422,6 @@ usize ThreadPool::num_threads() const { return threads.size(); }
 
 void ThreadPool::start_thinking(const OptionsMap&  options,
                                 Position&          pos,
-                                StateListPtr&      states,
                                 Search::LimitsType limits) {
 
     main_thread()->wait_for_search_finished();
@@ -484,28 +483,8 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
 
 #endif
 
-    // After ownership transfer 'states' becomes empty, so if we stop the search
-    // and call 'go' again without setting a new position states.get() == nullptr.
-
-    // 所有権の移動後、'states' は空になるため、検索を中断して
-    // 新しい局面を設定せずに再度 'go' を呼び出すと、states.get() == nullptr となる。
-
-    assert(states.get() || setupStates.get());
-
-    if (states.get())
-        setupStates = std::move(states);  // Ownership transfer, states is now empty
-
-    // We use Position::set() to set root position across threads. But there are
-    // some StateInfo fields (previous, pliesFromNull, capturedPiece) that cannot
-    // be deduced from a fen string, so set() clears them and they are set from
-    // setupStates->back() later. The rootState is per thread, earlier states are
-    // shared since they are read-only.
-
-    // 複数のスレッドでルート局面を設定するために Position::set() を使用します。
-    // しかし、StateInfo の一部のフィールド（previous、pliesFromNull、capturedPiece）は
-    // FEN 文字列からは推測できないため、set() はそれらをクリアし、後で setupStates->back() から設定されます。
-    // rootState はスレッドごとに個別ですが、それ以前の状態は読み取り専用のため共有されます。
-
+    // Each worker owns its root history, including repetition metadata.
+    // 各Workerは千日手の情報も含め、ルート以前の履歴を自分で所有する。
     for (auto&& th : threads)
     {
         th->run_custom_job([&]() {
@@ -515,8 +494,8 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
             th->worker->nmpMinPly                                                = 0;
             th->worker->rootDepth                                                = 0;
             th->worker->rootMoves                                                = rootMoves;
-            th->worker->rootPos.set(pos.fen(), pos.is_chess960(), &th->worker->rootState);
-            th->worker->rootState = setupStates->back();
+            th->worker->rootPos.set(pos.fen(), pos.is_chess960());
+            th->worker->rootPos.copy_state_infos(pos);
             th->worker->tbConfig  = tbConfig;
 #else
             th->worker->limits = limits;
@@ -524,8 +503,7 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
 
             // 📝 tbHits、tbConfigは将棋では使わない。
             th->worker->rootMoves = rootMoves;
-            th->worker->rootPos.set(pos.sfen(), &th->worker->rootState);
-            th->worker->rootState = setupStates->back();
+            th->worker->rootPos.copy_from(pos);
 
             // rootPosの設定後に、通常探索側で探索開始時の初期化を行う。
             // (rootPosを使って入玉判定などを行うため)

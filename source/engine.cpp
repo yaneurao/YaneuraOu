@@ -33,13 +33,12 @@ constexpr NumaAutoPolicy DefaultNumaPolicy = BundledL3Policy{32};
 
 Engine::Engine() :
 	numaContext(NumaConfig::from_system(DefaultNumaPolicy)),
-	states(new std::deque<StateInfo>(1)),
 	threads()
 {
 
 #if !defined(USE_CLASSIC_EVAL)
 	// 局面は平手の開始局面にしておく。
-	pos.set(StartSFEN, &states->back());
+	pos.set(StartSFEN);
 	// ⚠ CLASSIC EVALは、Position::set()の途中でcompute_eval()を呼び出すので
 	//     その時に評価関数の初期化がなされるが、その時点では評価関数の読み込みが
 	//     完了していないので、アクセス違反で落ちる。
@@ -237,8 +236,7 @@ std::optional<PositionSetError> Engine::set_position(const std::string&         
 	// Drop the old state and create a new one
 	// 古い状態を破棄して新しい状態を作成する
 
-	states = StateListPtr(new std::deque<StateInfo>(1));
-	auto err = pos.set(sfen /*, options["UCI_Chess960"]*/ , &states->back());
+	auto err = pos.set(sfen /*, options["UCI_Chess960"]*/ );
 	if (err.has_value())
 		return err;
 
@@ -253,11 +251,10 @@ std::optional<PositionSetError> Engine::set_position(const std::string&         
 		if (m == Move::none())
 			return PositionSetError("Illegal move: " + move);
 
-		states->emplace_back();
 		if (m == Move::null())
-			pos.do_null_move(states->back());
+			pos.do_null_move();
 		else
-			pos.do_move(m, states->back());
+			pos.do_move(m);
 
 #if !STOCKFISH
 		moves0.emplace_back(m);
@@ -308,7 +305,7 @@ void Engine::go(Search::LimitsType& limits) {
 	ASSERT_LV3(limits.perft == 0);
 	//verify_network();
 
-	threads.start_thinking(options, pos, states, limits);
+	threads.start_thinking(options, pos, limits);
 }
 
 void Engine::stop() { threads.stop = true; }
@@ -435,10 +432,10 @@ void Engine::set_ponderhit(bool b) {
 void Engine::trace_eval() const {
 	// 🌈 やねうら王では、Engine派生classで定義する。
 #if STOCKFISH
-	StateListPtr trace_states(new std::deque<StateInfo>(1));
+
     Position     p;
 
-	p.set(pos.fen(), options["UCI_Chess960"], &trace_states->back());
+	p.set(pos.fen(), options["UCI_Chess960"]);
 
     verify_network();
 	sync_cout << "\n" << Eval::trace(p, *network) << sync_endl;

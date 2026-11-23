@@ -197,8 +197,8 @@ namespace {
 
 				auto sfen = (*problems)[i];
 				sfen2 = sfen;
-				StateInfo si;
-				pos.set(sfen, &si);
+
+				pos.set(sfen);
 				Move move;
 				for (size_t j = 0; j < loop; ++j)
 				{
@@ -415,18 +415,17 @@ namespace {
 
 		for (const char* sfen : TestMateEngineSfen) {
 			Position pos;
-			StateListPtr st(new StateList(1));
-			pos.set(sfen, &st->back());
+
+			pos.set(sfen);
 
 			sync_cout << "\nPosition: " << sfen << sync_endl;
 
 			// 探索時にnpsが表示されるが、それはこのglobalなTimerに基づくので探索ごとにリセットを行なうようにする。
 			time.reset();
 
-			StateListPtr states(new std::deque<StateInfo>(1));
 
             limits.startTime = now();
-			threads.start_thinking(options, pos, st, limits);
+			threads.start_thinking(options, pos, limits);
 			threads.wait_for_search_finished(); // 探索の終了を待つ。
 
 			// TODO : あとで

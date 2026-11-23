@@ -40,8 +40,6 @@ Move weak_mate_3ply(const Position& pos, int ply) {
     // const剥がし
     Position* This = ((Position*) &pos);
 
-    StateInfo si;
-    StateInfo si2;
 
     // 近接王手で味方の利きがあり、敵の利きのない場所を探す。
     for (auto em : MoveList<CHECKS>(pos))
@@ -77,7 +75,7 @@ Move weak_mate_3ply(const Position& pos, int ply) {
 
             ASSERT_LV3(pos.gives_check(m));
 
-            This->do_move(m, si, true);
+            This->do_move(m, true);
 
             ASSERT_LV3(pos.in_check());
 
@@ -91,7 +89,7 @@ Move weak_mate_3ply(const Position& pos, int ply) {
                 if (pos.gives_check(m2))
                     goto NEXT_CHECK;
 
-                This->do_move(m2, si2, false);
+                This->do_move(m2, false);
 
                 ASSERT_LV3(!pos.in_check());
 

@@ -218,7 +218,7 @@ public:
 	ThreadPool& operator=(ThreadPool&&) = delete;
 
 	// mainスレッドに思考を開始させる。
-	void   start_thinking(const OptionsMap&, Position&, StateListPtr&, Search::LimitsType);
+	void   start_thinking(const OptionsMap&, Position&, Search::LimitsType);
 
 	// 指定したthreadIdのthreadで、jobとしてfを実行する。
 	void   run_on_thread(usize threadId, std::function<void()> f);
@@ -330,8 +330,6 @@ public:
     auto empty() const noexcept { return threads.empty(); }
 
 private:
-	// 現局面までのStateInfoのlist
-	StateListPtr                         setupStates;
 
     // 抱えているすべてのThread。生成・破棄はThreadPool内で行う。
     std::vector<std::unique_ptr<Thread>> threads;

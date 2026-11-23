@@ -352,7 +352,7 @@ public:
 			SearchMatePvMorePrecise(true, root_color, r, memo);
 
 			// 探索メモから詰み手順を再構築する
-			StateInfo state_info[2048] = {};
+
 			bool found = false;
 			for (int play = 0; ; ++play) {
 				const auto& mate_state = memo[r.key()];
@@ -365,7 +365,7 @@ public:
 				}
 
 				moves.push_back(mate_state.move_to_mate);
-				r.do_move(mate_state.move_to_mate, state_info[play]);
+				r.do_move(mate_state.move_to_mate);
 			}
 
 			// 局面をもとに戻す
@@ -741,8 +741,8 @@ public:
 				entry.dn = 0;
 				return;
 			}
-			StateInfo state_info;
-			n.do_move(best_move, state_info);
+
+			n.do_move(best_move);
 			DFPNwithTCA(n, thpn_child, thdn_child, inc_flag, !or_node, depth + 1, root_color,
 				start_time, timeup);
 			n.undo_move(best_move);
@@ -757,9 +757,9 @@ public:
 		cout << "key-gen" << entry0.hash_high << "," << entry0.generation << endl;
 
 		for (auto m : pv_check) {
-			StateInfo state_info;
+
 			Move move = pos.to_move(m);
-			pos.do_move(move, state_info);
+			pos.do_move(move);
 			const auto& entry = transposition_table.LookUp(pos, root_color);
 			cout << pos << endl;
 			cout << "pn,dn = " << entry.pn << "," << entry.dn << endl;
@@ -829,8 +829,7 @@ public:
 				continue;
 			}
 
-			StateInfo state_info;
-			pos.do_move(move, state_info);
+			pos.do_move(move);
 			moves.push_back(move);
 			if (SearchMatePvFast(!or_node, root_color, pos, moves, visited)) {
 				pos.undo_move(move);
@@ -889,8 +888,8 @@ public:
 			mate_state.move_to_mate = mate1ply;
 
 			// 詰みの局面をメモしておく
-			StateInfo state_info = {};
-			pos.do_move(mate1ply, state_info);
+
+			pos.do_move(mate1ply);
 			auto& mate_state_mated = memo[pos.key()];
 			mate_state_mated.num_moves_to_mate = 0;
 			pos.undo_move(mate1ply);
@@ -923,8 +922,7 @@ public:
 				continue;
 			}
 
-			StateInfo state_info;
-			pos.do_move(move, state_info);
+			pos.do_move(move);
 			int num_moves_to_mate_candidate = SearchMatePvMorePrecise(!or_node, root_color, pos, memo);
 			pos.undo_move(move);
 

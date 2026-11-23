@@ -418,9 +418,9 @@ void UctSearcher::DummyForward()
 	TimePoint tpforwardbegin = now();
 	// ダミー局面設定
 	Position pos;
-	StateInfo si;
+
 	for (int i = 0; i < policy_value_batch_maxsize; ++i) {
-		pos.set(dummy_sfen((u32)i), &si);
+		pos.set(dummy_sfen((u32)i));
 		make_input_features(pos, i, packed_features1, packed_features2);
 	}
 	// このスレッドとGPUとを紐付ける。
@@ -478,6 +478,11 @@ void UctSearcher::ParallelUctSearch(const Position& rootPos) {
     visitor_batch.reserve(policy_value_batch_maxsize);
     trajectories_batch_discarded.reserve(policy_value_batch_maxsize);
 
+    // Prepare private root history once; each rollout resets only the board.
+    // ルート以前の履歴は一度だけ準備し、各プレイアウトでは盤面だけ戻す。
+    Position pos;
+    pos.copy_from(rootPos);
+
     // 探索回数が閾値を超える, または探索が打ち切られたらループを抜ける
     while (!stop())
     {
@@ -496,12 +501,7 @@ void UctSearcher::ParallelUctSearch(const Position& rootPos) {
             for (int i = 0; i < policy_value_batch_maxsize && !stop(); i++)
             {
 
-                // 盤面のコピー
-
-                // rootPosはスレッドごとに用意されたもので、呼び出し元にインスタンスが存在しているので、
-                // 単純なコピーで問題ない。
-                Position pos;
-                std::memcpy(&pos, &rootPos, sizeof(Position));
+                pos.reset_to_root(rootPos);
 
                 // 1回プレイアウトする
                 visitor_batch.emplace_back();
@@ -597,6 +597,14 @@ float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, N
 	auto ds = grp->get_dlsearcher();
 	auto& options = ds->search_options;
 
+    // This is a rollout horizon, not a terminal result stored in the shared tree.
+    // 246手はプレイアウトの上限であり、共有木に終局の引き分けとして記録しない。
+    if (visitor.trajectories.size() >= 246) {
+        const auto count = current->move_count.load();
+        return count > 0 ? 1.0f - float(current->win.load()) / count
+                         : 1.0f - ds->draw_value(pos->side_to_move());
+    }
+
 	// ↓dlshogiのコード、ここから↓
 
 	float result;
@@ -623,8 +631,7 @@ float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, N
 #endif
 
 	// 選んだ手を着手
-	StateInfo st;
-	pos->do_move(uct_child[next_index].move, st);
+	pos->do_move(uct_child[next_index].move);
 
 	// Virtual Lossを加算
 	// ※　ノードの訪問回数をmove_countに加算。
@@ -710,12 +717,17 @@ float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, N
 					// leaf nodeでもdf-pn mate solverを用いることにする。
 
 					// Move::none()(詰み不明) , Move::null()(不詰)ではない 。これらはis_ok(m) == false
-					Move mate_move = mate_solver.mate_dfpn(*pos, options.leaf_dfpn_nodes_limit);
+					const int horizon = ds->search_limits.game_ply + MAX_PLY - 1;
+                    mate_solver.set_max_game_ply(std::min(options.max_moves_to_draw, horizon));
+                    Move mate_move = mate_solver.mate_dfpn(*pos, options.leaf_dfpn_nodes_limit);
 					if (mate_move == Move::null())
 					{
 						// 不詰を証明したので、このnodeでは詰み探索をしたことを記録しておく。
 						// (そうするとPvMateでmate探索が端折れる)
-						child_node->dfpn_proven_unsolvable = true;
+						// Depth-limited disproof must not survive a change of root.
+                        // 深さ制限による不詰を、ルート変更後にも通用する証明として保存しない。
+                        if (options.max_moves_to_draw <= horizon)
+                            child_node->dfpn_proven_unsolvable = true;
 					}
 					else {
 						isMate = mate_move.is_ok();

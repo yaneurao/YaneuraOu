@@ -729,8 +729,7 @@ namespace MakeBook2025
 					Color stm = (sfen.find('w') != std::string::npos) ? WHITE : BLACK;
 					string white_sfen = stm == WHITE ? sfen : Position::sfen_to_flipped_sfen(sfen);
 
-					StateInfo si;
-					pos.set(white_sfen, &si);
+					pos.set(white_sfen);
 					HASH_KEY white_hash_key = pos.key();
 
 					auto book_node_index = BookNodeIndex(book_nodes.size());
@@ -907,8 +906,8 @@ namespace MakeBook2025
 					string white_sfen = stm == WHITE ? sfen : Position::sfen_to_flipped_sfen(sfen);
 
 					// hashkey_to_indexには後手番の局面のhash keyからのindexを登録する。
-					StateInfo si;
-					pos.set(white_sfen, &si);
+
+					pos.set(white_sfen);
 					HASH_KEY white_hash_key = pos.key();
 					// 元の定跡ファイルにflipした局面は登録されていないものとする。
 					// ⇨  登録されていたら、あとから出現した局面を優先する。
@@ -989,14 +988,14 @@ namespace MakeBook2025
 			const auto& lookup = hashkey_to_index;
 			auto convert = [&](BookNodeIndex i, string sfen, Position& pos, u64& count) {
 				auto& book_node = book_nodes[i];
-				StateInfo si;
+
 
 				// この局面が後手番なら、sfenを先手の局面化する。
 				// 💡: BookNodeは先手の局面で考えている。hashkeyは後手の局面で考えている。
 				if (book_node.color == WHITE)
 					sfen = Position::sfen_to_flipped_sfen(sfen);
 
-				pos.set(sfen, &si);
+				pos.set(sfen);
 				ASSERT_LV3(pos.side_to_move() == BLACK);
 
 				// 元ファイルの定跡DBに登録されていた指し手

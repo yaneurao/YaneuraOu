@@ -842,8 +842,8 @@ namespace Book
 			// std::vectorにしてあるのでit.firstを書き換えてもitは無効にならないはず。
 			for (auto& it : vectored_book)
 			{
-				StateInfo si;
-				pos.set(it.first, &si);
+
+				pos.set(it.first);
 				auto sfen = pos.sfen();
 				it.first = sfen;
 
@@ -1186,9 +1186,9 @@ namespace Book
 				Move   theMove   = pos.to_move(theMove16);
 				if (pos.pseudo_legal_s<true>(theMove) && pos.legal(theMove))
 				{
-					StateInfo si;
+
 					Position* thePos = const_cast<Position*>(&pos);
-					thePos->do_move(theMove,si);
+					thePos->do_move(theMove);
 					const auto& entries2 = apery_book->get_entries(pos);
 					if (entries2.size())
 						thePonder = convert_move_from_apery(entries2[0].fromToPro); // 1つ目の指し手にしておく。
@@ -1487,8 +1487,8 @@ namespace Book
 
         if (pos.pseudo_legal_s<true>(m) && pos.legal(m))
         {
-            StateInfo si;
-            pos.do_move(m, si);
+
+            pos.do_move(m);
 
             result = m16.to_usi_string();
             // 残り出力するPV長さをデクリメントしておく。
@@ -1816,8 +1816,8 @@ namespace Book
 				Move best = rootPos.to_move(bestMove);
 				if (rootPos.pseudo_legal_s<true>(best) && rootPos.legal(best))
 				{
-					StateInfo si;
-					rootPos.do_move(best,si);
+
+					rootPos.do_move(best);
 
 					auto it = find_in_books(rootPos);
 					if (it != nullptr && it->size())
@@ -1859,8 +1859,8 @@ namespace Book
             result.depth      = depth;
 
 			// ponderMoveが合法手であることも保証する。
-            StateInfo si;
-            pos.do_move(bestMove, si);
+
+            pos.do_move(bestMove);
             Move ponderMove = pos.to_move(ponderMove16);
             if (ponderMove.is_ok() && pos.pseudo_legal_s<true>(ponderMove) && pos.legal(ponderMove))
                 result.pondermove = ponderMove;
@@ -1882,10 +1882,10 @@ namespace Book
 		auto& limits = Search::Limits;
 
 		Position pos;
-		StateInfo si;
+
 
 		// 平手初期化
-		auto hirate_init = [&] { pos.set_hirate(&si); };
+		auto hirate_init = [&] { pos.set_hirate(); };
 
 		{
 			// Bookのprobeのテスト
@@ -1903,8 +1903,8 @@ namespace Book
 
 		Position pos;
 		std::string root_sfen = "startpos moves 7g7f 3c3d 6g6f 8b3b 8h7g 5a6b 2h8h 6b7b 8g8f 3d3e 8f8e 3e3f 3i2h 3f3g+ 2h3g 3a4b 4i3h P*3f 3g2h 4b3c 6i5h 3c4d 7i6h 1c1d P*3g 7a8b";
-		std::deque<StateInfo> si;
-		BookTools::feed_position_string(pos, root_sfen, si, [](Position&,Move){});
+
+		BookTools::feed_position_string(pos, root_sfen, [](Position&,Move){});
 
 		std::string moves1 = "1g1f 2g2f 3g3f 4g4f 5g5f 6f6e 7f7e 8e8d 9g9f 1i1h 9i9h 2h3i 6h6g 6h7i 7g8f 7g9e 8h7h 8h8f 8h8g 8h9h 3h3i 3h4h 5h4h 5h6g 5i4h 5i4i 5i6i";
 		std::string moves2 = std::string();
@@ -1930,7 +1930,7 @@ namespace BookTools
 	// "sfen xxx moves yyy ..."
 	// また、局面を1つ進めるごとにposition_callback関数が呼び出される。
 	// 辿った局面すべてに対して何かを行いたい場合は、これを利用すると良い。
-	void feed_position_string(Position& pos, const std::string& root_sfen, std::deque<StateInfo>& si,
+	void feed_position_string(Position& pos, const std::string& root_sfen,
 		const std::function<void(Position&,Move)>& position_callback)
 	{
 		// issから次のtokenを取得する
@@ -1969,8 +1969,6 @@ namespace BookTools
 			return sfen.str();
 		};
 
-		si.clear();
-		si.emplace_back(StateInfo()); // このあとPosition::set()かset_hirate()を呼び出すので一つは必要。
 
 		Parser::LineScanner iss(root_sfen);
 		std::string token;
@@ -1980,12 +1978,12 @@ namespace BookTools
 			{
 				// 駒落ちなどではsfen xxx movesとなるのでこれをfeedしなければならない。
 				auto sfen = feed_sfen(iss);
-				pos.set(sfen, &si.back());
+				pos.set(sfen);
 			}
 			else if (token == "startpos")
 			{
 				// 平手初期化
-				pos.set_hirate(&si.back());
+				pos.set_hirate();
 			}
 		} while (token == "startpos" || token == "sfen" || token == "moves"/* movesは無視してループを回る*/ );
 
@@ -2004,8 +2002,7 @@ namespace BookTools
 			// callbackを呼び出してやる。
 			position_callback(pos, move);
 
-			si.emplace_back(StateInfo());
-			pos.do_move(move, si.back());
+			pos.do_move(move);
 
 			token = feed_next(iss);
 		}
@@ -2043,14 +2040,14 @@ namespace BookTools
 	std::vector<std::string> get_next_sfens(std::string root_sfen)
 	{
 		Position pos;
-		std::deque<StateInfo> si;
-		feed_position_string(pos, root_sfen, si);
-		StateInfo si2;
+
+		feed_position_string(pos, root_sfen);
+
 		std::vector<std::string> sfens;
 
 		for (auto m : MoveList<LEGAL_ALL>(pos))
 		{
-			pos.do_move(m, si2);
+			pos.do_move(m);
 			sfens.emplace_back("sfen " + pos.sfen());
 			pos.undo_move(m);
 		}

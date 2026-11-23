@@ -298,8 +298,7 @@ void YaneuraOuEngine::isready() {
     // このタイミングで平手の局面に初期化しておく。
     // 💡 これをしておかないとデバッグの時に、"isready"のあと
     //     "position"コマンドを送信しないと局面が不正で落ちて面倒。
-    states = StateListPtr(new std::deque<StateInfo>(1));
-    pos.set(StartSFEN, &states->back());
+    pos.set(StartSFEN);
 #endif
 
 	// 📌 基本設定(base classのisready()を呼び出してやる)
@@ -453,9 +452,9 @@ bool qsearch_psv_record(YaneuraOuWorker& worker, PsvRecord& record, QSearchPsvSt
     ++stats.records;
 
     Position  pos;
-    StateInfo si;
 
-    if (pos.set_from_packed_sfen(record.sfen, &si, false, record.gamePly).is_not_ok())
+
+    if (pos.set_from_packed_sfen(record.sfen, false, record.gamePly).is_not_ok())
     {
         ++stats.decodeErrors;
         return false;
@@ -467,7 +466,6 @@ bool qsearch_psv_record(YaneuraOuWorker& worker, PsvRecord& record, QSearchPsvSt
     if (pv.empty())
         return true;
 
-    std::vector<StateInfo> states(pv.size());
     size_t                 leafPly = 0;
 
     for (Move move : pv)
@@ -478,7 +476,7 @@ bool qsearch_psv_record(YaneuraOuWorker& worker, PsvRecord& record, QSearchPsvSt
             return false;
         }
 
-        pos.do_move(move, states[leafPly]);
+        pos.do_move(move);
         ++leafPly;
     }
 
@@ -647,12 +645,12 @@ bool YaneuraOuEngine::qsearch_psv(const std::string& inputPath,
 // 補助関数
 
 void YaneuraOuEngine::trace_eval() const {
-    StateListPtr trace_states(new std::deque<StateInfo>(1));
+
     Position     p;
 #if STOCKFISH
-	p.set(pos.fen(), options["UCI_Chess960"], &trace_states->back());
+	p.set(pos.fen(), options["UCI_Chess960"]);
 #else
-    p.set(pos.sfen(),&trace_states->back());
+    p.set(pos.sfen());
 #endif
     verify_network();
 
@@ -986,8 +984,8 @@ void Search::YaneuraOuWorker::start_searching() {
 #if STOCKFISH
     accumulatorStack.reset();
 #else
-#if defined(EVAL_SFNN)
-	// やねうら王側、SFNNのときだけこの初期化が必要。
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+	// SFNN・従来NNUEともWorkerが累積値を所有する。
     // 探索の初回evaluate()では局面の差分更新ができないので
     // accumulatorの初回フラグをセットする。
     accumulatorStack.reset();
@@ -2257,7 +2255,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 }
 
 void Search::YaneuraOuWorker::do_move(
-  Position& pos, const Move move, StateInfo& st, const bool givesCheck,
+  Position& pos, const Move move, const bool givesCheck,
   const bool capture, Stack* const ss) {
 
 #if STOCKFISH
@@ -2298,14 +2296,14 @@ void Search::YaneuraOuWorker::do_move(
 
 #if STOCKFISH
     Dirties& dirties = accumulatorStack.push(pos);
-    pos.do_move(move, st, givesCheck, dirties, &sharedHistory);
-#elif defined(EVAL_SFNN)
+    pos.do_move(move, givesCheck, dirties, &sharedHistory);
+#elif defined(EVAL_SFNN) || defined(EVAL_NNUE)
     Eval::NNUE::Dirties& dirties = accumulatorStack.push(pos);
-    pos.do_move(move, st, givesCheck, dirties, &tt, &sharedHistory);
+    pos.do_move(move, givesCheck, dirties, &tt, &sharedHistory);
 
 #else
 
-    pos.do_move(move, st, givesCheck, &tt, &sharedHistory);
+    pos.do_move(move, givesCheck, &tt, &sharedHistory);
 
 #endif
 
@@ -2330,11 +2328,14 @@ void Search::YaneuraOuWorker::do_move(
     }
 }
 
-void Search::YaneuraOuWorker::do_null_move(Position& pos, StateInfo& st, Stack* const ss) {
+void Search::YaneuraOuWorker::do_null_move(Position& pos, Stack* const ss) {
 #if STOCKFISH
-    pos.do_null_move(st);
+    pos.do_null_move();
 #else
-    pos.do_null_move(st, tt);
+    pos.do_null_move(tt);
+#if defined(EVAL_NNUE)
+    accumulatorStack.push_null_move(pos);
+#endif
 #endif
     ss->currentMove                   = Move::null();
     // null moveなので、王手中でも駒取りでもない履歴の番兵を使う。
@@ -2349,14 +2350,19 @@ void Search::YaneuraOuWorker::undo_move(Position& pos, const Move move) {
 #if STOCKFISH
     accumulatorStack.pop();
 #else
-	// やねうら王ではSFNNのときだけaccumulatorStackを使う構造になっている。
-#if defined(EVAL_SFNN)
+	// SFNN・従来NNUEの累積値スタックを戻す。
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     accumulatorStack.pop();
 #endif
 #endif
 }
 
-void Search::YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
+void Search::YaneuraOuWorker::undo_null_move(Position& pos) {
+    pos.undo_null_move();
+#if defined(EVAL_NNUE)
+    accumulatorStack.pop();
+#endif
+}
 
 
 // Reset histories, usually before a new game
@@ -2400,7 +2406,7 @@ void Search::YaneuraOuWorker::clear() {
 #if STOCKFISH
     refreshTable.clear(network[numaAccessToken]);
 #else
-#if defined(EVAL_SFNN)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     accumulatorStack.reset();
 #endif
 #endif
@@ -2412,7 +2418,7 @@ void Search::YaneuraOuWorker::clear() {
 // qsearchのleaf node局面を得られる。通常探索のinfo pv表示のようにTTを辿ってPVを延長しない。
 Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
 
-#if defined(EVAL_SFNN)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     // 探索開始時と同様、初回evaluate()で差分更新を使わない状態に戻す。
     accumulatorStack.reset();
 #endif
@@ -2520,10 +2526,8 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
     // -----------------------
 
 	// pv : このnodeからのPV line(読み筋)
-    // st : do_move()するときに必要
 
     PVMoves   pv;
-	StateInfo st;
 
 	// posKey       : このnodeのhash key
 
@@ -2621,22 +2625,30 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         evaluated = true;
         return this->evaluate(pos);
     };
-    auto do_move = [&](Position & pos, Move move, StateInfo& st, bool givesCheck, bool capture, Stack* ss) {
+    auto do_move = [&](Position & pos, Move move, bool givesCheck, bool capture, Stack* ss) {
         if (!evaluated)
         {
             evaluated = true;
+            #if defined(EVAL_NNUE)
+            Eval::evaluate_with_no_return(pos, accumulatorStack);
+#else
             Eval::evaluate_with_no_return(pos);
+#endif
         }
-        this->do_move(pos, move, st, givesCheck, capture, ss);
+        this->do_move(pos, move, givesCheck, capture, ss);
     };
 
-    auto do_null_move = [&](Position& pos, StateInfo& st, Stack* const ss) {
+    auto do_null_move = [&](Position& pos, Stack* const ss) {
         if (!evaluated)
         {
             evaluated = true;
+            #if defined(EVAL_NNUE)
+            Eval::evaluate_with_no_return(pos, accumulatorStack);
+#else
             Eval::evaluate_with_no_return(pos);
+#endif
         }
-        this->do_null_move(pos, st, ss);
+        this->do_null_move(pos, ss);
     };
 #endif
 #endif
@@ -3225,7 +3237,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 #endif
                 && !is_decisive(ttData.value))
             {
-                pos.do_move(ttData.move, st);
+                pos.do_move(ttData.move);
                 Key nextPosKey = pos.key();
 #if STOCKFISH
                 auto [ttHitNext, ttDataNext, ttWriterNext] = tt.probe(nextPosKey);
@@ -3455,7 +3467,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         //     ここでは現局面で手番側に王手がかかっていない = 直前の指し手(非手番側)は王手ではない ことがわかっている。
         //     do_null_move()は、この条件を満たす必要がある。
 
-        do_null_move(pos, st, ss);
+        do_null_move(pos, ss);
 
         Value nullValue = -search<NonPV>(pos, ss + 1, -beta, -beta + 1, depth - R, false);
 
@@ -3563,7 +3575,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
             capture = pos.capture_stage(move);
             assert(capture);
 
-            do_move(pos, move, st, pos.gives_check(move), capture, ss);
+            do_move(pos, move, pos.gives_check(move), capture, ss);
 
             // Perform a preliminary qsearch to verify that the move holds
             // この指し手がよさげであることを確認するための予備的なqsearch
@@ -4008,7 +4020,7 @@ moves_loop:  // When in check, search starts here
         // -----------------------
 
 		// 指し手で1手進める
-        do_move(pos, move, st, givesCheck, capture, ss);
+        do_move(pos, move, givesCheck, capture, ss);
 
         // Add extension to new depth
         // 求まった延長する手数を新しいdepthに加算
@@ -4660,7 +4672,6 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     PVMoves pv;
 
     // make_move()のときに必要
-    StateInfo st;
 
     // この局面のhash key
 	Key posKey;
@@ -4711,13 +4722,17 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         evaluated = true;
         return this->evaluate(pos);
     };
-    auto do_move = [&](Position& pos, Move move, StateInfo& st, bool givesCheck, bool capture, Stack* ss) {
+    auto do_move = [&](Position& pos, Move move, bool givesCheck, bool capture, Stack* ss) {
         if (!evaluated)
         {
             evaluated = true;
+            #if defined(EVAL_NNUE)
+            Eval::evaluate_with_no_return(pos, accumulatorStack);
+#else
             Eval::evaluate_with_no_return(pos);
+#endif
         }
-        this->do_move(pos, move, st, givesCheck, capture, ss);
+        this->do_move(pos, move, givesCheck, capture, ss);
     };
 #endif
 #endif
@@ -5201,7 +5216,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
 		// 📝 1手動かして、再帰的にqsearch()を呼ぶ
 
-        do_move(pos, move, st, givesCheck, capture, ss);
+        do_move(pos, move, givesCheck, capture, ss);
 
 #if STOCKFISH
         value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha);
@@ -5379,8 +5394,8 @@ Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
     return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack, refreshTable);
 #else
 
-#if defined(EVAL_SFNN)
-#if defined(ENABLE_NUMA_NETWORK_REPLICATION)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
     return Eval::evaluate(pos, accumulatorStack, numaAccessToken);
 #else
     return Eval::evaluate(pos, accumulatorStack);
@@ -5821,12 +5836,11 @@ void syzygy_extend_pv(const OptionsMap&         options,
     if (time_abort())
         return;
 
-    std::list<StateInfo> sts;
 
     // Step 0, do the rootMove, no correction allowed, as needed for MultiPV in TB
     // Step 0. TB内のMultiPVで必要なため、rootMoveを修正せずに指す。
-    auto& stRoot = sts.emplace_back();
-    pos.do_move(rootMove.pv[0], stRoot);
+
+    pos.do_move(rootMove.pv[0]);
     int ply = 1;
 
     // Step 1, walk the PV to the last position in TB with correct decisive score
@@ -5847,8 +5861,7 @@ void syzygy_extend_pv(const OptionsMap&         options,
 
         ply++;
 
-        auto& st = sts.emplace_back();
-        pos.do_move(pvMove, st);
+        pos.do_move(pvMove);
 
         // Do not allow for repetitions or drawing moves along the PV in TB regime
         // TBで結果が確定しているPV内では、局面の反復や引き分けになる手を許さない。
@@ -5885,8 +5898,8 @@ void syzygy_extend_pv(const OptionsMap&         options,
         for (const auto& m : MoveList<ALL>(pos))
         {
             auto&     rm = legalMoves.emplace_back(m);
-            StateInfo tmpSI;
-            pos.do_move(m, tmpSI);
+
+            pos.do_move(m);
             // Give a score of each move to break DTZ ties restricting opponent
             // mobility, but not giving the opponent a capture.
             // DTZが同じ手の優先順位を決めるため、各手を採点する。
@@ -5922,8 +5935,8 @@ void syzygy_extend_pv(const OptionsMap&         options,
 
         Move& pvMove = legalMoves[0].pv[0];
         rootMove.pv.push_back(pvMove);
-        auto& st = sts.emplace_back();
-        pos.do_move(pvMove, st);
+
+        pos.do_move(pvMove);
     }
 
     // Finding a draw in this function is an exceptional case, that cannot happen when rule50 is false or
@@ -6017,7 +6030,7 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
         if (worker.main_manager()->search_options.consideration_mode)
         {
             Move      moves[MAX_PLY + 1];
-            StateInfo si[MAX_PLY];
+
             int       ply = 0;
 
             while (ply < MAX_PLY)
@@ -6075,7 +6088,7 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
                 moves[ply] = m;
                 pv += USIEngine::move(m) + ' ';
 
-                pos.do_move(m, si[ply]);
+                pos.do_move(m);
                 ++ply;
             }
             while (ply > 0)
@@ -6167,9 +6180,8 @@ bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
     if (!pv[0].is_ok())
         return false;
 #endif
-    StateInfo st;
 
-    pos.do_move(pv[0], st);
+    pos.do_move(pv[0]);
 
 #if STOCKFISH
     if (!pos.is_draw(1))

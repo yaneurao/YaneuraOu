@@ -948,41 +948,35 @@ void load_eval() {
 // 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
 // なので、この関数の最適化は頑張らない。
 Value compute_eval(const Position& pos) {
-#if defined(EVAL_SFNN)
     NNUE::AccumulatorState state;
     return NNUE::ComputeScore(pos, &state, true);
-#else
-    return NNUE::ComputeScore(pos, pos.state(), true);
-#endif
 }
 
-// 評価関数
 Value evaluate(const Position& pos) {
-#if defined(EVAL_SFNN)
     // Standalone evaluation must not change a search worker's stack.
     // 探索外の評価では、探索Workerのスタックを変更しない。
     NNUE::AccumulatorState state;
     return NNUE::ComputeScore(pos, &state);
-#else
-    return NNUE::ComputeScore(pos, pos.state());
-#endif
 }
 
-#if defined(EVAL_SFNN)
 Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack) {
     return NNUE::ComputeScore(pos, &stack.latest());
 }
-#if defined(ENABLE_NUMA_NETWORK_REPLICATION)
+#if defined(EVAL_SFNN) && defined(ENABLE_NUMA_NETWORK_REPLICATION)
 Value evaluate(const Position& pos, NNUE::AccumulatorStack& stack, NumaReplicatedAccessToken token) {
     return NNUE::ComputeScore(pos, &stack.latest(), false, NNUE::networks(token));
 }
 #endif
-#endif
 
-// 差分計算ができるなら進める
 #if defined(EVAL_NNUE)
+void evaluate_with_no_return(const Position& pos, NNUE::AccumulatorStack& stack) {
+    NNUE::UpdateAccumulatorIfPossible(pos, &stack.latest());
+}
+
 void evaluate_with_no_return(const Position& pos) {
-    NNUE::UpdateAccumulatorIfPossible(pos, pos.state());
+    // No worker stack is available to this standalone helper.
+    // 探索外の補助関数にはWorkerの累積値スタックを渡さない。
+    (void) pos;
 }
 #endif
 

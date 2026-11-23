@@ -24,7 +24,6 @@ namespace YaneuraOu::Benchmark {
 template<bool Root>
 u64 perft(Position& pos, Depth depth) {
 
-    StateInfo st;
 
     u64   cnt, nodes = 0;
     const bool leaf = (depth == 2);
@@ -35,7 +34,7 @@ u64 perft(Position& pos, Depth depth) {
             cnt = 1, nodes++;
         else
         {
-            pos.do_move(m, st);
+            pos.do_move(m);
             cnt = leaf ? MoveList<LEGAL_ALL>(pos).size() : perft<false>(pos, depth - 1);
             nodes += cnt;
             pos.undo_move(m);
@@ -60,16 +59,15 @@ perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
     const auto start = now();
 #endif
 
-    StateInfo st;
 	Position  p;
 
 #if STOCKFISH
-    if (auto err = p.set(fen, isChess960, &st))
+    if (auto err = p.set(fen, isChess960))
         return {*err};
 
     return perft<true>(p, depth);
 #else
-    if (auto err = p.set(fen, &st))
+    if (auto err = p.set(fen))
         return {*err};
 
 	// 🌈 やねうら王では、NPS(leaf nodeの数/elapsed)と計測に要した時間も出力する。

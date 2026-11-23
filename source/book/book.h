@@ -411,7 +411,7 @@ namespace BookTools
 // 
 // position_callbackは、その局面と、その局面での指し手が引数にセットされて呼び出される。
 // 与えたsfenの最後の局面では、MoveはMove::none()が入って呼び出される。
-void feed_position_string(Position& pos, const std::string& root_sfen, std::deque<StateInfo>& si,
+void feed_position_string(Position& pos, const std::string& root_sfen,
 	const std::function<void(Position&, Move)>& position_callback = [](Position&, Move) {});
 
 // 平手、駒落ちの開始局面集

@@ -14,6 +14,7 @@
 
 #include <array>
 #include <cassert>
+#include <cstring>
 
 namespace YaneuraOu {
 namespace Eval::NNUE {
@@ -31,7 +32,6 @@ struct alignas(64) Accumulator {
 #endif
 };
 
-#if defined(EVAL_SFNN)
 // Changes are written directly into the next accumulator frame.
 // 着手の差分は、次の累積値フレームへ直接書き込む。
 struct Dirties {
@@ -54,6 +54,9 @@ class AccumulatorStack {
         size = 1;
         auto& st = latest();
         st.computed_accumulation = false;
+#if defined(EVAL_NNUE)
+        st.computed_score = false;
+#endif
         st.previous = nullptr;
         st.dirtyPiece.dirty_num = 0;
     }
@@ -63,10 +66,26 @@ class AccumulatorStack {
         auto* previous = &latest();
         auto& st = accumulators[size++];
         st.computed_accumulation = false;
+#if defined(EVAL_NNUE)
+        st.computed_score = false;
+#endif
         st.previous = previous;
         st.dirtyPiece.dirty_num = 0;
         return st;
     }
+
+#if defined(EVAL_NNUE)
+    void push_null_move(const Position& pos) noexcept {
+        auto* previous = &latest();
+        push(pos);
+        // Copy bytes even when the parent FT has not been computed yet.
+        // 親のFTが未計算でも、未初期化の要素を値として読み出さずバイト列でコピーする。
+        std::memcpy(latest().accumulation, previous->accumulation,
+                    sizeof(latest().accumulation));
+        latest().computed_accumulation = previous->computed_accumulation;
+        latest().computed_score = false;
+    }
+#endif
 
     void pop() noexcept {
         assert(size > 1);
@@ -77,9 +96,7 @@ class AccumulatorStack {
     std::array<AccumulatorState, MaxSize> accumulators;
     usize size = 1;
 };
-#else
-using AccumulatorState = StateInfo;
-#endif
+
 
 } // namespace Eval::NNUE
 } // namespace YaneuraOu

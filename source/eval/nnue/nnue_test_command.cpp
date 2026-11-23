@@ -28,38 +28,23 @@ void TestAccumulator(Position&, std::istream& stream) {
     return;
   }
 
-#if defined(EVAL_SFNN)
   constexpr int max_ply = MAX_PLY;
-#else
-  constexpr int max_ply = 256;
-#endif
   Position pos;
-  auto states = std::make_unique<StateInfo[]>(max_ply);
-  StateInfo root;
-#if defined(EVAL_SFNN)
+
   auto stack = std::make_unique<AccumulatorStack>();
   auto current_state = [&]() { return &stack->latest(); };
-  auto do_move = [&](Move move, StateInfo& st) {
+  auto do_move = [&](Move move) {
     auto& dirties = stack->push(pos);
-    pos.do_move(move, st, pos.gives_check(move), dirties);
+    pos.do_move(move, pos.gives_check(move), dirties);
   };
   auto undo_move = [&](Move move) { pos.undo_move(move); stack->pop(); };
   auto evaluate = [&]() { return Eval::evaluate(pos, *stack); };
-#else
-  auto current_state = [&]() { return pos.state(); };
-  auto do_move = [&](Move move, StateInfo& st) { pos.do_move(move, st); };
-  auto undo_move = [&](Move move) { pos.undo_move(move); };
-  auto evaluate = [&]() { return Eval::evaluate(pos); };
-#endif
   PRNG prng(20261025);
   std::uint64_t moves = 0, pawn_moves = 0, pawn_captures = 0, promotions = 0, king_moves = 0, checksum = 0;
   for (int game = 0; game < games; ++game) {
-    pos.set_hirate(&root);
-#if defined(EVAL_SFNN)
+    pos.set_hirate();
     stack->reset();
-#endif
     networks().feature_transformer.EnsureAccumulator(pos, true, current_state());
-#if defined(EVAL_SFNN)
     // Cover delayed updates and null moves before testing ordinary one-ply updates.
     // 通常の1手差分に加え、評価を省略した連続着手とnull moveも検証する。
     PRNG delayed_prng(20261113 + game);
@@ -70,18 +55,21 @@ void TestAccumulator(Position&, std::istream& stream) {
         MoveList<LEGAL_ALL> legal(pos);
         if (legal.size() == 0) break;
         Move move = legal.begin()[delayed_prng.rand(legal.size())];
-        do_move(move, states[n]);
+        do_move(move);
         sequence.push_back(move);
       }
       if (!pos.checkers()) {
-        StateInfo null_state;
-        pos.do_null_move(null_state, 0);
+
+        pos.do_null_move(0);
+#if defined(EVAL_NNUE)
+        stack->push_null_move(pos);
+#endif
         // Also evaluate a child while the null move is still active.
         // null moveを戻す前に子局面へ進み、null moveをまたぐ差分更新も検証する。
         MoveList<LEGAL_ALL> null_legal(pos);
         if (null_legal.size() != 0) {
           const Move child = null_legal.begin()[delayed_prng.rand(null_legal.size())];
-          do_move(child, states[delay]);
+          do_move(child);
           const Value child_score = evaluate();
           const auto child_accumulator = accumulator_of(current_state());
           networks().feature_transformer.RefreshAccumulatorForTest(pos, current_state());
@@ -99,6 +87,9 @@ void TestAccumulator(Position&, std::istream& stream) {
           return;
         }
         pos.undo_null_move();
+#if defined(EVAL_NNUE)
+        stack->pop();
+#endif
       }
       if (evaluate() != Eval::evaluate(pos)) {
         std::cout << "test_accumulator FAILED delayed update" << std::endl;
@@ -128,13 +119,12 @@ void TestAccumulator(Position&, std::istream& stream) {
         return;
       }
     }
-#endif
     for (int ply = 0; ply < max_ply; ++ply) {
       MoveList<LEGAL_ALL> legal(pos);
       if (legal.size() == 0) break;
       const Move move = legal.begin()[prng.rand(legal.size())];
       const auto parent = accumulator_of(current_state());
-      do_move(move, states[ply]);
+      do_move(move);
       const auto& dirty = current_state()->dirtyPiece;
       if (dirty.pieceNo[0] >= PIECE_NUMBER_KING) ++king_moves;
       for (int n = 0; n < dirty.dirty_num; ++n) {
@@ -188,17 +178,39 @@ void TestAccumulator(Position&, std::istream& stream) {
         std::cout << "test_accumulator FAILED undo" << std::endl;
         return;
       }
-      do_move(move, states[ply]);
+      do_move(move);
       networks().feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
       if (std::memcmp(incremental.accumulation, accumulator_of(current_state()).accumulation,
                       sizeof(incremental.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED redo" << std::endl;
         return;
       }
+      // Also test null from a computed, non-root parent with nonzero DirtyPiece.
+      // DirtyPieceを持つ評価済みの非ルート局面からもnull moveを検証する。
+      // 探索と同様、MAX_PLYに達した局面からは次のフレームを積まない。
+      if (ply + 1 < max_ply && !pos.checkers()) {
+        const Value parent_score = evaluate();
+        pos.do_null_move();
+#if defined(EVAL_NNUE)
+        stack->push_null_move(pos);
+#endif
+        if (evaluate() != Eval::evaluate(pos)) {
+          std::cout << "test_accumulator FAILED computed parent null move" << std::endl;
+          return;
+        }
+        pos.undo_null_move();
+#if defined(EVAL_NNUE)
+        stack->pop();
+#endif
+        if (evaluate() != parent_score) {
+          std::cout << "test_accumulator FAILED computed parent null undo" << std::endl;
+          return;
+        }
+      }
       ++moves;
     }
   }
-  pos.set_hirate(&root);
+  pos.set_hirate();
   std::cout << "test_accumulator passed: " << games << " games, " << moves
             << " moves, pawn moves " << pawn_moves << ", pawn captures " << pawn_captures
             << ", promotions " << promotions << ", king moves " << king_moves
@@ -209,11 +221,10 @@ void TestAccumulator(Position&, std::istream& stream) {
 void TestFeatures(Position&) {
   Position pos;
   const std::uint64_t num_games = 1000;
-  StateInfo si;
-  pos.set_hirate(&si);
+
+  pos.set_hirate();
   const int MAX_PLY = 256; // 256手までテスト
 
-  StateInfo state[MAX_PLY]; // StateInfoを最大手数分だけ
   int ply; // 初期局面からの手数
 
   PRNG prng(20171128);
@@ -291,20 +302,15 @@ void TestFeatures(Position&) {
 
       // 生成された指し手のなかからランダムに選び、その指し手で局面を進める。
       Move m = mg.begin()[prng.rand(mg.size())];
-#if defined(EVAL_SFNN)
       Dirties dirties;
-      pos.do_move(m, state[ply], pos.gives_check(m), dirties);
+      pos.do_move(m, pos.gives_check(m), dirties);
       const auto& dirty = dirties.dirtyPiece;
-#else
-      pos.do_move(m, state[ply]);
-      const auto& dirty = pos.state()->dirtyPiece;
-#endif
       ++num_moves;
       update_index_sets(pos, dirty, &index_sets);
       ASSERT(index_sets == make_index_sets(pos));
     }
 
-    pos.set_hirate(&si);
+    pos.set_hirate();
 
     // 100回に1回ごとに'.'を出力(進んでいることがわかるように)
     if ((i % 100) == 0)

@@ -142,9 +142,7 @@ namespace {
 
 		for (uint64_t i = 0; i < loop ; ++i)
 		{
-			// 局面を遡るためのStateInfoのlist。
-			StateListPtr states(new StateList(1));
-			pos.set_hirate(&states->back());
+			pos.set_hirate();
 
 			if (verbose)
 				std::cout << "position startpos moves";
@@ -186,10 +184,6 @@ namespace {
 				}
 #endif
 
-				// Stockfish、start_thinking()のなかでstatesの所有権をstd::moveしてしまうので、コピーしておく。
-				// ※　start_thinking()でownership transferするの、こういうコードが書きにくくなって良くないと思う。
-				StateListPtr states0(new StateList(0));
-				*states0.get() = *states.get(); // dequeのcopyを行う。
 
 				// 思考時間、nodes_limit、1～4倍の間でランダム化
 				Search::LimitsType lm;
@@ -197,7 +191,7 @@ namespace {
 				lm.movetime = movetime * (1000 + prng.rand(3000)) / 1000;
 				lm.nodes    = nodes_limit * (1000 + prng.rand(3000)) / 1000;
 
-				threads.start_thinking(options, pos, states0 , lm);
+				threads.start_thinking(options, pos, lm);
 				threads.wait_for_search_finished();
 				auto& rootMoves = threads.main_thread()->worker->rootMoves;
 				// ⚠ best threadから選出したほうがいいかも知れないが、どれがbest threadか、わからない…。
@@ -223,8 +217,7 @@ namespace {
 				if (verbose)
 					std::cout << " " << m;
 
-				states->emplace_back();
-				pos.do_move(m, states->back());
+				pos.do_move(m);
 			}
 
 			if (verbose)
@@ -296,7 +289,7 @@ namespace {
 		engine.isready();
 
 		auto& pos = engine.get_position();
-		StateInfo si;
+
 
 		uint64_t compared = 0;
 		uint64_t sign_match = 0;
@@ -309,7 +302,7 @@ namespace {
 		PsvRecord rec;
 		while (f.read(reinterpret_cast<char*>(&rec), sizeof(PsvRecord)))
 		{
-			if (pos.set_from_packed_sfen(rec.sfen, &si, false, rec.gamePly).is_not_ok())
+			if (pos.set_from_packed_sfen(rec.sfen, false, rec.gamePly).is_not_ok())
 			{
 				skipped++;
 				continue;

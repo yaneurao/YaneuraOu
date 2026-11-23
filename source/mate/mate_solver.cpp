@@ -20,12 +20,10 @@ namespace Mate {
 	{
 		// OR節点
 
-		StateInfo si;
-		StateInfo si2;
 
 		for (const auto& m : MovePicker<true, INCHECK , GEN_ALL , false /* no ordering */>(pos))
 		{
-			pos.do_move(m, si, true);
+			pos.do_move(m, true);
 
 			// and node
 
@@ -63,7 +61,7 @@ namespace Mate {
 						if (pos.gives_check(m2))
 							goto NEXT_CHECK;
 
-						pos.do_move(m2, si2, /* givesCheck */false);
+						pos.do_move(m2, /* givesCheck */false);
 
 						// mate_1ply()は王手がかかっている時に呼べないが、
 						// この局面は王手はかかっていないから問題ない。
@@ -119,9 +117,8 @@ namespace Mate {
 			// これが合法手であることは、MovePickerのほうで保証されている。
 			auto m = Move(ml);
 
-			StateInfo state;
 			// これが王手であることはわかっているので第3引数はtrueで固定しておく。
-			pos.do_move(m, state, true);
+			pos.do_move(m, true);
 
 			// and node
 
@@ -191,8 +188,8 @@ namespace Mate {
 			const bool givesCheck = pos.gives_check(m);
 
 			// 1手動かす
-			StateInfo state;
-			pos.do_move(m, state, givesCheck);
+
+			pos.do_move(m, givesCheck);
 
 			// or node
 

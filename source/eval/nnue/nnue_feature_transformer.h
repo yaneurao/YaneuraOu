@@ -45,28 +45,12 @@ namespace Eval::NNUE {
 
 inline AccumulatorState* resolve_state([[maybe_unused]] const Position& pos,
                                        AccumulatorState* state) {
-#if defined(EVAL_NNUE)
-    return state ? state : pos.state();
-#else
     assert(state);
     return state;
-#endif
 }
 
-inline Accumulator& accumulator_of(AccumulatorState* state) {
-#if defined(EVAL_SFNN)
-    return *state;
-#else
-    return state->accumulator;
-#endif
-}
-inline const Accumulator& accumulator_of(const AccumulatorState* state) {
-#if defined(EVAL_SFNN)
-    return *state;
-#else
-    return state->accumulator;
-#endif
-}
+inline Accumulator& accumulator_of(AccumulatorState* state) { return *state; }
+inline const Accumulator& accumulator_of(const AccumulatorState* state) { return *state; }
 inline void invalidate_score([[maybe_unused]] Accumulator& accumulator) {
 #if defined(EVAL_NNUE)
     accumulator.computed_score = false;

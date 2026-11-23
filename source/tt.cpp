@@ -594,8 +594,8 @@ void TranspositionTable::UnitTest(Test::UnitTester& unittest, IEngine& engine)
 
 		auto section2 = unittest.section("probe()");
 		Position pos;
-		StateInfo si;
-		pos.set_hirate(&si);
+
+		pos.set_hirate();
 
 		u64 posKey = u64(pos.key());
 		auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);

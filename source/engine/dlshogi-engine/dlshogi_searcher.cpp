@@ -355,7 +355,7 @@ Move DlshogiSearcher::UctSearchGenmove(Position&                pos,
     tree->ResetToPosition(game_root_sfen, moves);
 
     // ルート局面をコピーしておく。(詰み探索の開始局面などで使いたいため)
-    std::memcpy(&pos_root, &pos, sizeof(Position));
+    pos_root.copy_from(pos);
 
     // 探索開始局面
     Node* current_root         = tree->GetCurrentHead();
@@ -612,10 +612,9 @@ void pv_key(Position& pos, Node* node, int ply, u64 keys[]) {
             if (node->child[i].move_count > node->child[max_i].move_count)
                 max_i = i;
 
-        StateInfo si;
         Move      m = node->child[max_i].move;
         //sync_cout << to_usi_string(m) << sync_endl;
-        pos.do_move(m, si);
+        pos.do_move(m);
         pv_key(pos, node->child_nodes[max_i].get(), ply - 1, keys);
         pos.undo_move(m);
     }
@@ -876,8 +875,8 @@ void DlshogiSearcher::InterruptionCheck(const Position& rootPos) {
                 {
                     // rootPosはスレッドごとに用意されているのでmemcpyして問題ない。
                     Position pos;
-                    std::memcpy(&pos, &rootPos, sizeof(Position));
-                    StateInfo si;
+                    pos.copy_from(rootPos);
+
 
                     Move m1 = uct_child[best_i].move;
                     Move m2 = uct_child[second_i].move;
@@ -885,11 +884,11 @@ void DlshogiSearcher::InterruptionCheck(const Position& rootPos) {
                     //sync_cout << to_usi_string(m1) << sync_endl;
                     //sync_cout << to_usi_string(m2) << sync_endl;
 
-                    pos.do_move(m1, si);
+                    pos.do_move(m1);
                     u64 k1[4] = {}, k2[4] = {};
                     pv_key(pos, node1, 3, k1);  // 4手先までのhash key
                     pos.undo_move(m1);
-                    pos.do_move(m2, si);
+                    pos.do_move(m2);
                     pv_key(pos, node2, 3, k2);  // 4手先までのhash key
                     pos.undo_move(m2);
 

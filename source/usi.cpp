@@ -1694,13 +1694,13 @@ void USIEngine::UnitTest(Test::UnitTester& tester, IEngine& engine) {
     auto section1 = tester.section("USI");
 
     Position  pos;
-    StateInfo si;
+
 
     // 平手初期化
-    auto hirate_init = [&] { pos.set_hirate(&si); };
+    auto hirate_init = [&] { pos.set_hirate(); };
 
     // SFEN文字列でのPosition初期化
-    auto sfen_init = [&](const std::string& sfen) { pos.set(sfen, &si); };
+    auto sfen_init = [&](const std::string& sfen) { pos.set(sfen); };
 
     {
         auto section2 = tester.section("to_move()");
@@ -1718,14 +1718,13 @@ void USIEngine::UnitTest(Test::UnitTester& tester, IEngine& engine) {
             std::string        token;
             bool          fail = false;
 
-            StateInfo si[512];
             while (is >> token)
             {
                 Move m = USIEngine::to_move(pos, token);
                 if (m == Move::none())
                     fail = true;
 
-                pos.do_move(m, si[pos.game_ply()]);
+                pos.do_move(m);
             }
 
             tester.test("pawn's unpromoted move", !fail);

@@ -456,8 +456,6 @@ class Engine: public IEngine {
     // "position"コマンドで設定された局面が格納されている。
     Position pos;
 
-    // ここまでの局面に対するStateInfoのlist
-    StateListPtr states;
 
     // 思考エンジンオプション
     OptionsMap options;

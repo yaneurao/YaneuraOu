@@ -198,6 +198,7 @@ struct Node {
 #endif
 
     // 詰み関連のフラグ
+    int dfpn_horizon = 0;        // 探索済みの絶対手数上限。ルート更新後の再探索判定に使う。
     bool dfpn_checked;            // df-pn調べ済み
     bool dfpn_proven_unsolvable;  // df-pnで詰まないことが証明されている。
     //s16 dfpn_mate_ply : 15; // 詰み手数。0なら詰みなし。プラスならこの局面からの詰みまでの手数。マイナスなら、詰まされるまでの手数。

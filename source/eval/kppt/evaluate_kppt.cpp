@@ -499,12 +499,12 @@ namespace Eval {
 		// 一つ前のノードからの評価値の差分を計算する。
 
 		auto now = pos.state();
-		auto prev = now->previous;
+		auto prev = pos.previous_state();
 
 		// nodeごとにevaluate()は呼び出しているので絶対に差分計算できるはず。
 		// 一つ前のnodeでevaluate()されているはず。
 		//
-		// root nodeではprevious == nullptrであるが、root nodeではPosition::set()でcompute_eval()
+		// 直前の局面がない開始局面では、Position::set()でcompute_eval()
 		// を呼び出すので通常この関数が呼び出されることはない。
 		if (!prev->sum.evaluated())
 		{

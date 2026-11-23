@@ -735,11 +735,11 @@ namespace Mate::Dfpn32
 				auto best_child = select_the_best_child<or_node>(node, second_pn2, second_dn2);
 
 				// 一手進めて子ノードに行く
-				StateInfo si;
+
 				Move m = pos.to_move(Move16(u16(u32(best_child->lastMove))));
 				// ⇨ ここ、lastMoveがu32かMove型なので、Move16にしたいのだが、この変換が一発で書けない。
 
-				pos.do_move(m, si);
+				pos.do_move(m);
 
 				// 再帰的に呼び出す。
 				ParallelSearch<!or_node>(pos, best_child ,second_pn2 , second_dn2);
