@@ -581,16 +581,7 @@ class PRNG
         return T(rand64());
     }
 
-#if STOCKFISH
-    // Special generator used to fast init magic numbers.
-    // Output values only have 1/8th of their bits set on average.
-    // magic定数を高速に初期化するための専用の乱数生成器。
-    // 出力では、平均して全ビットの1/8だけが1になる。
-    template<typename T>
-    T sparse_rand() {
-        return T(rand64() & rand64() & rand64());
-    }
-#else
+#if !STOCKFISH
 	// 🌈 やねうら王では、定跡選択にもこの乱数を用いるので、now()をseedとすると
 	//    並列実行するときに同じ指し手を選択してしまいかねない。
 	//    そこで、もうちょっと高精度な方法でseedを初期化する。
