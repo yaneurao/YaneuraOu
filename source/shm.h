@@ -542,16 +542,11 @@ struct SystemWideSharedConstant {
         std::string shm_name = buf;
 
 #if defined(USE_UNIX_SHM)
-        // POSIX shared memory names must start with a slash
-        // POSIX共有メモリの名前はスラッシュで始める必要がある。
+        // POSIX shared memory names must start with a slash, hash ensures it is short enough everywhere.
+        // POSIX共有メモリ名はスラッシュで始める必要があり、ハッシュ化で各環境の長さ制限にも収める。
         shm_name = "/sf_" + createHashString(shm_name);
 
-        // hash name and make sure it is not longer than SF_MAX_SEM_NAME_LEN
-        // 名前をハッシュ化し、その長さがSF_MAX_SEM_NAME_LENを超えないようにする。
-        if (shm_name.size() > SF_MAX_SEM_NAME_LEN)
-        {
-            shm_name = shm_name.substr(0, SF_MAX_SEM_NAME_LEN - 1);
-        }
+        assert(shm_name.size() <= NAME_MAX);
 #endif
 
         SharedMemoryBackend<T> shm_backend(shm_name, value);
