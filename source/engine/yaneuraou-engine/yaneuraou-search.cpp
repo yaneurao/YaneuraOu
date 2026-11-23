@@ -1625,6 +1625,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     // uciPvSentは、現在の反復で最終PVをGUIへ出力済みかを表す。
     int  searchAgainCounter = 0;
     int  failHighRecovery   = 0;
+    u64  totalEffort        = 0;
     bool uciPvSent          = false;
 
     // 💡 lowPlyHistoryは、試合開始時に1回だけではなく、"go"の度に初期化したほうが強い。
@@ -1988,6 +1989,9 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             }
 
 
+            if (mainThread && !pvIdx)
+                totalEffort = u64(nodes);
+
             if (threads.stop)
                 break;
 
@@ -2115,10 +2119,11 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             && !mainThread->tm.search_end)
 #endif
         {
-            u64 nodesEffort = rootMoves[0].effort * 100000 / std::max(u64(1), u64(nodes));
+            u64 nodesEffort = rootMoves[0].effort * 100000 / std::max(u64(1), totalEffort);
 
-            double fallingEval = (11.48 + 2.30 * (mainThread->bestPreviousAverageScore - bestValue)
-               + 1.1 * (mainThread->iterValue[iterIdx] - bestValue))
+            double fallingEval =
+              (11.48 + 2.30 * (mainThread->bestPreviousAverageScore - rootMoves[0].score)
+               + 1.1 * (mainThread->iterValue[iterIdx] - rootMoves[0].score))
               / 100.0;
             fallingEval = std::clamp(fallingEval, 0.576, 1.728);
 
@@ -2242,7 +2247,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 #endif
         }
 
-        mainThread->iterValue[iterIdx] = bestValue;
+        mainThread->iterValue[iterIdx] = rootMoves[0].score;
         iterIdx                        = (iterIdx + 1) & 3;
     }
 
