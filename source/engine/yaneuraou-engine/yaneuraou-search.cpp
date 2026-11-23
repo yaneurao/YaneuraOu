@@ -981,16 +981,10 @@ void Search::YaneuraOuWorker::pre_start_searching() {
 #endif
 
 void Search::YaneuraOuWorker::start_searching() {
-#if STOCKFISH
-    accumulatorStack.reset();
-#else
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-	// SFNN・従来NNUEともWorkerが累積値を所有する。
+    // SFNN・従来NNUEともWorkerが累積値を所有する。
     // 探索の初回evaluate()では局面の差分更新ができないので
     // accumulatorの初回フラグをセットする。
     accumulatorStack.reset();
-#endif
-#endif
 
     // Non-main threads go directly to iterative_deepening()
     // メインスレッド以外は直接 iterative_deepening() へ進む
@@ -2347,14 +2341,7 @@ void Search::YaneuraOuWorker::undo_move(Position& pos, const Move move) {
 
 	pos.undo_move(move);
 
-#if STOCKFISH
     accumulatorStack.pop();
-#else
-	// SFNN・従来NNUEの累積値スタックを戻す。
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-    accumulatorStack.pop();
-#endif
-#endif
 }
 
 void Search::YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
@@ -2401,9 +2388,7 @@ void Search::YaneuraOuWorker::clear() {
 #if STOCKFISH
     refreshTable.clear(network[numaAccessToken]);
 #else
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     accumulatorStack.reset();
-#endif
 #endif
 }
 
@@ -2413,10 +2398,8 @@ void Search::YaneuraOuWorker::clear() {
 // qsearchのleaf node局面を得られる。通常探索のinfo pv表示のようにTTを辿ってPVを延長しない。
 Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
 
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     // 探索開始時と同様、初回evaluate()で差分更新を使わない状態に戻す。
     accumulatorStack.reset();
-#endif
 
     nodes.store(0, std::memory_order_relaxed);
     selDepth = 0;

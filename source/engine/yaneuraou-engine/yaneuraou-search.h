@@ -591,6 +591,12 @@ class YaneuraOuWorker: public Worker {
 
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     Eval::NNUE::AccumulatorStack accumulatorStack;
+#else
+    // 累積値を使わない評価関数でも、同じ形で初期化とundoを呼べるようにする。
+    struct {
+        void reset() noexcept {}
+        void pop() noexcept {}
+    } accumulatorStack;
 #endif
 
 	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
