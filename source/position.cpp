@@ -440,8 +440,13 @@ void Position::reset_state() {
 
 StateInfo* Position::push_state() {
 #if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
-    if (++stateIdx == stateInfos.size())
-        stateInfos.emplace_back();
+    // 探索側で上限を制限する。入力手順などから超過した場合も配列外へ書かない。
+    if (stateIdx + 1 >= MAX_HIST)
+    {
+        sync_cout << "info string StateInfo capacity exceeded (2048 states)" << sync_endl;
+        Tools::exit();
+    }
+    ++stateIdx;
 #else
     ++stateIdx;
 #endif
@@ -465,12 +470,7 @@ void Position::pop_state() {
 void Position::copy_state_infos(const Position& other) {
     assert(this != &other);
     usize stateCount = std::min(other.stateIdx + 1, usize(std::max(16, max_repetition_ply)) + 1);
-#if !defined(YANEURAOU_MATE_ENGINE) && !defined(TANUKI_MATE_ENGINE)
     stateCount = std::min(stateCount, MAX_HIST);
-#else
-    if (stateInfos.size() < stateCount)
-        stateInfos.resize(stateCount);
-#endif
     stateIdx = stateCount - 1;
     for (usize i = 0; i < stateCount; ++i)
         stateInfos[stateIdx - i] = *other.previous_state(i);

@@ -15,9 +15,6 @@
 #include "types.h"
 
 #if !STOCKFISH
-#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
-#include <deque>
-#endif
 #include "extra/tools.h"
 #include "evaluate.h"
 
@@ -434,10 +431,8 @@ class Position {
     bool set_max_repetition_ply(int ply) {
         if (ply < 0)
             return false;
-#if !defined(YANEURAOU_MATE_ENGINE) && !defined(TANUKI_MATE_ENGINE)
         if (usize(ply) + MAX_PLY >= MAX_HIST)
             return false;
-#endif
         max_repetition_ply = ply;
         return true;
     }
@@ -914,7 +909,13 @@ class Position {
 #if !STOCKFISH
     StateInfo* state() const;
 
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+    // 初期局面・保持履歴を含む固定長領域。末尾2枠は詰み判定の補助着手にも使う。
+    static constexpr usize MAX_HIST = 2048;
+    usize remaining_state_capacity() const { return MAX_HIST - 1 - stateIdx; }
+#else
     static constexpr usize MAX_HIST = 512;
+#endif
 #endif
     // Copy only the history needed by shogi repetition detection.
     // 千日手判定に必要な過去の履歴を、自分の領域へコピーする。
@@ -1302,14 +1303,10 @@ private:
     // 添字は論理的に数え、配列アクセス時だけマスクする。有効な履歴長もこの添字から得る。
     usize stateIdx = 0;
     StateInfo* st = nullptr;
-#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
-    // Dedicated mate solvers retain unbounded history until their planned rewrite.
-    // 専用詰将棋探索は作り直すまで、深さを制限しない履歴を保持する。
-    std::deque<StateInfo> stateInfos{1};
-#else
+#if !defined(YANEURAOU_MATE_ENGINE) && !defined(TANUKI_MATE_ENGINE)
     static_assert(MAX_HIST >= MAX_PLY + 17);
-    StateInfo stateInfos[MAX_HIST];
 #endif
+    StateInfo stateInfos[MAX_HIST];
     void reset_state();
     StateInfo* push_state();
     void pop_state();

@@ -490,6 +490,9 @@ namespace Mate::Dfpn32
 			// カウンターのリセットをしておかないと新しいメモリが使えない。
 			node_manager.reset_counter();
 			out_of_memory = false;
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+            stateCapacityExhausted = false;
+#endif
 
 			// RootNodeを展開する。
 			ExpandRoot(pos);
@@ -510,6 +513,11 @@ namespace Mate::Dfpn32
 				return pick_the_best<true, true, false>(node);
 			}
 
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+            // 履歴容量による打ち切りを、不詰の証明として返さない。
+            if (stateCapacityExhausted)
+                return Move::none();
+#endif
 			// 不詰が証明された
 			if (current_root->pn >= NodeType::DNPN_MATE && current_root->dn == 0)
 				return Move::null();
@@ -985,6 +993,18 @@ namespace Mate::Dfpn32
 		void ExpandNode(Position& pos, NodeType* node)
 		{
 			ASSERT_LV3(node != nullptr && node->child_num == NodeType::CHILDNUM_NOT_INIT);
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+            // 履歴末尾2枠は補助的な詰み判定に残す。深さ制限による結論はTTへ保存しない。
+            if (pos.remaining_state_capacity() <= 2)
+            {
+                stateCapacityExhausted = true;
+                node->set_child(0);
+                node->set_nomate();
+                if (WithHash)
+                    node->repeated = true;
+                return;
+            }
+#endif
 
 			if (WithHash)
 			{
@@ -1236,6 +1256,9 @@ namespace Mate::Dfpn32
 
 		// new_node()などに失敗した
 		std::atomic<bool> out_of_memory;
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+        std::atomic<bool> stateCapacityExhausted;
+#endif
 
 		// current_rootの局面での詰みの指し手
 		Move bestmove;

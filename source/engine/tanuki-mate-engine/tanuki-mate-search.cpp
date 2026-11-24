@@ -356,7 +356,7 @@ public:
 			// 探索メモから詰み手順を再構築する
 
 			bool found = false;
-			for (int play = 0; ; ++play) {
+			for (int play = 0; r.remaining_state_capacity() != 0; ++play) {
 				const auto& mate_state = memo[r.key()];
 				if (mate_state.num_moves_to_mate == kNotMate) {
 					break;
@@ -404,7 +404,7 @@ public:
 
 
 		if (timeup) {
-			// 制限時間を超えた
+			// 時間・ノード数・履歴容量のいずれかの上限に達した。
 			sync_cout << "checkmate timeout" << sync_endl;
 		}
 		else if (moves.empty()) {
@@ -481,6 +481,13 @@ public:
         ++*node_counter;
 
 		auto& entry = transposition_table.LookUp(n, root_color);
+
+        // 履歴容量不足は探索資源の上限として打ち切り、TTへ不詰と記録しない。
+        if (n.remaining_state_capacity() <= 2) {
+            timeup = true;
+            threads.stop = true;
+            return;
+        }
 
 		if (depth > kMaxDepth) {
 			entry.pn = kInfinitePnDn;
@@ -763,6 +770,8 @@ public:
 		cout << "key-gen" << entry0.hash_high << "," << entry0.generation << endl;
 
 		for (auto m : pv_check) {
+            if (pos.remaining_state_capacity() == 0)
+                break;
 
 			Move move = pos.to_move(m);
 			pos.do_move(move);
@@ -803,6 +812,9 @@ public:
 	// 詰み手順を1つ返す
 	// 最短の詰み手順である保証はない
 	bool SearchMatePvFast(bool or_node, Color root_color, Position& pos, std::vector<Move>& moves, std::unordered_set<HASH_KEY>& visited) {
+        // 読み筋の復元中も固定長履歴を越えず、補助着手用の2枠を残す。
+        if (pos.remaining_state_capacity() <= 2)
+            return false;
 		// 一度探索したノードを探索しない
 		if (visited.find(pos.key()) != visited.end()) {
 			return false;
@@ -871,6 +883,8 @@ public:
 	// memo 過去に探索した盤面のキーと探索状況のmap
 	// return 詰みまでの手数、詰みの局面は0、ループがある場合はkLoop、不詰みの場合はkNotMated
 	int SearchMatePvMorePrecise(bool or_node, Color root_color, Position& pos, std::unordered_map<HASH_KEY, MateState>& memo) {
+        if (pos.remaining_state_capacity() <= 2)
+            return kNotMate;
 		// 過去にこのノードを探索していないか調べる
 		auto key = pos.key();
 		if (memo.find(key) != memo.end()) {

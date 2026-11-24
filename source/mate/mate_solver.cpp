@@ -96,6 +96,10 @@ namespace Mate {
 	template <bool INCHECK , bool GEN_ALL>
 	Move MateSolver::mate_odd_ply(Position& pos, const int ply)
 	{
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+        if (usize(ply) + 2 > pos.remaining_state_capacity())
+            return Move::none();
+#endif
 		// 手数制限オーバーか？
 		if (max_game_ply && max_game_ply < pos.game_ply())
 			// 次の1手が指せない以上、これは不詰
