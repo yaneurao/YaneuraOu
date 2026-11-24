@@ -52,14 +52,13 @@ Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
 // 飛車・角の利きのためのテーブル
 // ----------------------------------------------------------------------------------------------
 
-Bitboard QUGIY_ROOK_MASK[SQ_NB_PLUS1][2];
+DualMagicTables DualMagics;
 
 // sqの升から各方向への利き
 // 右上、右、右下、上方向は、byteswap_bb()してあるので、普通の利きではないから注意。
 // 6方向しか使っていないの、ちょっともったいないので詰める。
 Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
 
-SimdSliding::BishopMasks SimdSliding::bishopMasks[SQ_NB_PLUS1];
 
 using namespace BB_Table;
 #endif
@@ -109,11 +108,11 @@ static void init_directions() {
 		}
 }
 
-static void init_sliding_attacks() {
+static void init_dual_magics() {
     // 2) Build shared directional masks from board coordinates.
     // 盤の座標から共通の方向別マスクを作る。
     for (int index = 0; index <= SQ_NB; ++index) {
-        auto& bishop = SimdSliding::bishopMasks[index];
+        auto& bishop = DualMagics.bishop[index];
         for (auto& ray : bishop.ray) ray = Bitboard(ZERO);
         if (index == SQ_NB) continue;
         const Square sq = Square(index);
@@ -139,12 +138,14 @@ static void init_sliding_attacks() {
 			Bitboard hi, lo;
 			Bitboard::unpack(right_rev, left, hi, lo);
 
-			QUGIY_ROOK_MASK[f | r][0] = lo;
-			QUGIY_ROOK_MASK[f | r][1] = hi;
+			DualMagics.rook[f | r][0] = lo;
+			DualMagics.rook[f | r][1] = hi;
 		}
 	}
+}
 
-
+static void init_sliding_attacks() {
+    init_dual_magics();
 
 	// 4) Qugiyのアルゴリズムで用いる、sqの升から各方向への利きテーブルの初期化
 	// DIRECT_UとDIRECT_Dを用いないので、これをskipする。
@@ -524,65 +525,13 @@ Bitboard attacks_bb(Piece pc, Square s, const Bitboard& occupied)
 // 飛車の横の利き
 Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 {
-#if defined(USE_AVX512)
-    // Shuffle directly into low/high directional words and back, without intermediate interleaving.
-    // 中間の交互配置を作らず、方向別の下位・上位ワードへ直接並べ替え、結果も直接戻す。
-    const __m128i lowOrder = _mm_setr_epi8(0,1,2,3,4,5,6,7,15,14,13,12,11,10,9,8);
-    const __m128i highOrder = _mm_setr_epi8(8,9,10,11,12,13,14,15,7,6,5,4,3,2,1,0);
-    const __m128i restoreHigh = _mm_setr_epi8(15,14,13,12,11,10,9,8,0,1,2,3,4,5,6,7);
-    const __m128i maskLo = QUGIY_ROOK_MASK[sq][0].m;
-    const __m128i maskHi = QUGIY_ROOK_MASK[sq][1].m;
-    const __m128i oLo = _mm_and_si128(_mm_shuffle_epi8(occupied.m, lowOrder), maskLo);
-    const __m128i oHi = _mm_and_si128(_mm_shuffle_epi8(occupied.m, highOrder), maskHi);
-    const __m128i resultLo = _mm_ternarylogic_epi64(
-      oLo, _mm_add_epi64(oLo, _mm_set1_epi64x(-1)), maskLo, 0x28);
-    const __m128i resultHi = _mm_maskz_ternarylogic_epi64(
-      _mm_cmpeq_epi64_mask(oLo, _mm_setzero_si128()),
-      oHi, _mm_add_epi64(oHi, _mm_set1_epi64x(-1)), maskHi, 0x28);
-    Bitboard result;
-    result.m = _mm_or_si128(_mm_shuffle_epi8(resultLo, lowOrder),
-                            _mm_shuffle_epi8(resultHi, restoreHigh));
-    return result;
-#else
-	// Qugiyのアルゴリズムを忠実にBitboardで実装。
-	Bitboard hi, lo , t1, t0;
-
-	const Bitboard mask_lo = QUGIY_ROOK_MASK[sq][0];
-	const Bitboard mask_hi = QUGIY_ROOK_MASK[sq][1];
-
-	// occupiedを逆順にする
-
-	// reversed byte occupied bitboard
-	Bitboard rocc = occupied.byteswap_bb();
-
-	// roccとoccを2枚並べて、その上位u64をhi、下位u64をloに集める。
-	// occ側は(先手から見て)左方向への利き、roccは右方向への利き。
-	Bitboard::unpack(rocc , occupied, hi, lo);
-
-	// 飛車のstep effectでmaskして…
-	hi &= mask_hi;
-	lo &= mask_lo;
-
-	// 1減算することにより、利きが通る升までが変化する。
-	Bitboard::decrement(hi, lo , t1, t0);
-
-	// xorで変化した升を抽出して、step effectでmaskすれば完成
-	t1 = (t1 ^ hi) & mask_hi;
-	t0 = (t0 ^ lo) & mask_lo;
-
-	// unpackしていたものを元の状態に戻す(unpackの逆変換はunpack)
-	Bitboard::unpack(t1 , t0 , hi , lo);
-
-	// byteswap_bbして元の状態に戻して、重ね合わせる。
-	// hiの方には、右方向の利き、loは左方向の利きが得られている。
-	return hi.byteswap_bb() | lo;
-#endif
+    return dual_magic(sq).rook_rank_attacks_bb(occupied);
 }
 
 // 角の利き
 Bitboard bishopEffect(const Square sq, const Bitboard& occupied)
 {
-    return SimdSliding::bishop(sq, occupied);
+    return dual_magic(sq).bishop_attacks_bb(occupied);
 }
 
 // === 大駒の部分利き(SEEなどで用いる) ===
