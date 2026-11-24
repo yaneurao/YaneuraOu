@@ -34,10 +34,8 @@ namespace YaneuraOu {
 //                   置換表エントリー
 // ============================================================
 
-// 本エントリーは10bytesに収まるようになっている。3つのエントリーを並べたときに32bytesに収まるので
-// CPUのcache lineに一発で載るというミラクル。
-/// ※ cache line sizeは、IntelだとPentium4やPentiumMからでPentiumⅢ(3)までは32byte。
-///    そこ以降64byte。AMDだとK8のときには既に64byte。
+// TTEntryは8バイト。3個のTTEntryと別管理のキー8バイトで、1つのClusterが32バイトになる。
+// キーは各エントリー21bitずつ、合計63bitをCluster::keysへ格納する。
 
 // TTEntry struct is the 8 bytes transposition table entry, defined as:
 //
@@ -66,9 +64,8 @@ namespace YaneuraOu {
 // value      16 bit
 // evaluation 16 bit
 //
-// これらのフィールドは、メモリが順次アクセスされるときに最も高速であるため、
-// TT::probe()によってアクセスされる順序と同じ順序で配置されています。
-// 同様に、save()内の保存順序もこの順序に一致しています。
+// 21bitのキーはTTEntry本体とは別にCluster::keysへ詰めて保存する。
+// 読み出しはTTEntry::read()、書き込みはTTWriter::write()が行う。
 //
 // bool(depth8)を安価な内部占有チェックとして使います。
 // 外部的にはdepth == DEPTH_NONEに対応するため、内部のdepthはDEPTH_NONEだけ下駄履きして保存します。
@@ -79,14 +76,14 @@ namespace YaneuraOu {
 //
 // depth       8 bit : 格納されているvalue値の探索深さ
 // move       16 bit : このnodeの最善手(指し手16bit ≒ Move16 , Moveの上位16bitは無視される)
-// generation  5 bit : このエントリーにsave()された時のTTの世代カウンターの値
+// generation  5 bit : TTWriter::write()で保存された時のTTの世代カウンターの値
 // pv node     1 bit : PV nodeで調べた値であるかのフラグ
 // bound type  2 bit : 格納されているvalue値の性質(fail low/highした時の値であるだとか)
 // value      16 bit : このnodeでのsearch()の返し値
 // evaluation 16 bit : このnodeでのevaluate()の返し値
 //
 // pv node , bound type , generation をあわせると 1 + 2 + 5 bit = 8 bitとなる。
-// TTEntryは、この3つを合わせた変数として generation8 が格納されている。
+// TTEntryでは、この3つを合わせた値をgenBound8に格納する。
 //
 
 static constexpr u8 GENERATION_BITS = 5;                            // genBound8のうち、generationに使うbit数。
@@ -438,11 +435,12 @@ u8 TranspositionTable::generation() const { return generation8; }
 // TTEntry to be replaced later. The value of an entry is its depth minus 8 times
 // its relative age.
 
-// 置換表から現在の局面を検索する。probe(key)を呼び出すと、キーが見つかり
-// （ハッシュ衝突の可能性もある）、かつデータが空でなければtrueを返す。
-// それ以外の場合はfalseを返し、後で置換するための、空のTTEntryまたは
-// 最も価値の低いTTEntryへのポインタを返す。エントリの価値は、そのdepthから
-// 相対的なageの8倍を引いた値である。
+// 置換表から現在の局面を検索する。
+// Stockfishの英語原文には旧インターフェースの説明が残っているが、
+// 現在の返し値はtuple<bool, TTData, TTWriter>。
+// 第1要素は占有済みエントリーにhitしたか、第2要素は読み出したデータのコピー、
+// 第3要素は書き込み先を表す。hitしなくても、後で書き込むためのTTWriterを返す。
+// 置換先の比較には、depth8から相対的なageの8倍を引いた値を用いる。
 
 // 🌈 やねうら王独自拡張
 //    TTEntryの指し手はMove16で保存し、probe(key, pos)内のpos.to_move()で32bitのMoveへ復元する。

@@ -389,9 +389,9 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
 // Sets threadPool data to initial values
 // threadPool のデータを初期値に設定する
 
-// 📝 このmethodは、resize_threads()に対して呼び出される。
-//     resize_threads()は、"isready"コマンドに対して呼び出されるので、
-//     つまりは、このmethodは対局ごとに対局開始時に必ず呼び出される。
+// 各Workerのclear()をそのスレッド上で実行し、全Workerの完了を待つ。
+// ThreadPool::set()でプールを生成・再作成したあとにも呼ばれる。
+// isready等に対して呼び出すかはEngine側の初期化経路による。
 
 void ThreadPool::clear() {
 	if (threads.empty())

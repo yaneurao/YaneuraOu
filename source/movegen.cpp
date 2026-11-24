@@ -253,15 +253,13 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, PAWN
 			{
 				*moveList++ = make_move_promote(from, to , Us, PAWN);
 
-				// ただしAll(全合法手を生成するとき)だけは不成も生成
-				// また、移動先の升が1段目は、成れないのでその指し手生成は除外
+				// Allのときは、省略していた不成も生成する。
+				// 歩の進行方向の最終段(先手1段目・後手9段目)では不成にできないため除外する。
 				if (All && rank_of(to) != T_RANK1)
 				{
-					// CAPTURE_PRO_PLUSに対しては、捕獲できないなら、不成の歩の指し手を生成してはならない。
-					// toに自駒がないことはすでに保証されている。(移動できるので)
-					//if (Type == CAPTURES_PRO_PLUS && !pos.piece_on(to))
-					//	continue;
-					// →　CAPTURE_PRO_PLUS_ALLは実装ややこしいから廃止する。
+					// CAPTURES_PRO_PLUS_ALLでは、敵陣への歩の移動を成り・不成ともこちらに含める。
+					// 駒を取らない不成も含むが、対となるQUIETS_PRO_MINUS_ALLとは重複しない。
+					// 通常探索で使うCAPTURES_ALLは、駒を取る手だけを生成する。
 
 					*moveList++ = make_move(from, to, Us, PAWN);
 				}

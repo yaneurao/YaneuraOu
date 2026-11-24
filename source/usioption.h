@@ -89,16 +89,16 @@ class Option {
 #endif
 
     // このオプション設定のdefaultの値、現在の値、type。
-    // 💡 typeは USIプロトコルのsetoptionの時に指定できるオプションの型名。
+    // 💡 typeはusi応答のoption行で通知する型名。setoptionではnameとvalueを指定する。
     /*
 		 📓 defaultValueは、USIプロトコルの
 			"option name XXX type YYY default [defaultValue]"の形で表示するときの
 			 文字列をそのまま格納している。
 	
-			このため、type == comboのときは、
-			 USIでは"standard_book.db var no_book var standard_book.db"のようにvarが複数回出てくるし、
-			 同じ値が2回でてくる。
-			 UCIは、"var"は1度しか出てこないので、このため、Stockfishとはコードが異なるので注意。
+			type == comboなら、既定値に続けて各選択肢を"var 選択肢"として格納する。
+			例: "standard_book.db var no_book var standard_book.db"。
+			USIでもUCIでも選択肢ごとにvarを列挙し、既定値と選択肢に同じ値が現れる。
+			やねうら王では、値の検証用マップを作る際にvarと重複した値を除外する。
 	*/
     std::string defaultValue, currentValue, type;
 

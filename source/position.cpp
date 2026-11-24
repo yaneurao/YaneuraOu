@@ -2222,7 +2222,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     st->repetition_type  = REPETITION_NONE;
 
     //int end        = std::min(st->rule50, st->pliesFromNull);
-    int end = std::min({max_repetition_ply /*16*/, st->pliesFromNull, int(std::min(stateIdx, MAX_HIST - 1))});  // 遡り最大16手
+    int end = std::min({max_repetition_ply, st->pliesFromNull, int(std::min(stateIdx, MAX_HIST - 1))});  // 設定上限・null move・保持履歴で遡り範囲を制限する。
 
     // ※　チェスは終局までの平均手数が100手程度らしいが、将棋AIの対局では平均手数は160手以上で
     // 　長い手数の対局では300手以上になることも珍しくはないので、初手まで千日手判定のために遡ると
@@ -3048,8 +3048,8 @@ bool Position::has_repeated() const {
 RepetitionState Position::is_repetition(int ply, int& found_ply) const
 {
 #if !defined(ENABLE_QUICK_DRAW)
-	// ただ、ここでply >= 16を指定しても、do_move()の時にmax_repetition_ply(=16)手までしか
-	// 遡っていない。より長い履歴を調べる場合は、リングに収まる範囲でset_max_repetition_ply()を設定する。
+    // do_move()で設定上限まで遡って計算した結果を使うため、plyを増やしても履歴を調べ直さない。
+    // より長い履歴を調べる場合は、保持領域に収まる範囲でset_max_repetition_ply()を設定する。
     if (st->repetition && st->repetition < ply)
 	{
 		// st->repetitionは負もありうるのでabs()が必要。

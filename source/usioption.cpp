@@ -256,7 +256,7 @@ Option& Option::assign(const std::string& v, bool& accepted) {
 			return *this;
 #else
         while (ss >> token)
-			// 📝 USIではvarは複数回出てくることがある。そこでこの時点で除外する。
+			// 📝 varは選択肢を区切る語なので、値の検証用マップから除外する。
 			//     同じ値がdefulat値と選択肢との両方に出てくることもある。これも除外する。
             if (token != "var" && !comboMap.count(token))
                 comboMap.add(token, Option());

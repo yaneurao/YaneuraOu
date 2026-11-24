@@ -409,14 +409,12 @@ class Position {
 	// ※  mの移動元に駒がない場合も、MOVE_NONEが返ることは保証される。
 	Move to_move(Move16 m) const;
 
-	// 1. ENABLE_QUICK_DRAWがdefineされている時
-	//		この関数は無視される。
-	//
-	// 2. ENABLE_QUICK_DRAWがdefineされていない時
-	// 　　is_repetition() , has_repeted()で最大で何手前からの千日手をチェックするか。デフォルト16手。
-	// 
-	// ※　これを MAX_PLY に設定すると初手からのチェックになるが、将棋はチェスと異なり
-	// 　　終局までの平均手数がわりと長いので、そこまでするとスピードダウンしてR40ほど弱くなる。
+    // 千日手検査の遡り上限を設定する。既定値は16手。
+    // QUICK無効時はdo_move()での繰り返し情報の計算とhas_repeated()に用いる。
+    // QUICK有効時の通常のis_repetition(ply)は16手固定で、この設定を使わない。
+    // found_plyを返す版は、QUICK有効時にもplyと設定上限の両方で検査範囲を制限する。
+    // 両モードとも、局面コピーではmax(16, 設定値)を基準に過去のStateInfoを保持する。
+    // 上限を増やすと検査コストやコピーする履歴量が増える。許容範囲は下の保持領域の検査による。
 	// Reject a window that could overwrite the root history during a full-depth search.
     // 最大深さの探索でルート以前の履歴を上書きする長さは拒否する。失敗時は設定を維持する。
     bool set_max_repetition_ply(int ply) {
@@ -822,13 +820,14 @@ class Position {
     // 1. ENABLE_QUICK_DRAWがdefineされている時(大会用に少しでも強くしたい時)
     // plyは無視される。遡る手数は16手固定。
     //
-    // 2. ENABLE_QUICK_DRAWがdefineされていない時(正確に千日手の判定を行いたい時)
-    // 遡る手数は、set_max_repetition_ply()で設定された手数だけ遡る。
+    // 2. ENABLE_QUICK_DRAWがdefineされていない時
+    // do_move()で設定上限まで遡って計算した繰り返し情報を使う。
     // ply         : rootからの手数。3回目の同一局面の出現まではrootよりは遡って千日手と判定しない。4回目は判定する。
     RepetitionState is_repetition(int ply = 16) const;
 
-    // is_repetition()の、千日手が見つかった時に、現局面から何手遡ったかを返すバージョン。
-    // REPETITION_NONEではない時は、found_plyにその値が返ってくる。	// ※　定跡生成の時にしか使わない。
+    // 千日手が見つかったとき、現局面から何手遡ったかをfound_plyにも返す版。
+    // QUICK有効時は、通常版と異なりplyとset_max_repetition_ply()の設定値でも遡り範囲を制限する。
+    // QUICK無効時は計算済みの繰り返し情報を使う。定跡生成で使用する。
     RepetitionState is_repetition(int ply, int& found_ply) const;
 
 #if !defined(ENABLE_QUICK_DRAW)
@@ -1197,7 +1196,7 @@ private:
     // 玉の位置
     Square kingSquare[COLOR_NB];
 
-	// set_max_repetition_ply()で設定される、千日手の最大遡り手数
+	// 千日手検査の遡り上限と、局面コピー時の履歴保持量の基準。set_max_repetition_ply()で設定する。
     static int max_repetition_ply /* = 16 */;
 
 #if defined(USE_EVAL_LIST)

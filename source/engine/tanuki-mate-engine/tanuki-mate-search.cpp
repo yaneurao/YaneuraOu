@@ -991,7 +991,7 @@ public:
 	}
 
 	// このworker(探索用の1つのスレッド)の初期化
-	// 📝 これは、"usinewgame"のタイミングで、すべての探索スレッド(エンジンオプションの"Threads"で決まる)に対して呼び出される。
+	// 📝 スレッドプールの生成・再作成後などに、ThreadPool::clear()から各スレッド上で呼ばれる。
 	virtual void clear() override
 	{
 	}

@@ -943,10 +943,8 @@ Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
     network(sharedState.network)
 {
 
-    //clear();
-
-	// 🤔 ThreadPool::resize_thread()→ThreadPool::set()でThreadPool::clear()が呼び出されて、
-	//     そのなかでWorker::clear()が呼び出されるから、ここで呼び出す必要はないと思う。
+    // Worker生成後、ThreadPool::set()からThreadPool::clear()、Thread::clear_worker()を経て
+    // Worker::clear()が呼ばれるため、ここでは重複して初期化しない。
 }
 #endif
 
