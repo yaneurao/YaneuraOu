@@ -4,6 +4,7 @@
 #include <array>
 #include <cassert>
 #include <iosfwd>
+#include <new>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -19,7 +20,6 @@
 #endif
 #include "extra/tools.h"
 #include "evaluate.h"
-#endif
 
 #if defined(EVAL_NNUE) || defined(EVAL_SFNN)
 #include "eval/nnue/nnue_accumulator.h"
@@ -27,6 +27,7 @@
 
 #include "extra/key128.h"
 #include "extra/long_effect.h"
+#endif
 
 namespace YaneuraOu {
 
@@ -38,19 +39,48 @@ struct SharedHistories;
 
 // StateInfo struct stores information needed to restore a Position object to
 // its previous state when we retract a move. Whenever a move is made on the
+#if STOCKFISH
+// board (by calling Position::do_move), a StateInfo object must be passed.
+// StateInfoは局面を戻すための情報を保持し、着手時にStateInfoを渡すと説明している。
+// 注: 上流の原文。現在のStockfishもStateInfoをPosition内部に保持する。
+#else
 // board (by calling Position::do_move), its state is stored in Position.
-
 // StateInfo構造体は、指し手を戻す際にPositionオブジェクトを
 // 以前の状態に復元するために必要な情報を格納する。
 // 盤上で指し手が行われるたびに（Position::do_moveを呼び出す際に）、
 // Position内部に次のStateInfoを保存する。
+#endif
 
 // 💡 StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが
 //     面倒なものを詰め込んでおくための構造体。
 //     do_move()のときは、ブロックコピーで済むのでそこそこ高速。
 
 struct StateInfo {
+#if STOCKFISH
+    // Copied when making a move
+    // 着手時に前の状態からコピーする。
+    Key    materialKey;
+    Key    pawnKey;
+    Key    minorPieceKey;
+    Key    nonPawnKey[COLOR_NB];
+    Value  nonPawnMaterial[COLOR_NB];
+    int    castlingRights;
+    int    rule50;
+    int    pliesFromNull;
+    Square epSquare;
 
+    // Not copied when making a move (will be recomputed anyhow)
+    // 着手時にはコピーせず、再計算する。
+    Key                key;
+    Bitboard           checkersBB;
+    Bitboard           blockersForKing[COLOR_NB];
+    Bitboard           pinners[COLOR_NB];
+    Bitboard           checkSquares[PIECE_TYPE_NB];
+    Bitboard           threats[PIECE_TYPE_NB];
+    Piece              capturedPiece;
+    int                repetition;
+    std::array<u8, 32> piecePlacement;
+#else
 	// Copied when making a move
     // 指し手で局面を進めるときにコピーされる。
 
@@ -74,24 +104,12 @@ struct StateInfo {
     HASH_KEY nonPawnKey[COLOR_NB];
 #endif
 
-#if STOCKFISH
-	// 歩以外の駒割。
-	// 🤔 やねうら王では使っていない。使ったほうがいいか？
-    Value nonPawnMaterial[COLOR_NB];
-
-    int castlingRights;
-    int rule50;
-#endif
 
 	// null moveを越えずに遡り可能な手数
 	int pliesFromNull;
 
-#if STOCKFISH
-    Square epSquare;
-#else
     // 🌈 この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
     int continuousCheck[COLOR_NB];
-#endif
 
 #if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 	// NNUE progress bucket用の進行度計算キャッシュ。
@@ -108,9 +126,6 @@ struct StateInfo {
 	// Not copied when making a move (will be recomputed anyhow)
 	// 指し手で局面を進めるときにコピーされない(なんにせよ再計算される)
 
-#if STOCKFISH
-	Key key;
-#else
 	// 盤面(盤上の駒)と手駒に関するhash key
 	// Positionの外部からはhand_key()、board_key()、key()で取得する。
 
@@ -132,7 +147,6 @@ struct StateInfo {
 
 	HASH_KEY key() const { return board_key ^ hand_key; }
 
-#endif
 
 	// 現局面で手番側に対して王手をしている駒のbitboard
 	Bitboard checkersBB;
@@ -163,7 +177,6 @@ struct StateInfo {
     //  -ply  = ply前の局面と同じ局面であることを示す。4回目の繰り返しに到達していることを示す。
     int repetition;
 
-#if !STOCKFISH
     //  繰り返された回数 - 1。
     //  📝 repetition != 0の時に意味をなす。
 	//      将棋では同じ局面は連続4回目で千日手が成立するのでこのためのカウンター。
@@ -171,15 +184,12 @@ struct StateInfo {
 
     //  その時の繰り返しの種類
     RepetitionState repetition_type;
-#endif
 
 #endif
 
 
-#if !STOCKFISH
 	// この局面における手番側の持ち駒。優等局面の判定のために必要。
 	Hand hand;
-#endif
 
 	// --- evaluate
 
@@ -213,14 +223,17 @@ struct StateInfo {
 #endif
 
 #endif
+#endif
 };
 
 // --------------------
 //     局面の定数
 // --------------------
 
-// このエラーは、局面設定時にエンジンが扱えない局面・指し手を検出した時に返す。
-// 特に不正な指し手を通常手として進めて盤面を壊すようなケースを避けるために用いる。
+// This error should be used whenever a position is suspected to be unsupported
+// by the engine. In particular positions that may cause hard errors like segmentation fault.
+// エンジンが扱えない疑いのある局面、特にセグメンテーション違反などの
+// 致命的なエラーを引き起こすおそれがある局面に対して用いる。
 struct PositionSetError : std::runtime_error {
 	using std::runtime_error::runtime_error;
 };
@@ -229,6 +242,7 @@ struct PositionSetError : std::runtime_error {
 //       盤面
 // --------------------
 
+#if !STOCKFISH
 // packされたsfen
 struct PackedSfen {
 	u8 data[32];
@@ -293,6 +307,8 @@ struct PackedSfenHash {
 	}
 };
 
+#endif
+
 // Position class stores information regarding the board representation as
 // pieces, side to move, hash keys, castling info, etc. Important methods are
 // do_move() and undo_move(), used by the search to update node info when
@@ -302,9 +318,11 @@ struct PackedSfenHash {
 // 将棋では手駒や入玉ルールも保持する。
 class Position {
    public:
+#if !STOCKFISH
     // Positionで用いるZobristテーブルの初期化
     // 起動時に呼び出す。
     static void init();
+#endif
 
 	/*
 		⚠ Positionのコンストラクタで平手に初期化すると、compute_eval() が呼び出され、このときに
@@ -355,6 +373,7 @@ class Position {
 #endif
 
 
+#if !STOCKFISH
 	// c側の手駒を返す。
 	Hand hand_of(Color c) const { ASSERT_LV3(is_ok(c));  return hand[c]; }
 
@@ -422,6 +441,8 @@ class Position {
         max_repetition_ply = ply;
         return true;
     }
+
+#endif
 
 	// -----------------------
     // Position representation
@@ -492,7 +513,7 @@ class Position {
     Square square(Color c) const;
 
 	// -----------------------
-    //      Castling
+    // Castling
     //     キャスリング
     // -----------------------
 
@@ -504,7 +525,7 @@ class Position {
 #endif
 
 	// -----------------------
-    //      Checking
+    // Checking
 	//        王手
     // -----------------------
 
@@ -514,9 +535,11 @@ class Position {
 	// c側の玉に対してpinしている駒(その駒をc側の玉との直線上から動かしたときにc側の玉に王手となる)
 	Bitboard blockers_for_king(Color c) const;
 
+#if !STOCKFISH
 	// ↑のtemplate版
 	template <Color C>
 	Bitboard blockers_for_king() const { return st->blockersForKing[C]; }
+#endif
 
 	// 現局面で駒Ptを動かしたときに王手となる升を表現するBitboard
 	Bitboard check_squares(PieceType pt) const;
@@ -546,11 +569,16 @@ class Position {
 	// sq == SQ_NBでの呼び出しは合法。Bitboard(ZERO)が返る。
 
 	Bitboard attackers_to(Square s) const;
+#if STOCKFISH
+    Bitboard attackers_to(Square s, Bitboard occupied) const;
+#else
     Bitboard attackers_to(Square s, const Bitboard& occupied) const;
+#endif
 
 #if STOCKFISH
-    // これはcastlingの判定のためのもの。将棋では使わない。
-    bool attackers_to_exist(Square s, Bitboard occupied, Color c) const;
+    void     update_slider_blockers(Color c) const;
+    Bitboard xattacks_by(PieceType pt, Color c, Bitboard occupied) const;
+    Bitboard threats_by(PieceType pt) const;
 
 #else
 
@@ -603,10 +631,12 @@ class Position {
     // 	 王 歩 ^飛 ^飛
     //  のようなケースにおいては、この両方の飛車がpinnersとして列挙される。(SEEの処理でこういう列挙がなされて欲しいので)
 
+#if !STOCKFISH
     void update_slider_blockers(Color c) const;
 
 	// c側の駒Ptの利きのある升を表現するBitboardを返す。(MovePickerで用いている。)
 	template<Color C , PieceType Pt> Bitboard attacks_by() const;
+#endif
 
     // Properties of moves
     // 指し手の性質。
@@ -713,10 +743,9 @@ class Position {
 			そこで、TTの引数をtemplate T*にするが、ここに何も指定しないということもできてほしい。
 	*/
 #if STOCKFISH
-    void do_move(Move                   m,
-                 bool                   givesCheck,
-                 Dirties&               dirties,
-                 const SharedHistories* worker = nullptr);
+    void do_move(Move m);
+    void
+    do_move(Move m, bool givesCheck, Dirties& dirties, const SharedHistories* worker = nullptr);
 #else
     // historyは省略可能。探索で次局面の履歴を先読みするときだけ渡す。
 	template <typename T = void>
@@ -731,7 +760,9 @@ class Position {
 
 	// 💡 上記のdo_move()にはgivesCheckも渡さないといけないが、
 	//     mで王手になるかどうかがわからないときはこちらの関数を用いる。
+#if !STOCKFISH
     void do_move(Move m) { do_move(m, gives_check(m)); }
+#endif
 
 	// do_move()で進めた局面を1手戻す。
 	void undo_move(Move m);
@@ -741,23 +772,34 @@ class Position {
 
 	void do_null_move();
 
+#if !STOCKFISH
 	template<typename T>
     void do_null_move(const T& tt);
+#endif
 
 	// null move用のundo_move()
 	void undo_null_move();
 
 	// --- Evaluation
 
+#if !STOCKFISH
 #if defined(USE_EVAL_LIST)
 	// 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
 	const Eval::EvalList* eval_list() const { return &evalList; }
 #endif
 
+#endif
+
+    // Static Exchange Evaluation
+    // 静的交換評価。
 	// 指し手mのsee(Static Exchange Evaluation : 静的取り合い評価)において
 	// v(しきい値)以上になるかどうかを返す。
 	// see_geのgeはgreater or equal(「以上」の意味)の略。
+#if STOCKFISH
+    bool see_ge(Move m, int threshold = 0) const;
+#else
 	SYSV_ABI bool see_ge(Move m, int threshold = 0) const;
+#endif
 
 
     // -----------------------
@@ -770,11 +812,20 @@ class Position {
     // Stockfishの同名アクセサーは64bitのKeyを返すが、将棋版はHASH_KEY_BITSに応じた
     // HASH_KEYを返す。TT等で使うKey自体は将棋版も64bit固定なので混同しないこと。
 
+#if STOCKFISH
+    Key key() const;
+    Key prefetch_key(Move m) const;
+    Key material_key() const;
+    Key pawn_key() const;
+    Key minor_piece_key() const;
+    Key non_pawn_key(Color c) const;
+#else
     HASH_KEY key() const;
     HASH_KEY material_key() const;
     HASH_KEY pawn_key() const;
     HASH_KEY minor_piece_key() const;
     HASH_KEY non_pawn_key(Color c) const;
+#endif
 
 #if !STOCKFISH
 	// ある指し手を指した後のhash keyを返す。
@@ -793,7 +844,9 @@ class Position {
     Color side_to_move() const;
 
     // 最後のnull move以降の手数を返す。
+#if !STOCKFISH
     int plies_from_null() const;
+#endif
 
     // (将棋の)開始局面からの手数を返す。
     // 平手の開始局面なら1が返る。(0ではない)
@@ -837,6 +890,9 @@ class Position {
 	// 歩以外の駒の駒割。やねうら王では使わない。
     Value non_pawn_material(Color c) const;
     Value non_pawn_material() const;
+    int   plies_from_null() const;
+    bool  dtz_is_dtm() const;  // Pawnless && (3-men || 4-men-minors-only)
+    // 歩がなく、3駒または小駒のみの4駒の局面。
 #endif
 
     // Position consistency check, for debugging
@@ -845,17 +901,25 @@ class Position {
 
 	bool pos_is_ok() const;
 
+#if STOCKFISH
+    bool                            material_key_is_ok() const;
+    std::optional<PositionSetError> flip();
+#else
 	// 盤面を180°回転させる。
 	void flip();
+#endif
 
     // 現在の局面に対応するStateInfoを返す。
     // たとえば、state()->capturedPieceであれば、前局面で捕獲された駒が格納されている。
+#if !STOCKFISH
     StateInfo* state() const;
 
     static constexpr usize MAX_HIST = 512;
+#endif
     // Copy only the history needed by shogi repetition detection.
     // 千日手判定に必要な過去の履歴を、自分の領域へコピーする。
     void copy_state_infos(const Position& other);
+#if !STOCKFISH
     void copy_from(const Position& other);
     // Used for repeated UCT rollouts after copy_from(), without copying history again.
     // copy_from()後のUCT反復では、履歴を再コピーせず盤面と履歴の位置だけ戻す。
@@ -871,6 +935,8 @@ class Position {
         return const_cast<StateInfo*>(&stateInfos[(stateIdx - distance) & (MAX_HIST - 1)]);
 #endif
     }
+
+#endif
 
 	// put_piece()やremove_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
     // bitboardの整合性を保つこと。
@@ -889,10 +955,16 @@ class Position {
 			もしくはupdate_kingSquare()を呼び出すこと。
 	*/
 
+#if STOCKFISH
+    void put_piece(Piece pc, Square s, DirtyThreats* const dts = nullptr);
+    void remove_piece(Square s, DirtyThreats* const dts = nullptr);
+    void swap_piece(Square s, Piece pc, DirtyThreats* const dts = nullptr);
+#else
     void put_piece(Piece pc, Square sq);
 
     // 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
     void remove_piece(Square sq);
+#endif
 
 #if !STOCKFISH
 	// put_pieceの手駒版
@@ -916,6 +988,7 @@ class Position {
     void update_kingSquare();
 #endif
 
+#if !STOCKFISH
 	// --- misc
 
 	// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
@@ -1056,12 +1129,15 @@ class Position {
 	// UnitTest
 	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 
+#endif
+
 private:
     // Initialization helpers (used while setting up a position)
 	 // 初期化用のヘルパー（局面を設定する際に使用）
 
 #if STOCKFISH
 	void set_castling_right(Color c, Square rfrom);
+    Key  compute_material_key() const;
 #endif
 
 	// StateInfoの初期化。Position::set()のタイミングで行われる。
@@ -1069,6 +1145,7 @@ private:
 
 #if STOCKFISH
     void set_extra_bitboards() const;
+    void compute_threats() const;
 #else
 	// 王手になるbitboard等を更新する。set_state()とdo_move()から呼び出される。
 	// 🌈 null moveのときは利きの更新を少し端折れるのでフラグを渡すことにした。
@@ -1083,20 +1160,28 @@ private:
 #endif
 
 #if STOCKFISH
-	// Other helpers
-    void move_piece(Square from, Square to);
+    // Other helpers
+    // その他のヘルパー。
+    template<bool ComputeRay = true>
+    void update_piece_threats(Piece               pc,
+                              bool                putPiece,
+                              Square              s,
+                              DirtyThreats* const dts,
+                              Bitboard            noRaysContaining = -1ULL) const;
+    void move_piece(Square from, Square to, DirtyThreats* const dts = nullptr);
     template<bool Do>
-    void do_castling(Color             us,
-                     Square            from,
-                     Square&           to,
-                     Square&           rfrom,
-                     Square&           rto,
-                     DirtyPiece* const dp = nullptr);
+    void do_castling(Color               us,
+                     Square              from,
+                     Square&             to,
+                     Square&             rfrom,
+                     Square&             rto,
+                     DirtyThreats* const dts = nullptr,
+                     DirtyPiece* const   dp  = nullptr);
     template<bool AfterMove = false>
-    HASH_KEY adjust_key50(HASH_KEY k) const;
-
+    Key adjust_key50(Key k) const;
 #endif
 
+#if !STOCKFISH
 	// do_move()の先後分けたもの。内部的に呼び出される。
     template<Color Us, typename T>
     void do_move_impl(Move m, bool givesCheck, const T* tt,
@@ -1148,16 +1233,22 @@ private:
 	PieceNumber piece_no_of(Square sq) const { return PIECE_NUMBER_ZERO; }
 #endif
 
-	// --------------------
-    //    Data members
-    // --------------------
+#endif
+
+    // Data members
+    // データメンバー。
 
 	// 盤面、81升分の駒 + 1
+#if STOCKFISH
+    std::array<Piece, SQUARE_NB>        board;
+    std::array<Bitboard, PIECE_TYPE_NB> byTypeBB;
+#else
     std::array<Piece, SQ_NB_PLUS1>    board;
 
 	// 駒が存在する升を表すBitboard。先後混在。
     // pieces()の引数と同じく、ALL_PIECES,HDKなどのPieceで定義されている特殊な定数が使える。
     std::array<Bitboard, PIECE_BB_NB> byTypeBB;
+#endif
 
     // 盤上の先手・後手の駒を色別に保持する2要素のBitboard配列。
     // 両方の色を合わせた盤面はbyTypeBB[ALL_PIECES]で保持する。
@@ -1182,6 +1273,7 @@ private:
 
 #if STOCKFISH
     bool chess960;
+    Dirties scratchDirties;
 #else
     // 手駒
     Hand hand[COLOR_NB];
@@ -1199,6 +1291,11 @@ private:
 
 #endif
 
+#if STOCKFISH
+    u16        stateIdx;
+    StateInfo* st;
+    StateInfo  stateInfos[MAX_HIST];
+#else
     // State storage is last: copying the board must not copy the entire ring.
     // 状態の領域は末尾に置き、盤面だけのコピーにリング全体を巻き込まない。
     // Keep a logical index; mask only when accessing the ring. This also bounds valid history.
@@ -1216,6 +1313,8 @@ private:
     void reset_state();
     StateInfo* push_state();
     void pop_state();
+#endif
+
 };
 
 
@@ -1225,11 +1324,19 @@ std::ostream& operator<<(std::ostream& os, const Position& pos);
 inline Color Position::side_to_move() const { return sideToMove; }
 
 inline Piece Position::piece_on(Square s) const {
+#if STOCKFISH
+    assert(is_ok(s));
+#else
     ASSERT_LV3(is_ok(s));
+#endif
     return board[s];
 }
 
+#if STOCKFISH
+inline const std::array<Piece, SQUARE_NB>& Position::piece_array() const { return board; }
+#else
 inline const std::array<Piece, SQ_NB_PLUS1>& Position::piece_array() const { return board; }
+#endif
 
 inline bool Position::empty(Square s) const { return piece_on(s) == NO_PIECE; }
 
@@ -1305,6 +1412,31 @@ inline Square Position::castling_rook_square(CastlingRights cr) const {
 
 inline Bitboard Position::attackers_to(Square s) const { return attackers_to(s, pieces()); }
 
+#if STOCKFISH
+// includes X-ray attacks through the king of color ~c
+// ~c側の玉を透過するX線の利きも含む。
+inline Bitboard Position::xattacks_by(PieceType pt, Color c, Bitboard occupied) const {
+
+    if (pt == PAWN)
+        return c == WHITE ? pawn_attacks_bb<WHITE>(pieces(WHITE, PAWN))
+                          : pawn_attacks_bb<BLACK>(pieces(BLACK, PAWN));
+    else
+    {
+        Bitboard threats   = 0;
+        Bitboard attackers = pieces(c, pt);
+        while (attackers)
+            threats |= Attacks::attacks_bb(pt, pop_lsb(attackers), occupied);
+        return threats;
+    }
+}
+
+inline Bitboard Position::threats_by(PieceType pt) const {
+    if (!st->threats[ALL_PIECES])
+        compute_threats();
+    return st->threats[pt];
+}
+#endif
+
 inline Bitboard Position::checkers() const { return st->checkersBB; }
 
 inline Bitboard Position::blockers_for_king(Color c) const { return st->blockersForKing[c]; }
@@ -1312,21 +1444,34 @@ inline Bitboard Position::blockers_for_king(Color c) const { return st->blockers
 inline Bitboard Position::pinners(Color c) const { return st->pinners[c]; }
 
 inline Bitboard Position::check_squares(PieceType pt) const {
+#if !STOCKFISH
     ASSERT_LV3(pt != NO_PIECE_TYPE && pt < PIECE_TYPE_NB);
+#endif
     return st->checkSquares[pt];
 }
 
 #if STOCKFISH
-inline HASH_KEY Position::key() const { return adjust_key50(st->key); }
+inline Key Position::key() const { return adjust_key50(st->key); }
 
 template<bool AfterMove>
-inline HASH_KEY Position::adjust_key50(HASH_KEY k) const {
-    return st->rule50 < 14 - AfterMove ? k : k ^ (make_key((st->rule50 - (14 - AfterMove)) / 8) << 1);
+inline Key Position::adjust_key50(Key k) const {
+    return st->rule50 < 14 - AfterMove ? k : k ^ make_key((st->rule50 - (14 - AfterMove)) / 8) << 1;
 }
+
 #else
 inline HASH_KEY Position::key() const { return st->key(); }
 #endif
 
+#if STOCKFISH
+inline Key Position::pawn_key() const { return st->pawnKey ^ sideToMove; }
+
+inline Key Position::material_key() const { return st->materialKey; }
+
+inline Key Position::minor_piece_key() const { return st->minorPieceKey ^ sideToMove; }
+
+inline Key Position::non_pawn_key(Color c) const { return st->nonPawnKey[c] ^ sideToMove; }
+
+#else
 #if defined(USE_PARTIAL_KEY)
 inline HASH_KEY Position::pawn_key() const { return st->pawnKey ^ HASH_KEY(sideToMove); }
 
@@ -1346,15 +1491,21 @@ inline HASH_KEY Position::non_pawn_key(Color c) const { return HASH_KEY(); }
 
 #endif
 
+#endif
+
 #if STOCKFISH
 inline Value Position::non_pawn_material(Color c) const { return st->nonPawnMaterial[c]; }
+
+inline int Position::plies_from_null() const { return st->pliesFromNull; }
 
 inline Value Position::non_pawn_material() const {
     return non_pawn_material(WHITE) + non_pawn_material(BLACK);
 }
 #endif
 
+#if !STOCKFISH
 inline int Position::plies_from_null() const { return st->pliesFromNull; }
+#endif
 
 inline int Position::game_ply() const { return gamePly; }
 
@@ -1362,6 +1513,11 @@ inline int Position::game_ply() const { return gamePly; }
 inline int Position::rule50_count() const { return st->rule50; }
 
 inline bool Position::is_chess960() const { return chess960; }
+
+inline bool Position::dtz_is_dtm() const {
+    return !count<PAWN>()
+        && (count<ALL_PIECES>() == 3 || (count<ALL_PIECES>() == 4 && !pieces(QUEEN, ROOK)));
+}
 
 inline bool Position::capture(Move m) const {
     assert(m.is_ok());
@@ -1413,6 +1569,64 @@ inline bool Position::capture_stage(Move m) const
 
 inline Piece Position::captured_piece() const { return st->capturedPiece; }
 
+#if STOCKFISH
+inline void Position::put_piece(Piece pc, Square s, DirtyThreats* const dts) {
+    board[s] = pc;
+    byTypeBB[ALL_PIECES] |= byTypeBB[type_of(pc)] |= s;
+    byColorBB[color_of(pc)] |= s;
+    pieceCount[pc]++;
+    pieceCount[make_piece(color_of(pc), ALL_PIECES)]++;
+
+    if (dts)
+        update_piece_threats(pc, true, s, dts);
+}
+
+inline void Position::remove_piece(Square s, DirtyThreats* const dts) {
+    Piece pc = board[s];
+
+    if (dts)
+        update_piece_threats(pc, false, s, dts);
+
+    byTypeBB[ALL_PIECES] ^= s;
+    byTypeBB[type_of(pc)] ^= s;
+    byColorBB[color_of(pc)] ^= s;
+    board[s] = NO_PIECE;
+    pieceCount[pc]--;
+    pieceCount[make_piece(color_of(pc), ALL_PIECES)]--;
+}
+
+inline void Position::move_piece(Square from, Square to, DirtyThreats* const dts) {
+    Piece    pc     = board[from];
+    Bitboard fromTo = from | to;
+
+    if (dts)
+        update_piece_threats(pc, false, from, dts, fromTo);
+
+    byTypeBB[ALL_PIECES] ^= fromTo;
+    byTypeBB[type_of(pc)] ^= fromTo;
+    byColorBB[color_of(pc)] ^= fromTo;
+    board[from] = NO_PIECE;
+    board[to]   = pc;
+
+    if (dts)
+        update_piece_threats(pc, true, to, dts, fromTo);
+}
+
+inline void Position::swap_piece(Square s, Piece pc, DirtyThreats* const dts) {
+    Piece old = board[s];
+
+    remove_piece(s);
+
+    if (dts)
+        update_piece_threats<false>(old, false, s, dts);
+
+    put_piece(pc, s);
+
+    if (dts)
+        update_piece_threats<false>(pc, true, s, dts);
+}
+
+#else
 // 駒を配置し、駒種別・先後別の基本Bitboardを更新する。合成Bitboardはupdate_bitboards()で更新する。
 inline void Position::put_piece(Piece pc, Square s) {
 
@@ -1426,11 +1640,6 @@ inline void Position::put_piece(Piece pc, Square s) {
 	// 先手・後手の駒のある場所を示すoccupied bitboardの更新
     byColorBB[color_of(pc)] |= s;
 
-#if STOCKFISH
-	// 駒のカウント
-    pieceCount[pc]++;
-    pieceCount[make_piece(color_of(pc), ALL_PIECES)]++;
-#endif
 }
 
 // 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
@@ -1441,13 +1650,10 @@ inline void Position::remove_piece(Square s) {
     byTypeBB[type_of(pc)] ^= s;
     byColorBB[color_of(pc)] ^= s;
     board[s] = NO_PIECE;
-#if STOCKFISH
-    pieceCount[pc]--;
-    pieceCount[make_piece(color_of(pc), ALL_PIECES)]--;
-#endif
 }
 
 inline StateInfo* Position::state() const { return st; }
+#endif
 
 #if !STOCKFISH
 
@@ -1471,6 +1677,7 @@ inline void Position::remove_hand_piece(Color c, PieceType pr)
 inline bool is_ok(Position& pos) { return pos.pos_is_ok(); }
 #endif
 
+#if !STOCKFISH
 // 🚧
 
 
@@ -1579,6 +1786,15 @@ Bitboard Position::pinned_pieces(Square from, Square to) const {
 }
 
 
+#endif
+
+
+#if STOCKFISH
+inline void Position::do_move(Move m) {
+    new (&scratchDirties.dirtyThreats) DirtyThreats;
+    do_move(m, gives_check(m), scratchDirties);
+}
+#endif
 
 } // namespace YaneuraOu
 
