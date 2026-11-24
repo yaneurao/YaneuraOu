@@ -250,14 +250,17 @@ void Position::set_extra_bitboards() const {
     update_slider_blockers(WHITE);
     update_slider_blockers(BLACK);
 
-    Square ksq = square<KING>(~sideToMove);
+    Square ksq                              = square<KING>(~sideToMove);
+    const auto [bishopAttacks, rookAttacks] = both_attacks_bb(ksq, pieces());
 
     st->checkSquares[PAWN]   = attacks_bb(PAWN, ksq, ~sideToMove);
     st->checkSquares[KNIGHT] = attacks_bb(KNIGHT, ksq);
-    st->checkSquares[BISHOP] = attacks_bb(BISHOP, ksq, pieces());
-    st->checkSquares[ROOK]   = attacks_bb(ROOK, ksq, pieces());
+    st->checkSquares[BISHOP] = bishopAttacks;
+    st->checkSquares[ROOK]   = rookAttacks;
     st->checkSquares[QUEEN]  = st->checkSquares[BISHOP] | st->checkSquares[ROOK];
     st->checkSquares[KING]   = 0;
+
+    st->threats[ALL_PIECES] = 0;
 }
 #else
 template<bool doNullMove, Color Us>
@@ -281,13 +284,14 @@ void Position::set_extra_bitboards() const {
     // そういう意味で(ksq,them)となっている。
 
     Bitboard occ = pieces();
+    const auto [bishopAttacks, rookAttacks] = both_attacks_bb(ksq, occ);
 
     // この指し手が二歩でないかは、この時点でテストしない。指し手生成で除外する。なるべくこの手のチェックは遅延させる。
     st->checkSquares[PAWN]   = pawnEffect<Them>(ksq);
     st->checkSquares[KNIGHT] = knightEffect<Them>(ksq);
     st->checkSquares[SILVER] = silverEffect<Them>(ksq);
-    st->checkSquares[BISHOP] = bishopEffect(ksq, occ);
-    st->checkSquares[ROOK]   = rookEffect(ksq, occ);
+    st->checkSquares[BISHOP] = bishopAttacks;
+    st->checkSquares[ROOK]   = rookAttacks;
     st->checkSquares[GOLD]   = goldEffect<Them>(ksq);
 
     // 香で王手になる升は利きを求め直さずに飛車で王手になる升を香のstep effectでマスクしたものを使う。
@@ -1024,9 +1028,10 @@ void Position::update_slider_blockers(Color c) const {
 // 🌈 sq == SQ_NBでの呼び出しは合法。この時、Bitboard(ZERO)が返る。
 
 Bitboard Position::attackers_to(Square s, const Bitboard& occupied) const {
-    // clang-format off
+    ASSERT_LV3(s <= SQ_NB);
+    const auto [bishopAttacks, rookAttacks] = both_attacks_bb(s, occupied);
 
-	ASSERT_LV3(s <= SQ_NB);
+    // clang-format off
 
     // sqの地点に敵駒ptをおいて、その利きに自駒のptがあればsqに利いているということだ。
     return
@@ -1046,8 +1051,8 @@ Bitboard Position::attackers_to(Square s, const Bitboard& occupied) const {
        & pieces(WHITE))
 
       // 先後の角・飛・香
-      | (bishopEffect(s, occupied)     & pieces(BISHOP_HORSE))
-      | (rookEffect(s, occupied)       & (pieces(ROOK_DRAGON) | (pieces(BLACK, LANCE) & lanceStepEffect<WHITE>(s))
+      | (bishopAttacks     & pieces(BISHOP_HORSE))
+      | (rookAttacks       & (pieces(ROOK_DRAGON) | (pieces(BLACK, LANCE) & lanceStepEffect<WHITE>(s))
       | (pieces(WHITE, LANCE)      & lanceStepEffect<BLACK>(s))
         // 香も、StepEffectでマスクしたあと飛車の利きを使ったほうが香の利きを求めなくて済んで速い。
     ));
@@ -1284,6 +1289,7 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 
 	Color them = ~c;
 	const Bitboard& occ = pieces();
+    const auto [bishopAttacks, rookAttacks] = both_attacks_bb(pawn_sq, occ);
 
 	// 馬と龍
 	const Bitboard bb_hd = /* kingEffect(pawn_sq) & */ pieces(HORSE,DRAGON);
@@ -1296,8 +1302,8 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 		(     (knightEffect(them, pawn_sq) &  pieces(KNIGHT)          )
 			| (silverEffect(them, pawn_sq) & (pieces(SILVER) | bb_hd) )
 			| (goldEffect(them, pawn_sq)   & (pieces(GOLDS)  | bb_hd) )
-			| (bishopEffect(pawn_sq, occ)  &  pieces(BISHOP_HORSE)    )
-			| (rookEffect(pawn_sq, occ)    &  pieces(ROOK_DRAGON)     )
+			| (bishopAttacks  &  pieces(BISHOP_HORSE)    )
+			| (rookAttacks    &  pieces(ROOK_DRAGON)     )
 			) & pieces(c);
 }
 

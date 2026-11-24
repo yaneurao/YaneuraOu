@@ -2,6 +2,7 @@
 #define ATTACKS_H_INCLUDED
 
 #include <cassert>
+#include <utility>
 
 #include "misc.h"
 #include "types.h"
@@ -457,9 +458,7 @@ inline Bitboard dragonEffect(Square sq, const Bitboard& occupied)
 	return rookEffect(sq, occupied) | kingEffect(sq);
 }
 
-// 角と飛車の利きはセットで用いることが多いので、
-// Queen(角+飛)の利きを(AVX512等で)求める関数を用意して、
-// rookStepEffectとbishopStepEffectで分解してしまう方が速いかも知れない。
+// 角と飛車の利きを同時に求める呼び出しは、both_attacks_bb()にまとめる。
 
 // === 大駒の部分利き(SEEなどで用いる) ===
 
@@ -629,6 +628,15 @@ sf_always_inline Bitboard attacks_bb(PieceType pt, Square s, Bitboard occupied) 
 // 将棋では先後を含むPieceを指定し、盤上の駒による利きの遮断も考慮する。
 Bitboard attacks_bb(Piece pc, Square s, const Bitboard& occupied);
 #endif
+
+inline std::pair<Bitboard, Bitboard> both_attacks_bb(Square s, Bitboard occupied) {
+#if STOCKFISH
+    return dual_magic(s).both_attacks_bb(occupied);
+#else
+    // 角、飛車の順で返す。既存のSIMD計算とマスク配置は維持する。
+    return {bishopEffect(s, occupied), rookEffect(s, occupied)};
+#endif
+}
 
 } // namespace YaneuraOu::Attacks
 

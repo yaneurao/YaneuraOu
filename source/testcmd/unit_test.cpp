@@ -465,7 +465,10 @@ void test_sliding_attacks(Test::UnitTester& tester) {
                     const auto rankAttack = reference(sq, RankAxis, occupied);
                     const auto bishopAttack = reference(sq, Diagonal, occupied)
                                             | reference(sq, AntiDiagonal, occupied);
-                    bool ok = bishopEffect(sq, occupied) == bishopAttack
+                    const auto [bishopAttacks, rookAttacks] = both_attacks_bb(sq, occupied);
+                    bool ok = bishopAttacks == bishopAttack
+                           && rookAttacks == (fileAttack | rankAttack)
+                           && bishopEffect(sq, occupied) == bishopAttack
                            && rookEffect(sq, occupied) == (fileAttack | rankAttack)
                            && rookFileEffect(sq, occupied) == fileAttack
                            && rookRankEffect(sq, occupied) == rankAttack
@@ -490,7 +493,9 @@ void test_sliding_attacks(Test::UnitTester& tester) {
     bool sentinel = true;
     for (Bitboard occupied : {Bitboard(ZERO), Bitboard(1), Bitboard(~u64(0), ~u64(0))})
     {
-        sentinel &= !rookEffect(SQ_NB, occupied) && !bishopEffect(SQ_NB, occupied)
+        const auto [bishopAttacks, rookAttacks] = both_attacks_bb(SQ_NB, occupied);
+        sentinel &= !bishopAttacks && !rookAttacks
+                 && !rookEffect(SQ_NB, occupied) && !bishopEffect(SQ_NB, occupied)
                  && !lanceEffect<BLACK>(SQ_NB, occupied) && !lanceEffect<WHITE>(SQ_NB, occupied);
         for (int d = 0; d < 8; ++d)
             sentinel &= !directEffect(SQ_NB, Effect8::Direct(d), occupied);

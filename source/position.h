@@ -1487,6 +1487,7 @@ inline Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const {
     ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
 
     constexpr Color Them = ~C;
+    const auto [bishopAttacks, rookAttacks] = Attacks::both_attacks_bb(sq, occ);
 
     // clang-format off
 
@@ -1497,8 +1498,8 @@ inline Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const {
 			| (Attacks::knightEffect<Them>(sq)	&  pieces(KNIGHT)      )
 			| (Attacks::silverEffect<Them>(sq)	&  pieces(SILVER_HDK)  )
 			| (Attacks::goldEffect  <Them>(sq)	&  pieces(GOLDS_HDK)   )
-			| (Attacks::bishopEffect(sq, occ)	&  pieces(BISHOP_HORSE))
-			| (Attacks::rookEffect(sq, occ)		& (pieces(ROOK_DRAGON) | (Attacks::lanceStepEffect<Them>(sq) & pieces(LANCE))))
+			| (bishopAttacks	&  pieces(BISHOP_HORSE))
+			| (rookAttacks		& (pieces(ROOK_DRAGON) | (Attacks::lanceStepEffect<Them>(sq) & pieces(LANCE))))
 			//  | (Attacks::kingEffect(sq) & pieces(c, HDK));
 			// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
 			) & pieces(C); // 先後混在しているのでc側の駒だけ最後にマスクする。

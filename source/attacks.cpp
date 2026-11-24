@@ -207,15 +207,17 @@ static void init_pseudo_attacks() {
 	{
 		// 玉
 		// 玉の利きは駒が敷き詰められている時の角と飛車の利きの重ね合わせとして定義できる。
-		KingEffectBB[sq] = bishopEffect(sq, Bitboard(1)) | rookEffect(sq, Bitboard(1));
+        const auto [bishopAttacks, rookAttacks] = both_attacks_bb(sq, Bitboard(1));
+		KingEffectBB[sq] = bishopAttacks | rookAttacks;
 
 		// 角
 		// 角のstep effectは、盤上に駒がない時の角の利き。
-		BishopStepEffectBB[sq] = bishopEffect(sq, Bitboard(0));
+        const auto [bishopEmpty, rookEmpty] = both_attacks_bb(sq, Bitboard(0));
+		BishopStepEffectBB[sq] = bishopEmpty;
 
 		// 飛
 		// 飛車のstep effectは、盤上に駒がない時の飛車の利き。
-		RookStepEffectBB[sq]   = rookEffect(sq, Bitboard(0));
+		RookStepEffectBB[sq]   = rookEmpty;
 	}
 
 	// 先後の区別のあるstep effect (桂、銀、金)
