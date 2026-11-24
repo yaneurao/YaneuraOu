@@ -58,7 +58,7 @@ namespace Test {
 			return UnitTesterSection(this, section_name);
 		}
 
-		// 各classに実装されたstatic UnitTest(UnitTest&)を呼び出す時に用いる。
+		// 各classに実装されたstatic UnitTest(UnitTester&, IEngine&)等のテスト関数を呼ぶ。
 		// この関数fが呼び出される前にbefore_run()、呼び出された後にafter_run()が呼び出されるので
 		// そこに共通の初期化コードを書いたりできる。(かも)
 		void run(std::function<void(UnitTester&, IEngine& engine)> f);

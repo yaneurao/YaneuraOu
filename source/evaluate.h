@@ -50,14 +50,13 @@ namespace Eval {
 #if defined(USE_CLASSIC_EVAL) && !defined(EVAL_NNUE)
 	void add_options(OptionsMap& options, ThreadPool& threads);
 
-	// 駒割り以外の全計算して、その合計を返す。Position::set()で一度だけ呼び出される。
-	// あるいは差分計算が不可能なときに呼び出される。
+	// 駒割りを含む評価値を全計算し、手番側から見た値を返す。
+	// Position::set()での初期化や検証用の再計算に用いる。差分計算不能時は内部の全計算処理も使う。
 	Value compute_eval(const Position& pos);
 
-	// 評価関数本体
-	// このあとのdo_move()のあとのevaluate()で差分計算ができるように、
-	// 現在の前局面から差分計算ができるときだけ計算しておく。
-	// 評価値自体は返さない。
+	// 後続の差分計算に備え、必要なら現在局面の評価を準備する。評価値自体は返さない。
+	// KPPT/KPP_KKPTでは未計算ならevaluate()を呼び、差分計算できなければ全計算する。
+	// USE_EVAL_MAKE_LIST_FUNCTIONによる実験用構成では、この準備を省略する。
 	// 備考) 差分計算型の評価関数ではないときは、この関数は何もしなくて良い。
 	void evaluate_with_no_return(const Position& pos);
 #endif
@@ -101,7 +100,8 @@ namespace Eval {
 
     // 駒割りを計算する。
 	// 💡 この関数は、classic evalでなくとも用いることがある。(例えば、dfpnのMovePickerでmaterialに従ってorderingする場合など)
-	// 📝 Position::set()から呼び出されて、以降do_move()では差分計算されるのでこの関数は呼び出されない。
+	// Position::set()での駒割り初期化のほか、詰み探索のMovePickerや検証処理でも用いる。
+	// 通常のdo_move()では、保持している駒割りを差分更新する。
     Value material(const Position& pos);
 
 	// Apery(WCSC26)の駒割り
@@ -142,9 +142,8 @@ namespace Eval {
 	// ⚠  後手の駒に対してもプラスの値が返る。
 	extern int ProDiffPieceValue[PIECE_NB];
 
-	// 指し手moveによってtoの地点の駒が捕獲できることがわかっている時の、駒を捕獲する価値
-	// moveが成りの指し手である場合、その価値も上乗せして計算する。
-	// ※　move.to_sq()に駒がない場合もこの関数の呼び出しは合法。(VALUE_NONEが返る)
+	// 指し手moveによる捕獲の価値に、成りの価値増分を加算する。
+	// 移動先が空なら捕獲分は0。成らない手なら0、成る手なら成りの価値増分だけを返す。
 	// ⚠  後手の駒に対してもプラスの値が返る。
 	Value CapturePieceValuePlusPromote(const Position& pos, Move move);
 

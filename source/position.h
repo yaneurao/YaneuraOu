@@ -193,7 +193,7 @@ struct StateInfo {
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 
 	// 評価値。(次の局面で評価値を差分計算するときに用いる)
-	// まだ計算されていなければsum.p[2][0]の値はint_max
+	// 未計算時はsum.p[0][0]にVALUE_NOT_EVALUATEDを格納し、EvalSum::evaluated()で判定する。
 	Eval::EvalSum sum;
 
 #endif
@@ -874,9 +874,8 @@ class Position {
 
 	// put_piece()やremove_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
     // bitboardの整合性を保つこと。
-    // また、put_piece_simple()は、put_piece()の王の升(kingSquare)を更新しない版。do_move()で用いる。
 
-    // 駒を配置して、内部的に保持しているBitboard、pieceCountも更新する。
+    // 駒を配置し、駒種別・先後別の基本Bitboardを更新する。合成Bitboardはupdate_bitboards()で更新する。
     /*
 		⚠ : kingを配置したときには、このクラスのkingSqaure[]を更新しないといけないが、
 			  この関数のなかでは行っていないので呼び出し側で更新すること。
@@ -898,15 +897,13 @@ class Position {
 #if !STOCKFISH
 	// put_pieceの手駒版
     /*
-		📓 pieceCountについて。
-
-		盤面への駒の配置を put_piece(),remove_piece(),put_hand_piece(),remove_hand_piece()の
-		4つだけを用いれば、pieceCount[]は正しく更新される。
+		手駒の枚数を更新する。将棋版はpieceCount[]を持たず、hand[]で管理する。
+		盤上の駒の配置・除去にはput_piece()・remove_piece()を用いる。
 	*/
     void put_hand_piece(Color c, PieceType pt);
 
 	// remove_pieceの手駒版
-    // 💡 pieceCountもきちんと更新する。
+    // hand[]の該当する駒種の枚数を1枚減らす。
     void remove_hand_piece(Color c, PieceType pt);
 
     // put_piece(),remove_piece()を用いたあとに呼び出す必要がある。
@@ -1162,12 +1159,12 @@ private:
     // pieces()の引数と同じく、ALL_PIECES,HDKなどのPieceで定義されている特殊な定数が使える。
     std::array<Bitboard, PIECE_BB_NB> byTypeBB;
 
-    // 盤上の先手/後手/両方の駒があるところが1であるBitboard
+    // 盤上の先手・後手の駒を色別に保持する2要素のBitboard配列。
+    // 両方の色を合わせた盤面はbyTypeBB[ALL_PIECES]で保持する。
     std::array<Bitboard, COLOR_NB>    byColorBB;
 
 #if STOCKFISH
-    // 各駒の数
-	// 💡 手駒も含む。後手の手駒は、後手のPieceとみなしてカウントする。
+    // Stockfish側の駒数カウンター。将棋版では保持しない。
     int pieceCount[PIECE_NB];
 	// ⇨  やねうら王では使わないことにした。
 
@@ -1416,7 +1413,7 @@ inline bool Position::capture_stage(Move m) const
 
 inline Piece Position::captured_piece() const { return st->capturedPiece; }
 
-// 駒を配置して、内部的に保持しているBitboard、pieceCountも更新する。
+// 駒を配置し、駒種別・先後別の基本Bitboardを更新する。合成Bitboardはupdate_bitboards()で更新する。
 inline void Position::put_piece(Piece pc, Square s) {
 
 	board[s] = pc;

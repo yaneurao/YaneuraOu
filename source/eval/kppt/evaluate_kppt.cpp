@@ -122,7 +122,8 @@ namespace Eval {
 	void load_eval_impl()
 	{
 		// EvalIOを利用して評価関数ファイルを読み込む。
-		// ちなみに、inputのところにあるbasic_kppt32()をbasic_kppt16()に変更するとApery(WCSC27)の評価関数ファイルが読み込める。
+		// inputをEvalInfo::build_kppt16()で構築すると、Apery(WCSC27)の16bit KK/KKPを
+		// build_kppt32()で指定した出力側の32bit形式へ変換して読み込める。
 		// また、eval_convert()に渡している引数のinputとoutputを入れ替えるとファイルに書き出すことが出来る。EvalIOマジ、っょぃ。
         auto make_name = [&](std::string filename) {
             auto eval_dir      = Options["EvalDir"];
@@ -358,9 +359,8 @@ namespace Eval {
 	}
 
 	// 評価関数。差分計算ではなく全計算する。
-	// Position::set()で一度だけ呼び出される。(以降は差分計算)
-	// 手番側から見た評価値を返すので注意。(他の評価関数とは設計がこの点において異なる)
-	// なので、この関数の最適化は頑張らない。
+	// Position::set()での初期化や、検証用の再計算で呼ぶ。
+	// 駒割りを含め、手番側から見た評価値を返す。
 	Value compute_eval(const Position& pos)
 	{
 		compute_eval_impl(pos);

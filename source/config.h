@@ -158,8 +158,8 @@
 // 1. 駒番号を管理しているpiece_listについて
 //   これはPosition::eval_list()で取得可能。
 // 2. 移動した駒の管理について
-//   これは、Position::state()->dirtyPiece。
-//   最大で2個。
+//   KPPT等ではPosition::state()->dirtyPiece、NNUE/SFNNではWorkerのAccumulatorStackに保持する。
+//   通常の着手で変化する駒は最大で2個(移動駒と捕獲駒)。
 // 3. 駒番号が何の駒であるかが決まっている。(PieceNumber型)
 //#define USE_EVAL_LIST
 
@@ -376,11 +376,9 @@ constexpr int MAX_PLY_NUM = 246;
 	#endif
 
 	#if (defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_SFNN)) && !defined(NNUE_EMBEDDING)
-		// 📝 Stockfishでは、NNUE_EMBEDDING_OFFを定義した時にのみ、
-		//    評価関数パラメーターをファイルから読みこむ機能が有効になる。
-		//    (定義しないとincbinを用いて埋め込まれているものを読み込む)
-		//     やねうら王もこれに倣ったので、埋め込まないならばNNUE_EMBEDDING_OFFを
-		//    定義する必要がある。
+		// NNUE_EMBEDDING_OFFは評価関数データの実行ファイルへの埋め込みを無効にする。
+		// 外部ファイルからの読み込みを有効化するための指定ではない。
+		// Stockfishもやねうら王も、埋め込みの有無にかかわらず外部ファイルを読み込める。
 		#define NNUE_EMBEDDING_OFF
 	#endif
 
