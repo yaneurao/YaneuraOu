@@ -25,7 +25,7 @@ class OptionsMap;
 
 class Option {
    public:
-    // 値が変更された時に呼び出されるevent handlerの型。
+    // 受理した設定の適用時に呼び出すevent handlerの型。同じ値の再設定でも呼ぶ。
     using OnChange = std::function<std::optional<std::string>(const Option&)>;
 
     Option(OnChange = nullptr);
@@ -118,7 +118,7 @@ class Option {
     //     この変数は、そのためのもの。
     usize idx = 0;
 
-    // このOptionの設定値が変更された時に呼び出されるevent handler。
+    // このOptionへの設定を受理したときに呼び出すevent handler。値が変わったかは問わない。
     OnChange on_change;
 
     // 親objectへのpointer
@@ -138,7 +138,7 @@ class OptionsMap {
     OptionsMap& operator=(const OptionsMap&) = delete;
     OptionsMap& operator=(OptionsMap&&)      = delete;
 
-	// option項目が変更されてon_change() handlerが呼び出された時に
+	// 受理した設定の適用でon_change() handlerが呼び出された時に
 	// on_change()の返し値を引数にして呼び出されるhandlerを設定する。
     void add_info_listener(InfoListener&&);
 

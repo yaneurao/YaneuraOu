@@ -280,8 +280,8 @@ void Position::set_extra_bitboards() const {
 
     // 駒種Xによって敵玉に王手となる升のbitboard
 
-    // 歩であれば、自玉に敵の歩を置いたときの利きにある場所に自分の歩があればそれは敵玉に対して王手になるので、
-    // そういう意味で(ksq,them)となっている。
+    // 歩なら、敵玉ksqから敵側Themの歩の利きを求めると、
+    // 自分の歩でその敵玉を王手できる升が得られるため、pawnEffect<Them>(ksq)を使う。
 
     Bitboard occ = pieces();
     const auto [bishopAttacks, rookAttacks] = both_attacks_bb(ksq, occ);
@@ -3024,8 +3024,9 @@ RepetitionState Position::is_repetition(int ply) const
 }
 
 #if !defined(ENABLE_QUICK_DRAW)
-// Tests whether there has been at least one repetition
-// of positions since the last capture or pawn move.
+// Tests whether there has been at least one repetition within the retained history.
+// 保持履歴の範囲で、計算済みの繰り返し情報を調べる。
+// 遡る範囲はmax_repetition_ply・最後のnull moveからの手数・保持履歴長で制限する。
 bool Position::has_repeated() const {
 
     StateInfo* stc = st;

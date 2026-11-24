@@ -41,12 +41,8 @@ Search::Worker::Worker(SharedState& sharedState,
     //network(sharedState.network),
 	//refreshTable(network[token])
 {
-    //clear();
-
-	// 🤔　このclear()は不要だと思う。
-	//      Engineのコンストラクタや、Threads変更時にはresize_threads()が呼び出されるし、
-	//      resize_threads()のなかでThreadPool::clear()が呼び出され、そのなかからWorker::clear()が呼び出される。
-	//      また、"usinewgame"に対して Engine.search_clear()が呼び出されるので、そこからもWorker::clear()が呼び出される。
+    // Worker生成後、ThreadPool::set()からThreadPool::clear()を経てclear()を呼ぶ。
+    // 派生Workerの初期化も必要なため、この基底コンストラクターではclear()を呼ばない。
 }
 
 // TODO : あとで

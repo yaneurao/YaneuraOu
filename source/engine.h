@@ -331,17 +331,16 @@ public:
 			そこで、時間がかかる初期化も含め、すべての初期化は"isready"で行い、
 			"usinewgame"は単に無視をするのが簡単である。
 
-			一方、チェス(UCIプロトコル)では、"isready"は初回のみしか送られてこず(?)、
-			"ucinewgame"は対局ごとに毎回送られてくるので、"isready"は何もせずに
-			"ucinewgame"で初期化(search_clear呼び出し)を行っている。
-
-			やねうら王では、"usinewgame"を無視して、search_clear()を実装しない。
+			Stockfishでは"ucinewgame"からsearch_clear()を呼んで探索用の情報を初期化する。
+			やねうら王のEngineではusinewgame()の既定実装は空で、
+			search_clear()はbenchから使う初期化経路として実装し、isready()を呼ぶ。
+			各Engineの初期化内容は派生クラスで定める。
 	*/
 	virtual void isready() = 0;
 
 	// "usinewgame"コマンド。
 	// GUIからはこのコマンドが1局の最初に送られてくることは保証されているので、
-	// 1局ごとに行いたい探索部の初期化は、ここで行うこと。
+	// Engineの既定実装は空。isready()で行う初期化とは別に、必要な処理を派生クラスで定める。
 	virtual void usinewgame() = 0;
 
 	// "user"コマンド。ユーザー(エンジン実装者)の実験用。

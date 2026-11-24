@@ -19,7 +19,7 @@
 
 namespace YaneuraOu {
 
-// 文字列が(大文字小文字を無視して)一致すればtrueを返す比較operator。
+// 大文字・小文字を無視した辞書順でs1がs2より前ならtrueを返す。一致した場合はfalse。
 // UCIではオプションはcase insensitive(大文字・小文字の区別をしない)なのでcustom comparatorを用意する。
 // USIではここがプロトコル上どうなっているのかはわからないが、同様の処理にしておく。
 bool CaseInsensitiveLess::operator()(const std::string& s1, const std::string& s2) const {
@@ -29,7 +29,7 @@ bool CaseInsensitiveLess::operator()(const std::string& s1, const std::string& s
 		[](unsigned char c1, unsigned char c2) { return std::tolower(c1) < std::tolower(c2); });
 }
 
-// option項目が変更されてon_change() handlerが呼び出された時に
+// 受理した設定の適用でon_change() handlerが呼び出された時に
 // on_change()の返し値を引数にして呼び出されるhandlerを設定する。
 void OptionsMap::add_info_listener(InfoListener&& message_func) { info = std::move(message_func); }
 

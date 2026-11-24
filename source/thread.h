@@ -124,7 +124,7 @@ public:
 	void start_searching();
 
 	// このクラスが保持している探索で必要なテーブル(historyなど)をクリアする。
-	// 📝 "usinewgame"に対して呼び出される。
+	// ThreadPool::clear()から呼ばれ、Workerのスレッド上でclear()を実行する。
 	void clear_worker();
 
 	// jobを実行する。jobは引数fで渡す。

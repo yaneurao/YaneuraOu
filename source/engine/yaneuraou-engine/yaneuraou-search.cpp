@@ -4658,7 +4658,7 @@ moves_loop:  // When in check, search starts here
 // See https://www.chessprogramming.org/Horizon_Effect
 // and https://www.chessprogramming.org/Quiescence_Search
 
-// 静止関数。これはメインの探索関数から深さ0で呼び出されるか、さらに深さを減らしながら再帰的に呼び出される。
+// 静止探索。メイン探索の残り深さが0以下になると移行し、必要な手を再帰的に探索する。
 // depth <= 0 の場合、本来は静的評価だけを使う「べき」だが、戦術的な手が静的評価を惑わせることがある。
 // この地平線効果に対抗するため、戦術的な手だけを対象としたこの静止探索を実装している。
 // 現在のqsearchにはdepth引数はなく、静止探索への移行後は再帰的に呼び出す。

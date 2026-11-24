@@ -139,19 +139,15 @@ struct StateInfo {
 	Bitboard checkersBB;
 
 
-	// 動かすと手番側の王に対して空き王手になるかも知れない駒の候補
-	// チェスの場合、駒がほとんどが大駒なのでこれらを動かすと必ず開き王手となる。
-	// 将棋の場合、そうとも限らないので移動方向について考えなければならない。
-	// color = 手番側 なら pinされている駒(動かすと開き王手になる)
-	// color = 相手側 なら 両王手の候補となる駒。
-
-	// 自玉に対して(敵駒によって)pinされている駒
-	// blockersForKing[c]は、c側の玉に対するpin駒。すなわちc側,~c側、どちらの駒をも含む。
+	// blockersForKing[c]は、c側の玉と敵の長い利きの間を遮る唯一の駒。
+	// c側・~c側のどちらの駒も含む。c側の駒なら自玉に対するピン、
+	// ~c側の駒ならc側の玉への開き王手の候補となる。
+	// チェス・将棋とも、移動後も利きを遮る場合があるので移動方向も考慮する。
 	Bitboard blockersForKing[COLOR_NB];
 
-	// 自玉に対してpinしている(可能性のある)敵の大駒。
-	// 自玉に対して上下左右方向にある敵の飛車、斜め十字方向にある敵の角、玉の前方向にある敵の香、…
-	// ※ pinners[BLACK]は、BLACKの王に対して(pin駒が移動した時に)王手になる駒だから、WHITE側の駒。
+	// pinners[c]は、~c側の駒を~c側の玉に対してピンしているc側の長い利きの駒。
+	// 飛車・龍、角・馬、向きの合う香が対象。添字はピンする駒自身の色を表す。
+	// 例: pinners[BLACK]には、WHITEの玉に対してWHITEの駒をピンするBLACKの駒が入る。
 	Bitboard pinners[COLOR_NB];
 
 	// 自駒の駒種Xによって敵玉が王手となる升のbitboard
@@ -831,8 +827,9 @@ class Position {
     RepetitionState is_repetition(int ply, int& found_ply) const;
 
 #if !defined(ENABLE_QUICK_DRAW)
-    // Tests whether there has been at least one repetition
-    // of positions since the last capture or pawn move.
+    // Tests whether there has been at least one repetition within the retained history.
+    // 保持履歴の範囲で、計算済みの繰り返し情報を調べる。
+    // 遡る範囲はmax_repetition_ply・最後のnull moveからの手数・保持履歴長で制限する。
     bool has_repeated() const;
 #endif
 #endif

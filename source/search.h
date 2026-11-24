@@ -535,14 +535,12 @@ public:
 
 	virtual ~Worker() { }
 
-	// Called at instantiation to initialize reductions tables.
     // Reset histories, usually before a new game.
-	// インスタンス化時に呼び出され、リダクションテーブルを初期化する。
     // 通常、新しい対局の前に履歴をリセットする。
 
 	// 📌 やねうら王では、このworkerの初期化は(派生classで)ここに書く。
-	// 💡 これは、"usinewgame"に対して呼び出されることが保証されている。(つまり各対局の最初に呼び出される。)
-	//     "usinewgame" ⇨ ThreadPool::resize_threads() ⇨ ThreadPool.clear() ⇨  各Threadに所属するWorker.clear()
+	// スレッドプールの生成・再作成後などに、ThreadPool::clear()から各Workerのスレッド上で呼ぶ。
+	// isready等からの呼び出しはEngine側の初期化経路による。reductionsの初期化とは別の処理。
     virtual void clear() {}
 
 	// Called when the program receives the UCI 'go' command.

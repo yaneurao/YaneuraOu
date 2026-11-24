@@ -376,8 +376,7 @@ void ThreadPool::set(const NumaConfig&   numaConfig,
         }
 
         // 生成したスレッドに対してThread::clear_worker()を呼び出す。
-        // 🤔 std::make_unique<Thread>()でもWorker::clear()が呼び出されるので
-        //     起動時には二重にclearしてしまうが、仕方がないか…。
+        // やねうら王のWorkerコンストラクターではclear()せず、ここで初期化する。
         clear();
 
         // 🤔 これ、ThreadPool::clear()のなかでやっているので不要なのでは…。
