@@ -1,5 +1,7 @@
 ﻿#include "attacks.h"
 
+#include <array>
+
 #include "misc.h"
 
 #if !STOCKFISH
@@ -12,6 +14,9 @@ namespace YaneuraOu::Attacks {
 #if STOCKFISH
 Bitboard LineBB[SQUARE_NB][SQUARE_NB];
 Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
+Bitboard inverse_RayPassBB[SQUARE_NB][SQUARE_NB];
+Bitboard DiagBB[SQUARE_NB];
+Bitboard AntiDiagBB[SQUARE_NB];
 #else
 // 配列を縮小しているので、升の組を方向または圧縮indexへ変換して参照する。
 Bitboard LineBB[SQ_NB][4];
@@ -57,9 +62,40 @@ SimdSliding::BishopMasks SimdSliding::bishopMasks[SQ_NB_PLUS1];
 using namespace BB_Table;
 #endif
 
-void init()
-{
-	// 1) direct_tableの初期化
+#if STOCKFISH
+static constexpr Bitboard line_mask(Square sq, Direction d1, Direction d2) {
+    Bitboard mask = 0;
+    for (Direction d : {d1, d2})
+    {
+        Square s = sq;
+        while (Bitboard dest = safe_destination(s, d))
+        {
+            mask |= dest;
+            s += d;
+        }
+    }
+    return mask;
+}
+#else
+// 指定した升から、壁に突き当たるまで一方向へ延長したマスクを返す。
+static Bitboard ray_mask(Square sq, Effect8::Direct d) {
+    Bitboard mask(ZERO);
+    const auto delta = Effect8::DirectToDeltaWW(d);
+    for (auto s = to_sqww(sq) + delta; is_ok(s); s += delta)
+        mask |= square_bb(sqww_to_sq(s));
+    return mask;
+}
+
+// Stockfishのline_mask()に対応。将棋では壁付き座標と8方向のDirectを使う。
+static Bitboard line_mask(Square sq, Effect8::Direct d1, Effect8::Direct d2) {
+    Bitboard mask(ZERO);
+    for (Effect8::Direct d : {d1, d2})
+        mask |= ray_mask(sq, d);
+    return mask;
+}
+
+static void init_directions() {
+	// 1) direc_tableの初期化
 
 	for (auto sq1 : SQ)
 		for (auto dir = Effect8::DIRECT_ZERO; dir < Effect8::DIRECT_NB; ++dir)
@@ -69,8 +105,9 @@ void init()
 			for (auto sq2 = to_sqww(sq1) + delta; is_ok(sq2); sq2 += delta)
 				Effect8::direc_table[sq1][sqww_to_sq(sq2)] = Effect8::to_directions(dir);
 		}
+}
 
-
+static void init_sliding_attacks() {
     // 2) Build shared directional masks from board coordinates.
     // 盤の座標から共通の方向別マスクを作る。
     for (int index = 0; index <= SQ_NB; ++index) {
@@ -78,17 +115,10 @@ void init()
         for (auto& ray : bishop.ray) ray = Bitboard(ZERO);
         if (index == SQ_NB) continue;
         const Square sq = Square(index);
-        const auto ray = [sq](int df, int dr) {
-            Bitboard b(ZERO);
-            for (int f = int(file_of(sq)) + df, r = int(rank_of(sq)) + dr;
-                 0 <= f && f < 9 && 0 <= r && r < 9; f += df, r += dr)
-                b |= square_bb(File(f) | Rank(r));
-            return b;
-        };
-        bishop.ray[0] = ray(1, -1);
-        bishop.ray[1] = ray(1, 1);
-        bishop.ray[2] = ray(-1, -1).byteswap_bb();
-        bishop.ray[3] = ray(-1, 1).byteswap_bb();
+        bishop.ray[0] = ray_mask(sq, Effect8::DIRECT_LU);
+        bishop.ray[1] = ray_mask(sq, Effect8::DIRECT_LD);
+        bishop.ray[2] = ray_mask(sq, Effect8::DIRECT_RU).byteswap_bb();
+        bishop.ray[3] = ray_mask(sq, Effect8::DIRECT_RD).byteswap_bb();
     }
 
 	// 3) Qugiyの飛車のBitboardテーブルの初期化
@@ -96,15 +126,11 @@ void init()
 	for (File f = FILE_1; f <= FILE_9; ++f) {
 		for (Rank r = RANK_1; r <= RANK_9; ++r) {
 
-			Bitboard left(ZERO), right(ZERO);
-
 			// SQの升から左方向
-			for (File f2 = (File)(f + 1); f2 <= FILE_9; ++f2)
-				left |= square_bb(f2 | r);
+            const Bitboard left = ray_mask(f | r, Effect8::DIRECT_L);
 
 			// SQの升から右方向
-			for (File f2 = (File)(f - 1); f2 >= FILE_1; --f2)
-				right |= square_bb(f2 | r);
+            const Bitboard right = ray_mask(f | r, Effect8::DIRECT_R);
 
 			Bitboard right_rev = right.byteswap_bb();
 
@@ -133,11 +159,7 @@ void init()
 
 		for (auto sq : SQ)
 		{
-			Bitboard bb(ZERO);
-
-			// 壁に突き当たるまで進む
-			for (auto sq2 = to_sqww(sq) + delta; is_ok(sq2); sq2 += delta)
-				bb |= square_bb(sqww_to_sq(sq2));
+            Bitboard bb = ray_mask(sq, d);
 
 			if (reverse)
 				bb = bb.byteswap_bb();
@@ -147,7 +169,9 @@ void init()
 
 		dd++;
 	}
+}
 
+static void init_pseudo_attacks() {
 	// 5) 近接駒(+盤上の利きを考慮しない駒)のテーブルの初期化。
 	// なるべく他の駒の利きに依存しない形で初期化する。
 
@@ -175,7 +199,7 @@ void init()
 
 	// 備考) ここでlanceEffectが使えるようになったので、以降、rookEffectが使える。
 	// (rookEffectは縦利きを求めるのにlanceEffectに依存している)
-	// ※　bishopEffectは、上でQugiyのテーブルを初期化した時以降使える。
+	// ※　bishopEffectは、方向別マスクを初期化した時以降使える。
 	// 以下では、rookEffect,bishopEffect,lanceEffectを用いて残りの駒の利きを定義する。
 
 	// 先後の区別のないstep effect (玉、角、飛)
@@ -235,7 +259,9 @@ void init()
 			// 長さ1の斜め
 			// StepEffectsBB[sq][c][PIECE_TYPE_BITBOARD_CROSS45] = bishopEffect(sq, Bitboard(1));
 		}
+}
 
+static void init_lines() {
 	// 6) BetweenBB , LineBBの初期化
 	{
 		u16 between_index = 1;
@@ -279,26 +305,19 @@ void init()
 					BetweenIndex[s1][s2] = BetweenIndex[s2][s1];
 
 	}
-	for (auto s1 : SQ)
-		for (int d = 0; d < 4; ++d)
-		{
-			// BishopEffect0 , RookRankEffect , BishopEffect1 , RookFileEffectを用いて初期化したほうが
-			// 明快なコードだが、この初期化をそこに依存したくないので愚直にやる。
+    // 利き関数に依存せず空盤上の直線マスクを作り、始点の升も含める。
+    static constexpr std::array<std::array<Effect8::Direct, 2>, 4> directions = {{
+      {Effect8::DIRECT_RU, Effect8::DIRECT_LD},
+      {Effect8::DIRECT_R, Effect8::DIRECT_L},
+      {Effect8::DIRECT_RD, Effect8::DIRECT_LU},
+      {Effect8::DIRECT_U, Effect8::DIRECT_D}
+    }};
+    for (auto s1 : SQ)
+        for (int d = 0; d < 4; ++d)
+            LineBB[s1][d] = line_mask(s1, directions[d][0], directions[d][1]) | s1;
+}
 
-			const Square deltas[4] = { SQ_RU , SQ_R , SQ_RD , SQ_U };
-			const Square delta = deltas[d];
-			Bitboard bb = square_bb(s1);
-
-			// 壁に当たるまでs1から-delta方向に延長
-			for (Square s = s1; dist(s, s - delta) <= 1; s -= delta) bb |= (s - delta);
-
-			// 壁に当たるまでs1から+delta方向に延長
-			for (Square s = s1; dist(s, s + delta) <= 1; s += delta) bb |= (s + delta);
-
-			LineBB[s1][d] = bb;
-		}
-
-
+static void init_check_candidates() {
 	// 7) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要)
 
 #define FOREACH_KING(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(sq); } }
@@ -369,6 +388,43 @@ void init()
 #endif
 		}
 
+#undef FOREACH_KING
+#undef FOREACH
+#undef FOREACH_BR
+}
+
+#endif
+
+void init() {
+#if STOCKFISH
+
+    for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1)
+    {
+        for (PieceType pt : {BISHOP, ROOK})
+            for (Square s2 = SQ_A1; s2 <= SQ_H8; ++s2)
+            {
+                if (PseudoAttacks[pt][s1] & s2)
+                {
+                    LineBB[s1][s2] = (attacks_bb(pt, s1, 0) & attacks_bb(pt, s2, 0)) | s1 | s2;
+                    BetweenBB[s1][s2] =
+                      (attacks_bb(pt, s1, square_bb(s2)) & attacks_bb(pt, s2, square_bb(s1)));
+                    inverse_RayPassBB[s2][s1] =
+                      attacks_bb(pt, s1, 0) & (attacks_bb(pt, s2, square_bb(s1)) | s2);
+                }
+                BetweenBB[s1][s2] |= s2;
+            }
+
+        DiagBB[s1]     = line_mask(s1, NORTH_EAST, SOUTH_WEST) | s1;
+        AntiDiagBB[s1] = line_mask(s1, NORTH_WEST, SOUTH_EAST) | s1;
+    }
+#else
+    // 各テーブルの依存関係に従って初期化する。
+    init_directions();
+    init_sliding_attacks();
+    init_pseudo_attacks();
+    init_lines();
+    init_check_candidates();
+
 	// 以下はBitboardとは関係はないが、Bitboardが初期化されていないと初期化できないので
 	// ここから初期化しておいてやる。
 
@@ -382,7 +438,7 @@ void init()
 #if defined (USE_MATE_1PLY)
 	Mate::init();
 #endif
-
+#endif
 }
 
 #if !STOCKFISH
