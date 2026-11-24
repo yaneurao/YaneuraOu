@@ -30,7 +30,6 @@
 #include <string>
 #include <utility>
 
-#include "../../attacks.h"
 #include "../../bitboard.h"
 #include "../../evaluate.h"
 #include "../../history.h"
