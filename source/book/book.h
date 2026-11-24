@@ -318,20 +318,18 @@ struct BookMoveSelector
     void set_options(OptionsMap& options);
 
 	// 定跡ファイルの読み込み。
-	// ・Search::clear()からこの関数を呼び出す。
-	// ・Search::clear()は、USIのisreadyコマンドのときに呼び出されるので
-	// 　定跡をメモリに丸読みするのであればこのタイミングで行なう。
-	// ・Search::clear()が呼び出されたときのOptions["BookOnTheFly"]の値をcaptureして使う。(ことになる)
+	// ・各Engineのisreadyに対する初期化処理から呼び出す。
+	// ・BookOnTheFlyの現在値を読み、メモリへの読み込みか都度読み込みかを選ぶ。
+	// ・定跡ファイルや読み込み設定が変わっていなければ、再読み込みを省略する。
 	void read_book();
 
 	// 定跡の指し手の選択
     /*
 		📓 現在の局面が定跡に登録されているかを調べる。
-			・Options["USI_OwnBook"]==trueにすることでエンジン側の定跡を有効化されていないなら、
-     　		probe()には常に失敗する。(falseが返る)
+			・Options["USI_OwnBook"]がfalseなら、bestmoveがMove::none()のProbeResultを返す。
 			・定跡の指し手の選択は、思考エンジンのオプション設定に従う。
-			・定跡にhitしなかった場合はMOVE_NONEが返る。
-			・画面には何も表示しない。
+			・戻り値はProbeResult。定跡にhitしなければbestmoveはMove::none()のまま。
+			・定跡候補のPVや選択に関する情報をupdatesのコールバックへ通知する。
 			・read_book()後、並列探索を開始する前に探索の制御スレッドから呼び出す。
 			・同じBookMoveSelectorに対して、複数スレッドから同時に呼び出してはならない。
 	*/

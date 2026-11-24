@@ -154,15 +154,9 @@ struct NodeVisitor {
 	// 訪問してきたNode
 	NodeTrajectories trajectories;
 
-	// leaf nodeでのvalue_win。(これを辿ってきたNodeに対して符号を反転させながら伝播させていく)
-	// Eval()したときに、NNから返ってきたこの局面のvalue(期待勝率)の値。
-	// ただし詰み探索などで子ノードから伝播した場合、以下の定数をとることがある。
-	// ・このノードで勝ちなら      VALUE_WIN   // 子ノードで一つでもVALUE_LOSEがあればその指し手を選択するので       VALUE_WIN
-	// ・このノードで負けなら      VALUE_LOSE  // 子ノードがすべてVALUE_WINであればどうやってもこの局面では負けなのでVALUE_LOSE
-	// ・このノードで引き分けなら、VALUE_DRAW
-	// 備考) REPETITION_WIN(連続王手の千日手による反則勝ち)、REPETITION_SUPERIOR(優等局面)もVALUE_WINに含む。
-	//       REPETITION_LOSE(連続王手の千日手による反則負け)、REPETITION_INFERIOR(劣等局面)もVALUE_LOSEに含む。
-	// この変数は、UctSearcher::SelectMaxUcbChild()を呼び出した時に、子ノードを調べて、その結果が代入される。
+	// 末端局面の手番側から見た期待勝率。EvalNode()または推論キャッシュから受け取る。
+	// バックアップでは、手番が変わるたびに1.0f - valueとして親へ伝播する。
+	// 勝敗フラグVALUE_WIN/LOSE/DRAWはここに格納せず、ChildNodeのMove上位ビットに保持する。
 	float value_win;
 };
 
@@ -182,7 +176,7 @@ struct BatchElement {
 #endif
 
 	// 通常の探索では、このポインターはNodeVisitor::value_win を指している。
-	float* value_win; // leaf nodeでのvalue_winの値(これを辿ってきたNodeに対して符号を反転させながら伝播させていく)
+	float* value_win; // 末端の手番側の期待勝率の書き戻し先。親へは1.0f - valueとして伝播する。
 };
 
 // UCT探索を行う、それぞれのスレッドを表現する。
@@ -281,21 +275,21 @@ private:
 
 	// UCT探索を行う関数
 	// 1回の呼び出しにつき, 1プレイアウトする。
-	// (leaf nodeで呼び出すものとする)
+	// 探索開始ノードから呼び、子へ再帰して末端まで辿る。
 	//   pos          : UCT探索を行う開始局面
 	//   current      : UCT探索を行う開始局面
 	//   visitor      : 探索開始局面(tree.GetCurrentHead())から、currentに至る手順。あるNodeで何番目のchildを選択したかという情報。
 	//
-	// 返し値 : currentの局面の期待勝率を返すが、以下の特殊な定数を取ることがある。
+	// 返し値 : currentの親側から見た期待勝率。以下の特殊な定数を返す場合もある。
 	//   QUEUING      : 評価関数を呼び出した。(呼び出しはqueuingされていて、完了はしていない)
 	//   DISCARDED    : 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであったので、何もせずにリターンしたことを示す。
 	//
 	float UctSearch(Position* pos, ChildNode* parent, Node* current, NodeVisitor& visitor);
 
-	//  UCBが最大となる子ノードのインデックスを返す関数
-	//    pos     : 調べたい局面
-	//    current : 調べたい局面
-	//  current->value_winに、子ノードを調べた結果が代入される。
+	// UCBが最大となる子ノードのインデックスを返す。
+	// parent : currentへ至る親側のedge。currentがルートならnullptr。
+	// current : 子ノードを選択する対象。
+	// 子の勝敗からcurrentの結果が確定した場合は、parentの勝敗フラグも更新する。
 	ChildNumType SelectMaxUcbChild(ChildNode* parent, Node* current);
 
 	// Evaluateを呼び出すリスト(queue)に追加する。

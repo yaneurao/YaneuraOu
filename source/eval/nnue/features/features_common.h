@@ -31,10 +31,10 @@ enum class TriggerEvent {
   kAnyPieceMoved,    // 常に全計算する
 };
 
-// 手番側or相手側
+// 特徴量の視点側(perspective)か、その相手側か。現在の手番とは独立。
 enum class Side {
-  kFriend,  // 手番側 // side to move
-  kEnemy,   // 相手側
+  kFriend,  // 視点側
+  kEnemy,   // 視点の相手側
 };
 
 } // namespace Eval::NNUE::Features

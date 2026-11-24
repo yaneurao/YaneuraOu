@@ -150,14 +150,13 @@ struct Node {
     // 子ノードが一つも見つからない時は、新しいノードを作成する。
     Node* ReleaseChildrenExceptOne(NodeGarbageCollector* gc, const Move move);
 
-    // このノードがexpand(展開)されたあと、評価関数を呼び出しをするが、それが完了しているかのフラグ。
-    // ※　実際は、フラグ用の変数がもったいないので、move_countを使いまわしている。
-    // ノードはexpandされた時点で評価関数は呼び出されるので、これがfalseであれば、まだ評価関数の評価中であることを意味する。
-    // これがtrueになっていれば、評価関数からの値が反映されている。
-    // 評価関数にはPolicy Networkも含むので、このフラグがtrueになっていれば、各ChildNode(child*)のnnrateに値が反映されていることも保証される。
+    // NN評価(キャッシュ利用を含む)または終端判定が完了したか。
+    // 専用フラグを省くため、move_count == NOT_EXPANDEDを未処理・処理中の印に使う。
+    // NN評価の場合はpolicyも設定済み。詰み・千日手などではNNを呼ばずに処理済みとするため、
+    // trueだけではNN値やnnrateの設定を保証しない。終端ノードは勝敗フラグ等で処理する。
     bool IsEvaled() const { return move_count != NOT_EXPANDED; }
 
-    // Evalした時にEvaledフラグをtrueにする関数
+    // NN評価または終端判定を完了し、訪問回数を0から数えられる状態にする。
     // ※　実際は、フラグ用の変数がもったいないので、move_countを使いまわしている。
     void SetEvaled() { move_count = 0; }
 

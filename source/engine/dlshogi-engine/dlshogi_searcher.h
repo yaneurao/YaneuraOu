@@ -178,10 +178,9 @@ namespace dlshogi {
 		//TimePoint GetTimeLimit() const;
 		// →　search_limits.time_limitから取得すればいいか…。
 
-		// 勝率から評価値に変換する際の係数を設定する。
-		// ここで設定した値は、そのままsearch_options.eval_coefに反映する。
-		// 変換部の内部的には、ここで設定した値が1/1000倍されて計算時に使用される。
-		// デフォルトは 756。
+		// 旧setterの宣言。現在は定義・呼び出しともなく、Eval_Coefの設定ハンドラーが
+		// search_options.eval_coefを直接更新する。既定値は285。
+		// value_to_cp()では、この係数を対数オッズへそのまま掛ける。
 		void SetEvalCoef(const int eval_coef);
 
 		// PV lineの詰み探索の設定

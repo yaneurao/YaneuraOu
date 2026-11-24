@@ -211,7 +211,7 @@ namespace Eval::dlshogi {
 
 	// 価値(勝率)を評価値[cp]に変換。
 	// USIではcp(centi-pawn)でやりとりするので、そのための変換に必要。
-	// 	 eval_coef : 勝率を評価値に変換する時の定数。default = 756
+	// 	 eval_coef : 対数オッズに掛ける係数。呼び出し側で指定し、Eval_Coefの既定値は285。
 	//
 	// 返し値 :
 	//   +29900は、評価値の最大値

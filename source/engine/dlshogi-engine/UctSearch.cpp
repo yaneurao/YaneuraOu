@@ -577,12 +577,12 @@ void UctSearcher::ParallelUctSearch(const Position& rootPos) {
 
 // UCT探索を行う関数
 // 1回の呼び出しにつき, 1プレイアウトする。
-// (leaf nodeで呼び出すものとする)
+// 探索開始ノードから呼び、子へ再帰して末端まで辿る。
 //   pos          : UCT探索を行う開始局面
 //   current      : UCT探索を行う開始局面
 //   visitor      : 探索開始局面(tree.GetCurrentHead())から、currentに至る手順。あるNodeで何番目のchildを選択したかという情報。
 //
-// 返し値 : currentの局面の期待勝率を返すが、以下の特殊な定数を取ることがある。
+// 返し値 : currentの親側から見た期待勝率。以下の特殊な定数を返す場合もある。
 //   QUEUING      : 評価関数を呼び出した。(呼び出しはqueuingされていて、完了はしていない)
 //   DISCARDED    : 他のスレッドがすでにこのnodeの評価関数の呼び出しをしたあとであったので、何もせずにリターンしたことを示す。
 //
@@ -670,9 +670,9 @@ float UctSearcher::UctSearch(Position* pos, ChildNode* parent , Node* current, N
 		//    多くの将棋ソフトで256手ルールの実装がバグっている件
 		//    https://yaneuraou.yaneu.com/2021/01/13/incorrectly-implemented-the-256-moves-rule/
 		//
-		// デフォルトではleaf nodeで5手詰めは呼び出しているので、その5手詰めで普通1手詰めが漏れることはないので、
-		// 256手ルールの256手目で1手詰めがあるのにそれを逃して257手目の局面に到達することはありえない…ということであれば、
-		// これは問題とはない。(leaf nodeで5手詰めを呼び出さないエンジン設定にした時に困るが。)
+		// 末端の詰み探索はLeafDfpnNodesLimitによるノード数制限付きdf-pnで、
+		// 固定5手詰めの判定や、上限手数直前の詰みの検出を保証するものではない。
+		// そのため、最大手数を超えた局面でもis_mated()で負けか引き分けかを判定する。
 
 		if (options.max_moves_to_draw < pos->game_ply())
 			rep = pos->is_mated() ? REPETITION_LOSE /* 負け扱い */ : REPETITION_DRAW;
