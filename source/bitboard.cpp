@@ -238,30 +238,6 @@ Bitboard Bitboard::decrement() const
 #endif
 }
 
-// --- Bitboard256
-
-// Bitboard256の1の升を'*'、0の升を'.'として表示する。デバッグ用。
-std::ostream& operator<<(std::ostream& os, const Bitboard256& board)
-{
-	Bitboard b1, b2;
-	board.toBitboard(b1, b2);
-
-	auto print_rank = [&](const Bitboard& b,Rank r) {
-		for (File f = FILE_9; f >= FILE_1; --f)
-			os << (b.test(f | r) ? " *" : " .");
-	};
-
-	for (Rank r = RANK_1; r <= RANK_9; ++r)
-	{
-		// Bitboardを2列表示する。
-		print_rank(b1,r);
-		os << ' ';
-		print_rank(b2,r);
-		os << std::endl;
-	}
-	return os;
-}
-
 // byte単位で入れ替えたBitboardを返す。
 // 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
 Bitboard Bitboard::byte_reverse() const
@@ -326,90 +302,6 @@ bool Bitboard::more_than_one() const
 {
 	ASSERT_LV2(!cross_over());
 	return POPCNT64(merge()) > 1;
-}
-
-// byte単位で入れ替えたBitboardを返す。
-// 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
-Bitboard256 Bitboard256::byte_reverse() const
-{
-#if defined(USE_AVX2)
-	const __m256i shuffle = _mm256_set_epi8
-		(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 ,
-		 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-	Bitboard256 b0;
-	b0.m = _mm256_shuffle_epi8(m, shuffle);
-	return b0;
-#else
-	Bitboard256 b0;
-	b0.p[0] = bswap64(p[1]);
-	b0.p[1] = bswap64(p[0]);
-	b0.p[2] = bswap64(p[3]);
-	b0.p[3] = bswap64(p[2]);
-	return b0;
-#endif
-}
-
-// SSE2のunpackを実行して返す。
-// hi_out = _mm256_unpackhi_epi64(lo_in,hi_in);
-// lo_out = _mm256_unpacklo_epi64(lo_in,hi_in);
-void Bitboard256::unpack(const Bitboard256 hi_in,const Bitboard256 lo_in, Bitboard256& hi_out, Bitboard256& lo_out)
-{
-#if defined(USE_AVX2)
-	hi_out.m = _mm256_unpackhi_epi64(lo_in.m , hi_in.m);
-	lo_out.m = _mm256_unpacklo_epi64(lo_in.m , hi_in.m);
-#else
-	hi_out.p[0] = lo_in.p[1];
-	hi_out.p[1] = hi_in.p[1];
-	hi_out.p[2] = lo_in.p[3];
-	hi_out.p[3] = hi_in.p[3];
-
-	lo_out.p[0] = lo_in.p[0];
-	lo_out.p[1] = hi_in.p[0];
-	lo_out.p[2] = lo_in.p[2];
-	lo_out.p[3] = hi_in.p[2];
-#endif
-}
-
-// 2組のBitboard256を、それぞれ64bitのhi×2とlo×2と見たときに(unpackするとそうなる)
-// 128bit整数とみなして1引き算したBitboardを返す。
-void Bitboard256::decrement(const Bitboard256 hi_in,const Bitboard256 lo_in, Bitboard256& hi_out, Bitboard256& lo_out)
-{
-#if defined(USE_AVX2)
-
-	// loが0の時だけ1減算するときにhiからの桁借りが生じるので、
-	// hi += (lo == 0) ? -1 : 0;
-	// みたいな処理で良い。
-	hi_out.m = _mm256_add_epi64(hi_in.m, _mm256_cmpeq_epi64(lo_in.m, _mm256_setzero_si256()));
-
-	//  1減算する
-	lo_out.m = _mm256_add_epi64(lo_in.m, _mm256_set1_epi64x(-1LL)); // cmpeqとどっちがいいか？
-#else
-	// bool型はtrueだと(暗黙の型変換で)1だとみなされる。
-	hi_out.p[0] = hi_in.p[0] - (lo_in.p[0] == 0);
-	hi_out.p[1] = hi_in.p[1] - (lo_in.p[1] == 0);
-	hi_out.p[2] = hi_in.p[2] - (lo_in.p[2] == 0);
-	hi_out.p[3] = hi_in.p[3] - (lo_in.p[3] == 0);
-
-	lo_out.p[0] = lo_in.p[0] - 1;
-	lo_out.p[1] = lo_in.p[1] - 1;
-	lo_out.p[2] = lo_in.p[2] - 1;
-	lo_out.p[3] = lo_in.p[3] - 1;
-#endif
-}
-
-// 保持している2つの盤面を重ね合わせた(OR)Bitboardを返す。
-Bitboard Bitboard256::merge() const
-{
-#if defined(USE_AVX2)
-	Bitboard b;
-	b.m = _mm_or_si128(_mm256_castsi256_si128(m), _mm256_extracti128_si256(m, 1));
-	return b;
-#else
-	Bitboard b;
-	b.p[0] = p[0] | p[2];
-	b.p[1] = p[1] | p[3];
-	return b;
-#endif
 }
 
 // UnitTest
@@ -590,42 +482,6 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		all_ok &= least_significant_square_bb(bb) == Bitboard(SQ_87);
 
 		tester.test("least_significant_square_bb",all_ok);
-	}
-}
-
-// UnitTest
-void Bitboard256::UnitTest(Test::UnitTester& tester, IEngine& engine)
-{
-	auto section1 = tester.section("Bitboard256");
-	{
-		// 2つのBitboardを合体させて、分離させて一致するかのテスト
-
-		bool all_ok = true;
-
-		Bitboard b1, b2 , b3 ,b4;
-
-		for (auto sq : SQ)
-		{
-			b1 = Bitboard(sq);
-			b2 = Bitboard(SQ_99 - sq);
-
-			Bitboard256 b256(b1, b2);
-			b256.toBitboard(b3, b4);
-			all_ok &= b1 == b3 && b2 == b4;
-		}
-
-		tester.test("toBitboard", all_ok);
-	}
-	{
-		// ByteReverseがちゃんと機能しているかのテスト
-
-		Bitboard256 b(Bitboard(0x0123456789abcdef, 0x123456789abcdef0), Bitboard(0x23456789abcdef01, 0x3456789abcdef012));
-		Bitboard256 r = b.byte_reverse();
-
-		tester.test("byte_reverse",
-			r.p[0] == 0xf0debc9a78563412 && r.p[1] == 0xefcdab8967452301 &&
-			r.p[2] == 0x12f0debc9a785634 && r.p[3] == 0x01efcdab89674523
-		);
 	}
 }
 

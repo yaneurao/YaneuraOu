@@ -212,7 +212,6 @@ namespace Test
 
 		// Bitboard class
 		tester.run(Bitboard::UnitTest);
-		tester.run(Bitboard256::UnitTest);
 
 		// Position class
 		tester.run(Position::UnitTest);
