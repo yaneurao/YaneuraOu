@@ -2,8 +2,10 @@
 #define BITBOARD_H_INCLUDED
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <string>
+#include <type_traits>
 
 #include "types.h"
 #include "misc.h"
@@ -29,7 +31,34 @@ std::string pretty(Bitboard b);
 
 } // namespace YaneuraOu::Bitboards
 
-#if !STOCKFISH
+#if STOCKFISH
+#ifdef USE_AVX512
+// clang-format off
+inline const __m512i AllSquares = _mm512_set_epi8(
+    63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, 47, 46, 45, 44, 43, 42, 41,
+    40, 39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18,
+    17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+// clang-format on
+#endif
+
+constexpr Bitboard FileABB = 0x0101010101010101ULL;
+constexpr Bitboard FileBBB = FileABB << 1;
+constexpr Bitboard FileCBB = FileABB << 2;
+constexpr Bitboard FileDBB = FileABB << 3;
+constexpr Bitboard FileEBB = FileABB << 4;
+constexpr Bitboard FileFBB = FileABB << 5;
+constexpr Bitboard FileGBB = FileABB << 6;
+constexpr Bitboard FileHBB = FileABB << 7;
+
+constexpr Bitboard Rank1BB = 0xFF;
+constexpr Bitboard Rank2BB = Rank1BB << (8 * 1);
+constexpr Bitboard Rank3BB = Rank1BB << (8 * 2);
+constexpr Bitboard Rank4BB = Rank1BB << (8 * 3);
+constexpr Bitboard Rank5BB = Rank1BB << (8 * 4);
+constexpr Bitboard Rank6BB = Rank1BB << (8 * 5);
+constexpr Bitboard Rank7BB = Rank1BB << (8 * 6);
+constexpr Bitboard Rank8BB = Rank1BB << (8 * 7);
+#else
 // --------------------
 //     Bitboard
 // --------------------
@@ -371,6 +400,16 @@ inline Bitboard square_bb(Square s) { return BB_Table::SquareBB[s]; }
 constexpr Bitboard  operator&(Bitboard b, Square s) { return b & square_bb(s); }
 constexpr Bitboard  operator|(Bitboard b, Square s) { return b | square_bb(s); }
 constexpr Bitboard  operator^(Bitboard b, Square s) { return b ^ square_bb(s); }
+constexpr Bitboard& operator|=(Bitboard& b, Square s) { return b |= square_bb(s); }
+constexpr Bitboard& operator^=(Bitboard& b, Square s) { return b ^= square_bb(s); }
+
+constexpr Bitboard operator&(Square s, Bitboard b) { return b & s; }
+constexpr Bitboard operator|(Square s, Bitboard b) { return b | s; }
+constexpr Bitboard operator^(Square s, Bitboard b) { return b ^ s; }
+
+constexpr Bitboard operator|(Square s1, Square s2) { return square_bb(s1) | s2; }
+
+constexpr bool more_than_one(Bitboard b) { return b & (b - 1); }
 #else
 Bitboard operator&(const Bitboard& b, Square s);
 Bitboard operator|(const Bitboard& b, Square s);
@@ -412,7 +451,23 @@ inline Bitboard file_bb(File f) { return BB_Table::FILE_BB[f]; }
 inline Bitboard file_bb(Square s) { return file_bb(file_of(s)); }
 #endif
 
-#if !STOCKFISH
+#if STOCKFISH
+// Moves a bitboard one or two steps as specified by dir
+// 指定した方向へBitboardを1升または2升移動する。
+inline constexpr Bitboard shift(Bitboard b, Direction dir) {
+    return dir == NORTH         ? b << 8
+         : dir == SOUTH         ? b >> 8
+         : dir == NORTH + NORTH ? b << 16
+         : dir == SOUTH + SOUTH ? b >> 16
+         : dir == EAST          ? (b & ~FileHBB) << 1
+         : dir == WEST          ? (b & ~FileABB) >> 1
+         : dir == NORTH_EAST    ? (b & ~FileHBB) << 9
+         : dir == NORTH_WEST    ? (b & ~FileABB) << 7
+         : dir == SOUTH_EAST    ? (b & ~FileHBB) >> 7
+         : dir == SOUTH_WEST    ? (b & ~FileABB) >> 9
+                                : 0;
+}
+#else
 // ForwardRanksBBの定義)
 //    c側の香の利き = 飛車の利き & ForwardRanksBB[c][rank_of(sq)]
 //
@@ -500,16 +555,148 @@ inline Bitboard pawn_attacks_bb(Color c, const Bitboard& bb)
 }
 #endif
 
+#if STOCKFISH
+constexpr Bitboard pawn_single_push_bb(Color c, Bitboard b) {
+    return shift(b, c == WHITE ? NORTH : SOUTH);
+}
+
+inline constexpr auto PawnPairBB = []() {
+    std::array<Bitboard, SQUARE_NB> result{};
+    for (Square s = SQ_A1; s <= SQ_H8; ++s)
+    {
+        Bitboard file  = file_bb(s);
+        Bitboard files = file | shift(file, EAST) | shift(file, WEST);
+        result[s]      = files & ~(Rank1BB | Rank8BB) & ~square_bb(s);
+    }
+    return result;
+}();
+
+// Returns the squares that can host a pawn forming a "pawn pair" with a pawn
+// on s: own file plus adjacent files, restricted to ranks 2-7, excluding s.
+// The geometry is color-independent.
+// sの歩と「pawn pair」を作れる升。自分の筋と隣接筋の2～7段目に限定し、s自身を除く。
+// この配置条件は先後に依存しない。
+constexpr Bitboard pawn_pair_bb(Square s) { return PawnPairBB[s]; }
+
+constexpr int edge_distance(File f) { return std::min(f, File(FILE_H - f)); }
+
+template<typename T>
+constexpr int constexpr_popcount(T v) {
+    static_assert(std::is_integral_v<T>, "constexpr_popcount is undefined for non-integral types");
+
+    if constexpr (sizeof(T) <= 8)
+    {
+        u64 b = static_cast<std::make_unsigned_t<T>>(v);
+
+        b = b - ((b >> 1) & 0x5555555555555555ULL);
+        b = (b & 0x3333333333333333ULL) + ((b >> 2) & 0x3333333333333333ULL);
+        b = (b + (b >> 4)) & 0x0F0F0F0F0F0F0F0FULL;
+
+        return static_cast<int>((b * 0x0101010101010101ULL) >> 56);
+    }
+    else
+    {
+        int result = 0;
+
+        for (; v; v >>= static_cast<T>(1))
+            if (v & static_cast<T>(1))
+                ++result;
+
+        return result;
+    }
+}
+
+// Counts the number of non-zero bits in a bitboard.
+// Bitboard内で1になっているビットの数を返す。
+inline int popcount(Bitboard b) {
+
+#ifdef _MSC_VER
+
+    return int(_mm_popcnt_u64(b));
+
+#else  // Assumed gcc or compatible compiler
+    // GCCまたは互換コンパイラーを想定する。
+
+    return __builtin_popcountll(b);
+
+#endif
+}
+
+// Returns the least significant bit in a non-zero bitboard.
+// 非ゼロのBitboardで最下位のビットに対応する升を返す。
+inline Square lsb(Bitboard b) {
+    assert(b);
+
+#if defined(__GNUC__)  // GCC, Clang, ICX
+
+    return Square(__builtin_ctzll(b));
+
+#elif defined(_MSC_VER)
+    #ifdef _WIN64  // MSVC, WIN64
+
+    unsigned long idx;
+    _BitScanForward64(&idx, b);
+    return Square(idx);
+
+    #else  // MSVC, WIN32
+    unsigned long idx;
+
+    if (b & 0xffffffff)
+    {
+        _BitScanForward(&idx, i32(b));
+        return Square(idx);
+    }
+
+    _BitScanForward(&idx, i32(b >> 32));
+    return Square(idx + 32);
+    #endif
+#else  // Compiler is neither GCC nor MSVC compatible
+    // GCC互換でもMSVC互換でもないコンパイラー。
+    #error "Compiler not supported."
+#endif
+}
+
+// Returns the most significant bit in a non-zero bitboard.
+// 非ゼロのBitboardで最上位のビットに対応する升を返す。
+inline Square msb(Bitboard b) {
+    assert(b);
+
+#if defined(__GNUC__)  // GCC, Clang, ICX
+
+    return Square(63 ^ __builtin_clzll(b));
+
+#elif defined(_MSC_VER)
+    #ifdef _WIN64  // MSVC, WIN64
+
+    unsigned long idx;
+    _BitScanReverse64(&idx, b);
+    return Square(idx);
+
+    #else  // MSVC, WIN32
+
+    unsigned long idx;
+
+    if (b >> 32)
+    {
+        _BitScanReverse(&idx, i32(b >> 32));
+        return Square(idx + 32);
+    }
+
+    _BitScanReverse(&idx, i32(b));
+    return Square(idx);
+    #endif
+#else  // Compiler is neither GCC nor MSVC compatible
+    // GCC互換でもMSVC互換でもないコンパイラー。
+    #error "Compiler not supported."
+#endif
+}
+#else
 // Returns the least significant bit in a non-zero bitboard.
 // 0でないビットボードにおける最下位ビットを返す。
 // 📝 Stockfishとの互換性のために用意
-#if STOCKFISH
-inline Square lsb(Bitboard b) {
-#else
 // Stockfishのlsb(Bitboard)は盤上のSquareを返すが、この関数はu64の生のbit番号0～63を返す。
 // 128bit盤面の升を得るときはBitboard::lsb()を使う。TT等の生整数用処理と混同しないこと。
 inline i8 lsb(u64 b) {
-#endif
 	assert(b);
 
 #if defined(__GNUC__)  // GCC, Clang, ICX
@@ -543,13 +730,9 @@ inline i8 lsb(u64 b) {
 // Returns the most significant bit in a non-zero bitboard.
 // 0でないビットボードにおける最上位ビットを返す。
 // 📝 Stockfishとの互換性のために用意
-#if STOCKFISH
-inline Square msb(Bitboard b) {
-#else
 // Stockfishのmsb(Bitboard)は盤上のSquareを返すが、この関数はu64の生のbit番号0～63を返す。
 // 128bitの将棋盤全体を調べる関数ではない。
 inline i8 msb(u64 b) {
-#endif
     assert(b);
 
 #if defined(__GNUC__)  // GCC, Clang, ICX
@@ -580,7 +763,7 @@ inline i8 msb(u64 b) {
     #error "Compiler not supported."
 #endif
 }
-
+#endif
 
 // Returns the bitboard of the least significant
 // square of a non-zero bitboard. It is equivalent to square_bb(lsb(bb)).
@@ -603,6 +786,17 @@ inline Bitboard least_significant_square_bb(Bitboard b) {
 	u64 q0 = b.extract64<0>();
 	u64 q1 = b.extract64<1>();
 	return (q0 != 0) ? Bitboard(q0 & -q0 , 0) : Bitboard(0, q1 & -q1);
+}
+#endif
+
+#if STOCKFISH
+// Finds and clears the least significant bit in a non-zero bitboard.
+// 非ゼロのBitboardの最下位ビットに対応する升を返し、そのビットを消す。
+inline Square pop_lsb(Bitboard& b) {
+    assert(b);
+    const Square s = lsb(b);
+    b &= b - 1;
+    return s;
 }
 #endif
 
