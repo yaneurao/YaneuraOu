@@ -77,6 +77,38 @@ static constexpr Bitboard line_mask(Square sq, Direction d1, Direction d2) {
     }
     return mask;
 }
+
+// Sliding attacks within a rank, indexed by the slider's file and the
+// 6 inner bits of the rank occupancy (edge squares never affect the
+// attack set), yielding the 8-bit attack set on that rank
+// 段方向の長い利きの表。駒の筋と、段の内側6升の占有状態を添字とし、
+// その段の利きを8bitで返す。両端の升の占有は利きに影響しない。
+alignas(64) constexpr auto RankAttacks = []() {
+    std::array<std::array<u8, 64>, FILE_NB> table{};
+    for (int file = 0; file < 8; ++file)
+        for (int occ6 = 0; occ6 < 64; ++occ6)
+            table[file][occ6] = u8(sliding_attack(ROOK, Square(file), occ6 << 1));
+    return table;
+}();
+
+static constexpr auto make_dual_magics() {
+    std::array<DualMagic, SQUARE_NB> magics{};
+    for (Square s = SQ_A1; s <= SQ_H8; ++s)
+    {
+        DualMagic& m        = magics[s];
+        m.maskFile          = line_mask(s, NORTH, SOUTH);
+        m.maskDiag          = line_mask(s, NORTH_EAST, SOUTH_WEST);
+        m.maskNone          = 0;
+        m.maskAntidiag      = line_mask(s, NORTH_WEST, SOUTH_EAST);
+        m.r                 = square_bb(s) * 2;
+        m.rr                = square_bb(Square(63 - int(s))) * 2;
+        m.rankAttacksLookup = RankAttacks[int(file_of(s))].data();
+        m.shift             = 8 * int(rank_of(s));
+    }
+    return magics;
+}
+
+alignas(64) extern constexpr std::array<DualMagic, SQUARE_NB> DualMagics = make_dual_magics();
 #else
 // 指定した升から、壁に突き当たるまで一方向へ延長したマスクを返す。
 static Bitboard ray_mask(Square sq, Effect8::Direct d) {

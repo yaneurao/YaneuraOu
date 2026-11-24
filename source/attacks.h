@@ -3,11 +3,24 @@
 
 #include <cassert>
 #include <array>
+#include <initializer_list>
 #include <utility>
 
 #include "misc.h"
 #include "types.h"
 #include "bitboard.h"
+
+#if defined(USE_AVX2)
+    #include <immintrin.h>
+#elif defined(__wasm_simd128__)
+#if STOCKFISH
+    #include <wasm_simd128.h>
+#endif
+#endif
+#ifdef _MSC_VER
+    #include <cstdlib>  // _byteswap_uint64()
+    // MSVCの64bitバイト順反転関数。
+#endif
 
 namespace YaneuraOu::Attacks {
 
@@ -21,6 +34,127 @@ void init();
 void test_sliding_attacks(Test::UnitTester& tester);
 #endif
 
+#endif
+
+#if STOCKFISH
+inline Bitboard byteswap_bb(Bitboard b) {
+#if defined(_MSC_VER) && !defined(__clang__)
+    return _byteswap_uint64(b);
+#else
+    return __builtin_bswap64(b);
+#endif
+}
+
+// Sliding attacks by hyperbola quintessence,
+// see https://www.chessprogramming.org/Hyperbola_Quintessence
+// Hyperbola Quintessenceによる長い利きの計算。詳細は上記リンクを参照。
+struct alignas(32) DualMagic {
+    // file, diagonal, antidiagonal, unused
+    // 筋、斜め、逆斜め、未使用の各マスク。
+    Bitboard maskFile, maskDiag, maskAntidiag, maskNone;
+    // Precomputed 2 * square_bb(sq), 2 * reverse(square_bb(sq))
+    // square_bb(sq)と、そのビット順を反転した値をそれぞれ2倍して事前計算する。
+    Bitboard r, rr;
+
+    const u8* RESTRICT rankAttacksLookup;
+    // 8 * rank_of(sq)
+    // 対象段の先頭へのシフト量。
+    int shift;
+
+    // We always compute [bishop, rook] attacks at once, then rely on
+    // compiler's DCE and CSE to eliminate unneeded re-computations or extractions.
+    //
+    // When using hyperbola quintessence, file, diagonal and antidiagonal attacks
+    // can use a byte reversal rather than a full bit reversal (because all squares
+    // reside in different bytes). Rank attacks cannot. Thus, for rank attacks
+    // only, we use a compact lookup table indexed by the 6 inner bits of the rank's
+    // occupancy (the edge squares never affect the attack set).
+    // 角・飛車の利きを同時に求め、不要な再計算や取り出しはコンパイラーの
+    // 不要コード削除・共通部分式除去に任せる。
+    // 筋と斜め2方向では各升が別のバイトに入るため、全ビット反転の代わりに
+    // バイト順反転を使える。段方向には使えないので、両端を除く6升の占有を
+    // 添字とする小さな表を使う。端の升の占有は利きに影響しない。
+    std::pair<Bitboard, Bitboard> both_attacks_bb(Bitboard occupied) const {
+
+        Bitboard rowOccupancy = rankAttacksLookup[(occupied >> (shift + 1)) & 0x3f];
+        Bitboard rankAttacks  = rowOccupancy << shift;
+
+#ifdef USE_AVX2
+        // Byteswap within 128-bit elements
+        // 128bit要素内でバイト順を反転する。
+        const auto bswap = [](__m256i v) {
+            return _mm256_shuffle_epi8(v, _mm256_set_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12,
+                                                          13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
+                                                          10, 11, 12, 13, 14, 15));
+        };
+
+        // Each lane contains a mask and we follow the scalar algorithm below
+        // 各レーンにマスクを置き、下のスカラー版と同じ計算を行う。
+        const __m256i mask = _mm256_load_si256(reinterpret_cast<const __m256i*>(this));
+        const __m256i rs   = _mm256_set1_epi64x(r);
+        const __m256i rrs  = _mm256_set1_epi64x(rr);
+
+        __m256i o      = _mm256_and_si256(mask, _mm256_set1_epi64x(occupied));
+        __m256i fwd    = _mm256_sub_epi64(o, rs);
+        __m256i rev    = bswap(_mm256_sub_epi64(bswap(o), rrs));
+        __m256i result = _mm256_and_si256(_mm256_xor_si256(fwd, rev), mask);
+
+        // Lane 0: rook attacks (file only); lanes 1 and 2: bishop attacks
+        // レーン0は飛車の筋方向、レーン1・2は角の利き。
+        const __m256i rookBishop =
+          _mm256_or_si256(result, _mm256_permute4x64_epi64(result, _MM_SHUFFLE(3, 1, 2, 0)));
+
+        // [bishop, rook]
+        // 角、飛車の順で返す。
+        return {_mm_extract_epi64(_mm256_castsi256_si128(rookBishop), 1),
+                _mm_cvtsi128_si64(_mm256_castsi256_si128(result)) + rankAttacks};
+#elif defined(__wasm_simd128__)
+        // Byteswap within each 64-bit lane
+        // 各64bitレーン内でバイト順を反転する。
+        const auto bswap = [](v128_t v) {
+            return wasm_i8x16_shuffle(v, v, 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8);
+        };
+
+        const v128_t occ = wasm_i64x2_splat(i64(occupied));
+        const v128_t rs  = wasm_i64x2_splat(i64(r));
+        const v128_t rrs = wasm_i64x2_splat(i64(rr));
+
+        // Two lanes of the scalar algorithm below
+        // 下のスカラー版の計算を2レーンで行う。
+        const auto hyperbola2 = [&](v128_t mask) {
+            const v128_t o   = wasm_v128_and(mask, occ);
+            const v128_t fwd = wasm_i64x2_sub(o, rs);
+            const v128_t rev = bswap(wasm_i64x2_sub(bswap(o), rrs));
+            return wasm_v128_and(wasm_v128_xor(fwd, rev), mask);
+        };
+
+        // Bishop: [diagonal, antidiagonal]; rook: [file, none]. A query for one
+        // piece type then computes only one vector.
+        // 角は斜め2方向、飛車は筋方向と空のマスクを使う。
+        // 一方の駒種だけを求める場合は、その駒種のベクトルだけを計算すればよい。
+        const v128_t diags = hyperbola2(wasm_v128_load(&maskDiag));
+        const v128_t file  = hyperbola2(wasm_v128_load64_zero(&maskFile));
+
+        // [bishop, rook]
+        // 角、飛車の順で返す。
+        return {Bitboard(wasm_i64x2_extract_lane(diags, 0) | wasm_i64x2_extract_lane(diags, 1)),
+                Bitboard(wasm_i64x2_extract_lane(file, 0)) + rankAttacks};
+#else
+        const auto hyperbola = [&](Bitboard mask) {
+            Bitboard o = occupied & mask;
+            return ((o - r) ^ byteswap_bb(byteswap_bb(o) - rr)) & mask;
+        };
+
+        // [bishop, rook]
+        // 角、飛車の順で返す。
+        return {hyperbola(maskDiag) | hyperbola(maskAntidiag), hyperbola(maskFile) + rankAttacks};
+#endif
+    }
+};
+
+extern const std::array<DualMagic, SQUARE_NB> DualMagics;
+inline const DualMagic&                       dual_magic(Square s) { return DualMagics[s]; }
+#else
 // StockfishのDualMagicは升ごとの実データを持つが、将棋版は升番号だけを持つ参照口。
 // 角64バイト・飛車32バイトのマスクを升ごとにまとめると、64バイト境界のために
 // 1升128バイトへ膨らむ。配列を分けて保持し、データ量と角のアラインメントを維持する。
@@ -175,6 +309,9 @@ inline DualMagic dual_magic(Square s) { return {s}; }
 #if STOCKFISH
 extern Bitboard LineBB[SQUARE_NB][SQUARE_NB];
 extern Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
+extern Bitboard inverse_RayPassBB[SQUARE_NB][SQUARE_NB];
+extern Bitboard DiagBB[SQUARE_NB];
+extern Bitboard AntiDiagBB[SQUARE_NB];
 #else
 // 2升を通過する直線。[0]:右上から左下、[1]:横、[2]:左上から右下、[3]:縦。
 // StockfishのLineBB[s1][s2]とは添字の意味が異なり、将棋版はLineBB[升][方向]。
@@ -223,7 +360,98 @@ inline Bitboard between_bb(Square s1, Square s2) {
 #endif
 }
 
-#if !STOCKFISH
+#if STOCKFISH
+// ray going from s1 to s2 and past, excluding s1
+// s1からs2を通って先へ伸びる半直線。s1は含まない。
+inline Bitboard ray_pass_bb(Square s1, Square s2) {
+    assert(is_ok(s1) && is_ok(s2));
+    return inverse_RayPassBB[s2][s1];
+}
+
+inline Bitboard diag_bb(Square s) {
+    assert(is_ok(s));
+    return DiagBB[s];
+}
+
+inline Bitboard antidiag_bb(Square s) {
+    assert(is_ok(s));
+    return AntiDiagBB[s];
+}
+
+// Returns the bitboard of target square for the given step
+// from the given square. If the step is off the board, returns empty bitboard.
+// 指定した升からstepだけ進んだ升のBitboardを返す。盤外なら空のBitboardを返す。
+constexpr Bitboard safe_destination(Square s, int step) {
+    constexpr auto abs = [](int v) { return v < 0 ? -v : v; };
+    Square         to  = Square(s + step);
+    return is_ok(to) && abs(file_of(s) - file_of(to)) <= 2 ? square_bb(to) : Bitboard(0);
+}
+
+constexpr Bitboard sliding_attack(PieceType pt, Square sq, Bitboard occupied) {
+    Bitboard            attacks             = 0;
+    constexpr Direction RookDirections[4]   = {NORTH, SOUTH, EAST, WEST};
+    constexpr Direction BishopDirections[4] = {NORTH_EAST, SOUTH_EAST, SOUTH_WEST, NORTH_WEST};
+
+    for (Direction d : (pt == ROOK ? RookDirections : BishopDirections))
+        for (Square s = sq; Bitboard dest = safe_destination(s, d); s += d)
+        {
+            attacks |= dest;
+            if (occupied & dest)
+                break;
+        }
+
+    return attacks;
+}
+
+constexpr Bitboard knight_attack(Square sq) {
+    Bitboard b = {};
+    for (int step : {-17, -15, -10, -6, 6, 10, 15, 17})
+        b |= safe_destination(sq, step);
+    return b;
+}
+
+constexpr Bitboard king_attack(Square sq) {
+    Bitboard b = {};
+    for (int step : {-9, -8, -7, -1, 1, 7, 8, 9})
+        b |= safe_destination(sq, step);
+    return b;
+}
+
+constexpr Bitboard pseudo_attacks(PieceType pt, Square sq) {
+    switch (pt)
+    {
+    case PieceType::ROOK :
+    case PieceType::BISHOP :
+        return sliding_attack(pt, sq, 0);
+    case PieceType::QUEEN :
+        return sliding_attack(PieceType::ROOK, sq, 0) | sliding_attack(PieceType::BISHOP, sq, 0);
+    case PieceType::KNIGHT :
+        return knight_attack(sq);
+    case PieceType::KING :
+        return king_attack(sq);
+    default :
+        assert(false);
+        return 0;
+    }
+}
+
+inline constexpr auto PseudoAttacks = []() constexpr {
+    std::array<std::array<Bitboard, SQUARE_NB>, PIECE_TYPE_NB> attacks{};
+
+    for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1)
+    {
+        attacks[WHITE][s1] = pawn_attacks_bb<WHITE>(square_bb(s1));
+        attacks[BLACK][s1] = pawn_attacks_bb<BLACK>(square_bb(s1));
+
+        attacks[KING][s1]   = pseudo_attacks(KING, s1);
+        attacks[KNIGHT][s1] = pseudo_attacks(KNIGHT, s1);
+        attacks[QUEEN][s1] = attacks[BISHOP][s1] = pseudo_attacks(BISHOP, s1);
+        attacks[QUEEN][s1] |= attacks[ROOK][s1]  = pseudo_attacks(ROOK, s1);
+    }
+
+    return attacks;
+}();
+#else
 // --------------------
 // 利きのためのテーブル
 // --------------------
