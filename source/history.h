@@ -119,8 +119,9 @@ struct DynStats {
         size(s * SizeMultiplier),
         data(make_unique_large_page<T[]>(size)) {}
 
-    // Sets all values in this thread's range to the specified value.
-	// このスレッドの担当範囲にある要素を、指定したvalueで初期化する。
+    // Sets all values in the range to 0
+    // 範囲内のすべての値を0にする。
+    // 注: Stockfishの原文は0としているが、実装は指定したvalueでこのスレッドの担当範囲を初期化する。
 	// 📓 並列で呼び出すことを想定している。threadIdxがthread id、numaTotalがthreadの総数。 
     void clear_range(int value, usize threadIdx, usize numaTotal) {
         usize start = u64(threadIdx) * size / numaTotal;
