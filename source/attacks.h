@@ -104,8 +104,8 @@ extern Bitboard LineBB[SQ_NB][4];
 
 // 2升に挟まれている升を返すためのテーブル(その2升は含まない)。
 // StockfishのBetweenBB[s1][s2]は終点込みの直接表。将棋版は両端を除く圧縮表。
-// cache汚染を抑えるためにシュリンクしてあり、between_bb()から参照する。
-extern Bitboard BetweenBB[785];
+// 同一のBitboardを共有して縮小してあり、between_bb()から参照する。
+extern Bitboard BetweenBB[638];
 extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
 #endif
 

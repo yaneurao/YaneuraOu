@@ -22,7 +22,7 @@ Bitboard AntiDiagBB[SQUARE_NB];
 // StockfishのBetweenBBは終点込みだが、将棋版は両端を除く圧縮表。
 // 配列を縮小しているので、升の組を方向または圧縮indexへ変換して参照する。
 Bitboard LineBB[SQ_NB][4];
-Bitboard BetweenBB[785];
+Bitboard BetweenBB[638];
 u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
 #endif
 
@@ -296,12 +296,21 @@ static void init_lines() {
 					if (!bb)
 						continue;
 
-					BetweenIndex[s1][s2] = between_index;
-					BetweenBB[between_index++] = bb;
+                    // 端点が異なっても同じ升集合なら、既存のBitboardを共有する。
+                    // 重複判定は起動時だけ行い、探索中の表引きは変更しない。
+                    u16 index = 1;
+                    while (index < between_index && BetweenBB[index] != bb)
+                        ++index;
+                    if (index == between_index)
+                    {
+                        ASSERT_LV1(between_index < std::size(BetweenBB));
+                        BetweenBB[between_index++] = bb;
+                    }
+                    BetweenIndex[s1][s2] = index;
 				}
 			}
 
-		ASSERT_LV1(between_index == 785);
+		ASSERT_LV1(between_index == std::size(BetweenBB));
 
 		// 対称性を考慮して、さらにシュリンクする。
 		for (auto s1 : SQ)
