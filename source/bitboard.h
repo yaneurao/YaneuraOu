@@ -16,6 +16,9 @@ namespace YaneuraOu {
 namespace Bitboards {
 	// Bitboard関連のテーブル初期化のための関数
 	void init();
+#if defined(ENABLE_TEST_CMD)
+    void test_sliding_attacks(Test::UnitTester& tester);
+#endif
 }
 
 // --------------------
@@ -806,6 +809,42 @@ inline Bitboard cross45StepEffect(Square sq) {
 // 遠方駒で、盤上の駒の状態を考慮しながら利きを求める。
 //
 
+#if defined(USE_AVX512)
+namespace SimdSliding {
+struct alignas(64) BishopMasks { Bitboard ray[4]; };
+extern BishopMasks bishopMasks[SQ_NB_PLUS1];
+
+inline Bitboard bishop(Square sq, const Bitboard& occupied) {
+    // Keep four directional masks in one cache line, in their final lane order.
+    // 4方向のマスクを計算時のレーン順に並べ、1キャッシュラインに収める。
+    const __m512i mask = _mm512_load_si512(&bishopMasks[sq]);
+    const __m512i reverseUpper = _mm512_setr_epi64(
+      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
+      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
+      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL,
+      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL);
+    const __m512i o = _mm512_and_si512(mask, _mm512_shuffle_epi8(
+      _mm512_broadcast_i64x2(occupied.m), reverseUpper));
+    // Compute independent 64-bit prefixes. Keep a high prefix only if its low word is empty.
+    // 64bitごとに独立した範囲を求め、下位ワードが空のときだけ上位の結果を残す。
+    // Odd bits shifted into low lanes are harmless because those lanes are always enabled.
+    // 奇数bitが下位レーンへ移っても、下位レーンは常に有効なので結果に影響しない。
+    const __mmask8 empty = _mm512_cmpeq_epi64_mask(o, _mm512_setzero_si512());
+    const __mmask8 active = __mmask8(0x55) | _kshiftli_mask8(empty, 1);
+    const __m512i decremented = _mm512_add_epi64(o, _mm512_set1_epi64(-1));
+    const __m512i changed = _mm512_maskz_ternarylogic_epi64(active, o, decremented, mask, 0x28);
+    const __m512i rays = _mm512_shuffle_epi8(changed, reverseUpper);
+    const __m256i pairs = _mm256_or_si256(_mm512_castsi512_si256(rays),
+                                         _mm512_extracti64x4_epi64(rays, 1));
+    Bitboard result;
+    result.m = _mm_or_si128(_mm256_castsi256_si128(pairs), _mm256_extracti128_si256(pairs, 1));
+    return result;
+}
+
+} // namespace SimdSliding
+#endif
+
+
 // 香 : occupied bitboardを考慮しながら香の利きを求める
 template <Color C>
 inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
@@ -1022,6 +1061,7 @@ Bitboard rayEffect(Square sq, const Bitboard& occupied)
 	// DIRECT_Dも、lanceEffectにこれ専用の高速なコードが書いてあるのでそれを用いる。
 	if (D == Effect8::DIRECT_U) return lanceEffect<BLACK>(sq, occupied);
 	if (D == Effect8::DIRECT_D) return lanceEffect<WHITE>(sq, occupied);
+
 
 	ASSERT_LV3(D < Effect8::DIRECT_NB);
 

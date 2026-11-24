@@ -108,13 +108,20 @@ namespace BB_Table
 	// ----------------------------------------------------------------------------------------------
 
 	Bitboard QUGIY_ROOK_MASK[SQ_NB_PLUS1][2];
+#if !defined(USE_AVX512)
 	Bitboard256 QUGIY_BISHOP_MASK[SQ_NB_PLUS1][2];
+#endif
 
 	// sqの升から各方向への利き
 	// 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
 	// 6方向しか使っていないの、ちょっともったいないので詰める。
 	Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
 }
+
+#if defined(USE_AVX512)
+SimdSliding::BishopMasks SimdSliding::bishopMasks[SQ_NB_PLUS1];
+#endif
+
 
 using namespace BB_Table;
 
@@ -174,6 +181,29 @@ void Bitboards::init()
 		);
 	}
 
+#if defined(USE_AVX512)
+    // Construct rays from coordinates, independently of the existing packed masks.
+    // 既存の圧縮マスクに依存せず、座標から方向別のマスクを作る。
+    for (int index = 0; index <= SQ_NB; ++index) {
+        auto& bishop = SimdSliding::bishopMasks[index];
+        for (auto& ray : bishop.ray) ray = Bitboard(ZERO);
+        if (index == SQ_NB) continue;
+        const Square sq = Square(index);
+        const auto ray = [sq](int df, int dr) {
+            Bitboard b(ZERO);
+            for (int f = int(file_of(sq)) + df, r = int(rank_of(sq)) + dr;
+                 0 <= f && f < 9 && 0 <= r && r < 9; f += df, r += dr)
+                b |= Bitboard(File(f) | Rank(r));
+            return b;
+        };
+        bishop.ray[0] = ray(1, -1);
+        bishop.ray[1] = ray(1, 1);
+        bishop.ray[2] = ray(-1, -1).byte_reverse();
+        bishop.ray[3] = ray(-1, 1).byte_reverse();
+    }
+#endif
+
+
 	// 4) Qugiyの飛車のBitboardテーブルの初期化
 
 	for (File f = FILE_1; f <= FILE_9; ++f) {
@@ -199,6 +229,7 @@ void Bitboards::init()
 		}
 	}
 
+#if !defined(USE_AVX512)
 	// 5) Qugiyの角のBitboardテーブルの初期化
 
 	// 4方向
@@ -243,6 +274,8 @@ void Bitboards::init()
 				);
 		}
 	}
+
+#endif
 
 	// Qugiyのアルゴリズムで用いる、sqの升から各方向への利きテーブルの初期化
 	// DIRECT_UとDIRECT_Dを用いないので、これをskipする。
@@ -861,6 +894,26 @@ Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
 // 飛車の横の利き
 Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 {
+#if defined(USE_AVX512)
+    // Shuffle directly into low/high directional words and back, without intermediate interleaving.
+    // 中間の交互配置を作らず、方向別の下位・上位ワードへ直接並べ替え、結果も直接戻す。
+    const __m128i lowOrder = _mm_setr_epi8(0,1,2,3,4,5,6,7,15,14,13,12,11,10,9,8);
+    const __m128i highOrder = _mm_setr_epi8(8,9,10,11,12,13,14,15,7,6,5,4,3,2,1,0);
+    const __m128i restoreHigh = _mm_setr_epi8(15,14,13,12,11,10,9,8,0,1,2,3,4,5,6,7);
+    const __m128i maskLo = QUGIY_ROOK_MASK[sq][0].m;
+    const __m128i maskHi = QUGIY_ROOK_MASK[sq][1].m;
+    const __m128i oLo = _mm_and_si128(_mm_shuffle_epi8(occupied.m, lowOrder), maskLo);
+    const __m128i oHi = _mm_and_si128(_mm_shuffle_epi8(occupied.m, highOrder), maskHi);
+    const __m128i resultLo = _mm_ternarylogic_epi64(
+      oLo, _mm_add_epi64(oLo, _mm_set1_epi64x(-1)), maskLo, 0x28);
+    const __m128i resultHi = _mm_maskz_ternarylogic_epi64(
+      _mm_cmpeq_epi64_mask(oLo, _mm_setzero_si128()),
+      oHi, _mm_add_epi64(oHi, _mm_set1_epi64x(-1)), maskHi, 0x28);
+    Bitboard result;
+    result.m = _mm_or_si128(_mm_shuffle_epi8(resultLo, lowOrder),
+                            _mm_shuffle_epi8(resultHi, restoreHigh));
+    return result;
+#else
 	// Qugiyのアルゴリズムを忠実にBitboardで実装。
 	Bitboard hi, lo , t1, t0;
 
@@ -893,37 +946,15 @@ Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 	// byte_reverseして元の状態に戻して、重ね合わせる。
 	// hiの方には、右方向の利き、loは左方向の利きが得られている。
 	return hi.byte_reverse() | lo;
+#endif
 }
 
 // 角の利き
 Bitboard bishopEffect(const Square sq, const Bitboard& occupied)
 {
 #if defined(USE_AVX512)
-    // Compute all four diagonal rays in one register, preserving 128-bit borrows.
-    // 4本の斜め方向を1レジスタにまとめ、各128bit整数の桁借りを保って計算する。
-    const __m512i masks = _mm512_loadu_si512(&QUGIY_BISHOP_MASK[sq][0]);
-    const __m512i order = _mm512_setr_epi64(0, 1, 0, 1, 1, 0, 1, 0);
-    const __m512i reverseOdd = _mm512_broadcast_i64x2(
-      _mm_setr_epi8(0,1,2,3,4,5,6,7,15,14,13,12,11,10,9,8));
-    const __m512i occ = _mm512_and_si512(masks, _mm512_shuffle_epi8(
-      _mm512_permutexvar_epi64(order, _mm512_broadcast_i64x2(occupied.m)), reverseOdd));
-    const __mmask8 borrow = __mmask8(0x0f | ((_mm512_cmpeq_epi64_mask(occ,
-                                                     _mm512_setzero_si512()) & 0x0f) << 4));
-    const __m512i decremented = _mm512_mask_sub_epi64(occ, borrow, occ, _mm512_set1_epi64(1));
-    const __m512i changed = _mm512_ternarylogic_epi64(occ, decremented, masks, 0x28);
-    const __m512i restoreOrder = _mm512_setr_epi64(0, 4, 2, 6, 5, 1, 7, 3);
-    const __m512i restoreBytes = _mm512_setr_epi64(
-      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
-      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
-      0x0001020304050607LL, 0x08090a0b0c0d0e0fLL,
-      0x0001020304050607LL, 0x08090a0b0c0d0e0fLL);
-    const __m512i rays = _mm512_shuffle_epi8(
-      _mm512_permutexvar_epi64(restoreOrder, changed), restoreBytes);
-    const __m256i merged = _mm256_or_si256(_mm512_castsi512_si256(rays),
-                                         _mm512_extracti64x4_epi64(rays, 1));
-    Bitboard result;
-    result.m = _mm_or_si128(_mm256_castsi256_si128(merged), _mm256_extracti128_si256(merged, 1));
-    return result;
+    return SimdSliding::bishop(sq, occupied);
+
 #else
 	const Bitboard256 mask_lo =  QUGIY_BISHOP_MASK[sq][0];
 	const Bitboard256 mask_hi =  QUGIY_BISHOP_MASK[sq][1];
@@ -974,6 +1005,87 @@ Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied)
 	}
 }
 
+#if defined(ENABLE_TEST_CMD)
+// Verify attacks by walking board coordinates, independently of sliding-attack masks.
+// 長い利きのマスクに依存せず、盤上を1升ずつ進む実装と利きを照合する。
+void Bitboards::test_sliding_attacks(Test::UnitTester& tester) {
+    auto section = tester.section("Sliding attacks");
+    enum Axis { FileAxis, RankAxis, Diagonal, AntiDiagonal };
+    const auto ray = [](Square sq, int df, int dr, const Bitboard& occupied) {
+        Bitboard result(ZERO);
+        int f = int(file_of(sq)) + df, r = int(rank_of(sq)) + dr;
+        for (; 0 <= f && f < 9 && 0 <= r && r < 9; f += df, r += dr)
+        {
+            const Square to = YaneuraOu::File(f) | YaneuraOu::Rank(r);
+            result |= Bitboard(to);
+            if (occupied.test(to)) break;
+        }
+        return result;
+    };
+    constexpr int df[4] = {0, 1, 1, 1}, dr[4] = {1, 0, 1, -1};
+    constexpr int rdf[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
+    constexpr int rdr[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
+    const auto reference = [&](Square sq, int axis, const Bitboard& occupied) {
+        return ray(sq, df[axis], dr[axis], occupied)
+             | ray(sq, -df[axis], -dr[axis], occupied);
+    };
+    PRNG random(20261123);
+    u64 cases = 0;
+    for (Square sq : SQ)
+        for (int axis = 0; axis < 4; ++axis)
+        {
+            const Bitboard relevant = reference(sq, axis, Bitboard(ZERO));
+            std::vector<Square> squares;
+            relevant.foreach([&](Square to) { squares.push_back(to); });
+            for (unsigned pattern = 0; pattern < (1u << squares.size()); ++pattern)
+            {
+                // Include noise off the line and in unused bits; vary the source independently.
+                // 線の外や未使用bitにもノイズを置き、移動元の占有も独立に切り替える。
+                Bitboard occupied = relevant.andnot(Bitboard(random.rand<u64>(), random.rand<u64>()));
+                occupied = Bitboard(sq).andnot(occupied);
+                for (usize i = 0; i < squares.size(); ++i)
+                    if (pattern & (1u << i)) occupied |= Bitboard(squares[i]);
+                for (int sourceOccupied = 0; sourceOccupied < 2; ++sourceOccupied)
+                {
+                    if (sourceOccupied) occupied |= Bitboard(sq);
+                    const auto fileAttack = reference(sq, FileAxis, occupied);
+                    const auto rankAttack = reference(sq, RankAxis, occupied);
+                    const auto bishopAttack = reference(sq, Diagonal, occupied)
+                                            | reference(sq, AntiDiagonal, occupied);
+                    bool ok = bishopEffect(sq, occupied) == bishopAttack
+                           && rookEffect(sq, occupied) == (fileAttack | rankAttack)
+                           && rookFileEffect(sq, occupied) == fileAttack
+                           && rookRankEffect(sq, occupied) == rankAttack
+                           && lanceEffect<BLACK>(sq, occupied) == ray(sq, 0, -1, occupied)
+                           && lanceEffect<WHITE>(sq, occupied) == ray(sq, 0, 1, occupied);
+                    for (int d = 0; d < 8; ++d)
+                        ok &= directEffect(sq, Effect8::Direct(d), occupied)
+                           == ray(sq, rdf[d], rdr[d], occupied);
+                    if (!ok)
+                    {
+                        std::cout << "Sliding attack mismatch: square=" << int(sq) << " axis=" << axis
+                                  << " pattern=" << pattern << " source=" << sourceOccupied << '\n';
+                        tester.test("exhaustive line occupancy", false);
+                        return;
+                    }
+                    ++cases;
+                }
+            }
+        }
+    std::cout << "Sliding attacks checked " << cases << " occupancy cases" << std::endl;
+    tester.test("exhaustive line occupancy, SIMD and directional rays", true);
+    bool sentinel = true;
+    for (Bitboard occupied : {Bitboard(ZERO), Bitboard(1), Bitboard(~u64(0), ~u64(0))})
+    {
+        sentinel &= !rookEffect(SQ_NB, occupied) && !bishopEffect(SQ_NB, occupied)
+                 && !lanceEffect<BLACK>(SQ_NB, occupied) && !lanceEffect<WHITE>(SQ_NB, occupied);
+        for (int d = 0; d < 8; ++d)
+            sentinel &= !directEffect(SQ_NB, Effect8::Direct(d), occupied);
+    }
+    tester.test("SQ_NB sentinel", sentinel);
+}
+#endif
+
 // UnitTest
 void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 {
@@ -982,6 +1094,9 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 	//std::cout << lanceEffect<WHITE>(SQ_72, b) << std::endl;
 
 	auto section1 = tester.section("Bitboard");
+#if defined(ENABLE_TEST_CMD)
+    Bitboards::test_sliding_attacks(tester);
+#endif
 
 	{
 		// SQの升のbitを立てて、それがちゃんと読み取れるかのテスト

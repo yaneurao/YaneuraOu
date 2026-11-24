@@ -15,6 +15,7 @@
 #include "../search.h"
 #include "../movegen.h"
 #include "../evaluate.h"
+#include "unit_test.h"
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 #include "../eval/nnue/nnue_test_command.h"
 #endif
@@ -376,7 +377,11 @@ namespace Test
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 		else if (token == "nn")              Eval::NNUE::TestCommand(engine, is);
 #endif
-		else if (token == "autoplay")         auto_play(engine, is);       // 連続自己対局を行う。
+        else if (token == "sliding") {
+            UnitTester tester;
+            Bitboards::test_sliding_attacks(tester);
+        }
+        else if (token == "autoplay")         auto_play(engine, is);       // 連続自己対局を行う。
 #if defined(YANEURAOU_ENGINE)
 		else if (token == "eval_accuracy")    eval_accuracy(engine, is);   // PSV に対し evaluate() の sign 一致率を測る。
 #endif
