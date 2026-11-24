@@ -323,83 +323,21 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 {
 	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
 
-	// Bitboard 128bitのまま操作する。
-#if 0
-// これは、Qugiyのアイデア。
-// Quigy[WCSC31]の手法 : cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
-
-	if (C == WHITE)
-	{
-		// 9段目が0、その他の升が1になっているmask。
-		const Bitboard mask(0x3fdfeff7fbfdfeffULL, 0x000000000001feffULL);
-
-		// 駒が存在しない升が1となるmaskを作る。ただし9段目は0固定。
-		Bitboard em = occupied.andnot(mask);
-
-		// emに歩を利きを足すと2進数の足し算の繰り上がりによって利きが届く升まで1になっていく。(縦型Bitboard特有)
-		//
-		// 【図解】
-		//  0 0 1 ... 1 : 駒が存在しない升が1、駒がある場所が0となっているmask。
-		//          ↑最下位bitがsqの升を意味しているとする。
-		//
-		//            : sqの升に1加算する
-		//
-		//  0 1 0 ... 0 : 2進数の足し算をした結果、左のようになる。
-		//    ↑利きが届いた一番先の升が1。そこまでの桁は0になる。
-		//
-		// この結果を元のmaskとxorすることにより、bitの値が変化した場所(差分)が検出できる。
-		// bitが変化した場所は、利きが届いたということだから、それこそが求める利きであった。
-
-		// 同様の考え方で、角の2方向と飛車の左と下方向の利きは求まる。
-		// 角の残り2方向は、byte reverseして同じ考え方を適用できる。
-		// 飛車の右方向もbyte reverseして同じ考え方を適用できる。
-		// 飛車の上方向はbyte reverseでは解決しないので先手の香の利きと合成する。(飛車の下方向も、後手の香の利きを合成した方が手っ取り早い)
-
-		Bitboard t = em + pawnEffect<C>(sq);
-
-		// tとemの差分が香の利き
-		return t ^ em;
-
-	}
-	else {
-
-		// step effectなのでここで返ってくるBitboardのsqの升は0であることが保証されている。
-		const Bitboard se = lanceStepEffect<C>(sq);
-
-		// 香の利きがあるかも知れない範囲に対して、駒がある升だけ1にする。
-		Bitboard mocc = se & occupied;
-
-		// 1を上方向に8升上書きコピーしてやる。これで、駒がある升より上は1になる。
-		// 1になっていない升が、香の利きが通っている升ということになる。
-		mocc |= mocc >> 1;
-		mocc |= mocc >> 2;
-		mocc |= mocc >> 4;
-		mocc >>= 1;
-
-		return mocc.andnot(se);
-	}
-#endif
-
-#if 1
 	// Qugiyのアルゴリズムを1～7筋と8～9筋に分けたもの。
 	// こうすることで飛車の縦利きのコードがちょっと短くなる。
+	// Qugiy[WCSC31]の手法 : cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
+	// 1本の筋は片側の64bit内に収まるので、part()で該当wordだけを扱う。
 	if (C == WHITE)
 	{
-		// 後手の香
+		// 後手の香はbit番号が増える方向。対象範囲の障害物bitをemとして1を引く。
+		// em      : ...1 0 0 0
+		// em - 1  : ...0 1 1 1
+		// 両者のXORは最初の障害物まで1となるので、maskで対象の筋と向きだけを残す。
+		// 障害物がなければ符号なし減算で全bitが1となり、盤端までの利きが得られる。
 
 		if (Bitboard::part(sq) == 0)
 		{
 			// 香がp[0]に属する
-			/*
-			u64 mask = 0x3fdfeff7fbfdfeffULL;
-			u64 em = ~occupied.p[0] & mask;
-			u64 t = em + pawnEffect<C>(sq).p[0];
-			return Bitboard(t ^ em , 0);
-			*/
-			// ↑Qugiyのアルゴリズムをpart()を用いて書いたもの。
-			// ↓sqの次の升(＝歩の利き)に1加算する代わりに全体から1引く考え方。
-			//    こっちの方が、定数が一つ消せて良いと思う。
-
 			u64 mask = lanceStepEffect<WHITE>(sq).template extract64<0>();
 			u64 em = occupied.extract64<0>() & mask;
 			u64 t = em - 1; // 1引き算すれば、桁借りが上位桁が1のところまで波及する。
@@ -407,12 +345,6 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 		}
 		else {
 			// 香がp[1]に属する
-			/*
-			u64 mask = 0x000000000001feffULL;
-			u64 em =  ~occupied.p[1] & mask;
-			u64 t = em + pawnEffect<C>(sq).p[1];
-			return Bitboard(0 , t ^ em );
-			*/
 
 			u64 mask = lanceStepEffect<WHITE>(sq).template extract64<1>();
 			u64 em = occupied.extract64<1>() & mask;
@@ -421,7 +353,9 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 		}
 	}
 	else {
-		// 先手の香
+		// 先手の香はbit番号が減る方向。対象範囲の最上位の障害物bitまでを残す。
+		// mocc | 1は障害物がない場合にもMSB64()を使えるようにするための番兵。
+		// 最後にseでマスクし、対象範囲の外や番兵による不要なbitを落とす。
 
 		if (Bitboard::part(sq) == 0)
 		{
@@ -440,7 +374,6 @@ inline Bitboard lanceEffect(Square sq, const Bitboard& occupied)
 			return Bitboard(0, mocc & se);
 		}
 	}
-#endif
 }
 
 // 香の利き、非template版。
