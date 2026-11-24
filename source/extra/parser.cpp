@@ -25,7 +25,7 @@ namespace Parser
 		cout << token << endl;
 	*/
 
-	// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
+	// 次のtokenを先読みして保持する。get_text()はそのtokenを取り出す。
 	std::string LineScanner::peek_text()
 	{
 		// 二重にpeek_text()を呼び出すのは合法であるものとする。
@@ -81,14 +81,14 @@ namespace Parser
 			: token + " " + line.substr(pos);
 	}
 
-	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
+	// 次のtokenを数値化する。空のときだけ引数の既定値を返し、数値を読み取れないtokenは0になる。
 	i64 LineScanner::get_number(i64 defaultValue)
 	{
 		std::string token = get_text();
 		return token.empty() ? defaultValue : atoll(token.c_str());
 	}
 
-	// 次の文字列を数値化して返す。数値化できない時は引数の値がそのまま返る。
+	// 次のtokenを数値化する。空のときだけ引数の既定値を返し、数値を読み取れないtokenは0になる。
 	double LineScanner::get_double(double defaultValue)
 	{
 		std::string token = get_text();

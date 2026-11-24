@@ -177,22 +177,14 @@
 //  置換表絡みの設定
 // ---------------------
 
-// 通例hash keyは64bitだが、これを128にするとPosition::state()->long_key()から128bit hash keyが
-// 得られるようになる。研究時に局面が厳密に合致しているかどうかを判定したいときなどに用いる。
-// 実験用の機能なので、128bit,256bitのhash keyのサポートはAVX2のみ。
-// Positionのキーを128bit,256bitにした場合も、TTには下位64bitを渡す。
+// HASH_KEY_BITSで、Position::key()などが返すHASH_KEYの幅を64/128/256bitから選ぶ。
+// 定跡生成など、局面が厳密に合致しているかを調べる用途で拡張キーを使う。
+// TTのキー型Keyはこの設定によらず64bit固定で、拡張キーからは下位64bitを渡す。
 // 注意 : ふかうら王で、スーパーテラショック定跡の生成を行う時は、HASH_KEY_BITSを128に設定すること。
 //#define HASH_KEY_BITS 64
 
-// 置換表に関する設定
-// TTClusterのなかのTTEntryの数。2,3,4,6,8,16,32などが選べる。
-// Stockfishは3。
-// これを2にすると、置換表効率は悪くなるが、hashの格納bit数が増えるので
-// hash衝突が起きる確率自体は下がるため、hash衝突由来のバグが出にくくなる。
-// cf. https://yaneuraou.yaneu.com/2022/04/23/yaneuraou-v710-128-bit-edition-released/
-// これを4にすると、1つのTTEntryが64byteになる。いまどきのPCならCPUのcache line sizeが64byteであるため、
-// 速度低下はほぼないはず。
-//#define TT_CLUSTER_SIZE 3
+// TTのClusterはtt.cppで定義された固定レイアウトで、3個のTTEntryとキーを32バイトに収める。
+// TT_CLUSTER_SIZEによるエントリー数の切り替えはサポートしていない。
 
 // ---------------------
 //  詰将棋ルーチン関係の設定
@@ -229,7 +221,7 @@
 //  高速化に関する設定
 // ---------------------
 
-// トーナメント(大会)用のビルド。最新CPU(いまはAVX2)用。TEST_CMD使用不可。ASSERTなし。
+// トーナメント(大会)用のビルド。テストコマンドとASSERTを無効化する。対象CPUは別途ビルド設定で選ぶ。
 // #define FOR_TOURNAMENT
 
 // ---------------------

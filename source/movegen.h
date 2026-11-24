@@ -53,10 +53,10 @@ enum GenType {
     // あまり変な成りまで入れるとオーダリングを阻害する。
     // 通常探索のMovePickerはCAPTURESとQUIETSを使い、捕獲の有無で生成を分ける。
 
-    // note : NON_CAPTURESとCAPTURESとの生成される指し手の集合は被覆していない。
-    // note : CAPTURES_PRO_PLUSとNON_CAPTURES_PRO_MINUSとの生成される指し手の集合も被覆していない。
-    // note : CAPTURES_PRO_PLUS_ALLとNON_CAPTURES_PRO_MINUS_ALLとの生成される指し手の集合も被覆していない。
-    // →　被覆させないことで、二段階に指し手生成を分解することが出来る。
+    // QUIETSとCAPTURESの指し手集合は重複しない。
+    // CAPTURES_PRO_PLUSとQUIETS_PRO_MINUS、
+    // CAPTURES_PRO_PLUS_ALLとQUIETS_PRO_MINUS_ALLも、それぞれ対となる集合は重複しない。
+    // この分類により、指し手を二段階に分けて生成できる。
 
     EVASIONS,  // 王手の回避(指し手生成元で王手されている局面であることがわかっているときはこちらを呼び出す)
     EVASIONS_ALL,  // EVASIONS + 歩の不成なども含む。

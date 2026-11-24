@@ -62,13 +62,9 @@ Engine::Engine() :
 	//     完了していないので、アクセス違反で落ちる。
 #endif
 
-	//resize_threads();
-	// ⚠ スレッドは置換表のクリアなどで必要になるので、
-	//     このタイミングでresize_threads()を呼び出すことで、
-	//      options["Threads"]の設定を仮に反映させたいのだが、
-	//     派生classのコンストラクタの初期化が終わっていないので、ここから呼び出しても
-	//     派生class側のresize_threads()が呼び出されない。
-	//     そこで仕方がないのでadd_options()のタイミングでresize_threads()を呼び出すことにする。
+    // 派生クラスの初期化前なので、ここではスレッドを生成しない。
+    // オプション登録と派生クラスの初期化後にresize_threads()で設定を反映する。
+    // リソース設定を遅延反映するエンジンでは、isready()でまとめて反映する。
 
 }
 
@@ -185,16 +181,9 @@ void Engine::add_options() {
       }));
 #endif
 
-    // このタイミングで"Threads"の設定を仮に反映させる。
-    // 📝 Threadsを1以上にしておかないと、このあと置換表のクリアなど、
-    //     複数スレッドを用いて行うことができなくなるため。
-    // ⚠ ここで、派生class側のresize_threads()ではなく、
-    //	   このclassのresize_threads()を呼び出すことに注意。
-    //     派生class側のresize_threads()は、"USI_Hash"を参照して
-    //     置換表を初期化するコードが書かれているかもしれないが、
-    //     いま時点では、"USI_Hash"のoptionをaddしていないのでエラーとなる。
-    // Engine::resize_threads();
-	// → thread数が0のときは初期化をskipするようにしたからこれはなくてもいいと思う。
+    // ここでは共通オプションの登録だけを行う。
+    // スレッド生成・TT確保は各Engineの初期化経路で行い、
+    // 遅延反映を使うエンジンではisready()で設定をまとめて反映する。
 }
 
 // NumaConfig(numaContextのこと)を Options["NumaPolicy"]の値 から設定する。

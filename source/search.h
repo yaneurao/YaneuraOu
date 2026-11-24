@@ -659,8 +659,6 @@ public:
 	// 探索開始局面
     Position rootPos;
 
-    // rootPosに対するStateInfo
-
     // Rootの指し手
     RootMoves rootMoves;
 

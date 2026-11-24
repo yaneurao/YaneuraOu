@@ -15,7 +15,7 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
-#include "../../misc.h"  // Tools::Result
+#include "../../misc.h"
 #include "../../types.h"
 
 #if defined(USE_WASM_SIMD)

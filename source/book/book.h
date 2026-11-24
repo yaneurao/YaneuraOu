@@ -30,8 +30,8 @@ static const char* BookDBHeader2016_100 = "#YANEURAOU-DB2016 1.00";
 struct ProbeResult {
     // bestmove (定跡にhitしなければMOVE_NONE)
     Move bestmove;
-    // ⚠ cpに変換後のもの。
-    //     ValueからならScore::from_internal_score()で変換したものを設定する。
+    // 定跡に記録されたcp単位の評価値。
+    // Score::from_internal_value()で、単位を再変換せずに格納する。
     Score bestscore = 0;
 
     // 選択した定跡手の探索深さ。定跡以外の探索省略では0。

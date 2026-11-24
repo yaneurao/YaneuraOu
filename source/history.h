@@ -82,26 +82,12 @@ struct StatsEntry {
 
         ASSERT_LV3(std::abs(T(*this)) <= D);
 
-		// ※　この式は、Stockfishのコードそのまま。
-		// 試行錯誤の結果っぽくて、数学的な根拠はおそらくない。
-
-		// 解説)
-		// 
-		// この式は、
-		// 1) bouns == D (最大値)のとき、右辺が bonus - entry になって、entry == bonud == Dとなる。
-		//     すなわち、絶対にDは超えない。
-		// 2) bonus = entry * k (kは1に近い定数とする) のとき、
-		//     右辺は　k・entry - entry*(k・entry)/D = k・entry ( 1 - entry/D ) となり、entry/D ≒ 0とみなせるとき
-		//      = k・entry = bonus となり、単なるbonusをentryに加算している意味になる。
-		//
-		// つまり、entryにbonusを加算するのだけど、その結果がDを超えないようにちょっと減算してくれるような式になっている。
-		//
-		// 性質)
-		// ・自然にゼロ方向に引っ張られる
-		// ・絶対値がDを超えないように注意しながらentryにbonusを加算する
-		//
-		// 📝 指数移動平均(EMA)みたいなことがしたい。
-		//     しかし、EMAだと制限Dを超えてしまうことがある。Dの範囲を守りながらEMAするには上記のような更新式になる。
+        // Stockfishと同じ、履歴の値を[-D,D]に保つ更新式。
+        // b = clampedBonus、v = 更新前の値、a = abs(b) / Dを実数で考える。
+        // b != 0のとき、丸めを除く更新後は(1 - a) * v + a * sign(b) * Dとなる。
+        // bonusの絶対値に応じた割合で、正なら+D、負なら-Dへ近づける。
+        // b == 0なら変化せず、b == Dなら+D、b == -Dなら-Dになる。
+        // 更新前の値が[-D,D]なら、整数除算の丸めを含めても更新後は同じ範囲に収まる。
 
 	}
 };
@@ -133,8 +119,8 @@ struct DynStats {
         size(s * SizeMultiplier),
         data(make_unique_large_page<T[]>(size)) {}
 
-    // Sets all values in the range to 0
-	// すべての要素を0にする。
+    // Sets all values in this thread's range to the specified value.
+	// このスレッドの担当範囲にある要素を、指定したvalueで初期化する。
 	// 📓 並列で呼び出すことを想定している。threadIdxがthread id、numaTotalがthreadの総数。 
     void clear_range(int value, usize threadIdx, usize numaTotal) {
         usize start = u64(threadIdx) * size / numaTotal;

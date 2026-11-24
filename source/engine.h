@@ -65,7 +65,7 @@ public:
 
 		add_options()
 			エンジンに追加オプションを設定したいときは、この関数をoverrideする。
-			📝 GetOptions()->add()を用いて、Optionを追加する。
+			📝 get_options().add()を用いて、Optionを追加する。
 			💡 Engine::add_options()で"Threads","NumaPolicy"などのエンジンオプションを生やしているので
 			    これらが必要なのであれば、add_options()をoverrideしてEngine::add_options()を呼び出すこと。
 
@@ -165,8 +165,8 @@ public:
     // Worker派生classのfactoryを渡す必要がある。この部分を変更することによって、
     // 生成するWorker派生classを変更することができる。
     //
-    // 💡 Worker::resize_threads()がその処理なので、Worker::resize_threads()の実装を参考にすること。
-    //     また、USER_ENGINEの実装(user-engine.cpp)も参考にすること。
+    // 💡 Engine::resize_threads()とEngine派生クラスの実装を参考にすること。
+    //     USER_ENGINEの実装はengine/user-engine/user-search.cppにある。
     virtual void resize_threads() = 0;
 
 	// options["USI_Hash"]などの置換表サイズに対して、それが変更された時に呼び出されるhandler。
@@ -288,7 +288,7 @@ public:
 
 	// 🌈 エンジンに追加オプションを設定したいときは、この関数をoverrideする。
 	//     この関数は、USIEngine::set_engine()のタイミングで呼び出される。
-	// 📝 この関数のなかでGetOptions()->add()を用いて、Optionを追加する。
+	// 📝 この関数のなかでget_options().add()を用いて、Optionを追加する。
 	// 💡 Engine::add_options()で"Threads", "NumaPolicy"などのエンジンオプションを生やしているので
 	//     これらが必要なのであれば、add_options()をoverrideしてEngine::add_options()を呼び出すこと。
 	virtual void add_options() = 0;

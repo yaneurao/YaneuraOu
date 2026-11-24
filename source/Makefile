@@ -572,8 +572,8 @@ CPPFLAGS += -DTARGET_CPU=\"$(TARGET_CPU)\"
 # AMD Ryzenシリーズ
 
 # ZEN1/ZEN2はBMI2命令を使わずPEXTはSoftware Emulationしたほうが速い。
-# さらに、そのコードを使う代わりにMagic Bitboardを使うことで高速化を図る。
-# (USE_BMI2が定義されていない時、自動的にmagic bitboardが用いられる)
+# USE_BMI2を指定しなければ、PEXTを使う箇所ではソフトウェア実装を使用する。
+# 飛車・角の利き計算は、BMI2の有無によらずQugiy系の実装を使用する。
 # ZEN3でPEXTの速度がまともになったらしいのでZEN3以降ではBMI2命令を使うようにする。
 
 ifeq ($(TARGET_CPU),ZEN1)

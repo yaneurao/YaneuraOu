@@ -145,8 +145,8 @@ namespace Eval::dlshogi {
 
 	// 特徴量などに使う型。
 	//
-	// 16bitが使えるのは、cuDNNのときだけだが、cuDNNの利用はdlshogiでは廃止する予定らしいので、
-	// ここでは32bit floatとして扱う。
+	// TRT_NN_FP16を定義したときはDTypeを__half、それ以外はfloatとする。
+	// これはデータ型の選択であり、TensorRT内部でFP16演算を許可する設定とは別。
 #if defined(TRT_NN_FP16)
 	typedef uint8_t PType;
 	typedef __half DType;

@@ -731,7 +731,7 @@ constexpr u64 NODES_LIMIT_OUTPUT = 10'000'000;
 //   探索用の評価値補整
 // -----------------------
 
-// 💡 あるnodeで生成した指し手にbonusを与えるために、そのnodeで生成した指し手を良い順に保存しておく配列のcapacity。
+// 💡 探索順の最初の何手まで、履歴更新用のSearchedListへ記録するかを決める上限。
 constexpr int SEARCHEDLIST_CAPACITY = 32;
 using SearchedList                  = ValueList<Move, SEARCHEDLIST_CAPACITY>;
 
@@ -843,7 +843,7 @@ void  update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
 void  update_quiet_histories(
    const Position& pos, Stack* ss, Search::YaneuraOuWorker& workerThread, Move move, int bonus);
 
-// 📝 32は、quietsSearched、quietsSearchedの最大数。そのnodeで生成したQUIETS/CAPTURESの指し手を良い順に保持してある。
+// 📝 quietsSearchedとcapturesSearchedには、最初のSEARCHEDLIST_CAPACITY手のうち探索済みでbestMoveに選ばれなかった手を分類して保持する。
 //     bonusを加点するときにこれらの指し手に対して行う。
 //     Stockfish 16ではquietsSearchedの配列サイズが[64]から[32]になった。
 //     将棋ではハズレのquietの指し手が大量にあるので、それがベストとは限らない。
@@ -2601,7 +2601,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 	Value bestValue, value, eval, probCutBeta;
 #endif
 	// givesCheck			: moveによって王手になるのか
-	// improving			: 直前のnodeから評価値が上がってきているのか
+	// improving			: 同じ手番の2ply前のstaticEvalより評価値が上がっているのか
 	//   このフラグを各種枝刈りのmarginの決定に用いる
 	//   cf. Tweak probcut margin with 'improving' flag : https://github.com/official-stockfish/Stockfish/commit/c5f6bd517c68e16c3ead7892e1d83a6b1bb89b69
 	//   cf. Use evaluation trend to adjust futility margin : https://github.com/official-stockfish/Stockfish/commit/65c3bb8586eba11277f8297ef0f55c121772d82c
@@ -2610,8 +2610,8 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 
 	bool  givesCheck, improving, priorCapture, opponentWorsening;
 
-	// capture              : moveが駒を捕獲する指し手もしくは歩を成る手であるか
-    // ttCapture			: 置換表の指し手がcaptureする指し手であるか
+	// capture              : moveが駒を捕獲する指し手であるか。駒を取らない成りは含めない。
+    // ttCapture			: 置換表の指し手が駒を捕獲する指し手であるか
 
 	bool  capture, ttCapture;
 
@@ -2621,8 +2621,8 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 	int   priorReduction;
     Piece movedPiece;
 
-	// capturesSearched : このnodeで生成した、MovePickerから取得した駒を捕獲する指し手を順番に格納する  (+歩の成り)
-    // quietsSearched   : このnodeで生成した、MovePickerから取得した駒を捕獲しない指し手を順番に格納する(-歩の成り)
+	// capturesSearched : このnodeで探索し、bestMoveに選ばれなかった捕獲手を探索順に格納する。
+    // quietsSearched   : 同じ条件の駒を取らない手を格納する。駒を取らない歩成りもこちら。
 
     SearchedList capturesSearched;
     SearchedList quietsSearched;
@@ -2925,8 +2925,8 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
     }
 #endif
 
-	// 📝 置換表の指し手にpseudo_legalではない指し手が混じっていたら、
-	//     それは先後の局面を間違えた置換表Entryに書き出してしまっているバグ。
+	// TTの成る手は、移動元か移動先が敵陣にあることを確認する。
+	// legal_promote()はpseudo_legal()やlegal()全体を検査する関数ではない。
 	ASSERT_LV3(pos.legal_promote(ttData.move));
 
     ss->ttPv     = excludedMove ? ss->ttPv : PvNode || (ttHit && ttData.is_pv);
@@ -3228,27 +3228,15 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 
         if (ttData.move && ttData.value >= beta)
         {
-			/*
-				📝 備考
-
-					置換表の指し手でbeta cutが起きたのであれば、この指し手をkiller等に登録する。
-					捕獲する指し手か成る指し手であればこれは(captureで生成する指し手なので)killerを更新する価値はない。
-
-					ただし置換表の指し手には、hash衝突によりpseudo-leaglでない指し手である可能性がある。
-					update_quiet_stats()で、この指し手の移動元の駒を取得してCounter Moveとするが、
-					それがこの局面の手番側の駒ではないことがあるのでゆえにここでpseudo_legalのチェックをして、
-					Counter Moveに先手の指し手として後手の指し手が登録されるような事態を回避している。
-					その時に行われる誤ったβcut(枝刈り)は許容できる。(non PVで生じることなのでそこまで探索に対して悪い影響がない)
-					cf. https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
-
-                    MOVE_WINはTT読み出し後に処理済みなので、ここへ通常手として渡さない。
-
-					If ttMove is quiet, update move sorting heuristics on TT hit (~2 Elo)
-					置換表にhitした時に、ttMoveがquietの指し手であるなら、指し手並び替えheuristics(quiet_statsのこと)を更新する。
-			*/
+            // quietなTT手でfail highした場合、update_quiet_histories()で
+            // main・low-ply・continuation・pawn historyを更新する。
+            // killerやCounter Moveを登録していた頃とは更新対象が異なる。
+            // MOVE_WINはTT読み出し直後に処理済みなので、通常手としてここへ渡さない。
+            // TTの指し手取り違いに関する過去の調査:
+            // https://yaneuraou.yaneu.com/2021/08/17/about-the-yaneuraou-bug-that-appeared-in-the-long-match/
 
             // Bonus for a quiet ttMove that fails high
-            // fail highしたquietなquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
+            // fail highしたquietな(駒を取らない)ttMove(置換表の指し手)に対するボーナス
 
             if (!ttCapture)
                 update_quiet_histories(pos, ss, *this, ttData.move,
@@ -5563,8 +5551,8 @@ Value value_from_tt(Value v, int ply
 /*
 	統計情報一式を更新する。
 	prevSq           : 直前の指し手の駒の移動先。直前の指し手がMove::none()の時はSQ_NONE
-	quietsSearched   : このnodeで生成したquietな指し手、良い順
-	capturesSearched : このnodeで生成したcaptureの指し手、良い順
+	quietsSearched   : このnodeで探索し、bestMoveに選ばれなかったquietな手、探索順
+	capturesSearched : 同じ条件のcaptureの手、探索順
 */
 
 void update_all_stats(const Position&          pos,

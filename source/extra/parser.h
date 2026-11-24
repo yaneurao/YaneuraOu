@@ -23,7 +23,7 @@ namespace Parser
 		// 解析したい文字列を渡す(スペースをセパレータとする)
 		LineScanner(std::string line_) : line(line_), pos(0) {}
 
-		// 次のtokenを先読みして返す。get_token()するまで解析位置は進まない。
+		// 次のtokenを先読みして保持する。get_text()はそのtokenを取り出す。
 		std::string peek_text();
 
 		// 次のtokenを返す。

@@ -9,7 +9,8 @@ namespace YaneuraOu {
 //     拡張hash key
 // --------------------
 
-// 関数の引数に直接書くと(rand関数呼び出しの)評価順序が既定されていないので困る。C++11では左からのはずなのだがVC++2015ではそうなっていない。
+// 関数の引数の評価順序は、C++11でもC++17でも左からとは保証されない。
+// キーに格納する乱数は文を分けて順序を固定し、未使用のワード分も乱数を消費する。
 #if HASH_KEY_BITS <= 64
 #define SET_HASH(x,p0,p1,p2,p3) { x = (p0); auto dummy_func = [](u64,u64,u64){}; dummy_func(p1,p2,p3); }
 #elif HASH_KEY_BITS <= 128
@@ -18,7 +19,7 @@ namespace YaneuraOu {
 #define SET_HASH(x,p0,p1,p2,p3) { Key _K0=(p0); Key _K1=(p1); Key _K2=(p2); Key _K3=(p3); x.set(_K0, _K1, _K2, _K3); }
 #endif
 
-// 置換表で用いるためにPositionクラスから得られるhash keyを64bit版の他に128,256bitに変更することが出来るのでそのための構造体。
+// Positionで使うHASH_KEYを64/128/256bitから選ぶための型。TTのキー型Keyは64bit固定。
 
 // hash key 64bit版
 using Key64 = uint64_t;

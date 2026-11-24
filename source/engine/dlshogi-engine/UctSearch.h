@@ -160,8 +160,8 @@ struct NodeVisitor {
 	// ・このノードで勝ちなら      VALUE_WIN   // 子ノードで一つでもVALUE_LOSEがあればその指し手を選択するので       VALUE_WIN
 	// ・このノードで負けなら      VALUE_LOSE  // 子ノードがすべてVALUE_WINであればどうやってもこの局面では負けなのでVALUE_LOSE
 	// ・このノードで引き分けなら、VALUE_DRAW
-	// 備考) RepetitionWin (連続王手の千日手による反則勝ち) , RepetitionSuperior(優等局面)の場合も、VALUE_WINに含まれる。
-	//       RepetitionLose(連続王手の千日手による反則負け) , RepetitionSuperior(劣等局面)の場合も、VALUE_LOSEに含まれる。
+	// 備考) REPETITION_WIN(連続王手の千日手による反則勝ち)、REPETITION_SUPERIOR(優等局面)もVALUE_WINに含む。
+	//       REPETITION_LOSE(連続王手の千日手による反則負け)、REPETITION_INFERIOR(劣等局面)もVALUE_LOSEに含む。
 	// この変数は、UctSearcher::SelectMaxUcbChild()を呼び出した時に、子ノードを調べて、その結果が代入される。
 	float value_win;
 };

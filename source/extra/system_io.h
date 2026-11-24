@@ -90,15 +90,11 @@ namespace SystemIO
 		// Open()を呼び出してオープンしたファイルをクローズする。
 		void Close();
 
-		// ファイルの終了判定。
-		// ファイルを最後まで読み込んだのなら、trueを返す。
-
 		// 1行読み込む(改行まで) 引数のlineに代入される。
 		// 改行コードは返さない。
 		// SkipEmptyLine(),SetTrim()の設定を反映する。
 		// Eofに達した場合は、返し値としてTools::ResultCode::Eofを返す。
 		// 先頭のUTF-8のBOM(EF BB BF)は無視する。
-		// 💡 filenameは、起動フォルダ相対で指定する。
 		Tools::Result ReadLine(std::string& line);
 
 		// ReadLine()で空行を読み飛ばすかどうかの設定。

@@ -130,8 +130,7 @@ void DlshogiSearcher::InitGPU(const std::string& model_path, const std::string& 
 		for(int j = 0;j < thread_settings[i];++j)
 			thread_id_to_uct_searcher.push_back(search_groups[i].get_uct_searcher(j));
 
-	// GC用のスレッドにもスレッド番号を連番で与えておく。
-	// (WinProcGroup::bindThisThread()用)
+	// GC用スレッドのID設定は現状未使用。アフィニティ設定も未実装。
     //gc->set_thread_id(total_thread_num  /* + dfpn_thread_num*/);
 
 	// ----------------------
@@ -187,7 +186,6 @@ void DlshogiSearcher::SetResignThreshold(const int resign_threshold)
 // 千日手の価値設定
 //   value_black           : この値をroot colorが先手番の時の千日手の価値とみなす。(千分率)
 //   value_white           : この値をroot colorが後手番の時の千日手の価値とみなす。(千分率)
-//   draw_value_from_black : エンジンオプションの"Draw_Value_From_Black"の値。
 void DlshogiSearcher::SetDrawValue(const int value_black, const int value_white)
 {
 	search_options.draw_value_black = (float)value_black / 1000.0f;

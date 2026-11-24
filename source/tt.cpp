@@ -445,8 +445,9 @@ u8 TranspositionTable::generation() const { return generation8; }
 // 相対的なageの8倍を引いた値である。
 
 // 🌈 やねうら王独自拡張
-//    probe()してhitしたときに ttData.moveは Move16のままなので ttData.move32(pos)を用いて取得する必要がある。
-//    そこで、probe()の第2引数にPositionを渡すようにして、Move16ではなくMoveに変換されたTTDataを返すことにする。
+//    TTEntryの指し手はMove16で保存し、probe(key, pos)内のpos.to_move()で32bitのMoveへ復元する。
+//    復元できない候補は採用せず、同じClusterの後続候補を調べる。
+//    呼び出し側では、返されたttData.moveをそのまま使用できる。
 
 #if STOCKFISH
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) const {

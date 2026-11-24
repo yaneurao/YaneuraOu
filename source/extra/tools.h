@@ -24,7 +24,7 @@ struct ElapsedTimer {
     // startTimeを引数sで初期化する。
     ElapsedTimer(TimePoint s);
 
-    // タイマーを初期化する。以降、elapsed()でinit()してからの経過時間が得られる。
+    // タイマーを初期化する。以降、elapsed()でreset()してからの経過時間が得られる。
     void reset();
     // TimePointを指定して初期化する。この時刻からの経過時間が求められるようになる。
     void reset(TimePoint s);

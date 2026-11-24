@@ -12,12 +12,10 @@
 namespace YaneuraOu {
 namespace dlshogi {
 
-	// 探索結果を返す。
-	//   Threads.start_thinking(pos, states , limits);
-	//   Threads.main()->wait_for_search_finished(); // 探索の終了を待つ。
-	// のようにUSIのgoコマンド相当で探索したあと、rootの各候補手とそれに対応する評価値を返す。
-	//
-	// ※　実際の使用例は、make_book2021.cppのthink_sub()にあるのでそれも参考にすること。
+	// USIのgoコマンド相当の探索が終了したあと、rootの各候補手と対応する評価値を返す。
+	// Engine経由ならengine.go(limits)で探索を開始し、
+	// engine.wait_for_search_finished()で終了を待ってから呼び出す。
+	// 実装はengine/dlshogi-engine/FukauraOuEngine.cppを参照。
 	void GetSearchResult(std::vector<std::pair<Move, float>>& result);
 
 	// sfenとnode数を保持する構造体

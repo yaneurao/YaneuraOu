@@ -1020,7 +1020,7 @@ class Position {
 
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
 	// pos.set(sfen_unpack(data)); と等価。
-	// 渡された局面に問題があって、エラーのときはTools::Result::SomeErrorを返す。
+	// 渡された局面に問題があるときは、Tools::ResultCode::SomeErrorを持つTools::Resultを返す。
 	// PackedSfenにgamePlyは含まないので復元できない。そこを設定したいのであれば引数で指定すること。
 	Tools::Result set_from_packed_sfen(const PackedSfen& sfen , bool mirror=false , int gamePly_ = 0);
 

@@ -91,7 +91,7 @@ struct alignas(16) Bitboard
 	Bitboard() {}
 
 	// ゼロ初期化     : Bitboard x(0); // 全升が0であるBitboard
-	// ALL_BBで初期化 : Bitboard x(1); // 全升が1であるBitboard。ただしp[0]の63bit目は0。
+	// 全升を1で初期化 : Bitboard x(1); // 全升が1であるBitboard。ただしp[0]の63bit目は0。
 	// のように用いる。
 	// StockfishのBitboard(1)は最下位の1bitだけだが、将棋版のBitboard(1)は全81升。
 	// 単一の升を表すときはsquare_bb(sq)を使う。
@@ -351,15 +351,6 @@ namespace BB_Table
 
 	// sqの升だけが1であるBitboard。SQ_NBの要素は空。
 	extern Bitboard SquareBB[SQ_NB_PLUS1];
-
-	// 全升が0であるBitboard
-	//extern Bitboard ZERO_BB;
-	// 廃止 →　代わりにBitboard<0>()を用いた方が、メモリ参照がなくて速いのでこの定数は廃止。
-
-	// 全升が1であるBitboard
-	// p[0]の63bit目は0
-	//extern Bitboard ALL_BB;
-	// 廃止 →　代わりにBitboard<1>()を用いる。	
 }
 #endif
 

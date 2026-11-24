@@ -297,8 +297,8 @@ class NodeGarbageCollector {
 
     // --- やねうら王独自拡張
 
-    // GC用のスレッドのスレッドIDを設定する。
-    // これは、WinProcGroup::bindThisThread()を呼び出す時のID。
+    // GC用スレッドのIDとして次回記録する値を設定する。
+    // 現状はIDを記録するだけで、スレッドのアフィニティは変更しない。
     // worker thread自体は、やねうら王フレームワーク側(ThreadPoolクラス)で作成してもらうのではなく
     // コンストラクタで起動させ、デストラクタで終了する感じ。
     void set_thread_id(size_t thread_id) { next_thread_id = (int) thread_id; }
@@ -337,13 +337,12 @@ class NodeGarbageCollector {
 
             // --- やねうら王独自拡張
 
-            // bindThisThreadして欲しいなら、それを行う。
+            // 要求されたIDへの更新だけを行う。アフィニティの設定は未実装。
             if (current_thread_id != next_thread_id)
             {
                 current_thread_id = next_thread_id.load();
 
-                //WinProcGroup::bindThisThread(current_thread_id);
-                // TODO : あとで binderどうにかする。
+                // TODO: NUMA binderによるアフィニティ設定を検討する。
             }
         };
     }
@@ -362,8 +361,8 @@ class NodeGarbageCollector {
 
     // --- やねうら王独自拡張
 
-    // 現在のスレッドIDを保持しておいて、設定されたものが異なるなら、新しいIDで
-    // WinProcGroup::bindThisThread()を行う。
+    // 現在記録しているIDと、次に記録するよう要求されたID。
+    // IDの更新自体にはアフィニティを変更する効果はない。
 
     std::atomic<int> current_thread_id;
     std::atomic<int> next_thread_id;
