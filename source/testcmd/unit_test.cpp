@@ -62,7 +62,9 @@ namespace Test
 		string right = b ? "passed" : "failed";
 
 		// 横、80文字ぐらいで収まるように。
-		auto padding = std::max((size_t)0, 79 - left.size() - right.size());
+		// 長いテスト名では、符号なしの減算がアンダーフローしないよう先に幅を比較する。
+		const auto width = left.size() + right.size();
+		const auto padding = width < 79 ? 79 - width : 0;
 
 		string mes = left + string(padding, '.') + right;
 
