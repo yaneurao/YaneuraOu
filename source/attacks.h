@@ -584,10 +584,6 @@ static const Bitboard around24_bb(Square sq)
 }
 #endif
 
-inline Bitboard pawn_attacks_bb(Color c, Square s)
-{
-    return pawnEffect(c, s);
-}
 #endif
 
 // Returns the pseudo attacks of the given piece type
