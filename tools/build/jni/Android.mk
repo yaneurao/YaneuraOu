@@ -162,6 +162,7 @@ endif
 LOCAL_SRC_FILES := \
   ../../../source/main.cpp                                                   \
   ../../../source/types.cpp                                                  \
+  ../../../source/attacks.cpp                                                \
   ../../../source/bitboard.cpp                                               \
   ../../../source/misc.cpp                                                   \
   ../../../source/movegen.cpp                                                \

@@ -73,6 +73,9 @@
     <ClInclude Include="evaluate.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="attacks.h">
+      <Filter>リソース ファイル</Filter>
+    </ClInclude>
     <ClInclude Include="bitboard.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
@@ -367,6 +370,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="movegen.cpp">
+      <Filter>リソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="attacks.cpp">
       <Filter>リソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="bitboard.cpp">

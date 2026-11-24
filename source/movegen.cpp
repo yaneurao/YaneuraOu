@@ -5,6 +5,7 @@
 #include <cassert>
 #include <initializer_list>
 
+#include "attacks.h"
 #include "bitboard.h"
 #include "position.h"
 

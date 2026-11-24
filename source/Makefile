@@ -327,6 +327,7 @@ PGO_DIR ?= $(OBJDIR)/pgo
 SOURCES  = \
 	main.cpp                                                                   \
 	types.cpp                                                                  \
+	attacks.cpp                                                                \
 	bitboard.cpp                                                               \
 	misc.cpp                                                                   \
 	movegen.cpp                                                                \

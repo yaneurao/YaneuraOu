@@ -9,6 +9,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include "../attacks.h"
 #include "../position.h"
 #include "../usi.h"
 #include "../thread.h"
@@ -379,7 +380,7 @@ namespace Test
 #endif
         else if (token == "sliding") {
             UnitTester tester;
-            Bitboards::test_sliding_attacks(tester);
+            Attacks::test_sliding_attacks(tester);
         }
         else if (token == "autoplay")         auto_play(engine, is);       // 連続自己対局を行う。
 #if defined(YANEURAOU_ENGINE)

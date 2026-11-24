@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 
+#include "attacks.h"
 #include "bitboard.h"
 #include "misc.h"
 #include "types.h"

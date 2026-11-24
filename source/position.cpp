@@ -18,6 +18,7 @@
 #include <vector>
 #endif
 
+#include "attacks.h"
 #include "bitboard.h"
 #if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN) && !defined(NO_PREFETCH)
 #include "history.h"

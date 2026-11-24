@@ -10,6 +10,7 @@
 
 #if defined(LONG_EFFECT_LIBRARY)
 
+#include "../attacks.h"
 #include "../bitboard.h"
 #include "../position.h"
 

@@ -6,6 +6,7 @@
 #include <cmath>   // expf,logf
 
 #include "../../usi.h"
+#include "../../attacks.h"
 #include "../../bitboard.h"
 
 using namespace std;

@@ -10,6 +10,7 @@
 #include <fstream>
 
 #include "../types.h"
+#include "../attacks.h"
 #include "../bitboard.h"
 #include "../position.h"
 #include "../search.h"

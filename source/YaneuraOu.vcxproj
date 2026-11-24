@@ -485,6 +485,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="benchmark.h" />
+    <ClInclude Include="attacks.h" />
     <ClInclude Include="bitboard.h" />
     <ClInclude Include="book\apery_book.h" />
     <ClInclude Include="book\book.h" />
@@ -584,6 +585,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="benchmark.cpp" />
+    <ClCompile Include="attacks.cpp" />
     <ClCompile Include="bitboard.cpp" />
     <ClCompile Include="book\apery_book.cpp" />
     <ClCompile Include="book\book.cpp" />

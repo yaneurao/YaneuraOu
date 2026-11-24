@@ -3,6 +3,7 @@
 #include <cassert>
 #include <limits>
 
+#include "attacks.h"
 #include "bitboard.h"
 #include "misc.h"
 #include "position.h"
