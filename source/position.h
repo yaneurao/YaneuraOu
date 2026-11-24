@@ -780,11 +780,7 @@ class Position {
 	// 指し手mのsee(Static Exchange Evaluation : 静的取り合い評価)において
 	// v(しきい値)以上になるかどうかを返す。
 	// see_geのgeはgreater or equal(「以上」の意味)の略。
-#if STOCKFISH
-    bool see_ge(Move m, int threshold = 0) const;
-#else
-	SYSV_ABI bool see_ge(Move m, int threshold = 0) const;
-#endif
+    SYSV_ABI bool see_ge(Move m, int threshold = 0) const;
 
 
     // -----------------------
