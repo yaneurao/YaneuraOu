@@ -250,10 +250,10 @@ inline Bitboard bishop(Square sq, const Bitboard& occupied) {
           (high ^ (high - 1)) & mask.extract64<1>() & (u64(0) - u64(low == 0)));
     };
     const auto& masks = bishopMasks[sq];
-    const Bitboard reversed = occupied.byte_reverse();
+    const Bitboard reversed = occupied.byteswap_bb();
     const Bitboard forward = prefix(occupied, masks.ray[0]) | prefix(occupied, masks.ray[1]);
     const Bitboard backward = prefix(reversed, masks.ray[2]) | prefix(reversed, masks.ray[3]);
-    return forward | backward.byte_reverse();
+    return forward | backward.byteswap_bb();
 #endif
 }
 
@@ -464,7 +464,7 @@ inline Bitboard dragonEffect(Square sq, const Bitboard& occupied)
 // === 大駒の部分利き(SEEなどで用いる) ===
 
 // sqの升から各方向への利き
-// 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
+// 右上、右、右下、上方向は、byteswap_bb()してあるので、普通の利きではないから注意。
 // 6方向しか使っていないので詰めてある。
 extern Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
 
@@ -473,7 +473,7 @@ extern Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
 template <Effect8::Direct D>
 Bitboard rayEffect(Square sq, const Bitboard& occupied)
 {
-	// DIRECT_Uはbyte_reverse()しても正しく求められないからlanceEffectを用いる。
+	// DIRECT_Uはbyteswap_bb()しても正しく求められないからlanceEffectを用いる。
 	// DIRECT_Dも、lanceEffectにこれ専用の高速なコードが書いてあるのでそれを用いる。
 	if (D == Effect8::DIRECT_U) return lanceEffect<BLACK>(sq, occupied);
 	if (D == Effect8::DIRECT_D) return lanceEffect<WHITE>(sq, occupied);
@@ -494,7 +494,7 @@ Bitboard rayEffect(Square sq, const Bitboard& occupied)
 	Bitboard bb = occupied;
 
 	if (reverse)
-		bb = bb.byte_reverse();
+		bb = bb.byteswap_bb();
 
 	// 利きに関係する升のoccupiedだけを抽出
 	bb &= mask;
@@ -504,7 +504,7 @@ Bitboard rayEffect(Square sq, const Bitboard& occupied)
 	bb = (bb ^ bb_minus_one) & mask;
 
 	if (reverse)
-		bb = bb.byte_reverse();
+		bb = bb.byteswap_bb();
 
 	return bb;
 }

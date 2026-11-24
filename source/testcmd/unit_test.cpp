@@ -261,12 +261,12 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		tester.test("sq occupied", all_ok);
 	}
 	{
-		// ByteReverseがちゃんと機能しているかのテスト
+		// byteswap_bb()が128bit全体のバイト順を反転することを確認する。
 
 		Bitboard b(0x0123456789abcdef, 0xfedcba9876543210);
-		Bitboard r = b.byte_reverse();
+		Bitboard r = b.byteswap_bb();
 
-		tester.test("byte_reverse", r.extract64<0>() == 0x1032547698badcfe && r.extract64<1>() == 0xefcdab8967452301);
+		tester.test("byteswap_bb", r.extract64<0>() == 0x1032547698badcfe && r.extract64<1>() == 0xefcdab8967452301);
 	}
 	{
 		// 9段目が0、そこ以外が1のmask(香の利きを求めるコードのなかで使っている)

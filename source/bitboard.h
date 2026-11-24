@@ -229,9 +229,10 @@ struct alignas(16) Bitboard
 	Bitboard andnot(const Bitboard& b1) const { Bitboard b0; b0.p[0] = ~p[0] & b1.p[0]; b0.p[1] = ~p[1] & b1.p[1]; return b0; }
 #endif
 
-	// byte単位で入れ替えたBitboardを返す。
+	// 128bit全体の16byteの順序を反転したBitboardを返す。
+	// 2つの64bitの位置も入れ替える。各64bit内だけのバイト反転ではない。
 	// 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
-	Bitboard byte_reverse() const;
+	Bitboard byteswap_bb() const;
 
 	// SSE2のunpackを実行して返す。
 	// hi_out = _mm_unpackhi_epi64(lo_in,hi_in);

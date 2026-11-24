@@ -48,7 +48,7 @@ Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
 Bitboard QUGIY_ROOK_MASK[SQ_NB_PLUS1][2];
 
 // sqの升から各方向への利き
-// 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
+// 右上、右、右下、上方向は、byteswap_bb()してあるので、普通の利きではないから注意。
 // 6方向しか使っていないの、ちょっともったいないので詰める。
 Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
 
@@ -87,8 +87,8 @@ void init()
         };
         bishop.ray[0] = ray(1, -1);
         bishop.ray[1] = ray(1, 1);
-        bishop.ray[2] = ray(-1, -1).byte_reverse();
-        bishop.ray[3] = ray(-1, 1).byte_reverse();
+        bishop.ray[2] = ray(-1, -1).byteswap_bb();
+        bishop.ray[3] = ray(-1, 1).byteswap_bb();
     }
 
 	// 3) Qugiyの飛車のBitboardテーブルの初期化
@@ -106,7 +106,7 @@ void init()
 			for (File f2 = (File)(f - 1); f2 >= FILE_1; --f2)
 				right |= square_bb(f2 | r);
 
-			Bitboard right_rev = right.byte_reverse();
+			Bitboard right_rev = right.byteswap_bb();
 
 			Bitboard hi, lo;
 			Bitboard::unpack(right_rev, left, hi, lo);
@@ -140,7 +140,7 @@ void init()
 				bb |= square_bb(sqww_to_sq(sq2));
 
 			if (reverse)
-				bb = bb.byte_reverse();
+				bb = bb.byteswap_bb();
 
 			QUGIY_STEP_EFFECT[dd][sq] = bb;
 		}
@@ -483,7 +483,7 @@ Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 	// occupiedを逆順にする
 
 	// reversed byte occupied bitboard
-	Bitboard rocc = occupied.byte_reverse();
+	Bitboard rocc = occupied.byteswap_bb();
 
 	// roccとoccを2枚並べて、その上位u64をhi、下位u64をloに集める。
 	// occ側は(先手から見て)左方向への利き、roccは右方向への利き。
@@ -503,9 +503,9 @@ Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 	// unpackしていたものを元の状態に戻す(unpackの逆変換はunpack)
 	Bitboard::unpack(t1 , t0 , hi , lo);
 
-	// byte_reverseして元の状態に戻して、重ね合わせる。
+	// byteswap_bbして元の状態に戻して、重ね合わせる。
 	// hiの方には、右方向の利き、loは左方向の利きが得られている。
-	return hi.byte_reverse() | lo;
+	return hi.byteswap_bb() | lo;
 #endif
 }
 

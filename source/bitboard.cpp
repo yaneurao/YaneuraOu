@@ -241,9 +241,10 @@ Bitboard Bitboard::decrement() const
 #endif
 }
 
-// byte単位で入れ替えたBitboardを返す。
+// 128bit全体の16byteの順序を反転したBitboardを返す。
+// 2つの64bitの位置も入れ替える。各64bit内だけのバイト反転ではない。
 // 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
-Bitboard Bitboard::byte_reverse() const
+Bitboard Bitboard::byteswap_bb() const
 {
 #if defined(USE_SSSE3)
 	const __m128i shuffle = _mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
