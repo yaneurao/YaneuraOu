@@ -272,7 +272,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		// 9段目が0、そこ以外が1のmask(香の利きを求めるコードのなかで使っている)
 		Bitboard mask(0x3fdfeff7fbfdfeffULL , 0x000000000001feffULL);
 
-		tester.test("RANK9_BB", RANK9_BB == ~mask);
+		tester.test("Rank9BB", Rank9BB == ~mask);
 	}
 
 	{
@@ -397,8 +397,8 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 	}
 	{
 		// pawn_attacks_bbのテスト
-		tester.test("pawn_attacks_bb<BLACK>",pawn_attacks_bb<BLACK>(RANK7_BB) == RANK6_BB);
-		tester.test("pawn_attacks_bb<WHITE>",pawn_attacks_bb<WHITE>(RANK7_BB) == RANK8_BB);
+		tester.test("pawn_attacks_bb<BLACK>",pawn_attacks_bb<BLACK>(Rank7BB) == Rank6BB);
+		tester.test("pawn_attacks_bb<WHITE>",pawn_attacks_bb<WHITE>(Rank7BB) == Rank8BB);
 
 		tester.test("attacks_bb(B_KNIGHT)",attacks_bb(B_KNIGHT, SQ_77) == (square_bb(SQ_85) | square_bb(SQ_65)));
 		tester.test("attacks_bb(W_KNIGHT)",attacks_bb(W_KNIGHT, SQ_77) == (square_bb(SQ_89) | square_bb(SQ_69)));

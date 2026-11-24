@@ -3598,8 +3598,8 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
     {
         auto section2 = tester.section("attacks_bb");
         hirate_init();
-        tester.test("attacks_by<BLACK,PAWN>", pos.attacks_by<BLACK, PAWN>() == BB_Table::RANK6_BB);
-        tester.test("attacks_by<WHITE,PAWN>", pos.attacks_by<WHITE, PAWN>() == BB_Table::RANK4_BB);
+        tester.test("attacks_by<BLACK,PAWN>", pos.attacks_by<BLACK, PAWN>() == BB_Table::Rank6BB);
+        tester.test("attacks_by<WHITE,PAWN>", pos.attacks_by<WHITE, PAWN>() == BB_Table::Rank4BB);
         tester.test("attacks_by<BLACK,KNIGHT>",
                     pos.attacks_by<BLACK, KNIGHT>()
                       == (square_bb(SQ_97) | square_bb(SQ_77) | square_bb(SQ_37) | square_bb(SQ_17)));

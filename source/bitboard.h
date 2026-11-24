@@ -334,26 +334,26 @@ std::ostream& operator<<(std::ostream& os, const Bitboard& board);
 namespace BB_Table
 {
 	// 各筋を表現するBitboard定数
-	extern const Bitboard FILE1_BB;
-	extern const Bitboard FILE2_BB;
-	extern const Bitboard FILE3_BB;
-	extern const Bitboard FILE4_BB;
-	extern const Bitboard FILE5_BB;
-	extern const Bitboard FILE6_BB;
-	extern const Bitboard FILE7_BB;
-	extern const Bitboard FILE8_BB;
-	extern const Bitboard FILE9_BB;
+	extern const Bitboard File1BB;
+	extern const Bitboard File2BB;
+	extern const Bitboard File3BB;
+	extern const Bitboard File4BB;
+	extern const Bitboard File5BB;
+	extern const Bitboard File6BB;
+	extern const Bitboard File7BB;
+	extern const Bitboard File8BB;
+	extern const Bitboard File9BB;
 
 	// 各段を表現するBitboard定数
-	extern const Bitboard RANK1_BB;
-	extern const Bitboard RANK2_BB;
-	extern const Bitboard RANK3_BB;
-	extern const Bitboard RANK4_BB;
-	extern const Bitboard RANK5_BB;
-	extern const Bitboard RANK6_BB;
-	extern const Bitboard RANK7_BB;
-	extern const Bitboard RANK8_BB;
-	extern const Bitboard RANK9_BB;
+	extern const Bitboard Rank1BB;
+	extern const Bitboard Rank2BB;
+	extern const Bitboard Rank3BB;
+	extern const Bitboard Rank4BB;
+	extern const Bitboard Rank5BB;
+	extern const Bitboard Rank6BB;
+	extern const Bitboard Rank7BB;
+	extern const Bitboard Rank8BB;
+	extern const Bitboard Rank9BB;
 
 	// 各筋を表現するBitboard配列
 	extern const Bitboard FILE_BB[FILE_NB];

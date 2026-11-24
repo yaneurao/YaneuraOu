@@ -32,28 +32,28 @@ std::string Bitboards::pretty(Bitboard b) {
 // 外部から直接アクセスしないようにnamespaceに入れておく。
 namespace BB_Table
 {
-	const Bitboard FILE1_BB = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
-	const Bitboard FILE2_BB = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
-	const Bitboard FILE3_BB = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
-	const Bitboard FILE4_BB = Bitboard(UINT64_C(0x1ff) << (9 * 3), 0);
-	const Bitboard FILE5_BB = Bitboard(UINT64_C(0x1ff) << (9 * 4), 0);
-	const Bitboard FILE6_BB = Bitboard(UINT64_C(0x1ff) << (9 * 5), 0);
-	const Bitboard FILE7_BB = Bitboard(UINT64_C(0x1ff) << (9 * 6), 0);
-	const Bitboard FILE8_BB = Bitboard(0, 0x1ff << (9 * 0));
-	const Bitboard FILE9_BB = Bitboard(0, 0x1ff << (9 * 1));
+	const Bitboard File1BB = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
+	const Bitboard File2BB = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
+	const Bitboard File3BB = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
+	const Bitboard File4BB = Bitboard(UINT64_C(0x1ff) << (9 * 3), 0);
+	const Bitboard File5BB = Bitboard(UINT64_C(0x1ff) << (9 * 4), 0);
+	const Bitboard File6BB = Bitboard(UINT64_C(0x1ff) << (9 * 5), 0);
+	const Bitboard File7BB = Bitboard(UINT64_C(0x1ff) << (9 * 6), 0);
+	const Bitboard File8BB = Bitboard(0, 0x1ff << (9 * 0));
+	const Bitboard File9BB = Bitboard(0, 0x1ff << (9 * 1));
 
-	const Bitboard RANK1_BB = Bitboard(UINT64_C(0x40201008040201) << 0, 0x201 << 0);
-	const Bitboard RANK2_BB = Bitboard(UINT64_C(0x40201008040201) << 1, 0x201 << 1);
-	const Bitboard RANK3_BB = Bitboard(UINT64_C(0x40201008040201) << 2, 0x201 << 2);
-	const Bitboard RANK4_BB = Bitboard(UINT64_C(0x40201008040201) << 3, 0x201 << 3);
-	const Bitboard RANK5_BB = Bitboard(UINT64_C(0x40201008040201) << 4, 0x201 << 4);
-	const Bitboard RANK6_BB = Bitboard(UINT64_C(0x40201008040201) << 5, 0x201 << 5);
-	const Bitboard RANK7_BB = Bitboard(UINT64_C(0x40201008040201) << 6, 0x201 << 6);
-	const Bitboard RANK8_BB = Bitboard(UINT64_C(0x40201008040201) << 7, 0x201 << 7);
-	const Bitboard RANK9_BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
+	const Bitboard Rank1BB = Bitboard(UINT64_C(0x40201008040201) << 0, 0x201 << 0);
+	const Bitboard Rank2BB = Bitboard(UINT64_C(0x40201008040201) << 1, 0x201 << 1);
+	const Bitboard Rank3BB = Bitboard(UINT64_C(0x40201008040201) << 2, 0x201 << 2);
+	const Bitboard Rank4BB = Bitboard(UINT64_C(0x40201008040201) << 3, 0x201 << 3);
+	const Bitboard Rank5BB = Bitboard(UINT64_C(0x40201008040201) << 4, 0x201 << 4);
+	const Bitboard Rank6BB = Bitboard(UINT64_C(0x40201008040201) << 5, 0x201 << 5);
+	const Bitboard Rank7BB = Bitboard(UINT64_C(0x40201008040201) << 6, 0x201 << 6);
+	const Bitboard Rank8BB = Bitboard(UINT64_C(0x40201008040201) << 7, 0x201 << 7);
+	const Bitboard Rank9BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
 
-	const Bitboard FILE_BB[FILE_NB] = { FILE1_BB,FILE2_BB,FILE3_BB,FILE4_BB,FILE5_BB,FILE6_BB,FILE7_BB,FILE8_BB,FILE9_BB };
-	const Bitboard RANK_BB[RANK_NB] = { RANK1_BB,RANK2_BB,RANK3_BB,RANK4_BB,RANK5_BB,RANK6_BB,RANK7_BB,RANK8_BB,RANK9_BB };
+	const Bitboard FILE_BB[FILE_NB] = { File1BB,File2BB,File3BB,File4BB,File5BB,File6BB,File7BB,File8BB,File9BB };
+	const Bitboard RANK_BB[RANK_NB] = { Rank1BB,Rank2BB,Rank3BB,Rank4BB,Rank5BB,Rank6BB,Rank7BB,Rank8BB,Rank9BB };
 
 
 	// sqの升が1であるbitboard
@@ -63,31 +63,31 @@ namespace BB_Table
 	{
 		{
 			Bitboard(0),
-			RANK1_BB,
-			RANK1_BB | RANK2_BB,
-			RANK1_BB | RANK2_BB | RANK3_BB,
-			RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB,
-			~(RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB),
-			~(RANK9_BB | RANK8_BB | RANK7_BB),
-			~(RANK9_BB | RANK8_BB),
-			~RANK9_BB
+			Rank1BB,
+			Rank1BB | Rank2BB,
+			Rank1BB | Rank2BB | Rank3BB,
+			Rank1BB | Rank2BB | Rank3BB | Rank4BB,
+			~(Rank9BB | Rank8BB | Rank7BB | Rank6BB),
+			~(Rank9BB | Rank8BB | Rank7BB),
+			~(Rank9BB | Rank8BB),
+			~Rank9BB
 		},{
-			~RANK1_BB,
-			~(RANK1_BB | RANK2_BB),
-			~(RANK1_BB | RANK2_BB | RANK3_BB),
-			~(RANK1_BB | RANK2_BB | RANK3_BB | RANK4_BB),
-			RANK9_BB | RANK8_BB | RANK7_BB | RANK6_BB,
-			RANK9_BB | RANK8_BB | RANK7_BB,
-			RANK9_BB | RANK8_BB,
-			RANK9_BB,
+			~Rank1BB,
+			~(Rank1BB | Rank2BB),
+			~(Rank1BB | Rank2BB | Rank3BB),
+			~(Rank1BB | Rank2BB | Rank3BB | Rank4BB),
+			Rank9BB | Rank8BB | Rank7BB | Rank6BB,
+			Rank9BB | Rank8BB | Rank7BB,
+			Rank9BB | Rank8BB,
+			Rank9BB,
 			Bitboard(0)
 		}
 	};
 
 	// 敵陣を表現するBitboard。
 	const Bitboard EnemyField[COLOR_NB] = {
-		RANK1_BB | RANK2_BB | RANK3_BB ,
-		RANK7_BB | RANK8_BB | RANK9_BB
+		Rank1BB | Rank2BB | Rank3BB ,
+		Rank7BB | Rank8BB | Rank9BB
 	};
 
 	// SquareからSquareWithWallへの変換テーブル

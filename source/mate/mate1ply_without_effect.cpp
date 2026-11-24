@@ -353,8 +353,8 @@ namespace {
 	}
 
 	// 桂馬が次に成れる移動元の表現のために必要となるので用意。
-	const Bitboard RANK3_5BB = RANK3_BB | RANK4_BB | RANK5_BB;
-	const Bitboard RANK5_7BB = RANK5_BB | RANK6_BB | RANK7_BB;
+	const Bitboard RANK3_5BB = Rank3BB | Rank4BB | Rank5BB;
+	const Bitboard RANK5_7BB = Rank5BB | Rank6BB | Rank7BB;
 
 	//
 	//　以下、本当ならPositionに用意すべきヘルパ関数
@@ -1142,7 +1142,7 @@ namespace Mate {
 
 				// 敵陣で不成りで串刺しにする王手も入れなきゃ..
 			LANCE_NO_PRO:;
-				if ((Us == BLACK ? RANK3_BB : RANK7_BB) & to)
+				if ((Us == BLACK ? Rank3BB : Rank7BB) & to)
 				{
 					bb_attacks = lanceStepEffect<Us>(to);
 					if (!(bb_attacks & sq_king)) { continue; }

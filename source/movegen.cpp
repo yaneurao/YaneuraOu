@@ -439,7 +439,7 @@ template <Color Us> struct GenerateDropMoves {
 				// それ以外のケース
 
 				Bitboard target1 = target & rank1_n_bb(Us, RANK_1); // 1段目
-				Bitboard target2 = target & (Us == BLACK ? RANK2_BB : RANK8_BB); // 2段目
+				Bitboard target2 = target & (Us == BLACK ? Rank2BB : Rank8BB); // 2段目
 				Bitboard target3 = target & rank1_n_bb(Them, RANK_7); // 3～9段目( == 後手から見たときの1～7段目)
 
 				switch (num - nextToLance) // 1段目に対する香・桂以外の駒打ちの指し手生成(最大で4種の駒)
