@@ -216,25 +216,22 @@ little-endianで保存する。`progress.bin`のような外部ファイルは�
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 ```
 
-特に`StateInfo`に進行度計算キャッシュを追加する場合、progressを使わないarchitectureで
-メンバーが増えてはいけない。`StateInfo`は`do_move()`時にコピーされるため、従来archで
-余分なフィールドが入るとコピー量やcache footprintが増えてNPSが下がる。
+進行度の計算済みの和は、評価用の`AccumulatorState`に保持する。
+`StateInfo`には進行度キャッシュを追加しない。`StateInfo`は`do_move()`時にコピーされるため、
+評価用のフィールドを置くとコピー量やcache footprintが増える。
 
-そのため、`position.h`側のprogress cacheも次のようにprogress有効時だけ定義する。
+計算済みの祖先が使える場合は、`DirtyPiece`から進行度を差分更新する。
+それ以外の場合は、盤面と手駒から和を直接求め、中間の駒リストは作らない。
+計算した子から、玉位置の変わらない未計算の親の進行度も差分で準備する。
+これらの進行度専用の処理・フィールドは、次の条件でのみ有効にする。
 
 ```cpp
-#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
-    Key nnue_progress_key;
-    int64_t nnue_progress_sum;
-    Square nnue_progress_sq_bk;
-    Square nnue_progress_sq_wk;
-    bool nnue_progress_valid;
-#endif
+#if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 ```
 
 同じ理由で、Makefileでprogress専用の`.cpp`を追加する設計にはしない。progress未使用時は
 `NNUE_SFNN_PROGRESS_BUCKETS`が`1`になり、progress用の読み書き、hash変更、bucket計算、
-`NnueNetworks`内の追加パラメータ、`StateInfo`内のcacheがすべてコンパイル対象外になる
+`NnueNetworks`内の追加パラメータ、評価用の進行度cacheがすべてコンパイル対象外になる
 必要がある。
 
 ## SFNN Common+Shard fc_0

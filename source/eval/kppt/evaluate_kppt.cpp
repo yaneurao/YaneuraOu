@@ -280,25 +280,25 @@ namespace Eval {
 		const auto* ppkppb = kpp[sq_bk];
 		const auto* ppkppw = kpp[Inv(sq_wk)];
 
-		auto& pos_ = *const_cast<Position*>(&pos);
-		auto length = pos_.eval_list()->length();
+		auto pieces = collect_bona_pieces(pos);
+		auto length = BonaPieceList::length();
 		
 #if !defined (USE_EVAL_MAKE_LIST_FUNCTION)
 
-		auto list_fb = pos_.eval_list()->piece_list_fb();
-		auto list_fw = pos_.eval_list()->piece_list_fw();
+		auto list_fb = pieces.pieces[BLACK];
+		auto list_fw = pieces.pieces[WHITE];
 
 #else
 		// -----------------------------------
 		// USE_EVAL_MAKE_LIST_FUNCTIONが定義されているときは
-		// ここでeval_listをコピーして、組み替える。
+		// ここで入力配列をコピーして、組み替える。
 		// -----------------------------------
 
 		// バッファを確保してコピー
 		BonaPiece list_fb[40];
 		BonaPiece list_fw[40];
-		memcpy(list_fb, pos_.eval_list()->piece_list_fb(), sizeof(BonaPiece) * 40);
-		memcpy(list_fw, pos_.eval_list()->piece_list_fw(), sizeof(BonaPiece) * 40);
+		memcpy(list_fb, pieces.pieces[BLACK], sizeof(BonaPiece) * 40);
+		memcpy(list_fw, pieces.pieces[WHITE], sizeof(BonaPiece) * 40);
 
 		// ユーザーは、この関数でBonaPiece番号の自由な組み換えを行なうものとする。
 		make_list_function(pos, list_fb, list_fw);
@@ -371,10 +371,10 @@ namespace Eval {
     }
 
 	// 後手玉が移動したときの先手玉に対するの差分
-	std::array<s32, 2> do_a_black(const Position& pos, const ExtBonaPiece ebp) {
+	std::array<s32, 2> do_a_black(const Position& pos, const ExtBonaPiece ebp, BonaPieceList& pieces) {
 		const Square sq_bk = pos.square<KING>(BLACK);
-		const auto* list0 = pos.eval_list()->piece_list_fb();
-		const int length = pos.eval_list()->length();
+		const auto* list0 = pieces.pieces[BLACK];
+		const int length = BonaPieceList::length();
 
 		const auto* pkppb = kpp[sq_bk][ebp.fb];
 		std::array<s32, 2> sum = { { pkppb[list0[0]][0], pkppb[list0[0]][1] } };
@@ -384,10 +384,10 @@ namespace Eval {
 	}
 
 	// 先手玉が移動したときの後手玉に対する差分
-	std::array<s32, 2> do_a_white(const Position& pos, const ExtBonaPiece ebp) {
+	std::array<s32, 2> do_a_white(const Position& pos, const ExtBonaPiece ebp, BonaPieceList& pieces) {
 		const Square sq_wk = pos.square<KING>(WHITE);
-		const auto* list1 = pos.eval_list()->piece_list_fw();
-		const int length = pos.eval_list()->length();
+		const auto* list1 = pieces.pieces[WHITE];
+		const int length = BonaPieceList::length();
 
 		const auto* pkppw = kpp[Inv(sq_wk)][ebp.fw];
 		std::array<s32, 2> sum = { { pkppw[list1[0]][0], pkppw[list1[0]][1] } };
@@ -397,9 +397,9 @@ namespace Eval {
 	}
 
 	// 玉以外の駒が移動したときの差分
-	EvalSum do_a_pc(const Position& pos, const ExtBonaPiece ebp) {
+	EvalSum do_a_pc(const Position& pos, const ExtBonaPiece ebp, BonaPieceList& pieces) {
 		/*
-			 移動した駒がm駒あるなら、これらの駒をeval_list()[]のn-1,n-2,…,n-mに移動させて、
+			 移動した駒がm駒あるなら、これらの駒を一時配列のn-1,n-2,…,n-mに移動させて、
 			 for(i=1..m)
 			   do_a_black(pos,n-i)
 			 みたいなことをすべきだが、mはたかだか2なので、
@@ -407,9 +407,9 @@ namespace Eval {
 		*/
 		const Square sq_bk = pos.square<KING>(BLACK);
 		const Square sq_wk = pos.square<KING>(WHITE);
-		const auto list0 = pos.eval_list()->piece_list_fb();
-		const auto list1 = pos.eval_list()->piece_list_fw();
-		const int length = pos.eval_list()->length();
+		const auto list0 = pieces.pieces[BLACK];
+		const auto list1 = pieces.pieces[WHITE];
+		const int length = BonaPieceList::length();
 
 		EvalSum sum;
 
@@ -519,16 +519,30 @@ namespace Eval {
 		// ひとつずつ遡りながらsumKPPがVALUE_NONEでないところまで探してそこからの差分を計算することは出来るが
 		// 直前の累積値が未計算の場合は、上の分岐で全計算へ切り替える。
 
-		auto& dp = now->dirtyPiece;
+		auto pieces = collect_bona_pieces(pos);
+        const auto& dirtyPiece = now->dirtyPiece;
+        struct {
+            ChangedBonaPiece changed_piece[2];
+            int slots[2];
+            int dirty_num;
+        } dp;
+        dp.dirty_num = dirtyPiece.count();
+        for (int i = 0; i < dp.dirty_num; ++i) {
+            dp.changed_piece[i] = dirtyPiece.change(i);
+            const BonaPiece bp = dp.changed_piece[i].new_piece.fb;
+            const auto* list = pieces.pieces[BLACK];
+            dp.slots[i] = int(std::find(list, list + 40, bp) - list);
+            assert(dp.slots[i] < 40);
+        }
 
 		// 移動させた駒は最大2つある。その数
 		int moved_piece_num = dp.dirty_num;
 
-		auto list0 = pos.eval_list()->piece_list_fb();
-		auto list1 = pos.eval_list()->piece_list_fw();
-		const int length = pos.eval_list()->length();
+		auto list0 = pieces.pieces[BLACK];
+		auto list1 = pieces.pieces[WHITE];
+		const int length = BonaPieceList::length();
 
-		auto dirty = dp.pieceNo[0];
+		auto dirty = dp.slots[0];
 
 		// 移動させた駒は王か？
 		if (dirty >= PIECE_NUMBER_KING)
@@ -629,13 +643,13 @@ namespace Eval {
 				// 動かした駒が２つ
 				if (moved_piece_num == 2)
 				{
-					// 瞬間的にeval_listの移動させた駒の番号を変更してしまう。
-					// こうすることで前nodeのpiece_listを持たなくて済む。
+					// 瞬間的に入力配列の移動させた駒の番号を変更してしまう。
+					// こうすることで前nodeの入力配列を持たなくて済む。
 
-					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[0] += do_a_black(pos, dp.changed_piece[1].new_piece);
+					const int listIndex_cap = dp.slots[1];
+					diff.p[0] += do_a_black(pos, dp.changed_piece[1].new_piece, pieces);
 					list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
-					diff.p[0] -= do_a_black(pos, dp.changed_piece[1].old_piece);
+					diff.p[0] -= do_a_black(pos, dp.changed_piece[1].old_piece, pieces);
 					list0[listIndex_cap] = dp.changed_piece[1].new_piece.fb;
 				}
 
@@ -719,10 +733,10 @@ namespace Eval {
 #endif
 
 				if (moved_piece_num == 2) {
-					const int listIndex_cap = dp.pieceNo[1];
-					diff.p[1] += do_a_white(pos, dp.changed_piece[1].new_piece);
+					const int listIndex_cap = dp.slots[1];
+					diff.p[1] += do_a_white(pos, dp.changed_piece[1].new_piece, pieces);
 					list1[listIndex_cap] = dp.changed_piece[1].old_piece.fw;
-					diff.p[1] -= do_a_white(pos, dp.changed_piece[1].old_piece);
+					diff.p[1] -= do_a_white(pos, dp.changed_piece[1].old_piece, pieces);
 					list1[listIndex_cap] = dp.changed_piece[1].new_piece.fw;
 				}
 			}
@@ -735,7 +749,7 @@ namespace Eval {
 			// 王以外の駒が移動したケース
 			// 今回の差分を計算して、そこに加算する。
 
-			const int listIndex = dp.pieceNo[0];
+			const int listIndex = dp.slots[0];
 
 			// do_a_pc()の最適化の関係で使わない玉の情報を吹き飛ばし、0にする
 			list0[38] = static_cast<BonaPiece>(0);
@@ -743,13 +757,13 @@ namespace Eval {
 			list1[38] = static_cast<BonaPiece>(0);
 			list1[39] = static_cast<BonaPiece>(0);
 
-			auto diff = do_a_pc(pos, dp.changed_piece[0].new_piece);
+			auto diff = do_a_pc(pos, dp.changed_piece[0].new_piece, pieces);
 			if (moved_piece_num == 1) {
 
 				// 動いた駒が1つ。
 				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
 				list1[listIndex] = dp.changed_piece[0].old_piece.fw;
-				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
+				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece, pieces);
 
 			} else {
 
@@ -758,18 +772,18 @@ namespace Eval {
 				auto sq_bk = pos.square<KING>(BLACK);
 				auto sq_wk = pos.square<KING>(WHITE);
 
-				diff += do_a_pc(pos, dp.changed_piece[1].new_piece);
+				diff += do_a_pc(pos, dp.changed_piece[1].new_piece, pieces);
 				diff.p[0] -= kpp[    sq_bk ][dp.changed_piece[0].new_piece.fb][dp.changed_piece[1].new_piece.fb];
 				diff.p[1] -= kpp[Inv(sq_wk)][dp.changed_piece[0].new_piece.fw][dp.changed_piece[1].new_piece.fw];
 
-				const PieceNumber listIndex_cap = dp.pieceNo[1];
+				const int listIndex_cap = dp.slots[1];
 				list0[listIndex_cap] = dp.changed_piece[1].old_piece.fb;
 				list1[listIndex_cap] = dp.changed_piece[1].old_piece.fw;
 
 				list0[listIndex] = dp.changed_piece[0].old_piece.fb;
 				list1[listIndex] = dp.changed_piece[0].old_piece.fw;
-				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece);
-				diff -= do_a_pc(pos, dp.changed_piece[1].old_piece);
+				diff -= do_a_pc(pos, dp.changed_piece[0].old_piece, pieces);
+				diff -= do_a_pc(pos, dp.changed_piece[1].old_piece, pieces);
 
 				diff.p[0] += kpp[    sq_bk ][dp.changed_piece[0].old_piece.fb][dp.changed_piece[1].old_piece.fb];
 				diff.p[1] += kpp[Inv(sq_wk)][dp.changed_piece[0].old_piece.fw][dp.changed_piece[1].old_piece.fw];
@@ -788,7 +802,7 @@ namespace Eval {
 
 	}
 #else
-	// EvalListの組み換えを行なうときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
+	// 入力配列の組み換えを行なうときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
 	void evaluateBody(const Position& pos, Classic::Accumulator& accumulator)
 	{
 		compute_eval_impl(pos, accumulator);
@@ -841,7 +855,7 @@ namespace Eval {
 		if (!stack.latest().sum.evaluated())
 			evaluate(pos, stack);
 #else
-		// EvalListの組み換えを行なっているときは通常の差分計算ルーチンが機能しないので
+		// 入力配列の組み換えを行なっているときは通常の差分計算ルーチンが機能しないので
 		// 差分計算をするための何かをする必要がない。
 #endif
 	}
@@ -861,15 +875,15 @@ namespace Eval {
 		const auto* ppkppb = kpp[sq_bk];
 		const auto* ppkppw = kpp[Inv(sq_wk)];
 
-		auto& pos_ = *const_cast<Position*>(&pos);
+		auto pieces = collect_bona_pieces(pos);
 
-		auto list_fb = pos_.eval_list()->piece_list_fb();
-		auto list_fw = pos_.eval_list()->piece_list_fw();
+		auto list_fb = pieces.pieces[BLACK];
+		auto list_fw = pieces.pieces[WHITE];
 
 		int i, j;
 		BonaPiece k0, k1, l0, l1;
 
-		const int length = pos_.eval_list()->length();
+		const int length = BonaPieceList::length();
 
 		// 38枚の駒を表示
 		for (i = 0; i < length ; ++i)

@@ -521,19 +521,6 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
     bool    promote = false;
     usize   idx;
 
-#if defined(USE_EVAL_LIST)
-    // evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
-    evalList.clear();
-
-    // PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
-    // それぞれの駒をどこまで使ったかのカウンター
-    PieceNumber piece_no_count[KING] = {
-      PIECE_NUMBER_ZERO,   PIECE_NUMBER_PAWN,   PIECE_NUMBER_LANCE, PIECE_NUMBER_KNIGHT,
-      PIECE_NUMBER_SILVER, PIECE_NUMBER_BISHOP, PIECE_NUMBER_ROOK,  PIECE_NUMBER_GOLD};
-
-    // 先手玉のいない詰将棋とか、駒落ちに対応させるために、存在しない駒はすべてBONA_PIECE_ZEROにいることにする。
-    // 上のevalList.clear()で、ゼロクリアしているので、それは達成しているはず。
-#endif
 
     kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
 
@@ -597,13 +584,6 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
             }
             put_piece(pc, sq);
 
-#if defined(USE_EVAL_LIST)
-            PieceNumber piece_no = (idx == B_KING) ? PIECE_NUMBER_BKING :  // 先手玉
-                                     (idx == W_KING) ? PIECE_NUMBER_WKING
-                                                     :                           // 後手玉
-                                     piece_no_count[raw_type_of(Piece(idx))]++;  // それ以外
-            evalList.put_piece(piece_no, sq, pc);  // sqの升にpcの駒を配置する
-#endif
 
             // 1升進める
             --f;
@@ -683,11 +663,6 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
 				// 手駒を1枚増やす。
                 put_hand_piece(color_of(pc), rpc);
 
-#if defined(USE_EVAL_LIST)
-                PieceNumber piece_no = piece_no_count[rpc]++;
-                ASSERT_LV1(is_ok(piece_no));
-                evalList.put_piece(piece_no, color_of(pc), rpc, i);
-#endif
             }
             ct = 0;
         }
@@ -1741,7 +1716,7 @@ Move Position::to_move(Move16 m16) const
 template<Color Us, typename T>
 void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
                             [[maybe_unused]] const SharedHistories* history
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
                             , Eval::DirtyPiece* dirty
 #endif
                             ) {
@@ -1896,9 +1871,16 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     int materialDiff;
 #endif
 
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
-    Eval::DirtyPiece scratch;
-    auto& dp = dirty ? *dirty : scratch;
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+    if (dirty) {
+        dirty->pc = moved_piece_before(m);
+        dirty->after = moved_piece_after(m);
+        dirty->captured = captured;
+        dirty->from = m.is_drop() ? SQ_NONE : m.from_sq();
+        dirty->to = to;
+        dirty->handSlot = m.is_drop() ? hand_count(hand[Us], raw_type_of(dirty->pc)) - 1
+                         : captured ? hand_count(hand[Us], raw_type_of(captured)) : 0;
+    }
 #endif
 
     if (m.is_drop())
@@ -1933,20 +1915,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
         put_piece(pc, to);
         put_piece_for_partial_key(st, pc, to);
 
-        // 打駒した駒に関するevalListの更新。
-#if defined(USE_EVAL_LIST)
-        PieceNumber piece_no = piece_no_of(Us, pr);
-        ASSERT_LV3(is_ok(piece_no));
 
-        // KPPの差分計算のために移動した駒をStateInfoに記録しておく。
-        dp.dirty_num                  = 1;  // 動いた駒は1個
-        dp.pieceNo[0]                 = piece_no;
-        dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no);
-        evalList.put_piece(piece_no, to, pc);
-        dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no);
-#endif
-
-        // ⚠ piece_no_of()のときに、いまの手駒の枚数を参照するので↑のあとで更新する必要がある。
         remove_hand_piece(Us, pr);
 
         // 王手している駒のbitboardを更新する。
@@ -2016,27 +1985,11 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 
 			PieceType pr = raw_type_of(captured);
 
-            // 捕獲した駒に関するevalListの更新
-#if defined(USE_EVAL_LIST)
-			// このPieceNumberの駒が手駒に移動したのでEvalListのほうを更新しておく。
-			PieceNumber piece_no = piece_no_of(to);
-			ASSERT_LV3(is_ok(piece_no));
-			dp.dirty_num                  = 2;  // 動いた駒は2個
-			dp.pieceNo[1]                 = piece_no;
-			dp.changed_piece[1].old_piece = evalList.bona_piece(piece_no);
-			evalList.put_piece(piece_no, Us, pr, hand_count(hand[Us], pr));
-			dp.changed_piece[1].new_piece = evalList.bona_piece(piece_no);
-#endif
 
             // 駒取りなら現在の手番側の駒が増える。
-            // ⚠ piece_no_of()で手駒の枚数を参照するので
-            //    ↑のあとに行う必要がある。
             put_hand_piece(Us, pr);
 
-#if defined(USE_SFNN)
-            dp.remove_pc = captured;
-            dp.remove_sq = capsq;
-#endif
+
 
 	        // Update board and piece lists
             // 捕獲される駒の除去
@@ -2067,9 +2020,6 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
             // 移動先で駒を捕獲しないときの利きの更新
             LongEffect::update_by_no_capturing_piece<Us>(*this, from, to, moved_pc, moved_after_pc);
 #endif
-#if defined(USE_EVAL_LIST)
-            dp.dirty_num = 1;  // 動いた駒は1個
-#endif
         }
 
         // fromにあったmoved_pcがtoにmoved_after_pcとして移動した。
@@ -2084,12 +2034,6 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
             prefetch(tt->get_cluster(key));
         }
 
-#if defined(USE_EVAL_LIST)
-        // 移動元にあった駒のpiece_noを得る
-        PieceNumber piece_no2         = piece_no_of(from);
-        dp.pieceNo[0]                 = piece_no2;
-        dp.changed_piece[0].old_piece = evalList.bona_piece(piece_no2);
-#endif
 
         // 移動元の升からの駒の除去
         remove_piece(from);
@@ -2099,10 +2043,6 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
         put_piece(moved_after_pc, to);
         put_piece_for_partial_key(st, moved_after_pc, to);
 
-#if defined(USE_EVAL_LIST)
-        evalList.put_piece(piece_no2, to, moved_after_pc);
-        dp.changed_piece[0].new_piece = evalList.bona_piece(piece_no2);
-#endif
 
         // 王を移動させる手であるなら、kingSquareを更新しておく。
         // ⚠ これを更新しておかないとsquare<KING>()が使えなくなってしまう。
@@ -2379,10 +2319,6 @@ void Position::undo_move_impl(Move m) {
 
     Piece moved_after_pc = moved_piece_after(m);
 
-#if defined(USE_EVAL_LIST)
-    PieceNumber piece_no = piece_no_of(to);  // 移動元のpiece_no == いまtoの場所にある駒のpiece_no
-    ASSERT_LV3(is_ok(piece_no));
-#endif
 
     // 移動前の駒
     // Piece moved_pc = is_promote(m) ? (moved_after_pc - PIECE_PROMOTE) : moved_after_pc;
@@ -2399,9 +2335,6 @@ void Position::undo_move_impl(Move m) {
         // toの場所にある駒を手駒に戻す
         PieceType pt = raw_type_of(moved_after_pc);
 
-#if defined(USE_EVAL_LIST)
-        evalList.put_piece(piece_no, Us, pt, hand_count(hand[Us], pt));
-#endif
 		// 手駒が増える
         put_hand_piece(Us, pt);
 
@@ -2435,24 +2368,8 @@ void Position::undo_move_impl(Move m) {
             put_piece(to_pc, to);
             put_piece(moved_pc, from);
 
-#if defined(USE_EVAL_LIST)
-            PieceNumber piece_no2 =
-              piece_no_of(Us, raw_type_of(to_pc));  // 捕っていた駒(手駒にある)のpiece_no
-            ASSERT_LV3(is_ok(piece_no2));
-
-            evalList.put_piece(piece_no2, to, to_pc);
-
             // 手駒から減らす
             remove_hand_piece(Us, raw_type_of(to_pc));
-
-            // 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
-            // moved_pcが玉であることはあるが、いまkingSquareを更新してしまうと
-            // rewind_by_capturing_piece()でその位置を用いているのでまずい。(かも)
-            evalList.put_piece(piece_no, from, moved_pc);
-#else
-            // 手駒から減らす
-            remove_hand_piece(Us, raw_type_of(to_pc));
-#endif
 
 #if defined(LONG_EFFECT_LIBRARY)
             // 移動先で駒を捕獲するときの利きの更新
@@ -2465,10 +2382,6 @@ void Position::undo_move_impl(Move m) {
 
             put_piece(moved_pc, from);
 
-#if defined(USE_EVAL_LIST)
-            // 成りの指し手だったなら非成りの駒がfromの場所に戻る。さもなくばそのまま戻る。
-            evalList.put_piece(piece_no, from, moved_pc);
-#endif
 
 #if defined(LONG_EFFECT_LIBRARY)
             // 移動先で駒を捕獲しないときの利きの更新
@@ -2494,8 +2407,6 @@ void Position::undo_move_impl(Move m) {
 
     --gamePly;
 
-    // ASSERT_LV5(evalList.is_valid(*this));
-    //evalList.is_valid(*this);
 
     ASSERT_LV5(pos_is_ok());
 }
@@ -2506,13 +2417,13 @@ void Position::do_move(Move m, bool givesCheck, const T* tt, const SharedHistori
 {
     if (sideToMove == BLACK)
         do_move_impl<BLACK, T>(m, givesCheck, tt, history
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
                               , nullptr
 #endif
                               );
     else
         do_move_impl<WHITE, T>(m, givesCheck, tt, history
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
                               , nullptr
 #endif
                               );

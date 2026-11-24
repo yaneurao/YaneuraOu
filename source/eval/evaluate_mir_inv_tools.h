@@ -4,7 +4,7 @@
 // BonaPieceのmirror(左右反転)やinverse(盤上の180度回転)させた駒を得るためのツール類。
 
 #include "../config.h"
-#if defined(USE_EVAL_LIST)
+#if defined(USE_BONA_PIECE)
 
 #include "../evaluate.h"
 #include <functional>
@@ -45,5 +45,5 @@ namespace Eval {
 } // namespace Eval
 } // namespace YaneuraOu
 
-#endif // defined(USE_EVAL_LIST)
+#endif // defined(USE_BONA_PIECE)
 #endif // EVALUATE_MIR_INV_TOOLS_H_INCLUDED

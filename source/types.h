@@ -700,7 +700,8 @@ static std::ostream& operator<<(std::ostream& os, PieceType pc) { return os << (
 //        駒箱
 // --------------------
 
-// Positionクラスで用いる、駒リスト(どの駒がどこにあるのか)を管理するときの番号。
+// 評価関数の入力数と一時配列の玉の位置を表す旧来の定数。
+// Position上で個々の駒を追跡する番号としては使わない。
 enum PieceNumber : u8
 {
   PIECE_NUMBER_PAWN = 0, PIECE_NUMBER_LANCE = 18, PIECE_NUMBER_KNIGHT = 22, PIECE_NUMBER_SILVER = 26,

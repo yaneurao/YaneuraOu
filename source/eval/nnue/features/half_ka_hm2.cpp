@@ -29,20 +29,6 @@ namespace Eval::NNUE::Features {
 		return static_cast<IndexType>(e_king) * static_cast<IndexType>(sq_k) + static_cast<IndexType>(p >= e_king ? p - SQ_NB : p);
 	}
 
-	// 駒の情報を取得する
-	template <Side AssociatedKing>
-	inline void HalfKA_hm2<AssociatedKing>::GetPieces(
-		const Position& pos, Color perspective,
-		BonaPiece** pieces, Square* sq_target_k) {
-		*pieces = (perspective == BLACK) ?
-			pos.eval_list()->piece_list_fb() :
-			pos.eval_list()->piece_list_fw();
-		const PieceNumber target = (AssociatedKing == Side::kFriend) ?
-			static_cast<PieceNumber>(PIECE_NUMBER_KING + perspective) :
-			static_cast<PieceNumber>(PIECE_NUMBER_KING + ~perspective);
-		*sq_target_k = static_cast<Square>(((*pieces)[target] - f_king) % SQ_NB);
-	}
-
 	// 特徴量のうち、値が1であるインデックスのリストを取得する
 	template <Side AssociatedKing>
 	void HalfKA_hm2<AssociatedKing>::AppendActiveIndices(
@@ -50,12 +36,29 @@ namespace Eval::NNUE::Features {
 		// コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
 		if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
 
-		BonaPiece* pieces;
-		Square sq_target_k;
-		GetPieces(pos, perspective, &pieces, &sq_target_k);
-		for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_NB; ++i) {
-			active->push_back(MakeIndex(sq_target_k, pieces[i]));
-		}
+        const Color target = AssociatedKing == Side::kFriend ? perspective : ~perspective;
+        const Square king = perspective == BLACK ? pos.square<KING>(target)
+                                                  : Inv(pos.square<KING>(target));
+        const IndexContext indices(king, perspective);
+        int count = 0;
+        Bitboard occupied = pos.pieces();
+        while (occupied) {
+            const Square sq = occupied.pop_lsb();
+            active->push_back(indices.board(pos.piece_on(sq), sq));
+            ++count;
+        }
+        for (Color c : {BLACK, WHITE}) {
+            const Hand hand = pos.hand_of(c);
+            if (hand == Hand(0)) continue;
+            for (PieceType pt = PAWN; pt < KING; ++pt) {
+                const int n = hand_count(hand, pt);
+                for (int i = 0; i < n; ++i)
+                    active->push_back(indices.hand(c, pt, i));
+                count += n;
+            }
+        }
+        for (; count < 40; ++count)
+            active->push_back(indices.zero());
 	}
 
 	// 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
@@ -63,17 +66,20 @@ namespace Eval::NNUE::Features {
 	void HalfKA_hm2<AssociatedKing>::AppendChangedIndices(
 		const Position& pos, Color perspective,
 		IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
-		BonaPiece* pieces;
-		Square sq_target_k;
-		GetPieces(pos, perspective, &pieces, &sq_target_k);
-		for (int i = 0; i < dp.dirty_num; ++i) {
-			const auto old_p = static_cast<BonaPiece>(
-				dp.changed_piece[i].old_piece.from[perspective]);
-			removed->push_back(MakeIndex(sq_target_k, old_p));
-			const auto new_p = static_cast<BonaPiece>(
-				dp.changed_piece[i].new_piece.from[perspective]);
-			added->push_back(MakeIndex(sq_target_k, new_p));
-		}
+        if (dp.count() == 0) return;
+        const Color target = AssociatedKing == Side::kFriend ? perspective : ~perspective;
+        const Square king = perspective == BLACK ? pos.square<KING>(target)
+                                                  : Inv(pos.square<KING>(target));
+        const IndexContext indices(king, perspective);
+        if (dp.from == SQ_NONE)
+            removed->push_back(indices.hand(color_of(dp.pc), raw_type_of(dp.pc), dp.handSlot));
+        else
+            removed->push_back(indices.board(dp.pc, dp.from));
+        added->push_back(indices.board(dp.after, dp.to));
+        if (dp.captured != NO_PIECE) {
+            removed->push_back(indices.board(dp.captured, dp.to));
+            added->push_back(indices.hand(color_of(dp.pc), raw_type_of(dp.captured), dp.handSlot));
+        }
 	}
 
 	template class HalfKA_hm2<Side::kFriend>;

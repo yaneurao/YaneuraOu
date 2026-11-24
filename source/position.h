@@ -107,16 +107,6 @@ struct StateInfo {
     // 🌈 この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
     int continuousCheck[COLOR_NB];
 
-#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
-	// NNUE progress bucket用の進行度計算キャッシュ。
-	HASH_KEY nnue_progress_key;
-	int64_t nnue_progress_sum;
-	Square nnue_progress_sq_bk;
-	Square nnue_progress_sq_wk;
-	bool nnue_progress_valid;
-#endif
-
-
 	// 📌 ここまではdo_move()のなかでmemcpy()でコピーされる 📌
 
 	// Not copied when making a move (will be recomputed anyhow)
@@ -768,10 +758,7 @@ class Position {
 	// --- Evaluation
 
 #if !STOCKFISH
-#if defined(USE_EVAL_LIST)
-	// 評価関数で使うための、どの駒番号の駒がどこにあるかなどの情報。
-	const Eval::EvalList* eval_list() const { return &evalList; }
-#endif
+
 
 #endif
 
@@ -934,8 +921,6 @@ class Position {
 			  この関数のなかでは行っていないので呼び出し側で更新すること。
 			  (StockfishはkingSquare[]を持っていないのでStockfishにはこれに該当する処理はない。)
 
-		⚠ :  evalListのほうの更新もこの関数のなかでは行っていないので必要ならば
-			   呼び出し側で更新すること。
 		例) 
 			if (type_of(pc) == KING)
 				kingSquare[color_of(pc)] = sq;
@@ -1173,7 +1158,7 @@ private:
     template<Color Us, typename T>
     void do_move_impl(Move m, bool givesCheck, const T* tt,
                        const SharedHistories* history
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
                        , Eval::DirtyPiece* dirty
 #endif
                        );
@@ -1191,34 +1176,7 @@ private:
 	int enteringKingPoint[COLOR_NB];
 
 
-#if defined (USE_EVAL_LIST)
-	// --- 盤面を更新するときにEvalListの更新のために必要なヘルパー関数
 
-	// c側の手駒ptの最後の1枚のBonaPiece番号を返す
-	Eval::BonaPiece bona_piece_of(Color c, PieceType pt) const {
-		// c側の手駒ptの枚数
-		int ct = hand_count(hand[c], pt);
-		ASSERT_LV3(ct > 0);
-		return (Eval::BonaPiece)(Eval::kpp_hand_index[c][pt].fb + ct - 1);
-	}
-
-	// c側の手駒ptの(最後の1枚の)PieceNumberを返す。
-	PieceNumber piece_no_of(Color c, PieceType pt) const { return evalList.piece_no_of_hand(bona_piece_of(c, pt)); }
-
-	// 盤上のsqの升にある駒のPieceNumberを返す。
-	PieceNumber piece_no_of(Square sq) const
-	{
-		ASSERT_LV3(piece_on(sq) != NO_PIECE);
-		PieceNumber n = evalList.piece_no_of_board(sq);
-		ASSERT_LV3(is_ok(n));
-		return n;
-	}
-#else
-	// 駒番号を使わないとき用のダミー
-	PieceNumber piece_no_of(Color c, Piece pt) const { return PIECE_NUMBER_ZERO; }
-	PieceNumber piece_no_of(Piece pc, Square sq) const { return PIECE_NUMBER_ZERO; }
-	PieceNumber piece_no_of(Square sq) const { return PIECE_NUMBER_ZERO; }
-#endif
 
 #endif
 
@@ -1271,10 +1229,7 @@ private:
 	// 千日手検査の遡り上限と、局面コピー時の履歴保持量の基準。set_max_repetition_ply()で設定する。
     static int max_repetition_ply /* = 16 */;
 
-#if defined(USE_EVAL_LIST)
-    // 評価関数で用いる駒のリスト
-    Eval::EvalList evalList;
-#endif
+
 
 #endif
 

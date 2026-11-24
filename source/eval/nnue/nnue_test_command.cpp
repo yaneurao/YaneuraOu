@@ -121,10 +121,10 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
       const auto parent = accumulator_of(current_state());
       do_move(move);
       const auto& dirty = current_state()->dirtyPiece;
-      if (dirty.pieceNo[0] >= PIECE_NUMBER_KING) ++king_moves;
-      for (int n = 0; n < dirty.dirty_num; ++n) {
-        const int before = dirty.changed_piece[n].old_piece.fb;
-        const int after = dirty.changed_piece[n].new_piece.fb;
+      if (dirty.king_moved()) ++king_moves;
+      for (int n = 0; n < dirty.count(); ++n) {
+        const int before = dirty.change(n).old_piece.fb;
+        const int after = dirty.change(n).new_piece.fb;
         if (before >= f_pawn && before < f_pawn + 162) {
           if (after >= f_hand_pawn && after < f_hand_lance) ++pawn_captures;
           else {
@@ -134,6 +134,15 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
         }
       }
       network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
+#if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+      {
+      const auto progress = network.progress.SumQ16(pos, current_state());
+      if (progress != network.progress.SumQ16(pos)) {
+        std::cout << "test_accumulator FAILED incremental progress" << std::endl;
+        return;
+      }
+      }
+#endif
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE)
       // Check raw fc_0 outputs, including values hidden by FV_SCALE rounding.
       alignas(kCacheLineSize) TransformedFeatureType features[FeatureTransformer::kBufferSize];
@@ -175,6 +184,15 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
       }
       do_move(move);
       network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
+#if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+      {
+      const auto progress = network.progress.SumQ16(pos, current_state());
+      if (progress != network.progress.SumQ16(pos)) {
+        std::cout << "test_accumulator FAILED incremental progress" << std::endl;
+        return;
+      }
+      }
+#endif
       if (std::memcmp(incremental.accumulation, accumulator_of(current_state()).accumulation,
                       sizeof(incremental.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED redo" << std::endl;

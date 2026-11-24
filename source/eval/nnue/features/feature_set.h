@@ -85,7 +85,7 @@ class FeatureSetBase {
       const PositionType& pos, TriggerEvent trigger,
       IndexListType removed[2], IndexListType added[2], bool reset[2],
       const Eval::DirtyPiece& dp) {
-    if (dp.dirty_num == 0) return;
+    if (dp.count() == 0) return;
 
     for (const auto perspective : COLOR) {
       reset[perspective] = false;
@@ -94,14 +94,14 @@ class FeatureSetBase {
           break;
         case TriggerEvent::kFriendKingMoved:
           reset[perspective] =
-              dp.pieceNo[0] == PIECE_NUMBER_KING + perspective;
+              dp.pc == make_piece(perspective, KING);
           break;
         case TriggerEvent::kEnemyKingMoved:
           reset[perspective] =
-              dp.pieceNo[0] == PIECE_NUMBER_KING + ~perspective;
+              dp.pc == make_piece(~perspective, KING);
           break;
         case TriggerEvent::kAnyKingMoved:
-          reset[perspective] = dp.pieceNo[0] >= PIECE_NUMBER_KING;
+          reset[perspective] = dp.king_moved();
           break;
         case TriggerEvent::kAnyPieceMoved:
           reset[perspective] = true;

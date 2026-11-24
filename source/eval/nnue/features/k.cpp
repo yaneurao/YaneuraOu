@@ -16,13 +16,10 @@ void K::AppendActiveIndices(
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
   if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
 
-  const BonaPiece* pieces = (perspective == BLACK) ?
-      pos.eval_list()->piece_list_fb() :
-      pos.eval_list()->piece_list_fw();
-  ASSERT_LV5(pieces[PIECE_NUMBER_BKING] != BONA_PIECE_ZERO);
-  ASSERT_LV5(pieces[PIECE_NUMBER_WKING] != BONA_PIECE_ZERO);
-  for (PieceNumber i = PIECE_NUMBER_KING; i < PIECE_NUMBER_NB; ++i) {
-    active->push_back(pieces[i] - fe_end);
+  for (Color c : {BLACK, WHITE}) {
+    const Square sq = pos.square<KING>(c);
+    ASSERT_LV5(is_ok(sq));
+    active->push_back(board_bona_piece(make_piece(c, KING), sq).from[perspective] - fe_end);
   }
 }
 
@@ -30,11 +27,11 @@ void K::AppendActiveIndices(
 void K::AppendChangedIndices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
-  if (dp.pieceNo[0] >= PIECE_NUMBER_KING) {
+  if (dp.king_moved()) {
     removed->push_back(
-        dp.changed_piece[0].old_piece.from[perspective] - fe_end);
+        dp.change(0).old_piece.from[perspective] - fe_end);
     added->push_back(
-        dp.changed_piece[0].new_piece.from[perspective] - fe_end);
+        dp.change(0).new_piece.from[perspective] - fe_end);
   }
 }
 

@@ -1,5 +1,5 @@
 ﻿#include "evaluate_mir_inv_tools.h"
-#if defined(USE_EVAL_LIST)
+#if defined(USE_BONA_PIECE)
 
 #include <unordered_set>
 
@@ -203,4 +203,4 @@ namespace Eval
 
 } // namespace YaneuraOu
 
-#endif // defined(USE_EVAL_LIST)
+#endif // defined(USE_BONA_PIECE)

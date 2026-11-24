@@ -7,6 +7,8 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
+#include <array>
+
 #include "../../../evaluate.h"
 #include "features_common.h"
 
@@ -45,10 +47,37 @@ namespace Eval::NNUE::Features {
 		// 玉の位置とBonaPieceから特徴量のインデックスを求める
 		static IndexType MakeIndex(Square sq_k, BonaPiece p);
 
-	private:
-		// 駒の情報を取得する
-		static void GetPieces(const Position& pos, Color perspective,
-			BonaPiece** pieces, Square* sq_target_k);
+        // Map raw board/hand data directly, as Stockfish does in make_index().
+        // Stockfishのmake_index()と同様に、盤面・手駒から入力番号を直接求める。
+        struct IndexContext {
+            static inline constexpr auto Squares = [] {
+                std::array<std::array<Square, SQ_NB>, 4> table{};
+                for (int c = 0; c < 2; ++c)
+                    for (int mirror = 0; mirror < 2; ++mirror)
+                        for (int sq = 0; sq < SQ_NB; ++sq) {
+                            const Square s = c == BLACK ? Square(sq) : Inv(Square(sq));
+                            table[2 * c + mirror][sq] = mirror ? Mir(s) : s;
+                        }
+                return table;
+            }();
+
+            IndexContext(Square king, Color c):
+              perspective(c), kingOffset(IndexType(e_king) * IndexType(king >= SQ_61 ? Mir(king) : king)),
+              squares(Squares[2 * c + (king >= SQ_61)].data()) {}
+
+            IndexType board(Piece pc, Square sq) const {
+                const auto base = kpp_board_index[pc].from[perspective];
+                return kingOffset + (base >= e_king ? base - SQ_NB : base) + IndexType(squares[sq]);
+            }
+            IndexType hand(Color c, PieceType pt, int slot) const {
+                return kingOffset + kpp_hand_index[c][pt].from[perspective] + slot;
+            }
+            IndexType zero() const { return kingOffset; }
+
+            Color perspective;
+            IndexType kingOffset;
+            const Square* squares;
+        };
 	};
 
 }  // namespace Eval::NNUE::Features

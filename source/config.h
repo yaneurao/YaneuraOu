@@ -154,15 +154,9 @@
 // 駒価値テーブル・SEE・MovePickerは、この指定によらず利用できる。
 // #define USE_MATERIAL_VALUE
 
-// do_move()のときに移動した駒の管理をして差分計算
-// 1. 駒番号を管理しているpiece_listについて
-//   これはPosition::eval_list()で取得可能。
-// 2. 移動した駒の管理について
-//   KPPT・KPP_KKPT・NNUE・SFNNではWorkerのAccumulatorStackに保持する。
-//   通常の着手で変化する駒は最大で2個(移動駒と捕獲駒)。
-// 3. 駒番号が何の駒であるかが決まっている。(PieceNumber型)
-//#define USE_EVAL_LIST
-
+// 従来の評価関数ファイルと互換のBonaPiece入力番号を使う構成。
+// 着手差分はWorkerのDirtyPieceに記録し、入力番号の生成は評価側で行う。
+//#define USE_BONA_PIECE
 
 // 評価関数で金と小駒の成りを区別する
 // 駒の特徴量はBonaPiece。これはBonanzaに倣っている。
@@ -361,7 +355,7 @@ constexpr int MAX_PLY_NUM = 246;
 	#endif
 	#define USE_PARTIAL_KEY
 	#define USE_MATERIAL_VALUE
-	#define USE_EVAL_LIST
+	#define USE_BONA_PIECE
 	#define USE_MATE_1PLY
 	#define USE_MATE_SOLVER
 	#define USE_MATE_DFPN

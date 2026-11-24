@@ -33,8 +33,17 @@ struct Dirties {
     Eval::DirtyPiece dirtyPiece;
 };
 
+#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+namespace Progress { struct Parameters; }
+#endif
+
 struct AccumulatorState: public Accumulator, Dirties {
     AccumulatorState* previous = nullptr;
+#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+    // 同じ盤面を表すフレームではnull moveの前後でも進行度の和を共有できる。
+    i64 progressSum = 0;
+    const Progress::Parameters* progressParameters = nullptr;
+#endif
 };
 
 class AccumulatorStack {
@@ -50,7 +59,10 @@ class AccumulatorStack {
         auto& st = latest();
         st.computed_accumulation = false;
         st.previous = nullptr;
-        st.dirtyPiece.dirty_num = 0;
+        st.dirtyPiece = {};
+#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+        st.progressParameters = nullptr;
+#endif
     }
 
     Dirties& push([[maybe_unused]] const Position& pos) noexcept {
@@ -59,7 +71,10 @@ class AccumulatorStack {
         auto& st = accumulators[size++];
         st.computed_accumulation = false;
         st.previous = previous;
-        st.dirtyPiece.dirty_num = 0;
+        st.dirtyPiece = {};
+#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+        st.progressParameters = nullptr;
+#endif
         return st;
     }
 

@@ -151,42 +151,109 @@ Tools::Result Parameters::ReadParameters(std::istream& stream) {
 	    ? Tools::ResultCode::Ok : Tools::ResultCode::FileMismatch;
 }
 
-i64 Parameters::SumQ16(const Position& pos) const {
+i64 Parameters::SumQ16(const Position& pos, AccumulatorState* state) const {
+    if (state && state->progressParameters == this)
+        return state->progressSum;
 	const auto sq_bk = pos.square<KING>(BLACK);
 	const auto sq_wk = Inv(pos.square<KING>(WHITE));
 
-	auto* st = pos.state();
-	i64 sum_q16 = 0;
-	if (st->nnue_progress_valid
-	    && st->nnue_progress_key == pos.key()
-	    && st->nnue_progress_sq_bk == sq_bk
-	    && st->nnue_progress_sq_wk == sq_wk) {
-		sum_q16 = st->nnue_progress_sum;
-	} else {
-		const auto& list0 = pos.eval_list()->piece_list_fb();
-		const auto& list1 = pos.eval_list()->piece_list_fw();
+    i64 sum_q16 = 0;
+    // 同じ玉位置の計算済み祖先があれば、変更された特徴量だけで進行度を更新する。
+    // TTの評価値を使って途中のevaluate()が省略された場合も、通常着手のリンクを遡る。
+    const AccumulatorState* base = state;
+#if defined(USE_LAZY_EVALUATE)
+    constexpr int maxDistance = USE_LAZY_EVALUATE;
+#else
+    constexpr int maxDistance = 1;
+#endif
+    for (int distance = 0; base && base->progressParameters != this && distance < maxDistance;
+         ++distance) {
+        if (base->dirtyPiece.king_moved()) {
+            base = nullptr;
+            break;
+        }
+        base = base->previous;
+    }
+    if (base && base->progressParameters == this) {
+        sum_q16 = base->progressSum;
+        for (auto* current = state; current != base; current = current->previous)
+            for (int i = 0; i < current->dirtyPiece.count(); ++i) {
+                const auto change = current->dirtyPiece.change(i);
+                sum_q16 += i64(weights_q16_[sq_bk][change.new_piece.fb])
+                         - weights_q16_[sq_bk][change.old_piece.fb];
+                sum_q16 += i64(weights_q16_[sq_wk][change.new_piece.fw])
+                         - weights_q16_[sq_wk][change.old_piece.fw];
+            }
+    } else {
+        // Add progress features directly from the board and hands without materializing a list.
+        // 盤面と手駒から進行度の特徴量を直接加算し、中間の駒リストを作らない。
+        const auto* blackWeights = weights_q16_[sq_bk];
+        const auto* whiteWeights = weights_q16_[sq_wk];
+        int count = 0;
+        Bitboard occupied = pos.pieces() ^ pos.pieces(KING);
+        while (occupied) {
+            const Square sq = occupied.pop_lsb();
+            const auto bp = board_bona_piece(pos.piece_on(sq), sq);
+            sum_q16 += blackWeights[bp.fb];
+            sum_q16 += whiteWeights[bp.fw];
+            ++count;
+        }
+        for (Color c : {BLACK, WHITE}) {
+            const Hand hand = pos.hand_of(c);
+            if (hand == Hand(0)) continue;
+            for (PieceType pt = PAWN; pt < KING; ++pt) {
+                const int n = hand_count(hand, pt);
+                const auto base = kpp_hand_index[c][pt];
+                for (int i = 0; i < n; ++i) {
+                    sum_q16 += blackWeights[base.fb + i];
+                    sum_q16 += whiteWeights[base.fw + i];
+                }
+                count += n;
+            }
+        }
+        // Missing non-king pieces retain their zero feature, including nonzero custom weights.
+        // 駒落ちの不足分は0特徴量を残す。独自モデルでその重みが非0の場合も同じ和になる。
+        sum_q16 += i64(38 - count) * blackWeights[BONA_PIECE_ZERO];
+        sum_q16 += i64(38 - count) * whiteWeights[BONA_PIECE_ZERO];
+    }
 
-		for (int i = 0; i < PIECE_NUMBER_KING; ++i) {
-			sum_q16 += weights_q16_[sq_bk][list0[i]];
-			sum_q16 += weights_q16_[sq_wk][list1[i]];
-		}
-
-		st->nnue_progress_key = pos.key();
-		st->nnue_progress_sum = sum_q16;
-		st->nnue_progress_sq_bk = sq_bk;
-		st->nnue_progress_sq_wk = sq_wk;
-		st->nnue_progress_valid = true;
-	}
-
-	return sum_q16;
+    if (state) {
+        state->progressSum = sum_q16;
+        state->progressParameters = this;
+        // Reuse a calculated child to prepare skipped parents, like the FT backward update.
+        // FTの逆向き更新と同様に、計算した子から評価を省略した親の進行度も準備する。
+        auto* child = state;
+        i64 parentSum = sum_q16;
+#if defined(USE_LAZY_EVALUATE)
+        constexpr int backfillLimit = USE_LAZY_EVALUATE;
+#else
+        constexpr int backfillLimit = 1;
+#endif
+        for (int distance = 0; distance < backfillLimit; ++distance) {
+            auto* parent = child->previous;
+            if (!parent || parent->progressParameters == this || child->dirtyPiece.king_moved())
+                break;
+            for (int i = 0; i < child->dirtyPiece.count(); ++i) {
+                const auto change = child->dirtyPiece.change(i);
+                parentSum -= i64(weights_q16_[sq_bk][change.new_piece.fb])
+                           - weights_q16_[sq_bk][change.old_piece.fb];
+                parentSum -= i64(weights_q16_[sq_wk][change.new_piece.fw])
+                           - weights_q16_[sq_wk][change.old_piece.fw];
+            }
+            parent->progressSum = parentSum;
+            parent->progressParameters = this;
+            child = parent;
+        }
+    }
+    return sum_q16;
 }
 
-int Parameters::BucketIndex(const Position& pos, int bucket_count) const {
+int Parameters::BucketIndex(const Position& pos, int bucket_count, AccumulatorState* state) const {
 	if (bucket_count <= 1)
 		return 0;
 
 	ASSERT_LV1(bucket_count == NNUE_SFNN_PROGRESS_BUCKETS);
-	return bucket_from_sum_q16(SumQ16(pos));
+	return bucket_from_sum_q16(SumQ16(pos, state));
 }
 
 } // namespace Progress
@@ -650,15 +717,17 @@ namespace {
             + hand1024_single_bucket(pos.hand_of(~stm));
     }
 
-    static int progress_bucket(const Position& pos, [[maybe_unused]] const NnueNetworks& network) {
+    static int progress_bucket(const Position& pos, [[maybe_unused]] const NnueNetworks& network,
+                               [[maybe_unused]] AccumulatorState* state) {
 #if NNUE_SFNN_PROGRESS_BUCKETS == 1
         return 0;
 #else
-        return network.progress.BucketIndex(pos, NNUE_SFNN_PROGRESS_BUCKETS);
+        return network.progress.BucketIndex(pos, NNUE_SFNN_PROGRESS_BUCKETS, state);
 #endif
     }
 
-    static int stack_index_for_nnue(const Position& pos, [[maybe_unused]] const NnueNetworks& network) {
+    static int stack_index_for_nnue(const Position& pos, [[maybe_unused]] const NnueNetworks& network,
+                                     [[maybe_unused]] AccumulatorState* state) {
 #if NNUE_SFNN_HAND_BUCKETS == 1 && NNUE_SFNN_KING_BUCKETS == 9 && NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K3K3 && NNUE_SFNN_PROGRESS_BUCKETS == 1
         return king3_by_king3_bucket(pos);
 #else
@@ -695,7 +764,7 @@ namespace {
 #endif
 
 #if NNUE_SFNN_PROGRESS_BUCKETS != 1
-        idx = idx * NNUE_SFNN_PROGRESS_BUCKETS + progress_bucket(pos, network);
+        idx = idx * NNUE_SFNN_PROGRESS_BUCKETS + progress_bucket(pos, network, state);
 #endif
 
         if (idx < 0) idx = 0;
@@ -710,7 +779,7 @@ namespace {
                               AccumulatorState* state, bool refresh = false) {
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 #if defined(EVAL_SFNN)
-        const auto bucket = stack_index_for_nnue(pos, network);
+        const auto bucket = stack_index_for_nnue(pos, network, state);
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
         auto& accumulator = accumulator_of(state);
         network.feature_transformer.EnsureAccumulator(pos, refresh, state);

@@ -576,16 +576,6 @@ std::optional<PositionSetError> Position::set_from_packed_sfen(const PackedSfen&
 	// 手番
 	sideToMove = (Color)stream.read_one_bit();
 
-	#if defined(USE_EVAL_LIST)
-
-	// evalListのclear。上でmemsetでゼロクリアしたときにクリアされているが…。
-	evalList.clear();
-
-	// PieceListを更新する上で、どの駒がどこにあるかを設定しなければならないが、
-	// それぞれの駒をどこまで使ったかのカウンター
-	PieceNumber piece_no_count[KING] = { PIECE_NUMBER_ZERO,PIECE_NUMBER_PAWN,PIECE_NUMBER_LANCE,PIECE_NUMBER_KNIGHT,
-		PIECE_NUMBER_SILVER, PIECE_NUMBER_BISHOP, PIECE_NUMBER_ROOK,PIECE_NUMBER_GOLD };
-	#endif
 
 	kingSquare[BLACK] = kingSquare[WHITE] = SQ_NB;
 
@@ -626,15 +616,6 @@ std::optional<PositionSetError> Position::set_from_packed_sfen(const PackedSfen&
 
 		put_piece(Piece(pc), sq);
 
-	#if defined(USE_EVAL_LIST)
-		// evalListの更新
-		PieceNumber piece_no =
-			(pc == B_KING) ? PIECE_NUMBER_BKING : // 先手玉
-			(pc == W_KING) ? PIECE_NUMBER_WKING : // 後手玉
-			piece_no_count[raw_type_of(pc)]++; // それ以外
-
-		evalList.put_piece(piece_no, sq, pc); // sqの升にpcの駒を配置する
-	#endif
 
 		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
 
@@ -646,8 +627,6 @@ std::optional<PositionSetError> Position::set_from_packed_sfen(const PackedSfen&
 	// 手駒
 	hand[BLACK] = hand[WHITE] = (Hand)0;
 
-	int i = 0;
-	Piece lastPc = NO_PIECE;
 
 	while (stream.get_cursor() < 256)
 	{
@@ -660,19 +639,6 @@ std::optional<PositionSetError> Position::set_from_packed_sfen(const PackedSfen&
 
 		add_hand(hand[(int)color_of(pc)], type_of(pc));
 
-	#if defined(USE_EVAL_LIST)
-		// 何枚目のその駒であるかをカウントしておく。
-		if (lastPc != pc)
-			i = 0;
-		lastPc = pc;
-
-		// FV38などではこの個数分だけpieceListに突っ込まないといけない。
-		PieceType rpc = raw_type_of(pc);
-
-		PieceNumber piece_no = piece_no_count[rpc]++;
-		ASSERT_LV1(is_ok(piece_no));
-		evalList.put_piece(piece_no, color_of(pc), rpc, i++);
-	#endif
 	}
 
 	if (stream.get_cursor() != 256)

@@ -20,7 +20,7 @@
 #include "nnue_accumulator.h"
 #include "features/index_list.h"
 
-#if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+#if defined(USE_FINNY_TABLES) || (defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1)
 #include "features/half_ka_hm2.h"
 #endif
 
@@ -300,30 +300,40 @@ class FeatureTransformer {
     bool update_from_computed_ancestor(const Position& pos, AccumulatorState* state) const {
         state = resolve_state(pos, state);
         const auto* ancestor = state;
-        std::array<BonaPiece, PIECE_NUMBER_NB> old_pieces[2];
-        std::array<bool, PIECE_NUMBER_NB> changed{};
-        const BonaPiece* current_pieces[2] = {
-          pos.eval_list()->piece_list_fb(), pos.eval_list()->piece_list_fw()};
-        for (int c = 0; c < COLOR_NB; ++c)
-            std::copy_n(current_pieces[c], PIECE_NUMBER_NB, old_pieces[c].begin());
+        std::array<BonaPiece, 2 * USE_LAZY_EVALUATE> removedPieces[2], addedPieces[2];
+        int removedCount[2]{}, addedCount[2]{};
+        auto record = [](auto& opposite, int& oppositeCount, BonaPiece value,
+                         auto& own, int& ownCount) {
+            for (int i = 0; i < oppositeCount; ++i)
+                if (opposite[i] == value) {
+                    opposite[i] = opposite[--oppositeCount];
+                    return;
+                }
+            own[ownCount++] = value;
+        };
 
-        // Count state links; null moves share the current accumulator state.
-        // 前状態へのリンク数で数える。null moveは現在の累積値の状態を共有する。
+        // 通常着手のリンクだけを遡り、途中で消える特徴量を相殺する。盤面の走査は不要。
         int distance = 0;
+        bool reset[COLOR_NB]{};
         while (ancestor && !accumulator_of(ancestor).computed_accumulation
                && distance < USE_LAZY_EVALUATE) {
             if (!ancestor->previous)
                 return false;
             const auto& dirty = ancestor->dirtyPiece;
-            for (int n = 0; n < dirty.dirty_num; ++n) {
-                const auto piece = dirty.pieceNo[n];
-                // King moves change feature coordinates; fall back to the ordinary refresh.
-                // 玉の移動で特徴量の座標系が変わる場合は、従来のrefresh経路へ戻す。
-                if (piece >= PIECE_NUMBER_KING)
+            if (dirty.king_moved()) {
+                reset[color_of(dirty.pc)] = true;
+                if (reset[BLACK] && reset[WHITE])
                     return false;
-                changed[piece] = true;
-                for (int c = 0; c < COLOR_NB; ++c)
-                    old_pieces[c][piece] = dirty.changed_piece[n].old_piece.from[c];
+            }
+            for (int n = 0; n < dirty.count(); ++n) {
+                const auto change = dirty.change(n);
+                for (int c = 0; c < COLOR_NB; ++c) {
+                    if (reset[c]) continue;
+                    record(addedPieces[c], addedCount[c], change.old_piece.from[c],
+                           removedPieces[c], removedCount[c]);
+                    record(removedPieces[c], removedCount[c], change.new_piece.from[c],
+                           addedPieces[c], addedCount[c]);
+                }
             }
             ++distance;
             ancestor = ancestor->previous;
@@ -334,17 +344,32 @@ class FeatureTransformer {
 
         auto& accumulator = accumulator_of(state);
         for (int c = 0; c < COLOR_NB; ++c) {
-            const auto king_piece = current_pieces[c][PIECE_NUMBER_KING + c];
-            const Square king = static_cast<Square>((king_piece - f_king) % SQ_NB);
-            Features::IndexList removed, added;
-            for (int piece = 0; piece < PIECE_NUMBER_NB; ++piece) {
-                if (!changed[piece] || old_pieces[c][piece] == current_pieces[c][piece])
+            const auto color = Color(c);
+            // A king move invalidates only that king's perspective, as in Stockfish.
+            // Stockfishと同様に、玉を動かした側だけを更新し直し、他方は祖先の累積値を使う。
+            if (reset[c]) {
+#if defined(USE_FINNY_TABLES) && defined(USE_FINNY_RESET) && defined(VECTOR)
+                if constexpr (kUseFinnyTables) {
+                    auto& cache = finny_cache();
+                    auto& entry = cache.entries[0][c][pos.square<KING>(color)];
+                    refresh_from_position<Packed>(pos, color, accumulator.accumulation[c][0], entry, 0);
                     continue;
-                removed.push_back(Features::HalfKA_hm2<Features::Side::kFriend>::MakeIndex(
-                  king, old_pieces[c][piece]));
-                added.push_back(Features::HalfKA_hm2<Features::Side::kFriend>::MakeIndex(
-                  king, current_pieces[c][piece]));
+                }
+#endif
+                Features::IndexList active[2];
+                RawFeatures::AppendActiveIndices(pos, kRefreshTriggers[0], active);
+                refresh_accumulator_from_scratch<Packed>(accumulator.accumulation[c][0], active[c], 0);
+                continue;
             }
+            const Square king = color == BLACK ? pos.square<KING>(color)
+                                               : Inv(pos.square<KING>(color));
+            Features::IndexList removed, added;
+            for (int i = 0; i < removedCount[c]; ++i)
+                removed.push_back(Features::HalfKA_hm2<Features::Side::kFriend>::MakeIndex(
+                  king, removedPieces[c][i]));
+            for (int i = 0; i < addedCount[c]; ++i)
+                added.push_back(Features::HalfKA_hm2<Features::Side::kFriend>::MakeIndex(
+                  king, addedPieces[c][i]));
 #if defined(VECTOR)
             update_accumulator_tiled<Packed>(accumulator_of(ancestor).accumulation[c][0],
               accumulator.accumulation[c][0], [&](vec_t* acc, IndexType offset) {
@@ -379,9 +404,7 @@ class FeatureTransformer {
             if (distance > USE_LAZY_EVALUATE)
                 break;
             const auto& dirty = state->dirtyPiece;
-            bool kingMoved = false;
-            for (int n = 0; n < dirty.dirty_num; ++n)
-                kingMoved |= dirty.pieceNo[n] >= PIECE_NUMBER_KING;
+            const bool kingMoved = dirty.king_moved();
             if (kingMoved)
                 break;
 
@@ -959,12 +982,50 @@ class FeatureTransformer {
 	// 王位置ごとにrefresh済みaccumulatorを持ち、次回はactive featureの差分だけを適用する。
 #if defined(USE_FINNY_TABLES)
 	static constexpr bool kUseFinnyTables = kHalfDimensions <= 4096;
+#if defined(VECTOR)
+    static constexpr bool kUseDirectFinny = std::is_same_v<
+      RawFeatures, Features::FeatureSet<Features::HalfKA_hm2<Features::Side::kFriend>>>;
+#else
+    static constexpr bool kUseDirectFinny = false;
+#endif
 
-	struct alignas(kCacheLineSize) FinnyEntry {
-		BiasType accumulation[kHalfDimensions];
-		Features::IndexList active_indices;
-		bool initialized = false;
-	};
+    struct FinnyPosition {
+        std::array<Piece, SQ_NB_PLUS1> pieces{};
+        Hand hands[COLOR_NB]{};
+        int pieceCount = 0;
+    };
+
+    struct alignas(kCacheLineSize) FinnyEntry {
+        BiasType accumulation[kHalfDimensions];
+        // Raw board data and the legacy feature list are alternative cache formats.
+        // 生の盤面と旧特徴量リストは別々の保存方式なので、同じ領域を共用する。
+        union {
+            FinnyPosition position;
+            Features::IndexList active_indices;
+        };
+
+        FinnyEntry(): FinnyEntry(std::bool_constant<kUseDirectFinny>{}) {}
+
+        bool is_initialized() const {
+            // HalfKA_hm2 requires both kings, so zero pieces denotes an unused raw snapshot.
+            // HalfKA_hm2は両玉が必要なので、駒数0を未使用の盤面として扱える。
+            if constexpr (kUseDirectFinny)
+                return position.pieceCount != 0;
+            else
+                return active_indices.size() != 0;
+        }
+
+        void reset_position() {
+            if constexpr (kUseDirectFinny)
+                position = {};
+            else
+                active_indices.resize(0);
+        }
+
+       private:
+        FinnyEntry(std::true_type): position{} {}
+        FinnyEntry(std::false_type): active_indices{} {}
+    };
 
 	struct FinnyCache {
 		using TriggerEntries = std::array<std::array<FinnyEntry, SQ_NB>, COLOR_NB>;
@@ -979,7 +1040,7 @@ class FeatureTransformer {
 			for (auto& trigger_entries : entries)
 				for (auto& perspective_entries : trigger_entries)
 					for (auto& entry : perspective_entries)
-						entry.initialized = false;
+						entry.reset_position();
 		}
 	};
 
@@ -1006,64 +1067,77 @@ class FeatureTransformer {
 		}
 	}
 
-#if defined(NNUE_FINNY_CANCEL)
-	static void cancel_common_indices(Features::IndexList& removed, Features::IndexList& added) {
-		if (removed.size() < 2 || added.size() < 2)
-			return;
-		// Multiset difference: preserve repeated features (e.g. missing pieces).
-		std::sort(removed.begin(), removed.end());
-		std::sort(added.begin(), added.end());
-		usize r = 0, a = 0, r_out = 0, a_out = 0;
-		while (r < removed.size() && a < added.size()) {
-			if (removed[r] == added[a]) { ++r; ++a; }
-			else if (removed[r] < added[a]) removed[r_out++] = removed[r++];
-			else added[a_out++] = added[a++];
-		}
-		while (r < removed.size()) removed[r_out++] = removed[r++];
-		while (a < added.size()) added[a_out++] = added[a++];
-		removed.resize(r_out);
-		added.resize(a_out);
-	}
+    static void make_index_diff(
+        const Features::IndexList& old_active,
+        const Features::IndexList& new_active,
+        Features::IndexList& removed,
+        Features::IndexList& added) {
+        // 入力の並びは駒番号ではなく盤面の列挙順。位置ではなく多重集合として比較する。
+        // 駒落ち等の0特徴量が複数あっても、それぞれ一度ずつ対応させる。
+#if defined(USE_AVX512)
+        if constexpr (RawFeatures::kMaxActiveDimensions <= 64) {
+            u64 oldMatched = 0, newMatched = 0;
+            constexpr usize maxBlocks = (RawFeatures::kMaxActiveDimensions + 15) / 16;
+            __m512i blocks[maxBlocks];
+            __mmask16 masks[maxBlocks];
+            const usize blockCount = (new_active.size() + 15) / 16;
+            const usize common = std::min(old_active.size(), new_active.size());
+            for (usize b = 0; b < blockCount; ++b) {
+                const usize count = std::min(usize(16), new_active.size() - 16 * b);
+                masks[b] = __mmask16((u32(1) << count) - 1);
+                blocks[b] = _mm512_maskz_loadu_epi32(masks[b], new_active.begin() + 16 * b);
+                if (16 * b < common) {
+                    const usize countCommon = std::min(usize(16), common - 16 * b);
+                    const __mmask16 commonMask = __mmask16((u32(1) << countCommon) - 1);
+                    const auto old = _mm512_maskz_loadu_epi32(commonMask, old_active.begin() + 16 * b);
+                    oldMatched |= u64(_mm512_mask_cmpeq_epi32_mask(commonMask, old, blocks[b])) << (16 * b);
+                }
+            }
+            newMatched = oldMatched;
+            const u64 fullMask = new_active.size() == 64 ? ~u64(0)
+                                 : (u64(1) << new_active.size()) - 1;
+            if (old_active.size() == new_active.size() && oldMatched == fullMask)
+                return;
+            for (usize i = 0; i < old_active.size(); ++i) {
+                if (oldMatched & (u64(1) << i))
+                    continue;
+                const auto value = _mm512_set1_epi32(old_active[i]);
+                u64 matches = 0;
+                for (usize b = 0; b < blockCount; ++b)
+                    matches |= u64(_mm512_mask_cmpeq_epi32_mask(masks[b], value, blocks[b])) << (16 * b);
+                matches &= ~newMatched;
+                if (matches)
+                    newMatched |= matches & (~matches + 1);
+                else
+                    removed.push_back(old_active[i]);
+            }
+            for (usize i = 0; i < new_active.size(); ++i)
+                if (!(newMatched & (u64(1) << i)))
+                    added.push_back(new_active[i]);
+            return;
+        }
 #endif
-
-	static void make_index_diff(
-		const Features::IndexList& old_active,
-		const Features::IndexList& new_active,
-		Features::IndexList& removed,
-		Features::IndexList& added) {
-		if (old_active.size() == new_active.size()) {
-			for (usize i = 0; i < old_active.size(); ++i) {
-				if (old_active[i] == new_active[i])
-					continue;
-				removed.push_back(old_active[i]);
-				added.push_back(new_active[i]);
-			}
-#if defined(NNUE_FINNY_CANCEL)
-			cancel_common_indices(removed, added);
-#endif
-			return;
-		}
-
-		bool old_matched[RawFeatures::kMaxActiveDimensions] = {};
-		bool new_matched[RawFeatures::kMaxActiveDimensions] = {};
-
-		for (usize oi = 0; oi < old_active.size(); ++oi) {
-			for (usize ni = 0; ni < new_active.size(); ++ni) {
-				if (!new_matched[ni] && old_active[oi] == new_active[ni]) {
-					old_matched[oi] = true;
-					new_matched[ni] = true;
-					break;
-				}
-			}
-		}
-
-		for (usize oi = 0; oi < old_active.size(); ++oi)
-			if (!old_matched[oi])
-				removed.push_back(old_active[oi]);
-		for (usize ni = 0; ni < new_active.size(); ++ni)
-			if (!new_matched[ni])
-				added.push_back(new_active[ni]);
-	}
+        bool oldMatched[RawFeatures::kMaxActiveDimensions]{};
+        bool newMatched[RawFeatures::kMaxActiveDimensions]{};
+        for (usize i = 0; i < std::min(old_active.size(), new_active.size()); ++i)
+            if (old_active[i] == new_active[i])
+                oldMatched[i] = newMatched[i] = true;
+        for (usize oi = 0; oi < old_active.size(); ++oi) {
+            if (oldMatched[oi])
+                continue;
+            for (usize ni = 0; ni < new_active.size(); ++ni)
+                if (!newMatched[ni] && old_active[oi] == new_active[ni]) {
+                    oldMatched[oi] = newMatched[ni] = true;
+                    break;
+                }
+        }
+        for (usize i = 0; i < old_active.size(); ++i)
+            if (!oldMatched[i])
+                removed.push_back(old_active[i]);
+        for (usize i = 0; i < new_active.size(); ++i)
+            if (!newMatched[i])
+                added.push_back(new_active[i]);
+    }
 
 	static void copy_index_list(
 		Features::IndexList& destination,
@@ -1144,9 +1218,9 @@ class FeatureTransformer {
 		const Features::IndexList& active_indices,
 		IndexType trigger_index) const {
 		Features::IndexList removed_indices, added_indices;
-		if (entry.initialized)
+		if (entry.is_initialized())
 			make_index_diff(entry.active_indices, active_indices, removed_indices, added_indices);
-		bool rebuild = !entry.initialized;
+		bool rebuild = !entry.is_initialized();
 #if defined(USE_FINNY_RESET)
 		// Avoid reading more weight columns than rebuilding from the bias.
 		rebuild = rebuild || removed_indices.size() + added_indices.size() >= active_indices.size();
@@ -1176,7 +1250,6 @@ class FeatureTransformer {
 			std::memcpy(current, entry.accumulation, kHalfDimensions * sizeof(BiasType));
 #endif
 			copy_index_list(entry.active_indices, active_indices);
-			entry.initialized = true;
 		} else {
 #if defined(VECTOR)
 			update_accumulator_tiled_to_two<Packed>(
@@ -1206,12 +1279,146 @@ class FeatureTransformer {
 		}
 	}
 
+#if defined(VECTOR)
+    // Compare cached board data as Stockfish does, converting only changed squares to features.
+    // Stockfish同様に保存盤面を比較し、変化したマスだけを特徴量番号へ変換する。
+    template<bool Packed>
+    void refresh_from_position(const Position& pos, Color perspective, BiasType* current,
+                               FinnyEntry& entry, IndexType trigger_index) const {
+        const Square king = perspective == BLACK ? pos.square<KING>(perspective)
+                                                 : Inv(pos.square<KING>(perspective));
+        Features::IndexList removed, added;
+        const Features::HalfKA_hm2<Features::Side::kFriend>::IndexContext indices(king, perspective);
+        int pieceCount = entry.position.pieceCount;
+        const auto& currentPieces = pos.piece_array();
+#if defined(USE_AVX512)
+        constexpr int compareWidth = 64;
+#else
+        constexpr int compareWidth = 32;
+#endif
+        for (int base = 0; base < SQ_NB; base += compareWidth) {
+            const int count = std::min(compareWidth, int(SQ_NB) - base);
+            u64 changed = 0;
+#if defined(USE_AVX512)
+            const __mmask64 mask = count == 64 ? ~u64(0) : (u64(1) << count) - 1;
+            const auto previous = _mm512_maskz_loadu_epi8(mask, entry.position.pieces.data() + base);
+            const auto currentPc = _mm512_maskz_loadu_epi8(mask, currentPieces.data() + base);
+            changed = _mm512_mask_cmpneq_epi8_mask(mask, previous, currentPc);
+#elif defined(USE_AVX2)
+            if (count == 32) {
+                const auto previous = _mm256_loadu_si256(
+                  reinterpret_cast<const __m256i*>(entry.position.pieces.data() + base));
+                const auto currentPc = _mm256_loadu_si256(
+                  reinterpret_cast<const __m256i*>(currentPieces.data() + base));
+                changed = ~u32(_mm256_movemask_epi8(_mm256_cmpeq_epi8(previous, currentPc)));
+            } else {
+                int offset = 0;
+                if (count >= 16) {
+                    const auto previous = _mm_loadu_si128(
+                      reinterpret_cast<const __m128i*>(entry.position.pieces.data() + base));
+                    const auto currentPc = _mm_loadu_si128(
+                      reinterpret_cast<const __m128i*>(currentPieces.data() + base));
+                    changed = u16(~_mm_movemask_epi8(_mm_cmpeq_epi8(previous, currentPc)));
+                    offset = 16;
+                }
+                // The final 17 squares use a 16-byte load plus one scalar comparison.
+                // 末尾17マスは16バイトの読み込みと1マスの比較に分け、盤面配列の外を読まない。
+                for (; offset < count; ++offset)
+                    changed |= u64(entry.position.pieces[base + offset] != currentPieces[base + offset]) << offset;
+            }
+#else
+            for (int offset = 0; offset < count; ++offset)
+                changed |= u64(entry.position.pieces[base + offset] != currentPieces[base + offset]) << offset;
+#endif
+            while (changed) {
+                const Square sq = Square(base + int(lsb(changed)));
+                changed &= changed - 1;
+                const Piece before = entry.position.pieces[sq], after = currentPieces[sq];
+                // Promoted minor pieces share the gold feature in these nets.
+                if (before != NO_PIECE && after != NO_PIECE
+                    && kpp_board_index[before].from[perspective] == kpp_board_index[after].from[perspective])
+                    continue;
+                if (before != NO_PIECE) {
+                    removed.push_back(indices.board(before, sq));
+                    --pieceCount;
+                }
+                if (after != NO_PIECE) {
+                    added.push_back(indices.board(after, sq));
+                    ++pieceCount;
+                }
+            }
+        }
+        for (Color c : {BLACK, WHITE}) {
+            const Hand before = entry.position.hands[c], after = pos.hand_of(c);
+            if (before == after) continue;
+            for (PieceType pt = PAWN; pt < KING; ++pt) {
+                const int oldCount = hand_count(before, pt), newCount = hand_count(after, pt);
+                pieceCount += newCount - oldCount;
+                for (int n = newCount; n < oldCount; ++n)
+                    removed.push_back(indices.hand(c, pt, n));
+                for (int n = oldCount; n < newCount; ++n)
+                    added.push_back(indices.hand(c, pt, n));
+            }
+        }
+        if (entry.is_initialized()) {
+            for (int n = entry.position.pieceCount; n < pieceCount; ++n)
+                removed.push_back(indices.zero());
+            for (int n = pieceCount; n < entry.position.pieceCount; ++n)
+                added.push_back(indices.zero());
+        }
+        bool rebuild = !entry.is_initialized();
+#if defined(USE_FINNY_RESET)
+        rebuild = rebuild || removed.size() + added.size() >= 40;
+#endif
+        Features::IndexList active;
+        if (rebuild)
+            Features::HalfKA_hm2<Features::Side::kFriend>::AppendActiveIndices(pos, perspective, &active);
+#if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
+        if constexpr (Packed) {
+            if (rebuild) prefetch_sparse8_columns(active);
+            else {
+                prefetch_sparse8_columns(removed);
+                prefetch_sparse8_columns(added);
+            }
+        }
+#endif
+        if (rebuild) {
+            const auto* source = trigger_index == 0 ? biases_ : nullptr;
+            update_accumulator_tiled_to_two<Packed>(source, entry.accumulation, current,
+              [&](vec_t* acc, IndexType offset) {
+                  for (auto idx : active) add_weight_to_tile<Packed>(acc, idx, offset);
+              });
+        } else {
+            update_accumulator_tiled_to_two<Packed>(entry.accumulation, entry.accumulation, current,
+              [&](vec_t* acc, IndexType offset) {
+                  for (auto idx : removed) sub_weight_from_tile<Packed>(acc, idx, offset);
+                  for (auto idx : added) add_weight_to_tile<Packed>(acc, idx, offset);
+              });
+        }
+        entry.position.pieces = currentPieces;
+        entry.position.hands[BLACK] = pos.hand_of(BLACK);
+        entry.position.hands[WHITE] = pos.hand_of(WHITE);
+        entry.position.pieceCount = pieceCount;
+    }
+#endif
+
 	template <bool Packed = false>
 	void refresh_accumulator_with_finny_cache(const Position& pos, AccumulatorState* state) const {
         state = resolve_state(pos, state);
 		auto& cache = finny_cache();
 
 		auto& accumulator = accumulator_of(state);
+#if defined(VECTOR)
+        if constexpr (kUseDirectFinny) {
+            for (Color perspective : {BLACK, WHITE}) {
+                auto& entry = cache.entries[0][perspective][pos.square<KING>(perspective)];
+                refresh_from_position<Packed>(pos, perspective,
+                  accumulator.accumulation[perspective][0], entry, 0);
+            }
+            accumulator.computed_accumulation = true;
+            return;
+        }
+#endif
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList active_indices[2];
 			const auto trigger = kRefreshTriggers[i];
@@ -1271,6 +1478,16 @@ class FeatureTransformer {
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList removed_indices[2], added_indices[2];
 			bool                reset[2]{};
+#if defined(USE_FINNY_TABLES) && defined(USE_FINNY_RESET) && defined(VECTOR)
+            if constexpr (kUseDirectFinny) {
+                for (Color c : {BLACK, WHITE}) {
+                    reset[c] = state->dirtyPiece.pc == make_piece(c, KING);
+                    if (!reset[c])
+                        Features::HalfKA_hm2<Features::Side::kFriend>::AppendChangedIndices(
+                          pos, c, &removed_indices[c], &added_indices[c], state->dirtyPiece);
+                }
+            } else
+#endif
 			RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset, state->dirtyPiece);
 #if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
 			if constexpr (Packed) {
@@ -1293,6 +1510,12 @@ class FeatureTransformer {
 						auto& entry = cache.entries[i][perspective][bucket];
 						// On reset, added_indices contains every active feature.
 						// The other perspective keeps its ordinary incremental update.
+#if defined(VECTOR)
+                        if constexpr (kUseDirectFinny)
+                            refresh_from_position<Packed>(pos, perspective,
+                              accumulator.accumulation[perspective][i], entry, i);
+                        else
+#endif
 						refresh_accumulator_using_finny_entry<Packed>(
 							accumulator.accumulation[perspective][i], entry,
 							added_indices[perspective], i);

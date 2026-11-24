@@ -38,12 +38,10 @@ inline int GetEffectCount(const Position& pos, Square sq_p, Color perspective_or
   }
 }
 
-inline bool IsDirty(const Eval::DirtyPiece& dp, PieceNumber pn) {
-  for (int i = 0; i < dp.dirty_num; ++i) {
-    if (pn == dp.pieceNo[i]) {
+inline bool IsDirty(const Eval::DirtyPiece& dp, BonaPiece p, Color perspective) {
+  for (int i = 0; i < dp.count(); ++i)
+    if (p == dp.change(i).new_piece.from[perspective])
       return true;
-    }
-  }
   return false;
 }
 
@@ -58,14 +56,12 @@ inline IndexType HalfKPE9<AssociatedKing>::MakeIndex(Square sq_k, BonaPiece p, i
 template <Side AssociatedKing>
 inline void HalfKPE9<AssociatedKing>::GetPieces(
     const Position& pos, Color perspective,
-    BonaPiece** pieces, Square* sq_target_k) {
-  *pieces = (perspective == BLACK) ?
-      pos.eval_list()->piece_list_fb() :
-      pos.eval_list()->piece_list_fw();
+    BonaPiece* pieces, Square* sq_target_k) {
+  collect_bona_pieces(pos, perspective, pieces);
   const PieceNumber target = (AssociatedKing == Side::kFriend) ?
       static_cast<PieceNumber>(PIECE_NUMBER_KING + perspective) :
       static_cast<PieceNumber>(PIECE_NUMBER_KING + ~perspective);
-  *sq_target_k = static_cast<Square>(((*pieces)[target] - f_king) % SQ_NB);
+  *sq_target_k = static_cast<Square>((pieces[target] - f_king) % SQ_NB);
 }
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
@@ -75,9 +71,9 @@ void HalfKPE9<AssociatedKing>::AppendActiveIndices(
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
   if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
 
-  BonaPiece* pieces;
+  BonaPiece pieces[40];
   Square sq_target_k;
-  GetPieces(pos, perspective, &pieces, &sq_target_k);
+  GetPieces(pos, perspective, pieces, &sq_target_k);
   auto& board_effect = pos.board_effect;
 
   for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_KING; ++i) {
@@ -96,21 +92,21 @@ template <Side AssociatedKing>
 void HalfKPE9<AssociatedKing>::AppendChangedIndices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
-  BonaPiece* pieces;
+  BonaPiece pieces[40];
   Square sq_target_k;
-  GetPieces(pos, perspective, &pieces, &sq_target_k);
+  GetPieces(pos, perspective, pieces, &sq_target_k);
 
-  for (int i = 0; i < dp.dirty_num; ++i) {
-    if (dp.pieceNo[i] >= PIECE_NUMBER_KING) continue;
+  for (int i = 0; i < dp.count(); ++i) {
+    if (dp.is_king(i)) continue;
     
-    const auto old_p = static_cast<BonaPiece>(dp.changed_piece[i].old_piece.from[perspective]);
+    const auto old_p = static_cast<BonaPiece>(dp.change(i).old_piece.from[perspective]);
     Square old_sq_p = GetSquareFromBonaPiece(old_p);
     removed->push_back(MakeIndex(sq_target_k, old_p
         , GetEffectCount(pos, old_sq_p, perspective, perspective, true)
         , GetEffectCount(pos, old_sq_p, perspective, ~perspective, true)
       ));
 
-    const auto new_p = static_cast<BonaPiece>(dp.changed_piece[i].new_piece.from[perspective]);
+    const auto new_p = static_cast<BonaPiece>(dp.change(i).new_piece.from[perspective]);
     Square new_sq_p = GetSquareFromBonaPiece(new_p);
     added->push_back(MakeIndex(sq_target_k, new_p
         , GetEffectCount(pos, new_sq_p, perspective, perspective, false)
@@ -119,7 +115,7 @@ void HalfKPE9<AssociatedKing>::AppendChangedIndices(
   }
 
   for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_KING; ++i) {
-    if (IsDirty(dp, i)) {
+    if (IsDirty(dp, pieces[i], perspective)) {
       continue;
     }
 

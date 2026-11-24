@@ -47,7 +47,7 @@ class AccumulatorStack {
    private:
     static void invalidate(Accumulator& state, Accumulator* previous) noexcept {
         state.sum.p[0][0] = VALUE_NOT_EVALUATED;
-        state.dirtyPiece.dirty_num = 0;
+        state.dirtyPiece = {};
         state.materialValue = 0;
         state.previous = previous;
     }

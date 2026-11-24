@@ -43,7 +43,7 @@ class PE9 {
  private:
   // 駒の情報を取得する
   static void GetPieces(const Position& pos, Color perspective,
-                        BonaPiece** pieces);
+                        BonaPiece* pieces);
 };
 
 } // namespace Eval::NNUE::Features

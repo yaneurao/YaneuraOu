@@ -27,14 +27,12 @@ inline IndexType HalfRelativeKP<AssociatedKing>::MakeIndex(
 template <Side AssociatedKing>
 inline void HalfRelativeKP<AssociatedKing>::GetPieces(
     const Position& pos, Color perspective,
-    BonaPiece** pieces, Square* sq_target_k) {
-  *pieces = (perspective == BLACK) ?
-      pos.eval_list()->piece_list_fb() :
-      pos.eval_list()->piece_list_fw();
+    BonaPiece* pieces, Square* sq_target_k) {
+  collect_bona_pieces(pos, perspective, pieces);
   const PieceNumber target = (AssociatedKing == Side::kFriend) ?
       static_cast<PieceNumber>(PIECE_NUMBER_KING + perspective) :
       static_cast<PieceNumber>(PIECE_NUMBER_KING + ~perspective);
-  *sq_target_k = static_cast<Square>(((*pieces)[target] - f_king) % SQ_NB);
+  *sq_target_k = static_cast<Square>((pieces[target] - f_king) % SQ_NB);
 }
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
@@ -44,9 +42,9 @@ void HalfRelativeKP<AssociatedKing>::AppendActiveIndices(
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
   if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
 
-  BonaPiece* pieces;
+  BonaPiece pieces[40];
   Square sq_target_k;
-  GetPieces(pos, perspective, &pieces, &sq_target_k);
+  GetPieces(pos, perspective, pieces, &sq_target_k);
   for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_KING; ++i) {
     if (pieces[i] >= fe_hand_end) {
       active->push_back(MakeIndex(sq_target_k, pieces[i]));
@@ -59,18 +57,18 @@ template <Side AssociatedKing>
 void HalfRelativeKP<AssociatedKing>::AppendChangedIndices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
-  BonaPiece* pieces;
-  Square sq_target_k;
-  GetPieces(pos, perspective, &pieces, &sq_target_k);
-  for (int i = 0; i < dp.dirty_num; ++i) {
-    if (dp.pieceNo[i] >= PIECE_NUMBER_KING) continue;
+  const Color target = AssociatedKing == Side::kFriend ? perspective : ~perspective;
+  const Square sq_target_k = perspective == BLACK ? pos.square<KING>(target)
+                                                 : Inv(pos.square<KING>(target));
+  for (int i = 0; i < dp.count(); ++i) {
+    if (dp.is_king(i)) continue;
     const auto old_p = static_cast<BonaPiece>(
-        dp.changed_piece[i].old_piece.from[perspective]);
+        dp.change(i).old_piece.from[perspective]);
     if (old_p >= fe_hand_end) {
       removed->push_back(MakeIndex(sq_target_k, old_p));
     }
     const auto new_p = static_cast<BonaPiece>(
-        dp.changed_piece[i].new_piece.from[perspective]);
+        dp.change(i).new_piece.from[perspective]);
     if (new_p >= fe_hand_end) {
       added->push_back(MakeIndex(sq_target_k, new_p));
     }

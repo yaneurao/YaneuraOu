@@ -1,5 +1,8 @@
 ﻿#include "../evaluate.h"
 #include "../position.h"
+#include <algorithm>
+#include <array>
+#include <cassert>
 
 using namespace std;
 namespace YaneuraOu {
@@ -60,7 +63,7 @@ namespace Eval {
 	}
 
 
-#if defined(USE_EVAL_LIST)
+#if defined(USE_BONA_PIECE)
 
 	ExtBonaPiece kpp_board_index[PIECE_NB] = {
         { BONA_PIECE_ZERO, BONA_PIECE_ZERO },
@@ -184,7 +187,92 @@ namespace Eval {
 
         return os;
     }
-#endif // defined(USE_EVAL_LIST)
+#if defined(USE_AVX512)
+namespace {
+// 盤面の状態ではなく、駒種から入力番号への固定オフセットだけを保持する。
+// kpp_board_indexの初期化後に同じ表から作るので、成り駒の区別設定にも追随する。
+alignas(64) const auto BoardBonaOffsets = [] {
+    std::array<std::array<i32, PIECE_NB>, COLOR_NB> offsets{};
+    for (Color c : {BLACK, WHITE})
+        for (int pc = 0; pc < PIECE_NB; ++pc)
+            offsets[c][pc] = kpp_board_index[pc].from[c];
+    return offsets;
+}();
+}
+#endif
+
+// 必要な時だけ盤面と手駒から入力番号を列挙する。駒番号・逆引き表は保持しない。
+void collect_bona_pieces(const Position& pos, Color perspective, BonaPiece* pieces) {
+    int size = 0;
+#if defined(USE_AVX512)
+    static_assert(sizeof(Piece) == 1);
+    const auto& board = pos.piece_array();
+    const auto offset0 = _mm512_load_si512(BoardBonaOffsets[perspective].data());
+    const auto offset1 = _mm512_load_si512(BoardBonaOffsets[perspective].data() + 16);
+    const auto zero = _mm512_setzero_si512();
+    const auto types = _mm512_set1_epi32(15);
+    const auto king = _mm512_set1_epi32(KING);
+    const auto lanes = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7,
+                                       8, 9, 10, 11, 12, 13, 14, 15);
+    int base = 0;
+    for (; base + 16 <= SQ_NB; base += 16) {
+        const auto pcs = _mm512_cvtepu8_epi32(_mm_loadu_si128(
+          reinterpret_cast<const __m128i*>(board.data() + base)));
+        const __mmask16 mask = _mm512_cmpneq_epi32_mask(pcs, zero)
+          & _mm512_cmpneq_epi32_mask(_mm512_and_si512(pcs, types), king);
+        if (!mask)
+            continue;
+        auto squares = _mm512_add_epi32(lanes, _mm512_set1_epi32(base));
+        if (perspective == WHITE)
+            squares = _mm512_sub_epi32(_mm512_set1_epi32(80), squares);
+        const auto indices = _mm512_add_epi32(squares, _mm512_permutex2var_epi32(offset0, pcs, offset1));
+        assert(size + _mm_popcnt_u32(mask) <= 38);
+        _mm512_mask_compressstoreu_epi32(pieces + size, mask, indices);
+        size += _mm_popcnt_u32(mask);
+    }
+    for (; base < SQ_NB; ++base) {
+        const Piece pc = board[base];
+        if (pc != NO_PIECE && type_of(pc) != KING)
+            pieces[size++] = board_bona_piece(pc, Square(base)).from[perspective];
+    }
+#else
+    Bitboard occupied = pos.pieces() ^ pos.pieces(KING);
+    while (occupied) {
+        const Square s = occupied.pop_lsb();
+        const Piece pc = pos.piece_on(s);
+        assert(size < 38);
+        pieces[size++] = board_bona_piece(pc, s).from[perspective];
+    }
+#endif
+    for (Color c : {BLACK, WHITE}) {
+        const Hand hand = pos.hand_of(c);
+        if (hand == Hand(0))
+            continue;
+        for (PieceType pt = PAWN; pt < KING; ++pt) {
+            const int count = hand_count(hand, pt);
+            const int base = kpp_hand_index[c][pt].from[perspective];
+            for (int i = 0; i < count; ++i) {
+                assert(size < 38);
+                pieces[size++] = BonaPiece(base + i);
+            }
+        }
+    }
+    // 駒落ちで不足する非玉の枠は、従来どおり0特徴量として残す。
+    std::fill(pieces + size, pieces + 38, BONA_PIECE_ZERO);
+    for (Color c : {BLACK, WHITE}) {
+        const Square s = pos.square<KING>(c);
+        pieces[38 + c] = is_ok(s) ? board_bona_piece(make_piece(c, KING), s).from[perspective]
+                                 : BONA_PIECE_ZERO;
+    }
+}
+
+BonaPieceList collect_bona_pieces(const Position& pos) {
+    BonaPieceList result;
+    collect_bona_pieces(pos, BLACK, result.pieces[BLACK]);
+    collect_bona_pieces(pos, WHITE, result.pieces[WHITE]);
+    return result;
+}
+#endif // defined(USE_BONA_PIECE)
 
 } // namespace Eval
 } // namespace YaneuraOu {

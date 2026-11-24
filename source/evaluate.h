@@ -145,7 +145,7 @@ namespace Eval {
 	// ⚠  後手の駒に対してもプラスの値が返る。
 	Value CapturePieceValuePlusPromote(const Position& pos, Move move);
 
-#if defined(USE_EVAL_LIST)
+#if defined(USE_BONA_PIECE)
 
 	// --- 評価関数で使う定数 KPP(玉と任意2駒)のPに相当するenum
 
@@ -238,7 +238,7 @@ namespace Eval {
 		// fe_end がKPP配列などのPの値の終端と考えられる。
 		// 例) kpp[SQ_NB][fe_end][fe_end];
 
-		// 王も一意な駒番号を付与。これは2駒関係をするときに王に一意な番号が必要なための拡張
+		// 玉についても、駒種・升に対応する入力番号を定義する。
 		f_king = fe_end,
 		e_king = f_king + SQ_NB,
 		fe_end2 = e_king + SQ_NB, // 玉も含めた末尾の番号。
@@ -283,145 +283,48 @@ namespace Eval {
 	// KPPの手駒テーブル
 	extern ExtBonaPiece kpp_hand_index[COLOR_NB][KING];
 
-	// 評価関数で用いる駒リスト。どの駒(PieceNumber)がどこにあるのか(BonaPiece)を保持している構造体
-	struct EvalList
-	{
-		// 評価関数(FV38型)で用いる駒番号のリスト
-		BonaPiece* piece_list_fb() const { return const_cast<BonaPiece*>(pieceListFb); }
-		BonaPiece* piece_list_fw() const { return const_cast<BonaPiece*>(pieceListFw); }
+    // 入力番号は従来のnn.bin / KPPTと互換。配列は評価時だけ生成し、Positionには保持しない。
+    struct BonaPieceList {
+        alignas(32) BonaPiece pieces[2][40];
+        static constexpr int length() { return 38; }
+    };
 
-		// 指定されたpiece_noの駒をExtBonaPiece型に変換して返す。
-		ExtBonaPiece bona_piece(PieceNumber piece_no) const
-		{
-			ExtBonaPiece bp;
-			bp.fb = pieceListFb[piece_no];
-			bp.fw = pieceListFw[piece_no];
-			return bp;
-		}
+    void collect_bona_pieces(const Position& pos, Color perspective, BonaPiece* pieces);
+    BonaPieceList collect_bona_pieces(const Position& pos);
 
-		// 盤上のsqの升にpiece_noのpcの駒を配置する
-		void put_piece(PieceNumber piece_no, Square sq, Piece pc) {
-			set_piece_on_board(piece_no, BonaPiece(kpp_board_index[pc].fb + sq), BonaPiece(kpp_board_index[pc].fw + Inv(sq)),sq);
-		}
+    inline ExtBonaPiece board_bona_piece(Piece pc, Square s) {
+        return {BonaPiece(kpp_board_index[pc].fb + s),
+                BonaPiece(kpp_board_index[pc].fw + Inv(s))};
+    }
 
-		// c側の手駒ptのi+1枚目の駒のPieceNumberを設定する。(1枚目の駒のPieceNumberを設定したいならi==0にして呼び出すの意味)
-		void put_piece(PieceNumber piece_no, Color c, PieceType pt, int i) {
-			set_piece_on_hand(piece_no, BonaPiece(kpp_hand_index[c][pt].fb + i), BonaPiece(kpp_hand_index[c][pt].fw + i));
-		}
+    inline ExtBonaPiece hand_bona_piece(Color c, PieceType pt, int slot) {
+        return {BonaPiece(kpp_hand_index[c][pt].fb + slot),
+                BonaPiece(kpp_hand_index[c][pt].fw + slot)};
+    }
 
-		// あるBonaPieceに対応するPieceNumberを返す。
-		PieceNumber piece_no_of_hand(BonaPiece bp) const { return piece_no_list_hand[bp]; }
-		// 盤上のある升sqに対応するPieceNumberを返す。
-		PieceNumber piece_no_of_board(Square sq) const { return piece_no_list_board[sq]; }
+    // 着手が変える盤面・手駒だけを記録する。特徴量番号への変換は評価側で行う。
+    // handSlotは、打つ手駒または捕獲で追加する手駒の0始まりの位置。
+    struct DirtyPiece {
+        Piece pc = NO_PIECE;
+        Piece after = NO_PIECE;
+        Piece captured = NO_PIECE;
+        Square from = SQ_NONE;
+        Square to = SQ_NONE;
+        int handSlot = 0;
 
-		// pieceListを初期化する。
-		// 駒落ちに対応させる時のために、未使用の駒の値はBONA_PIECE_ZEROにしておく。
-		// 通常の評価関数を駒落ちの評価関数として流用できる。
-		// piece_no_listのほうはデバッグが捗るようにPIECE_NUMBER_NBで初期化。
-		void clear()
-		{
-
-			for (auto& p : pieceListFb)
-				p = BONA_PIECE_ZERO;
-
-			for (auto& p : pieceListFw)
-				p = BONA_PIECE_ZERO;
-
-			for (auto& v : piece_no_list_hand)
-				v = PIECE_NUMBER_NB;
-
-			for (auto& v : piece_no_list_board)
-				v = PIECE_NUMBER_NB;
-		}
-
-		// 内部で保持しているpieceListFb[]が正しいBonaPieceであるかを検査する。
-		// 注 : デバッグ用。遅い。
-		bool is_valid(const Position& pos);
-
-
-	protected:
-
-		// 盤上sqにあるpiece_noの駒のBonaPieceがfb,fwであることを設定する。
-		inline void set_piece_on_board(PieceNumber piece_no, BonaPiece fb , BonaPiece fw, Square sq)
-		{
-			ASSERT_LV3(is_ok(piece_no));
-			pieceListFb[piece_no] = fb;
-			pieceListFw[piece_no] = fw;
-			piece_no_list_board[sq] = piece_no;
-		}
-
-		// 手駒であるpiece_noの駒のBonaPieceがfb,fwであることを設定する。
-		inline void set_piece_on_hand(PieceNumber piece_no, BonaPiece fb, BonaPiece fw)
-		{
-			ASSERT_LV3(is_ok(piece_no));
-			pieceListFb[piece_no] = fb;
-			pieceListFw[piece_no] = fw;
-			piece_no_list_hand[fb] = piece_no;
-		}
-
-		// 駒リスト。駒番号(PieceNumber)いくつの駒がどこにあるのか(BonaPiece)を示す。FV38などで用いる。
-
-		// 駒リストの長さ
-		// 38固定
-	public:
-		int length() const { return PIECE_NUMBER_KING; }
-
-		// VPGATHERDDを使う都合、4の倍数でなければならない。
-		// また、KPPT型評価関数などは、39,40番目の要素がゼロであることを前提とした
-		// アクセスをしている箇所があるので注意すること。
-		static const int MAX_LENGTH = 40;
-
-	private:
-
-	#if defined(USE_AVX2)
-		// AVX2を用いたKPPT評価関数は高速化できるので特別扱い。
-		// Skylake以降でないとほぼ効果がないが…。
-
-		// AVX2の命令でアクセスするのでalignas(32)が必要。
-		alignas(32) BonaPiece pieceListFb[MAX_LENGTH];
-		alignas(32) BonaPiece pieceListFw[MAX_LENGTH];
-
-	#else
-
-		BonaPiece pieceListFb[MAX_LENGTH];
-		BonaPiece pieceListFw[MAX_LENGTH];
-
-	#endif
-
-		// 手駒である、任意のBonaPieceに対して、その駒番号(PieceNumber)を保持している配列
-		PieceNumber piece_no_list_hand[fe_hand_end];
-
-		// 盤上の駒に対して、その駒番号(PieceNumber)を保持している配列
-		// 玉がSQ_NBに移動しているとき用に+1まで保持しておくが、
-		// SQ_NBの玉を移動させないので、この値を使うことはないはず。
-		PieceNumber piece_no_list_board[SQ_NB_PLUS1];
-
-	};
-
-	// --- 局面の評価値の差分更新用
-	// 局面の評価値を差分更新するために、移動した駒を管理する必要がある。
-	// この移動した駒のことをDirtyPieceと呼ぶ。
-	// 1) FV38方式だと、DirtyPieceはたかだか2個。
-	// 2) FV_VAR方式だと、DirtyPieceは可変。
-	//       →　こっちは廃止した。
-
-	// 評価値の差分計算の管理用
-	// 前の局面から移動した駒番号を管理するための構造体
-	// 動く駒は、最大で2個。
-	struct DirtyPiece
-	{
-		// その駒番号の駒が何から何に変わったのか
-		Eval::ChangedBonaPiece changed_piece[2];
-
-		// dirtyになった駒番号
-		PieceNumber pieceNo[2];
-
-		// dirtyになった個数。
-		// null moveだと0ということもありうる。
-		// 動く駒と取られる駒とで最大で2つ。
-		int dirty_num;
-	};
-#endif // defined(USE_EVAL_LIST)
+        int count() const { return pc == NO_PIECE ? 0 : captured == NO_PIECE ? 1 : 2; }
+        bool king_moved() const { return type_of(pc) == KING; }
+        bool is_king(int i) const { return i == 0 && king_moved(); }
+        ChangedBonaPiece change(int i) const {
+            if (i == 0)
+                return {from == SQ_NONE ? hand_bona_piece(color_of(pc), raw_type_of(pc), handSlot)
+                                        : board_bona_piece(pc, from),
+                        board_bona_piece(after, to)};
+            return {board_bona_piece(captured, to),
+                    hand_bona_piece(color_of(pc), raw_type_of(captured), handSlot)};
+        }
+    };
+#endif // defined(USE_BONA_PIECE)
 
 
 
