@@ -17,17 +17,21 @@
 // freqの和がUINT16_MAXに収まるようにする。
 u16 MoveFreq32Record::overflow_check()
 {
-	u32 total = 0;
-	for (auto& mf : move_freq32)
+	// 複数のu32の頻度を合計するので、加算時のあふれを避けるためu64を使う。
+	u64 total = 0;
+	for (const auto& mf : move_freq32)
 		total += mf.freq;
 
-	// totalがUINT16_MAXに収まるようにだけしておく。(u16に格納したいため)
-	// ⇨ totalがUINT16_MAX未満なので、freqsのそれぞれの要素がUINT16_MAX未満であることは保証される。
+	// 従来どおり、合計をUINT16_MAX未満にする。
 	while (total >= UINT16_MAX)
 	{
-		total /= 2;
-		for (auto& mf : move_freq32 )
+		total = 0;
+		for (auto& mf : move_freq32)
+		{
 			mf.freq /= 2;
+			// 個々の頻度の端数切り捨てを反映し、縮小後の実際の合計を求める。
+			total += mf.freq;
+		}
 	}
 	return u16(total);
 }

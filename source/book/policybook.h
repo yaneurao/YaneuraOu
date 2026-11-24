@@ -59,8 +59,8 @@ struct alignas(16) MoveFreq32Record
 	// この局面でのvalue。FLT_MAXなら、不明。
 	float value = FLT_MAX;
 
-	// freqの和がUINT16_MAXに収まるようにする。
-	// 返し値 : freqの和
+	// 各freqを必要に応じて半減し、和をUINT16_MAX未満にする。
+	// 返し値 : 縮小後のfreqの実際の和
 	u16 overflow_check();
 };
 
