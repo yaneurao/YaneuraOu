@@ -809,12 +809,13 @@ inline Bitboard cross45StepEffect(Square sq) {
 // 遠方駒で、盤上の駒の状態を考慮しながら利きを求める。
 //
 
-#if defined(USE_AVX512)
 namespace SimdSliding {
 struct alignas(64) BishopMasks { Bitboard ray[4]; };
+static_assert(sizeof(BishopMasks) == 64);
 extern BishopMasks bishopMasks[SQ_NB_PLUS1];
 
 inline Bitboard bishop(Square sq, const Bitboard& occupied) {
+#if defined(USE_AVX512)
     // Keep four directional masks in one cache line, in their final lane order.
     // 4方向のマスクを計算時のレーン順に並べ、1キャッシュラインに収める。
     const __m512i mask = _mm512_load_si512(&bishopMasks[sq]);
@@ -839,10 +840,46 @@ inline Bitboard bishop(Square sq, const Bitboard& occupied) {
     Bitboard result;
     result.m = _mm_or_si128(_mm256_castsi256_si128(pairs), _mm256_extracti128_si256(pairs, 1));
     return result;
+#elif defined(USE_AVX2)
+    const auto& masks = bishopMasks[sq];
+    const __m256i forwardMask = _mm256_load_si256(reinterpret_cast<const __m256i*>(&masks.ray[0]));
+    const __m256i backwardMask = _mm256_load_si256(reinterpret_cast<const __m256i*>(&masks.ray[2]));
+    const __m256i reverse = _mm256_setr_epi64x(
+      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL,
+      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL);
+    const __m256i o = _mm256_broadcastsi128_si256(occupied.m);
+    const __m256i forward = _mm256_and_si256(forwardMask, o);
+    const __m256i backward = _mm256_and_si256(backwardMask, _mm256_shuffle_epi8(o, reverse));
+    const auto prefix = [](__m256i o, __m256i mask) {
+        // Zero-filled low words are always active; each high word tests its own low word.
+        // 0で埋めた下位ワードは常に有効とし、上位ワードは対応する下位ワードの空判定を使う。
+        const __m256i active = _mm256_cmpeq_epi64(_mm256_slli_si256(o, 8), _mm256_setzero_si256());
+        const __m256i changed = _mm256_xor_si256(o, _mm256_add_epi64(o, _mm256_set1_epi64x(-1)));
+        return _mm256_and_si256(_mm256_and_si256(changed, mask), active);
+    };
+    const __m256i rays = _mm256_or_si256(prefix(forward, forwardMask),
+      _mm256_shuffle_epi8(prefix(backward, backwardMask), reverse));
+    Bitboard result;
+    result.m = _mm_or_si128(_mm256_castsi256_si128(rays), _mm256_extracti128_si256(rays, 1));
+    return result;
+#else
+    // Use the same directional masks without requiring SIMD instructions.
+    // SIMD命令を必要としない経路でも、同じ方向別マスクを使う。
+    const auto prefix = [](const Bitboard& o, const Bitboard& mask) {
+        const u64 low = o.extract64<0>() & mask.extract64<0>();
+        const u64 high = o.extract64<1>() & mask.extract64<1>();
+        return Bitboard((low ^ (low - 1)) & mask.extract64<0>(),
+          (high ^ (high - 1)) & mask.extract64<1>() & (u64(0) - u64(low == 0)));
+    };
+    const auto& masks = bishopMasks[sq];
+    const Bitboard reversed = occupied.byte_reverse();
+    const Bitboard forward = prefix(occupied, masks.ray[0]) | prefix(occupied, masks.ray[1]);
+    const Bitboard backward = prefix(reversed, masks.ray[2]) | prefix(reversed, masks.ray[3]);
+    return forward | backward.byte_reverse();
+#endif
 }
 
 } // namespace SimdSliding
-#endif
 
 
 // 香 : occupied bitboardを考慮しながら香の利きを求める

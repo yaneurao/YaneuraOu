@@ -108,9 +108,6 @@ namespace BB_Table
 	// ----------------------------------------------------------------------------------------------
 
 	Bitboard QUGIY_ROOK_MASK[SQ_NB_PLUS1][2];
-#if !defined(USE_AVX512)
-	Bitboard256 QUGIY_BISHOP_MASK[SQ_NB_PLUS1][2];
-#endif
 
 	// sqの升から各方向への利き
 	// 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
@@ -118,9 +115,7 @@ namespace BB_Table
 	Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
 }
 
-#if defined(USE_AVX512)
 SimdSliding::BishopMasks SimdSliding::bishopMasks[SQ_NB_PLUS1];
-#endif
 
 
 using namespace BB_Table;
@@ -181,9 +176,8 @@ void Bitboards::init()
 		);
 	}
 
-#if defined(USE_AVX512)
-    // Construct rays from coordinates, independently of the existing packed masks.
-    // 既存の圧縮マスクに依存せず、座標から方向別のマスクを作る。
+    // Build shared directional masks from board coordinates.
+    // 盤の座標から共通の方向別マスクを作る。
     for (int index = 0; index <= SQ_NB; ++index) {
         auto& bishop = SimdSliding::bishopMasks[index];
         for (auto& ray : bishop.ray) ray = Bitboard(ZERO);
@@ -201,8 +195,6 @@ void Bitboards::init()
         bishop.ray[2] = ray(-1, -1).byte_reverse();
         bishop.ray[3] = ray(-1, 1).byte_reverse();
     }
-#endif
-
 
 	// 4) Qugiyの飛車のBitboardテーブルの初期化
 
@@ -229,53 +221,7 @@ void Bitboards::init()
 		}
 	}
 
-#if !defined(USE_AVX512)
-	// 5) Qugiyの角のBitboardテーブルの初期化
 
-	// 4方向
-	const Effect8::Direct bishop_direct[4] ={
-		Effect8::Direct::DIRECT_LU , // 左上
-		Effect8::Direct::DIRECT_LD , // 左下
-		Effect8::Direct::DIRECT_RU , // 右上
-		Effect8::Direct::DIRECT_RD   // 右下
-	};
-
-	for (File f = FILE_1; f <= FILE_9; ++f) {
-		for (Rank r = RANK_1; r <= RANK_9; ++r) {
-
-			// 対象升から
-			Square sq = f | r;
-
-			// 角の左上、左下、右上、右下それぞれへのstep effect
-			Bitboard step_effect[4];
-
-			// 4方向の利きをループで求める
-			for (int i = 0; i < 4; ++i)
-			{
-				Bitboard bb(ZERO);
-
-				auto delta = Effect8::DirectToDeltaWW(bishop_direct[i]);
-				// 壁に突き当たるまで進む
-				for (auto sq2 = to_sqww(sq) + delta; is_ok(sq2); sq2 += delta)
-					bb |= Bitboard(sqww_to_sq(sq2));
-
-				step_effect[i] = bb;
-			}
-
-			// 右上、右下はbyte reverseしておかないとうまく求められない。(先手の香の利きがうまく求められないのと同様)
-
-			step_effect[2] = step_effect[2].byte_reverse();
-			step_effect[3] = step_effect[3].byte_reverse();
-
-			for (int i = 0; i < 2; ++i)
-				QUGIY_BISHOP_MASK[sq][i] = Bitboard256(
-					Bitboard(step_effect[0].extract64(i), step_effect[2].extract64(i)),
-					Bitboard(step_effect[1].extract64(i), step_effect[3].extract64(i))
-				);
-		}
-	}
-
-#endif
 
 	// Qugiyのアルゴリズムで用いる、sqの升から各方向への利きテーブルの初期化
 	// DIRECT_UとDIRECT_Dを用いないので、これをskipする。
@@ -952,38 +898,7 @@ Bitboard rookRankEffect(Square sq, const Bitboard& occupied)
 // 角の利き
 Bitboard bishopEffect(const Square sq, const Bitboard& occupied)
 {
-#if defined(USE_AVX512)
     return SimdSliding::bishop(sq, occupied);
-
-#else
-	const Bitboard256 mask_lo =  QUGIY_BISHOP_MASK[sq][0];
-	const Bitboard256 mask_hi =  QUGIY_BISHOP_MASK[sq][1];
-
-	// occupiedを2枚並べたBitboard256を用意する。
-	const Bitboard256 occ2(occupied);
-
-	// occupiedを(byte単位で)左右反転させたBitboardを2枚並べたBitboard256を用意する。
-	const Bitboard256 rocc2(occupied.byte_reverse());
-
-	Bitboard256 hi, lo ,t1 , t0;
-	Bitboard256::unpack(rocc2, occ2, hi, lo);
-
-	hi &= mask_hi;
-	lo &= mask_lo;
-
-	Bitboard256::decrement(hi, lo, t1, t0);
-
-	// xorで変化した升を抽出して、step effectでmaskすれば完成
-	t1 = (t1 ^ hi) & mask_hi;
-	t0 = (t0 ^ lo) & mask_lo;
-
-	// unpackしていたものを元の状態に戻す(unpackの逆変換はunpack)
-	Bitboard256::unpack(t1 , t0 , hi , lo);
-
-	// byte_reverseして元の状態に戻して、重ね合わせる。
-	// hiの方には、右方向の利き、loは左方向の利きが得られている。
-	return (hi.byte_reverse() | lo).merge();
-#endif
 }
 
 // === 大駒の部分利き(SEEなどで用いる) ===
