@@ -1533,7 +1533,7 @@ Bitboard Position::pinned_pieces(Square avoid) const {
     Square   ksq = square<KING>(C);
 
 	// avoidを除外して考える。
-	Bitboard avoid_bb = ~Bitboard(avoid);
+	Bitboard avoid_bb = ~square_bb(avoid);
 
 	pinners = (
 		(  pieces(ROOK_DRAGON)   & Attacks::rookStepEffect    (ksq))
@@ -1562,7 +1562,7 @@ Bitboard Position::pinned_pieces(Square from, Square to) const {
     Square   ksq = square<KING>(C);
 
 	// avoidを除外して考える。
-	Bitboard avoid_bb = ~Bitboard(from);
+	Bitboard avoid_bb = ~square_bb(from);
 
 	pinners = (
 		(  pieces(ROOK_DRAGON)  & Attacks::rookStepEffect    (ksq))

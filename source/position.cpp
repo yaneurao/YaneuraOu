@@ -1345,7 +1345,7 @@ bool Position::legal_drop(const Square to) const
 	const auto us = sideToMove;
 
 	// 打とうとする歩の利きに相手玉がいることは前提条件としてクリアしているはず。
-	ASSERT_LV3(pawnEffect(us, to) == Bitboard(square<KING>(~us)));
+	ASSERT_LV3(pawnEffect(us, to) == square_bb(square<KING>(~us)));
 
 	// この歩に利いている自駒(歩を打つほうの駒)がなければ詰みには程遠いのでtrue
 	if (!effected_to(us, to))
@@ -1359,7 +1359,7 @@ bool Position::legal_drop(const Square to) const
 	Bitboard pinned = blockers_for_king(~us);
 
 	// pinされていない駒が1つでもあるなら、相手はその駒で取って何事もない。
-	if (b & (~pinned | file_bb(file_of(to))))
+	if (b & (~pinned | file_bb(to)))
 		return true;
 
 	// 攻撃駒はすべてpinされていたということであり、
@@ -1434,8 +1434,8 @@ bool Position::legal_drop(const Square to) const
 // 二歩でなく、かつ打ち歩詰めでないならtrueを返す。
 bool Position::legal_pawn_drop(const Color us, const Square to) const
 {
-	return !((pieces(us, PAWN) & file_bb(file_of(to)))                               // 二歩
-		|| ((pawnEffect(us, to) == Bitboard(square<KING>(~us)) && !legal_drop(to)))); // 打ち歩詰め
+	return !((pieces(us, PAWN) & file_bb(to))                               // 二歩
+		|| ((pawnEffect(us, to) == square_bb(square<KING>(~us)) && !legal_drop(to)))); // 打ち歩詰め
 }
 
 // mがpseudo_legalな指し手であるかを判定する。
@@ -1592,7 +1592,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 				case BISHOP:
 				case ROOK:
-					if (enemy_field(us) & (Bitboard(from) | Bitboard(to)))
+					if (enemy_field(us) & (square_bb(from) | square_bb(to)))
 						return false;
 					break;
 
@@ -1673,7 +1673,7 @@ bool Position::legal_promote(Move m) const
 	Square to   = m.to_sq();
 
 	// 移動元か移動先が敵陣でなければ成れる条件を満たしていない。
-	return enemy_field(us) & (Bitboard(from) | Bitboard(to));
+	return enemy_field(us) & (square_bb(from) | square_bb(to));
 }
 
 // 置換表から取り出したMoveを32bit化する。
@@ -1951,7 +1951,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 		// 駒打ちで両王手はありえないので王手している駒はいまtoに置いた駒のみ。
         if (givesCheck)
         {
-            st->checkersBB = Bitboard(to);
+            st->checkersBB = square_bb(to);
             st->continuousCheck[Us] += 2;
         }
         else
@@ -3602,7 +3602,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         tester.test("attacks_by<WHITE,PAWN>", pos.attacks_by<WHITE, PAWN>() == BB_Table::RANK4_BB);
         tester.test("attacks_by<BLACK,KNIGHT>",
                     pos.attacks_by<BLACK, KNIGHT>()
-                      == (Bitboard(SQ_97) | Bitboard(SQ_77) | Bitboard(SQ_37) | Bitboard(SQ_17)));
+                      == (square_bb(SQ_97) | square_bb(SQ_77) | square_bb(SQ_37) | square_bb(SQ_17)));
         tester.test("attacks_by<BLACK,GOLDS>",
                     pos.attacks_by<BLACK, GOLDS>()
                       == (goldEffect<BLACK>(SQ_69) | goldEffect<BLACK>(SQ_49)));

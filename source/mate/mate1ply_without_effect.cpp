@@ -119,7 +119,7 @@ namespace {
 					case PIECE_TYPE_CHECK_PAWN_WITH_PRO:
 
 						bb = goldEffect(~c, sq) & enemy_field(c);
-						bb = pawnBbEffect(~c, bb);
+						bb = pawn_attacks_bb(~c, bb);
 						break;
 
 					case PIECE_TYPE_CHECK_LANCE:
@@ -222,7 +222,7 @@ namespace {
 							| CHECK_CAND_BB[sq][PIECE_TYPE_CHECK_PAWN_WITH_PRO][c];
 						break;
 					}
-					bb &= ~Bitboard(sq); // sqの地点邪魔なので消しておく。
+					bb &= ~square_bb(sq); // sqの地点邪魔なので消しておく。
 					CHECK_CAND_BB[sq][p][c] = bb;
 				}
 
@@ -240,7 +240,7 @@ namespace {
 						// これ用意するほどでもないんだな
 						// 一応、用意するコード書いておくか..
 						bb = kingEffect(sq);
-						bb = pawnBbEffect(c, bb);
+						bb = pawn_attacks_bb(c, bb);
 						// →　このシフトでp[0]の63bit目に来るとまずいので..
 						bb &= Bitboard(1); // Bitboard(1)でand取っておく。
 						break;
@@ -320,7 +320,7 @@ namespace {
 						sf_unreachable();
 					}
 
-					bb &= ~Bitboard(sq); // sqの地点邪魔なので消しておく。
+					bb &= ~square_bb(sq); // sqの地点邪魔なので消しておく。
 										 // CHECK_CAND_BBとは並び順を変えたので注意。
 					CHECK_AROUND_BB[sq][p - 1][c] = bb;
 				}
@@ -395,7 +395,7 @@ namespace {
 	Bitboard AttacksSlider(const Position& pos, Square avoid_from, const Bitboard& occ)
 	{
 		Bitboard bb, sum(ZERO);
-		Bitboard avoid_bb = ~Bitboard(avoid_from);
+		Bitboard avoid_bb = ~square_bb(avoid_from);
 		Square from;
 
 		bb = pos.pieces<Us, LANCE>() & avoid_bb;
@@ -429,7 +429,7 @@ namespace {
 		Bitboard bb;
 
 		// 歩は普通でいい
-		Bitboard sum = pawnBbEffect<Them>(pos.pieces<Them>(PAWN));
+		Bitboard sum = pawn_attacks_bb<Them>(pos.pieces<Them>(PAWN));
 
 		// ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
 		bb = pos.pieces<Them,KNIGHT>() & check_around_bb<Them>(KNIGHT, sq_king);
@@ -497,11 +497,11 @@ namespace {
 		Square sq_king = pos.square<KING>(Us);
 		constexpr Color Them = ~Us;
 		Bitboard bb;
-		Bitboard avoid_bb = ~Bitboard(avoid_from);
+		Bitboard avoid_bb = ~square_bb(avoid_from);
 		Square from;
 
 		// 歩は普通でいい
-		Bitboard sum = pawnBbEffect<Them>(pos.pieces<Them,PAWN>());
+		Bitboard sum = pawn_attacks_bb<Them>(pos.pieces<Them,PAWN>());
 
 		// ほとんどのケースにおいて候補になる駒はなく、whileで回らずに抜けると期待している。
 		bb = pos.pieces<Them,KNIGHT>() & check_around_bb<Them>(KNIGHT, sq_king) & avoid_bb;
@@ -549,7 +549,7 @@ namespace {
 	inline bool can_pawn_drop(const Position& pos, Square sq)
 	{
 		// 歩を持っていて、二歩ではない。
-		return hand_count(pos.hand_of<Us>(), PAWN) > 0 && !((pos.pieces<Us,PAWN>() & FILE_BB[file_of(sq)]));
+		return hand_count(pos.hand_of<Us>(), PAWN) > 0 && !((pos.pieces<Us,PAWN>() & file_bb(sq)));
 	}
 
 }
@@ -611,7 +611,7 @@ namespace {
 		{
 			Square escape = bb.pop();
 
-			if (!(Bitboard(from).andnot(pos.attackers_to<~Us>(escape, slide) )))
+			if (!(square_bb(from).andnot(pos.attackers_to<~Us>(escape, slide) )))
 				// fromにある攻撃駒は移動済なのでこれは対象外。
 				return true;
 			// 何も破壊していないので即座に返って良い。
@@ -640,8 +640,8 @@ namespace {
 
 		// bb_avoid/*とto*/と自駒のないところから移動先を探す
 
-		// Bitboard bb = kingEffect(sq_king) & ~((bb_avoid /*| to*/ | pos.pieces<Us>()) & ~Bitboard(to));
-		Bitboard bb = ((bb_avoid /*| to*/ | pos.pieces<Us>()).andnot(Bitboard(to).andnot(kingEffect(sq_king))));
+		// Bitboard bb = kingEffect(sq_king) & ~((bb_avoid /*| to*/ | pos.pieces<Us>()) & ~square_bb(to));
+		Bitboard bb = ((bb_avoid /*| to*/ | pos.pieces<Us>()).andnot(square_bb(to).andnot(kingEffect(sq_king))));
 
 		// toには移動できるのだよ。pos.pieces(us)には玉側の駒がtoにあることがあって、これは取られるものとして
 		// 考える必要があるから、toを除外するコードが必要なのだよ。
@@ -650,7 +650,7 @@ namespace {
 		{
 			Square escape = bb.pop();
 
-			if (!(Bitboard(from).andnot(pos.attackers_to<Them>(escape, slide))))
+			if (!(square_bb(from).andnot(pos.attackers_to<Them>(escape, slide))))
 				// fromにある攻撃駒は移動済なのでこれは対象外。
 				return true;
 			// 何も破壊していないので即座に返って良い。
@@ -692,7 +692,7 @@ namespace {
 		Square sq_king = pos.square<KING>(Us);
 
 		// 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがあるので玉では取れないものとする)
-		Bitboard sum = (pos.pieces(KING) | Bitboard(avoid)).andnot(pos.attackers_to<Us>(to, slide));
+		Bitboard sum = (pos.pieces(KING) | square_bb(avoid)).andnot(pos.attackers_to<Us>(to, slide));
 		while (sum)
 		{
 			Square from = sum.pop();
@@ -889,7 +889,7 @@ namespace Mate {
 #if 0
 		// 打ち歩による詰み(反則)
 		if (    hand_count(ourHand, PAWN)
-			&& !(pos.pieces<Us, PAWN>() & FILE_BB[file_of(sq_king)])   // can_pawn_drop<Us>(pos, sq_king)
+			&& !(pos.pieces<Us, PAWN>() & file_bb(sq_king))   // can_pawn_drop<Us>(pos, sq_king)
 			&& !Search::LimitsType::encountered_drop_checkmate
 			)
 		{
@@ -1906,7 +1906,7 @@ namespace Mate {
 				// 遠方からの利きなら、その利きを遮断できるならその方向に移動させるだとか、いろいろありそうだが…。
 				// まあいいか…。判定が難しいしな。
 
-				Bitboard atk = pos.attackers_to(Them, from) & ~Bitboard(sq_king);
+				Bitboard atk = pos.attackers_to(Them, from) & ~square_bb(sq_king);
 				if (atk)
 				{
 					if (atk.pop_count() >= 2)

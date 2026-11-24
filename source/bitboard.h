@@ -301,6 +301,12 @@ inline Bitboard& Bitboard::insert64(u64 u)
 	return *this;
 }
 
+#if !STOCKFISH
+namespace BB_Table { extern Bitboard SquareBB[SQ_NB_PLUS1]; }
+#endif
+
+inline Bitboard square_bb(Square s) { return BB_Table::SquareBB[s]; }
+
 // Overloads of bitwise operators between a Bitboard and a Square for testing
 // whether a given bit is set in a bitboard, and for setting and clearing bits.
 // 指定した升のビットの検査・設定・反転に使う、BitboardとSquare間のビット演算子。
@@ -366,8 +372,13 @@ namespace BB_Table
 // rank_bb() and file_bb() return a bitboard representing all the squares on
 // the given file or rank.
 // 指定した筋または段にある全升を表すBitboardを返す。
-static const Bitboard file_bb(File f) { return BB_Table::FILE_BB[f]; }
-static const Bitboard rank_bb(Rank r) { return BB_Table::RANK_BB[r]; }
+inline Bitboard rank_bb(Rank r) { return BB_Table::RANK_BB[r]; }
+
+inline Bitboard rank_bb(Square s) { return rank_bb(rank_of(s)); }
+
+inline Bitboard file_bb(File f) { return BB_Table::FILE_BB[f]; }
+
+inline Bitboard file_bb(Square s) { return file_bb(file_of(s)); }
 
 // ForwardRanksBBの定義)
 //    c側の香の利き = 飛車の利き & ForwardRanksBB[c][rank_of(sq)]
@@ -436,11 +447,13 @@ static Bitboard pawn_drop_mask(const Bitboard& pawns) {
 }
 
 
-// 歩を複数配置したBitboardに対して、その歩の利きのBitboardを返す。
+// Returns the squares attacked by pawns of the given color
+// from the squares in the given bitboard.
+// 指定した手番の歩が、渡されたBitboardの各升から利かせる升を返す。
 // color = BLACKのとき、51の歩は49の升に移動するので、注意すること。
 // (51の升にいる先手の歩は存在しないので、歩の移動に用いる分には問題ないが。)
 template <Color C>
-inline Bitboard pawnBbEffect(const Bitboard& bb)
+inline Bitboard pawn_attacks_bb(Bitboard bb)
 {
 	// Apery型の縦型Bitboardにおいては歩の利きはbit shiftで済む。
 	ASSERT_LV3(is_ok(C));
@@ -451,24 +464,10 @@ inline Bitboard pawnBbEffect(const Bitboard& bb)
 }
 
 // ↑の非template版
-inline Bitboard pawnBbEffect(Color c, const Bitboard& bb)
+inline Bitboard pawn_attacks_bb(Color c, const Bitboard& bb)
 {
-	return (c == BLACK) ? pawnBbEffect<BLACK>(bb) : pawnBbEffect<WHITE>(bb);
+	return (c == BLACK) ? pawn_attacks_bb<BLACK>(bb) : pawn_attacks_bb<WHITE>(bb);
 }
-
-// Returns the squares attacked by pawns of the given color
-// from the squares in the given bitboard.
-// 指定した手番の歩が、渡されたBitboardの各升から利かせる升を返す。
-
-// pawn_attacks_bb()は、手番C側の利き。
-// b : 手番C側の歩のBitboardを渡す。
-
-template<Color C>
-inline Bitboard pawn_attacks_bb(Bitboard b)
-{
-	return pawnBbEffect<C>(b);
-}
-
 
 // Returns the least significant bit in a non-zero bitboard.
 // 0でないビットボードにおける最下位ビットを返す。

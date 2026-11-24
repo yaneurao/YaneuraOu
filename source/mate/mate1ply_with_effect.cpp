@@ -288,7 +288,7 @@ namespace Mate
 
 				// 成っていない駒でかつ、fromかtoが敵陣なら成りによる王手も調べないといけない。
 				static_assert(GOLD == 7, "GOLD must be 7.");
-				if ((type_of(pc) >= GOLD) || !((Bitboard(from) ^ Bitboard(to)) & enemy_field(Us)))
+				if ((type_of(pc) >= GOLD) || !((square_bb(from) ^ square_bb(to)) & enemy_field(Us)))
 					goto NonProCheck2; // 15)
 
 				auto pro_pc = (Piece)(pc + PIECE_PROMOTE);

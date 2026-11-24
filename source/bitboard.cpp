@@ -194,12 +194,12 @@ bool Bitboard::operator == (const Bitboard& rhs) const
 #endif
 }
 
-Bitboard::Bitboard(Square sq) { *this = SquareBB[sq]; }
+Bitboard::Bitboard(Square sq) { *this = square_bb(sq); }
 
 // Square型との演算子
-Bitboard operator|(const Bitboard& b, Square s) { return b | SquareBB[s]; }
-Bitboard operator&(const Bitboard& b, Square s) { return b & SquareBB[s]; }
-Bitboard operator^(const Bitboard& b, Square s) { return b ^ SquareBB[s]; }
+Bitboard operator|(const Bitboard& b, Square s) { return b | square_bb(s); }
+Bitboard operator&(const Bitboard& b, Square s) { return b & square_bb(s); }
+Bitboard operator^(const Bitboard& b, Square s) { return b ^ square_bb(s); }
 
 // 単項演算子
 // →　NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでBitboard(1)でxorしないといけない。

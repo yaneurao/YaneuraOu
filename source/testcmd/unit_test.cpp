@@ -254,7 +254,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 			for (File f = FILE_1; f <= FILE_9; ++f)
 			{
 				Square sq = f | r;
-				Bitboard b(sq);
+				Bitboard b = square_bb(sq);
 				all_ok &= b.test(sq);    // そのbitが立っているか
 				all_ok &= b.pop() == sq; // 1の立っているbitをもらえば、その升であるか。
 			}
@@ -320,12 +320,12 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		// 方向利き
 
 		bool all_ok = true;
-		Bitboard occ(SQ_77);
+		Bitboard occ = square_bb(SQ_77);
 		Bitboard zero(ZERO);
 		all_ok &= rayEffect<Effect8::DIRECT_LD>(SQ_55, occ) == between_bb(SQ_55, SQ_88);
 		all_ok &= rayEffect<Effect8::DIRECT_LD>(SQ_55, zero) == QUGIY_STEP_EFFECT[Effect8::DIRECT_LD - 2][SQ_55];
 
-		Bitboard occ2(SQ_33);
+		Bitboard occ2 = square_bb(SQ_33);
 		all_ok &= rayEffect<Effect8::DIRECT_RU>(SQ_55, occ2) == between_bb(SQ_55, SQ_22);
 
 		tester.test("rayEffect", all_ok);
@@ -400,17 +400,17 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		tester.test("pawn_attacks_bb<BLACK>",pawn_attacks_bb<BLACK>(RANK7_BB) == RANK6_BB);
 		tester.test("pawn_attacks_bb<WHITE>",pawn_attacks_bb<WHITE>(RANK7_BB) == RANK8_BB);
 
-		tester.test("attacks_bb(B_KNIGHT)",attacks_bb(B_KNIGHT, SQ_77) == (Bitboard(SQ_85) | Bitboard(SQ_65)));
-		tester.test("attacks_bb(W_KNIGHT)",attacks_bb(W_KNIGHT, SQ_77) == (Bitboard(SQ_89) | Bitboard(SQ_69)));
+		tester.test("attacks_bb(B_KNIGHT)",attacks_bb(B_KNIGHT, SQ_77) == (square_bb(SQ_85) | square_bb(SQ_65)));
+		tester.test("attacks_bb(W_KNIGHT)",attacks_bb(W_KNIGHT, SQ_77) == (square_bb(SQ_89) | square_bb(SQ_69)));
 	}
 	{
 		bool all_ok = true;
 		Bitboard bb;
 
-		bb = Bitboard(SQ_22) | Bitboard(SQ_77);
-		all_ok &= least_significant_square_bb(bb) == Bitboard(SQ_22);
-		bb = Bitboard(SQ_99) | Bitboard(SQ_87);
-		all_ok &= least_significant_square_bb(bb) == Bitboard(SQ_87);
+		bb = square_bb(SQ_22) | square_bb(SQ_77);
+		all_ok &= least_significant_square_bb(bb) == square_bb(SQ_22);
+		bb = square_bb(SQ_99) | square_bb(SQ_87);
+		all_ok &= least_significant_square_bb(bb) == square_bb(SQ_87);
 
 		tester.test("least_significant_square_bb",all_ok);
 	}
@@ -430,7 +430,7 @@ void test_sliding_attacks(Test::UnitTester& tester) {
         for (; 0 <= f && f < 9 && 0 <= r && r < 9; f += df, r += dr)
         {
             const Square to = YaneuraOu::File(f) | YaneuraOu::Rank(r);
-            result |= Bitboard(to);
+            result |= square_bb(to);
             if (occupied.test(to)) break;
         }
         return result;
@@ -455,12 +455,12 @@ void test_sliding_attacks(Test::UnitTester& tester) {
                 // Include noise off the line and in unused bits; vary the source independently.
                 // 線の外や未使用bitにもノイズを置き、移動元の占有も独立に切り替える。
                 Bitboard occupied = relevant.andnot(Bitboard(random.rand<u64>(), random.rand<u64>()));
-                occupied = Bitboard(sq).andnot(occupied);
+                occupied = square_bb(sq).andnot(occupied);
                 for (usize i = 0; i < squares.size(); ++i)
-                    if (pattern & (1u << i)) occupied |= Bitboard(squares[i]);
+                    if (pattern & (1u << i)) occupied |= square_bb(squares[i]);
                 for (int sourceOccupied = 0; sourceOccupied < 2; ++sourceOccupied)
                 {
-                    if (sourceOccupied) occupied |= Bitboard(sq);
+                    if (sourceOccupied) occupied |= square_bb(sq);
                     const auto fileAttack = reference(sq, FileAxis, occupied);
                     const auto rankAttack = reference(sq, RankAxis, occupied);
                     const auto bishopAttack = reference(sq, Diagonal, occupied)

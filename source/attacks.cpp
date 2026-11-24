@@ -82,7 +82,7 @@ void init()
             Bitboard b(ZERO);
             for (int f = int(file_of(sq)) + df, r = int(rank_of(sq)) + dr;
                  0 <= f && f < 9 && 0 <= r && r < 9; f += df, r += dr)
-                b |= Bitboard(File(f) | Rank(r));
+                b |= square_bb(File(f) | Rank(r));
             return b;
         };
         bishop.ray[0] = ray(1, -1);
@@ -100,11 +100,11 @@ void init()
 
 			// SQの升から左方向
 			for (File f2 = (File)(f + 1); f2 <= FILE_9; ++f2)
-				left |= Bitboard(f2 | r);
+				left |= square_bb(f2 | r);
 
 			// SQの升から右方向
 			for (File f2 = (File)(f - 1); f2 >= FILE_1; --f2)
-				right |= Bitboard(f2 | r);
+				right |= square_bb(f2 | r);
 
 			Bitboard right_rev = right.byte_reverse();
 
@@ -137,7 +137,7 @@ void init()
 
 			// 壁に突き当たるまで進む
 			for (auto sq2 = to_sqww(sq) + delta; is_ok(sq2); sq2 += delta)
-				bb |= Bitboard(sqww_to_sq(sq2));
+				bb |= square_bb(sqww_to_sq(sq2));
 
 			if (reverse)
 				bb = bb.byte_reverse();
@@ -159,7 +159,7 @@ void init()
 			// 香
 			// 香のstep effectは、筋のBitboardとsqより前の段を表現するBitboardを用いて、他の駒の利きに依存せず初期化できる。
 
-			LanceStepEffectBB[sq][c] = FILE_BB[file_of(sq)] & ForwardRanksBB[c][rank_of(sq)];
+			LanceStepEffectBB[sq][c] = file_bb(sq) & ForwardRanksBB[c][rank_of(sq)];
 
 			// 歩
 
@@ -170,7 +170,7 @@ void init()
 			// 歩の利きは何段目であるか。
 			Rank r = (Rank)(rank_of(sq) + (c == BLACK ? -1 : +1));
 			// その段数が1～9段目に収まるなら..
-			PawnEffectBB[sq][c] = (RANK_1 <= r && r <= RANK_9) ? Bitboard(file_of(sq) | r) : Bitboard(ZERO);
+			PawnEffectBB[sq][c] = (RANK_1 <= r && r <= RANK_9) ? square_bb(file_of(sq) | r) : Bitboard(ZERO);
 		}
 
 	// 備考) ここでlanceEffectが使えるようになったので、以降、rookEffectが使える。
@@ -208,7 +208,7 @@ void init()
 				Square sq2 = pawn.pop();
 				Bitboard pawn2 = lanceEffect(c, sq2, Bitboard(1)); // さらに1つ前
 				if (pawn2)
-					tmp = bishopEffect(sq2, Bitboard(1)) & RANK_BB[rank_of(pawn2.pop())];
+					tmp = bishopEffect(sq2, Bitboard(1)) & rank_bb(pawn2.pop());
 			}
 			KnightEffectBB[sq][c] = tmp;
 
@@ -221,7 +221,7 @@ void init()
 			Bitboard e_pawn = lanceEffect(~c, sq, Bitboard(1));
 			Bitboard mask(ZERO);
 			if (e_pawn)
-				mask = RANK_BB[rank_of(e_pawn.pop())];
+				mask = rank_bb(e_pawn.pop());
 			GoldEffectBB[sq][c]= (bishopEffect(sq, Bitboard(1)) & ~mask) | rookEffect(sq, Bitboard(1));
 
 			// --- 以下のbitboard、あまり頻繁に用いないので他のbitboardを合成して代用する。
@@ -245,7 +245,7 @@ void init()
 			for (auto s2 : SQ)
 			{
 				// 十字方向か、斜め方向かだけを判定して、例えば十字方向なら
-				// rookEffect(sq1,Bitboard(s2)) & rookEffect(sq2,Bitboard(s1))
+				// rookEffect(sq1,square_bb(s2)) & rookEffect(sq2,square_bb(s1))
 				// のように初期化したほうが明快なコードだが、この初期化をそこに依存したくないので愚直にやる。
 
 				// これについてはあとで設定する。
@@ -287,7 +287,7 @@ void init()
 
 			const Square deltas[4] = { SQ_RU , SQ_R , SQ_RD , SQ_U };
 			const Square delta = deltas[d];
-			Bitboard bb = Bitboard(s1);
+			Bitboard bb = square_bb(s1);
 
 			// 壁に当たるまでs1から-delta方向に延長
 			for (Square s = s1; dist(s, s - delta) <= 1; s -= delta) bb |= (s - delta);
@@ -315,7 +315,7 @@ void init()
 			// 歩で王手になる可能性のあるものは、敵玉から２つ離れた歩(不成での移動) + ksqに敵の金をおいた範囲(enemyGold)に成りで移動できる
 			FOREACH(pawnEffect(them, ksq), pawnEffect);
 			FOREACH(enemyGold, pawnEffect);
-			CheckCandidateBB[ksq][PAWN - 1][Us] = target & ~Bitboard(ksq);
+			CheckCandidateBB[ksq][PAWN - 1][Us] = target & ~square_bb(ksq);
 
 			// 香で王手になる可能性のあるものは、ksqに敵の香をおいたときの利き。(盤上には何もないものとする)
 			// と、王が1から3段目だと成れるので王の両端に香を置いた利きも。
@@ -332,26 +332,26 @@ void init()
 			// 桂で王手になる可能性のあるものは、ksqに敵の桂をおいたところに移動できる桂(不成) + ksqに金をおいた範囲(enemyGold)に成りで移動できる桂
 			target = Bitboard(ZERO);
 			FOREACH(knightEffect(them, ksq) | enemyGold, knightEffect);
-			CheckCandidateBB[ksq][KNIGHT - 1][Us] = target & ~Bitboard(ksq);
+			CheckCandidateBB[ksq][KNIGHT - 1][Us] = target & ~square_bb(ksq);
 
 			// 銀も同様だが、2,3段目からの引き成りで王手になるパターンがある。(4段玉と5段玉に対して)
 			target = Bitboard(ZERO);
 			FOREACH(silverEffect(them, ksq), silverEffect);
 			FOREACH(enemyGold, silverEffect); // 移動先が敵陣 == 成れる == 金になるので、敵玉の升に敵の金をおいた利きに成りで移動すると王手になる。
 			FOREACH(goldEffect(them, ksq), enemy_field(Us) & silverEffect); // 移動元が敵陣 == 成れる == 金になるので、敵玉の升に敵の金をおいた利きに成りで移動すると王手になる。
-			CheckCandidateBB[ksq][SILVER - 1][Us] = target & ~Bitboard(ksq);
+			CheckCandidateBB[ksq][SILVER - 1][Us] = target & ~square_bb(ksq);
 
 			// 金
 			target = Bitboard(ZERO);
 			FOREACH(goldEffect(them, ksq), goldEffect);
-			CheckCandidateBB[ksq][GOLD - 1][Us] = target & ~Bitboard(ksq);
+			CheckCandidateBB[ksq][GOLD - 1][Us] = target & ~square_bb(ksq);
 
 			// 角
 			target = Bitboard(ZERO);
 			FOREACH_BR(bishopEffect(ksq, Bitboard(ZERO)), bishopEffect);
 			FOREACH_BR(kingEffect(ksq) & enemy_field(Us), bishopEffect); // 移動先が敵陣 == 成れる == 王の動き
 			FOREACH_BR(kingEffect(ksq), enemy_field(Us) & bishopEffect); // 移動元が敵陣 == 成れる == 王の動き
-			CheckCandidateBB[ksq][BISHOP - 1][Us] = target & ~Bitboard(ksq);
+			CheckCandidateBB[ksq][BISHOP - 1][Us] = target & ~square_bb(ksq);
 
 			// 飛・龍は無条件全域。
 			// ROOKのところには馬のときのことを格納
@@ -359,13 +359,13 @@ void init()
 			// 馬
 			target = Bitboard(ZERO);
 			FOREACH_BR(horseEffect(ksq, Bitboard(ZERO)), horseEffect);
-			CheckCandidateBB[ksq][ROOK - 1][Us] = target & ~Bitboard(ksq);
+			CheckCandidateBB[ksq][ROOK - 1][Us] = target & ~square_bb(ksq);
 
 #if 0
 			// 王(24近傍が格納される)
 			target = Bitboard(ZERO);
 			FOREACH_KING(kingEffect(ksq), kingEffect);
-			CheckCandidateKingBB[ksq] = target & ~Bitboard(ksq);
+			CheckCandidateKingBB[ksq] = target & ~square_bb(ksq);
 #endif
 		}
 

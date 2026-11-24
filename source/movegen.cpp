@@ -239,7 +239,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, PAWN
 		auto pieces = pos.pieces(Us, PAWN);
 
 		// 歩の利き
-		auto target2 = pawnBbEffect<Us>(pieces) & target;
+		auto target2 = pawn_attacks_bb<Us>(pieces) & target;
 
 		// 先手に対する1段目(後手ならば9段目)を表す定数
 		const Rank T_RANK1 = (Us == BLACK) ? RANK_1 : RANK_9;
@@ -505,7 +505,7 @@ Move* generate_evasions(const Position& pos, Move* moveList)
 
 	// 自玉を移動させるので、この玉はないものとして利きを求める必要がある。
     Square   ksq = pos.square<KING>(Us);
-	Bitboard occ = pos.pieces() ^ Bitboard(ksq);
+	Bitboard occ = pos.pieces() ^ square_bb(ksq);
 
 	// 王手している駒のある升
 	Square checksq;
@@ -598,7 +598,7 @@ Move* generate_general(const Position& pos, Move* moveList, Square recapSq = SQ_
 		(Type == QUIETS_PRO_MINUS  ) ?  pos.empties()      : // 捕獲しない指し手 - 歩の成る指し手 = 移動先の升は駒のない升 - 敵陣(歩のときのみ)
 		(Type == CAPTURES_PRO_PLUS ) ?  pos.pieces(Them)   : // 捕獲 + 歩の成る指し手 = 移動先の升は敵駒のある升 + 敵陣(歩のときのみ)
 		(Type == NON_EVASIONS      ) ? ~pos.pieces(Us)     : // すべて = 移動先の升は自駒のない升
-		(Type == RECAPTURES        ) ?  Bitboard(recapSq)  : // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
+		(Type == RECAPTURES        ) ?  square_bb(recapSq)  : // リキャプチャー用の升(直前で相手の駒が移動したわけだからここには移動できるはず)
 		Bitboard(1); // error
 
 	// 歩の移動先(↑のtargetと違う部分のみをオーバーライド)
