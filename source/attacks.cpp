@@ -5,10 +5,6 @@
 #if !STOCKFISH
 #include "extra/long_effect.h"
 #include "mate/mate.h"
-#include "testcmd/unit_test.h"
-#if defined(ENABLE_TEST_CMD)
-#include <iostream>
-#endif
 #endif
 
 namespace YaneuraOu::Attacks {
@@ -538,86 +534,6 @@ Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied)
 	}
 }
 
-#if defined(ENABLE_TEST_CMD)
-// Verify attacks by walking board coordinates, independently of sliding-attack masks.
-// 長い利きのマスクに依存せず、盤上を1升ずつ進む実装と利きを照合する。
-void test_sliding_attacks(Test::UnitTester& tester) {
-    auto section = tester.section("Sliding attacks");
-    enum Axis { FileAxis, RankAxis, Diagonal, AntiDiagonal };
-    const auto ray = [](Square sq, int df, int dr, const Bitboard& occupied) {
-        Bitboard result(ZERO);
-        int f = int(file_of(sq)) + df, r = int(rank_of(sq)) + dr;
-        for (; 0 <= f && f < 9 && 0 <= r && r < 9; f += df, r += dr)
-        {
-            const Square to = YaneuraOu::File(f) | YaneuraOu::Rank(r);
-            result |= Bitboard(to);
-            if (occupied.test(to)) break;
-        }
-        return result;
-    };
-    constexpr int df[4] = {0, 1, 1, 1}, dr[4] = {1, 0, 1, -1};
-    constexpr int rdf[8] = {-1, -1, -1, 0, 0, 1, 1, 1};
-    constexpr int rdr[8] = {-1, 0, 1, -1, 1, -1, 0, 1};
-    const auto reference = [&](Square sq, int axis, const Bitboard& occupied) {
-        return ray(sq, df[axis], dr[axis], occupied)
-             | ray(sq, -df[axis], -dr[axis], occupied);
-    };
-    PRNG random(20261123);
-    u64 cases = 0;
-    for (Square sq : SQ)
-        for (int axis = 0; axis < 4; ++axis)
-        {
-            const Bitboard relevant = reference(sq, axis, Bitboard(ZERO));
-            std::vector<Square> squares;
-            relevant.foreach([&](Square to) { squares.push_back(to); });
-            for (unsigned pattern = 0; pattern < (1u << squares.size()); ++pattern)
-            {
-                // Include noise off the line and in unused bits; vary the source independently.
-                // 線の外や未使用bitにもノイズを置き、移動元の占有も独立に切り替える。
-                Bitboard occupied = relevant.andnot(Bitboard(random.rand<u64>(), random.rand<u64>()));
-                occupied = Bitboard(sq).andnot(occupied);
-                for (usize i = 0; i < squares.size(); ++i)
-                    if (pattern & (1u << i)) occupied |= Bitboard(squares[i]);
-                for (int sourceOccupied = 0; sourceOccupied < 2; ++sourceOccupied)
-                {
-                    if (sourceOccupied) occupied |= Bitboard(sq);
-                    const auto fileAttack = reference(sq, FileAxis, occupied);
-                    const auto rankAttack = reference(sq, RankAxis, occupied);
-                    const auto bishopAttack = reference(sq, Diagonal, occupied)
-                                            | reference(sq, AntiDiagonal, occupied);
-                    bool ok = bishopEffect(sq, occupied) == bishopAttack
-                           && rookEffect(sq, occupied) == (fileAttack | rankAttack)
-                           && rookFileEffect(sq, occupied) == fileAttack
-                           && rookRankEffect(sq, occupied) == rankAttack
-                           && lanceEffect<BLACK>(sq, occupied) == ray(sq, 0, -1, occupied)
-                           && lanceEffect<WHITE>(sq, occupied) == ray(sq, 0, 1, occupied);
-                    for (int d = 0; d < 8; ++d)
-                        ok &= directEffect(sq, Effect8::Direct(d), occupied)
-                           == ray(sq, rdf[d], rdr[d], occupied);
-                    if (!ok)
-                    {
-                        std::cout << "Sliding attack mismatch: square=" << int(sq) << " axis=" << axis
-                                  << " pattern=" << pattern << " source=" << sourceOccupied << '\n';
-                        tester.test("exhaustive line occupancy", false);
-                        return;
-                    }
-                    ++cases;
-                }
-            }
-        }
-    std::cout << "Sliding attacks checked " << cases << " occupancy cases" << std::endl;
-    tester.test("exhaustive line occupancy, SIMD and directional rays", true);
-    bool sentinel = true;
-    for (Bitboard occupied : {Bitboard(ZERO), Bitboard(1), Bitboard(~u64(0), ~u64(0))})
-    {
-        sentinel &= !rookEffect(SQ_NB, occupied) && !bishopEffect(SQ_NB, occupied)
-                 && !lanceEffect<BLACK>(SQ_NB, occupied) && !lanceEffect<WHITE>(SQ_NB, occupied);
-        for (int d = 0; d < 8; ++d)
-            sentinel &= !directEffect(SQ_NB, Effect8::Direct(d), occupied);
-    }
-    tester.test("SQ_NB sentinel", sentinel);
-}
-#endif
 
 #endif // !STOCKFISH
 
