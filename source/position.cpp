@@ -972,7 +972,8 @@ void Position::update_slider_blockers(Color c) const {
     st->pinners[~c]        = ZERO;
 
     // Snipers are sliders that attack 's' when a piece and other snipers are removed
-    // snipersとは、pinされている駒が取り除かれたときに王の升に利きが発生する大駒である。
+    // snipersは、間の駒と他のsnipersを取り除くと玉の升へ利く長い利きの駒。
+    // この候補集合から、他のsnipersを除いた盤面で遮る駒が1個のものを調べる。
 
 #if STOCKFISH
     Bitboard snipers = (  (attacks_bb(ROOK, ksq) & pieces(QUEEN, ROOK))
@@ -1752,8 +1753,8 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     //  StateInfoの更新
     // ----------------------
 
-    // 現在の局面のhash keyはこれで、これを更新していき、
-    // 次の局面のhash keyを求めてStateInfo::key_に格納。
+    // 現局面のキーを基に次局面のキーを更新する。
+    // 将棋版は盤面と手駒を別々に計算し、StateInfo::board_keyとhand_keyへ格納する。
 #if STOCKFISH
     HASH_KEY k = st->key ^ Zobrist::side;
 #else
@@ -1773,7 +1774,8 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 
     /* 📓 StateInfoのmemcpy()について
 
-		StateInfoの構造体のメンバーの上からkeyのところまでは前のを丸ごとコピーしておく。
+		StateInfoの先頭から再計算するキーの直前までをコピーする。
+		将棋版のコピー境界はboard_key、Stockfish版はkeyである。
 		こうしたほうが、in-placeで書き換えができるのでプログラムがすっきりする。
 
 		undo_moveではリング内の位置を戻すだけで、以前のStateInfoを再利用できるので

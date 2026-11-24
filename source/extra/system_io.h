@@ -241,11 +241,11 @@ namespace SystemIO
 		size_t GetSize();
 
 		// ptrの指すメモリにsize[byte]だけファイルから読み込む
-		// ファイルの末尾を超えて読み込もうとした場合、Eofが返る。
-		// ファイルの末尾に超えて読み込もうとしなかった場合、Okが返る。
-		// 引数で渡されたバイト数読み込むことができなかった場合、FileReadErrorが返る。
+		// fread後にEOFが検出された場合はEofを返す。
+		// EOFでなく、指定バイト数を読み込めなかった場合はFileReadErrorを返す。
+		// 指定バイト数を読み込めた場合はOkを返す。末尾までちょうど読んだ場合も含む。
 		// size_of_read_bytesがnullptrでない場合、実際に読み込まれたバイト数が代入される。
-		// ※　sizeは2GB制限があるので気をつけて。
+		// sizeはsize_tで表現できる範囲。実際に扱えるサイズは環境や標準ライブラリにも依存する。
 		Tools::Result Read(void* ptr , size_t size, size_t* size_of_read_bytes = nullptr);
 	};
 
@@ -261,7 +261,7 @@ namespace SystemIO
         Tools::Result Open(const char* filename, bool append = false) { return Open(path_from_utf8(filename), append); }
 
 		// ptrの指すメモリからsize[byte]だけファイルに書き込む。
-		// ※　sizeは2GB制限があるので気をつけて。
+		// sizeはsize_tで表現できる範囲。実際に扱えるサイズは環境や標準ライブラリにも依存する。
 		Tools::Result Write(void* ptr, size_t size);
 	};
 };

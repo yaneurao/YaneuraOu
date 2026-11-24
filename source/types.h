@@ -969,8 +969,8 @@ constexpr Move make_move_promote(Square from, Square to , Color us , PieceType p
 static Move16 make_move_drop16(PieceType pt, Square to) { return Move16(u32(to) + (u32(pt) << 7) + MOVE_DROP); }
 constexpr Move make_move_drop(PieceType pt, Square to , Color us ) { return Move(u32(to) + (u32(pt) << 7) + MOVE_DROP + (((us ? u32(PIECE_WHITE) : 0) + u32(pt)) << 16)); }
 
-// 移動元の升と移動先の升を逆転させた指し手を生成する。探索部で用いる。
-// ※　最新のStockfishでは使っていないのでもはや不要なのだが一応残しておく。
+// 移動元の升と移動先の升を逆転させた指し手を生成する。現在の探索部からは呼んでいない。
+// 通常の盤上の手を対象とする補助関数として残している。
 // 将棋はチェスと違って元の場所に戻れない駒が多いのでreverse_move()を用いるhistory updateは
 // 大抵、悪影響しかない。
 // また、reverse_move()を用いるならば、ifの条件式に " && !is_drop(move)"が要ると思う。
@@ -1078,7 +1078,7 @@ constexpr void sub_hand(Hand &hand, PieceType pr) { hand = Hand(hand - PIECE_TO_
 
 
 // 手駒h1のほうがh2より優れているか。(すべての種類の手駒がh2のそれ以上ある)
-// 優等局面の判定のとき、局面のhash key(StateInfo::key() )が一致していなくて、盤面のhash key(StateInfo::board_key() )が
+// 優等局面の判定のとき、局面のhash key(Position::key())が一致していなくて、盤面のhash key(Position::board_key())が
 // 一致しているときに手駒の比較に用いるので、手駒がequalというケースは前提により除外されているから、この関数を以ってsuperiorであるという判定が出来る。
 constexpr bool hand_is_equal_or_superior(Hand h1, Hand h2) { return ((h1-h2) & HAND_BORROW_MASK) == 0; }
 

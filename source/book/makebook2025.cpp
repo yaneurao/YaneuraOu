@@ -54,7 +54,7 @@ namespace YaneuraOu {
 
 // ある局面の指し手の配列、std::vector<Move>だとsize_t(64bit環境で8バイト)でcapacityとかsizeとか格納するので
 // 非常にもったいない。定跡のある局面の指し手が255手を超えることはないだろうから1byteでも十分。
-// そこで、size_tではなくint16_tでサイズなどを保持しているvectorのsubsetを用意する。
+// そこで、size_tではなくuint16_tで要素数と容量を保持しているvectorのsubsetを用意する。
 // dataポインタが8バイトなのももったいないが…。これは仕方がないか…。
 
 template <typename T>

@@ -42,12 +42,11 @@ enum GenType {
     CAPTURES_PRO_PLUS,      // CAPTURES     + 価値のかなりあると思われる成り(歩だけ)
     QUIETS_PRO_MINUS,       // QUIETS - 価値のかなりあると思われる成り(歩だけ)
 
-    CAPTURES_PRO_PLUS_ALL,  // CAPTURES_PRO_PLUS      + 歩の不成、大駒の不成で駒を取る手
-    QUIETS_PRO_MINUS_ALL,   // QUIETS_PRO_MINUS + 歩の不成、大駒の不成で駒を取らない手
+    CAPTURES_PRO_PLUS_ALL,  // 捕獲手すべて + 敵陣への歩の非捕獲移動(成り・不成)
+    QUIETS_PRO_MINUS_ALL,   // 非捕獲手すべてから、上記の敵陣への歩の移動を除いたもの
 
-    // note : 歩の不成で駒を取らない指し手は後者に含まれるべきだが、指し手生成の実装が難しくなるので前者に含めることにした。
-    //        オーダリング(movepicker)でなんとかするだろうからそこまで悪くはならないだろうし、普段は
-    //		  GenerateAllLegalMovesがオンにして動かさないから良しとする。
+    // 敵陣への歩の非捕獲の不成はCAPTURES_PRO_PLUS_ALL側に含む。
+    // 通常のCAPTURES_ALLは捕獲手だけなので、このPRO_PLUS系の分類とは区別する。
 
     // BonanzaではCAPTURESに銀以外の成りを含めていたが、Aperyでは歩の成り以外は含めない。
     // あまり変な成りまで入れるとオーダリングを阻害する。

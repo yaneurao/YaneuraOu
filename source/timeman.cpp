@@ -357,7 +357,7 @@ void TimeManagement::init_(const Search::LimitsType& limits,
 		move_horizon = MoveHorizon + 20 - std::min(ply , 80);
 
 	// 残りの自分の手番の回数
-	// ⇨　plyは平手の初期局面が1。256手ルールとして、max_game_ply == 256だから、256手目の局面においてply == 256
+	// ⇨　plyは平手の初期局面が1。256手ルールとして、max_moves_to_draw == 256だから、256手目の局面においてply == 256
 	// 　その1手前の局面においてply == 255。ply == 255 or 256のときにMTGが1にならないといけない。だから2足しておくのが正解。
     const int MTG = std::min(max_moves_to_draw - ply + 2, move_horizon) / 2;
 

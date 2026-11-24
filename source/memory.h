@@ -68,7 +68,7 @@ constexpr usize HugePageSize = usize(1) << 30;
 
 
 // 通常のメモリ確保。alignmentされたsize[byte]のメモリを確保する。
-// 💡 AlignedPtrから内部的に呼び出して使うために用意されている。この関数は直接呼び出されない。
+// make_unique_aligned()の内部や、大きなページを使わないメモリ確保経路から呼ぶ。
 void* std_aligned_alloc(usize alignment, usize size);
 void  std_aligned_free(void* ptr);
 

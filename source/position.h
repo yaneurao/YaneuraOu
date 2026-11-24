@@ -112,16 +112,15 @@ struct StateInfo {
 	Key key;
 #else
 	// 盤面(盤上の駒)と手駒に関するhash key
-	// 直接アクセスせずに、hand_key()、board_key(),key()を用いること。
+	// Positionの外部からはhand_key()、board_key()、key()で取得する。
 
 	// 💡 board_keyはZobrist::psqをxorしていく。hand_keyはZobrist::handを加算していく。key = board_key ^ hand_key。
 
 	HASH_KEY board_key;
     HASH_KEY hand_key;
 
-	// この局面のハッシュキー
-	// ※　次の局面にdo_move()で進むときに最終的な値が設定される
-	// board_keyは盤面のhash。hand_keyは手駒のhash。それぞれxorしたのがkey 盤面のhash。
+	// この局面全体のキーはboard_keyとhand_keyのXORで求める。
+	// set()で初期化し、do_move()で次局面のキーへ更新する。
 	// board_keyのほうは、手番も込み。
     /*
 		📓 board_keyがなぜ必要なのか？

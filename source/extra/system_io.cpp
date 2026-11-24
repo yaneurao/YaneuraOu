@@ -253,8 +253,7 @@ namespace SystemIO
 	}
 
 	// ReadLineの下請け。何も考えずに1行読み込む。行のtrim、空行のskipなどなし。
-	// line_bufferに読み込まれた行が代入される。
-	// 先頭のUTF-8のBOM(EF BB BF)は無視する。
+	// line_bufferに読み込まれた行が代入される。BOMはここでは除去せず、ReadLine()で処理する。
 	Tools::Result TextReader::read_line_simple()
 	{
 		// buffer[cursor]から読み込んでいく。

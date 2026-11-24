@@ -531,7 +531,7 @@ inline Bitboard dragonEffect(Square sq, const Bitboard& occupied)
 // === 大駒の部分利き(SEEなどで用いる) ===
 
 // sqの升から各方向への利き
-// 右上、右、右下、上方向は、byteswap_bb()してあるので、普通の利きではないから注意。
+// 右上・右・右下のマスクはbyteswap_bb()済み。上下はこのテーブルに含めない。
 // 6方向しか使っていないので詰めてある。
 extern Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
 
@@ -552,7 +552,7 @@ Bitboard rayEffect(Square sq, const Bitboard& occupied)
 	const int dd = D > Effect8::DIRECT_D ? D - 2 : D;
 	const Bitboard mask = QUGIY_STEP_EFFECT[dd][sq];
 
-	// 右上、右、右下、上方向(Squareとしてみた時に、値が減る方向)
+	// 右上・右・右下は、Squareの値が減る方向なので反転して扱う。
 	constexpr bool reverse =
 		   D == Effect8::DIRECT_RU
 		|| D == Effect8::DIRECT_R

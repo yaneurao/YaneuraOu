@@ -649,8 +649,8 @@ inline constexpr T2 interpolate(T1 x, T1 x0, T1 x1, T2 y0, T2 y1) {
 u64 hash_bytes(const char*, usize);
 
 // 任意の POD ライクなデータ構造を、バイト列そのままのハッシュとして利用し、usizeで返す。
-// 📝 `reinterpret_cast` でメモリ内容を生のまま string_view にして hash を取る。
-//     その実装はコンパイラ依存かつendian依存。
+// 📝 生のメモリをcharポインターとサイズとしてhash_bytes()へ渡す。
+//     オブジェクトの表現やendianが異なる環境では、ハッシュ値も異なり得る。
 
 template<typename T>
 inline usize get_raw_data_hash(const T& value) {

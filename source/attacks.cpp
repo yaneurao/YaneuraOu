@@ -55,7 +55,7 @@ Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
 DualMagicTables DualMagics;
 
 // sqの升から各方向への利き
-// 右上、右、右下、上方向は、byteswap_bb()してあるので、普通の利きではないから注意。
+// 右上・右・右下のマスクはbyteswap_bb()済み。上下はこのテーブルに含めない。
 // 6方向しか使っていないの、ちょっともったいないので詰める。
 Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
 
@@ -157,7 +157,7 @@ static void init_sliding_attacks() {
 
 		auto delta = Effect8::DirectToDeltaWW(d);
 
-		// 右上、右、右下、上方向(Squareとしてみた時に、値が減る方向)
+		// 右上・右・右下は、Squareの値が減る方向なので反転して扱う。
 		bool reverse = sqww_to_sq(to_sqww(SQ_55) + delta) < SQ_55;
 
 		for (auto sq : SQ)
