@@ -304,7 +304,7 @@ namespace {
 		PsvRecord rec;
 		while (f.read(reinterpret_cast<char*>(&rec), sizeof(PsvRecord)))
 		{
-			if (pos.set_from_packed_sfen(rec.sfen, false, rec.gamePly).is_not_ok())
+			if (pos.set_from_packed_sfen(rec.sfen, false, rec.gamePly))
 			{
 				skipped++;
 				continue;

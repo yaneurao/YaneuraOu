@@ -15,7 +15,6 @@
 #include "types.h"
 
 #if !STOCKFISH
-#include "extra/tools.h"
 #include "evaluate.h"
 
 #if defined(EVAL_NNUE) || defined(EVAL_SFNN)
@@ -1086,9 +1085,9 @@ class Position {
 
 	// ↑sfenを経由すると遅いので直接packされたsfenをセットする関数を作った。
 	// pos.set(sfen_unpack(data)); と等価。
-	// 渡された局面に問題があるときは、Tools::ResultCode::SomeErrorを持つTools::Resultを返す。
+	// 成功時は空、復元に失敗したときはPositionSetErrorを返す。
 	// PackedSfenにgamePlyは含まないので復元できない。そこを設定したいのであれば引数で指定すること。
-	Tools::Result set_from_packed_sfen(const PackedSfen& sfen , bool mirror=false , int gamePly_ = 0);
+	std::optional<PositionSetError> set_from_packed_sfen(const PackedSfen& sfen , bool mirror=false , int gamePly_ = 0);
 
 	// 盤面と手駒、手番を与えて、そのsfenを返す。
 	static std::string sfen_from_rawdata(Piece board[81], Hand hands[2], Color turn, int gamePly);

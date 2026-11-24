@@ -1,5 +1,4 @@
 ﻿#include "../config.h"
-#include "tools.h"
 
 #include "../misc.h"
 #include "../position.h"
@@ -566,7 +565,7 @@ void PackedSfen::flip()
 
 // 高速化のために直接unpackする関数を追加。かなりしんどい。
 // packer::unpack()とPosition::set()とを合体させて書く。
-Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen, bool mirror , int gamePly_ /* = 0 */)
+std::optional<PositionSetError> Position::set_from_packed_sfen(const PackedSfen& sfen, bool mirror , int gamePly_ /* = 0 */)
 {
 	SfenPacker packer;
 	auto& stream = packer.stream;
@@ -640,7 +639,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen, bool mirror
 		//cout << sq << ' ' << board[sq] << ' ' << stream.get_cursor() << endl;
 
 		if (stream.get_cursor() > 256)
-			return Tools::Result(Tools::ResultCode::SomeError);
+			return PositionSetError("Invalid packed SFEN length");
 		//ASSERT_LV3(stream.get_cursor() <= 256);
 	}
 
@@ -681,7 +680,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen, bool mirror
 		// こんな局面はおかしい。デバッグ用。
 		//cout << "Error : set_from_packed_sfen() , position = " << endl << *this << endl;
 		//ASSERT_LV1(false);
-		return Tools::Result(Tools::ResultCode::SomeError);
+		return PositionSetError("Invalid packed SFEN length");
 	}
 
 	gamePly = gamePly_;
@@ -720,7 +719,7 @@ Tools::Result Position::set_from_packed_sfen(const PackedSfen& sfen, bool mirror
 	//if (!is_ok(*this))
 	//	std::cout << "info string Illigal Position?" << endl;
 
-	return Tools::Result::Ok();
+	return std::nullopt;
 }
 
 // 盤面と手駒、手番を与えて、そのsfenを返す。

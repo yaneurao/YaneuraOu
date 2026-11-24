@@ -480,7 +480,7 @@ bool qsearch_psv_record(YaneuraOuWorker& worker, PsvRecord& record, QSearchPsvSt
     Position  pos;
 
 
-    if (pos.set_from_packed_sfen(record.sfen, false, record.gamePly).is_not_ok())
+    if (pos.set_from_packed_sfen(record.sfen, false, record.gamePly))
     {
         ++stats.decodeErrors;
         return false;
