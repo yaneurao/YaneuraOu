@@ -42,6 +42,8 @@ using std::string;
 
 namespace YaneuraOu {
 
+using namespace Attacks;
+
 #if !STOCKFISH
 using namespace Effect8;
 using namespace Eval;
@@ -250,10 +252,10 @@ void Position::set_extra_bitboards() const {
 
     Square ksq = square<KING>(~sideToMove);
 
-    st->checkSquares[PAWN]   = attacks_bb<PAWN>(ksq, ~sideToMove);
-    st->checkSquares[KNIGHT] = attacks_bb<KNIGHT>(ksq);
-    st->checkSquares[BISHOP] = attacks_bb<BISHOP>(ksq, pieces());
-    st->checkSquares[ROOK]   = attacks_bb<ROOK>(ksq, pieces());
+    st->checkSquares[PAWN]   = attacks_bb(PAWN, ksq, ~sideToMove);
+    st->checkSquares[KNIGHT] = attacks_bb(KNIGHT, ksq);
+    st->checkSquares[BISHOP] = attacks_bb(BISHOP, ksq, pieces());
+    st->checkSquares[ROOK]   = attacks_bb(ROOK, ksq, pieces());
     st->checkSquares[QUEEN]  = st->checkSquares[BISHOP] | st->checkSquares[ROOK];
     st->checkSquares[KING]   = 0;
 }
@@ -738,7 +740,7 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
         // a) side to move have a pawn threatening epSquare
         // b) there is an enemy pawn in front of epSquare
         // c) there is no piece on epSquare or behind epSquare
-        enpassant = attacks_bb<PAWN>(st->epSquare, ~sideToMove) & pieces(sideToMove, PAWN)
+        enpassant = attacks_bb(PAWN, st->epSquare, ~sideToMove) & pieces(sideToMove, PAWN)
                  && (pieces(~sideToMove, PAWN) & (st->epSquare + pawn_push(~sideToMove)))
                  && !(pieces() & (st->epSquare | (st->epSquare + pawn_push(sideToMove))));
     }
@@ -969,8 +971,8 @@ void Position::update_slider_blockers(Color c) const {
     // snipersとは、pinされている駒が取り除かれたときに王の升に利きが発生する大駒である。
 
 #if STOCKFISH
-    Bitboard snipers = (  (attacks_bb<  ROOK>(ksq) & pieces(QUEEN, ROOK))
-                        | (attacks_bb<BISHOP>(ksq) & pieces(QUEEN, BISHOP))) & pieces(~c);
+    Bitboard snipers = (  (attacks_bb(ROOK, ksq) & pieces(QUEEN, ROOK))
+                        | (attacks_bb(BISHOP, ksq) & pieces(QUEEN, BISHOP))) & pieces(~c);
 #else
 
 	// cが与えられていないと香の利きの方向を確定させることが出来ない。
@@ -1060,12 +1062,12 @@ Bitboard Position::attackers_to(Square s, const Bitboard& occupied) const {
 
 bool Position::attackers_to_exist(Square s, Bitboard occupied, Color c) const {
 
-    return ((attacks_bb<ROOK>(s) & pieces(c, ROOK, QUEEN))
-            && (attacks_bb<ROOK>(s, occupied) & pieces(c, ROOK, QUEEN)))
-        || ((attacks_bb<BISHOP>(s) & pieces(c, BISHOP, QUEEN))
-            && (attacks_bb<BISHOP>(s, occupied) & pieces(c, BISHOP, QUEEN)))
-        || (((attacks_bb<PAWN>(s, ~c) & pieces(PAWN)) | (attacks_bb<KNIGHT>(s) & pieces(KNIGHT))
-             | (attacks_bb<KING>(s) & pieces(KING)))
+    return ((attacks_bb(ROOK, s) & pieces(c, ROOK, QUEEN))
+            && (attacks_bb(ROOK, s, occupied) & pieces(c, ROOK, QUEEN)))
+        || ((attacks_bb(BISHOP, s) & pieces(c, BISHOP, QUEEN))
+            && (attacks_bb(BISHOP, s, occupied) & pieces(c, BISHOP, QUEEN)))
+        || (((attacks_bb(PAWN, s, ~c) & pieces(PAWN)) | (attacks_bb(KNIGHT, s) & pieces(KNIGHT))
+             | (attacks_bb(KING, s) & pieces(KING)))
             & pieces(c));
 }
 #endif
@@ -1518,7 +1520,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 			return false;
 
 		// toに移動できないといけない。
-		if (!(effects_from(pc, from, pieces()) & to))
+		if (!(attacks_bb(pc, from, pieces()) & to))
 			return false;
 
 		// toの地点に自駒があるといけない
@@ -2766,7 +2768,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 
 #if STOCKFISH
             occupied ^= least_significant_square_bb(bb);
-            attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+            attackers |= attacks_bb(BISHOP, to, occupied) & pieces(BISHOP, QUEEN);
             // →　チェスではPAWNで取る時、PAWNが斜めに移動するので、toの斜め(X-ray)にある駒を
             //    attackersとして追加する必要があるが、将棋の場合は、歩の背後にいる香・飛車を追加する必要がある。
 #endif
@@ -2814,7 +2816,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
                 break;
 #if STOCKFISH
             occupied ^= least_significant_square_bb(bb);
-            attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+            attackers |= attacks_bb(BISHOP, to, occupied) & pieces(BISHOP, QUEEN);
 #endif
         }
 
@@ -2824,7 +2826,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
                 break;
 #if STOCKFISH
             occupied ^= least_significant_square_bb(bb);
-            attackers |= attacks_bb<ROOK>(to, occupied) & pieces(ROOK, QUEEN);
+            attackers |= attacks_bb(ROOK, to, occupied) & pieces(ROOK, QUEEN);
 #endif
         }
 
@@ -2835,7 +2837,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
             if ((swap = Eval::HorseValue - swap) < res)
                 break;
             //occupied ^= least_significant_square_bb(bb);
-            //attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+            //attackers |= attacks_bb(BISHOP, to, occupied) & pieces(BISHOP, QUEEN);
         }
 
         // 竜を試す(将棋only)
@@ -2844,7 +2846,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
             if ((swap = Eval::DragonValue - swap) < res)
                 break;
             //occupied ^= least_significant_square_bb(bb);
-            //attackers |= attacks_bb<ROOK>(to, occupied) & pieces(ROOK, QUEEN);
+            //attackers |= attacks_bb(ROOK, to, occupied) & pieces(ROOK, QUEEN);
         }
 #endif
 
@@ -2854,8 +2856,8 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
             if ((swap = QueenValue - swap) < res)
                 break;
             occupied ^= least_significant_square_bb(bb);
-            attackers |= (attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN))
-                       | (attacks_bb<ROOK>(to, occupied) & pieces(ROOK, QUEEN));
+            attackers |= (attacks_bb(BISHOP, to, occupied) & pieces(BISHOP, QUEEN))
+                       | (attacks_bb(ROOK, to, occupied) & pieces(ROOK, QUEEN));
         }
 #endif
         else  // KING
@@ -2866,7 +2868,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 #if !STOCKFISH
         /*
 			occupied ^= least_significant_square_bb(bb);
-			attackers |= attacks_bb<BISHOP>(to, occupied) & pieces(BISHOP, QUEEN);
+			attackers |= attacks_bb(BISHOP, to, occupied) & pieces(BISHOP, QUEEN);
 
 			みたいなのに相当する処理。将棋では、この部分、もう少し最適化できる。
 		*/

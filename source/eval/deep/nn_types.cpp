@@ -13,6 +13,8 @@ using namespace std;
 
 namespace YaneuraOu {
 
+using namespace Attacks;
+
 namespace {
 // 指し手に対して、Policy Networkの返してくる配列のindexを返すためのテーブル
 
@@ -130,7 +132,7 @@ const InputFeatureSpec& input_feature_spec() {
 		{
 			Piece pc = position.piece_on(sq);
 			if (pc != NO_PIECE)
-				attacks[color_of(pc)][type_of(pc)] |= effects_from(pc, sq, occupied_bb);
+				attacks[color_of(pc)][type_of(pc)] |= attacks_bb(pc, sq, occupied_bb);
 		}
 
 		// 入力特徴量1を生成する。
@@ -286,7 +288,7 @@ void make_input_features_sub(const Position& position,
     // 歩以外の駒それぞれに対して
     pieces_without_pawns.foreach ([&](Square sq) {
         Piece pc      = position.piece_on(sq);
-        auto  attacks = effects_from(pc, sq, pieces);
+        auto  attacks = attacks_bb(pc, sq, pieces);
         Color c       = color_of(pc);
 
         /*後手なら符号を反転させる*/;

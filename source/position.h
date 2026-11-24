@@ -1493,13 +1493,13 @@ inline Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const {
 	// sの地点に敵駒ptをおいて、その利きに自駒のptがあればsに利いているということだ。
 	// 香の利きを求めるコストが惜しいのでrookEffect()を利用する。
 	return
-		(     (pawnEffect  <Them>(sq)	&  pieces(PAWN)        )
-			| (knightEffect<Them>(sq)	&  pieces(KNIGHT)      )
-			| (silverEffect<Them>(sq)	&  pieces(SILVER_HDK)  )
-			| (goldEffect  <Them>(sq)	&  pieces(GOLDS_HDK)   )
-			| (bishopEffect(sq, occ)	&  pieces(BISHOP_HORSE))
-			| (rookEffect(sq, occ)		& (pieces(ROOK_DRAGON) | (lanceStepEffect<Them>(sq) & pieces(LANCE))))
-			//  | (kingEffect(sq) & pieces(c, HDK));
+		(     (Attacks::pawnEffect  <Them>(sq)	&  pieces(PAWN)        )
+			| (Attacks::knightEffect<Them>(sq)	&  pieces(KNIGHT)      )
+			| (Attacks::silverEffect<Them>(sq)	&  pieces(SILVER_HDK)  )
+			| (Attacks::goldEffect  <Them>(sq)	&  pieces(GOLDS_HDK)   )
+			| (Attacks::bishopEffect(sq, occ)	&  pieces(BISHOP_HORSE))
+			| (Attacks::rookEffect(sq, occ)		& (pieces(ROOK_DRAGON) | (Attacks::lanceStepEffect<Them>(sq) & pieces(LANCE))))
+			//  | (Attacks::kingEffect(sq) & pieces(c, HDK));
 			// →　HDKは、銀と金のところに含めることによって、参照するテーブルを一個減らして高速化しようというAperyのアイデア。
 			) & pieces(C); // 先後混在しているのでc側の駒だけ最後にマスクする。
 	;
@@ -1518,7 +1518,7 @@ Bitboard Position::attacks_by() const {
         Bitboard threats   = Bitboard(ZERO);
         Bitboard attackers = pieces(C, Pt);
         while (attackers)
-            threats |= attacks_bb<make_piece(C, Pt)>(attackers.pop(), pieces());
+            threats |= Attacks::attacks_bb(make_piece(C, Pt), attackers.pop(), pieces());
         return threats;
     }
 }
@@ -1536,14 +1536,14 @@ Bitboard Position::pinned_pieces(Square avoid) const {
 	Bitboard avoid_bb = ~Bitboard(avoid);
 
 	pinners = (
-		(  pieces(ROOK_DRAGON)   & rookStepEffect    (ksq))
-		| (pieces(BISHOP_HORSE)  & bishopStepEffect  (ksq))
-		| (pieces(LANCE)         & lanceStepEffect<C>(ksq)))
+		(  pieces(ROOK_DRAGON)   & Attacks::rookStepEffect    (ksq))
+		| (pieces(BISHOP_HORSE)  & Attacks::bishopStepEffect  (ksq))
+		| (pieces(LANCE)         & Attacks::lanceStepEffect<C>(ksq)))
                 & avoid_bb & pieces(~C);
 
 	while (pinners)
 	{
-		b = between_bb(ksq, pinners.pop()) & pieces() & avoid_bb;
+		b = Attacks::between_bb(ksq, pinners.pop()) & pieces() & avoid_bb;
 		if (!b.more_than_one())
             result |= b & pieces(C);
 	}
@@ -1565,16 +1565,16 @@ Bitboard Position::pinned_pieces(Square from, Square to) const {
 	Bitboard avoid_bb = ~Bitboard(from);
 
 	pinners = (
-		(  pieces(ROOK_DRAGON)  & rookStepEffect    (ksq))
-		| (pieces(BISHOP_HORSE) & bishopStepEffect  (ksq))
-		| (pieces(LANCE)        & lanceStepEffect<C>(ksq)))
+		(  pieces(ROOK_DRAGON)  & Attacks::rookStepEffect    (ksq))
+		| (pieces(BISHOP_HORSE) & Attacks::bishopStepEffect  (ksq))
+		| (pieces(LANCE)        & Attacks::lanceStepEffect<C>(ksq)))
             & avoid_bb & pieces(~C);
 
 	// fromからは消えて、toの地点に駒が現れているものとして
 	Bitboard new_pieces = (pieces() & avoid_bb) | to;
 	while (pinners)
 	{
-		b = between_bb(ksq, pinners.pop()) & new_pieces;
+		b = Attacks::between_bb(ksq, pinners.pop()) & new_pieces;
 		if (!b.more_than_one())
 			result |= b & pieces(C);
 	}

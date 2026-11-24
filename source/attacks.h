@@ -1,75 +1,21 @@
 ﻿#ifndef ATTACKS_H_INCLUDED
 #define ATTACKS_H_INCLUDED
 
+#include <cassert>
+
+#include "misc.h"
+#include "types.h"
 #include "bitboard.h"
 
-namespace YaneuraOu {
+namespace YaneuraOu::Attacks {
 
-namespace Attacks {
-// Initialize attack tables after Bitboards::init().
-// Bitboards::init()のあとに、利きに関するテーブルを初期化する。
 void init();
+
+#if !STOCKFISH
+// Initialize attack tables after Bitboards::init().
+// 利きテーブルを初期化するinit()は、Bitboards::init()のあとに呼ぶ。
 #if defined(ENABLE_TEST_CMD)
 void test_sliding_attacks(Test::UnitTester& tester);
-#endif
-}
-
-// 2升に挟まれている升を返すためのテーブル(その2升は含まない)
-// この配列には直接アクセスせずにbetween_bb()を使うこと。
-// 配列サイズが大きくてcache汚染がひどいのでシュリンクしてある。
-namespace BB_Table {
-	extern Bitboard BetweenBB[785];
-	extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
-}
-
-// 2升に挟まれている升を表すBitboardを返す。sq1とsq2が縦横斜めの関係にないときはBitboard(ZERO)が返る。
-static const Bitboard between_bb(Square sq1, Square sq2) { return BB_Table::BetweenBB[BB_Table::BetweenIndex[sq1][sq2]]; }
-
-// 2升を通過する直線を返すためのテーブル
-// 2つ目のindexは[0]:右上から左下、[1]:横方向、[2]:左上から右下、[3]:縦方向の直線。
-// この配列には直接アクセスせず、line_bb()を使うこと。
-namespace BB_Table { extern Bitboard LineBB[SQ_NB][4]; }
-
-// 2升を通過する直線を返すためのBitboardを返す。sq1とsq2が縦横斜めの関係にないときに呼び出してはならない。
-static const Bitboard line_bb(Square sq1, Square sq2)
-{
-	static_assert(Effect8::DIRECT_RU == 0 && Effect8::DIRECT_LD == 7 , "");
-	auto directions = Effect8::directions_of(sq1, sq2);
-	ASSERT_LV3(directions != 0);
-	static const int a[8] = { 0 , 1 , 2 , 3 , 3 , 2 , 1 , 0 };
-	return BB_Table::LineBB[sq1][a[(int)Effect8::pop_directions(directions)]];
-}
-
-#if 0
-// →　高速化のために、Effect8::directions_ofを使って実装しているのでコメントアウト。(shogi.hにおいて)
-static bool aligned(Square s1, Square s2, Square s3) {
-	return LineBB[s1][s2] & s3;
-}
-#endif
-
-// sqの升にいる敵玉に王手となるc側の駒ptの候補を得るテーブル。第2添字は(pr-1)を渡して使う。
-// 直接アクセスせずに、check_candidate_bb()、around24_bb()を用いてアクセスすること。
-namespace BB_Table { extern Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING - 1][COLOR_NB]; }
-
-// sqの升にいる敵玉に王手となるus側の駒ptの候補を得る
-// pr == ROOKは無条件全域なので代わりにHORSEで王手になる領域を返す。
-// pr == KINGで呼び出してはならない。それは、around24_bb()のほうを用いる。
-static const Bitboard check_candidate_bb(Color us, PieceType pr, Square sq)
-{
-	ASSERT_LV3(PAWN<= pr && pr < KING && sq <= SQ_NB && is_ok(us));
-	return BB_Table::CheckCandidateBB[sq][pr - 1][us];
-}
-
-#if defined(LONG_EFFECT_LIBRARY) // 詰みルーチンでは使わなくなったが、LONG_EFFECT_LIBRARYのなかで使っている。
-
-namespace BB_Table { extern Bitboard CheckCandidateKingBB[SQ_NB_PLUS1]; }
-
-// ある升の24近傍のBitboardを返す。
-static const Bitboard around24_bb(Square sq)
-{
-	ASSERT_LV3(sq <= SQ_NB);
-	return BB_Table::CheckCandidateKingBB[sq];
-}
 #endif
 
 // --------------------
@@ -82,20 +28,18 @@ static const Bitboard around24_bb(Square sq)
 // --- 近接駒の利き
 
 // 具体的なPiece名を指定することがほとんどなので1本の配列になっているメリットがあまりないので配列を分ける。
-// 外部から直接アクセスしないようにnamespaceに入れておく。
-namespace BB_Table
-{
-	extern Bitboard KingEffectBB[SQ_NB_PLUS1];
-	extern Bitboard GoldEffectBB[SQ_NB_PLUS1][COLOR_NB];
-	extern Bitboard SilverEffectBB[SQ_NB_PLUS1][COLOR_NB];
-	extern Bitboard KnightEffectBB[SQ_NB_PLUS1][COLOR_NB];
-	extern Bitboard PawnEffectBB[SQ_NB_PLUS1][COLOR_NB];
+// 利き関連のテーブルはAttacks名前空間にまとめる。
+extern Bitboard KingEffectBB[SQ_NB_PLUS1];
+extern Bitboard GoldEffectBB[SQ_NB_PLUS1][COLOR_NB];
+extern Bitboard SilverEffectBB[SQ_NB_PLUS1][COLOR_NB];
+extern Bitboard KnightEffectBB[SQ_NB_PLUS1][COLOR_NB];
+extern Bitboard PawnEffectBB[SQ_NB_PLUS1][COLOR_NB];
 
-	// 盤上の駒をないものとして扱う、遠方駒の利き。香、角、飛
-	extern Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
-	extern Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
-	extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
-}
+// 盤上の駒をないものとして扱う、遠方駒の利き。香、角、飛
+extern Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
+extern Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
+extern Bitboard RookStepEffectBB[SQ_NB_PLUS1];
+
 
 // =====================
 //   大駒・小駒の利き
@@ -111,7 +55,7 @@ template <Color c>
 inline Bitboard pawnEffect(Square sq)
 {
 	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
-	return BB_Table::PawnEffectBB[sq][c];
+	return PawnEffectBB[sq][c];
 }
 
 // 歩の利き、非template版。
@@ -125,7 +69,7 @@ inline Bitboard pawnEffect(Color c, Square sq)
 inline Bitboard knightEffect(const Color c, const Square sq)
 {
 	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
-	return BB_Table::KnightEffectBB[sq][c];
+	return KnightEffectBB[sq][c];
 }
 
 // ↑のtemplate版。
@@ -133,14 +77,14 @@ template <Color C>
 inline Bitboard knightEffect(const Square sq)
 {
 	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
-	return BB_Table::KnightEffectBB[sq][C];
+	return KnightEffectBB[sq][C];
 }
 
 // 銀の利き
 inline Bitboard silverEffect(const Color c, const Square sq)
 {
 	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
-	return BB_Table::SilverEffectBB[sq][c];
+	return SilverEffectBB[sq][c];
 }
 
 // ↑のtemplate版
@@ -148,20 +92,20 @@ template <Color C>
 inline Bitboard silverEffect(const Square sq)
 {
 	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
-	return BB_Table::SilverEffectBB[sq][C];
+	return SilverEffectBB[sq][C];
 }
 
 // 金の利き
 inline Bitboard goldEffect(const Color c, const Square sq) {
 	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
-	return BB_Table::GoldEffectBB[sq][c];
+	return GoldEffectBB[sq][c];
 }
 
 // ↑のtemplate版
 template <Color C>
 inline Bitboard goldEffect(const Square sq) {
 	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
-	return BB_Table::GoldEffectBB[sq][C];
+	return GoldEffectBB[sq][C];
 }
 
 // 王の利き
@@ -169,7 +113,7 @@ inline Bitboard goldEffect(const Square sq) {
 inline Bitboard kingEffect(const Square sq)
 {
 	ASSERT_LV3(sq <= SQ_NB);
-	return BB_Table::KingEffectBB[sq];
+	return KingEffectBB[sq];
 }
 
 // --------------------
@@ -183,39 +127,39 @@ inline Bitboard kingEffect(const Square sq)
 // 盤上の駒を考慮しない香の利き
 inline Bitboard lanceStepEffect(Color c, Square sq) {
 	ASSERT_LV3(is_ok(c) && sq <= SQ_NB);
-	return BB_Table::LanceStepEffectBB[sq][c];
+	return LanceStepEffectBB[sq][c];
 }
 // ↑のtemplate版。
 template <Color C>
 inline Bitboard lanceStepEffect(Square sq) {
 	ASSERT_LV3(is_ok(C) && sq <= SQ_NB);
-	return BB_Table::LanceStepEffectBB[sq][C];
+	return LanceStepEffectBB[sq][C];
 }
 
 // 盤上の駒を考慮しない角の利き
 inline Bitboard bishopStepEffect(Square sq) {
 	ASSERT_LV3(sq <= SQ_NB);
-	return BB_Table::BishopStepEffectBB[sq];
+	return BishopStepEffectBB[sq];
 }
 
 // 盤上の駒を考慮しない飛車の利き
 inline Bitboard rookStepEffect(Square sq) {
 	ASSERT_LV3(sq <= SQ_NB);
-	return BB_Table::RookStepEffectBB[sq];
+	return RookStepEffectBB[sq];
 }
 
 // 盤上の駒を考慮しない馬の利き
 inline Bitboard horseStepEffect(Square sq) {
 	ASSERT_LV3(sq <= SQ_NB);
 	// わざわざ用意するほどでもないので玉の利きと合成しておく。
-	return BB_Table::BishopStepEffectBB[sq] | BB_Table::KingEffectBB[sq];
+	return BishopStepEffectBB[sq] | KingEffectBB[sq];
 }
 
 // 盤上の駒を考慮しない龍の利き
 inline Bitboard dragonStepEffect(Square sq) {
 	ASSERT_LV3(sq <= SQ_NB);
 	// わざわざ用意するほどでもないので玉の利きと合成しておく。
-	return BB_Table::RookStepEffectBB[sq] | BB_Table::KingEffectBB[sq];
+	return RookStepEffectBB[sq] | KingEffectBB[sq];
 }
 
 // 盤上の駒を考慮しないQueenの動き。
@@ -522,7 +466,8 @@ inline Bitboard dragonEffect(Square sq, const Bitboard& occupied)
 // sqの升から各方向への利き
 // 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
 // 6方向しか使っていないので詰めてある。
-namespace BB_Table { extern Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1]; }
+extern Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
+
 
 // 方向利き
 template <Effect8::Direct D>
@@ -538,7 +483,7 @@ Bitboard rayEffect(Square sq, const Bitboard& occupied)
 
 	// 6方向しか使っていないのでテーブルを詰めてある。
 	const int dd = D > Effect8::DIRECT_D ? D - 2 : D;
-	const Bitboard mask = BB_Table::QUGIY_STEP_EFFECT[dd][sq];
+	const Bitboard mask = QUGIY_STEP_EFFECT[dd][sq];
 
 	// 右上、右、右下、上方向(Squareとしてみた時に、値が減る方向)
 	constexpr bool reverse =
@@ -566,56 +511,129 @@ Bitboard rayEffect(Square sq, const Bitboard& occupied)
 
 // sqの升から指定した方向dへの利き。盤上の駒も考慮する。
 Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied);
+#endif
 
-// --------------------
-//   汎用性のある利き
-// --------------------
+#if STOCKFISH
+extern Bitboard LineBB[SQUARE_NB][SQUARE_NB];
+extern Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
+#else
+// 2升を通過する直線。[0]:右上から左下、[1]:横、[2]:左上から右下、[3]:縦。
+// この配列には直接アクセスせず、line_bb()を使うこと。
+extern Bitboard LineBB[SQ_NB][4];
 
-// 盤上sqに駒pc(先後の区別あり)を置いたときの利き。(step effect)
-// pc == QUEENだと馬+龍の利きが返る。盤上には駒は何もないものとして考える。
-Bitboard effects_from(Piece pc, Square sq);
+// 2升に挟まれている升を返すためのテーブル(その2升は含まない)。
+// cache汚染を抑えるためにシュリンクしてあり、between_bb()から参照する。
+extern Bitboard BetweenBB[785];
+extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
+#endif
 
-// 盤上sqに駒pc(先後の区別あり)を置いたときの利き。
-// pc == QUEENだと馬+龍の利きが返る。
-Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ);
+// horizontal/vertical/diagonal line passing through s1 and s2
+// s1とs2を通る縦・横・斜めの直線。
+inline Bitboard line_bb(Square s1, Square s2) {
+#if STOCKFISH
+    assert(is_ok(s1) && is_ok(s2));
+    return LineBB[s1][s2];
+#else
+    // 両升が縦横斜めの関係にあることを前提に、4方向へ圧縮した表を参照する。
+    static_assert(Effect8::DIRECT_RU == 0 && Effect8::DIRECT_LD == 7, "");
+    auto directions = Effect8::directions_of(s1, s2);
+    ASSERT_LV3(directions != 0);
+    static const int a[8] = {0, 1, 2, 3, 3, 2, 1, 0};
+    return LineBB[s1][a[(int)Effect8::pop_directions(directions)]];
+#endif
+}
 
-// --------------------
-//   Stockfishとの互換性のために用意
-// --------------------
+// horizontal/vertical/diagonal line segment from s1 to s2,
+// excluding s1 but including s2
+// s1を含まずs2を含む、s1からs2までの縦・横・斜めの線分。
+inline Bitboard between_bb(Square s1, Square s2) {
+#if STOCKFISH
+    assert(is_ok(s1) && is_ok(s2));
+    return BetweenBB[s1][s2];
+#else
+    // 将棋側は両端を含まない。縦横斜めの関係にないときは空のBitboardを返す。
+    return BetweenBB[BetweenIndex[s1][s2]];
+#endif
+}
+
+#if !STOCKFISH
+// sqの升にいる敵玉に王手となるc側の駒ptの候補を得るテーブル。第2添字は(pr-1)を渡して使う。
+// 直接アクセスせずに、check_candidate_bb()、around24_bb()を用いてアクセスすること。
+extern Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING - 1][COLOR_NB];
+
+
+// sqの升にいる敵玉に王手となるus側の駒ptの候補を得る
+// pr == ROOKは無条件全域なので代わりにHORSEで王手になる領域を返す。
+// pr == KINGで呼び出してはならない。それは、around24_bb()のほうを用いる。
+static const Bitboard check_candidate_bb(Color us, PieceType pr, Square sq)
+{
+	ASSERT_LV3(PAWN<= pr && pr < KING && sq <= SQ_NB && is_ok(us));
+	return CheckCandidateBB[sq][pr - 1][us];
+}
+
+#if defined(LONG_EFFECT_LIBRARY) // 詰みルーチンでは使わなくなったが、LONG_EFFECT_LIBRARYのなかで使っている。
+
+extern Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
+
+
+// ある升の24近傍のBitboardを返す。
+static const Bitboard around24_bb(Square sq)
+{
+	ASSERT_LV3(sq <= SQ_NB);
+	return CheckCandidateKingBB[sq];
+}
+#endif
 
 inline Bitboard pawn_attacks_bb(Color c, Square s)
 {
-	return pawnEffect(c, s);
+    return pawnEffect(c, s);
 }
+#endif
 
+// Returns the pseudo attacks of the given piece type
+// assuming an empty board.
+// 盤上に他の駒がないものとして、指定した駒種の利きを返す。
+#if STOCKFISH
+sf_always_inline Bitboard attacks_bb(PieceType pt, Square s, Color c = COLOR_NB) {
 
-/// attacks_bb(Square) returns the pseudo attacks of the give piece type
-/// assuming an empty board.
-
-// attacks_bb<PC>(s)は、駒PCをsの升に置いた時の利き。
-// ※　StockfishではPCのところ、PieceType Ptとなっているので注意
-// 盤上には駒はないものとする。
-
-template<Piece PC>
-inline Bitboard attacks_bb(Square s) {
-
-	return effects_from(PC, s);
+    assert((pt != PAWN || c < COLOR_NB) && is_ok(s));
+    return pt == PAWN ? PseudoAttacks[c][s] : PseudoAttacks[pt][s];
 }
+#else
+// 将棋では香・桂・銀・金などにも向きがあるため、先後を含むPieceを渡す。
+// B_GOLDS / W_GOLDSは、従来どおり金の利きとして扱う。
+Bitboard attacks_bb(Piece pc, Square s);
+#endif
 
-/// attacks_bb(Square, Bitboard) returns the attacks by the given piece
-/// assuming the board is occupied according to the passed Bitboard.
-/// Sliding piece attacks do not continue passed an occupied square.
+// Returns the attacks by the given piece
+// assuming the board is occupied according to the passed Bitboard.
+// Sliding piece attacks do not continue past an occupied square.
+// 渡されたBitboardを盤上の占有状態として、指定した駒の利きを返す。
+// 遠方駒の利きは、駒がある升を越えては進まない。
+#if STOCKFISH
+sf_always_inline Bitboard attacks_bb(PieceType pt, Square s, Bitboard occupied) {
 
-// attacks_bb<PC>(s)は、駒PCをsの升に置いた時の利き。
-// ※　StockfishではPCのところ、PieceType Ptとなっているので注意
-// occupied : 盤上の駒
+    assert(pt != PAWN && is_ok(s));
 
-template<Piece PC>
-inline Bitboard attacks_bb(Square s, Bitboard occupied) {
+    [[maybe_unused]] const auto [bishop, rook] = dual_magic(s).both_attacks_bb(occupied);
 
-	return effects_from(PC, s, occupied);
+    switch (pt)
+    {
+    case BISHOP :
+        return bishop;
+    case ROOK :
+        return rook;
+    case QUEEN :
+        return bishop | rook;
+    default :
+        return PseudoAttacks[pt][s];
+    }
 }
+#else
+// 将棋では先後を含むPieceを指定し、盤上の駒による利きの遮断も考慮する。
+Bitboard attacks_bb(Piece pc, Square s, const Bitboard& occupied);
+#endif
 
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Attacks
 
 #endif // #ifndef ATTACKS_H_INCLUDED

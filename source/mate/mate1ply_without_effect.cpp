@@ -13,6 +13,8 @@
 
 namespace YaneuraOu {
 
+using namespace Attacks;
+
 //#include <iostream>
 //using std::cout;
 using namespace BB_Table;

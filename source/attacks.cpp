@@ -1,58 +1,67 @@
 ﻿#include "attacks.h"
 
+#include "misc.h"
+
+#if !STOCKFISH
 #include "extra/long_effect.h"
 #include "mate/mate.h"
 #include "testcmd/unit_test.h"
 #if defined(ENABLE_TEST_CMD)
 #include <iostream>
 #endif
-
-namespace YaneuraOu {
-
-namespace BB_Table
-{
-	// 玉、金、銀、桂、歩の利き
-	Bitboard KingEffectBB[SQ_NB_PLUS1];
-	Bitboard GoldEffectBB[SQ_NB_PLUS1][COLOR_NB];
-	Bitboard SilverEffectBB[SQ_NB_PLUS1][COLOR_NB];
-	Bitboard KnightEffectBB[SQ_NB_PLUS1][COLOR_NB];
-	Bitboard PawnEffectBB[SQ_NB_PLUS1][COLOR_NB];
-
-	// 盤上の駒をないものとして扱う、遠方駒の利き。香、角、飛
-	Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
-	Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
-	Bitboard RookStepEffectBB[SQ_NB_PLUS1];
-
-	// LineBBは、王手の指し手生成からしか使っていないが、move_pickerからQUIET_CHECKS呼び出しているので…。
-	// そして、配列シュリンクした。
-	Bitboard LineBB[SQ_NB][4];
-
-	Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING - 1][COLOR_NB];
-
-#if defined(LONG_EFFECT_LIBRARY) // 詰みルーチンでは使わなくなったが、LONG_EFFECT_LIBRARYのなかで使っている。
-	Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
 #endif
 
-	Bitboard BetweenBB[785];
-	u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
+namespace YaneuraOu::Attacks {
 
-	// ----------------------------------------------------------------------------------------------
-	// 飛車・角の利きのためのテーブル
-	// ----------------------------------------------------------------------------------------------
+#if STOCKFISH
+Bitboard LineBB[SQUARE_NB][SQUARE_NB];
+Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
+#else
+// 配列を縮小しているので、升の組を方向または圧縮indexへ変換して参照する。
+Bitboard LineBB[SQ_NB][4];
+Bitboard BetweenBB[785];
+u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
+#endif
 
-	Bitboard QUGIY_ROOK_MASK[SQ_NB_PLUS1][2];
 
-	// sqの升から各方向への利き
-	// 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
-	// 6方向しか使っていないの、ちょっともったいないので詰める。
-	Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
-}
+#if !STOCKFISH
+// 玉、金、銀、桂、歩の利き
+Bitboard KingEffectBB[SQ_NB_PLUS1];
+Bitboard GoldEffectBB[SQ_NB_PLUS1][COLOR_NB];
+Bitboard SilverEffectBB[SQ_NB_PLUS1][COLOR_NB];
+Bitboard KnightEffectBB[SQ_NB_PLUS1][COLOR_NB];
+Bitboard PawnEffectBB[SQ_NB_PLUS1][COLOR_NB];
+
+// 盤上の駒をないものとして扱う、遠方駒の利き。香、角、飛
+Bitboard LanceStepEffectBB[SQ_NB_PLUS1][COLOR_NB];
+Bitboard BishopStepEffectBB[SQ_NB_PLUS1];
+Bitboard RookStepEffectBB[SQ_NB_PLUS1];
+
+
+Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING - 1][COLOR_NB];
+
+#if defined(LONG_EFFECT_LIBRARY) // 詰みルーチンでは使わなくなったが、LONG_EFFECT_LIBRARYのなかで使っている。
+Bitboard CheckCandidateKingBB[SQ_NB_PLUS1];
+#endif
+
+
+// ----------------------------------------------------------------------------------------------
+// 飛車・角の利きのためのテーブル
+// ----------------------------------------------------------------------------------------------
+
+Bitboard QUGIY_ROOK_MASK[SQ_NB_PLUS1][2];
+
+// sqの升から各方向への利き
+// 右上、右、右下、上方向は、byte_reverse()してあるので、普通の利きではないから注意。
+// 6方向しか使っていないの、ちょっともったいないので詰める。
+Bitboard QUGIY_STEP_EFFECT[Effect8::DIRECT_NB - 2][SQ_NB_PLUS1];
 
 SimdSliding::BishopMasks SimdSliding::bishopMasks[SQ_NB_PLUS1];
 
 using namespace BB_Table;
+#endif
 
-void Attacks::init()
+void init()
 {
 	// 1) direct_tableの初期化
 
@@ -380,33 +389,33 @@ void Attacks::init()
 
 }
 
-// 駒の利きに関するnamespace
+#if !STOCKFISH
 
 // 盤上sqに駒pc(先後の区別あり)を置いたときの利き。(step effect)
-// pc == QUEENだと馬+龍の利きが返る。盤上には駒は何もないものとして考える。
-Bitboard effects_from(Piece pc, Square sq)
+// 盤上には他の駒がないものとして考える。B_GOLDS / W_GOLDSは金の利き。
+Bitboard attacks_bb(Piece pc, Square s)
 {
 	switch (pc)
 	{
-	case B_PAWN:   return pawnEffect     <BLACK>(sq);
-	case B_LANCE:  return lanceStepEffect<BLACK>(sq);
-	case B_KNIGHT: return knightEffect   <BLACK>(sq);
-	case B_SILVER: return silverEffect   <BLACK>(sq);
-	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: case B_GOLDS: return goldEffect<BLACK>(sq);
+	case B_PAWN:   return pawnEffect     <BLACK>(s);
+	case B_LANCE:  return lanceStepEffect<BLACK>(s);
+	case B_KNIGHT: return knightEffect   <BLACK>(s);
+	case B_SILVER: return silverEffect   <BLACK>(s);
+	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: case B_GOLDS: return goldEffect<BLACK>(s);
 
-	case W_PAWN:   return pawnEffect     <WHITE>(sq);
-	case W_LANCE:  return lanceStepEffect<WHITE>(sq);
-	case W_KNIGHT: return knightEffect   <WHITE>(sq);
-	case W_SILVER: return silverEffect   <WHITE>(sq);
-	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: case W_GOLDS: return goldEffect<WHITE>(sq);
+	case W_PAWN:   return pawnEffect     <WHITE>(s);
+	case W_LANCE:  return lanceStepEffect<WHITE>(s);
+	case W_KNIGHT: return knightEffect   <WHITE>(s);
+	case W_SILVER: return silverEffect   <WHITE>(s);
+	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: case W_GOLDS: return goldEffect<WHITE>(s);
 
 		//　先後同じ移動特性の駒
-	case B_BISHOP: case W_BISHOP: return bishopStepEffect(sq);
-	case B_ROOK:   case W_ROOK:   return rookStepEffect  (sq);
-	case B_HORSE:  case W_HORSE:  return horseStepEffect (sq);
-	case B_DRAGON: case W_DRAGON: return dragonStepEffect(sq);
-	case B_KING:   case W_KING:   return kingEffect      (sq);
-	//case B_QUEEN:  case W_QUEEN:  return bishopStepEffect(sq) | rookStepEffect(sq); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
+	case B_BISHOP: case W_BISHOP: return bishopStepEffect(s);
+	case B_ROOK:   case W_ROOK:   return rookStepEffect  (s);
+	case B_HORSE:  case W_HORSE:  return horseStepEffect (s);
+	case B_DRAGON: case W_DRAGON: return dragonStepEffect(s);
+	case B_KING:   case W_KING:   return kingEffect      (s);
+	//case B_QUEEN:  case W_QUEEN:  return bishopStepEffect(s) | rookStepEffect(s); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
 	case NO_PIECE: case PIECE_WHITE: return Bitboard(ZERO); // これも入れておかないと初期化が面倒になる。
 
 	default: ASSERT_LV3(false); sf_unreachable(); return Bitboard(1);
@@ -414,29 +423,29 @@ Bitboard effects_from(Piece pc, Square sq)
 }
 
 // 盤上sqに駒pc(先後の区別あり)を置いたときの利き。
-Bitboard effects_from(Piece pc, Square sq, const Bitboard& occ)
+Bitboard attacks_bb(Piece pc, Square s, const Bitboard& occupied)
 {
 	switch (pc)
 	{
-	case B_PAWN:   return pawnEffect  <BLACK>(sq);
-	case B_LANCE:  return lanceEffect <BLACK>(sq, occ);
-	case B_KNIGHT: return knightEffect<BLACK>(sq);
-	case B_SILVER: return silverEffect<BLACK>(sq);
-	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: case B_GOLDS: return goldEffect<BLACK>(sq);
+	case B_PAWN:   return pawnEffect  <BLACK>(s);
+	case B_LANCE:  return lanceEffect <BLACK>(s, occupied);
+	case B_KNIGHT: return knightEffect<BLACK>(s);
+	case B_SILVER: return silverEffect<BLACK>(s);
+	case B_GOLD: case B_PRO_PAWN: case B_PRO_LANCE: case B_PRO_KNIGHT: case B_PRO_SILVER: case B_GOLDS: return goldEffect<BLACK>(s);
 
-	case W_PAWN:   return pawnEffect  <WHITE>(sq);
-	case W_LANCE:  return lanceEffect <WHITE>(sq, occ);
-	case W_KNIGHT: return knightEffect<WHITE>(sq);
-	case W_SILVER: return silverEffect<WHITE>(sq);
-	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: case W_GOLDS: return goldEffect<WHITE>(sq);
+	case W_PAWN:   return pawnEffect  <WHITE>(s);
+	case W_LANCE:  return lanceEffect <WHITE>(s, occupied);
+	case W_KNIGHT: return knightEffect<WHITE>(s);
+	case W_SILVER: return silverEffect<WHITE>(s);
+	case W_GOLD: case W_PRO_PAWN: case W_PRO_LANCE: case W_PRO_KNIGHT: case W_PRO_SILVER: case W_GOLDS: return goldEffect<WHITE>(s);
 
 		//　先後同じ移動特性の駒
-	case B_BISHOP: case W_BISHOP: return bishopEffect(sq, occ);
-	case B_ROOK:   case W_ROOK:   return rookEffect  (sq, occ);
-	case B_HORSE:  case W_HORSE:  return horseEffect (sq, occ);
-	case B_DRAGON: case W_DRAGON: return dragonEffect(sq, occ);
-	case B_KING:   case W_KING:   return kingEffect  (sq     );
-	//case B_QUEEN:  case W_QUEEN:  return bishopEffect (sq, occ) | rookEffect(sq, occ); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
+	case B_BISHOP: case W_BISHOP: return bishopEffect(s, occupied);
+	case B_ROOK:   case W_ROOK:   return rookEffect  (s, occupied);
+	case B_HORSE:  case W_HORSE:  return horseEffect (s, occupied);
+	case B_DRAGON: case W_DRAGON: return dragonEffect(s, occupied);
+	case B_KING:   case W_KING:   return kingEffect  (s     );
+	//case B_QUEEN:  case W_QUEEN:  return bishopEffect (s, occupied) | rookEffect(s, occupied); // 角+飛でいいや。(馬+龍は王の利きを2回合成して損)
 	case NO_PIECE: case PIECE_WHITE: return Bitboard(ZERO); // これも入れておかないと初期化が面倒になる。
 
 	default: ASSERT_LV3(false); sf_unreachable(); return Bitboard(1);
@@ -532,7 +541,7 @@ Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied)
 #if defined(ENABLE_TEST_CMD)
 // Verify attacks by walking board coordinates, independently of sliding-attack masks.
 // 長い利きのマスクに依存せず、盤上を1升ずつ進む実装と利きを照合する。
-void Attacks::test_sliding_attacks(Test::UnitTester& tester) {
+void test_sliding_attacks(Test::UnitTester& tester) {
     auto section = tester.section("Sliding attacks");
     enum Axis { FileAxis, RankAxis, Diagonal, AntiDiagonal };
     const auto ray = [](Square sq, int df, int dr, const Bitboard& occupied) {
@@ -610,4 +619,6 @@ void Attacks::test_sliding_attacks(Test::UnitTester& tester) {
 }
 #endif
 
-} // namespace YaneuraOu
+#endif // !STOCKFISH
+
+} // namespace YaneuraOu::Attacks

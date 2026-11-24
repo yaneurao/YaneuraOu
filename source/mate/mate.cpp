@@ -5,6 +5,8 @@
 #include "../movegen.h"
 
 namespace YaneuraOu {
+
+using namespace Attacks;
 namespace Mate {
 
 // 1手詰めテーブルの初期化関数

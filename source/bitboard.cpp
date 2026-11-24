@@ -11,6 +11,8 @@
 
 namespace YaneuraOu {
 
+using namespace Attacks;
+
 // ----- Bitboard const
 
 // 外部から直接アクセスしないようにnamespaceに入れておく。
@@ -470,9 +472,9 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 			for (PieceType pt = PAWN ; pt < PIECE_TYPE_NB ; ++pt )
 			{
 				Piece pc = make_piece(c, pt);
-				Bitboard bb0 = effects_from(pc, SQ_55, Bitboard(ZERO));
+				Bitboard bb0 = attacks_bb(pc, SQ_55, Bitboard(ZERO));
 				int p0 = bb0.pop_count();
-				Bitboard bb1 = effects_from(pc, SQ_55, Bitboard(1));
+				Bitboard bb1 = attacks_bb(pc, SQ_55, Bitboard(1));
 				int p1 = bb1.pop_count();
 				bool ok0 = (p0 == p0_table[(int)pt]);
 				if (!ok0)
@@ -488,7 +490,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 				}
 				all_ok &= ok0 & ok1;
 			}
-		tester.test("effects_from", all_ok);
+		tester.test("attacks_bb", all_ok);
 	}
 
 	{
@@ -575,8 +577,8 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		tester.test("pawn_attacks_bb<BLACK>",pawn_attacks_bb<BLACK>(RANK7_BB) == RANK6_BB);
 		tester.test("pawn_attacks_bb<WHITE>",pawn_attacks_bb<WHITE>(RANK7_BB) == RANK8_BB);
 
-		tester.test("attacks_bb<B_KNIGHT>",attacks_bb<B_KNIGHT>(SQ_77) == (Bitboard(SQ_85) | Bitboard(SQ_65)));
-		tester.test("attacks_bb<W_KNIGHT>",attacks_bb<W_KNIGHT>(SQ_77) == (Bitboard(SQ_89) | Bitboard(SQ_69)));
+		tester.test("attacks_bb(B_KNIGHT)",attacks_bb(B_KNIGHT, SQ_77) == (Bitboard(SQ_85) | Bitboard(SQ_65)));
+		tester.test("attacks_bb(W_KNIGHT)",attacks_bb(W_KNIGHT, SQ_77) == (Bitboard(SQ_89) | Bitboard(SQ_69)));
 	}
 	{
 		bool all_ok = true;

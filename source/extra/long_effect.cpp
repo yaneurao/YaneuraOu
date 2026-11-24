@@ -18,6 +18,8 @@
 
 namespace YaneuraOu {
 
+using namespace Attacks;
+
 // Effect8::operator<<()で用いるヘルパー関数
 // 3*3ならN=3 , 5*5ならN=5..
 std::ostream& output_around_n(std::ostream& os, uint32_t d,int n)
@@ -59,7 +61,7 @@ namespace Effect8
       for (auto d : Direct())
       {
         // SQ_22の地点でその周辺8近傍の状態を使ってテーブルを初期化する
-        auto effect = effects_from(pc, SQ_22 + DirectToDelta(d), Bitboard(ZERO));
+        auto effect = attacks_bb(pc, SQ_22 + DirectToDelta(d), Bitboard(ZERO));
         // 利きがある場所が0、ない場所が1なのでnotしておく。
         auto effect8_not = ~around8(effect, SQ_22);
 
@@ -71,7 +73,7 @@ namespace Effect8
     for (auto pc : Piece())
     {
       // SQ_22に相手の駒を置いたときの利きの場所が、そこに置いてSQ_22に王手になる場所
-      auto effect = effects_from(Piece(pc ^ PIECE_WHITE), SQ_22, Bitboard(ZERO));
+      auto effect = attacks_bb(Piece(pc ^ PIECE_WHITE), SQ_22, Bitboard(ZERO));
       auto effect8 = around8(effect, SQ_22);
       piece_check_around8_table[pc] = effect8;
     }
@@ -261,7 +263,7 @@ namespace LongEffect
     {
       Piece pc = pos.piece_on(sq);
       // pcをsqに置くことによる利きのupdate
-      auto effect = effects_from(pc, sq, pos.pieces());
+      auto effect = attacks_bb(pc, sq, pos.pieces());
       Color c = color_of(pc);
       for (auto to : effect)
         ADD_BOARD_EFFECT(c, to, 1);
@@ -269,7 +271,7 @@ namespace LongEffect
       {
         // ただし、馬・龍に対しては、長い利きは、角・飛車と同じ方向だけなので成り属性を消して、利きを求め直す。
         if (type_of(pc) != LANCE)
-          effect = effects_from(Piece(pc & ~PIECE_PROMOTE), sq, pos.pieces());
+          effect = attacks_bb(Piece(pc & ~PIECE_PROMOTE), sq, pos.pieces());
 
         for (auto to : effect)
         {

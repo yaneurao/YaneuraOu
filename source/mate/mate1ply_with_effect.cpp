@@ -9,6 +9,8 @@
 #include "../extra/long_effect.h"
 
 namespace YaneuraOu {
+
+using namespace Attacks;
 namespace {
 	using namespace Effect8; // Effect24のほうは必要に応じて書く。
 
@@ -304,7 +306,7 @@ namespace Mate
 					goto NextCandidate; // このとき成ったところでback attackで取られてしまうので次の候補を調べよう。
 
 				  // themKingから見て移動元から消失する利き
-				auto dec_effect = effects_from(pc, from, pos.pieces());
+				auto dec_effect = attacks_bb(pc, from, pos.pieces());
 				// ここの利きがマイナス1
 				auto dec_around8 = around8(dec_effect, themKing);
 
@@ -372,7 +374,7 @@ namespace Mate
 		if (directions_of(from, to) & pos.long_effect.le16[from].dirs[~Us])
 			goto NextCandidate;
 
-		auto dec_effect = effects_from(pc, from, pos.pieces());
+		auto dec_effect = attacks_bb(pc, from, pos.pieces());
 		auto dec_around8 = around8(dec_effect, themKing);
 		auto cut_dirs = cutoff_directions(to_direct, pos.long_effect.directions_of(Us, to) & ~LongEffect::long_effect_of(pc));
 		auto dec = (dec_around8 | cut_dirs) & effect_us_not & a8_board_mask & a8_them_movable & ~to_directions(to_direct);
@@ -453,7 +455,7 @@ NextCandidate:;
 			auto pc = pos.piece_on(from);
 
 			// 利きがあってかつ敵玉の8近傍で自駒がない場所
-			auto target = effects_from(pc, from, pos.pieces()) & kingEffect(themKing) & ~pos.pieces(Us);
+			auto target = attacks_bb(pc, from, pos.pieces()) & kingEffect(themKing) & ~pos.pieces(Us);
 
 			while (target)
 			{

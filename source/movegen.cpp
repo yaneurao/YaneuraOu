@@ -19,6 +19,8 @@
 
 namespace YaneuraOu {
 
+using namespace Attacks;
+
 using namespace BB_Table;
 
 #if !STOCKFISH
@@ -284,7 +286,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 			auto from = pieces.pop();
 
 			// fromの升にある駒をfromの升においたときの利き
-			auto target2 = effects_from(pos.piece_on(from), from, occ) & target;
+			auto target2 = attacks_bb(pos.piece_on(from), from, occ) & target;
 
 			moveList = make_move_target<GPM_BR, Us, All>()(pos, from, target2, moveList);
 		}
@@ -304,7 +306,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 		{
 			auto from = pieces.pop();
 			// fromの升にある駒をfromの升においたときの利き
-			auto target2 = effects_from(pos.piece_on(from), from, occ) & target;
+			auto target2 = attacks_bb(pos.piece_on(from), from, occ) & target;
 
 			moveList = make_move_target<GPM_GHDK, Us, All>()(pos, from, target2, moveList);
 		}
@@ -325,7 +327,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 			auto from = pieces.pop();
 			// fromの升にある駒をfromの升においたときの利き
 			const auto pc = pos.piece_on(from);
-			auto target2 = effects_from(pc, from, occ) & target;
+			auto target2 = attacks_bb(pc, from, occ) & target;
 			target2.foreach([&](Square to) { *moveList++ = make_move(from,to,pc); });
 		}
 		return moveList;
@@ -521,7 +523,7 @@ Move* generate_evasions(const Position& pos, Move* moveList)
 		ASSERT_LV3(color_of(pos.piece_on(checksq)) == ~Us);
 
 		// 王手している駒の利きを加えていく。
-		sliderAttacks |= effects_from(pos.piece_on(checksq), checksq, occ);
+		sliderAttacks |= attacks_bb(pos.piece_on(checksq), checksq, occ);
 
 	} while (checkers);
 
@@ -641,7 +643,7 @@ struct make_move_target_general {
 	Move* operator()(const Position& pos, Piece pc, Square from, const Bitboard& target, Move* moveList) {
 
 		ASSERT_LV2(pc != NO_PIECE);
-		auto effect = effects_from(pc, from, pos.pieces());
+		auto effect = attacks_bb(pc, from, pos.pieces());
 		switch (type_of(pc))
 		{
 		case PAWN      : moveList = make_move_target<PAWN      , Us, All>()(pos, from, effect & target, moveList); break;
