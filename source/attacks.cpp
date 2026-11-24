@@ -335,7 +335,6 @@ static void init_lines() {
 static void init_check_candidates() {
 	// 7) 王手となる候補の駒のテーブル初期化(王手の指し手生成に必要)
 
-#define FOREACH_KING(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(sq); } }
 #define FOREACH(BB, EFFECT ) { for(auto sq : BB){ target|= EFFECT(them,sq); } }
 #define FOREACH_BR(BB, EFFECT ) { for(auto sq : BB) { target|= EFFECT(sq,Bitboard(ZERO)); } }
 
@@ -394,16 +393,8 @@ static void init_check_candidates() {
 			target = Bitboard(ZERO);
 			FOREACH_BR(horseEffect(ksq, Bitboard(ZERO)), horseEffect);
 			CheckCandidateBB[ksq][ROOK - 1][Us] = target & ~square_bb(ksq);
-
-#if 0
-			// 王(24近傍が格納される)
-			target = Bitboard(ZERO);
-			FOREACH_KING(kingEffect(ksq), kingEffect);
-			CheckCandidateKingBB[ksq] = target & ~square_bb(ksq);
-#endif
 		}
 
-#undef FOREACH_KING
 #undef FOREACH
 #undef FOREACH_BR
 }
