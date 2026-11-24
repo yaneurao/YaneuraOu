@@ -6,6 +6,27 @@
 
 namespace YaneuraOu {
 
+// Returns an ASCII representation of a bitboard suitable
+// to be printed to standard output. Useful for debugging.
+// 標準出力でのデバッグに使う、BitboardのASCII表現を返す。
+std::string Bitboards::pretty(Bitboard b) {
+
+    std::string s;
+
+    for (Rank r = RANK_1; r <= RANK_9; ++r)
+    {
+        for (File f = FILE_9; f >= FILE_1; --f)
+            s += b & (f | r) ? " *" : " .";
+
+        s += '\n';
+    }
+    // 連続して表示したときの区切りとなる空行も、従来の表示と同じように付ける。
+    s += '\n';
+
+    return s;
+}
+
+
 // ----- Bitboard const
 
 // 外部から直接アクセスしないようにnamespaceに入れておく。
@@ -80,21 +101,10 @@ using namespace BB_Table;
 
 // ----------------------------------------------------------------------------------------------
 
-// Prints an ASCII representation of a bitboard to the output stream.
-// Useful for debugging.
-// 標準出力でのデバッグに使う、BitboardのASCII表現を出力する。
-// StockfishのBitboards::pretty()に対応し、将棋側では従来どおりostreamへ直接書き込む。
+// operator<<はBitboards::pretty()の表示内容をストリームへ出力する。
 std::ostream& operator<<(std::ostream& os, const Bitboard& board)
 {
-	for (Rank rank = RANK_1; rank <= RANK_9; ++rank)
-	{
-		for (File file = FILE_9; file >= FILE_1; --file)
-			os << ((board & (file | rank)) ? " *" : " .");
-		os << std::endl;
-	}
-	// 連続して表示させるときのことを考慮して改行を最後に入れておく。
-	os << std::endl;
-	return os;
+    return os << Bitboards::pretty(board) << std::flush;
 }
 
 // Bitboard関連の各種テーブルの初期化。

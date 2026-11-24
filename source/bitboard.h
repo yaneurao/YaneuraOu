@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <string>
 
 #include "types.h"
 #include "misc.h"
@@ -13,10 +14,19 @@
 
 namespace YaneuraOu {
 
+#if !STOCKFISH
+struct Bitboard;
+#endif
+
 namespace Bitboards {
+
+#if !STOCKFISH
 	// Bitboard関連のテーブル初期化のための関数
 	void init();
-}
+#endif
+std::string pretty(Bitboard b);
+
+} // namespace YaneuraOu::Bitboards
 
 // --------------------
 //     Bitboard
