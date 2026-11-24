@@ -1109,7 +1109,7 @@ void Search::YaneuraOuWorker::start_searching() {
     // 敵玉に利いている自駒があるなら、それを移動させて勝ち。
     if (our_piece)
     {
-        Square from = our_piece.pop();
+        Square from = our_piece.pop_lsb();
         Square to   = their_king;
         Move16 m16  = make_move16(from, to);
         Move   m    = rootPos.to_move(m16);

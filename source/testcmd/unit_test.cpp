@@ -256,7 +256,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 				Square sq = f | r;
 				Bitboard b = square_bb(sq);
 				all_ok &= b.test(sq);    // そのbitが立っているか
-				all_ok &= b.pop() == sq; // 1の立っているbitをもらえば、その升であるか。
+				all_ok &= b.pop_lsb() == sq; // 1の立っているbitをもらえば、その升であるか。
 			}
 		tester.test("sq occupied", all_ok);
 	}
@@ -296,19 +296,19 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 			{
 				Piece pc = make_piece(c, pt);
 				Bitboard bb0 = attacks_bb(pc, SQ_55, Bitboard(ZERO));
-				int p0 = bb0.pop_count();
+				int p0 = bb0.popcount();
 				Bitboard bb1 = attacks_bb(pc, SQ_55, Bitboard(1));
-				int p1 = bb1.pop_count();
+				int p1 = bb1.popcount();
 				bool ok0 = (p0 == p0_table[(int)pt]);
 				if (!ok0)
 				{
-					std::cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in Bitboard(ZERO) , pop_count = " << p0 << std::endl;
+					std::cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in Bitboard(ZERO) , popcount = " << p0 << std::endl;
 					std::cout << bb0 << std::endl;
 				}
 				bool ok1 = (p1 == p1_table[(int)pt]);
 				if (!ok1)
 				{
-					std::cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in Bitboard(1) , pop_count = " << p1 << std::endl;
+					std::cout << "Effect " << pc  << "(" << pretty(pc) << ")" << " on SQ_55 in Bitboard(1) , popcount = " << p1 << std::endl;
 					std::cout << bb1 << std::endl;
 				}
 				all_ok &= ok0 & ok1;

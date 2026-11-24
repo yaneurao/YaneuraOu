@@ -112,7 +112,7 @@ namespace {
 						bb = pawnEffect(~c, sq) & ~enemyBB;
 						if (!bb)
 							break;
-						to = bb.pop();
+						to = bb.pop_lsb();
 						bb = pawnEffect(~c, to);
 						break;
 
@@ -143,14 +143,14 @@ namespace {
 						tmp = knightEffect(~c, sq);
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= knightEffect(~c, to);
 						}
 						// 成って王手(金)になる移動元
 						tmp = goldEffect(~c, sq) & enemyBB;
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= knightEffect(~c, to);
 						}
 						break;
@@ -161,14 +161,14 @@ namespace {
 						tmp = silverEffect(~c, sq);
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= silverEffect(~c, to);
 						}
 						// 成って王手の場合、敵玉から金の銀にある駒
 						tmp = goldEffect(~c, sq) & enemyBB;
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= silverEffect(~c, to);
 						}
 						// あと4段目の玉に3段目から成っての王手。玉のひとつ下の升とその斜めおよび、
@@ -200,7 +200,7 @@ namespace {
 						tmp = goldEffect(~c, sq);
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= goldEffect(~c, to);
 						}
 						break;
@@ -259,7 +259,7 @@ namespace {
 						tmp = kingEffect(sq);
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= knightEffect(~c, to);
 						}
 						break;
@@ -269,7 +269,7 @@ namespace {
 						tmp = kingEffect(sq);
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= silverEffect(~c, to);
 						}
 						break;
@@ -279,7 +279,7 @@ namespace {
 						tmp = kingEffect(sq);
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= goldEffect(~c, to);
 						}
 						break;
@@ -289,7 +289,7 @@ namespace {
 						tmp = kingEffect(sq);
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= bishopStepEffect(to);
 						}
 						break;
@@ -299,7 +299,7 @@ namespace {
 						tmp = kingEffect(sq);
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= rookStepEffect(to);
 						}
 						break;
@@ -310,7 +310,7 @@ namespace {
 						tmp = kingEffect(sq);
 						while (tmp)
 						{
-							to = tmp.pop();
+							to = tmp.pop_lsb();
 							bb |= kingEffect(to);
 						}
 						break;
@@ -371,19 +371,19 @@ namespace {
 		bb = pos.pieces<Us, LANCE>();
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= lanceEffect<Us>( from, slide);
 		}
 		bb = pos.pieces<Us, BISHOP_HORSE>();
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= bishopEffect(from, slide);
 		}
 		bb = pos.pieces<Us, ROOK_DRAGON>();
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= rookEffect(from, slide);
 		}
 		return sum;
@@ -401,19 +401,19 @@ namespace {
 		bb = pos.pieces<Us, LANCE>() & avoid_bb;
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= lanceEffect<Us>( from, occ);
 		}
 		bb = pos.pieces<Us, BISHOP_HORSE>() & avoid_bb;
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= bishopEffect(from, occ);
 		}
 		bb = pos.pieces<Us, ROOK_DRAGON>() & avoid_bb;
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= rookEffect(from, occ);
 		}
 		return sum;
@@ -435,25 +435,25 @@ namespace {
 		bb = pos.pieces<Them,KNIGHT>() & check_around_bb<Them>(KNIGHT, sq_king);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= knightEffect<Them>(from);
 		}
 		bb = pos.pieces<Them,SILVER>() & check_around_bb<Them>(SILVER, sq_king);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= silverEffect<Them>(from);
 		}
 		bb = pos.pieces<Them,GOLDS>() & check_around_bb<Them>(GOLD, sq_king);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= goldEffect<Them>(from);
 		}
 		bb = pos.pieces<Them,HDK>() & check_around_bb<Them>(KING, sq_king);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= kingEffect(from);
 		}
 		return sum;
@@ -473,19 +473,19 @@ namespace {
 		bb = pos.pieces<Them,LANCE>() & check_around_bb<Them>(LANCE, sq_king);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= lanceEffect<Them>( from, pos.pieces());
 		}
 		bb = pos.pieces<Them,BISHOP_HORSE>() & check_around_bb<Them>(BISHOP, sq_king);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= bishopEffect(from, pos.pieces());
 		}
 		bb = pos.pieces<Them,ROOK_DRAGON>() & check_around_bb<Them>(ROOK, sq_king);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= rookEffect(from, pos.pieces());
 		}
 		return sum;
@@ -507,25 +507,25 @@ namespace {
 		bb = pos.pieces<Them,KNIGHT>() & check_around_bb<Them>(KNIGHT, sq_king) & avoid_bb;
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= knightEffect<Them>(from);
 		}
 		bb = pos.pieces<Them,SILVER>() & check_around_bb<Them>(SILVER, sq_king) & avoid_bb;
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= silverEffect<Them>(from);
 		}
 		bb = pos.pieces<Them,GOLDS>() & check_around_bb<Them>(GOLD, sq_king) & avoid_bb;
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= goldEffect<Them>(from);
 		}
 		bb = pos.pieces<Them,HDK>() & check_around_bb<Them>(KING, sq_king) & avoid_bb;
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			sum |= kingEffect(from);
 		}
 		return sum;
@@ -579,7 +579,7 @@ namespace {
 
 		while (bb)
 		{
-			Square escape = bb.pop();
+			Square escape = bb.pop_lsb();
 
 			if (!pos.attackers_to<~Us>(escape, slide))
 				return true;
@@ -609,7 +609,7 @@ namespace {
 
 		while (bb)
 		{
-			Square escape = bb.pop();
+			Square escape = bb.pop_lsb();
 
 			if (!(square_bb(from).andnot(pos.attackers_to<~Us>(escape, slide) )))
 				// fromにある攻撃駒は移動済なのでこれは対象外。
@@ -648,7 +648,7 @@ namespace {
 
 		while (bb)
 		{
-			Square escape = bb.pop();
+			Square escape = bb.pop_lsb();
 
 			if (!(square_bb(from).andnot(pos.attackers_to<Them>(escape, slide))))
 				// fromにある攻撃駒は移動済なのでこれは対象外。
@@ -669,7 +669,7 @@ namespace {
 		Bitboard sum = pos.pieces(KING).andnot(pos.attackers_to<Us>(to, slide));
 		while (sum)
 		{
-			Square from = sum.pop();
+			Square from = sum.pop_lsb();
 
 			// fromからtoに移動させて素抜きに合わないならばこれをもって良し。
 			if (!pinned
@@ -695,7 +695,7 @@ namespace {
 		Bitboard sum = (pos.pieces(KING) | square_bb(avoid)).andnot(pos.attackers_to<Us>(to, slide));
 		while (sum)
 		{
-			Square from = sum.pop();
+			Square from = sum.pop_lsb();
 
 			// fromからtoに移動させて素抜きに合わないならばこれをもって良し。
 			if (!pinned
@@ -758,7 +758,7 @@ namespace Mate {
 
 			while (bb)
 			{
-				to = bb.pop();
+				to = bb.pop_lsb();
 				// toに対して自駒が利いてないと意味ない
 				if (!pos.attackers_to<Us>(to))
 					continue;
@@ -778,7 +778,7 @@ namespace Mate {
 			bb = pawnEffect<Them>(sq_king) & bb_drop;
 			if (bb)
 			{
-				to = bb.pop();
+				to = bb.pop_lsb();
 				if (pos.attackers_to<Us>(to))
 				{
 					bb_attacks = lanceStepEffect<Us>(to);
@@ -799,7 +799,7 @@ namespace Mate {
 
 			while (bb)
 			{
-				to = bb.pop();
+				to = bb.pop_lsb();
 				// toに対して自駒が利いてないと意味ない
 				if (!pos.attackers_to<Us>(to))
 					continue;
@@ -825,7 +825,7 @@ namespace Mate {
 
 			while (bb)
 			{
-				to = bb.pop();
+				to = bb.pop_lsb();
 				// toに対して自駒が利いてないと意味ない
 				if (!pos.attackers_to<Us>(to))
 					continue;
@@ -855,7 +855,7 @@ namespace Mate {
 			}
 			while (bb)
 			{
-				to = bb.pop();
+				to = bb.pop_lsb();
 				// toに対して自駒が利いてないと意味ない
 				if (!pos.attackers_to<Us>(to))
 					continue;
@@ -876,7 +876,7 @@ namespace Mate {
 
 			while (bb)
 			{
-				to = bb.pop();
+				to = bb.pop_lsb();
 				//      bb_attacks =knightEffect(Us, to);
 				// 桂馬はto以外は王が1手で移動できない場所なので求めるまでもない。
 
@@ -925,7 +925,7 @@ namespace Mate {
         bb = pos.pieces(Us, DRAGON);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			Bitboard slide = pos.pieces() ^ from;
 			bb_check = dragonEffect(from, slide) & bb_move & kingEffect(sq_king);
 			// 玉の8近傍への移動
@@ -945,7 +945,7 @@ namespace Mate {
 
 			while (bb_check)
 			{
-				to = bb_check.pop();
+				to = bb_check.pop_lsb();
 				// fromの駒以外のtoへの利きがあるかを調べる。
 				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 
@@ -972,7 +972,7 @@ namespace Mate {
 		bb = pos.pieces(Us, ROOK);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			Bitboard slide = pos.pieces() ^ from;
 			bb_check = rookEffect(from, slide) & bb_move & kingEffect(sq_king);
 
@@ -989,7 +989,7 @@ namespace Mate {
 
 			while (bb_check)
 			{
-				to = bb_check.pop();
+				to = bb_check.pop_lsb();
 				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 
 				// 敵陣へ/から の移動であれば成りなので
@@ -1027,7 +1027,7 @@ namespace Mate {
 		bb = pos.pieces(Us, HORSE);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			Bitboard slide = pos.pieces() ^ from;
 			bb_check = horseEffect(from, slide) & bb_move & kingEffect(sq_king);
 			// 玉の8近傍への移動
@@ -1050,7 +1050,7 @@ namespace Mate {
 
 			while (bb_check)
 			{
-				to = bb_check.pop();
+				to = bb_check.pop_lsb();
 				if (!(pos.attackers_to(Us, to, slide) ^ from)) { continue; }
 
 				// 王手になっていることは保証されている
@@ -1071,14 +1071,14 @@ namespace Mate {
 		bb = pos.pieces(Us, BISHOP);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			Bitboard slide = pos.pieces() ^ from;
 			bb_check = bishopEffect(from, slide) & bb_move & kingEffect(sq_king);
 			Bitboard new_pin = pos.pinned_pieces<Them>(from);
 
 			while (bb_check)
 			{
-				to = bb_check.pop();
+				to = bb_check.pop_lsb();
 				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 
 				// 敵陣へ/から の移動であれば成りなので
@@ -1108,7 +1108,7 @@ namespace Mate {
 
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			Bitboard slide = pos.pieces() ^ from;
 			bb_attacks = lanceEffect<Us>(from, slide);
 
@@ -1119,7 +1119,7 @@ namespace Mate {
 
 			while (bb_check)
 			{
-				to = bb_check.pop();
+				to = bb_check.pop_lsb();
 
 				if (canPromote(Us, to))
 					bb_attacks = goldEffect<Us>(to);
@@ -1190,7 +1190,7 @@ namespace Mate {
 														 // 利きが正しく生成できているかのテスト
 														 //    sync_cout << aak << sync_endl;
 
-			int esc_count = escape_bb.pop_count();
+			int esc_count = escape_bb.popcount();
 			if (esc_count >= 4)
 				goto NEXT1; // 残念ながら退路がありすぎて話にならんかった。詰む可能性低いので調べなくていいや。
 							// 退路3個はまだ許せる…。としよう。
@@ -1206,15 +1206,15 @@ namespace Mate {
 			{
 				// countが2なので2回のpop()は保証される。
 				bb = escape_bb;
-				from = bb.pop();
-				to = bb.pop();
+				from = bb.pop_lsb();
+				to = bb.pop_lsb();
 				//      esc_align = aligned(from, to, sq_king);
 			}
 
 			while (bb2)
 			{
 				// 退路
-				Square one = bb2.pop();
+				Square one = bb2.pop_lsb();
 
 				// このあと
 				// 1. sq_kingのone側のもうひとつ先の升toにsq_kingに利く駒が打てて
@@ -1343,7 +1343,7 @@ namespace Mate {
 
 						while (bb)
 						{
-							from = bb.pop();
+							from = bb.pop_lsb();
 							// fromからtoに移動させてこれで詰むかどうかテスト
 
 							// この指し手が合法でないといかん。
@@ -1408,7 +1408,7 @@ namespace Mate {
 
 						while (bb)
 						{
-							from = bb.pop();
+							from = bb.pop_lsb();
 							// fromからtoに移動させてこれで詰むかどうかテスト
 
 							// この指し手が合法でないといかん。
@@ -1467,7 +1467,7 @@ namespace Mate {
 		bb = check_cand_bb<Us>( PIECE_TYPE_CHECK_GOLD, sq_king)  & pos.pieces(Us, GOLDS);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			bb_check = goldEffect<Us>(from) & bb_move & goldEffect<Them>(sq_king);
 			// 金は成りがないのでこれで100%王手。
 
@@ -1478,7 +1478,7 @@ namespace Mate {
 
 			while (bb_check)
 			{
-				to = bb_check.pop();
+				to = bb_check.pop_lsb();
 				if (!(pos.attackers_to<Us>(to, slide) ^ from)) { continue; }
 				if (pos.discovered(from, to, our_king, our_pinned)) { continue; }
 				bb_attacks = goldEffect<Us>(to);
@@ -1495,7 +1495,7 @@ namespace Mate {
 		bb = check_cand_bb(Us, PIECE_TYPE_CHECK_SILVER, sq_king)  & pos.pieces(Us, SILVER);
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			bb_check = silverEffect<Us>(from) & bb_move & kingEffect(sq_king);
 			// 敵玉8近傍を移動先の候補とする。金+銀の王手なので…。
 			if (!bb_check) { continue; }
@@ -1505,7 +1505,7 @@ namespace Mate {
 
 			while (bb_check)
 			{
-				to = bb_check.pop();
+				to = bb_check.pop_lsb();
 				bb_attacks = silverEffect<Us>(to);
 				// これで王手になってないと駄目
 				if (!(bb_attacks & sq_king)) { goto PRO_SILVER; }
@@ -1546,7 +1546,7 @@ namespace Mate {
 
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			bb_check = knightEffect<Us>(from) & bb_move;
 			if (!bb_check) { continue; }
 
@@ -1555,7 +1555,7 @@ namespace Mate {
 
 			while (bb_check)
 			{
-				to = bb_check.pop();
+				to = bb_check.pop_lsb();
 				bb_attacks = knightEffect<Us>(to);
 				// 敵陣1,2段目からのStepAttackはBitboard(ZERO)相当なのでここへの不成りが生成されることはない
 				if (!(bb_attacks & sq_king)) { goto PRO_KNIGHT; }
@@ -1615,7 +1615,7 @@ namespace Mate {
 
 		while (bb)
 		{
-			from = bb.pop();
+			from = bb.pop_lsb();
 			to = from + (Us == BLACK ? SQ_U : SQ_D);
 			if (pos.piece_on(to) != NO_PIECE && color_of(pos.piece_on(to)) != Them) { continue; }
 			bb_attacks = goldEffect<Us>(to);
@@ -1645,7 +1645,7 @@ namespace Mate {
 
 			while (bb_candidates)
 			{
-				from = bb_candidates.pop();
+				from = bb_candidates.pop_lsb();
 				PieceType pt = type_of(pos.piece_on(from));
 				switch (pt)
 				{
@@ -1694,7 +1694,7 @@ namespace Mate {
 					bb = knightEffect(Us, from) &knightEffect(Them, sq_king) & bb_move;
 					while (bb)
 					{
-						to = bb.pop();
+						to = bb.pop_lsb();
 						if (aligned(from, to, sq_king)) { continue; }
 						bb_attacks = knightEffect(Us, to);
 						if (bb_attacks & sq_king) { continue; }
@@ -1707,7 +1707,7 @@ namespace Mate {
 					bb = knightEffect(Us, from) &goldEffect(Them, sq_king);
 					while (bb)
 					{
-						to = bb.pop();
+						to = bb.pop_lsb();
 						if (aligned(from, to, sq_king)) { continue; }
 						if (!(canPromote(Us, from, to))) { continue; }
 						bb_attacks = goldEffect(Us, to);
@@ -1728,7 +1728,7 @@ namespace Mate {
 					bb = silverEffect(Us, from) & silverEffect(Them, sq_king) & bb_move;;
 					while (bb)
 					{
-						to = bb.pop();
+						to = bb.pop_lsb();
 						if (aligned(from, to, sq_king)) { continue; }
 						bb_attacks = silverEffect(Us, to);
 						if (bb_attacks & sq_king) { continue; }
@@ -1741,7 +1741,7 @@ namespace Mate {
 					bb = silverEffect(Us, from) & goldEffect(Them, sq_king) & bb_move;;
 					while (bb)
 					{
-						to = bb.pop();
+						to = bb.pop_lsb();
 						if (aligned(from, to, sq_king)) { continue; }
 						if (!(canPromote(Us, from, to))) { continue; }
 						bb_attacks = goldEffect(Us, to);
@@ -1822,7 +1822,7 @@ namespace Mate {
 				// 候補はほとんどないはずだが。
 				while (bb)
 				{
-					to = bb.pop();
+					to = bb.pop_lsb();
 					bool promo = is_enemy_from || canPromote(Us, to);
 
 					// これ、開き王手になってないと駄目
@@ -1898,7 +1898,7 @@ namespace Mate {
 
 			while (bb)
 			{
-				from = bb.pop();
+				from = bb.pop_lsb();
 
 				// if (can_piece_capture(pos, Them, from, pinned, pos.pieces()))
 				//  continue;
@@ -1909,7 +1909,7 @@ namespace Mate {
 				Bitboard atk = pos.attackers_to(Them, from) & ~square_bb(sq_king);
 				if (atk)
 				{
-					if (atk.pop_count() >= 2)
+					if (atk.popcount() >= 2)
 						continue; // 2つ以上利きがあるなら消せないわ
 
 								  // 1つしかないので、その場所への移動を中心に考えよう。そこは敵駒なのでbb_moveを見るまでもなく
@@ -1985,7 +1985,7 @@ namespace Mate {
 				Bitboard slide = pos.pieces() ^ from;
 				while (bb2)
 				{
-					to = bb2.pop();
+					to = bb2.pop_lsb();
 
 					// 開き王手になっていない。
 					if (aligned(from, to, sq_king))

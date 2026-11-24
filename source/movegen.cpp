@@ -80,7 +80,7 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 		case PAWN:
 			if (target)
 			{
-				to = from + (Us == BLACK ? SQ_U : SQ_D); // to = target.pop(); より少し速い
+				to = from + (Us == BLACK ? SQ_U : SQ_D); // to = target.pop_lsb(); より少し速い
 				if (canPromote(Us, to))
 				{
 					*moveList++ = make_move_promote(from, to , Us, Pt);
@@ -111,7 +111,7 @@ template <PieceType Pt, Color Us, bool All> struct make_move_target {
 		{
 			while (target)
 			{
-				to = target.pop();
+				to = target.pop_lsb();
 				if (canPromote(Us, to))
 					*moveList++ = make_move_promote(from, to  , Us, Pt);
 				if ((Us == BLACK && rank_of(to) >= RANK_3) || (Us == WHITE && rank_of(to) <= RANK_7))
@@ -214,7 +214,7 @@ template <GenType Type, PieceType Pt, Color Us, bool All> struct GeneratePieceMo
 
 		while (pieces)
 		{
-			auto from = pieces.pop();
+			auto from = pieces.pop_lsb();
 
 			// 移動できる場所 = 利きのある場所
 			auto target2 =
@@ -246,7 +246,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, PAWN
 
 		while (target2)
 		{
-			auto to = target2.pop();
+			auto to = target2.pop_lsb();
 			auto from = to + (Us == BLACK ? SQ_D : SQ_U);
 			// 歩が成れるときは成る指し手しか生成しない。
 			if (canPromote(Us, to))
@@ -283,7 +283,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 
 		while (pieces)
 		{
-			auto from = pieces.pop();
+			auto from = pieces.pop_lsb();
 
 			// fromの升にある駒をfromの升においたときの利き
 			auto target2 = attacks_bb(pos.piece_on(from), from, occ) & target;
@@ -304,7 +304,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 
 		while (pieces)
 		{
-			auto from = pieces.pop();
+			auto from = pieces.pop_lsb();
 			// fromの升にある駒をfromの升においたときの利き
 			auto target2 = attacks_bb(pos.piece_on(from), from, occ) & target;
 
@@ -324,7 +324,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_
 
 		while (pieces)
 		{
-			auto from = pieces.pop();
+			auto from = pieces.pop_lsb();
 			// fromの升にある駒をfromの升においたときの利き
 			const auto pc = pos.piece_on(from);
 			auto target2 = attacks_bb(pc, from, occ) & target;
@@ -375,7 +375,7 @@ template <Color Us> struct GenerateDropMoves {
 			Bitboard pe = pawnEffect<Them>(pos.square<KING>(Them));
 			if (pe & target2)
 			{
-				Square to = pe.pop_c();
+				Square to = pe.lsb();
 				if (!pos.legal_drop(to))
 					target2 ^= pe;
 			}
@@ -517,7 +517,7 @@ Move* generate_evasions(const Position& pos, Move* moveList)
 		++checkersCnt;
 
 		// 王手をしている敵の駒の位置を取り出す
-		checksq = checkers.pop();
+		checksq = checkers.pop_lsb();
 
 		// この駒は敵駒でなくてはならない
 		ASSERT_LV3(color_of(pos.piece_on(checksq)) == ~Us);
@@ -531,7 +531,7 @@ Move* generate_evasions(const Position& pos, Move* moveList)
 	// これがまだ自殺手である可能性もあるが、それはis_legal()でチェックすればいいと思う。
 
 	Bitboard bb = kingEffect(ksq) & ~(pos.pieces(Us) | sliderAttacks);
-	while (bb) { Square to = bb.pop(); *moveList++ = make_move(ksq, to , Us, KING); }
+	while (bb) { Square to = bb.pop_lsb(); *moveList++ = make_move(ksq, to , Us, KING); }
 
 	// 両王手(checkersCnt == 2)であるなら、王の移動のみが回避手となる。ゆえにこれで指し手生成は終了。
 	// 1以下なら、両王手ではないので..
@@ -673,7 +673,7 @@ Move* make_move_target_pro(Square from, const Bitboard& target, Move* moveList)
 	auto bb = target;
 	while (bb)
 	{
-		auto to = bb.pop();
+		auto to = bb.pop_lsb();
 		if (Promote)
 			*moveList++ = make_move_promote(from, to , Us, Pt);
 		else
@@ -779,7 +779,7 @@ template <Color Us, PieceType Pt> struct GenerateCheckDropMoves {
 		auto bb = target;
 		while (bb)
 		{
-			auto to = bb.pop();
+			auto to = bb.pop_lsb();
 			*moveList++ = make_move_drop(Pt, to , Us);
 		}
 		return moveList;
@@ -793,7 +793,7 @@ template <Color Us> struct GenerateCheckDropMoves<Us, PAWN> {
 		auto bb = target;
 		if (bb) // 歩を打って王手になる箇所は1箇所しかないのでwhileである必要はない。
 		{
-			auto to = bb.pop_c();
+			auto to = bb.lsb();
 
 			// 二歩と打ち歩詰めでないならこの指し手を生成。
 			if (pos.legal_pawn_drop(Us, to))
@@ -855,7 +855,7 @@ Move* generate_checks(const Position& pos, Move* moveList)
 	auto src = y;
 	while (src)
 	{
-		auto from = src.pop();
+		auto from = src.pop_lsb();
 
 		// 両王手候補なので指し手を生成してしまう。
 
@@ -873,7 +873,7 @@ Move* generate_checks(const Position& pos, Move* moveList)
 	src = (x | y) ^ y;
 	while (src)
 	{
-		auto from = src.pop();
+		auto from = src.pop_lsb();
 
 		// 直接王手のみ。
 		moveList = make_move_check<Us, All>(pos, pos.piece_on(from), from, themKing, target, moveList);

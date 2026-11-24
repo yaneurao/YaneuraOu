@@ -1001,7 +1001,7 @@ void Position::update_slider_blockers(Color c) const {
 
     while (snipers)
     {
-        Square   sniperSq = snipers.pop();
+        Square   sniperSq = snipers.pop_lsb();
         Bitboard b        = between_bb(ksq, sniperSq) & occupancy;
 
         // snipperと玉との間にある駒が1個であるなら。
@@ -1215,7 +1215,7 @@ void Position::update_kingSquare()
 	{
 		// 玉がいなければSQ_NBを設定しておいてやる。(片玉対応)
 		auto b = pieces(c, KING);
-		kingSquare[c] = b ? b.pop() : SQ_NB;
+		kingSquare[c] = b ? b.pop_lsb() : SQ_NB;
 	}
 }
 
@@ -1400,7 +1400,7 @@ bool Position::legal_drop(const Square to) const
 	auto occ = pieces() ^ to; // toには歩をおく前提なので、ここには駒があるものとして、これでの利きの遮断は考えないといけない。
 	while (escape_bb)
 	{
-		Square king_to = escape_bb.pop();
+		Square king_to = escape_bb.pop_lsb();
 		if (!attackers_to(us, king_to, occ))
 			return true; // 退路が見つかったので打ち歩詰めではない。
 	}
@@ -1482,7 +1482,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 		{
 			// 王手されている局面なので合駒でなければならない
 			Bitboard target = checkers();
-			Square checksq = target.pop();
+			Square checksq = target.pop_lsb();
 
 			// 王手している駒を1個取り除いて、もうひとつあるということは王手している駒が
 			// 2つあったということであり、両王手なので合い利かず。
@@ -1620,7 +1620,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 				// 例) 王■■■^飛
 				// となっているときに■の升か、^飛 のところが移動先であれば王手は回避できている。
 				// (素抜きになる可能性はあるが、そのチェックはここでは不要)
-				if (!((between_bb(checkers().pop(), square<KING>(us)) | checkers()) & to))
+				if (!((between_bb(checkers().pop_lsb(), square<KING>(us)) | checkers()) & to))
 					return false;
 			}
 
@@ -2874,7 +2874,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 		*/
 
         // 今回移動させてtoの駒を取るための駒の移動元の升
-        Square sq = bb.pop();
+        Square sq = bb.pop_lsb();
         // bbにあった駒を取り除く
         occupied ^= sq;
 
@@ -3140,10 +3140,10 @@ void Position::update_entering_point() {
 	// --- 盤上の駒を数える。大駒5点、小駒1点とする。これは、Bitboardを用いると速い。
 
 	// 盤上のすべての駒の枚数
-	auto p1 = pieces().pop_count();
+	auto p1 = pieces().popcount();
 
 	// 盤上の大駒の枚数
-	auto p2 = pieces(BISHOP_HORSE,ROOK_DRAGON).pop_count();
+	auto p2 = pieces(BISHOP_HORSE,ROOK_DRAGON).popcount();
 
 	// 盤上の駒点
 	// 大駒の枚数の4倍を加算すれば、小駒を1点、大駒を5点とみなして計算したことになる。
@@ -3231,13 +3231,13 @@ Move Position::DeclarationWin() const
 
 
 		// (d)宣言側の敵陣三段目以内の駒は、玉を除いて10枚以上存在する。
-		int p1 = (pieces(us) & ef).pop_count();
+		int p1 = (pieces(us) & ef).popcount();
 		// p1には玉も含まれているから11枚以上ないといけない
 		if (p1 < 11)
 			return Move::none();
 
 		// 敵陣にいる大駒の数
-		int p2 = ((pieces(us, BISHOP_HORSE, ROOK_DRAGON)) & ef).pop_count();
+		int p2 = ((pieces(us, BISHOP_HORSE, ROOK_DRAGON)) & ef).popcount();
 
 		// 小駒1点、大駒5点、玉除く
 		// ＝　敵陣の自駒 + 敵陣の自駒の大駒×4 - 玉

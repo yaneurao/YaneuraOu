@@ -205,10 +205,10 @@ void init()
 
 			if (pawn)
 			{
-				Square sq2 = pawn.pop();
+				Square sq2 = pawn.pop_lsb();
 				Bitboard pawn2 = lanceEffect(c, sq2, Bitboard(1)); // さらに1つ前
 				if (pawn2)
-					tmp = bishopEffect(sq2, Bitboard(1)) & rank_bb(pawn2.pop());
+					tmp = bishopEffect(sq2, Bitboard(1)) & rank_bb(pawn2.pop_lsb());
 			}
 			KnightEffectBB[sq][c] = tmp;
 
@@ -221,7 +221,7 @@ void init()
 			Bitboard e_pawn = lanceEffect(~c, sq, Bitboard(1));
 			Bitboard mask(ZERO);
 			if (e_pawn)
-				mask = rank_bb(e_pawn.pop());
+				mask = rank_bb(e_pawn.pop_lsb());
 			GoldEffectBB[sq][c]= (bishopEffect(sq, Bitboard(1)) & ~mask) | rookEffect(sq, Bitboard(1));
 
 			// --- 以下のbitboard、あまり頻繁に用いないので他のbitboardを合成して代用する。

@@ -181,7 +181,7 @@ namespace Mate
 		{
 			auto drop_target = knightEffect(them, themKing) & ~pos.pieces(Us);
 			while (drop_target) {
-				to = drop_target.pop();
+				to = drop_target.pop_lsb();
 				if (!pos.board_effect[them].effect(to))
 				{
 					// 桂馬を持っていて、8近傍にかかる長い利きを遮断していなくて
@@ -211,7 +211,7 @@ namespace Mate
 					// toに自駒がないことはdrop_targetを求めるときに保証している。敵駒はあって移動によって捕獲できるので問題ない。
 					auto froms = knightEffect(them, to) & pos.pieces(Us, KNIGHT);
 					while (froms) {
-						from = froms.pop();
+						from = froms.pop_lsb();
 						if (!(pinned & from))
 						{
 							auto cut_directions = pos.long_effect.le16[to].dirs[Us];
@@ -420,7 +420,7 @@ NextCandidate:;
 			froms = pos.attackers_to(Us, to);
 			while (froms)
 			{
-				from = froms.pop();
+				from = froms.pop_lsb();
 				Move m = is_mated_by_from_to(from, to, to_direct);
 				if (m != Move::none())
 					return m;
@@ -459,7 +459,7 @@ NextCandidate:;
 
 			while (target)
 			{
-				auto to = target.pop();
+				auto to = target.pop_lsb();
 
 				// b) この移動の方向にこの升での長い利きがなければ移動後、toの升に利きが2つにならないのでNG
 				if (!(directions_of(from, to) & pos.long_effect.directions_of(Us, from)))

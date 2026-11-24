@@ -174,7 +174,7 @@ const InputFeatureSpec& input_feature_spec() {
 				}
 
 				// ある升sqに対するc側の利き数。MAX_ATTACK_NUM以上の利きは、MAX_ATTACK_NUM個であるとみなす。
-				const int num = std::min(MAX_ATTACK_NUM, position.attackers_to(c, sq, occupied_bb).pop_count());
+				const int num = std::min(MAX_ATTACK_NUM, position.attackers_to(c, sq, occupied_bb).popcount());
 				for (int k = 0; k < num; k++)
 				{
 					// 利きの数のlayer数だけ、各layerに対してその升を1にしておく。
@@ -464,7 +464,7 @@ void make_input_features_sub(const Position& position,
                 king_count = 1;
             }
 
-            const int own_pieces_count = (position.pieces(c) & ef).pop_count() - king_count;
+            const int own_pieces_count = (position.pieces(c) & ef).popcount() - king_count;
             const int rest_opp_field_num = 10 - own_pieces_count;
             if (rest_opp_field_num < (int)MAX_NYUGYOKU_OPP_FIELD)
             {
@@ -474,7 +474,7 @@ void make_input_features_sub(const Position& position,
                 set_packed_feature(packed_features2, f2idx);
             }
 
-            const int own_big_pieces_count = (position.pieces(c, BISHOP_HORSE, ROOK_DRAGON) & ef).pop_count();
+            const int own_big_pieces_count = (position.pieces(c, BISHOP_HORSE, ROOK_DRAGON) & ef).popcount();
             const int own_small_pieces_count = own_pieces_count - own_big_pieces_count;
             const int val = own_small_pieces_count
                           + hand_count(hand, PAWN) + hand_count(hand, LANCE) + hand_count(hand, KNIGHT)

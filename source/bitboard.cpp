@@ -173,11 +173,11 @@ bool Bitboard::test(Bitboard rhs) const
 #endif
 }
 
-Square Bitboard::pop()
+Square Bitboard::pop_lsb()
 {
 	u64 q0 = extract64<0>();  Square sq;
-	if (q0 != 0) { sq = Square(pop_lsb(q0)); insert64<0>(q0); }
-	else { u64 q1 = extract64<1>();  sq = Square(pop_lsb(q1) + 63); insert64<1>(q1); }
+	if (q0 != 0) { sq = Square(YaneuraOu::pop_lsb(q0)); insert64<0>(q0); }
+	else { u64 q1 = extract64<1>();  sq = Square(YaneuraOu::pop_lsb(q1) + 63); insert64<1>(q1); }
 	return sq;
 }
 

@@ -389,7 +389,7 @@ namespace LongEffect
     auto inc_target = short_effects_from(dropped_pc, to);
     while (inc_target)
     {
-      auto sq = inc_target.pop();
+      auto sq = inc_target.pop_lsb();
       ADD_BOARD_EFFECT(Us, sq, +1);
     }
 
@@ -433,12 +433,12 @@ namespace LongEffect
     inc_target ^= and_target;
     dec_target ^= and_target;
 
-    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT( Us, sq , +1); }
-    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT( Us, sq , -1); }
+    while (inc_target) { auto sq = inc_target.pop_lsb(); ADD_BOARD_EFFECT( Us, sq , +1); }
+    while (dec_target) { auto sq = dec_target.pop_lsb(); ADD_BOARD_EFFECT( Us, sq , -1); }
 
     // 捕獲された駒の利きの消失
     dec_target = short_effects_from(captured_pc, to);
-    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT(~Us, sq , -1); }
+    while (dec_target) { auto sq = dec_target.pop_lsb(); ADD_BOARD_EFFECT(~Us, sq , -1); }
 
     // -- fromの地点での長い利きの更新。
     // この駒が移動することにより、ここに利いていた長い利きが延長されるのと、この駒による長い利きに関する更新。
@@ -489,8 +489,8 @@ namespace LongEffect
     inc_target ^= and_target;
     dec_target ^= and_target;
 
-    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT(Us, sq , +1); }
-    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT(Us, sq , -1); }
+    while (inc_target) { auto sq = inc_target.pop_lsb(); ADD_BOARD_EFFECT(Us, sq , +1); }
+    while (dec_target) { auto sq = dec_target.pop_lsb(); ADD_BOARD_EFFECT(Us, sq , -1); }
 
     // -- fromの地点での長い利きの更新。(capturesのときと同様)
 
@@ -532,7 +532,7 @@ namespace LongEffect
     auto inc_target = short_effects_from(dropped_pc, to);
     while (inc_target)
     {
-      auto sq = inc_target.pop();
+      auto sq = inc_target.pop_lsb();
       ADD_BOARD_EFFECT_REWIND(Us, sq, -1); // rewind時には-1
     }
 
@@ -555,12 +555,12 @@ namespace LongEffect
     inc_target ^= and_target;
     dec_target ^= and_target;
 
-    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT_REWIND(Us, sq, +1); }
-    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT_REWIND(Us, sq, -1); }
+    while (inc_target) { auto sq = inc_target.pop_lsb(); ADD_BOARD_EFFECT_REWIND(Us, sq, +1); }
+    while (dec_target) { auto sq = dec_target.pop_lsb(); ADD_BOARD_EFFECT_REWIND(Us, sq, -1); }
 
     // 捕獲された駒の利きの復活
     inc_target = short_effects_from(captured_pc, to);
-    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT_REWIND(~Us, sq, +1); }
+    while (inc_target) { auto sq = inc_target.pop_lsb(); ADD_BOARD_EFFECT_REWIND(~Us, sq, +1); }
 
     // -- toの地点での長い利きの更新。
 
@@ -599,8 +599,8 @@ namespace LongEffect
     inc_target ^= and_target;
     dec_target ^= and_target;
 
-    while (inc_target) { auto sq = inc_target.pop(); ADD_BOARD_EFFECT_REWIND(Us, sq, +1); }
-    while (dec_target) { auto sq = dec_target.pop(); ADD_BOARD_EFFECT_REWIND(Us, sq, -1); }
+    while (inc_target) { auto sq = inc_target.pop_lsb(); ADD_BOARD_EFFECT_REWIND(Us, sq, +1); }
+    while (dec_target) { auto sq = dec_target.pop_lsb(); ADD_BOARD_EFFECT_REWIND(Us, sq, -1); }
 
     // -- toの地点での長い利きの更新。
 

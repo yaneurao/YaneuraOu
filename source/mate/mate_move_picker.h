@@ -153,8 +153,8 @@ namespace Mate {
 						lastTo = to;
 
 						// 味方の利きの数、敵の利きの数
-						our_effect   = pos.attackers_to( us, to).pop_count();
-						their_effect = pos.attackers_to(~us, to).pop_count();
+						our_effect   = pos.attackers_to( us, to).popcount();
+						their_effect = pos.attackers_to(~us, to).popcount();
 					}
 
 					if (  ( drop && our_effect     < their_effect)

@@ -161,16 +161,18 @@ struct alignas(16) Bitboard
 
 	// 下位bitから1bit拾ってそのbit位置を返す。
 	// 絶対に1bitはnon zeroと仮定
-	// while(to = bb.pop())
-	//  make_move(from,to);
+	// while (bb) {
+	//     Square to = bb.pop_lsb();
+	//     make_move(from, to);
+	// }
 	// のように用いる。
-	Square pop();
+	Square pop_lsb();
 
-	// このBitboardの値を変えないpop()
-	Square pop_c() const { u64 q0 = extract64<0>();  return (q0 != 0) ? Square(LSB64(q0)) : Square(LSB64(extract64<1>()) + 63); }
+	// 最下位の1bitの升を返す。このBitboardの値は変えない。
+	Square lsb() const { u64 q0 = extract64<0>();  return (q0 != 0) ? Square(LSB64(q0)) : Square(LSB64(extract64<1>()) + 63); }
 
 	// 1のbitを数えて返す。
-	int pop_count() const { return (int)(POPCNT64(extract64<0>()) + POPCNT64(extract64<1>())); }
+	int popcount() const { return (int)(POPCNT64(extract64<0>()) + POPCNT64(extract64<1>())); }
 
 	// 代入型演算子
 
@@ -248,7 +250,7 @@ struct alignas(16) Bitboard
 	bool more_than_one() const;
 
 	// range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
-	Square operator*() { return pop(); }
+	Square operator*() { return pop_lsb(); }
 	void operator++() {}
 
 	// T(Square sq)と呼び出されるので各升に対して処理ができる。
@@ -257,10 +259,10 @@ struct alignas(16) Bitboard
 	template <typename T> FORCE_INLINE void foreach(T t) const
 	{
 		u64 p0 = this->extract64<0>();
-		while (p0) t( (Square)pop_lsb(p0));
+		while (p0) t( (Square)YaneuraOu::pop_lsb(p0));
 
 		u64 p1 = this->extract64<1>();
-		while (p1) t( (Square)(pop_lsb(p1) + 63));
+		while (p1) t( (Square)(YaneuraOu::pop_lsb(p1) + 63));
 	}
 
 	// Bitboard bbに対して、1であるbitのSquareがsqに入ってきて、このときにTを呼び出す。
@@ -271,10 +273,10 @@ struct alignas(16) Bitboard
 	template <typename T> FORCE_INLINE void foreach_part(T t) const
 	{
 		u64 p0 = this->extract64<0>();
-		while (p0) { t( (Square)(pop_lsb(p0)     ),0); }
+		while (p0) { t( (Square)(YaneuraOu::pop_lsb(p0)     ),0); }
 
 		u64 p1 = this->extract64<1>();
-		while (p1) { t( (Square)(pop_lsb(p1) + 63),1); }
+		while (p1) { t( (Square)(YaneuraOu::pop_lsb(p1) + 63),1); }
 	}
 
 	// UnitTest
