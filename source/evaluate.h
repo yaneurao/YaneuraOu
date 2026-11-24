@@ -7,14 +7,6 @@
 #include "types.h"
 
 // -------------------------------------
-//   評価関数に対応するheaderの読み込み
-// -------------------------------------
-
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-#include "eval/evalsum.h"
-#endif
-
-// -------------------------------------
 //             評価関数
 // -------------------------------------
 
@@ -30,6 +22,12 @@ namespace Eval::NNUE { struct NnueNetworks; }
 #endif
 
 namespace Eval {
+
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+    namespace Classic { class AccumulatorStack; }
+    Value evaluate(const Position& pos, Classic::AccumulatorStack& stack);
+    void evaluate_with_no_return(const Position& pos, Classic::AccumulatorStack& stack);
+#endif
 
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     using NetworkStorage = LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>;
@@ -51,7 +49,7 @@ namespace Eval {
 	void add_options(OptionsMap& options, ThreadPool& threads);
 
 	// 駒割りを含む評価値を全計算し、手番側から見た値を返す。
-	// Position::set()での初期化や検証用の再計算に用いる。差分計算不能時は内部の全計算処理も使う。
+	// 探索外の評価や検証用の再計算に用いる。差分計算不能時は内部の全計算処理も使う。
 	Value compute_eval(const Position& pos);
 
 	// 後続の差分計算に備え、必要なら現在局面の評価を準備する。評価値自体は返さない。

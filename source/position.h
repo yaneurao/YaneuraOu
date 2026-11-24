@@ -196,20 +196,6 @@ struct StateInfo {
 
 #if defined(USE_CLASSIC_EVAL)
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-
-	// 評価値。(次の局面で評価値を差分計算するときに用いる)
-	// 未計算時はsum.p[0][0]にVALUE_NOT_EVALUATEDを格納し、EvalSum::evaluated()で判定する。
-	Eval::EvalSum sum;
-
-#endif
-
-
-#if defined(USE_EVAL_LIST) && !defined(EVAL_NNUE)
-	// 評価値の差分計算の管理用
-	Eval::DirtyPiece dirtyPiece;
-#endif
-
 #if defined(KEEP_LAST_MOVE)
 	// 直前の指し手。デバッグ時などにおいてその局面までの手順を表示出来ると便利なことがあるのでそのための機能
 	Move lastMove;
@@ -750,6 +736,11 @@ class Position {
     void do_move(Move m, bool givesCheck, Eval::NNUE::Dirties& dirties,
                  const T* tt = nullptr, const SharedHistories* history = nullptr);
 #endif
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+    template <typename T = void>
+    void do_move(Move m, bool givesCheck, Eval::DirtyPiece& dirty,
+                 const T* tt = nullptr, const SharedHistories* history = nullptr);
+#endif
 #endif
 
 	// 💡 上記のdo_move()にはgivesCheckも渡さないといけないが、
@@ -1186,7 +1177,7 @@ private:
     template<Color Us, typename T>
     void do_move_impl(Move m, bool givesCheck, const T* tt,
                        const SharedHistories* history
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
                        , Eval::DirtyPiece* dirty
 #endif
                        );

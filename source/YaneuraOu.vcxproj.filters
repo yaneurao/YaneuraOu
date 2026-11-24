@@ -121,6 +121,9 @@
     <ClInclude Include="eval\evaluate_common.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
+    <ClInclude Include="eval\classic_accumulator.h">
+      <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
     <ClInclude Include="eval\evalsum.h">
       <Filter>リソース ファイル\eval</Filter>
     </ClInclude>

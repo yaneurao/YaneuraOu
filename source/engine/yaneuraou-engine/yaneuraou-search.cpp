@@ -2363,7 +2363,9 @@ void Search::YaneuraOuWorker::do_move(
 #elif defined(EVAL_SFNN) || defined(EVAL_NNUE)
     Eval::NNUE::Dirties& dirties = accumulatorStack.push(pos);
     pos.do_move(move, givesCheck, dirties, &tt, &sharedHistory);
-
+#elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+    auto& dirty = accumulatorStack.push();
+    pos.do_move(move, givesCheck, dirty, &tt, &sharedHistory);
 #else
 
     pos.do_move(move, givesCheck, &tt, &sharedHistory);
@@ -2675,6 +2677,8 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
             evaluated = true;
             #if defined(EVAL_NNUE)
             Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack);
+#elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+            Eval::evaluate_with_no_return(pos, accumulatorStack);
 #else
             Eval::evaluate_with_no_return(pos);
 #endif
@@ -2688,6 +2692,8 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
             evaluated = true;
             #if defined(EVAL_NNUE)
             Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack);
+#elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+            Eval::evaluate_with_no_return(pos, accumulatorStack);
 #else
             Eval::evaluate_with_no_return(pos);
 #endif
@@ -4769,6 +4775,8 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
             evaluated = true;
             #if defined(EVAL_NNUE)
             Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack);
+#elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+            Eval::evaluate_with_no_return(pos, accumulatorStack);
 #else
             Eval::evaluate_with_no_return(pos);
 #endif
@@ -5437,7 +5445,8 @@ Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
 
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack);
-
+#elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+    return Eval::evaluate(pos, accumulatorStack);
 #else
 	return Eval::evaluate(pos);
 #endif

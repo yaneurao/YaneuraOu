@@ -187,7 +187,7 @@ namespace Eval {
 		EvalSum operator - (const EvalSum & rhs) const { return EvalSum(*this) -= rhs; }
 
 		// 評価値が計算済みであるかを判定する。
-		// このEvalSumに値が入っていないときは、Position::do_move()にて
+		// このEvalSumに値が入っていないときは、AccumulatorStackのreset()/push()で
 		// p[0][0]にVALUE_NOT_EVALUATEDを設定することになっている。
 		bool evaluated() const { return p[0][0] != VALUE_NOT_EVALUATED; }
 

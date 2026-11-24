@@ -801,7 +801,7 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
     st->materialValue = Eval::material(*this);
 #endif
 
-#if defined(USE_CLASSIC_EVAL) && !defined(EVAL_NNUE)
+#if defined(USE_CLASSIC_EVAL) && !defined(EVAL_NNUE) && !defined(EVAL_KPPT) && !defined(EVAL_KPP_KKPT)
     Eval::compute_eval(*this);
 #endif
 
@@ -1741,7 +1741,7 @@ Move Position::to_move(Move16 m16) const
 template<Color Us, typename T>
 void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
                             [[maybe_unused]] const SharedHistories* history
-#if (defined(EVAL_SFNN) || defined(EVAL_NNUE))
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
                             , Eval::DirtyPiece* dirty
 #endif
                             ) {
@@ -1818,9 +1818,6 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     // 評価値の差分計算用の初期化
 #if defined(USE_CLASSIC_EVAL)
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-    st->sum.p[0][0] = VALUE_NOT_EVALUATED;
-#endif
 
 #if defined(USE_BOARD_EFFECT_PREV)
     // NNUE-HalfKPE9
@@ -1899,11 +1896,9 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     int materialDiff;
 #endif
 
-#if (defined(EVAL_SFNN) || defined(EVAL_NNUE))
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
     Eval::DirtyPiece scratch;
     auto& dp = dirty ? *dirty : scratch;
-#elif defined(USE_CLASSIC_EVAL) && defined(USE_EVAL_LIST)
-    auto& dp = st->dirtyPiece;
 #endif
 
     if (m.is_drop())
@@ -2511,13 +2506,13 @@ void Position::do_move(Move m, bool givesCheck, const T* tt, const SharedHistori
 {
     if (sideToMove == BLACK)
         do_move_impl<BLACK, T>(m, givesCheck, tt, history
-#if (defined(EVAL_SFNN) || defined(EVAL_NNUE))
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
                               , nullptr
 #endif
                               );
     else
         do_move_impl<WHITE, T>(m, givesCheck, tt, history
-#if (defined(EVAL_SFNN) || defined(EVAL_NNUE))
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(USE_EVAL_LIST)
                               , nullptr
 #endif
                               );
@@ -2535,7 +2530,18 @@ void Position::do_move(Move m, bool givesCheck,
 }
 #endif
 
-// undo_move()を先後分けたdo_move_impl<>()を呼び出す。
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+template <typename T>
+void Position::do_move(Move m, bool givesCheck, Eval::DirtyPiece& dirty,
+                       const T* tt, const SharedHistories* history) {
+    if (sideToMove == BLACK)
+        do_move_impl<BLACK, T>(m, givesCheck, tt, history, &dirty);
+    else
+        do_move_impl<WHITE, T>(m, givesCheck, tt, history, &dirty);
+}
+#endif
+
+// undo_move()を先後分けたundo_move_impl<>()を呼び出す。
 // Unmakes a move. When it returns, the position should
 // be restored to exactly the same state as before the move was made.
 // 指し手を戻し、指す前とまったく同じ局面へ復元する。
@@ -4205,6 +4211,13 @@ template void Position::do_move(Move m, bool givesCheck, const void* tt, const S
 template void Position::do_move(Move, bool, Eval::NNUE::Dirties&,
                                 const TranspositionTable*, const SharedHistories*);
 template void Position::do_move(Move, bool, Eval::NNUE::Dirties&,
+                                const void*, const SharedHistories*);
+#endif
+
+#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+template void Position::do_move(Move, bool, Eval::DirtyPiece&,
+                                const TranspositionTable*, const SharedHistories*);
+template void Position::do_move(Move, bool, Eval::DirtyPiece&,
                                 const void*, const SharedHistories*);
 #endif
 

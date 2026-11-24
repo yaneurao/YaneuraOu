@@ -10,6 +10,7 @@
 #include "../../book/book.h"
 #include "../../tt.h"
 #include "../../score.h"
+#include "../../eval/classic_accumulator.h"
 
 namespace YaneuraOu {
 
@@ -593,6 +594,8 @@ class YaneuraOuWorker: public Worker {
     const Eval::NetworkStorage& network;
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     Eval::NNUE::AccumulatorStack accumulatorStack;
+#elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+    Eval::Classic::AccumulatorStack accumulatorStack;
 #else
     // 累積値を使わない評価関数でも、同じ形で初期化とundoを呼べるようにする。
     struct {

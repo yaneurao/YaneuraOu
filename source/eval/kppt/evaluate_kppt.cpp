@@ -1,4 +1,5 @@
 ﻿#include "../../config.h"
+#include "../classic_accumulator.h"
 #include "../../extra/tools.h"
 
 //
@@ -265,8 +266,8 @@ namespace Eval {
 	const int FV_SCALE = 32;
 
 	// 評価関数。全計算。(駒割りは差分)
-	// 返し値は持たず、計算結果としてpos.state()->sumに値を代入する。
-	void compute_eval_impl(const Position& pos)
+	// 計算結果はWorkerまたは呼び出し側が所有するAccumulatorに保存する。
+	void compute_eval_impl(const Position& pos, Classic::Accumulator& accumulator)
 	{
 		// is_ready()で評価関数を読み込み、
 		// 初期化してからしかcompute_eval()を呼び出すことは出来ない。
@@ -355,17 +356,19 @@ namespace Eval {
 		auto st = pos.state();
 		sum.p[2][0] += st->materialValue * FV_SCALE;
 
-		st->sum = sum;
+		accumulator.sum = sum;
+        accumulator.materialValue = st->materialValue;
 	}
 
 	// 評価関数。差分計算ではなく全計算する。
-	// Position::set()での初期化や、検証用の再計算で呼ぶ。
+	// 探索外の評価や、検証用の再計算で呼ぶ。
 	// 駒割りを含め、手番側から見た評価値を返す。
 	Value compute_eval(const Position& pos)
-	{
-		compute_eval_impl(pos);
-		return Value(pos.state()->sum.sum(pos.side_to_move()) / FV_SCALE);
-	}
+    {
+        Classic::Accumulator accumulator;
+        compute_eval_impl(pos, accumulator);
+        return Value(accumulator.sum.sum(pos.side_to_move()) / FV_SCALE);
+    }
 
 	// 後手玉が移動したときの先手玉に対するの差分
 	std::array<s32, 2> do_a_black(const Position& pos, const ExtBonaPiece ebp) {
@@ -494,30 +497,27 @@ namespace Eval {
 	}
 
 #if !defined(USE_EVAL_MAKE_LIST_FUNCTION)
-	void evaluateBody(const Position& pos)
+	void evaluateBody(const Position& pos, Classic::Accumulator& accumulator)
 	{
 		// 一つ前のノードからの評価値の差分を計算する。
 
-		auto now = pos.state();
-		auto prev = pos.previous_state();
+		auto now = &accumulator;
+        now->materialValue = pos.state()->materialValue;
+		auto prev = accumulator.previous;
 
-		// nodeごとにevaluate()は呼び出しているので絶対に差分計算できるはず。
-		// 一つ前のnodeでevaluate()されているはず。
-		//
-		// 直前の局面がない開始局面では、Position::set()でcompute_eval()
-		// を呼び出すので通常この関数が呼び出されることはない。
-		if (!prev->sum.evaluated())
+		// スタックの先頭、または直前の評価が未計算なら全計算する。
+		if (!prev || !prev->sum.evaluated())
 		{
 			// 全計算
-			compute_eval_impl(pos);
+			compute_eval_impl(pos, accumulator);
 
 			return;
-			// 結果は、pos->state().sumから取り出すべし。
+			// 結果はaccumulator.sumから取り出す。
 		}
 
 		// 遡るnodeは一つだけ
 		// ひとつずつ遡りながらsumKPPがVALUE_NONEでないところまで探してそこからの差分を計算することは出来るが
-		// 現状、探索部では毎node、evaluate()を呼び出すから問題ない。
+		// 直前の累積値が未計算の場合は、上の分岐で全計算へ切り替える。
 
 		auto& dp = now->dirtyPiece;
 
@@ -727,7 +727,7 @@ namespace Eval {
 				}
 			}
 
-			// sumの計算が終わったのでpos.state()->sumに反映させておく。(これがこの関数の返し値に相当する。)
+			// sumの計算が終わったのでaccumulator.sumに反映させておく。(これがこの関数の返し値に相当する。)
 			now->sum = diff;
 
 		} else {
@@ -789,25 +789,26 @@ namespace Eval {
 	}
 #else
 	// EvalListの組み換えを行なうときは差分計算をせずに(実装するのが大変なため)、毎回全計算を行なう。
-	void evaluateBody(const Position& pos)
+	void evaluateBody(const Position& pos, Classic::Accumulator& accumulator)
 	{
-		compute_eval_impl(pos);
+		compute_eval_impl(pos, accumulator);
 	}
 #endif // USE_EVAL_MAKE_LIST_FUNCTION
 
 	// 評価関数
-	Value evaluate(const Position& pos)
+	Value evaluate(const Position& pos, Classic::AccumulatorStack& stack)
 	{
-		auto st = pos.state();
+		auto& accumulator = stack.latest();
+        auto st = &accumulator;
 		auto &sum = st->sum;
 
 		// すでに計算済(Null Moveなどで)であるなら、それを返す。
 		if (sum.evaluated())
 			return Value(sum.sum(pos.side_to_move()) / FV_SCALE);
-		// ここで未初期化な値が返っているなら、それはPosition::do_move()のところでVALUE_NOT_EVALUATEDを代入していないからだ。
+		// 未計算かどうかはAccumulatorStackのreset()/push()で設定する。
 
 		// 評価関数本体を呼び出して求める。
-		evaluateBody(pos);
+		evaluateBody(pos, accumulator);
 
 		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
 		// 差分計算と非差分計算との計算結果が合致するかのテスト。(さすがに重いのでコメントアウトしておく)
@@ -817,7 +818,7 @@ namespace Eval {
 		if (!(Value(st->sum.sum(pos.side_to_move()) / FV_SCALE) == compute_eval(pos)))
 		{
 			st->sum.p[0][0] = VALUE_NOT_EVALUATED;
-			evaluateBody(pos);
+			evaluateBody(pos, accumulator);
 		}
 #endif
 
@@ -830,20 +831,25 @@ namespace Eval {
 		return v;
 	}
 
-	void evaluate_with_no_return(const Position& pos)
+	void evaluate_with_no_return(const Position& pos, Classic::AccumulatorStack& stack)
 	{
 		// 評価関数の実験のときには、どうせ差分計算を行わないので、
 		// ここでevaluate()を呼ぶのは無駄である。
 
 #if !defined(USE_EVAL_MAKE_LIST_FUNCTION)
 		// まだ評価値が計算されていないなら
-		if (!pos.state()->sum.evaluated())
-			evaluate(pos);
+		if (!stack.latest().sum.evaluated())
+			evaluate(pos, stack);
 #else
 		// EvalListの組み換えを行なっているときは通常の差分計算ルーチンが機能しないので
 		// 差分計算をするための何かをする必要がない。
 #endif
 	}
+
+    // 探索外からの評価は局面にキャッシュを残さず、その場で全計算する。
+    Value evaluate(const Position& pos) { return compute_eval(pos); }
+
+    void evaluate_with_no_return([[maybe_unused]] const Position& pos) {}
 
 	// 現在の局面の評価値の内訳を表示する。
 	void print_eval_stat(Position& pos)

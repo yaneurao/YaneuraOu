@@ -705,7 +705,7 @@ std::optional<PositionSetError> Position::set_from_packed_sfen(const PackedSfen&
 	st->materialValue = Eval::material(*this);
 #endif
 
-#if defined(USE_CLASSIC_EVAL) && !defined(EVAL_NNUE)
+#if defined(USE_CLASSIC_EVAL) && !defined(EVAL_NNUE) && !defined(EVAL_KPPT) && !defined(EVAL_KPP_KKPT)
 	Eval::compute_eval(*this);
 #endif
 

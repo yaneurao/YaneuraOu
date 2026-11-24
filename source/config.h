@@ -158,7 +158,7 @@
 // 1. 駒番号を管理しているpiece_listについて
 //   これはPosition::eval_list()で取得可能。
 // 2. 移動した駒の管理について
-//   KPPT等ではPosition::state()->dirtyPiece、NNUE/SFNNではWorkerのAccumulatorStackに保持する。
+//   KPPT・KPP_KKPT・NNUE・SFNNではWorkerのAccumulatorStackに保持する。
 //   通常の着手で変化する駒は最大で2個(移動駒と捕獲駒)。
 // 3. 駒番号が何の駒であるかが決まっている。(PieceNumber型)
 //#define USE_EVAL_LIST
