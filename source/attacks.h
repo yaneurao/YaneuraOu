@@ -15,6 +15,7 @@ void init();
 #if !STOCKFISH
 // Initialize attack tables after Bitboards::init().
 // 利きテーブルを初期化するinit()は、Bitboards::init()のあとに呼ぶ。
+// StockfishにはBitboards::init()がないが、将棋版では先に基本表の初期化が必要。
 #if defined(ENABLE_TEST_CMD)
 void test_sliding_attacks(Test::UnitTester& tester);
 #endif
@@ -97,10 +98,12 @@ extern Bitboard LineBB[SQUARE_NB][SQUARE_NB];
 extern Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
 #else
 // 2升を通過する直線。[0]:右上から左下、[1]:横、[2]:左上から右下、[3]:縦。
+// StockfishのLineBB[s1][s2]とは添字の意味が異なり、将棋版はLineBB[升][方向]。
 // この配列には直接アクセスせず、line_bb()を使うこと。
 extern Bitboard LineBB[SQ_NB][4];
 
 // 2升に挟まれている升を返すためのテーブル(その2升は含まない)。
+// StockfishのBetweenBB[s1][s2]は終点込みの直接表。将棋版は両端を除く圧縮表。
 // cache汚染を抑えるためにシュリンクしてあり、between_bb()から参照する。
 extern Bitboard BetweenBB[785];
 extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
@@ -113,7 +116,9 @@ inline Bitboard line_bb(Square s1, Square s2) {
     assert(is_ok(s1) && is_ok(s2));
     return LineBB[s1][s2];
 #else
-    // 両升が縦横斜めの関係にあることを前提に、4方向へ圧縮した表を参照する。
+    // Stockfish版は同一直線にない有効な2升や同じ升の組なら空を返す。
+    // 将棋版は異なる2升が縦横斜めの関係にあることが前提で、それ以外の入力では空を保証しない。
+    // この前提で、4方向へ圧縮した表を参照する。
     static_assert(Effect8::DIRECT_RU == 0 && Effect8::DIRECT_LD == 7, "");
     auto directions = Effect8::directions_of(s1, s2);
     ASSERT_LV3(directions != 0);
@@ -124,13 +129,17 @@ inline Bitboard line_bb(Square s1, Square s2) {
 
 // horizontal/vertical/diagonal line segment from s1 to s2,
 // excluding s1 but including s2
-// s1を含まずs2を含む、s1からs2までの縦・横・斜めの線分。
+// Stockfishでは、s1を含まずs2を含む、s1からs2までの縦・横・斜めの線分。
+// 将棋版とは端点の扱いが異なる。下記#elseの仕様を参照。
 inline Bitboard between_bb(Square s1, Square s2) {
 #if STOCKFISH
     assert(is_ok(s1) && is_ok(s2));
     return BetweenBB[s1][s2];
 #else
-    // 将棋側は両端を含まない。縦横斜めの関係にないときは空のBitboardを返す。
+    // Stockfishとの仕様差: 将棋版はs1・s2の両端を含まない。
+    // 縦横斜めの関係にない組やs1 == s2では空。Stockfish版はその場合もs2だけを返す。
+    // 将棋版はどちらかがSQ_NBでも空を返すが、Stockfish版は両方とも盤上の升を要求する。
+    // 終点の駒を数えないピン計算や合駒生成が依存するため、単純に終点込みへ変えてはならない。
     return BetweenBB[BetweenIndex[s1][s2]];
 #endif
 }
@@ -596,7 +605,8 @@ sf_always_inline Bitboard attacks_bb(PieceType pt, Square s, Color c = COLOR_NB)
     return pt == PAWN ? PseudoAttacks[c][s] : PseudoAttacks[pt][s];
 }
 #else
-// 将棋では香・桂・銀・金などにも向きがあるため、先後を含むPieceを渡す。
+// Stockfish版はPieceTypeと、歩の場合にColorを渡す。将棋版は先後を含むPieceを渡す。
+// 将棋では香・桂・銀・金などにも向きがあるため、PieceTypeだけでは向きが確定しない。
 // B_GOLDS / W_GOLDSは、従来どおり金の利きとして扱う。
 Bitboard attacks_bb(Piece pc, Square s);
 #endif
@@ -626,7 +636,9 @@ sf_always_inline Bitboard attacks_bb(PieceType pt, Square s, Bitboard occupied) 
     }
 }
 #else
-// 将棋では先後を含むPieceを指定し、盤上の駒による利きの遮断も考慮する。
+// Stockfish版はPieceTypeを指定するが、将棋版は先後を含むPieceを指定する。
+// Stockfishの占有あり版は歩を対象外とするが、将棋版は歩にも対応する。
+// 盤上の駒による遠方駒の利きの遮断も考慮する。
 Bitboard attacks_bb(Piece pc, Square s, const Bitboard& occupied);
 #endif
 
@@ -635,6 +647,7 @@ inline std::pair<Bitboard, Bitboard> both_attacks_bb(Square s, Bitboard occupied
     return dual_magic(s).both_attacks_bb(occupied);
 #else
     // 角、飛車の順で返す。既存のSIMD計算とマスク配置は維持する。
+    // Stockfish版の入力は盤上の升。将棋版はSQ_NBでも両方が空のBitboardとなる。
     return {bishopEffect(s, occupied), rookEffect(s, occupied)};
 #endif
 }

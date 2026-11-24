@@ -774,6 +774,8 @@ enum MoveType : u16 {
 };
 
 // 指し手を表現するclass(実体は32bit整数)
+// StockfishのMoveは16bit。将棋版の通常手は下位16bitに移動、上位16bitに移動後の駒情報を持つ。
+// raw()は下位16bitだけを返すので、32bit全体が必要な処理ではto_u32()を使う。
 class Move
 {
 public:
@@ -855,6 +857,8 @@ public:
 	constexpr explicit operator u32() const { return u32(data); }
 
 	// 下位16bit(from,to,drop,promote)をそのまま返す。
+    // Stockfish版はMove全体を返すが、将棋版では上位の駒情報を含まない。
+    // historyの添字等に用いる。32bitの指し手全体が必要ならto_u32()を使う。
     constexpr u16 raw() const { return u16(data); }
 
 	// -- 文字列化

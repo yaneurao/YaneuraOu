@@ -45,6 +45,10 @@ enum BitboardZero{ ZERO };
 #endif
 
 // Bitboard本体クラス
+// StockfishのBitboardはu64だが、将棋版は2つの64bitに81升を格納する128bitクラス。
+// 下位wordのbit0～62がSquare 0～62、上位wordのbit0～17がSquare 63～80に対応する。
+// 下位wordのbit63は未使用なので、格納上のbit位置をそのままSquareへ変換してはならない。
+// +、-、<<、>>は各64bit単位で計算し、word間の桁上がり・桁借り・bit移動は行わない。
 
 struct alignas(16) Bitboard
 {
@@ -58,13 +62,13 @@ struct alignas(16) Bitboard
 		u64 p[2];
 
 		// SSEで取り扱い時用
-		// bit0がSQ_11,bit1がSQ_12,…,bit81がSQ_99を表現する。(縦型Bitboard)
-		// このbit位置がSquare型と対応する。
+		// 下位wordのbit0～62がSQ_11～SQ_79、上位wordのbit0～17がSQ_81～SQ_99を表す。
+		// wordをまたぐときのSquareとの対応は、クラス冒頭の説明を参照すること。
 		//
 		// ただしbit63は未使用。これは、ここを余らせることで香の利きや歩の打てる場所を求めやすくする。
 		// Aperyを始めとするmagic bitboard派によって考案された。
 
-		// ここから上位/下位64bitを取り出すのは、メンバのextract()を使うべし。
+		// ここから上位/下位64bitを取り出すのは、メンバのextract64()を使うべし。
 
 		__m128i m;
 	};
@@ -89,6 +93,8 @@ struct alignas(16) Bitboard
 	// ゼロ初期化     : Bitboard x(0); // 全升が0であるBitboard
 	// ALL_BBで初期化 : Bitboard x(1); // 全升が1であるBitboard。ただしp[0]の63bit目は0。
 	// のように用いる。
+	// StockfishのBitboard(1)は最下位の1bitだけだが、将棋版のBitboard(1)は全81升。
+	// 単一の升を表すときはsquare_bb(sq)を使う。
 	Bitboard(const int N)
 	{
 		// templateではないが、最適化されるはず。
@@ -233,6 +239,7 @@ struct alignas(16) Bitboard
 
 	// 128bit全体の16byteの順序を反転したBitboardを返す。
 	// 2つの64bitの位置も入れ替える。各64bit内だけのバイト反転ではない。
+	// Stockfishの同名自由関数は64bitの8byteを反転するが、将棋版は16byte全体を反転する。
 	// 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
 	Bitboard byteswap_bb() const;
 
@@ -248,8 +255,9 @@ struct alignas(16) Bitboard
 	// このbitboardを128bitレジスタとみなして1減算したBitboardを返す。方向利きの計算で用いる。
 	Bitboard decrement() const;
 
-	// 2bit以上あるかどうかを判定する。縦横斜め方向に並んだ駒が2枚以上であるかを判定する。この関係にないと駄目。
-	// この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
+	// 2bit以上あるかどうかを判定する。
+	// Stockfish版は任意のBitboardに使えるが、将棋版は!cross_over()が前提。
+	// 2つの64bitをORして数えるため、同じbit位置が両方に立つ盤面には使えない。
 	bool more_than_one() const;
 
 	// range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
@@ -360,6 +368,7 @@ constexpr Bitboard square_bb(Square s) {
     return 1ULL << s;
 }
 #else
+// Stockfish版は盤上の升だけを受け付けるが、将棋版はSQ_NBでも空のBitboardを返す。
 inline Bitboard square_bb(Square s) { return BB_Table::SquareBB[s]; }
 #endif
 
@@ -378,7 +387,8 @@ Bitboard operator^(const Bitboard& b, Square s);
 
 #if !STOCKFISH
 // 単項演算子
-// →　NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでALL_BBでxorしないといけない。
+// →　NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでBitboard(1)でxorする。
+// Stockfishの整数型の~と異なり、将棋版は81升のbitだけを反転し、盤外bitは変更しない。
 Bitboard operator ~ (const Bitboard& a);
 
 // range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
@@ -490,6 +500,8 @@ constexpr Bitboard pawn_attacks_bb(Bitboard b) {
                       : shift(b, SOUTH_WEST) | shift(b, SOUTH_EAST);
 }
 #else
+// Stockfishの同名関数はチェスの斜め2方向。将棋版は縦型Bitboard上で前方1升だけを返す。
+// 端の段からのシフトを盤面座標で補正する関数ではないので、歩を置ける升を渡す。
 // color = BLACKのとき、51の歩は49の升に移動するので、注意すること。
 // (51の升にいる先手の歩は存在しないので、歩の移動に用いる分には問題ないが。)
 template <Color C>
@@ -503,7 +515,7 @@ inline Bitboard pawn_attacks_bb(Bitboard bb)
 		Bitboard(ZERO);
 }
 
-// ↑の非template版
+// ↑の非template版。Colorを受け取るこのオーバーロードは将棋独自。
 inline Bitboard pawn_attacks_bb(Color c, const Bitboard& bb)
 {
 	return (c == BLACK) ? pawn_attacks_bb<BLACK>(bb) : pawn_attacks_bb<WHITE>(bb);
@@ -516,6 +528,8 @@ inline Bitboard pawn_attacks_bb(Color c, const Bitboard& bb)
 #if STOCKFISH
 inline Square lsb(Bitboard b) {
 #else
+// Stockfishのlsb(Bitboard)は盤上のSquareを返すが、この関数はu64の生のbit番号0～63を返す。
+// 128bit盤面の升を得るときはBitboard::lsb()を使う。TT等の生整数用処理と混同しないこと。
 inline i8 lsb(u64 b) {
 #endif
 	assert(b);
@@ -554,6 +568,8 @@ inline i8 lsb(u64 b) {
 #if STOCKFISH
 inline Square msb(Bitboard b) {
 #else
+// Stockfishのmsb(Bitboard)は盤上のSquareを返すが、この関数はu64の生のbit番号0～63を返す。
+// 128bitの将棋盤全体を調べる関数ではない。
 inline i8 msb(u64 b) {
 #endif
     assert(b);
@@ -600,6 +616,7 @@ constexpr Bitboard least_significant_square_bb(Bitboard b) {
     return b & -b;
 }
 #else
+// Stockfish版は非ゼロを要求するが、将棋版は空のBitboardを渡しても空を返す。
 inline Bitboard least_significant_square_bb(Bitboard b) {
 	//return b & -b;
 	// →　Stockfishはチェスが64升だから盤面のBitboardが64bit整数に収まるのだが、

@@ -18,6 +18,8 @@ Bitboard inverse_RayPassBB[SQUARE_NB][SQUARE_NB];
 Bitboard DiagBB[SQUARE_NB];
 Bitboard AntiDiagBB[SQUARE_NB];
 #else
+// StockfishのLineBBは[升][升]、将棋版は[升][方向]。
+// StockfishのBetweenBBは終点込みだが、将棋版は両端を除く圧縮表。
 // 配列を縮小しているので、升の組を方向または圧縮indexへ変換して参照する。
 Bitboard LineBB[SQ_NB][4];
 Bitboard BetweenBB[785];
@@ -265,6 +267,7 @@ static void init_pseudo_attacks() {
 
 static void init_lines() {
 	// 6) BetweenBB , LineBBの初期化
+    // Stockfishと異なり、BetweenBBの各値は両端を含めず、BetweenIndexを対称にする。
 	{
 		u16 between_index = 1;
 		// BetweenBB[0] == Bitboard(ZERO)であることを保証する。

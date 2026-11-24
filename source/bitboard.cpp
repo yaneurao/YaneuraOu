@@ -28,6 +28,8 @@ std::string Bitboards::pretty(Bitboard b) {
 
     return s;
 #else
+    // Stockfish版は8×8の盤を罫線・座標付きで表示する。将棋版は9×9を * / . で表示する。
+    // 既存の表示形式との互換性のため、罫線・座標を付けず末尾に空行を置く。
 
     std::string s;
 
@@ -263,6 +265,7 @@ Bitboard Bitboard::decrement() const
 
 // 128bit全体の16byteの順序を反転したBitboardを返す。
 // 2つの64bitの位置も入れ替える。各64bit内だけのバイト反転ではない。
+// Stockfishの同名自由関数は64bitの8byteを反転するが、将棋版は16byte全体を反転する。
 // 飛車の利きの右方向と角の利きの右上、右下方向を求める時に使う。
 Bitboard Bitboard::byteswap_bb() const
 {
@@ -320,8 +323,9 @@ void Bitboard::decrement(const Bitboard hi_in,const Bitboard lo_in, Bitboard& hi
 #endif
 }
 
-// 2bit以上あるかどうかを判定する。縦横斜め方向に並んだ駒が2枚以上であるかを判定する。この関係にないと駄目。
-// この関係にある場合、Bitboard::merge()によって被覆しないことがBitboardのレイアウトから保証されている。
+// 2bit以上あるかどうかを判定する。
+// Stockfish版は任意のBitboardに使えるが、将棋版は!cross_over()が前提。
+// 2つの64bitをORして数えるため、同じbit位置が両方に立つ盤面には使えない。
 bool Bitboard::more_than_one() const
 {
 	ASSERT_LV2(!cross_over());

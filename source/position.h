@@ -774,6 +774,8 @@ class Position {
 
 	// 📝 StateInfoの同名のメンバーへの簡易アクセス。
 	// 💡 USE_PARTIAL_KEYがdefineされていない時は、key()以外は使えない。
+    // Stockfishの同名アクセサーは64bitのKeyを返すが、将棋版はHASH_KEY_BITSに応じた
+    // HASH_KEYを返す。TT等で使うKey自体は将棋版も64bit固定なので混同しないこと。
 
     HASH_KEY key() const;
     HASH_KEY material_key() const;
