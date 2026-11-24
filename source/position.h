@@ -109,7 +109,7 @@ struct StateInfo {
 	// 指し手で局面を進めるときにコピーされない(なんにせよ再計算される)
 
 #if STOCKFISH
-	HASH_KEY        key;
+	Key key;
 #else
 	// 盤面(盤上の駒)と手駒に関するhash key
 	// 直接アクセスせずに、hand_key()、board_key(),key()を用いること。
@@ -1587,4 +1587,4 @@ Bitboard Position::pinned_pieces(Square from, Square to) const {
 
 } // namespace YaneuraOu
 
-#endif // of #ifndef POSITION_H_INCLUDED
+#endif  // #ifndef POSITION_H_INCLUDED
