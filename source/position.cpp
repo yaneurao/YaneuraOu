@@ -980,8 +980,8 @@ void Position::update_slider_blockers(Color c) const {
                         | (attacks_bb(BISHOP, ksq) & pieces(QUEEN, BISHOP))) & pieces(~c);
 #else
 
-	// cが与えられていないと香の利きの方向を確定させることが出来ない。
-    // ゆえに将棋では、この関数は手番を引数に取るべき。(チェスとはこの点において異なる。)
+    // cは現在の手番ではなく、遮る駒を調べる対象の玉の色。Stockfishも同じ意味で受け取る。
+    // 将棋では、c側の玉へ利く敵の香の方向を決めるためにも用いる。
 
     Bitboard snipers =
       ((pieces(ROOK_DRAGON) & rookStepEffect(ksq))

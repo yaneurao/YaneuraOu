@@ -19,7 +19,7 @@ namespace Effect8
 {
   // --- Directions
 
-  // *** shogi.hに持って行ったものはここではコメントアウトしてある。 ***
+  // types.hへ移した共通の方向定義は、ここではコメントとして残している。
 
   // 方角を表す。遠方駒の利きや、玉から見た方角を表すのに用いる。
   // bit0..右上、bit1..右、bit2..右下、bit3..上、bit4..下、bit5..左上、bit6..左、bit7..左下
@@ -82,7 +82,7 @@ namespace Effect8
   //const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = { SQWW_RU,SQWW_R,SQWW_RD,SQWW_U,SQWW_D,SQWW_LU,SQWW_L,SQWW_LD, };
   //inline SquareWithWall DirectToDeltaWW(Direct d) { ASSERT_LV3(is_ok(d));  return DirectToDeltaWW_[d]; }
 
-  // → shogi.hに持って行った。
+  // → 共通のDirectToDeltaWW()はtypes.hで定義している。
 
   ENABLE_BIT_OPERATORS_ON(Directions)
   ENABLE_RANGE_OPERATORS_ON(Direct, DIRECT_ZERO, DIRECT_NB)
@@ -152,7 +152,7 @@ namespace Effect24
   // DirectからDirectionsへの逆変換
   inline Directions to_directions(Direct d) { return Directions(1 << d); }
 
-  // DirectをSquare型の差分値で表現したもの。
+  // DirectをSquareWithWall型の差分値で表現したもの。
   const SquareWithWall DirectToDeltaWW_[DIRECT_NB] = {
     SQWW_RU + SQWW_RU   , SQWW_R  + SQWW_RU   , SQWW_R + SQWW_R , SQWW_R + SQWW_RD  , SQWW_RD   + SQWW_RD    ,
     SQWW_RU + SQWW_U    , SQWW_RU             , SQWW_R          , SQWW_RD           , SQWW_RD   + SQWW_D     ,

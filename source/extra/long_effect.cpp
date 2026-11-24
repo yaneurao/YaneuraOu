@@ -1,8 +1,8 @@
 ﻿#include "long_effect.h"
 #include "../misc.h"
 
-// namespace Effect8 { Directions direc_table[SQ_NB_PLUS1][SQ_NB_PLUS1]; }
-// → shogi.cppで定義している。LONG_EFFECT_LIBRARYが必要なときは、この定義も用意すること。
+// Effect8::direc_tableはtypes.cppで定義し、attacks.cppで初期化する。
+// LONG_EFFECT_LIBRARY専用ではなく、共通の方向テーブルとして利用する。
 
 // ----------------------
 //  長い利きに関するライブラリ

@@ -15,8 +15,8 @@ namespace Test {
 	// --------------------
 
 	// UnitTest用。
-	// "test unit"コマンドで用いる。
-	// 実際の使い方は、normal_test_cmd.cppのunit_test()とPosition::UnitTest()を見ること。
+	// "unittest"コマンドで用いる。
+	// 呼び出し例はtestcmd/unit_test.cppのTest::UnitTest()とPosition::UnitTest()を見ること。
 
 	class UnitTester
 	{

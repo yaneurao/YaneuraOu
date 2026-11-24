@@ -185,8 +185,8 @@ enum Square : i8
 	SQ_NONE   = SQ_NB,       // Stockfishとの互換性維持のために定義
 	SQ_NB_PLUS1 = SQ_NB + 1, // 玉がいない場合、SQ_NBに移動したものとして扱うため、配列をSQ_NB+1で確保しないといけないときがあるのでこの定数を用いる。
 
-	// 方角に関する定数。StockfishだとNORTH=北=盤面の下を意味するようだが、
-	// わかりにくいのでやねうら王ではストレートな命名に変更する。
+	// 方角に関する定数。StockfishのNORTHはrankが増える方向(通常表示では上)を表す。
+	// 将棋版は升番号の体系が異なるため、盤面上の上下左右をSQ_U/D/L/Rで表す。
 	SQ_D = +1, // 下(Down)
 	SQ_R = -9, // 右(Right)
 	SQ_U = -1, // 上(Up)
@@ -251,7 +251,8 @@ constexpr Rank rank_of(Square sq) { /* return (Rank)(sq % 9); */ /*ASSERT_LV2(is
 // 筋(File)と段(Rank)から、それに対応する升(Square)を返す。
 constexpr Square operator | (File f, Rank r) { Square sq = (Square)(f * 9 + r); /* ASSERT_LV2(is_ok(sq));*/ return sq; }
 
-// ２つの升のfileの差、rankの差のうち大きいほうの距離を返す。sq1,sq2のどちらかが盤外ならint_maxが返る。
+// 盤上の2升について、筋の差と段の差の大きいほうを距離として返す。
+// sq1、sq2には盤上の升を渡す。SQ_NONEの距離や、盤外入力に対するint_maxの返却は保証しない。
 constexpr int dist(Square sq1, Square sq2) { return (!is_ok(sq1) || !is_ok(sq2)) ? int_max : (std::max)(abs(file_of(sq1) - file_of(sq2)), abs(rank_of(sq1) - rank_of(sq2))); }
 
 // 移動元、もしくは移動先の升sqを与えたときに、そこが成れるかどうかを判定する。
@@ -815,7 +816,7 @@ public:
 	bool is_promote() const { return (data & MOVE_PROMOTE) != 0; }
 
 	// 駒打ち(is_drop()==true)のときの打った駒
-	// 先後の区別なし。PAWN～ROOKまでの値が返る。
+	// 先後の区別なし。PAWN～GOLDまでの手駒の駒種が返る。
 	// ※ 打つ駒のPieceTypeはMoveの bit7..13に格納されている。
 	// ※ assert(is_drop(m))はあってもいいかも。
 	PieceType move_dropped_piece() const { return PieceType((data >> 7) & 0x7f); }
