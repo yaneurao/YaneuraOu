@@ -982,6 +982,9 @@ static Move16 reverse_move(Move m) { return make_move16(m.to_sq(), m.from_sq());
 //   定跡のprobeで180°反転させた盤面にもhitして欲しいのでそのヘルパー関数として追加した。
 static Move16 flip_move(Move16 m) {
 
+    if (m == Move16::none())
+        return m;
+
 	return 
 		m.is_drop   ()  ? make_move_drop16   (m.move_dropped_piece(), Flip(m.to_sq())):
         m.is_promote()  ? make_move_promote16(Flip(m.from_sq())     , Flip(m.to_sq())):

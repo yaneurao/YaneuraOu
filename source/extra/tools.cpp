@@ -385,8 +385,9 @@ namespace StringExtension
 		// 仕方ないのでistringstreamを使う。
 
 		std::istringstream ss(input);
-		int result = default_; // 失敗したときはこの値のままになる
-		ss >> result;
+		int result;
+		if (!(ss >> result))
+			return default_;
 		return result;
 	}
 
@@ -394,8 +395,9 @@ namespace StringExtension
 	float to_float(const std::string input, float default_)
 	{
 		std::istringstream ss(input);
-		float result = default_; // 失敗したときはこの値のままになる
-		ss >> result;
+		float result;
+		if (!(ss >> result))
+			return default_;
 		return result;
 	}
 
@@ -403,9 +405,10 @@ namespace StringExtension
 	std::vector<std::string> split(const std::string& input)
 	{
 		auto result = std::vector<std::string>();
-		Parser::LineScanner scanner(input);
-		while (!scanner.eol())
-			result.push_back(scanner.get_text());
+		std::istringstream stream(input);
+		std::string token;
+		while (stream >> token)
+			result.push_back(token);
 
 		return result;
 	}
