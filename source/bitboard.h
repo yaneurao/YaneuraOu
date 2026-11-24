@@ -122,8 +122,9 @@ struct alignas(16) Bitboard
 		}
 	}
 
-	// p[0],p[1]の値を直接指定しての初期化。(Bitboard定数の初期化のときのみ用いる)
-	Bitboard(u64 p0, u64 p1);
+	// p[0],p[1]の値を直接指定して初期化する。
+    // SIMDと同じメモリ配置の2ワードを初期化し、C++17のconstexprにも使えるようにする。
+    constexpr Bitboard(u64 p0, u64 p1) : p{p0, p1} {}
 
 	// sqの升が1のBitboardとして初期化する。
 	Bitboard(Square sq);
@@ -321,26 +322,26 @@ inline Bitboard& Bitboard::insert64(u64 u)
 namespace BB_Table
 {
 	// 各筋を表現するBitboard定数
-	extern const Bitboard File1BB;
-	extern const Bitboard File2BB;
-	extern const Bitboard File3BB;
-	extern const Bitboard File4BB;
-	extern const Bitboard File5BB;
-	extern const Bitboard File6BB;
-	extern const Bitboard File7BB;
-	extern const Bitboard File8BB;
-	extern const Bitboard File9BB;
+	inline constexpr Bitboard File1BB = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
+	inline constexpr Bitboard File2BB = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
+	inline constexpr Bitboard File3BB = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
+	inline constexpr Bitboard File4BB = Bitboard(UINT64_C(0x1ff) << (9 * 3), 0);
+	inline constexpr Bitboard File5BB = Bitboard(UINT64_C(0x1ff) << (9 * 4), 0);
+	inline constexpr Bitboard File6BB = Bitboard(UINT64_C(0x1ff) << (9 * 5), 0);
+	inline constexpr Bitboard File7BB = Bitboard(UINT64_C(0x1ff) << (9 * 6), 0);
+	inline constexpr Bitboard File8BB = Bitboard(0, 0x1ff << (9 * 0));
+	inline constexpr Bitboard File9BB = Bitboard(0, 0x1ff << (9 * 1));
 
 	// 各段を表現するBitboard定数
-	extern const Bitboard Rank1BB;
-	extern const Bitboard Rank2BB;
-	extern const Bitboard Rank3BB;
-	extern const Bitboard Rank4BB;
-	extern const Bitboard Rank5BB;
-	extern const Bitboard Rank6BB;
-	extern const Bitboard Rank7BB;
-	extern const Bitboard Rank8BB;
-	extern const Bitboard Rank9BB;
+	inline constexpr Bitboard Rank1BB = Bitboard(UINT64_C(0x40201008040201) << 0, 0x201 << 0);
+	inline constexpr Bitboard Rank2BB = Bitboard(UINT64_C(0x40201008040201) << 1, 0x201 << 1);
+	inline constexpr Bitboard Rank3BB = Bitboard(UINT64_C(0x40201008040201) << 2, 0x201 << 2);
+	inline constexpr Bitboard Rank4BB = Bitboard(UINT64_C(0x40201008040201) << 3, 0x201 << 3);
+	inline constexpr Bitboard Rank5BB = Bitboard(UINT64_C(0x40201008040201) << 4, 0x201 << 4);
+	inline constexpr Bitboard Rank6BB = Bitboard(UINT64_C(0x40201008040201) << 5, 0x201 << 5);
+	inline constexpr Bitboard Rank7BB = Bitboard(UINT64_C(0x40201008040201) << 6, 0x201 << 6);
+	inline constexpr Bitboard Rank8BB = Bitboard(UINT64_C(0x40201008040201) << 7, 0x201 << 7);
+	inline constexpr Bitboard Rank9BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
 
 	// 各筋を表現するBitboard配列
 	extern const Bitboard FILE_BB[FILE_NB];

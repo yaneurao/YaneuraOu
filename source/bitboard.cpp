@@ -54,26 +54,6 @@ std::string Bitboards::pretty(Bitboard b) {
 // 外部から直接アクセスしないようにnamespaceに入れておく。
 namespace BB_Table
 {
-	const Bitboard File1BB = Bitboard(UINT64_C(0x1ff) << (9 * 0), 0);
-	const Bitboard File2BB = Bitboard(UINT64_C(0x1ff) << (9 * 1), 0);
-	const Bitboard File3BB = Bitboard(UINT64_C(0x1ff) << (9 * 2), 0);
-	const Bitboard File4BB = Bitboard(UINT64_C(0x1ff) << (9 * 3), 0);
-	const Bitboard File5BB = Bitboard(UINT64_C(0x1ff) << (9 * 4), 0);
-	const Bitboard File6BB = Bitboard(UINT64_C(0x1ff) << (9 * 5), 0);
-	const Bitboard File7BB = Bitboard(UINT64_C(0x1ff) << (9 * 6), 0);
-	const Bitboard File8BB = Bitboard(0, 0x1ff << (9 * 0));
-	const Bitboard File9BB = Bitboard(0, 0x1ff << (9 * 1));
-
-	const Bitboard Rank1BB = Bitboard(UINT64_C(0x40201008040201) << 0, 0x201 << 0);
-	const Bitboard Rank2BB = Bitboard(UINT64_C(0x40201008040201) << 1, 0x201 << 1);
-	const Bitboard Rank3BB = Bitboard(UINT64_C(0x40201008040201) << 2, 0x201 << 2);
-	const Bitboard Rank4BB = Bitboard(UINT64_C(0x40201008040201) << 3, 0x201 << 3);
-	const Bitboard Rank5BB = Bitboard(UINT64_C(0x40201008040201) << 4, 0x201 << 4);
-	const Bitboard Rank6BB = Bitboard(UINT64_C(0x40201008040201) << 5, 0x201 << 5);
-	const Bitboard Rank7BB = Bitboard(UINT64_C(0x40201008040201) << 6, 0x201 << 6);
-	const Bitboard Rank8BB = Bitboard(UINT64_C(0x40201008040201) << 7, 0x201 << 7);
-	const Bitboard Rank9BB = Bitboard(UINT64_C(0x40201008040201) << 8, 0x201 << 8);
-
 	const Bitboard FILE_BB[FILE_NB] = { File1BB,File2BB,File3BB,File4BB,File5BB,File6BB,File7BB,File8BB,File9BB };
 	const Bitboard RANK_BB[RANK_NB] = { Rank1BB,Rank2BB,Rank3BB,Rank4BB,Rank5BB,Rank6BB,Rank7BB,Rank8BB,Rank9BB };
 
@@ -157,15 +137,6 @@ void Bitboards::init()
 }
 
 // --- Bitboardの実装
-
-Bitboard::Bitboard(u64 p0, u64 p1) :
-#if defined(USE_SSE2)
-	// この命令、引数の順に注意。
-	m( _mm_set_epi64x(p1,p0))
-#else
-	p { p0 , p1 }
-#endif
-{}
 
 // 値を直接代入する。
 void Bitboard::set(u64 p0, u64 p1)
