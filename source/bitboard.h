@@ -20,14 +20,16 @@ struct Bitboard;
 
 namespace Bitboards {
 
+std::string pretty(Bitboard b);
+
 #if !STOCKFISH
 	// Bitboard関連のテーブル初期化のための関数
 	void init();
 #endif
-std::string pretty(Bitboard b);
 
 } // namespace YaneuraOu::Bitboards
 
+#if !STOCKFISH
 // --------------------
 //     Bitboard
 // --------------------
@@ -304,30 +306,6 @@ inline Bitboard& Bitboard::insert64(u64 u)
 	return *this;
 }
 
-#if !STOCKFISH
-namespace BB_Table { extern Bitboard SquareBB[SQ_NB_PLUS1]; }
-#endif
-
-inline Bitboard square_bb(Square s) { return BB_Table::SquareBB[s]; }
-
-// Overloads of bitwise operators between a Bitboard and a Square for testing
-// whether a given bit is set in a bitboard, and for setting and clearing bits.
-// 指定した升のビットの検査・設定・反転に使う、BitboardとSquare間のビット演算子。
-Bitboard operator|(const Bitboard& b, Square s);
-Bitboard operator&(const Bitboard& b, Square s);
-Bitboard operator^(const Bitboard& b, Square s);
-
-// 単項演算子
-// →　NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでALL_BBでxorしないといけない。
-Bitboard operator ~ (const Bitboard& a);
-
-// range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
-const Bitboard begin(const Bitboard& b);
-const Bitboard end(const Bitboard&);
-
-// Bitboardの1の升を'*'、0の升を'.'として表示する。デバッグ用。
-std::ostream& operator<<(std::ostream& os, const Bitboard& board);
-
 // --------------------
 //     Bitboard定数
 // --------------------
@@ -362,6 +340,9 @@ namespace BB_Table
 	// 各段を表現するBitboard配列
 	extern const Bitboard RANK_BB[RANK_NB];
 
+	// sqの升だけが1であるBitboard。SQ_NBの要素は空。
+	extern Bitboard SquareBB[SQ_NB_PLUS1];
+
 	// 全升が0であるBitboard
 	//extern Bitboard ZERO_BB;
 	// 廃止 →　代わりにBitboard<0>()を用いた方が、メモリ参照がなくて速いのでこの定数は廃止。
@@ -371,10 +352,55 @@ namespace BB_Table
 	//extern Bitboard ALL_BB;
 	// 廃止 →　代わりにBitboard<1>()を用いる。	
 }
+#endif
+
+#if STOCKFISH
+constexpr Bitboard square_bb(Square s) {
+    assert(is_ok(s));
+    return 1ULL << s;
+}
+#else
+inline Bitboard square_bb(Square s) { return BB_Table::SquareBB[s]; }
+#endif
+
+// Overloads of bitwise operators between a Bitboard and a Square for testing
+// whether a given bit is set in a bitboard, and for setting and clearing bits.
+// 指定した升のビットの検査・設定・反転に使う、BitboardとSquare間のビット演算子。
+#if STOCKFISH
+constexpr Bitboard  operator&(Bitboard b, Square s) { return b & square_bb(s); }
+constexpr Bitboard  operator|(Bitboard b, Square s) { return b | square_bb(s); }
+constexpr Bitboard  operator^(Bitboard b, Square s) { return b ^ square_bb(s); }
+#else
+Bitboard operator&(const Bitboard& b, Square s);
+Bitboard operator|(const Bitboard& b, Square s);
+Bitboard operator^(const Bitboard& b, Square s);
+#endif
+
+#if !STOCKFISH
+// 単項演算子
+// →　NOTで書くと、使っていないbit(p[0]のbit63)がおかしくなるのでALL_BBでxorしないといけない。
+Bitboard operator ~ (const Bitboard& a);
+
+// range-forで回せるようにするためのhack(少し遅いので速度が要求されるところでは使わないこと)
+const Bitboard begin(const Bitboard& b);
+const Bitboard end(const Bitboard&);
+
+// Bitboardの1の升を'*'、0の升を'.'として表示する。デバッグ用。
+std::ostream& operator<<(std::ostream& os, const Bitboard& board);
+#endif
 
 // rank_bb() and file_bb() return a bitboard representing all the squares on
 // the given file or rank.
 // 指定した筋または段にある全升を表すBitboardを返す。
+#if STOCKFISH
+constexpr Bitboard rank_bb(Rank r) { return Rank1BB << (8 * r); }
+
+constexpr Bitboard rank_bb(Square s) { return rank_bb(rank_of(s)); }
+
+constexpr Bitboard file_bb(File f) { return FileABB << f; }
+
+constexpr Bitboard file_bb(Square s) { return file_bb(file_of(s)); }
+#else
 inline Bitboard rank_bb(Rank r) { return BB_Table::RANK_BB[r]; }
 
 inline Bitboard rank_bb(Square s) { return rank_bb(rank_of(s)); }
@@ -382,7 +408,9 @@ inline Bitboard rank_bb(Square s) { return rank_bb(rank_of(s)); }
 inline Bitboard file_bb(File f) { return BB_Table::FILE_BB[f]; }
 
 inline Bitboard file_bb(Square s) { return file_bb(file_of(s)); }
+#endif
 
+#if !STOCKFISH
 // ForwardRanksBBの定義)
 //    c側の香の利き = 飛車の利き & ForwardRanksBB[c][rank_of(sq)]
 //
@@ -450,9 +478,18 @@ static Bitboard pawn_drop_mask(const Bitboard& pawns) {
 }
 
 
+#endif
+
 // Returns the squares attacked by pawns of the given color
 // from the squares in the given bitboard.
 // 指定した手番の歩が、渡されたBitboardの各升から利かせる升を返す。
+#if STOCKFISH
+template<Color C>
+constexpr Bitboard pawn_attacks_bb(Bitboard b) {
+    return C == WHITE ? shift(b, NORTH_WEST) | shift(b, NORTH_EAST)
+                      : shift(b, SOUTH_WEST) | shift(b, SOUTH_EAST);
+}
+#else
 // color = BLACKのとき、51の歩は49の升に移動するので、注意すること。
 // (51の升にいる先手の歩は存在しないので、歩の移動に用いる分には問題ないが。)
 template <Color C>
@@ -471,6 +508,7 @@ inline Bitboard pawn_attacks_bb(Color c, const Bitboard& bb)
 {
 	return (c == BLACK) ? pawn_attacks_bb<BLACK>(bb) : pawn_attacks_bb<WHITE>(bb);
 }
+#endif
 
 // Returns the least significant bit in a non-zero bitboard.
 // 0でないビットボードにおける最下位ビットを返す。
@@ -556,6 +594,12 @@ inline i8 msb(u64 b) {
 // Stockfishではsquare_bb(lsb(bb))と等価で、将棋側では2つの64bit領域を考慮する。
 // ※　Stockfishとの互換性のために用意。
 
+#if STOCKFISH
+constexpr Bitboard least_significant_square_bb(Bitboard b) {
+    assert(b);
+    return b & -b;
+}
+#else
 inline Bitboard least_significant_square_bb(Bitboard b) {
 	//return b & -b;
 	// →　Stockfishはチェスが64升だから盤面のBitboardが64bit整数に収まるのだが、
@@ -565,7 +609,8 @@ inline Bitboard least_significant_square_bb(Bitboard b) {
 	u64 q1 = b.extract64<1>();
 	return (q0 != 0) ? Bitboard(q0 & -q0 , 0) : Bitboard(0, q1 & -q1);
 }
+#endif
 
 } // namespace YaneuraOu
 
-#endif // #ifndef BITBOARD_H_INCLUDED
+#endif  // #ifndef BITBOARD_H_INCLUDED

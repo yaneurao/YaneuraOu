@@ -19,6 +19,123 @@ void init();
 void test_sliding_attacks(Test::UnitTester& tester);
 #endif
 
+namespace SimdSliding {
+struct alignas(64) BishopMasks { Bitboard ray[4]; };
+static_assert(sizeof(BishopMasks) == 64);
+extern BishopMasks bishopMasks[SQ_NB_PLUS1];
+
+inline Bitboard bishop(Square sq, const Bitboard& occupied) {
+#if defined(USE_AVX512)
+    // Keep four directional masks in one cache line, in their final lane order.
+    // 4方向のマスクを計算時のレーン順に並べ、1キャッシュラインに収める。
+    const __m512i mask = _mm512_load_si512(&bishopMasks[sq]);
+    const __m512i reverseUpper = _mm512_setr_epi64(
+      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
+      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
+      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL,
+      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL);
+    const __m512i o = _mm512_and_si512(mask, _mm512_shuffle_epi8(
+      _mm512_broadcast_i64x2(occupied.m), reverseUpper));
+    // Compute independent 64-bit prefixes. Keep a high prefix only if its low word is empty.
+    // 64bitごとに独立した範囲を求め、下位ワードが空のときだけ上位の結果を残す。
+    // Odd bits shifted into low lanes are harmless because those lanes are always enabled.
+    // 奇数bitが下位レーンへ移っても、下位レーンは常に有効なので結果に影響しない。
+    const __mmask8 empty = _mm512_cmpeq_epi64_mask(o, _mm512_setzero_si512());
+    const __mmask8 active = __mmask8(0x55) | _kshiftli_mask8(empty, 1);
+    const __m512i decremented = _mm512_add_epi64(o, _mm512_set1_epi64(-1));
+    const __m512i changed = _mm512_maskz_ternarylogic_epi64(active, o, decremented, mask, 0x28);
+    const __m512i rays = _mm512_shuffle_epi8(changed, reverseUpper);
+    const __m256i pairs = _mm256_or_si256(_mm512_castsi512_si256(rays),
+                                         _mm512_extracti64x4_epi64(rays, 1));
+    Bitboard result;
+    result.m = _mm_or_si128(_mm256_castsi256_si128(pairs), _mm256_extracti128_si256(pairs, 1));
+    return result;
+#elif defined(USE_AVX2)
+    const auto& masks = bishopMasks[sq];
+    const __m256i forwardMask = _mm256_load_si256(reinterpret_cast<const __m256i*>(&masks.ray[0]));
+    const __m256i backwardMask = _mm256_load_si256(reinterpret_cast<const __m256i*>(&masks.ray[2]));
+    const __m256i reverse = _mm256_setr_epi64x(
+      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL,
+      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL);
+    const __m256i o = _mm256_broadcastsi128_si256(occupied.m);
+    const __m256i forward = _mm256_and_si256(forwardMask, o);
+    const __m256i backward = _mm256_and_si256(backwardMask, _mm256_shuffle_epi8(o, reverse));
+    const auto prefix = [](__m256i o, __m256i mask) {
+        // Zero-filled low words are always active; each high word tests its own low word.
+        // 0で埋めた下位ワードは常に有効とし、上位ワードは対応する下位ワードの空判定を使う。
+        const __m256i active = _mm256_cmpeq_epi64(_mm256_slli_si256(o, 8), _mm256_setzero_si256());
+        const __m256i changed = _mm256_xor_si256(o, _mm256_add_epi64(o, _mm256_set1_epi64x(-1)));
+        return _mm256_and_si256(_mm256_and_si256(changed, mask), active);
+    };
+    const __m256i rays = _mm256_or_si256(prefix(forward, forwardMask),
+      _mm256_shuffle_epi8(prefix(backward, backwardMask), reverse));
+    Bitboard result;
+    result.m = _mm_or_si128(_mm256_castsi256_si128(rays), _mm256_extracti128_si256(rays, 1));
+    return result;
+#else
+    // Use the same directional masks without requiring SIMD instructions.
+    // SIMD命令を必要としない経路でも、同じ方向別マスクを使う。
+    const auto prefix = [](const Bitboard& o, const Bitboard& mask) {
+        const u64 low = o.extract64<0>() & mask.extract64<0>();
+        const u64 high = o.extract64<1>() & mask.extract64<1>();
+        return Bitboard((low ^ (low - 1)) & mask.extract64<0>(),
+          (high ^ (high - 1)) & mask.extract64<1>() & (u64(0) - u64(low == 0)));
+    };
+    const auto& masks = bishopMasks[sq];
+    const Bitboard reversed = occupied.byteswap_bb();
+    const Bitboard forward = prefix(occupied, masks.ray[0]) | prefix(occupied, masks.ray[1]);
+    const Bitboard backward = prefix(reversed, masks.ray[2]) | prefix(reversed, masks.ray[3]);
+    return forward | backward.byteswap_bb();
+#endif
+}
+
+} // namespace SimdSliding
+#endif
+
+#if STOCKFISH
+extern Bitboard LineBB[SQUARE_NB][SQUARE_NB];
+extern Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
+#else
+// 2升を通過する直線。[0]:右上から左下、[1]:横、[2]:左上から右下、[3]:縦。
+// この配列には直接アクセスせず、line_bb()を使うこと。
+extern Bitboard LineBB[SQ_NB][4];
+
+// 2升に挟まれている升を返すためのテーブル(その2升は含まない)。
+// cache汚染を抑えるためにシュリンクしてあり、between_bb()から参照する。
+extern Bitboard BetweenBB[785];
+extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
+#endif
+
+// horizontal/vertical/diagonal line passing through s1 and s2
+// s1とs2を通る縦・横・斜めの直線。
+inline Bitboard line_bb(Square s1, Square s2) {
+#if STOCKFISH
+    assert(is_ok(s1) && is_ok(s2));
+    return LineBB[s1][s2];
+#else
+    // 両升が縦横斜めの関係にあることを前提に、4方向へ圧縮した表を参照する。
+    static_assert(Effect8::DIRECT_RU == 0 && Effect8::DIRECT_LD == 7, "");
+    auto directions = Effect8::directions_of(s1, s2);
+    ASSERT_LV3(directions != 0);
+    static const int a[8] = {0, 1, 2, 3, 3, 2, 1, 0};
+    return LineBB[s1][a[(int)Effect8::pop_directions(directions)]];
+#endif
+}
+
+// horizontal/vertical/diagonal line segment from s1 to s2,
+// excluding s1 but including s2
+// s1を含まずs2を含む、s1からs2までの縦・横・斜めの線分。
+inline Bitboard between_bb(Square s1, Square s2) {
+#if STOCKFISH
+    assert(is_ok(s1) && is_ok(s2));
+    return BetweenBB[s1][s2];
+#else
+    // 将棋側は両端を含まない。縦横斜めの関係にないときは空のBitboardを返す。
+    return BetweenBB[BetweenIndex[s1][s2]];
+#endif
+}
+
+#if !STOCKFISH
 // --------------------
 // 利きのためのテーブル
 // --------------------
@@ -188,77 +305,7 @@ inline Bitboard cross45StepEffect(Square sq) {
 // 遠方駒で、盤上の駒の状態を考慮しながら利きを求める。
 //
 
-namespace SimdSliding {
-struct alignas(64) BishopMasks { Bitboard ray[4]; };
-static_assert(sizeof(BishopMasks) == 64);
-extern BishopMasks bishopMasks[SQ_NB_PLUS1];
 
-inline Bitboard bishop(Square sq, const Bitboard& occupied) {
-#if defined(USE_AVX512)
-    // Keep four directional masks in one cache line, in their final lane order.
-    // 4方向のマスクを計算時のレーン順に並べ、1キャッシュラインに収める。
-    const __m512i mask = _mm512_load_si512(&bishopMasks[sq]);
-    const __m512i reverseUpper = _mm512_setr_epi64(
-      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
-      0x0706050403020100LL, 0x0f0e0d0c0b0a0908LL,
-      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL,
-      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL);
-    const __m512i o = _mm512_and_si512(mask, _mm512_shuffle_epi8(
-      _mm512_broadcast_i64x2(occupied.m), reverseUpper));
-    // Compute independent 64-bit prefixes. Keep a high prefix only if its low word is empty.
-    // 64bitごとに独立した範囲を求め、下位ワードが空のときだけ上位の結果を残す。
-    // Odd bits shifted into low lanes are harmless because those lanes are always enabled.
-    // 奇数bitが下位レーンへ移っても、下位レーンは常に有効なので結果に影響しない。
-    const __mmask8 empty = _mm512_cmpeq_epi64_mask(o, _mm512_setzero_si512());
-    const __mmask8 active = __mmask8(0x55) | _kshiftli_mask8(empty, 1);
-    const __m512i decremented = _mm512_add_epi64(o, _mm512_set1_epi64(-1));
-    const __m512i changed = _mm512_maskz_ternarylogic_epi64(active, o, decremented, mask, 0x28);
-    const __m512i rays = _mm512_shuffle_epi8(changed, reverseUpper);
-    const __m256i pairs = _mm256_or_si256(_mm512_castsi512_si256(rays),
-                                         _mm512_extracti64x4_epi64(rays, 1));
-    Bitboard result;
-    result.m = _mm_or_si128(_mm256_castsi256_si128(pairs), _mm256_extracti128_si256(pairs, 1));
-    return result;
-#elif defined(USE_AVX2)
-    const auto& masks = bishopMasks[sq];
-    const __m256i forwardMask = _mm256_load_si256(reinterpret_cast<const __m256i*>(&masks.ray[0]));
-    const __m256i backwardMask = _mm256_load_si256(reinterpret_cast<const __m256i*>(&masks.ray[2]));
-    const __m256i reverse = _mm256_setr_epi64x(
-      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL,
-      0x08090a0b0c0d0e0fLL, 0x0001020304050607LL);
-    const __m256i o = _mm256_broadcastsi128_si256(occupied.m);
-    const __m256i forward = _mm256_and_si256(forwardMask, o);
-    const __m256i backward = _mm256_and_si256(backwardMask, _mm256_shuffle_epi8(o, reverse));
-    const auto prefix = [](__m256i o, __m256i mask) {
-        // Zero-filled low words are always active; each high word tests its own low word.
-        // 0で埋めた下位ワードは常に有効とし、上位ワードは対応する下位ワードの空判定を使う。
-        const __m256i active = _mm256_cmpeq_epi64(_mm256_slli_si256(o, 8), _mm256_setzero_si256());
-        const __m256i changed = _mm256_xor_si256(o, _mm256_add_epi64(o, _mm256_set1_epi64x(-1)));
-        return _mm256_and_si256(_mm256_and_si256(changed, mask), active);
-    };
-    const __m256i rays = _mm256_or_si256(prefix(forward, forwardMask),
-      _mm256_shuffle_epi8(prefix(backward, backwardMask), reverse));
-    Bitboard result;
-    result.m = _mm_or_si128(_mm256_castsi256_si128(rays), _mm256_extracti128_si256(rays, 1));
-    return result;
-#else
-    // Use the same directional masks without requiring SIMD instructions.
-    // SIMD命令を必要としない経路でも、同じ方向別マスクを使う。
-    const auto prefix = [](const Bitboard& o, const Bitboard& mask) {
-        const u64 low = o.extract64<0>() & mask.extract64<0>();
-        const u64 high = o.extract64<1>() & mask.extract64<1>();
-        return Bitboard((low ^ (low - 1)) & mask.extract64<0>(),
-          (high ^ (high - 1)) & mask.extract64<1>() & (u64(0) - u64(low == 0)));
-    };
-    const auto& masks = bishopMasks[sq];
-    const Bitboard reversed = occupied.byteswap_bb();
-    const Bitboard forward = prefix(occupied, masks.ray[0]) | prefix(occupied, masks.ray[1]);
-    const Bitboard backward = prefix(reversed, masks.ray[2]) | prefix(reversed, masks.ray[3]);
-    return forward | backward.byteswap_bb();
-#endif
-}
-
-} // namespace SimdSliding
 
 
 // 香 : occupied bitboardを考慮しながら香の利きを求める
@@ -510,52 +557,7 @@ Bitboard rayEffect(Square sq, const Bitboard& occupied)
 
 // sqの升から指定した方向dへの利き。盤上の駒も考慮する。
 Bitboard directEffect(Square sq, Effect8::Direct d, const Bitboard& occupied);
-#endif
 
-#if STOCKFISH
-extern Bitboard LineBB[SQUARE_NB][SQUARE_NB];
-extern Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
-#else
-// 2升を通過する直線。[0]:右上から左下、[1]:横、[2]:左上から右下、[3]:縦。
-// この配列には直接アクセスせず、line_bb()を使うこと。
-extern Bitboard LineBB[SQ_NB][4];
-
-// 2升に挟まれている升を返すためのテーブル(その2升は含まない)。
-// cache汚染を抑えるためにシュリンクしてあり、between_bb()から参照する。
-extern Bitboard BetweenBB[785];
-extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
-#endif
-
-// horizontal/vertical/diagonal line passing through s1 and s2
-// s1とs2を通る縦・横・斜めの直線。
-inline Bitboard line_bb(Square s1, Square s2) {
-#if STOCKFISH
-    assert(is_ok(s1) && is_ok(s2));
-    return LineBB[s1][s2];
-#else
-    // 両升が縦横斜めの関係にあることを前提に、4方向へ圧縮した表を参照する。
-    static_assert(Effect8::DIRECT_RU == 0 && Effect8::DIRECT_LD == 7, "");
-    auto directions = Effect8::directions_of(s1, s2);
-    ASSERT_LV3(directions != 0);
-    static const int a[8] = {0, 1, 2, 3, 3, 2, 1, 0};
-    return LineBB[s1][a[(int)Effect8::pop_directions(directions)]];
-#endif
-}
-
-// horizontal/vertical/diagonal line segment from s1 to s2,
-// excluding s1 but including s2
-// s1を含まずs2を含む、s1からs2までの縦・横・斜めの線分。
-inline Bitboard between_bb(Square s1, Square s2) {
-#if STOCKFISH
-    assert(is_ok(s1) && is_ok(s2));
-    return BetweenBB[s1][s2];
-#else
-    // 将棋側は両端を含まない。縦横斜めの関係にないときは空のBitboardを返す。
-    return BetweenBB[BetweenIndex[s1][s2]];
-#endif
-}
-
-#if !STOCKFISH
 // sqの升にいる敵玉に王手となるc側の駒ptの候補を得るテーブル。第2添字は(pr-1)を渡して使う。
 // 直接アクセスせずに、check_candidate_bb()、around24_bb()を用いてアクセスすること。
 extern Bitboard CheckCandidateBB[SQ_NB_PLUS1][KING - 1][COLOR_NB];
@@ -582,7 +584,6 @@ static const Bitboard around24_bb(Square sq)
 	return CheckCandidateKingBB[sq];
 }
 #endif
-
 #endif
 
 // Returns the pseudo attacks of the given piece type
@@ -640,4 +641,4 @@ inline std::pair<Bitboard, Bitboard> both_attacks_bb(Square s, Bitboard occupied
 
 } // namespace YaneuraOu::Attacks
 
-#endif // #ifndef ATTACKS_H_INCLUDED
+#endif  // #ifndef ATTACKS_H_INCLUDED

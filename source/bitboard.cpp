@@ -10,6 +10,24 @@ namespace YaneuraOu {
 // to be printed to standard output. Useful for debugging.
 // 標準出力でのデバッグに使う、BitboardのASCII表現を返す。
 std::string Bitboards::pretty(Bitboard b) {
+#if STOCKFISH
+
+    std::string s = "+---+---+---+---+---+---+---+---+\n";
+
+    for (Rank r = RANK_8;; --r)
+    {
+        for (File f = FILE_A; f <= FILE_H; ++f)
+            s += b & make_square(f, r) ? "| X " : "|   ";
+
+        s += "| " + std::to_string(1 + r) + "\n+---+---+---+---+---+---+---+---+\n";
+
+        if (r == RANK_1)
+            break;
+    }
+    s += "  a   b   c   d   e   f   g   h\n";
+
+    return s;
+#else
 
     std::string s;
 
@@ -24,9 +42,11 @@ std::string Bitboards::pretty(Bitboard b) {
     s += '\n';
 
     return s;
+#endif
 }
 
 
+#if !STOCKFISH
 // ----- Bitboard const
 
 // 外部から直接アクセスしないようにnamespaceに入れておく。
@@ -307,5 +327,7 @@ bool Bitboard::more_than_one() const
 	ASSERT_LV2(!cross_over());
 	return POPCNT64(merge()) > 1;
 }
+
+#endif
 
 } // namespace YaneuraOu
