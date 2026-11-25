@@ -248,7 +248,7 @@ public:
     virtual std::string sfen() const = 0;
 
 	// 盤面を180°回転させる。デバッグ用
-    virtual void flip() = 0;
+    virtual std::optional<PositionSetError> flip() = 0;
 
     // 局面を視覚化した文字列を取得する。(デバッグ用)
     virtual std::string visualize() const = 0;
@@ -397,7 +397,7 @@ class Engine: public IEngine {
 	virtual int get_hashfull(int maxAge = 0) const override;
 
     virtual std::string sfen() const override;
-    virtual void        flip() override;
+    virtual std::optional<PositionSetError> flip() override;
     virtual std::string visualize() const override;
 	virtual std::vector<std::pair<usize, usize>> get_bound_thread_count_by_numa_node() const override;
     virtual std::string get_numa_config_as_string() const override;
@@ -580,7 +580,7 @@ class EngineWrapper: public IEngine {
     virtual int get_hashfull(int maxAge = 0) const override { return engine->get_hashfull(maxAge); }
 
     virtual std::string sfen() const override { return engine->sfen(); }
-    virtual void        flip() override { return engine->flip(); }
+    virtual std::optional<PositionSetError> flip() override { return engine->flip(); }
     virtual std::string visualize() const override { return engine->visualize(); }
 
     virtual std::vector<std::pair<usize, usize>>

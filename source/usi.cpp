@@ -383,16 +383,12 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) { // diff:ignore
     // 独自の非UCIコマンドを追加する（主にデバッグ目的）。
     // これらのコマンドは探索中に使用してはならない！
 
-    // 📝 flipは盤面を180°回転させたsfenを出力する。
+    // 📝 flipは盤面を180°回転させて先後を交換する。表示には続けてdコマンドを使う。
     else if (token == "flip")
-#if STOCKFISH
     {
         if (auto err = engine.flip())
             terminate_on_critical_error(err->what());
     }
-#else
-        engine.flip();
-#endif
 
     // ベンチコマンド(これは常に使える)
     else if (token == "bench")

@@ -872,11 +872,9 @@ class Position {
 
 #if STOCKFISH
     bool                            material_key_is_ok() const;
-    std::optional<PositionSetError> flip();
-#else
-	// 盤面を180°回転させる。
-	void flip();
 #endif
+    // 将棋では盤面を180°回転させ、先後を交換する。局面の再設定に失敗したらエラーを返す。
+    std::optional<PositionSetError> flip();
 
     // 現在の局面に対応するStateInfoを返す。
     // たとえば、state()->capturedPieceであれば、前局面で捕獲された駒が格納されている。

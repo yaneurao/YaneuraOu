@@ -3227,16 +3227,19 @@ Move Position::DeclarationWin() const
 
 // 盤面を180°回転させる。
 
-void Position::flip() {
+std::optional<PositionSetError> Position::flip() {
 
 #if STOCKFISH
     string            f, token;
     std::stringstream ss(fen());
 
-    for (Rank r = RANK_8; r >= RANK_1; --r)  // Piece placement
+    for (Rank r = RANK_8;; --r)  // Piece placement
     {
         std::getline(ss, token, r > RANK_1 ? '/' : ' ');
         f.insert(0, token + (f.empty() ? " " : "/"));
+
+        if (r == RANK_1)
+            break;
     }
 
     ss >> token;                        // Active color
@@ -3246,7 +3249,7 @@ void Position::flip() {
     f += token + " ";
 
     std::transform(f.begin(), f.end(), f.begin(),
-                   [](char c) { return char(std::islower(c) ? std::toupper(c) : std::tolower(c)); });
+                   [](unsigned char c) { return char(std::islower(c) ? std::toupper(c) : std::tolower(c)); });
 
     ss >> token;  // En passant square
     f += (token == "-" ? token : token.replace(1, 1, token[1] == '3' ? "6" : "3"));
@@ -3254,16 +3257,11 @@ void Position::flip() {
     std::getline(ss, token);  // Half and full moves
     f += token;
 
-    set(f, is_chess960());
-
-    assert(pos_is_ok());
+    return set(f, is_chess960());
 
 #else
 
-	auto f_sfen = flipped_sfen();
-    set(f_sfen);
-
-	ASSERT_LV5(pos_is_ok());
+    return set(flipped_sfen());
 
 #endif
 }

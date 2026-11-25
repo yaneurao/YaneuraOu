@@ -463,7 +463,7 @@ std::string Engine::sfen() const { return pos.sfen(); }
 #endif
 
 // 盤面を180°回転させる。
-void Engine::flip() { pos.flip(); }
+std::optional<PositionSetError> Engine::flip() { return pos.flip(); }
 
 // 局面を視覚化した文字列を取得する。
 std::string Engine::visualize() const {
