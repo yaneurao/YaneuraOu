@@ -517,7 +517,6 @@
     <ClInclude Include="nnue\architectures\halfkp_512x2-16-32.h" />
     <ClInclude Include="nnue\architectures\halfkpvm_256x2-32-32.h" />
     <ClInclude Include="nnue\architectures\kp_256x2-32-32.h" />
-    <ClInclude Include="nnue\architectures\sfnn-1536.h" />
     <ClInclude Include="nnue\network.h" />
     <ClInclude Include="nnue\nnue_accumulator.h" />
     <ClInclude Include="nnue\features\features_common.h" />

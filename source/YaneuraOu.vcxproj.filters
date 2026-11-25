@@ -334,9 +334,6 @@
     <ClInclude Include="shm_unix.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="nnue\architectures\sfnn-1536.h">
-      <Filter>リソース ファイル\nnue\architectures</Filter>
-    </ClInclude>
     <ClInclude Include="nnue\features\half_ka1.h">
       <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>

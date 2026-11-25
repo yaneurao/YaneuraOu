@@ -43,7 +43,7 @@ namespace YaneuraOu {
 namespace Eval::NNUE {
 
 /*
- 例) SFNN1536のときのkNumChunksの計算
+ 例) FT1536のときのkNumChunksの計算
 
 ┌─────────┬───────────────┬─────────────────┬────────────┐
 │  SIMD            │ sizeof(vec_t)                │ / sizeof(int16)                  │ kNumChunks             │

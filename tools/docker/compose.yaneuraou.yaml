@@ -108,10 +108,10 @@ services:
     build:
       <<: *yaneuraou-build
       args:
-        YANEURAOU_EDITION: YANEURAOU_ENGINE_SFNN1536
+        YANEURAOU_EDITION: YANEURAOU_ENGINE_SFNN_halfkahm2_1536_15_32_k3k3
         TARGET_CPU: AVX2
         COMPILER: clang++
-        ENGINE_NAME: YaneuraOu-SFNN1536
+        ENGINE_NAME: YaneuraOu-SFNN-halfkahm2-1536-15-32-k3k3
 
   yaneuraou-kppt:
     <<: *yaneuraou-common
