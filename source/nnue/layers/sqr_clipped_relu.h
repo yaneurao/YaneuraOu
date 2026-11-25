@@ -42,12 +42,6 @@ namespace YaneuraOu::Eval::NNUE::Layers {
 			return hashValue;
 		}
 
-		// 入力層からこの層までの構造を表す文字列
-		static std::string get_structure_string() {
-			return "SqrClippedReLU[" +
-				std::to_string(OutputDimensions) + "]";
-		}
-
 		// Read network parameters
 		// パラメータを読み込む
 		bool read_parameters(std::istream&) { return true; }

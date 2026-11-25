@@ -206,12 +206,6 @@ class AffineTransform {
                 return hashValue;
         }
 
-        // Structure string
-        // この層の構造を表す文字列
-        static std::string get_structure_string() {
-                return "AffineTransform[" + std::to_string(OutputDimensions) + "<-" + std::to_string(InputDimensions) + "]";
-        }
-
         static constexpr IndexType get_weight_index_scrambled(IndexType i) {
         return (i / 4) % (PaddedInputDimensions / 4) * OutputDimensions * 4
              + i / PaddedInputDimensions * 4 + i % 4;

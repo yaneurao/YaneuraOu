@@ -89,8 +89,7 @@ sparse input features
 
 SFNNは通常NNUEと同じくFeatureTransformerとaccumulatorを使うが、変換後特徴量と
 後段networkが通常NNUEと異なる。
-SFNNの累積値と着手の差分は探索Workerの`AccumulatorStack`で管理し、
-従来NNUEは`StateInfo`で管理する。`EVAL_SFNN`と`EVAL_NNUE`は排他的に定義する。
+SFNN・従来NNUEとも、累積値と着手の差分は探索Workerの`AccumulatorStack`で管理する。`EVAL_SFNN`と`EVAL_NNUE`は排他的に定義する。
 
 `SFNN_*`でビルドすると`EVAL_SFNN`が定義され、FeatureTransformerでは
 `USE_ELEMENT_WISE_MULTIPLY`が有効になる。この経路では、2視点分のaccumulatorを
@@ -869,10 +868,10 @@ python3 tools/memo/bench_sfnn_experiments.py --build \
 
 architecture headerの生成は`tools/build/nnue_arch_gen.py`が行う。
 このスクリプトはarchitecture名の解析、入力特徴量、次元数、LayerStack数、
-bucket数、`Fc0Layer`と`Network`型の選択だけを生成する。
+bucket数、`Fc0Layer`と`NetworkArchitecture`型の選択だけを生成する。
 
 SFNNの具体的な推論処理は`source/nnue/architectures/sfnn_network.h`に置く。
-`Propagate()`や`PropagateFromAccumulator()`など、探索速度に影響する処理を
+`propagate()`や`propagate_from_accumulator()`など、探索速度に影響する処理を
 `nnue_arch_gen.py`の文字列生成に埋め込まない。
 
 dummy `nn.bin`の生成処理は`tools/build/nnue_dummy_gen.py`に置く。

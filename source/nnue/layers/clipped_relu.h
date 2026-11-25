@@ -28,20 +28,20 @@ static inline void clipped_relu(const i32* input, u8* output) {
   #if defined(USE_AVX512)
     if constexpr (InputDimensions % 64 == 0)
     {
-      constexpr IndexType kNumChunks = InputDimensions / 64;
-      const __m512i kZero = _mm512_setzero_si512();
-      const __m512i kOffsets = _mm512_set_epi32(15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0);
+      constexpr IndexType NumChunks = InputDimensions / 64;
+      const __m512i Zero = _mm512_setzero_si512();
+      const __m512i Offsets = _mm512_set_epi32(15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0);
       const auto in = reinterpret_cast<const __m512i*>(input);
       const auto out = reinterpret_cast<__m512i*>(output);
-      for (IndexType i = 0; i < kNumChunks; ++i) {
+      for (IndexType i = 0; i < NumChunks; ++i) {
         const __m512i words0 = _mm512_srai_epi16(_mm512_packs_epi32(
               _mm512_loadA_si512(&in[i * 4 + 0]),
               _mm512_loadA_si512(&in[i * 4 + 1])), WeightScaleBits);
         const __m512i words1 = _mm512_srai_epi16(_mm512_packs_epi32(
               _mm512_loadA_si512(&in[i * 4 + 2]),
               _mm512_loadA_si512(&in[i * 4 + 3])), WeightScaleBits);
-          _mm512_storeA_si512(&out[i], _mm512_permutexvar_epi32(kOffsets, _mm512_max_epi8(
-            _mm512_packs_epi16(words0, words1), kZero)));
+          _mm512_storeA_si512(&out[i], _mm512_permutexvar_epi32(Offsets, _mm512_max_epi8(
+            _mm512_packs_epi16(words0, words1), Zero)));
       }
     }
     else
@@ -51,12 +51,12 @@ static inline void clipped_relu(const i32* input, u8* output) {
   #if defined(USE_AVX2)
     if constexpr (InputDimensions % 32 == 0)
     {
-      constexpr IndexType kNumChunks = InputDimensions / 32;
-      const __m256i kZero = _mm256_setzero_si256();
-      const __m256i kOffsets = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
+      constexpr IndexType NumChunks = InputDimensions / 32;
+      const __m256i Zero = _mm256_setzero_si256();
+      const __m256i Offsets = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
       const auto in = reinterpret_cast<const __m256i*>(input);
       const auto out = reinterpret_cast<__m256i*>(output);
-      for (IndexType i = 0; i < kNumChunks; ++i) {
+      for (IndexType i = 0; i < NumChunks; ++i) {
         const __m256i words0 = _mm256_srai_epi16(_mm256_packs_epi32(
               _mm256_loadA_si256(&in[i * 4 + 0]),
               _mm256_loadA_si256(&in[i * 4 + 1])), WeightScaleBits);
@@ -64,7 +64,7 @@ static inline void clipped_relu(const i32* input, u8* output) {
               _mm256_loadA_si256(&in[i * 4 + 2]),
               _mm256_loadA_si256(&in[i * 4 + 3])), WeightScaleBits);
           _mm256_storeA_si256(&out[i], _mm256_permutevar8x32_epi32(_mm256_max_epi8(
-            _mm256_packs_epi16(words0, words1), kZero), kOffsets));
+            _mm256_packs_epi16(words0, words1), Zero), Offsets));
       }
     }
     else
@@ -74,16 +74,16 @@ static inline void clipped_relu(const i32* input, u8* output) {
   #if defined(USE_SSE2)
     if constexpr (InputDimensions % 16 == 0)
     {
-      constexpr IndexType kNumChunks = InputDimensions / 16;
+      constexpr IndexType NumChunks = InputDimensions / 16;
 
   #ifdef USE_SSE41
-      const __m128i kZero = _mm_setzero_si128();
+      const __m128i Zero = _mm_setzero_si128();
   #else
       const __m128i k0x80s = _mm_set1_epi8(-128);
   #endif
       const auto in = reinterpret_cast<const __m128i*>(input);
       const auto out = reinterpret_cast<__m128i*>(output);
-        for (IndexType i = 0; i < kNumChunks; ++i) {
+        for (IndexType i = 0; i < NumChunks; ++i) {
           const __m128i words0 = _mm_srai_epi16(_mm_packs_epi32(
               _mm_load_si128(&in[i * 4 + 0]),
               _mm_load_si128(&in[i * 4 + 1])), WeightScaleBits);
@@ -93,7 +93,7 @@ static inline void clipped_relu(const i32* input, u8* output) {
           const __m128i packedbytes = _mm_packs_epi16(words0, words1);
           _mm_store_si128(&out[i],
   #if defined(USE_SSE41)
-              _mm_max_epi8(packedbytes, kZero)
+              _mm_max_epi8(packedbytes, Zero)
   #else // SSE4.1を使わないSSE2経路
               _mm_subs_epi8(_mm_adds_epi8(packedbytes, k0x80s), k0x80s)
   #endif
@@ -107,11 +107,11 @@ static inline void clipped_relu(const i32* input, u8* output) {
   #if defined(USE_MMX)
     if constexpr (InputDimensions % 8 == 0)
     {
-      constexpr IndexType kNumChunks = InputDimensions / 8;
+      constexpr IndexType NumChunks = InputDimensions / 8;
       const __m64 k0x80s = _mm_set1_pi8(-128);
       const auto in = reinterpret_cast<const __m64*>(input);
       const auto out = reinterpret_cast<__m64*>(output);
-      for (IndexType i = 0; i < kNumChunks; ++i) {
+      for (IndexType i = 0; i < NumChunks; ++i) {
         const __m64 words0 = _mm_srai_pi16(
             _mm_packs_pi32(in[i * 4 + 0], in[i * 4 + 1]),
             WeightScaleBits);
@@ -130,16 +130,16 @@ static inline void clipped_relu(const i32* input, u8* output) {
   #if defined(USE_NEON)
     if constexpr (InputDimensions % 8 == 0)
     {
-      constexpr IndexType kNumChunks = InputDimensions / 8;
-      const int8x8_t kZero = {0};
+      constexpr IndexType NumChunks = InputDimensions / 8;
+      const int8x8_t Zero = {0};
       const auto in = reinterpret_cast<const int32x4_t*>(input);
       const auto out = reinterpret_cast<int8x8_t*>(output);
-      for (IndexType i = 0; i < kNumChunks; ++i) {
+      for (IndexType i = 0; i < NumChunks; ++i) {
         int16x8_t shifted;
         const auto pack = reinterpret_cast<int16x4_t*>(&shifted);
         pack[0] = vqshrn_n_s32(in[i * 2 + 0], WeightScaleBits);
         pack[1] = vqshrn_n_s32(in[i * 2 + 1], WeightScaleBits);
-        out[i] = vmax_s8(vqmovn_s16(shifted), kZero);
+        out[i] = vmax_s8(vqmovn_s16(shifted), Zero);
       }
     }
     else
@@ -181,11 +181,6 @@ class ClippedReLU {
     u32 hashValue = 0x538D24C7u;
         hashValue += prevHash;
     return hashValue;
-  }
-
-  static std::string get_structure_string() {
-    return "ClippedReLU[" +
-        std::to_string(OutputDimensions) + "]";
   }
 
   // Read network parameters

@@ -178,9 +178,6 @@
     <ClInclude Include="nnue\simd.h">
       <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
-    <ClInclude Include="nnue\layers\sum.h">
-      <Filter>リソース ファイル\nnue\layers</Filter>
-    </ClInclude>
     <ClInclude Include="nnue\architectures\halfkp_256x2-32-32.h">
       <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>

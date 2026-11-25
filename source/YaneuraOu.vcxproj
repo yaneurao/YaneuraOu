@@ -535,7 +535,6 @@
     <ClInclude Include="nnue\layers\clipped_relu.h" />
     <ClInclude Include="nnue\layers\input_slice.h" />
     <ClInclude Include="nnue\simd.h" />
-    <ClInclude Include="nnue\layers\sum.h" />
     <ClInclude Include="nnue\nnue_architecture.h" />
     <ClInclude Include="nnue\nnz_helper.h" />
     <ClInclude Include="nnue\nnue_common.h" />

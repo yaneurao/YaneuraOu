@@ -56,12 +56,6 @@ public:
                 return hashValue;
         }
 
-        // Structure string
-        // この層の構造を表す文字列
-        static std::string get_structure_string() {
-                return "AffineTransformSparseInput[" + std::to_string(OutputDimensions) + "<-" + std::to_string(InputDimensions) + "]";
-        }
-
         static constexpr IndexType get_weight_index_scrambled(IndexType i) {
         return (i / ChunkSize) % (PaddedInputDimensions / ChunkSize) * OutputDimensions * ChunkSize
              + i / PaddedInputDimensions * ChunkSize + i % ChunkSize;
