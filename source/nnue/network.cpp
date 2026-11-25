@@ -525,14 +525,23 @@ namespace {
         return 3 + (rank - 7) * 3 + file3_bucket(file);
     }
 
-    // レイヤースタックの選択。玉1つを9 zoneに分け、双方の玉で81通りに分岐させる。
-    static int king9_zone_by_king9_zone_bucket(const Position& pos) {
+    // Orient each king toward its own home rank, then put the side-to-move bucket first.
+    // 各玉をその玉自身の自陣側から見る向きに揃え、手番側の分類を上位に置く。
+    // SingleBucket is a template argument, so no runtime function-pointer call is introduced.
+    // 分類関数はテンプレート引数で固定し、実行時の関数ポインター呼び出しは増やさない。
+    template<int BucketCount, int (*SingleBucket)(Square)>
+    sf_always_inline int king_pair_bucket(const Position& pos) {
         const auto stm = pos.side_to_move();
         const auto f_king = pos.square<KING>(stm);
         const auto e_king = pos.square<KING>(~stm);
         const auto f_sq = stm == BLACK ? f_king : Inv(f_king);
         const auto e_sq = stm == BLACK ? Inv(e_king) : e_king;
-        return king9_zone_single_bucket(f_sq) * 9 + king9_zone_single_bucket(e_sq);
+        return SingleBucket(f_sq) * BucketCount + SingleBucket(e_sq);
+    }
+
+    // レイヤースタックの選択。玉1つを9 zoneに分け、双方の玉で81通りに分岐させる。
+    static int king9_zone_by_king9_zone_bucket(const Position& pos) {
+        return king_pair_bucket<9, king9_zone_single_bucket>(pos);
     }
 
     static int king13_zone_single_bucket(Square sq) {
@@ -547,12 +556,7 @@ namespace {
 
     // レイヤースタックの選択。玉1つを13 zoneに分け、双方の玉で169通りに分岐させる。
     static int king13_zone_by_king13_zone_bucket(const Position& pos) {
-        const auto stm = pos.side_to_move();
-        const auto f_king = pos.square<KING>(stm);
-        const auto e_king = pos.square<KING>(~stm);
-        const auto f_sq = stm == BLACK ? f_king : Inv(f_king);
-        const auto e_sq = stm == BLACK ? Inv(e_king) : e_king;
-        return king13_zone_single_bucket(f_sq) * 13 + king13_zone_single_bucket(e_sq);
+        return king_pair_bucket<13, king13_zone_single_bucket>(pos);
     }
 
     static int king21_single_bucket(Square sq) {
@@ -571,12 +575,7 @@ namespace {
 
     // レイヤースタックの選択。玉1つを21通りに分け、双方の玉で441通りに分岐させる。
     static int king21_by_king21_bucket(const Position& pos) {
-        const auto stm = pos.side_to_move();
-        const auto f_king = pos.square<KING>(stm);
-        const auto e_king = pos.square<KING>(~stm);
-        const auto f_sq = stm == BLACK ? f_king : Inv(f_king);
-        const auto e_sq = stm == BLACK ? Inv(e_king) : e_king;
-        return king21_single_bucket(f_sq) * 21 + king21_single_bucket(e_sq);
+        return king_pair_bucket<21, king21_single_bucket>(pos);
     }
 
     static int king29_single_bucket(Square sq) {
@@ -594,12 +593,7 @@ namespace {
 
     // レイヤースタックの選択。玉1つを29通りに分け、双方の玉で841通りに分岐させる。
     static int king29_by_king29_bucket(const Position& pos) {
-        const auto stm = pos.side_to_move();
-        const auto f_king = pos.square<KING>(stm);
-        const auto e_king = pos.square<KING>(~stm);
-        const auto f_sq = stm == BLACK ? f_king : Inv(f_king);
-        const auto e_sq = stm == BLACK ? Inv(e_king) : e_king;
-        return king29_single_bucket(f_sq) * 29 + king29_single_bucket(e_sq);
+        return king_pair_bucket<29, king29_single_bucket>(pos);
     }
 
     static int hand4_single_bucket(Hand hand) {
