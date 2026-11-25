@@ -251,9 +251,10 @@ if arches[0].startswith("SFNN"):
 if SFNN:
     header = f"""
     // SFNN without PSQT architecture
+    // PSQTを持たないSFNNの入力特徴量とネットワーク構造。
 
-    #ifndef CLASSIC_NNUE_SFNN_{arch}_H_INCLUDED
-    #define CLASSIC_NNUE_SFNN_{arch}_H_INCLUDED
+    #ifndef NNUE_{arch}_H_INCLUDED
+    #define NNUE_{arch}_H_INCLUDED
     """
 else:
     header = f"""
@@ -591,7 +592,7 @@ if SFNN:
     }}  // namespace Eval::NNUE
     }}  // namespace YaneuraOu
 
-    #endif // CLASSIC_NNUE_{arch}_H_INCLUDED
+    #endif // NNUE_{arch}_H_INCLUDED
     """
 
     # 💡 GetStructureString()で異なる文字列を返すと別のアーキテクチャとみなされてしまう。
