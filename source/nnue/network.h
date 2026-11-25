@@ -28,17 +28,6 @@ class Position;
 
 namespace YaneuraOu::Eval::NNUE {
 
-// The embedding macro requires a string literal; share the name with loading and options.
-// 埋め込みには文字列リテラルが必要。同じ既定名を外部読み込み・オプション・ヘルプでも使う。
-#if defined(ENABLE_SFNN_16BIT_WEIGHT)
-#if !defined(EVAL_SFNN)
-#error ENABLE_SFNN_16BIT_WEIGHT requires an SFNN architecture
-#endif
-	#define EvalFileDefaultName "nn16.bin"
-#else
-	#define EvalFileDefaultName "nn.bin"
-#endif
-
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 namespace Progress {
 

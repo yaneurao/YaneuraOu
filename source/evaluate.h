@@ -23,6 +23,21 @@ namespace Eval::NNUE { struct Network; struct Dirties; }
 
 namespace Eval {
 
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+// Shogi models use fixed filenames instead of Stockfish's hash-based default name.
+// Stockfishのハッシュ付きファイル名とは異なり、将棋用評価関数は固定名を使う。
+// The embedding macro requires a string literal; share the name with loading and options.
+// 埋め込みには文字列リテラルが必要。同じ既定名を外部読み込み・オプション・ヘルプでも使う。
+#if defined(ENABLE_SFNN_16BIT_WEIGHT)
+#if !defined(EVAL_SFNN)
+#error ENABLE_SFNN_16BIT_WEIGHT requires an SFNN architecture
+#endif
+#define EvalFileDefaultName "nn16.bin"
+#else
+#define EvalFileDefaultName "nn.bin"
+#endif
+#endif
+
 #if !defined(EVAL_SFNN) && !defined(EVAL_NNUE) && !defined(EVAL_KPPT) && !defined(EVAL_KPP_KKPT)
     // 差分評価を使わない構成でも、探索から同じ形でpush()/do_move()を呼べるようにする。
     // 駒の差分は保持せず、Positionもこの型に対して差分を書き込まない。
