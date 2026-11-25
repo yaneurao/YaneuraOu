@@ -541,6 +541,7 @@
     <ClInclude Include="nnue\simd.h" />
     <ClInclude Include="nnue\layers\sum.h" />
     <ClInclude Include="nnue\nnue_architecture.h" />
+    <ClInclude Include="nnue\nnz_helper.h" />
     <ClInclude Include="nnue\nnue_common.h" />
     <ClInclude Include="nnue\nnue_feature_transformer.h" />
     <ClInclude Include="nnue\nnue_test_command.h" />

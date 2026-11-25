@@ -72,11 +72,11 @@ class AffineTransformCommonShardInputExplicit {
 
 	bool read_parameters(std::istream& stream) {
 		for (usize i = 0; i < OutputDimensions; ++i)
-			biases_[i] = read_little_endian<BiasType>(stream);
+			biases[i] = read_little_endian<BiasType>(stream);
 
 		WeightType zero{};
 		for (usize i = 0; i < OutputDimensions * kPaddedEffectiveInputDimensions; ++i)
-			weights_[i] = zero;
+			weights[i] = zero;
 
 		for (IndexType out = 0; out < OutputDimensions; ++out) {
 			const IndexType group      = out / kGroupOutputDimensions;
@@ -86,9 +86,9 @@ class AffineTransformCommonShardInputExplicit {
 			for (IndexType in = 0; in < PaddedInputDimensions; ++in) {
 				const WeightType w = read_little_endian<WeightType>(stream);
 				if (in < kCommonDimensions) {
-					weights_[weight_base + in] = w;
+					weights[weight_base + in] = w;
 				} else if (shard_base <= in && in < shard_base + kShardDimensions) {
-					weights_[weight_base + kCommonDimensions + (in - shard_base)] = w;
+					weights[weight_base + kCommonDimensions + (in - shard_base)] = w;
 				}
 			}
 		}
@@ -97,7 +97,7 @@ class AffineTransformCommonShardInputExplicit {
 	}
 
 	bool write_parameters(std::ostream& stream) const {
-		stream.write(reinterpret_cast<const char*>(biases_), OutputDimensions * sizeof(BiasType));
+		stream.write(reinterpret_cast<const char*>(biases), OutputDimensions * sizeof(BiasType));
 
 		for (IndexType out = 0; out < OutputDimensions; ++out) {
 			const IndexType group       = out / kGroupOutputDimensions;
@@ -107,9 +107,9 @@ class AffineTransformCommonShardInputExplicit {
 			for (IndexType in = 0; in < PaddedInputDimensions; ++in) {
 				WeightType w{};
 				if (in < kCommonDimensions) {
-					w = weights_[weight_base + in];
+					w = weights[weight_base + in];
 				} else if (shard_base <= in && in < shard_base + kShardDimensions) {
-					w = weights_[weight_base + kCommonDimensions + (in - shard_base)];
+					w = weights[weight_base + kCommonDimensions + (in - shard_base)];
 				}
 				stream.write(reinterpret_cast<const char*>(&w), sizeof(w));
 			}
@@ -140,7 +140,7 @@ class AffineTransformCommonShardInputExplicit {
 		for (IndexType out = 0; out < OutputDimensions; ++out) {
 			__m512i sum = _mm512_setzero_si512();
 			const auto weight_vectors =
-			    reinterpret_cast<const __m512i*>(weights_ + out * kPaddedEffectiveInputDimensions);
+			    reinterpret_cast<const __m512i*>(weights + out * kPaddedEffectiveInputDimensions);
 
 			for (IndexType j = 0; j < kCommonDimensions / 64; ++j) {
 				const __m512i transformed =
@@ -162,7 +162,7 @@ class AffineTransformCommonShardInputExplicit {
 				SIMD::m512_add_dpbusd_epi32(sum, transformed, weight_vectors[weight_chunk_base + j]);
 			}
 
-			output[out] = SIMD::m512_hadd(sum, biases_[out]);
+			output[out] = SIMD::m512_hadd(sum, biases[out]);
 		}
 
 		for (IndexType out = OutputDimensions; out < PaddedOutputDimensions; ++out)
@@ -178,7 +178,7 @@ class AffineTransformCommonShardInputExplicit {
 			for (IndexType out = 0; out < OutputDimensions; ++out) {
 				__m512i sum = _mm512_setzero_si512();
 				const auto weight_vectors =
-				    reinterpret_cast<const __m512i*>(weights_ + out * kPaddedEffectiveInputDimensions);
+				    reinterpret_cast<const __m512i*>(weights + out * kPaddedEffectiveInputDimensions);
 
 				for (IndexType j = 0; j < kCommonDimensions / 64; ++j)
 					SIMD::m512_add_dpbusd_epi32(sum, common_input_vectors[j], weight_vectors[j]);
@@ -190,7 +190,7 @@ class AffineTransformCommonShardInputExplicit {
 				for (IndexType j = 0; j < kShardDimensions / 64; ++j)
 					SIMD::m512_add_dpbusd_epi32(sum, shard_input_vectors[j], weight_vectors[weight_chunk_base + j]);
 
-				output[out] = SIMD::m512_hadd(sum, biases_[out]);
+				output[out] = SIMD::m512_hadd(sum, biases[out]);
 			}
 
 			for (IndexType out = OutputDimensions; out < PaddedOutputDimensions; ++out)
@@ -203,14 +203,14 @@ class AffineTransformCommonShardInputExplicit {
 			const IndexType group = out / kGroupOutputDimensions;
 			const IndexType shard_base = kCommonDimensions + group * kShardDimensions;
 			const IndexType weight_base = out * kPaddedEffectiveInputDimensions;
-			OutputType sum = biases_[out];
+			OutputType sum = biases[out];
 
 			for (IndexType in = 0; in < kCommonDimensions; ++in)
-				sum += OutputType(input[in]) * OutputType(weights_[weight_base + in]);
+				sum += OutputType(input[in]) * OutputType(weights[weight_base + in]);
 
 			for (IndexType in = 0; in < kShardDimensions; ++in)
 				sum += OutputType(input[shard_base + in])
-				       * OutputType(weights_[weight_base + kCommonDimensions + in]);
+				       * OutputType(weights[weight_base + kCommonDimensions + in]);
 
 			output[out] = sum;
 		}
@@ -250,8 +250,8 @@ class AffineTransformCommonShardInputExplicit {
 	}
 #endif
 
-	alignas(CacheLineSize) BiasType biases_[OutputDimensions];
-	alignas(CacheLineSize) WeightType weights_[OutputDimensions * kPaddedEffectiveInputDimensions];
+	alignas(CacheLineSize) BiasType biases[OutputDimensions];
+	alignas(CacheLineSize) WeightType weights[OutputDimensions * kPaddedEffectiveInputDimensions];
 };
 
 }  // namespace Eval::NNUE::Layers

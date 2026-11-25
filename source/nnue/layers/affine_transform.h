@@ -229,9 +229,9 @@ class AffineTransform {
         // パラメーターを読み込む。重みの並び替えと融合計算用の複製は従来どおり行う。
         bool read_parameters(std::istream& stream) {
                 for (usize i = 0; i < OutputDimensions; ++i)
-                        biases_[i] = read_little_endian<BiasType>(stream);
+                        biases[i] = read_little_endian<BiasType>(stream);
                 for (usize i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
-                        weights_[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
+                        weights[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
                 if constexpr (kHasClippedReLUPackedWeights) {
                         constexpr IndexType kDwordCount = PaddedInputDimensions / 4;
                         constexpr IndexType kPerm[kDwordCount] = {
@@ -241,7 +241,7 @@ class AffineTransform {
                                 const IndexType src_lane = kPerm[lane];
                                 for (IndexType b = 0; b < 4; ++b) {
                                         weights_clipped_relu_packed_[src_lane * 4 + b] =
-                                                weights_[lane * 4 + b];
+                                                weights[lane * 4 + b];
                                 }
                         }
                 }
@@ -251,8 +251,8 @@ class AffineTransform {
         // Write network parameters
         // パラメーターを書き込む。既存の内部配置での書き出しを維持する。
         bool write_parameters(std::ostream& stream) const {
-                write_little_endian(stream, biases_, OutputDimensions);
-                write_little_endian(stream, weights_, OutputDimensions * PaddedInputDimensions);
+                write_little_endian(stream, biases, OutputDimensions);
+                write_little_endian(stream, weights, OutputDimensions * PaddedInputDimensions);
                 return !stream.fail();
         }
 
@@ -264,9 +264,9 @@ class AffineTransform {
                         constexpr int n = InputDimensions;
                         constexpr int m = OutputDimensions;
                         constexpr int n_stride = PaddedInputDimensions;
-                        auto A = *reinterpret_cast<const i8(*)[m][n_stride]>(weights_);
+                        auto A = *reinterpret_cast<const i8(*)[m][n_stride]>(weights);
                         auto x = *reinterpret_cast<const u8(*)[n]>(input);
-                        auto b = *reinterpret_cast<const i32(*)[m]>(biases_);
+                        auto b = *reinterpret_cast<const i32(*)[m]>(biases);
                         auto y = *reinterpret_cast<i32(*)[m]>(output);
                         emscripten_wasm_simd::affine<n, m, n_stride>(A, x, b, y);
                         return; // void return
@@ -291,7 +291,7 @@ class AffineTransform {
 #endif
 
                                 const auto   input32 = reinterpret_cast<const i32*>(input);
-                                const __m512i* biasvec = reinterpret_cast<const __m512i*>(biases_);
+                                const __m512i* biasvec = reinterpret_cast<const __m512i*>(biases);
                                 __m512i        acc[kActualNumRegs];
 
                                 for (IndexType k = 0; k < kNumAccums; ++k)
@@ -307,8 +307,8 @@ class AffineTransform {
                                 {
                                         const __m512i in0 = _mm512_set1_epi32(input32[i]);
                                         const __m512i in1 = _mm512_set1_epi32(input32[i + 1]);
-                                        const auto col0 = reinterpret_cast<const __m512i*>(&weights_[i * OutputDimensions * 4]);
-                                        const auto col1 = reinterpret_cast<const __m512i*>(&weights_[(i + 1) * OutputDimensions * 4]);
+                                        const auto col0 = reinterpret_cast<const __m512i*>(&weights[i * OutputDimensions * 4]);
+                                        const auto col1 = reinterpret_cast<const __m512i*>(&weights[(i + 1) * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumAccums; ++k) {
                                                 SIMD::m512_add_dpbusd_epi32(acc[k], in0, col0[k]);
@@ -325,7 +325,7 @@ class AffineTransform {
 #endif
                                 {
                                         const __m512i in = _mm512_set1_epi32(input32[i]);
-                                        const auto  col  = reinterpret_cast<const __m512i*>(&weights_[i * OutputDimensions * 4]);
+                                        const auto  col  = reinterpret_cast<const __m512i*>(&weights[i * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumAccums; ++k)
                                                 SIMD::m512_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -353,7 +353,7 @@ class AffineTransform {
 #endif
 
                                 const auto   input32 = reinterpret_cast<const i32*>(input);
-                                const __m256i* biasvec = reinterpret_cast<const __m256i*>(biases_);
+                                const __m256i* biasvec = reinterpret_cast<const __m256i*>(biases);
                                 __m256i        acc[kActualNumRegs];
 
                                 for (IndexType k = 0; k < kNumAccums; ++k)
@@ -369,8 +369,8 @@ class AffineTransform {
                                 {
                                         const __m256i in0 = _mm256_set1_epi32(input32[i]);
                                         const __m256i in1 = _mm256_set1_epi32(input32[i + 1]);
-                                        const auto col0 = reinterpret_cast<const __m256i*>(&weights_[i * OutputDimensions * 4]);
-                                        const auto col1 = reinterpret_cast<const __m256i*>(&weights_[(i + 1) * OutputDimensions * 4]);
+                                        const auto col0 = reinterpret_cast<const __m256i*>(&weights[i * OutputDimensions * 4]);
+                                        const auto col1 = reinterpret_cast<const __m256i*>(&weights[(i + 1) * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumAccums; ++k) {
                                                 SIMD::m256_add_dpbusd_epi32(acc[k], in0, col0[k]);
@@ -387,7 +387,7 @@ class AffineTransform {
 #endif
                                 {
                                         const __m256i in = _mm256_set1_epi32(input32[i]);
-                                        const auto  col  = reinterpret_cast<const __m256i*>(&weights_[i * OutputDimensions * 4]);
+                                        const auto  col  = reinterpret_cast<const __m256i*>(&weights[i * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumAccums; ++k)
                                                 SIMD::m256_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -408,7 +408,7 @@ class AffineTransform {
                                 constexpr IndexType kNumRegs = OutputDimensions / 4;
 
                                 const auto   input32 = reinterpret_cast<const i32*>(input);
-                                const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases_);
+                                const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases);
                                 __m128i        acc[kNumRegs];
 
                                 for (IndexType k = 0; k < kNumRegs; ++k)
@@ -417,7 +417,7 @@ class AffineTransform {
                                 for (IndexType i = 0; i < kNumChunks; ++i)
                                 {
                                         const __m128i in = _mm_set1_epi32(input32[i]);
-                                        const auto  col = reinterpret_cast<const __m128i*>(&weights_[i * OutputDimensions * 4]);
+                                        const auto  col = reinterpret_cast<const __m128i*>(&weights[i * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumRegs; ++k)
                                                 SIMD::m128_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -439,7 +439,7 @@ class AffineTransform {
                                 constexpr IndexType kNumRegs = OutputDimensions / kOutputSimdWidth;
 
                                 const auto       input32 = reinterpret_cast<const i32*>(input);
-                                const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases_);
+                                const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases);
                                 int32x4_t        acc[kNumRegs];
 
                                 for (IndexType k = 0; k < kNumRegs; ++k)
@@ -448,7 +448,7 @@ class AffineTransform {
                                 for (IndexType i = 0; i < kNumChunks; ++i)
                                 {
                                         const int32x4_t in = vdupq_n_s32(input32[i]);
-                                        const auto  col = reinterpret_cast<const int32x4_t*>(&weights_[i * OutputDimensions * 4]);
+                                        const auto  col = reinterpret_cast<const int32x4_t*>(&weights[i * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumRegs; ++k)
                                                 SIMD::dotprod_m128_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -463,7 +463,7 @@ class AffineTransform {
 #endif
 
                         affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
-                          output, weights_, biases_, input);
+                          output, weights, biases, input);
                 }
                 else if constexpr (OutputDimensions == 1)
                 {
@@ -498,7 +498,7 @@ class AffineTransform {
 
             constexpr IndexType kNumChunks = PaddedInputDimensions / kInputSimdWidth;
             vec_t               sum0      = vec_setzero();
-            const auto          row0      = reinterpret_cast<const vec_t*>(&weights_[0]);
+            const auto          row0      = reinterpret_cast<const vec_t*>(&weights[0]);
 
             for (int j = 0; j < int(kNumChunks); ++j)
             {
@@ -506,7 +506,7 @@ class AffineTransform {
                 vec_add_dpbusd_32(sum0, in, row0[j]);
             }
 
-            output[0] = vec_hadd(sum0, biases_[0]);
+            output[0] = vec_hadd(sum0, biases[0]);
 
 #undef vec_setzero
 #undef vec_set_32
@@ -517,7 +517,7 @@ class AffineTransform {
 #else
         // Use dense implementation for the other architectures.
         affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
-          output, weights_, biases_, input);
+          output, weights, biases, input);
 #endif
         }
 
@@ -537,7 +537,7 @@ class AffineTransform {
                         constexpr IndexType kActualNumRegs = kNumAccums;
 #endif
 
-                        const auto biasvec = reinterpret_cast<const __m512i*>(biases_);
+                        const auto biasvec = reinterpret_cast<const __m512i*>(biases);
                         __m512i acc[kActualNumRegs];
 
                         for (IndexType k = 0; k < kNumAccums; ++k)
@@ -553,9 +553,9 @@ class AffineTransform {
                                 const __m512i in0 = _mm512_set1_epi32(static_cast<int>(input32[i]));
                                 const __m512i in1 = _mm512_set1_epi32(static_cast<int>(input32[i + 1]));
                                 const auto col0 = reinterpret_cast<const __m512i*>(
-                                        &weights_[i * OutputDimensions * 4]);
+                                        &weights[i * OutputDimensions * 4]);
                                 const auto col1 = reinterpret_cast<const __m512i*>(
-                                        &weights_[(i + 1) * OutputDimensions * 4]);
+                                        &weights[(i + 1) * OutputDimensions * 4]);
 
                                 for (IndexType k = 0; k < kNumAccums; ++k) {
                                         SIMD::m512_add_dpbusd_epi32(acc[k], in0, col0[k]);
@@ -572,7 +572,7 @@ class AffineTransform {
 #endif
                                 const __m512i in = _mm512_set1_epi32(static_cast<int>(input32[i]));
                                 const auto col = reinterpret_cast<const __m512i*>(
-                                        &weights_[i * OutputDimensions * 4]);
+                                        &weights[i * OutputDimensions * 4]);
 
                                 for (IndexType k = 0; k < kNumAccums; ++k)
                                         SIMD::m512_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -593,7 +593,7 @@ class AffineTransform {
                         const __m256i sum_lo = _mm512_castsi512_si256(sum);
                         const __m256i sum_hi = _mm512_extracti64x4_epi64(sum, 1);
                         output[0] = SIMD::m256_hadd(_mm256_add_epi32(sum_lo, sum_hi),
-                                                     next_layer.biases_[0]);
+                                                     next_layer.biases[0]);
                 } else {
                         static_assert(OutputDimensions == 64,
                                 "propagate_clipped_relu_packed_to_output currently supports 64 hidden units.");
@@ -616,8 +616,8 @@ class AffineTransform {
         using BiasType   = OutputType;
         using WeightType = i8;
 
-        alignas(CacheLineSize) BiasType biases_[OutputDimensions];
-        alignas(CacheLineSize) WeightType weights_[OutputDimensions * PaddedInputDimensions];
+        alignas(CacheLineSize) BiasType biases[OutputDimensions];
+        alignas(CacheLineSize) WeightType weights[OutputDimensions * PaddedInputDimensions];
         alignas(CacheLineSize) WeightType
                 weights_clipped_relu_packed_[kClippedReLUPackedWeightDimensions];
 };
@@ -692,9 +692,9 @@ class AffineTransform {
 	bool read_parameters(std::istream& stream) {
 		if (!previous_layer_.read_parameters(stream)) return false;
 		for (usize i = 0; i < OutputDimensions; ++i)
-			biases_[i] = read_little_endian<BiasType>(stream);
+			biases[i] = read_little_endian<BiasType>(stream);
 		for (usize i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
-			weights_[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
+			weights[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
 		return !stream.fail();
 	}
 
@@ -703,8 +703,8 @@ class AffineTransform {
 		if (!previous_layer_.write_parameters(stream))
 			return false;
 		// 実行環境によらずlittle-endianで書き込む。
-		write_little_endian(stream, biases_, OutputDimensions);
-		write_little_endian(stream, weights_, OutputDimensions * PaddedInputDimensions);
+		write_little_endian(stream, biases, OutputDimensions);
+		write_little_endian(stream, weights, OutputDimensions * PaddedInputDimensions);
 		return !stream.fail();
 	}
 
@@ -719,9 +719,9 @@ class AffineTransform {
 			constexpr int n = InputDimensions;
 			constexpr int m = OutputDimensions;
 			constexpr int n_stride = PaddedInputDimensions;
-			auto A = *reinterpret_cast<const i8(*)[m][n_stride]>(weights_);
+			auto A = *reinterpret_cast<const i8(*)[m][n_stride]>(weights);
 			auto x = *reinterpret_cast<const u8(*)[n]>(input);
-			auto b = *reinterpret_cast<const i32(*)[m]>(biases_);
+			auto b = *reinterpret_cast<const i32(*)[m]>(biases);
 			auto y = *reinterpret_cast<i32(*)[m]>(buffer);
 			emscripten_wasm_simd::affine<n, m, n_stride>(A, x, b, y);
 			return y;
@@ -740,7 +740,7 @@ class AffineTransform {
 				constexpr IndexType kNumRegs = OutputDimensions / 16;
 
 				const auto   input32 = reinterpret_cast<const i32*>(input);
-				const __m512i* biasvec = reinterpret_cast<const __m512i*>(biases_);
+				const __m512i* biasvec = reinterpret_cast<const __m512i*>(biases);
 				__m512i        acc[kNumRegs];
 
 				for (IndexType k = 0; k < kNumRegs; ++k)
@@ -749,7 +749,7 @@ class AffineTransform {
 				for (IndexType i = 0; i < kNumChunks; ++i)
 				{
 					const __m512i in = _mm512_set1_epi32(input32[i]);
-					const auto  col  = reinterpret_cast<const __m512i*>(&weights_[i * OutputDimensions * 4]);
+					const auto  col  = reinterpret_cast<const __m512i*>(&weights[i * OutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
 						SIMD::m512_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -770,7 +770,7 @@ class AffineTransform {
 				constexpr IndexType kNumRegs = OutputDimensions / 8;
 
 				const auto   input32 = reinterpret_cast<const i32*>(input);
-				const __m256i* biasvec = reinterpret_cast<const __m256i*>(biases_);
+				const __m256i* biasvec = reinterpret_cast<const __m256i*>(biases);
 				__m256i        acc[kNumRegs];
 
 				for (IndexType k = 0; k < kNumRegs; ++k)
@@ -779,7 +779,7 @@ class AffineTransform {
 				for (IndexType i = 0; i < kNumChunks; ++i)
 				{
 					const __m256i in = _mm256_set1_epi32(input32[i]);
-					const auto  col  = reinterpret_cast<const __m256i*>(&weights_[i * OutputDimensions * 4]);
+					const auto  col  = reinterpret_cast<const __m256i*>(&weights[i * OutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
 						SIMD::m256_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -800,7 +800,7 @@ class AffineTransform {
 				constexpr IndexType kNumRegs = OutputDimensions / 4;
 
 				const auto   input32 = reinterpret_cast<const i32*>(input);
-				const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases_);
+				const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases);
 				__m128i        acc[kNumRegs];
 
 				for (IndexType k = 0; k < kNumRegs; ++k)
@@ -809,7 +809,7 @@ class AffineTransform {
 				for (IndexType i = 0; i < kNumChunks; ++i)
 				{
 					const __m128i in = _mm_set1_epi32(input32[i]);
-					const auto  col = reinterpret_cast<const __m128i*>(&weights_[i * OutputDimensions * 4]);
+					const auto  col = reinterpret_cast<const __m128i*>(&weights[i * OutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
 						SIMD::m128_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -831,7 +831,7 @@ class AffineTransform {
 				constexpr IndexType kNumRegs = OutputDimensions / kOutputSimdWidth;
 
 				const auto       input32 = reinterpret_cast<const i32*>(input);
-				const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases_);
+				const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases);
 				int32x4_t        acc[kNumRegs];
 
 				for (IndexType k = 0; k < kNumRegs; ++k)
@@ -840,7 +840,7 @@ class AffineTransform {
 				for (IndexType i = 0; i < kNumChunks; ++i)
 				{
 					const int32x4_t in = vdupq_n_s32(input32[i]);
-					const auto  col = reinterpret_cast<const int32x4_t*>(&weights_[i * OutputDimensions * 4]);
+					const auto  col = reinterpret_cast<const int32x4_t*>(&weights[i * OutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
 						SIMD::dotprod_m128_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -855,7 +855,7 @@ class AffineTransform {
 #endif
 
 				affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
-				output, weights_, biases_, input);
+				output, weights, biases, input);
 		}
 		else if constexpr (OutputDimensions == 1)
 		{
@@ -890,7 +890,7 @@ class AffineTransform {
 
             constexpr IndexType kNumChunks = PaddedInputDimensions / kInputSimdWidth;
             vec_t               sum0      = vec_setzero();
-            const auto          row0      = reinterpret_cast<const vec_t*>(&weights_[0]);
+            const auto          row0      = reinterpret_cast<const vec_t*>(&weights[0]);
 
             for (int j = 0; j < int(kNumChunks); ++j)
             {
@@ -898,7 +898,7 @@ class AffineTransform {
                 vec_add_dpbusd_32(sum0, in, row0[j]);
             }
 
-            output[0] = vec_hadd(sum0, biases_[0]);
+            output[0] = vec_hadd(sum0, biases[0]);
 
 #undef vec_setzero
 #undef vec_set_32
@@ -909,7 +909,7 @@ class AffineTransform {
 #else
         // Use dense implementation for the other architectures.
         affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
-          output, weights_, biases_, input);
+          output, weights, biases, input);
 #endif
 
 		return output;
@@ -924,8 +924,8 @@ class AffineTransform {
 	PreviousLayer previous_layer_;
 
 	// パラメータ
-	alignas(CacheLineSize) BiasType biases_[OutputDimensions];
-	alignas(CacheLineSize) WeightType weights_[OutputDimensions * PaddedInputDimensions];
+	alignas(CacheLineSize) BiasType biases[OutputDimensions];
+	alignas(CacheLineSize) WeightType weights[OutputDimensions * PaddedInputDimensions];
 };
 #endif
 

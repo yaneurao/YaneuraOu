@@ -130,6 +130,9 @@
     <ClInclude Include="nnue\nnue_architecture.h">
       <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
+    <ClInclude Include="nnue\nnz_helper.h">
+      <Filter>リソース ファイル\nnue</Filter>
+    </ClInclude>
     <ClInclude Include="nnue\nnue_common.h">
       <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>

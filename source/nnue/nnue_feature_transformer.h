@@ -141,8 +141,8 @@ class FeatureTransformer {
 #if defined(NNUE_FT_PACKED8)
 		sparse8_enabled_ = false;
 #endif
-		read_leb_128<BiasType>(stream, biases_, kHalfDimensions);
-		read_leb_128<WeightType>(stream, weights_, kHalfDimensions * InputDimensions);
+		read_leb_128<BiasType>(stream, biases, kHalfDimensions);
+		read_leb_128<WeightType>(stream, weights, kHalfDimensions * InputDimensions);
 
 #if defined(VECTOR) && !defined(NNUE_SMALL_SFNN_FT)
 		permute_weights(inverse_order_packs);
@@ -154,9 +154,9 @@ class FeatureTransformer {
 #endif
 
 #else
-		for (usize i = 0; i < kHalfDimensions; ++i) biases_[i] = read_little_endian<BiasType>(stream);
+		for (usize i = 0; i < kHalfDimensions; ++i) biases[i] = read_little_endian<BiasType>(stream);
 		for (usize i = 0; i < kHalfDimensions * InputDimensions; ++i)
-			weights_[i] = read_little_endian<WeightType>(stream);
+			weights[i] = read_little_endian<WeightType>(stream);
 #endif
 		return !stream.fail();
 	}
@@ -164,12 +164,12 @@ class FeatureTransformer {
 	// Write network parameters
 	// パラメータを書き込む
 	bool write_parameters(std::ostream& stream) const {
-		write_little_endian(stream, biases_, kHalfDimensions);
+		write_little_endian(stream, biases, kHalfDimensions);
 #if defined(NNUE_FT_PACKED8)
 		if (sparse8_enabled_) {
 			// Preserve the existing writer's int16 layout, including permutation/scaling.
 			alignas(CacheLineSize) WeightType column[kHalfDimensions];
-			const auto* packed = reinterpret_cast<const i8*>(weights_);
+			const auto* packed = reinterpret_cast<const i8*>(weights);
 			for (IndexType i = 0; i < InputDimensions; ++i) {
 				for (IndexType j = 0; j < kHalfDimensions; ++j)
 					column[j] = int(packed[i * kHalfDimensions + j]) * 2;
@@ -178,7 +178,7 @@ class FeatureTransformer {
 			}
 		} else
 #endif
-		write_little_endian(stream, weights_, kHalfDimensions * InputDimensions);
+		write_little_endian(stream, weights, kHalfDimensions * InputDimensions);
 		return !stream.fail();
 	}
 
@@ -312,10 +312,10 @@ class FeatureTransformer {
             std::copy_n(accumulator_of(ancestor).accumulation[c][0], kHalfDimensions, destination);
             for (auto index : removed)
                 for (IndexType j = 0; j < kHalfDimensions; ++j)
-                    destination[j] -= weights_[kHalfDimensions * index + j];
+                    destination[j] -= weights[kHalfDimensions * index + j];
             for (auto index : added)
                 for (IndexType j = 0; j < kHalfDimensions; ++j)
-                    destination[j] += weights_[kHalfDimensions * index + j];
+                    destination[j] += weights[kHalfDimensions * index + j];
 #endif
         }
         accumulator.computed_accumulation = true;
@@ -358,10 +358,10 @@ class FeatureTransformer {
                 std::copy_n(source, kHalfDimensions, target);
                 for (auto index : added[perspective])
                     for (IndexType j = 0; j < kHalfDimensions; ++j)
-                        target[j] -= weights_[kHalfDimensions * index + j];
+                        target[j] -= weights[kHalfDimensions * index + j];
                 for (auto index : removed[perspective])
                     for (IndexType j = 0; j < kHalfDimensions; ++j)
-                        target[j] += weights_[kHalfDimensions * index + j];
+                        target[j] += weights[kHalfDimensions * index + j];
 #endif
             }
             parent->computed_accumulation = true;
@@ -666,14 +666,14 @@ class FeatureTransformer {
 #else
 		constexpr IndexType di = 8;
 #endif
-		uint64_t* b = reinterpret_cast<uint64_t*>(const_cast<BiasType*>(&biases_[0]));
+		uint64_t* b = reinterpret_cast<uint64_t*>(const_cast<BiasType*>(&biases[0]));
 		for (IndexType i = 0; i < kHalfDimensions * sizeof(BiasType) / sizeof(uint64_t); i += di)
 			order_fn(&b[i]);
 
 		for (IndexType j = 0; j < InputDimensions; ++j)
 		{
 			uint64_t* w =
-				reinterpret_cast<uint64_t*>(const_cast<WeightType*>(&weights_[j * kHalfDimensions]));
+				reinterpret_cast<uint64_t*>(const_cast<WeightType*>(&weights[j * kHalfDimensions]));
 			for (IndexType i = 0; i < kHalfDimensions * sizeof(WeightType) / sizeof(uint64_t);
 					i += di)
 				order_fn(&w[i]);
@@ -684,12 +684,12 @@ class FeatureTransformer {
 	inline void scale_weights(bool read) const {
 		for (IndexType j = 0; j < InputDimensions; ++j)
 		{
-			WeightType* w = const_cast<WeightType*>(&weights_[j * kHalfDimensions]);
+			WeightType* w = const_cast<WeightType*>(&weights[j * kHalfDimensions]);
 			for (IndexType i = 0; i < kHalfDimensions; ++i)
 				w[i] = read ? w[i] * 2 : w[i] / 2;
 		}
 
-		BiasType* b = const_cast<BiasType*>(biases_);
+		BiasType* b = const_cast<BiasType*>(biases);
 		for (IndexType i = 0; i < kHalfDimensions; ++i)
 			b[i] = read ? b[i] * 2 : b[i] / 2;
 	}
@@ -697,7 +697,7 @@ class FeatureTransformer {
 #if defined(NNUE_FT_PACKED8)
 	// The signed low byte stores half the already-scaled weight. Only values
 	// outside [-128,127] need a (position, residual) correction. The first half
-	// of weights_ holds bytes; its second half holds correction records.
+	// of weights holds bytes; its second half holds correction records.
 	// Allocation size stays unchanged; the frequently read weight data is halved.
 	struct Sparse8Correction {
 		u16 position;
@@ -713,7 +713,7 @@ class FeatureTransformer {
 	void prepare_sparse8_weights() {
 		usize count = 0;
 		for (usize i = 0; i < kSparse8Bytes; ++i) {
-			const int value = weights_[i] / 2;
+			const int value = weights[i] / 2;
 			count += value < -128 || value > 127;
 		}
 		// Check before overwriting any int16 weights. Keep outliers below
@@ -726,11 +726,11 @@ class FeatureTransformer {
 			return;
 		std::vector<Sparse8Correction> corrections;
 		corrections.reserve(count);
-		auto* packed = reinterpret_cast<i8*>(weights_);
+		auto* packed = reinterpret_cast<i8*>(weights);
 		for (IndexType i = 0; i < InputDimensions; ++i) {
 			sparse8_offsets_[i] = static_cast<u32>(corrections.size());
 			for (IndexType j = 0; j < kHalfDimensions; ++j) {
-				const int value = weights_[usize(i) * kHalfDimensions + j];
+				const int value = weights[usize(i) * kHalfDimensions + j];
 				const auto base = static_cast<i8>(value / 2);
 				// Forward packing cannot overwrite the next unread int16.
 				packed[usize(i) * kHalfDimensions + j] = base;
@@ -748,14 +748,14 @@ class FeatureTransformer {
 #if !defined(NO_PREFETCH)
 	// 実際に加減算する列の先頭だけを先読みする。列全体には命令を発行しない。
 	void prefetch_sparse8_columns(const Features::IndexList& indices) const {
-		const auto* base = reinterpret_cast<const i8*>(weights_);
+		const auto* base = reinterpret_cast<const i8*>(weights);
 		for (const auto index : indices)
 			_mm_prefetch(reinterpret_cast<const char*>(base + usize(kHalfDimensions) * index), _MM_HINT_T2);
 	}
 #endif
 
 	void apply_sparse8_corrections(BiasType* destination, IndexType index, int sign) const {
-		const auto* bytes = reinterpret_cast<const unsigned char*>(weights_) + kSparse8Bytes;
+		const auto* bytes = reinterpret_cast<const unsigned char*>(weights) + kSparse8Bytes;
 		for (auto i = sparse8_offsets_[index]; i < sparse8_offsets_[index + 1]; ++i) {
 			Sparse8Correction item;
 			// memcpy avoids aliasing/lifetime assumptions about the int16 storage.
@@ -772,7 +772,7 @@ class FeatureTransformer {
 			apply_sparse8_corrections(reinterpret_cast<BiasType*>(acc), index, Add ? 1 : -1);
 			return;
 		}
-		const auto* packed = reinterpret_cast<const i8*>(weights_) + usize(kHalfDimensions) * index + offset;
+		const auto* packed = reinterpret_cast<const i8*>(weights) + usize(kHalfDimensions) * index + offset;
 		for (IndexType k = 0; k < kTileRegs; ++k) {
 #if defined(USE_AVX512)
 			const auto w = _mm512_slli_epi16(_mm512_cvtepi8_epi16(
@@ -831,9 +831,9 @@ class FeatureTransformer {
 		const WeightType* remove_columns[Removed];
 		const WeightType* add_columns[Added];
 		for (IndexType n = 0; n < Removed; ++n)
-			remove_columns[n] = weights_ + kHalfDimensions * removed[n];
+			remove_columns[n] = weights + kHalfDimensions * removed[n];
 		for (IndexType n = 0; n < Added; ++n)
-			add_columns[n] = weights_ + kHalfDimensions * added[n];
+			add_columns[n] = weights + kHalfDimensions * added[n];
 		for (IndexType offset = 0; offset < kHalfDimensions; offset += kTileHeight) {
 			vec_t acc[kTileRegs];
 			const auto* src = reinterpret_cast<const vec_t*>(source + offset);
@@ -895,7 +895,7 @@ class FeatureTransformer {
 #endif
 
 		const auto* column = reinterpret_cast<const vec_t*>(
-			&weights_[kHalfDimensions * index + tile_offset]);
+			&weights[kHalfDimensions * index + tile_offset]);
 		for (IndexType k = 0; k < kTileRegs; ++k)
 			acc[k] = vec_add_16(acc[k], vec_load(column + k));
 	}
@@ -910,7 +910,7 @@ class FeatureTransformer {
 #endif
 
 		const auto* column = reinterpret_cast<const vec_t*>(
-			&weights_[kHalfDimensions * index + tile_offset]);
+			&weights[kHalfDimensions * index + tile_offset]);
 		for (IndexType k = 0; k < kTileRegs; ++k)
 			acc[k] = vec_sub_16(acc[k], vec_load(column + k));
 	}
@@ -1022,7 +1022,7 @@ class FeatureTransformer {
 	void refresh_accumulator_from_scratch(
 		BiasType* current, const Features::IndexList& active_indices, IndexType trigger_index) const {
 #if defined(VECTOR)
-		const auto* source = trigger_index == 0 ? biases_ : nullptr;
+		const auto* source = trigger_index == 0 ? biases : nullptr;
 		update_accumulator_tiled<Packed>(
 			source, current,
 			[&](vec_t* acc, IndexType tile_offset) {
@@ -1031,14 +1031,14 @@ class FeatureTransformer {
 			});
 #else
 		if (trigger_index == 0)
-			std::memcpy(current, biases_, kHalfDimensions * sizeof(BiasType));
+			std::memcpy(current, biases, kHalfDimensions * sizeof(BiasType));
 		else
 			std::memset(current, 0, kHalfDimensions * sizeof(BiasType));
 
 		for (const auto index : active_indices) {
 			const IndexType offset = kHalfDimensions * index;
 			for (IndexType j = 0; j < kHalfDimensions; ++j)
-				current[j] += weights_[offset + j];
+				current[j] += weights[offset + j];
 		}
 #endif
 	}
@@ -1108,7 +1108,7 @@ class FeatureTransformer {
 #endif
 		if (rebuild) {
 #if defined(VECTOR)
-			const auto* source = trigger_index == 0 ? biases_ : nullptr;
+			const auto* source = trigger_index == 0 ? biases : nullptr;
 			update_accumulator_tiled_to_two<Packed>(
 				source, entry.accumulation, current,
 				[&](vec_t* acc, IndexType tile_offset) {
@@ -1134,12 +1134,12 @@ class FeatureTransformer {
 			for (const auto index : removed_indices) {
 				const IndexType offset = kHalfDimensions * index;
 				for (IndexType j = 0; j < kHalfDimensions; ++j)
-					entry.accumulation[j] -= weights_[offset + j];
+					entry.accumulation[j] -= weights[offset + j];
 			}
 			for (const auto index : added_indices) {
 				const IndexType offset = kHalfDimensions * index;
 				for (IndexType j = 0; j < kHalfDimensions; ++j)
-					entry.accumulation[j] += weights_[offset + j];
+					entry.accumulation[j] += weights[offset + j];
 			}
 #endif
 			copy_index_list(entry.active_indices, active_indices);
@@ -1253,7 +1253,7 @@ class FeatureTransformer {
         }
 #endif
         if (rebuild) {
-            const auto* source = trigger_index == 0 ? biases_ : nullptr;
+            const auto* source = trigger_index == 0 ? biases : nullptr;
             update_accumulator_tiled_to_two<Packed>(source, entry.accumulation, current,
               [&](vec_t* acc, IndexType offset) {
                   for (auto idx : active) add_weight_to_tile<Packed>(acc, idx, offset);
@@ -1396,7 +1396,7 @@ class FeatureTransformer {
 #if defined(VECTOR)
 				auto* current = accumulator.accumulation[perspective][i];
 				if (reset[perspective]) {
-					const auto* source = i == 0 ? biases_ : nullptr;
+					const auto* source = i == 0 ? biases : nullptr;
 					update_accumulator_tiled<Packed>(
 						source, current,
 						[&](vec_t* acc, IndexType tile_offset) {
@@ -1436,7 +1436,7 @@ class FeatureTransformer {
 #else
 				if (reset[perspective]) {
 					if (i == 0) {
-						std::memcpy(accumulator.accumulation[perspective][i], biases_,
+						std::memcpy(accumulator.accumulation[perspective][i], biases,
 						            kHalfDimensions * sizeof(BiasType));
 					} else {
 						std::memset(accumulator.accumulation[perspective][i], 0, kHalfDimensions * sizeof(BiasType));
@@ -1449,7 +1449,7 @@ class FeatureTransformer {
 					for (const auto index : removed_indices[perspective]) {
 						const IndexType offset = kHalfDimensions * index;
 						for (IndexType j = 0; j < kHalfDimensions; ++j) {
-							accumulator.accumulation[perspective][i][j] -= weights_[offset + j];
+							accumulator.accumulation[perspective][i][j] -= weights[offset + j];
 						}
 					}
 				}
@@ -1458,7 +1458,7 @@ class FeatureTransformer {
 				for (const auto index : added_indices[perspective]) {
 					const IndexType offset = kHalfDimensions * index;
 					for (IndexType j = 0; j < kHalfDimensions; ++j) {
-							accumulator.accumulation[perspective][i][j] += weights_[offset + j];
+							accumulator.accumulation[perspective][i][j] += weights[offset + j];
 					}
 				}
 #endif
@@ -1517,8 +1517,8 @@ class FeatureTransformer {
 
 	// parameter
 	// パラメータ
-	alignas(CacheLineSize) BiasType biases_[kHalfDimensions];
-	alignas(CacheLineSize) WeightType weights_[kHalfDimensions * InputDimensions];
+	alignas(CacheLineSize) BiasType biases[kHalfDimensions];
+	alignas(CacheLineSize) WeightType weights[kHalfDimensions * InputDimensions];
 #if defined(NNUE_FT_PACKED8)
 	u32 sparse8_offsets_[InputDimensions + 1];
 	bool sparse8_enabled_ = false;
