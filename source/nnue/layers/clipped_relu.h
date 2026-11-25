@@ -35,12 +35,12 @@ static inline void clipped_relu(const i32* input, u8* output) {
       const auto out = reinterpret_cast<__m512i*>(output);
       for (IndexType i = 0; i < NumChunks; ++i) {
         const __m512i words0 = _mm512_srai_epi16(_mm512_packs_epi32(
-              _mm512_loadA_si512(&in[i * 4 + 0]),
-              _mm512_loadA_si512(&in[i * 4 + 1])), WeightScaleBits);
+              _mm512_load_si512(&in[i * 4 + 0]),
+              _mm512_load_si512(&in[i * 4 + 1])), WeightScaleBits);
         const __m512i words1 = _mm512_srai_epi16(_mm512_packs_epi32(
-              _mm512_loadA_si512(&in[i * 4 + 2]),
-              _mm512_loadA_si512(&in[i * 4 + 3])), WeightScaleBits);
-          _mm512_storeA_si512(&out[i], _mm512_permutexvar_epi32(Offsets, _mm512_max_epi8(
+              _mm512_load_si512(&in[i * 4 + 2]),
+              _mm512_load_si512(&in[i * 4 + 3])), WeightScaleBits);
+          _mm512_store_si512(&out[i], _mm512_permutexvar_epi32(Offsets, _mm512_max_epi8(
             _mm512_packs_epi16(words0, words1), Zero)));
       }
     }
@@ -58,12 +58,12 @@ static inline void clipped_relu(const i32* input, u8* output) {
       const auto out = reinterpret_cast<__m256i*>(output);
       for (IndexType i = 0; i < NumChunks; ++i) {
         const __m256i words0 = _mm256_srai_epi16(_mm256_packs_epi32(
-              _mm256_loadA_si256(&in[i * 4 + 0]),
-              _mm256_loadA_si256(&in[i * 4 + 1])), WeightScaleBits);
+              _mm256_load_si256(&in[i * 4 + 0]),
+              _mm256_load_si256(&in[i * 4 + 1])), WeightScaleBits);
         const __m256i words1 = _mm256_srai_epi16(_mm256_packs_epi32(
-              _mm256_loadA_si256(&in[i * 4 + 2]),
-              _mm256_loadA_si256(&in[i * 4 + 3])), WeightScaleBits);
-          _mm256_storeA_si256(&out[i], _mm256_permutevar8x32_epi32(_mm256_max_epi8(
+              _mm256_load_si256(&in[i * 4 + 2]),
+              _mm256_load_si256(&in[i * 4 + 3])), WeightScaleBits);
+          _mm256_store_si256(&out[i], _mm256_permutevar8x32_epi32(_mm256_max_epi8(
             _mm256_packs_epi16(words0, words1), Zero), Offsets));
       }
     }
