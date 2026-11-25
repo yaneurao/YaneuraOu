@@ -41,22 +41,6 @@ alignas(CacheLineSize) inline constexpr
 template<IndexType InputDimensions>
 inline void find_nnz(const i32* input, u16* out, IndexType& count_out) {
     using SIMD::vec_t;
-#if defined(USE_SSSE3)
-    using vec128_t = __m128i;
-#define vec128_zero _mm_setzero_si128()
-#define vec128_set_16(a) _mm_set1_epi16(a)
-#define vec128_load(a) _mm_load_si128(a)
-#define vec128_storeu(a, b) _mm_storeu_si128(a, b)
-#define vec128_add(a, b) _mm_add_epi16(a, b)
-#elif defined(USE_NEON)
-    using vec128_t                     = uint16x8_t;
-#define vec128_zero vdupq_n_u16(0)
-#define vec128_set_16(a) vdupq_n_u16(a)
-#define vec128_load(a) vld1q_u16(reinterpret_cast<const u16*>(a))
-#define vec128_storeu(a, b) vst1q_u16(reinterpret_cast<u16*>(a), b)
-#define vec128_add(a, b) vaddq_u16(a, b)
-#endif
-
     constexpr IndexType kInputSimdWidth = sizeof(vec_t) / sizeof(i32);
     // Inputs are processed kInputSimdWidth at a time and outputs are processed 8 at a time.
     // 入力SIMD幅と8要素の出力単位の両方を満たす大きさで処理する。
@@ -67,8 +51,13 @@ inline void find_nnz(const i32* input, u16* out, IndexType& count_out) {
 
     const auto     inputVector = reinterpret_cast<const vec_t*>(input);
     IndexType      count       = 0;
-    vec128_t       base        = vec128_zero;
-    const vec128_t increment   = vec128_set_16(8);
+#if defined(USE_SSSE3)
+    __m128i base = _mm_setzero_si128();
+    const __m128i increment = _mm_set1_epi16(8);
+#elif defined(USE_NEON)
+    uint16x8_t base = vdupq_n_u16(0);
+    const uint16x8_t increment = vdupq_n_u16(8);
+#endif
     for (IndexType i = 0; i < kNumChunks; ++i)
     {
         // Bitmask of nonzero values in this chunk
@@ -82,20 +71,24 @@ inline void find_nnz(const i32* input, u16* out, IndexType& count_out) {
         for (IndexType j = 0; j < kOutputsPerChunk; ++j)
         {
             const auto lookup = (nnz >> (j * 8)) & 0xFF;
-            const auto offsets =
-              vec128_load(reinterpret_cast<const vec128_t*>(&lookup_indices[lookup]));
-            vec128_storeu(reinterpret_cast<vec128_t*>(out + count), vec128_add(base, offsets));
+#if defined(USE_SSSE3)
+            const auto offsets = _mm_load_si128(
+              reinterpret_cast<const __m128i*>(&lookup_indices[lookup]));
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(out + count), _mm_add_epi16(base, offsets));
+#else
+            const auto offsets = vld1q_u16(reinterpret_cast<const u16*>(&lookup_indices[lookup]));
+            vst1q_u16(out + count, vaddq_u16(base, offsets));
+#endif
             count += POPCNT32(lookup);
-            base = vec128_add(base, increment);
+#if defined(USE_SSSE3)
+            base = _mm_add_epi16(base, increment);
+#else
+            base = vaddq_u16(base, increment);
+#endif
         }
     }
     count_out = count;
 }
-#undef vec128_zero
-#undef vec128_set_16
-#undef vec128_load
-#undef vec128_storeu
-#undef vec128_add
 
 #endif
 
