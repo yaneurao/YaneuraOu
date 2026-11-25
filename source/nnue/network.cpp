@@ -13,9 +13,10 @@
 #include <cstddef>
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <limits>
-#include <sstream>
-#include <vector>
+#include <memory>
+#include <utility>
 
 #define INCBIN_SILENCE_BITCODE_WARNING
 #include "../incbin/incbin.h"
@@ -58,40 +59,9 @@ extern const YaneuraOu::usize gEmbeddedNNUESize;
 #elif !defined(_MSC_VER) && !defined(NNUE_EMBEDDING_OFF)
 INCBIN(EmbeddedNNUE, EvalFileDefaultName);
 #else
-const unsigned char        gEmbeddedNNUEData[1] = { 0x0 };
-const unsigned char* const gEmbeddedNNUEEnd = &gEmbeddedNNUEData[1];
-const unsigned int         gEmbeddedNNUESize = 1;
+const unsigned char gEmbeddedNNUEData[1] = {0x0};
+const unsigned int  gEmbeddedNNUESize = 1;
 #endif
-
-// NNUEの埋め込みデータ型
-
-namespace {
-
-	struct EmbeddedNNUE {
-		EmbeddedNNUE(const unsigned char* embeddedData,
-			const unsigned char* embeddedEnd,
-			const unsigned int   embeddedSize) :
-			data(embeddedData),
-			end(embeddedEnd),
-			size(embeddedSize) {
-		}
-		const unsigned char* data;
-		const unsigned char* end;
-		const unsigned int   size;
-	};
-
-	EmbeddedNNUE get_embedded() {
-#if defined(__EMSCRIPTEN__) && !defined(NNUE_EMBEDDING_OFF)
-		// embedded_nnue.cppは先頭ポインタとサイズしか提供しないので、終端はここで計算する。
-		const auto* data = reinterpret_cast<const unsigned char*>(gEmbeddedNNUEData);
-		return EmbeddedNNUE(data, data + gEmbeddedNNUESize,
-			static_cast<unsigned int>(gEmbeddedNNUESize));
-#else
-		return EmbeddedNNUE(gEmbeddedNNUEData, gEmbeddedNNUEEnd, gEmbeddedNNUESize);
-#endif
-	}
-}
-
 
 namespace YaneuraOu {
 namespace Eval {
@@ -295,7 +265,7 @@ namespace {
 		template <typename T>
 		Tools::Result read_parameters(std::istream& stream, T& obj) {
 			u32 header;
-			stream.read(reinterpret_cast<char*>(&header), sizeof(header));
+			read_little_endian(stream, &header, 1);
 			if (!stream) return Tools::ResultCode::FileReadError;
 			// hash値、古い評価関数ファイルに対して一致するとは限らないので、警告に変更する。
 			if (header != T::get_hash_value())
@@ -308,7 +278,7 @@ namespace {
 		template <typename T>
 		bool write_parameters(std::ostream& stream, const T& obj) {
 			constexpr u32 header = T::get_hash_value();
-			stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
+			write_little_endian(stream, header);
 			return obj.write_parameters(stream);
 		}
 
@@ -390,9 +360,9 @@ namespace {
     Tools::Result read_header(std::istream& stream,
         u32* hashValue, std::string* architecture, u32* version_out) {
         u32 version = 0, size = 0;
-        stream.read(reinterpret_cast<char*>(&version), sizeof(version));
-        stream.read(reinterpret_cast<char*>(hashValue), sizeof(*hashValue));
-        stream.read(reinterpret_cast<char*>(&size), sizeof(size));
+        read_little_endian(stream, &version, 1);
+        read_little_endian(stream, hashValue, 1);
+        read_little_endian(stream, &size, 1);
 		if (!stream) return Tools::ResultCode::FileReadError;
 		if (version_out)
 			*version_out = version;
@@ -409,10 +379,10 @@ namespace {
     // ヘッダを書き込む
     bool write_header(std::ostream& stream,
         u32 hashValue, const std::string& architecture) {
-        stream.write(reinterpret_cast<const char*>(&Version), sizeof(Version));
-        stream.write(reinterpret_cast<const char*>(&hashValue), sizeof(hashValue));
+        write_little_endian(stream, Version);
+        write_little_endian(stream, hashValue);
         const u32 size = static_cast<u32>(architecture.size());
-        stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        write_little_endian(stream, size);
         stream.write(architecture.data(), size);
         return !stream.fail();
     }
@@ -430,8 +400,7 @@ namespace {
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
         const auto qb = network.network[0].weight_scale;
         if (!write_header(stream, Network::hash, nn16_architecture(qb))) return false;
-        for (int i = 0; i < 4; ++i)
-            stream.put(static_cast<char>((qb >> (8 * i)) & 255));
+        write_little_endian(stream, qb);
 #else
         if (!write_header(stream, Network::hash, get_architecture_string())) return false;
 #endif
@@ -864,18 +833,17 @@ void load_eval(LazyNumaReplicatedSystemWide<NNUE::Network>& network, const Optio
             }
             else {
                 // C++ way to prepare a buffer for a memory stream
-                class MemoryBuffer : public std::basic_streambuf<char> {
-                    public: MemoryBuffer(char* p, usize n) {
-                        std::streambuf::setg(p, p, p + n);
-                        std::streambuf::setp(p, p + n);
+                // 埋め込みデータをメモリ上の入力ストリームとして扱うためのバッファー。
+                class MemoryBuffer: public std::basic_streambuf<char> {
+                   public:
+                    MemoryBuffer(char* p, usize n) {
+                        setg(p, p, p + n);
+                        setp(p, p + n);
                     }
                 };
 
-			    const auto embedded = get_embedded(/* embeddedType */);
-
-                MemoryBuffer buffer(
-                              const_cast<char*>(reinterpret_cast<const char*>(embedded.data)),
-                              usize(embedded.size));
+                MemoryBuffer buffer(const_cast<char*>(reinterpret_cast<const char*>(gEmbeddedNNUEData)),
+                                    usize(gEmbeddedNNUESize));
 
                 std::istream stream(&buffer);
                 sync_cout << "info string loading eval file : <internal>" << sync_endl;
