@@ -596,17 +596,6 @@ class AffineTransform {
                                 "propagate_clipped_relu_packed_to_output currently supports 64 hidden units.");
                 }
         }
-
-        // Fused path for SFNN's tiny tail: Affine(14->64) -> ClippedReLU(64)
-        // -> Affine(64->1).  This avoids writing and re-reading the 64-byte
-        // activation buffer while preserving ClippedReLU's byte order.
-        void propagate_clipped_relu_to_output(
-            const InputType* input,
-            const AffineTransform<OutputDimensions, 1>& next_layer,
-            OutputType* output) const {
-                propagate_clipped_relu_packed_to_output(
-                    reinterpret_cast<const u32*>(input), next_layer, output);
-        }
 #endif
 
    private:
@@ -649,15 +638,10 @@ class AffineTransform {
 	// Hash value embedded in the evaluation file
 	// 評価関数ファイルに埋め込むハッシュ値
 	static constexpr u32 get_hash_value() {
-		return get_hash_value(PreviousLayer::get_hash_value());
-	}
-
-	// ハッシュ値を前段の値から更新するときのヘルパー
-	static constexpr u32 get_hash_value(u32 prevHash) {
 		u32 hashValue = 0xCC03DAE4u;
 		hashValue += OutputDimensions;
-		hashValue ^= prevHash >> 1;
-		hashValue ^= prevHash << 31;
+		hashValue ^= PreviousLayer::get_hash_value() >> 1;
+		hashValue ^= PreviousLayer::get_hash_value() << 31;
 		return hashValue;
 	}
 

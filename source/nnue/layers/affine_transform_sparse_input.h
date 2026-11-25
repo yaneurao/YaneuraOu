@@ -613,15 +613,10 @@ class AffineTransformSparseInput {
 	// Hash value embedded in the evaluation file
 	// 評価関数ファイルに埋め込むハッシュ値
 	static constexpr u32 get_hash_value() {
-		return get_hash_value(PreviousLayer::get_hash_value());
-	}
-
-	// ハッシュ値を前段の値から更新するときのヘルパー
-	static constexpr u32 get_hash_value(u32 prevHash) {
 		u32 hashValue = 0xCC03DAE4u;
 		hashValue += OutputDimensions;
-		hashValue ^= prevHash >> 1;
-		hashValue ^= prevHash << 31;
+		hashValue ^= PreviousLayer::get_hash_value() >> 1;
+		hashValue ^= PreviousLayer::get_hash_value() << 31;
 		return hashValue;
 	}
 
