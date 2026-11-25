@@ -78,9 +78,7 @@ namespace Progress {
 
 		// Content hash used to identify shared network parameters.
 		// 共有するネットワークパラメーターを識別するための内容ハッシュ。
-		usize get_content_hash() const {
-			return static_cast<usize>(hash_bytes(reinterpret_cast<const char*>(this), sizeof(*this)));
-		}
+		usize get_content_hash() const;
 	};
 	static_assert(std::is_trivially_copyable_v<Network>,
 		"Network must be trivially copyable for shared memory support");
@@ -97,10 +95,6 @@ namespace Progress {
 	// ヘッダを読み込む
 	Tools::Result read_header(std::istream& stream,
 	    u32* hashValue, std::string* architecture, u32* version_out = nullptr);
-
-	// ヘッダを書き込む
-	bool write_header(std::ostream& stream,
-	    u32 hashValue, const std::string& architecture);
 
 	// 評価関数パラメータを読み込む
 	// On a sidecar read failure, replace failed_file with its path.

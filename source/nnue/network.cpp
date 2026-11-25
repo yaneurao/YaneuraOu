@@ -21,9 +21,11 @@
 #define INCBIN_SILENCE_BITCODE_WARNING
 #include "../incbin/incbin.h"
 
-#include "../types.h"
+#include "../bitboard.h"
 #include "../evaluate.h"
+#include "../misc.h"
 #include "../position.h"
+#include "../types.h"
 #include "../memory.h"
 #include "../numa.h"
 #include "../usi.h"
@@ -354,6 +356,13 @@ namespace {
 	}
 
 	}  // namespace
+
+    // Content hash used to identify shared network parameters.
+    // 共有するネットワークパラメーターを識別する。従来どおり構造体全体をハッシュ化する。
+    usize Network::get_content_hash() const {
+        return static_cast<usize>(hash_bytes(reinterpret_cast<const char*>(this), sizeof(*this)));
+    }
+
     // ヘッダを読み込む
     Tools::Result read_header(std::istream& stream,
         u32* hashValue, std::string* architecture, u32* version_out) {
@@ -374,7 +383,10 @@ namespace {
 		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
     }
 
-    // ヘッダを書き込む
+namespace {
+
+    // Header writing is internal; the public interface writes complete parameters.
+    // ヘッダー単独の書き込みは内部処理とし、外部にはパラメーター全体の書き込みを公開する。
     bool write_header(std::ostream& stream,
         u32 hashValue, const std::string& architecture) {
         write_little_endian(stream, Version);
@@ -385,7 +397,9 @@ namespace {
         return !stream.fail();
     }
 
-    	// 評価関数パラメータを読み込む
+} // namespace
+
+    // 評価関数パラメータを読み込む
     Tools::Result read_parameters(
         LazyNumaReplicatedSystemWide<Network>& network, const OptionsMap& options,
         std::istream& stream, std::string* failed_file) {
