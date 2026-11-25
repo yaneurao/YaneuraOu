@@ -29,7 +29,7 @@
 #include <cstring>  // std::memset()
 
 // Lossless packed FT weights; keep unsupported builds on the original path.
-#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN)
+#if defined(NNUE_FT_SPARSE8) && (defined(USE_AVX512) || defined(USE_AVX2)) && defined(EVAL_SFNN)
 #define NNUE_FT_PACKED8
 #include <limits>
 #include <vector>
@@ -300,19 +300,8 @@ class FeatureTransformer {
     bool update_from_computed_ancestor(const Position& pos, AccumulatorState* state) const {
         state = resolve_state(pos, state);
         const auto* ancestor = state;
-        std::array<BonaPiece, 2 * USE_LAZY_EVALUATE> removedPieces[2], addedPieces[2];
-        int removedCount[2]{}, addedCount[2]{};
-        auto record = [](auto& opposite, int& oppositeCount, BonaPiece value,
-                         auto& own, int& ownCount) {
-            for (int i = 0; i < oppositeCount; ++i)
-                if (opposite[i] == value) {
-                    opposite[i] = opposite[--oppositeCount];
-                    return;
-                }
-            own[ownCount++] = value;
-        };
-
-        // 通常着手のリンクだけを遡り、途中で消える特徴量を相殺する。盤面の走査は不要。
+        // Find a usable ancestor before converting any feature indices.
+        // 利用できる祖先を先に探し、差分更新できない場合の特徴量変換を省く。
         int distance = 0;
         bool reset[COLOR_NB]{};
         while (ancestor && !accumulator_of(ancestor).computed_accumulation
@@ -325,22 +314,51 @@ class FeatureTransformer {
                 if (reset[BLACK] && reset[WHITE])
                     return false;
             }
-            for (int n = 0; n < dirty.count(); ++n) {
-                const auto change = dirty.change(n);
-                for (int c = 0; c < COLOR_NB; ++c) {
-                    if (reset[c]) continue;
-                    record(addedPieces[c], addedCount[c], change.old_piece.from[c],
-                           removedPieces[c], removedCount[c]);
-                    record(removedPieces[c], removedCount[c], change.new_piece.from[c],
-                           addedPieces[c], addedCount[c]);
-                }
-            }
             ++distance;
             ancestor = ancestor->previous;
         }
-        if (!ancestor || !accumulator_of(ancestor).computed_accumulation
-            || distance > USE_LAZY_EVALUATE)
+        if (!ancestor || !accumulator_of(ancestor).computed_accumulation)
             return false;
+
+        // Cancel matching columns in FT coordinates, without a BonaPiece round trip.
+        // BonaPieceを経由せずFTの座標系で相殺する。中間で移動した駒の列は読み込まない。
+        std::array<IndexType, 2 * USE_LAZY_EVALUATE> removedPieces[2], addedPieces[2];
+        int removedCount[2]{}, addedCount[2]{};
+        for (const Color color : COLOR) {
+            if (reset[color]) continue;
+            const Square king = color == BLACK ? pos.square<KING>(color)
+                                               : Inv(pos.square<KING>(color));
+            const typename Features::HalfKA_hm2<Features::Side::kFriend>::IndexContext indices(king, color);
+            auto record = [](auto& opposite, int& oppositeCount, IndexType value,
+                             auto& own, int& ownCount) {
+                for (int i = 0; i < oppositeCount; ++i)
+                    if (opposite[i] == value) {
+                        opposite[i] = opposite[--oppositeCount];
+                        return;
+                    }
+                own[ownCount++] = value;
+            };
+            auto remove = [&](IndexType index) {
+                record(addedPieces[color], addedCount[color], index,
+                       removedPieces[color], removedCount[color]);
+            };
+            auto add = [&](IndexType index) {
+                record(removedPieces[color], removedCount[color], index,
+                       addedPieces[color], addedCount[color]);
+            };
+            for (auto* current = state; current != ancestor; current = current->previous) {
+                const auto& dirty = current->dirtyPiece;
+                if (!dirty.count()) continue;
+                remove(dirty.from == SQ_NONE
+                  ? indices.hand(color_of(dirty.pc), raw_type_of(dirty.pc), dirty.handSlot)
+                  : indices.board(dirty.pc, dirty.from));
+                add(indices.board(dirty.after, dirty.to));
+                if (dirty.captured != NO_PIECE) {
+                    remove(indices.board(dirty.captured, dirty.to));
+                    add(indices.hand(color_of(dirty.pc), raw_type_of(dirty.captured), dirty.handSlot));
+                }
+            }
+        }
 
         auto& accumulator = accumulator_of(state);
         for (int c = 0; c < COLOR_NB; ++c) {
@@ -361,15 +379,11 @@ class FeatureTransformer {
                 refresh_accumulator_from_scratch<Packed>(accumulator.accumulation[c][0], active[c], 0);
                 continue;
             }
-            const Square king = color == BLACK ? pos.square<KING>(color)
-                                               : Inv(pos.square<KING>(color));
             Features::IndexList removed, added;
             for (int i = 0; i < removedCount[c]; ++i)
-                removed.push_back(Features::HalfKA_hm2<Features::Side::kFriend>::MakeIndex(
-                  king, removedPieces[c][i]));
+                removed.push_back(removedPieces[c][i]);
             for (int i = 0; i < addedCount[c]; ++i)
-                added.push_back(Features::HalfKA_hm2<Features::Side::kFriend>::MakeIndex(
-                  king, addedPieces[c][i]));
+                added.push_back(addedPieces[c][i]);
 #if defined(VECTOR)
             update_accumulator_tiled<Packed>(accumulator_of(ancestor).accumulation[c][0],
               accumulator.accumulation[c][0], [&](vec_t* acc, IndexType offset) {
@@ -789,9 +803,12 @@ class FeatureTransformer {
 			count += value < -128 || value > 127;
 		}
 		// Check before overwriting any int16 weights. Keep outliers below
-		// 1/1024 to bound scalar fixups (also well within the available space).
+		// 1/128 to bound scalar fixups (also well within the available space).
 		// Other models retain the original implementation and file format.
-		if (count > kSparse8Bytes / 1024)
+		// 16bitの重みを上書きする前に、範囲外の重みが全体の1/128以下かを確認する。
+		// 補正で元の整数値を保ち、これを超えるモデルは従来の16bit経路を使う。
+		// 評価関数のファイル形式と確保サイズは変更しない。
+		if (count > kSparse8Bytes / 128)
 			return;
 		std::vector<Sparse8Correction> corrections;
 		corrections.reserve(count);
@@ -843,8 +860,15 @@ class FeatureTransformer {
 		}
 		const auto* packed = reinterpret_cast<const i8*>(weights_) + usize(kHalfDimensions) * index + offset;
 		for (IndexType k = 0; k < kTileRegs; ++k) {
+#if defined(USE_AVX512)
 			const auto w = _mm512_slli_epi16(_mm512_cvtepi8_epi16(
 				_mm256_load_si256(reinterpret_cast<const __m256i*>(packed + k * 32))), 1);
+#else
+			// Expand only the bytes used by this AVX2 vector; corrections stay unchanged.
+			// AVX2の1ベクトル分だけ8bitから16bitへ展開する。範囲外の重みの補正は共通。
+			const auto w = _mm256_slli_epi16(_mm256_cvtepi8_epi16(
+				_mm_load_si128(reinterpret_cast<const __m128i*>(packed + k * 16))), 1);
+#endif
 			if constexpr (Add) acc[k] = vec_add_16(acc[k], w);
 			else acc[k] = vec_sub_16(acc[k], w);
 		}
