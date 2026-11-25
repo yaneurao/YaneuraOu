@@ -115,6 +115,12 @@
 
 namespace YaneuraOu::Eval::NNUE {
 
+namespace Features {
+// Type checks for lazy updates and Finny tables need only this declaration.
+// 遅延更新・Finny Tablesの型判定には前方宣言だけで足りる。
+template<Side AssociatedKing> class HalfKA_hm2;
+}
+
 #if defined(EVAL_SFNN)
 	constexpr int kLayerStacks = LayerStacks;
 #else
@@ -130,9 +136,6 @@ namespace YaneuraOu::Eval::NNUE {
 #endif
 
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
-    namespace Features {
-    template<Side AssociatedKing> class HalfKA_hm2;
-    }
     // Multi-ply updates currently support this single feature set only.
     // 複数手の差分更新は、現在この単一特徴量の組み合わせに対応する。
     inline constexpr bool kUseMultiPly = std::is_same_v<

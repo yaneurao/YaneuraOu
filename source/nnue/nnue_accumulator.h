@@ -15,7 +15,6 @@
 #include "nnue_architecture.h"
 #include "../memory.h"
 #if defined(USE_FINNY_TABLES)
-#include "features/half_ka_hm2.h"
 #include "features/index_list.h"
 #endif
 
