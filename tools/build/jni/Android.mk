@@ -191,7 +191,6 @@ LOCAL_SRC_FILES := \
   ../../../source/mate/mate1ply_without_effect.cpp                           \
   ../../../source/mate/mate1ply_with_effect.cpp                              \
   ../../../source/mate/mate_solver.cpp                                       \
-  ../../../source/eval/evaluate_bona_piece.cpp                               \
   ../../../source/eval/evaluate.cpp                                          \
   ../../../source/eval/material/evaluate_material.cpp                        \
   ../../../source/testcmd/mate_test_cmd.cpp                                  \
