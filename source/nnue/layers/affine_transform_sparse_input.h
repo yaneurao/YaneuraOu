@@ -128,6 +128,9 @@ public:
         // 入出力の次元数
         static constexpr IndexType InputDimensions       = InDims;
         static constexpr IndexType OutputDimensions      = OutDims;
+        // Stockfishの対応する層には OutputDimensions % 16 == 0 の制約がある。
+        // やねうら王はH1=7のSFNNを現役で使っており、ショートカット込みのfc0は8出力になる。
+        // 同じ制約を導入すると既存のH1=7構成をビルドできなくなるため、8出力の対応を維持する。
         static constexpr IndexType PaddedInputDimensions = ceil_to_multiple<IndexType>(InputDimensions, MaxSimdWidth);
         static constexpr IndexType PaddedOutputDimensions = ceil_to_multiple<IndexType>(OutputDimensions, MaxSimdWidth);
 

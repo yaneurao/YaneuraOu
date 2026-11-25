@@ -17,6 +17,17 @@
 
 #elif defined(USE_NEON)
     #include <arm_neon.h>
+
+#elif defined(USE_LASX)
+    #include <lasxintrin.h>
+    #include <lsxintrin.h>
+
+#elif defined(USE_LSX)
+    #include <lsxintrin.h>
+
+#elif defined(USE_RVV)
+    #include <riscv_vector.h>
+
 #endif
 
 #include "../types.h"
@@ -24,13 +35,17 @@
 // CPU capability switch for NNUE dot-product code. For SFNN H1=7 networks
 // (fc0: ->8, packed tail: 14->64->1), measured AVX512VNNI was slower than
 // AVX512 maddubs/madd, so only that NNUE shape uses the fallback.
-// H1=7のSFNNではVNNI版よりmaddubs/madd版が速かったため、その形状だけ既存の経路を使う。
+// やねうら王はH1=7のSFNNを現役で使っており、ショートカット込みのfc0は8出力になる。
+// Stockfishの対応する疎なAffine層は16出力の倍数を要求し、この8出力構成を対象にしていない。
+// H1=7では当時の測定でVNNI版よりmaddubs/madd版が速かったため、その形状だけ既存の経路を使う。
+// Stockfishと層幅が異なるので、VNNIの選択条件を無条件に同じにはしない。
 #if defined(USE_VNNI) && !defined(NNUE_SFNN_HIDDEN1_7)
     #define USE_NNUE_VNNI
 #endif
 
 // Stockfishと同じ配置・名前空間でNNUEのSIMDヘルパーを提供する。
 // FT用のベクトル型・マクロは、現在はnnue_feature_transformer.h側で定義する。
+// LSX/LASX/RVVのincludeは命令の宣言を読むためのもので、計算経路の移植とは別。
 namespace YaneuraOu::Eval::NNUE::SIMD {
 
 
