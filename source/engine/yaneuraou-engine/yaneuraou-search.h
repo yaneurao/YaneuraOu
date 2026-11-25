@@ -593,14 +593,22 @@ class YaneuraOuWorker: public Worker {
 
     const Eval::NetworkStorage& network;
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+    using Dirties = Eval::NNUE::Dirties;
     Eval::NNUE::AccumulatorStack accumulatorStack;
 #elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
+    using Dirties = Eval::DirtyPiece;
     Eval::Classic::AccumulatorStack accumulatorStack;
 #else
-    // 累積値を使わない評価関数でも、同じ形で初期化とundoを呼べるようにする。
+    using Dirties = Eval::EmptyDirties;
+    // 累積値を使わない評価関数でも、同じ形で初期化・着手・undoを呼べるようにする。
+    // 差分の配列やスタック位置は持たず、push()/reset()/pop()による更新も行わない。
     struct {
+        Dirties& push([[maybe_unused]] const Position& pos) noexcept { return dirties; }
         void reset() noexcept {}
         void pop() noexcept {}
+
+       private:
+        Dirties dirties;
     } accumulatorStack;
 #endif
 

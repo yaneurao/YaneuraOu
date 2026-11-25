@@ -707,16 +707,13 @@ class Position {
 	// StateInfoはPosition内部のリングバッファに保存する。
 	// givesCheck = mの指し手によって王手になるかどうか。
 	// 王手情報は局面設定や直前のdo_move()/do_null_move()で更新されている。
-    /*
-		📓 Stockfish 17.1からTTのprefetchのために引数でTranspositionTable*を
-			渡すようになったが、やねうら王では、このclassをPosition classと癒着したくない。
-			そこで、TTの引数をtemplate T*にするが、ここに何も指定しないということもできてほしい。
-	*/
 #if STOCKFISH
     void do_move(Move m);
     void
     do_move(Move m, bool givesCheck, Dirties& dirties, const SharedHistories* worker = nullptr);
 #else
+    // ttは次局面のTTエントリーのprefetch専用。TTの読み書きは行わない。
+    // PositionをTranspositionTableの具体型に依存させず、省略もできるようにtemplate T*で渡す。
     // historyは省略可能。探索で次局面の履歴を先読みするときだけ渡す。
 	template <typename T = void>
     void do_move(Move m, bool givesCheck, const T* tt = nullptr,
@@ -730,6 +727,14 @@ class Position {
     template <typename T = void>
     void do_move(Move m, bool givesCheck, Eval::DirtyPiece& dirty,
                  const T* tt = nullptr, const SharedHistories* history = nullptr);
+#endif
+#if !defined(EVAL_SFNN) && !defined(EVAL_NNUE) && !defined(EVAL_KPPT) && !defined(EVAL_KPP_KKPT)
+    // 空の差分は無視し、既存の差分記録なしの経路へ渡す。
+    template <typename T = void>
+    void do_move(Move m, bool givesCheck, Eval::EmptyDirties&,
+                 const T* tt = nullptr, const SharedHistories* history = nullptr) {
+        do_move(m, givesCheck, tt, history);
+    }
 #endif
 #endif
 

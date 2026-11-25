@@ -23,6 +23,12 @@ namespace Eval::NNUE { struct NnueNetworks; }
 
 namespace Eval {
 
+#if !defined(EVAL_SFNN) && !defined(EVAL_NNUE) && !defined(EVAL_KPPT) && !defined(EVAL_KPP_KKPT)
+    // 差分評価を使わない構成でも、探索から同じ形でpush()/do_move()を呼べるようにする。
+    // 駒の差分は保持せず、Positionもこの型に対して差分を書き込まない。
+    struct EmptyDirties {};
+#endif
+
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
     namespace Classic { class AccumulatorStack; }
     Value evaluate(const Position& pos, Classic::AccumulatorStack& stack);

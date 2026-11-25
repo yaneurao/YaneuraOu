@@ -30,7 +30,7 @@ class AccumulatorStack {
         invalidate(latest(), nullptr);
     }
 
-    DirtyPiece& push() noexcept {
+    DirtyPiece& push([[maybe_unused]] const Position& pos) noexcept {
         assert(size < accumulators.size());
         auto* previous = &latest();
         auto& next = accumulators[size++];

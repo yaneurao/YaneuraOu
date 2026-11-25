@@ -2357,19 +2357,14 @@ void Search::YaneuraOuWorker::do_move(
     // RelaxedAtomicの加算はrelaxedなload/storeで行い、ロック命令を避ける。
     ++nodes;
 
-#if STOCKFISH
     Dirties& dirties = accumulatorStack.push(pos);
+#if STOCKFISH
     pos.do_move(move, givesCheck, dirties, &sharedHistory);
-#elif defined(EVAL_SFNN) || defined(EVAL_NNUE)
-    Eval::NNUE::Dirties& dirties = accumulatorStack.push(pos);
-    pos.do_move(move, givesCheck, dirties, &tt, &sharedHistory);
-#elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-    auto& dirty = accumulatorStack.push();
-    pos.do_move(move, givesCheck, dirty, &tt, &sharedHistory);
 #else
-
-    pos.do_move(move, givesCheck, &tt, &sharedHistory);
-
+    // 将棋は駒打ち・捕獲による手駒の変化もあり、moveだけからのキー計算は重複処理になる。
+    // do_move()内で次局面の正確なキーが確定した直後にTTをprefetchし、残りの更新と重ねる。
+    // Stockfishとの差分として&ttを残すのは、この先読みの位置を維持するため。
+    pos.do_move(move, givesCheck, dirties, &tt, &sharedHistory);
 #endif
 
     if (ss != nullptr)
