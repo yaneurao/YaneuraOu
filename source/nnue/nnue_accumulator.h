@@ -312,7 +312,7 @@ namespace YaneuraOu::Eval {
 		EvalSum() {}
 
 		// この局面の手番は c側にあるものとする。c側から見た評価値を返す。
-		int32_t sum(const Color c) const
+		i32 sum(const Color c) const
 		{
 			// NDF(2014)の手番評価の手法。
 			// cf. http://www.computer-shogi.org/wcsc24/appeal/NineDayFever/NDF.txt
@@ -320,17 +320,17 @@ namespace YaneuraOu::Eval {
 #if defined(EVAL_KPP_KKPT)
 
 			// p[0][1]とp[1][1]は使っていないタイプのEvalSum
-			const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
+			const i32 scoreBoard = p[0][0] - p[1][0] + p[2][0];
 			// 手番に依存する評価値合計
-			const int32_t scoreTurn = p[2][1];
+			const i32 scoreTurn = p[2][1];
 
 #else // EVAL_KPPT , EVAL_KKPPT などはこちら。
 
 			// 手番に依存しない評価値合計
 			// p[1][0]はΣWKPPなので符号はマイナス。
-			const int32_t scoreBoard = p[0][0] - p[1][0] + p[2][0];
+			const i32 scoreBoard = p[0][0] - p[1][0] + p[2][0];
 			// 手番に依存する評価値合計
-			const int32_t scoreTurn = p[0][1] + p[1][1] + p[2][1];
+			const i32 scoreTurn = p[0][1] + p[1][1] + p[2][1];
 #endif
 
 			// この関数は手番側から見た評価値を返すのでscoreTurnは必ずプラス
@@ -382,7 +382,7 @@ namespace YaneuraOu::Eval {
 
 		union {
 			// KPP・KK/KKPの3成分を保持し、4番目は32バイトのSIMD演算用パディングとする。
-			std::array<std::array<int32_t, 2>, 4> p;
+			std::array<std::array<i32, 2>, 4> p;
 
 #if defined(USE_AVX2)
 			__m256i mm;

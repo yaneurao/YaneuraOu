@@ -68,9 +68,7 @@ class AffineTransformCommonShardInputExplicit {
 	bool read_parameters(std::istream& stream) {
 		read_little_endian(stream, biases, OutputDimensions);
 
-		WeightType zero{};
-		for (usize i = 0; i < OutputDimensions * kPaddedEffectiveInputDimensions; ++i)
-			weights[i] = zero;
+		std::fill_n(weights, OutputDimensions * kPaddedEffectiveInputDimensions, WeightType{});
 
 		for (IndexType out = 0; out < OutputDimensions; ++out) {
 			const IndexType group      = out / kGroupOutputDimensions;

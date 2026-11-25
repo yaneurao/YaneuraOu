@@ -67,11 +67,7 @@ class FeatureTransformer {
   // AVX512でも値は32。sizeof(vec_t)へ置換すると既存の変換処理が変わるため維持する。
   #if defined(USE_AVX2)
   static constexpr usize kSimdWidth = 32;
-  #elif defined(USE_SSE2)
-  static constexpr usize kSimdWidth = 16;
-  #elif defined(USE_NEON)
-  static constexpr usize kSimdWidth = 16;
-  #elif defined(USE_WASM_SIMD)
+  #elif defined(USE_SSE2) || defined(USE_NEON) || defined(USE_WASM_SIMD)
   static constexpr usize kSimdWidth = 16;
   #endif
 
