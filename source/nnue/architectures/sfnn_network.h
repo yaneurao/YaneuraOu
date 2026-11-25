@@ -56,11 +56,12 @@ struct SfnnNetwork {
 
 	using OutputType = i32;
 	static constexpr IndexType OutputDimensions = 1;
-	static constexpr IndexType kInputDims = InputDims;
+	static constexpr IndexType TransformedFeatureDimensions = InputDims;
 	static constexpr IndexType kHidden1Dims = Hidden1Dims;
-	static constexpr IndexType kHidden2Dims = Hidden2Dims;
+	static constexpr IndexType FC_1_OUTPUTS = Hidden2Dims;
 	static constexpr bool kUseShortcut = UseShortcut;
-	static constexpr IndexType kHidden1OutputDims = kHidden1Dims + (kUseShortcut ? 1 : 0);
+	// Stockfishと同じくfc_0の物理的な出力数。ショートカットがある場合はその1出力も含む。
+	static constexpr IndexType FC_0_OUTPUTS = kHidden1Dims + (kUseShortcut ? 1 : 0);
 
 	static_assert(kHidden1Dims % 8 == 0 || kHidden1Dims % 8 == 7,
 	              "SFNN H1 must be 8n without shortcut, or 8n-1 with shortcut.");
@@ -68,12 +69,12 @@ struct SfnnNetwork {
 	              "SFNN shortcut is enabled only when H1 is 8n-1.");
 
 #if defined(USE_AVX512)
-	static constexpr bool kUsePackedTail = kHidden2Dims == 64;
+	static constexpr bool kUsePackedTail = FC_1_OUTPUTS == 64;
 #else
 	static constexpr bool kUsePackedTail = false;
 #endif
 
-	using Buffer = SfnnNetworkBuffer<Fc0Layer, kHidden1Dims, kHidden2Dims, kUsePackedTail>;
+	using Buffer = SfnnNetworkBuffer<Fc0Layer, kHidden1Dims, FC_1_OUTPUTS, kUsePackedTail>;
 	static constexpr usize BufferSize = sizeof(Buffer);
 
 	static constexpr u32 get_hash_value() {
@@ -183,13 +184,13 @@ struct SfnnNetwork {
 	                                           char* buffer) const {
 		auto& buf = *reinterpret_cast<Buffer*>(buffer);
 #if defined(NNUE_SFNN_FUSED_FT)
-		if constexpr (kHidden1OutputDims == 16
-		              && std::is_same_v<Fc0Layer, Layers::AffineTransformSparseInput<kInputDims, 16>>)
-			fc_0.template propagate_sfnn16_from_accumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
+		if constexpr (FC_0_OUTPUTS == 16
+		              && std::is_same_v<Fc0Layer, Layers::AffineTransformSparseInput<TransformedFeatureDimensions, 16>>)
+			fc_0.template propagate_sfnn16_from_accumulator<TransformedFeatureDimensions>(accumulation, sideToMove, buf.fc_0_out);
 		else
-			fc_0.template propagate_sfnn_from_accumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
+			fc_0.template propagate_sfnn_from_accumulator<TransformedFeatureDimensions>(accumulation, sideToMove, buf.fc_0_out);
 #else
-		fc_0.template propagate_sfnn_from_accumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
+		fc_0.template propagate_sfnn_from_accumulator<TransformedFeatureDimensions>(accumulation, sideToMove, buf.fc_0_out);
 #endif
 		return propagate_tail(buf);
 	}

@@ -267,12 +267,12 @@ int Parameters::bucket_index(const Position& pos, int bucket_count, AccumulatorS
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
     static std::string nn16_architecture(u32 qb) {
         return "ModelType=SFNNWithoutPsqt;Features=" + FeatureTransformer::GetStructureString()
-            + ",Network=SFNN-" + std::to_string(NetworkArchitecture::kInputDims)
+            + ",Network=SFNN-" + std::to_string(NetworkArchitecture::TransformedFeatureDimensions)
             + "{LayerStack=" + std::to_string(kLayerStacks)
             + "};FCWeightBits=16;QB=" + std::to_string(qb)
             + ";H1=" + std::to_string(NetworkArchitecture::kHidden1Dims)
             + ";Skip=" + std::to_string(int(NetworkArchitecture::kUseShortcut))
-            + ";H2=" + std::to_string(NetworkArchitecture::kHidden2Dims);
+            + ";H2=" + std::to_string(NetworkArchitecture::FC_1_OUTPUTS);
     }
 #endif
 

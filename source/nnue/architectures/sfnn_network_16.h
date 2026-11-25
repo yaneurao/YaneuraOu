@@ -42,13 +42,15 @@ struct SfnnAffine16 {
 
 template <IndexType InputDims, IndexType Hidden1Dims, IndexType Hidden2Dims, bool UseShortcut>
 struct SfnnNetwork16 {
-    static constexpr IndexType kInputDims = InputDims;
+    static constexpr IndexType TransformedFeatureDimensions = InputDims;
     static constexpr IndexType kHidden1Dims = Hidden1Dims;
-    static constexpr IndexType kHidden2Dims = Hidden2Dims;
+    static constexpr IndexType FC_1_OUTPUTS = Hidden2Dims;
     static constexpr bool kUseShortcut = UseShortcut;
+    // ショートカットがある構成では、その1出力もfc_0の物理的な幅に含める。
+    static constexpr IndexType FC_0_OUTPUTS = kHidden1Dims + (kUseShortcut ? 1 : 0);
     static constexpr IndexType OutputDimensions = 1;
     using OutputType = i64;
-    SfnnAffine16<InputDims, Hidden1Dims + (UseShortcut ? 1 : 0)> fc_0;
+    SfnnAffine16<InputDims, FC_0_OUTPUTS> fc_0;
     SfnnAffine16<Hidden1Dims * 2, Hidden2Dims> fc_1;
     SfnnAffine16<Hidden2Dims, 1> fc_2;
     u32 weight_scale = 4096;
