@@ -27,7 +27,7 @@ void HalfKPE9<AssociatedKing>::append_active_indices(
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
   if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
-  BonaPiece pieces[40];
+  BonaPiece pieces[PIECE_NUMBER_NB];
   Square sq_target_k;
   collect_pieces_with_king<AssociatedKing>(pos, perspective, pieces, &sq_target_k);
 
@@ -47,7 +47,7 @@ template <Side AssociatedKing>
 void HalfKPE9<AssociatedKing>::append_changed_indices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
-  BonaPiece pieces[40];
+  BonaPiece pieces[PIECE_NUMBER_NB];
   Square sq_target_k;
   collect_pieces_with_king<AssociatedKing>(pos, perspective, pieces, &sq_target_k);
 

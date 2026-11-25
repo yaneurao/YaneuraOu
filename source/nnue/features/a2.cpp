@@ -21,7 +21,7 @@ void A2::append_active_indices(
     const Position& pos, Color perspective, IndexList* active) {
   if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
-  BonaPiece pieces[40];
+  BonaPiece pieces[PIECE_NUMBER_NB];
   collect_bona_pieces(pos, perspective, pieces);
   for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_NB; ++i) {
     active->push_back(MapToA2Index(pieces[i]));

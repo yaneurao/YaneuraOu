@@ -15,7 +15,7 @@ void P::append_active_indices(
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
   if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
-  BonaPiece pieces[40];
+  BonaPiece pieces[PIECE_NUMBER_NB];
   collect_bona_pieces(pos, perspective, pieces);
   for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_KING; ++i) {
     active->push_back(pieces[i]);
