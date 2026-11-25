@@ -13,6 +13,8 @@ from nnue_arch_common import (
     SFNN_KING_BUCKETS,
     SFNN_PROGRESS_BUCKETS,
     normalize_sfnn_bucket_spec,
+    sfnn_hidden1_output_dims,
+    strip_nnue_arch_prefixes,
 )
 
 def dedent4(text: str) -> str:
@@ -40,12 +42,8 @@ out_dir : str = args.out_dir or default_out_dir
 dummy_nn_path : str = args.write_dummy_nn
 original_arch : str = arch
 
-def strip_prefix_ci(text: str, prefix: str) -> str:
-    return text[len(prefix):] if text.upper().startswith(prefix) else text
-
 # makefileで指定したエディション名そのままかも知れないので削除。
-arch = strip_prefix_ci(arch, "YANEURAOU_ENGINE_")
-arch = strip_prefix_ci(arch, "NNUE_")
+arch = strip_nnue_arch_prefixes(arch)
 
 arch_upper_for_validation = arch.replace('-', '_').upper()
 if "SFNNWOP" in arch_upper_for_validation:
@@ -151,16 +149,6 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
     layer_count = hand_buckets * king_buckets * progress_buckets
     return canonical, str(layer_count), str(hand_buckets), str(hand_type), str(king_buckets), str(king_type), str(progress_buckets)
 
-def sfnn_uses_shortcut(hidden1_dims: int) -> bool:
-    if hidden1_dims % 8 == 7:
-        return True
-    if hidden1_dims % 8 == 0:
-        return False
-    print(f"Error : SFNN H1 must be 8n with no shortcut, or 8n-1 with shortcut. H1={hidden1_dims}.")
-    raise SystemExit(1)
-
-def sfnn_hidden1_output_dims(hidden1_dims: int) -> int:
-    return hidden1_dims + (1 if sfnn_uses_shortcut(hidden1_dims) else 0)
 
 if arches[0].startswith("SFNN"):
     SFNN = True
@@ -290,8 +278,12 @@ if SFNN:
         raise SystemExit(1)
 
     hidden1_dims = int(layers[1])
-    hidden1_output_dims = sfnn_hidden1_output_dims(hidden1_dims)
-    hidden1_uses_shortcut = sfnn_uses_shortcut(hidden1_dims)
+    try:
+        hidden1_output_dims = sfnn_hidden1_output_dims(hidden1_dims)
+    except ValueError:
+        print(f"Error : SFNN H1 must be 8n with no shortcut, or 8n-1 with shortcut. H1={hidden1_dims}.")
+        raise SystemExit(1)
+    hidden1_uses_shortcut = hidden1_output_dims != hidden1_dims
 
     if not sfnn_group_count.isdigit():
         print(f"Error : SFNN group count must be an integer , group = {sfnn_group_count}.")

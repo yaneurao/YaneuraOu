@@ -11,6 +11,8 @@ from nnue_arch_common import (
     SFNN_KING_BUCKETS,
     SFNN_PROGRESS_BUCKETS,
     normalize_sfnn_bucket_spec,
+    sfnn_hidden1_output_dims,
+    strip_nnue_arch_prefixes,
 )
 
 U32_MASK = 0xFFFFFFFF
@@ -39,8 +41,6 @@ FEATURE_INFO = {
     "halfkahm2": ("HalfKA_hm2(Friend)", 0x7F234CB8, 5 * FILE_NB * E_KING),
 }
 
-def strip_prefix_ci(text: str, prefix: str) -> str:
-    return text[len(prefix):] if text.upper().startswith(prefix) else text
 
 def u32(value: int) -> int:
     return value & U32_MASK
@@ -150,12 +150,6 @@ def write_affine_explicit(stream, input_dims: int, output_dims: int, rng: random
     write_i32_zeros(stream, output_dims)
     write_int8_values(stream, output_dims * ceil_to_multiple(input_dims, 32), rng, mode)
 
-def sfnn_hidden1_output_dims(hidden1: int) -> int:
-    if hidden1 % 8 == 7:
-        return hidden1 + 1
-    if hidden1 % 8 == 0:
-        return hidden1
-    raise ValueError(f"SFNN H1 must be 8n with no shortcut, or 8n-1 with shortcut: {hidden1}")
 
 def write_sfnn_network(stream, transformed_dims: int, hidden1: int, hidden2: int, rng: random.Random, mode: str) -> None:
     write_u32(stream, SFNN_NETWORK_HASH)
@@ -212,8 +206,7 @@ def write_normal_network(stream, transformed_dims: int, first_layer_multiplier: 
     write_affine_explicit(stream, hidden2, 1, rng, mode)
 
 def parse_arch(arch: str):
-    arch = strip_prefix_ci(arch, "YANEURAOU_ENGINE_")
-    arch = strip_prefix_ci(arch, "NNUE_")
+    arch = strip_nnue_arch_prefixes(arch)
     arch = arch.replace("-", "_").upper()
     parts = arch.split("_")
     if len(parts) <= 3:
