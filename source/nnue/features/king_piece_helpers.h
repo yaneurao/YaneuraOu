@@ -68,6 +68,22 @@ inline void collect_pieces_with_king(const Position& pos, Color perspective,
     *sq_target_k = static_cast<Square>((pieces[target] - f_king) % SQ_NB);
 }
 
+// Enumerate all pieces, including kings, in the existing BonaPiece order.
+// 玉を含む全駒を従来のBonaPiece順で列挙する。座標変換は各Featureのmake_indexに任せる。
+template<typename Feature, Side AssociatedKing>
+sf_always_inline void append_halfka_active_indices(
+  const Position& pos, Color perspective, IndexList* active) {
+    // Preserve the compile-time guard for architectures with smaller index storage.
+    // インデックス格納領域が小さい構成では、従来どおりコンパイル時に処理を省く。
+    if (RawFeatures::MaxActiveDimensions < Feature::MaxActiveDimensions) return;
+
+    BonaPiece pieces[PIECE_NUMBER_NB];
+    Square sq_target_k;
+    collect_pieces_with_king<AssociatedKing>(pos, perspective, pieces, &sq_target_k);
+    for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_NB; ++i)
+        active->push_back(Feature::make_index(sq_target_k, pieces[i]));
+}
+
 } // namespace YaneuraOu::Eval::NNUE::Features
 #endif // defined(EVAL_NNUE) || defined(EVAL_SFNN)
 

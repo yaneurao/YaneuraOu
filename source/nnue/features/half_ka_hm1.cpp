@@ -27,15 +27,7 @@ namespace YaneuraOu::Eval::NNUE::Features {
 	template <Side AssociatedKing>
 	void HalfKA_hm1<AssociatedKing>::append_active_indices(
 		const Position& pos, Color perspective, IndexList* active) {
-		// コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
-		if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
-
-		BonaPiece pieces[40];
-		Square sq_target_k;
-		collect_pieces_with_king<AssociatedKing>(pos, perspective, pieces, &sq_target_k);
-		for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_NB; ++i) {
-			active->push_back(make_index(sq_target_k, pieces[i]));
-		}
+		append_halfka_active_indices<HalfKA_hm1, AssociatedKing>(pos, perspective, active);
 	}
 
 	// 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
