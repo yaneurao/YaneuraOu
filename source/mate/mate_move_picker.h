@@ -60,7 +60,7 @@ namespace Mate {
 
 				// 先手から見た駒割
 #if defined(USE_MATERIAL_VALUE)
-                int value = pos.state()->materialValue;
+                int value = pos.material_value();
 #else
                 // 駒割りを保持しない構成では、オーダリングが必要なときだけ計算する。
                 int value = Eval::material(pos);

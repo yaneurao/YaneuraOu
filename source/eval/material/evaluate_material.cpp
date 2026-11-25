@@ -29,8 +29,8 @@ namespace Eval {
 
 	void add_options(OptionsMap&, ThreadPool&) {}
 	Value compute_eval(const Position& pos) {
-		auto score = pos.state()->materialValue;
-		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
+		auto score = pos.material_value();
+		ASSERT_LV5(pos.material_value() == Eval::material(pos));
 
 		return pos.side_to_move() == BLACK ? score : -score;
 	}
@@ -44,7 +44,7 @@ namespace Eval {
 	void add_options(OptionsMap&, ThreadPool&) {}
 
 	Value compute_eval(const Position& pos) {
-		auto score = pos.state()->materialValue;
+		auto score = pos.material_value();
 
 		for (auto sq : SQ)
 		{
@@ -90,7 +90,7 @@ namespace Eval {
 	}
 
 	Value compute_eval(const Position& pos) {
-		auto score = pos.state()->materialValue;
+		auto score = pos.material_value();
 
 		for (auto sq : SQ)
 		{
@@ -155,7 +155,7 @@ namespace Eval {
 	}
 
 	Value compute_eval(const Position& pos) {
-		auto score = pos.state()->materialValue;
+		auto score = pos.material_value();
 
 		for (auto sq : SQ)
 		{
@@ -261,7 +261,7 @@ namespace Eval {
 
 	Value compute_eval(const Position& pos) {
 
-		auto score = pos.state()->materialValue;
+		auto score = pos.material_value();
 
 		for (auto sq : SQ)
 		{
@@ -363,7 +363,7 @@ namespace Eval {
 	// 変数名短くするなどすれば１ツイート(140文字)に収まる。
 	Value compute_eval(const Position& pos) {
 
-		auto score = pos.state()->materialValue;
+		auto score = pos.material_value();
 
 		for (auto sq : SQ)
 			score += KKPEE[pos.square<KING>(BLACK)][pos.square<KING>(WHITE)][sq]
@@ -499,7 +499,7 @@ namespace Eval {
 				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
 
 		// KKPEE配列はFV_SCALE倍されているのでこれで割ってから駒割を加算する。
-		score = score / FV_SCALE + pos.state()->materialValue;
+		score = score / FV_SCALE + pos.material_value();
 
 		return pos.side_to_move() == BLACK ? score : -score;
 	}
@@ -676,7 +676,7 @@ namespace Eval {
 				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
 
 		// KKPEE配列はFV_SCALE倍されているのでこれで割ってから駒割を加算する。
-		score = score / FV_SCALE + pos.state()->materialValue;
+		score = score / FV_SCALE + pos.material_value();
 
 		return pos.side_to_move() == BLACK ? score : -score;
 	}
@@ -895,7 +895,7 @@ namespace Eval {
 				[std::min(int(pos.board_effect[BLACK].effect(sq)),2)][std::min(int(pos.board_effect[WHITE].effect(sq)),2)][pos.piece_on(sq)];
 
 		// KKPEE配列はFV_SCALE倍されているのでこれで割ってから駒割を加算する。
-		score = score / FV_SCALE + pos.state()->materialValue;
+		score = score / FV_SCALE + pos.material_value();
 
 		return pos.side_to_move() == BLACK ? score : -score;
 	}

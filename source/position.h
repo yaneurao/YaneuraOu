@@ -31,17 +31,10 @@ struct SharedHistories;
 
 // StateInfo struct stores information needed to restore a Position object to
 // its previous state when we retract a move. Whenever a move is made on the
-#if STOCKFISH
 // board (by calling Position::do_move), a StateInfo object must be passed.
-// StateInfoは局面を戻すための情報を保持し、着手時にStateInfoを渡すと説明している。
-// 注: 上流の原文。現在のStockfishもStateInfoをPosition内部に保持する。
-#else
-// board (by calling Position::do_move), its state is stored in Position.
-// StateInfo構造体は、指し手を戻す際にPositionオブジェクトを
-// 以前の状態に復元するために必要な情報を格納する。
-// 盤上で指し手が行われるたびに（Position::do_moveを呼び出す際に）、
-// Position内部に次のStateInfoを保存する。
-#endif
+// StateInfo構造体は、指し手を戻す際にPositionオブジェクトを以前の状態へ復元する情報を保持する。
+// 上の原文は、着手時に呼び出し側からStateInfoを渡していた旧APIの説明。
+// 現在はStockfish・やねうら王ともにPosition内部で保持し、do_move()で次の状態を保存する。
 
 // 💡 StateInfoは、undo_move()で局面を戻すときに情報を元の状態に戻すのが
 //     面倒なものを詰め込んでおくための構造体。
@@ -109,7 +102,7 @@ struct StateInfo {
 	// 指し手で局面を進めるときにコピーされない(なんにせよ再計算される)
 
 	// 盤面(盤上の駒)と手駒に関するhash key
-	// Positionの外部からはhand_key()、board_key()、key()で取得する。
+	// Positionの外部からはboard_key()、key()で取得する。
 
 	// 💡 board_keyはZobrist::psqをxorしていく。hand_keyはZobrist::handを加算していく。key = board_key ^ hand_key。
 
@@ -342,6 +335,9 @@ class Position {
 
 
 #if !STOCKFISH
+    // 現在の手番側の持ち駒を返す。
+    Hand hand_of() const;
+
 	// c側の手駒を返す。
 	Hand hand_of(Color c) const { ASSERT_LV3(is_ok(c));  return hand[c]; }
 
@@ -797,6 +793,9 @@ class Position {
 #endif
 
 #if !STOCKFISH
+    // 盤上の駒と手番からなるキー。持ち駒は含まない。
+    HASH_KEY board_key() const;
+
 	// ある指し手を指した後のhash keyを返す。
 	// 将棋だとこの計算にそこそこ時間がかかるので、通常の探索部でprefetch用に
 	// これを計算するのはあまり得策ではないが、詰将棋ルーチンでは置換表を投機的に
@@ -876,10 +875,11 @@ class Position {
     // 将棋では盤面を180°回転させ、先後を交換する。局面の再設定に失敗したらエラーを返す。
     std::optional<PositionSetError> flip();
 
-    // 現在の局面に対応するStateInfoを返す。
-    // たとえば、state()->capturedPieceであれば、前局面で捕獲された駒が格納されている。
 #if !STOCKFISH
-    StateInfo* state() const;
+#if defined(USE_MATERIAL_VALUE)
+    // 差分更新された駒割り。先手側から見た値を返す。
+    Value material_value() const;
+#endif
 
     static constexpr usize MAX_HIST = POSITION_HISTORY_SIZE;
 #if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
@@ -894,18 +894,6 @@ class Position {
     // Used for repeated UCT rollouts after copy_from(), without copying history again.
     // copy_from()後のUCT反復では、履歴を再コピーせず盤面と履歴の位置だけ戻す。
     void reset_to_root(const Position& root);
-    StateInfo* previous_state(usize distance = 1) const {
-        assert(distance <= stateIdx);
-#if !defined(YANEURAOU_MATE_ENGINE) && !defined(TANUKI_MATE_ENGINE)
-        assert(distance < MAX_HIST);
-#endif
-#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
-        return const_cast<StateInfo*>(&stateInfos[stateIdx - distance]);
-#else
-        return const_cast<StateInfo*>(&stateInfos[(stateIdx - distance) & (MAX_HIST - 1)]);
-#endif
-    }
-
 #endif
 
 	// put_piece()やremove_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
@@ -1247,6 +1235,7 @@ private:
     void reset_state();
     StateInfo* push_state();
     void pop_state();
+    StateInfo* previous_state(usize distance = 1) const;
 #endif
 
 };
@@ -1394,6 +1383,8 @@ inline Key Position::adjust_key50(Key k) const {
 
 #else
 inline HASH_KEY Position::key() const { return st->key(); }
+
+inline HASH_KEY Position::board_key() const { return st->board_key; }
 #endif
 
 #if STOCKFISH
@@ -1586,7 +1577,12 @@ inline void Position::remove_piece(Square s) {
     board[s] = NO_PIECE;
 }
 
-inline StateInfo* Position::state() const { return st; }
+// StateInfo内の現在手番側のスナップショットを読む。DFPNでの従来の参照先を維持する。
+inline Hand Position::hand_of() const { return st->hand; }
+
+#if defined(USE_MATERIAL_VALUE)
+inline Value Position::material_value() const { return st->materialValue; }
+#endif
 #endif
 
 #if !STOCKFISH

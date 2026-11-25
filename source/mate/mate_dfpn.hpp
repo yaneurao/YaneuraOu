@@ -760,13 +760,13 @@ namespace Mate::Dfpn32
 				// 千日手が絡まずに詰み or 不詰を証明したので、置換表に保存する。
 				if (WithHash && (node->dn == 0 || node->pn == 0) && !node->repeated)
 				{
-					Key key = pos.state()->board_key;
+					Key key = pos.board_key();
 					auto entry = hash_table->first_entry(key, pos.side_to_move());
 
 					// たぶん指し手mでこれを証明したはずなので、これを登録しておく。
 					bool is_mate = node->pn == 0; /* pn == 0はわかったから、その手数(== DNPN_INF - dn)を保存したい */
 					auto ply = is_mate ? (u32)(NodeType::DNPN_INF - node->dn) : (u32)(NodeType::DNPN_INF - node->pn);
-					entry->save(key, root_color , pos.state()->hand , is_mate , ply, m);
+					entry->save(key, root_color , pos.hand_of() , is_mate , ply, m);
 
 #if 0
 					// デバッグ用に証明済みの局面を出力してみる。
@@ -1010,7 +1010,7 @@ namespace Mate::Dfpn32
 			{
 				// 置換表に登録されていれば、その結論を用いる。
 
-				Key key = pos.state()->board_key;
+				Key key = pos.board_key();
 				auto entry = hash_table->first_entry(key, pos.side_to_move());
 
 				// 置換表の値で証明されたか？
@@ -1036,8 +1036,8 @@ namespace Mate::Dfpn32
 						//  詰みが証明されている局面の情報があるとして、
 						// 　攻め方は、それより手駒が同じか多ければ同様に詰む。
 						//   受け方は、それより手駒が同じか少なければ同様に詰む(詰まされる)。
-						if (   ( or_node && hand_is_equal_or_superior(pos.state()->hand , entry->get_hand()))
-							|| (!or_node && hand_is_equal_or_superior(entry->get_hand() , pos.state()->hand))
+						if (   ( or_node && hand_is_equal_or_superior(pos.hand_of() , entry->get_hand()))
+							|| (!or_node && hand_is_equal_or_superior(entry->get_hand() , pos.hand_of()))
 							)
 						{
 							node->template set_mate<true /* or nodeから見て詰む */>(entry->ply);
@@ -1065,8 +1065,8 @@ namespace Mate::Dfpn32
 						//  不詰が証明されている局面の情報があるとして、
 						// 　攻め方は、それより手駒が同じか少なければ同様に詰まない。
 						//   受け方は、それより手駒が同じか多ければ同様に詰まない
-						if (   ( or_node && hand_is_equal_or_superior(entry->get_hand() , pos.state()->hand))
-							|| (!or_node && hand_is_equal_or_superior(pos.state()->hand , entry->get_hand()))
+						if (   ( or_node && hand_is_equal_or_superior(entry->get_hand() , pos.hand_of()))
+							|| (!or_node && hand_is_equal_or_superior(pos.hand_of() , entry->get_hand()))
 							)
 						{
 							node->set_nomate(entry->ply);

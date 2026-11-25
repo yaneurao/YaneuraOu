@@ -467,6 +467,18 @@ void Position::pop_state() {
 #endif
 }
 
+StateInfo* Position::previous_state(usize distance) const {
+    assert(distance <= stateIdx);
+#if !defined(YANEURAOU_MATE_ENGINE) && !defined(TANUKI_MATE_ENGINE)
+    assert(distance < MAX_HIST);
+#endif
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+    return const_cast<StateInfo*>(&stateInfos[stateIdx - distance]);
+#else
+    return const_cast<StateInfo*>(&stateInfos[(stateIdx - distance) & (MAX_HIST - 1)]);
+#endif
+}
+
 void Position::copy_state_infos(const Position& other) {
     assert(this != &other);
     usize stateCount = std::min(other.stateIdx + 1, usize(std::max(16, max_repetition_ply)) + 1);
@@ -3397,7 +3409,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
         const auto rootKey = root->key();
         const auto rootRep = root->is_repetition(16);
         copy->copy_from(*root);
-        tester.test("private root state", copy->state() != root->state());
+        tester.test("private root state", copy->st != root->st);
         tester.test("wrapped repetition", rootRep == REPETITION_DRAW
                                          && copy->is_repetition(16) == rootRep);
         bool ok = true;
@@ -3947,13 +3959,13 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
                     // clang-format off
 
                     // 部分keyが一致するか。
-                    ok &= pos.state()->board_key     == pos2.state()->board_key;
-                    ok &= pos.state()->hand_key      == pos2.state()->hand_key;
-                    ok &= pos.state()->pawnKey       == pos2.state()->pawnKey;
-                    ok &= pos.state()->nonPawnKey[0] == pos2.state()->nonPawnKey[0];
-                    ok &= pos.state()->nonPawnKey[1] == pos2.state()->nonPawnKey[1];
-                    ok &= pos.state()->materialKey   == pos2.state()->materialKey;
-                    ok &= pos.state()->minorPieceKey == pos2.state()->minorPieceKey;
+                    ok &= pos.st->board_key     == pos2.st->board_key;
+                    ok &= pos.st->hand_key      == pos2.st->hand_key;
+                    ok &= pos.st->pawnKey       == pos2.st->pawnKey;
+                    ok &= pos.st->nonPawnKey[0] == pos2.st->nonPawnKey[0];
+                    ok &= pos.st->nonPawnKey[1] == pos2.st->nonPawnKey[1];
+                    ok &= pos.st->materialKey   == pos2.st->materialKey;
+                    ok &= pos.st->minorPieceKey == pos2.st->minorPieceKey;
 
                     // clang-format on
 

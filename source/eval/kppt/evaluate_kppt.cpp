@@ -362,11 +362,11 @@ namespace Eval {
 			sum.p[2] += kkp[sq_bk][sq_wk][k0];
 		}
 
-		auto st = pos.state();
-		sum.p[2][0] += st->materialValue * FV_SCALE;
+        const Value materialValue = pos.material_value();
+        sum.p[2][0] += materialValue * FV_SCALE;
 
-		accumulator.sum = sum;
-        accumulator.materialValue = st->materialValue;
+        accumulator.sum = sum;
+        accumulator.materialValue = materialValue;
 	}
 
 	// 評価関数。差分計算ではなく全計算する。
@@ -511,7 +511,7 @@ namespace Eval {
 		// 一つ前のノードからの評価値の差分を計算する。
 
 		auto now = &accumulator;
-        now->materialValue = pos.state()->materialValue;
+        now->materialValue = pos.material_value();
 		auto prev = accumulator.previous;
 
 		// スタックの先頭、または直前の評価が未計算なら全計算する。
@@ -833,7 +833,7 @@ namespace Eval {
 		// 評価関数本体を呼び出して求める。
 		evaluateBody(pos, accumulator);
 
-		ASSERT_LV5(pos.state()->materialValue == Eval::material(pos));
+		ASSERT_LV5(pos.material_value() == Eval::material(pos));
 		// 差分計算と非差分計算との計算結果が合致するかのテスト。(さすがに重いのでコメントアウトしておく)
 		// ASSERT_LV5(Value(st->sum.sum(pos.side_to_move()) / FV_SCALE) == compute_eval(pos));
 		
@@ -947,7 +947,7 @@ namespace Eval {
 
 		}
 
-		cout << "Material = " << pos.state()->materialValue << endl;
+		cout << "Material = " << pos.material_value() << endl;
 		cout << sum;
 		cout << "---" << endl;
 
