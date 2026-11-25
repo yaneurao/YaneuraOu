@@ -252,9 +252,8 @@ class AffineTransform {
         // Write network parameters
         // パラメーターを書き込む。既存の内部配置での書き出しを維持する。
         bool write_parameters(std::ostream& stream) const {
-                stream.write(reinterpret_cast<const char*>(biases_), OutputDimensions * sizeof(BiasType));
-                stream.write(reinterpret_cast<const char*>(weights_),
-                             OutputDimensions * PaddedInputDimensions * sizeof(WeightType));
+                write_little_endian(stream, biases_, OutputDimensions);
+                write_little_endian(stream, weights_, OutputDimensions * PaddedInputDimensions);
                 return !stream.fail();
         }
 
@@ -705,10 +704,9 @@ class AffineTransform {
 	bool WriteParameters(std::ostream& stream) const {
 		if (!previous_layer_.WriteParameters(stream))
 			return false;
-		// TODO : endiannessの調整するコード必要なのでは。(やね)
-		stream.write(reinterpret_cast<const char*>(biases_), kOutputDimensions * sizeof(BiasType));
-		stream.write(reinterpret_cast<const char*>(weights_),
-		             kOutputDimensions * kPaddedInputDimensions * sizeof(WeightType));
+		// 実行環境によらずlittle-endianで書き込む。
+		write_little_endian(stream, biases_, kOutputDimensions);
+		write_little_endian(stream, weights_, kOutputDimensions * kPaddedInputDimensions);
 		return !stream.fail();
 	}
 

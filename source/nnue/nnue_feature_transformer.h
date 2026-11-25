@@ -16,6 +16,7 @@
 #include "../types.h"
 #include "../memory.h"
 #include "nnue_common.h"
+#include "simd.h"
 #include "nnue_architecture.h"
 #include "nnue_accumulator.h"
 #include "features/index_list.h"
@@ -161,6 +162,23 @@ constexpr IndexType MaxChunkSize = 16;
 // 入力特徴量変換器
 class FeatureTransformer {
    private:
+  // SIMD width (in bytes)
+  // SIMD幅（バイト単位）
+  // Stockfishでは削除済みだが、従来NNUEの変換ではこの幅を使う。
+  // AVX512でも値は32。sizeof(vec_t)へ置換すると既存の変換処理が変わるため維持する。
+  #if defined(USE_AVX2)
+  static constexpr usize kSimdWidth = 32;
+  #elif defined(USE_SSE2)
+  static constexpr usize kSimdWidth = 16;
+  #elif defined(USE_MMX)
+  static constexpr usize kSimdWidth = 8;
+
+  #elif defined(USE_NEON)
+  static constexpr usize kSimdWidth = 16;
+  #elif defined(USE_WASM_SIMD)
+  static constexpr usize kSimdWidth = 16;
+  #endif
+
 	// Number of output dimensions for one side
 	// 片側分の出力の次元数
 	static constexpr IndexType kHalfDimensions = kTransformedFeatureDimensions;
@@ -175,8 +193,8 @@ class FeatureTransformer {
 	// Output type
 	// 出力の型
 	using OutputType = TransformedFeatureType;
-	using BiasType   = i16;
-	using WeightType = i16;
+	using BiasType   = Eval::NNUE::BiasType;
+	using WeightType = Eval::NNUE::WeightType;
 
 	// Number of input/output dimensions
 	// 入出力の次元数
@@ -239,7 +257,7 @@ class FeatureTransformer {
 	// Write network parameters
 	// パラメータを書き込む
 	bool WriteParameters(std::ostream& stream) const {
-		stream.write(reinterpret_cast<const char*>(biases_), kHalfDimensions * sizeof(BiasType));
+		write_little_endian(stream, biases_, kHalfDimensions);
 #if defined(NNUE_FT_PACKED8)
 		if (sparse8_enabled_) {
 			// Preserve the existing writer's int16 layout, including permutation/scaling.
@@ -249,11 +267,11 @@ class FeatureTransformer {
 				for (IndexType j = 0; j < kHalfDimensions; ++j)
 					column[j] = int(packed[i * kHalfDimensions + j]) * 2;
 				apply_sparse8_corrections(column, i, 1);
-				stream.write(reinterpret_cast<const char*>(column), sizeof(column));
+				write_little_endian(stream, column, kHalfDimensions);
 			}
 		} else
 #endif
-		stream.write(reinterpret_cast<const char*>(weights_), kHalfDimensions * kInputDimensions * sizeof(WeightType));
+		write_little_endian(stream, weights_, kHalfDimensions * kInputDimensions);
 		return !stream.fail();
 	}
 
@@ -1547,8 +1565,52 @@ class FeatureTransformer {
 		accumulator.computed_accumulation = true;
 	}
 
-	// parameter type
-	// パラメータの型
+    // LEB128圧縮データを識別するためのmagic string。
+    static constexpr char Leb128MagicString[] = "COMPRESSED_LEB128";
+    static constexpr usize Leb128MagicStringSize = sizeof(Leb128MagicString) - 1;
+
+    // 将棋用FTファイルのsigned LEB128形式を読み込む。従来の復号処理を維持する。
+    template<typename IntType>
+    static void read_leb_128(std::istream& stream, IntType* out, usize count) {
+        // Check the presence of our LEB128 magic string
+        // LEB128圧縮データの識別文字列を確認する。
+        char leb128MagicString[Leb128MagicStringSize];
+        stream.read(leb128MagicString, Leb128MagicStringSize);
+        assert(strncmp(Leb128MagicString, leb128MagicString, Leb128MagicStringSize) == 0);
+
+        static_assert(std::is_signed_v<IntType>, "Not implemented for unsigned types");
+
+        const u32 BUF_SIZE = 4096;
+        u8 buf[BUF_SIZE];
+        auto bytes_left = read_little_endian<u32>(stream);
+        u32 buf_pos = BUF_SIZE;
+        for (usize i = 0; i < count; ++i)
+        {
+            IntType result = 0;
+            usize shift = 0;
+            do
+            {
+                if (buf_pos == BUF_SIZE)
+                {
+                    stream.read(reinterpret_cast<char*>(buf), std::min(bytes_left, BUF_SIZE));
+                    buf_pos = 0;
+                }
+
+                u8 byte = buf[buf_pos++];
+                --bytes_left;
+                result |= (byte & 0x7f) << shift;
+                shift += 7;
+
+                if ((byte & 0x80) == 0)
+                {
+                    out[i] = (sizeof(IntType) * 8 <= shift || (byte & 0x40) == 0)
+                      ? result : result | ~((1 << shift) - 1);
+                    break;
+                }
+            } while (shift < sizeof(IntType) * 8);
+        }
+        assert(bytes_left == 0);
+    }
 
 	// parameter
 	// パラメータ

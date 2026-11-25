@@ -32,6 +32,34 @@
 
 #include "../types.h"
 
+// HACK: Use _mm256_loadu_si256() instead of _mm256_load_si256. Otherwise a binary
+//       compiled with older g++ crashes because the output memory is not aligned
+//       even though alignas is specified.
+
+// HACK : _mm256_loadu_si256()を_mm256_load_si256の代わりに使え。さもなくば、
+//       古いg++でコンパイルされた実行ファイルはクラッシュする。なぜなら、
+//       alignasが指定されているのにalignされていないコードを生成しやがるからだ。
+
+#if defined(USE_AVX2)
+#if defined(__GNUC__ ) && (__GNUC__ < 9) && defined(_WIN32) && !defined(__clang__)
+#define _mm256_loadA_si256  _mm256_loadu_si256
+#define _mm256_storeA_si256 _mm256_storeu_si256
+#else
+#define _mm256_loadA_si256  _mm256_load_si256
+#define _mm256_storeA_si256 _mm256_store_si256
+#endif
+#endif
+
+#if defined(USE_AVX512)
+#if defined(__GNUC__ ) && (__GNUC__ < 9) && defined(_WIN32) && !defined(__clang__)
+#define _mm512_loadA_si512   _mm512_loadu_si512
+#define _mm512_storeA_si512  _mm512_storeu_si512
+#else
+#define _mm512_loadA_si512   _mm512_load_si512
+#define _mm512_storeA_si512  _mm512_store_si512
+#endif
+#endif
+
 // CPU capability switch for NNUE dot-product code. For SFNN H1=7 networks
 // (fc0: ->8, packed tail: 14->64->1), measured AVX512VNNI was slower than
 // AVX512 maddubs/madd, so only that NNUE shape uses the fallback.

@@ -13,6 +13,7 @@
 
 #if defined(EVAL_NNUE) || defined(EVAL_SFNN)
 #include "../nnue_common.h"
+#include "../simd.h"
 
 namespace YaneuraOu::Eval::NNUE::Layers {
 

@@ -148,6 +148,7 @@ namespace Progress {
 	static_assert(std::is_trivially_copyable_v<NnueNetworks>,
 		"NnueNetworks must be trivially copyable for shared memory support");
 
+    // Stockfishの固定OutputScaleとは異なり、エンジンオプションで変更できる評価値の除数。
     extern int FV_SCALE;
 
 	// 評価関数ファイル名
