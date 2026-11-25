@@ -231,7 +231,7 @@ little-endianで保存する。`progress.bin`のような外部ファイルは�
 
 同じ理由で、Makefileでprogress専用の`.cpp`を追加する設計にはしない。progress未使用時は
 `NNUE_SFNN_PROGRESS_BUCKETS`が`1`になり、progress用の読み書き、hash変更、bucket計算、
-`NnueNetworks`内の追加パラメータ、評価用の進行度cacheがすべてコンパイル対象外になる
+`Eval::NNUE::Network`内の追加パラメータ、評価用の進行度cacheがすべてコンパイル対象外になる
 必要がある。
 
 ## SFNN Common+Shard fc_0

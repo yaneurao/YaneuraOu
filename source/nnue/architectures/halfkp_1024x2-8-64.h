@@ -34,7 +34,7 @@ namespace Eval::NNUE {
 
 	}  // namespace Layers
 
-	using Network = Layers::OutputLayer;
+	using NetworkArchitecture = Layers::OutputLayer;
 
 } // namespace Eval::NNUE
 } // namespace YaneuraOu

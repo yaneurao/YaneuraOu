@@ -31,7 +31,7 @@ constexpr IndexType kHidden2Dims = 32;
 using Fc0Layer = Layers::AffineTransformSparseInput<kInputDims, kHidden1Dims + 1>;
 using NetworkBase = SfnnNetwork<Fc0Layer, kInputDims, kHidden1Dims, kHidden2Dims>;
 
-struct Network : NetworkBase {
+struct NetworkArchitecture : NetworkBase {
 	static std::string GetStructureString() {
 		return "SFNN-1536";
 	}

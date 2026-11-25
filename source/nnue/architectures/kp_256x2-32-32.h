@@ -30,7 +30,7 @@ using OutputLayer = AffineTransform<HiddenLayer2, 1>;
 
 }  // namespace Layers
 
-using Network = Layers::OutputLayer;
+using NetworkArchitecture = Layers::OutputLayer;
 
 } // namespace Eval::NNUE
 } // namespace YaneuraOu

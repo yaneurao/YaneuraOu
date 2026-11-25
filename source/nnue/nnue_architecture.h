@@ -11,8 +11,8 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
-// NetworkはStockfishのNetworkArchitectureに相当する後段構成の型。
-// StockfishのNetworkに相当する共有ネットワーク全体はnetwork.hのNnueNetworks。
+// 後段構成はStockfishと同じNetworkArchitectureという型で表す。
+// 重み全体を保持するNetworkはnetwork.hで定義する。
 
 // Defines the network structure
 // 入力特徴量とネットワーク構造が定義されたヘッダをincludeする
@@ -74,11 +74,11 @@ namespace YaneuraOu {
 namespace Eval::NNUE {
 
 	static_assert(kTransformedFeatureDimensions % MaxSimdWidth == 0, "");
-	static_assert(Network::OutputDimensions == 1, "");
+	static_assert(NetworkArchitecture::OutputDimensions == 1, "");
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
-	static_assert(std::is_same<Network::OutputType, i64>::value, "");
+	static_assert(std::is_same<NetworkArchitecture::OutputType, i64>::value, "");
 #else
-	static_assert(std::is_same<Network::OutputType, i32>::value, "");
+	static_assert(std::is_same<NetworkArchitecture::OutputType, i32>::value, "");
 #endif
 
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1

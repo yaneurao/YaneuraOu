@@ -33,7 +33,7 @@ namespace Eval {
 
         }  // namespace Layers
 
-        using Network = Layers::OutputLayer;
+        using NetworkArchitecture = Layers::OutputLayer;
 
     }  // namespace NNUE
 

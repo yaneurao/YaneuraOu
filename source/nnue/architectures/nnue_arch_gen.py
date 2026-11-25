@@ -583,7 +583,7 @@ if SFNN:
         using NetworkBase = SfnnNetwork<Fc0Layer, kInputDims, kHidden1Dims, kHidden2Dims, kUseShortcut>;
         #endif
 
-        struct Network : NetworkBase {{
+        struct NetworkArchitecture : NetworkBase {{
             static std::string GetStructureString() {{
                 return "{structure_string}";
             }}
@@ -599,7 +599,7 @@ if SFNN:
 
 else:
     header += f"""
-        using Network = Layers::OutputLayer;
+        using NetworkArchitecture = Layers::OutputLayer;
 
     }} // namespace Eval::NNUE
     }} // namespace YaneuraOu

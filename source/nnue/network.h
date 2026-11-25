@@ -115,29 +115,31 @@ namespace Progress {
 } // namespace Progress
 #endif
 
-	// Hash value of evaluation function structure
-	// 評価関数の構造のハッシュ値
 #if defined(EVAL_SFNN)
-	constexpr u32 kSfnnBaseHashValue = 0x3c203b32u;
-	constexpr u32 kHashValue = kSfnnBaseHashValue;
 	constexpr int kLayerStacks = LayerStacks;
 #else
-	constexpr u32 kHashValue =
-	    FeatureTransformer::get_hash_value() ^ Network::get_hash_value();
 	constexpr int kLayerStacks = 1;
 #endif
 
 	// NNUE評価関数パラメーターを格納する統合構造体。
-	// StockfishのNetworkに相当する。やねうら王のNetworkは後段構成の型名なので、
-	// 共有する重み全体の型とは区別している。
+	// Stockfishと同じく、後段構成のNetworkArchitectureと重み全体のNetworkを区別する。
 	// 全メンバーが生配列で構成されており trivially copyable であるため、
 	// プロセス間共有メモリに直接配置できる。
-	struct NnueNetworks {
+	struct Network {
+        // Hash value of evaluation function structure
+        // 評価関数の構造のハッシュ値。既存の将棋用nn.binの値を維持する。
+#if defined(EVAL_SFNN)
+        static constexpr u32 hash = 0x3c203b32u;
+#else
+        static constexpr u32 hash =
+          FeatureTransformer::get_hash_value() ^ NetworkArchitecture::get_hash_value();
+#endif
+
 		FeatureTransformer featureTransformer;
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
 		Progress::Parameters progress;
 #endif
-		Network network[kLayerStacks];
+		NetworkArchitecture network[kLayerStacks];
 
 		// Content hash used to identify shared network parameters.
 		// 共有するネットワークパラメーターを識別するための内容ハッシュ。
@@ -145,8 +147,8 @@ namespace Progress {
 			return static_cast<usize>(hash_bytes(reinterpret_cast<const char*>(this), sizeof(*this)));
 		}
 	};
-	static_assert(std::is_trivially_copyable_v<NnueNetworks>,
-		"NnueNetworks must be trivially copyable for shared memory support");
+	static_assert(std::is_trivially_copyable_v<Network>,
+		"Network must be trivially copyable for shared memory support");
 
     // Stockfishの固定OutputScaleとは異なり、エンジンオプションで変更できる評価値の除数。
     extern int FV_SCALE;
@@ -168,21 +170,21 @@ namespace Progress {
 	// 評価関数パラメータを読み込む
 	// On a sidecar read failure, replace failed_file with its path.
     // 補助ファイルの読み込みに失敗したとき、failed_fileにそのパスを設定する。
-    Tools::Result read_parameters(LazyNumaReplicatedSystemWide<NnueNetworks>& network,
+    Tools::Result read_parameters(LazyNumaReplicatedSystemWide<Network>& network,
                                 const OptionsMap& options, std::istream& stream,
                                 std::string* failed_file = nullptr);
 
 	// 評価関数パラメータを書き込む
-	bool write_parameters(const NnueNetworks& network, std::ostream& stream);
+	bool write_parameters(const Network& network, std::ostream& stream);
 
 } // namespace Eval::NNUE
 } // namespace YaneuraOu
 
-// NnueNetworks のコンテンツハッシュ。共有メモリの名前に使われる。
+// Networkのコンテンツハッシュ。共有メモリの名前に使われる。
 // 同一の評価関数パラメーターを持つプロセス同士で自動的にメモリが共有される。
 template<>
-struct std::hash<YaneuraOu::Eval::NNUE::NnueNetworks> {
-	YaneuraOu::usize operator()(const YaneuraOu::Eval::NNUE::NnueNetworks& n) const noexcept {
+struct std::hash<YaneuraOu::Eval::NNUE::Network> {
+	YaneuraOu::usize operator()(const YaneuraOu::Eval::NNUE::Network& n) const noexcept {
 		return n.get_content_hash();
 	}
 };

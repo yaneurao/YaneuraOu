@@ -20,7 +20,7 @@ namespace {
 
 // Check the actual int16 accumulator, not only the rounded final score.
 // Exercise both perspectives, promotions, captures, fallback paths and undo.
-void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
+void TestAccumulator(const Network& network, std::istream& stream) {
   int games = 100;
   stream >> games;
   if (games <= 0) {
@@ -367,7 +367,7 @@ void PrintInfo(std::istream& stream) {
 
     std::cout << file_name << ": ";
     if (result.is_ok()) {
-      if (hashValue == kHashValue) {
+      if (hashValue == Network::hash) {
         std::cout << "matches with this binary";
         if (architecture != get_architecture_string()) {
           std::cout << ", but architecture string differs: " << architecture;

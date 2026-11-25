@@ -18,7 +18,7 @@ class NumaReplicationContext;
 class NumaReplicatedAccessToken;
 template<typename T> class LazyNumaReplicatedSystemWide;
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-namespace Eval::NNUE { struct NnueNetworks; struct Dirties; }
+namespace Eval::NNUE { struct Network; struct Dirties; }
 #endif
 
 namespace Eval {
@@ -36,7 +36,7 @@ namespace Eval {
 #endif
 
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-    using NetworkStorage = LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>;
+    using NetworkStorage = LazyNumaReplicatedSystemWide<NNUE::Network>;
 #else
     // 実体は探索・Engine側の共通入口nnue/network.hで定義する。
     class NetworkStorage;
@@ -68,14 +68,14 @@ namespace Eval {
 	// これは、"isready"コマンドの応答時に(毎回)呼び出される。
 	// ⚠ EvalDir(評価関数フォルダ)が変更になったあと、isreadyが再度送られてきたら読みなおす処理は自分で書くこと。
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-    void load_eval(LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>& network,
+    void load_eval(LazyNumaReplicatedSystemWide<NNUE::Network>& network,
                    const OptionsMap& options);
     namespace NNUE { class AccumulatorStack; class AccumulatorCaches; }
-    Value evaluate(const NNUE::NnueNetworks& network, const Position& pos);
-    Value evaluate(const NNUE::NnueNetworks& network, const Position& pos,
+    Value evaluate(const NNUE::Network& network, const Position& pos);
+    Value evaluate(const NNUE::Network& network, const Position& pos,
                    NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable);
 #if defined(EVAL_NNUE)
-    void evaluate_with_no_return(const NNUE::NnueNetworks& network, const Position& pos,
+    void evaluate_with_no_return(const NNUE::Network& network, const Position& pos,
                                  NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable);
 #endif
 #else

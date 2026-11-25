@@ -267,12 +267,12 @@ int Parameters::bucket_index(const Position& pos, int bucket_count, AccumulatorS
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
     static std::string nn16_architecture(u32 qb) {
         return "ModelType=SFNNWithoutPsqt;Features=" + FeatureTransformer::GetStructureString()
-            + ",Network=SFNN-" + std::to_string(Network::kInputDims)
+            + ",Network=SFNN-" + std::to_string(NetworkArchitecture::kInputDims)
             + "{LayerStack=" + std::to_string(kLayerStacks)
             + "};FCWeightBits=16;QB=" + std::to_string(qb)
-            + ";H1=" + std::to_string(Network::kHidden1Dims)
-            + ";Skip=" + std::to_string(int(Network::kUseShortcut))
-            + ";H2=" + std::to_string(Network::kHidden2Dims);
+            + ";H1=" + std::to_string(NetworkArchitecture::kHidden1Dims)
+            + ";Skip=" + std::to_string(int(NetworkArchitecture::kUseShortcut))
+            + ";H2=" + std::to_string(NetworkArchitecture::kHidden2Dims);
     }
 #endif
 
@@ -280,7 +280,7 @@ int Parameters::bucket_index(const Position& pos, int bucket_count, AccumulatorS
     // GetStructureString()は既存の生成済みarchitectureヘッダーのメタデータAPIなので維持する。
     std::string get_architecture_string() {
         const std::string base = "Features=" + FeatureTransformer::GetStructureString() +
-			",Network=" + Network::GetStructureString();
+			",Network=" + NetworkArchitecture::GetStructureString();
 #if defined(EVAL_SFNN)
 		return "ModelType=SFNNWithoutPsqt;" + base + "{LayerStack=" + std::to_string(kLayerStacks) + "}";
 #else
@@ -317,10 +317,10 @@ namespace {
 	// テンポラリにパラメータを読み込み、共有メモリに配置する。
 	// 同じパラメータを持つ他プロセスが既に共有メモリを作成済みなら、そちらを参照する。
 	Tools::Result load_and_share(
-        LazyNumaReplicatedSystemWide<NnueNetworks>& network, [[maybe_unused]] const OptionsMap& options,
+        LazyNumaReplicatedSystemWide<Network>& network, [[maybe_unused]] const OptionsMap& options,
         std::istream& stream, [[maybe_unused]] std::string* failed_file) {
 		// テンポラリ領域にパラメータを読み込む
-        auto tmp = std::make_unique<NnueNetworks>();
+        auto tmp = std::make_unique<Network>();
 
 		u32 hashValue;
 		std::string architecture;
@@ -334,14 +334,14 @@ namespace {
                 sync_cout << "info string Invalid nn16 QB: " << qb << sync_endl;
                 return Tools::ResultCode::FileMismatch;
             }
-        if (hashValue != kHashValue || architecture != nn16_architecture(qb)) {
+        if (hashValue != Network::hash || architecture != nn16_architecture(qb)) {
             sync_cout << "info string nn16 architecture mismatch: " << architecture
                       << " expected " << nn16_architecture(qb) << sync_endl;
             return Tools::ResultCode::FileMismatch;
         }
 #endif
-		if (hashValue != kHashValue) {
-			sync_cout << "info string Warning: NNUE hash mismatch: expected " << kHashValue
+		if (hashValue != Network::hash) {
+			sync_cout << "info string Warning: NNUE hash mismatch: expected " << Network::hash
 				<< " got " << hashValue
 				<< " arch_in_file=" << architecture
 				<< " arch_expected=" << get_architecture_string()
@@ -369,7 +369,7 @@ namespace {
 		}
 #endif
 		for (int i = 0; i < kLayerStacks; ++i) {
-			result = Detail::read_parameters<Network>(stream, tmp->network[i]);
+			result = Detail::read_parameters<NetworkArchitecture>(stream, tmp->network[i]);
 			if (result.is_not_ok()) {
 				sync_cout << "info string NNUE network params read failed at stack " << i << ": " << result.to_string() << sync_endl;
 				return result;
@@ -419,25 +419,25 @@ namespace {
 
     	// 評価関数パラメータを読み込む
     Tools::Result read_parameters(
-        LazyNumaReplicatedSystemWide<NnueNetworks>& network, const OptionsMap& options,
+        LazyNumaReplicatedSystemWide<Network>& network, const OptionsMap& options,
         std::istream& stream, std::string* failed_file) {
         return load_and_share(
           network, options,
           stream, failed_file);
     }
     // 評価関数パラメータを書き込む
-    bool write_parameters(const NnueNetworks& network, std::ostream& stream) {
+    bool write_parameters(const Network& network, std::ostream& stream) {
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
         const auto qb = network.network[0].weight_scale;
-        if (!write_header(stream, kHashValue, nn16_architecture(qb))) return false;
+        if (!write_header(stream, Network::hash, nn16_architecture(qb))) return false;
         for (int i = 0; i < 4; ++i)
             stream.put(static_cast<char>((qb >> (8 * i)) & 255));
 #else
-        if (!write_header(stream, kHashValue, get_architecture_string())) return false;
+        if (!write_header(stream, Network::hash, get_architecture_string())) return false;
 #endif
         if (!Detail::write_parameters<FeatureTransformer>(stream, network.featureTransformer)) return false;
         for (int i = 0; i < kLayerStacks; ++i) {
-            if (!Detail::write_parameters<Network>(stream, network.network[i])) return false;
+            if (!Detail::write_parameters<NetworkArchitecture>(stream, network.network[i])) return false;
         }
         return !stream.fail();
     }
@@ -721,7 +721,7 @@ namespace {
             + hand1024_single_bucket(pos.hand_of(~stm));
     }
 
-    static int progress_bucket(const Position& pos, [[maybe_unused]] const NnueNetworks& network,
+    static int progress_bucket(const Position& pos, [[maybe_unused]] const Network& network,
                                [[maybe_unused]] AccumulatorState* state) {
 #if NNUE_SFNN_PROGRESS_BUCKETS == 1
         return 0;
@@ -730,7 +730,7 @@ namespace {
 #endif
     }
 
-    static int stack_index_for_nnue(const Position& pos, [[maybe_unused]] const NnueNetworks& network,
+    static int stack_index_for_nnue(const Position& pos, [[maybe_unused]] const Network& network,
                                      [[maybe_unused]] AccumulatorState* state) {
 #if NNUE_SFNN_HAND_BUCKETS == 1 && NNUE_SFNN_KING_BUCKETS == 9 && NNUE_SFNN_KING_BUCKET_TYPE == NNUE_SFNN_KING_BUCKET_TYPE_K3K3 && NNUE_SFNN_PROGRESS_BUCKETS == 1
         return king3_by_king3_bucket(pos);
@@ -779,9 +779,9 @@ namespace {
 #endif
 
     // 評価値を計算する
-    static Value compute_score(const NnueNetworks& network, const Position& pos,
+    static Value compute_score(const Network& network, const Position& pos,
                               AccumulatorState* state, AccumulatorCaches& refreshTable, bool refresh = false) {
-        alignas(CacheLineSize) char buffer[Network::BufferSize];
+        alignas(CacheLineSize) char buffer[NetworkArchitecture::BufferSize];
 #if defined(EVAL_SFNN)
         const auto bucket = stack_index_for_nnue(pos, network, state);
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
@@ -830,7 +830,7 @@ namespace {
 }  // namespace NNUE
 
 // 評価関数ファイルを読み込む
-void load_eval(LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>& network, const OptionsMap& options) {
+void load_eval(LazyNumaReplicatedSystemWide<NNUE::Network>& network, const OptionsMap& options) {
 
     {
         const std::string dir_name = options["EvalDir"];
@@ -899,7 +899,7 @@ void load_eval(LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>& network, const 
 }
 
 
-Value evaluate(const NNUE::NnueNetworks& network, const Position& pos) {
+Value evaluate(const NNUE::Network& network, const Position& pos) {
     // Standalone evaluation must not change a search worker's stack.
     // 探索外の評価では、探索Workerのスタックを変更しない。
     NNUE::AccumulatorState state;
@@ -909,12 +909,12 @@ Value evaluate(const NNUE::NnueNetworks& network, const Position& pos) {
     return NNUE::compute_score(network, pos, &state, refreshTable);
 }
 
-Value evaluate(const NNUE::NnueNetworks& network, const Position& pos, NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable) {
+Value evaluate(const NNUE::Network& network, const Position& pos, NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable) {
     return NNUE::compute_score(network, pos, &stack.latest(), refreshTable);
 }
 
 #if defined(EVAL_NNUE)
-void evaluate_with_no_return(const NNUE::NnueNetworks& network, const Position& pos,
+void evaluate_with_no_return(const NNUE::Network& network, const Position& pos,
                              NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable) {
     network.featureTransformer.update_accumulator_if_possible(pos, &stack.latest(), refreshTable);
 }
