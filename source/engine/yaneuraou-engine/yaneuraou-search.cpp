@@ -2376,20 +2376,19 @@ void Search::YaneuraOuWorker::do_move(
     {
 #if STOCKFISH
         auto& dirtyPiece = dirties.dirtyPiece;
+#else
+        // Stockfishは成り前の駒を使うが、やねうら王の履歴は成り後の駒で管理する。
+        // 実際のDirtyPieceは変更せず、履歴設定用に成り後の駒をpcとして持たせる。
+        // moved_piece()なら、dirtiesを持たない旧評価関数でも利用できる。
+        const struct {
+            Piece pc;
+        } dirtyPiece{pos.moved_piece(move)};
+#endif
         ss->currentMove  = move;
         ss->continuationHistory =
           &continuationHistory[ss->inCheck][capture][dirtyPiece.pc][move.to_sq()];
         ss->continuationCorrectionHistory =
           &continuationCorrectionHistory[dirtyPiece.pc][move.to_sq()];
-#else
-        // currentMove(現在探索中の指し手)の更新
-        ss->currentMove = move;
-        // やねうら王とStockfishでは、DirtyPieceの構造が違うし、
-        // やねうら王では、移動後の駒(成りの指し手なら成り駒)を使いたい。
-        Piece dp_pc             = pos.moved_piece(move);
-        ss->continuationHistory = &continuationHistory[ss->inCheck][capture][dp_pc][move.to_sq()];
-        ss->continuationCorrectionHistory = &continuationCorrectionHistory[dp_pc][move.to_sq()];
-#endif
     }
 }
 
