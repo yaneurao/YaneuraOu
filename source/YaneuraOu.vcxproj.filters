@@ -148,6 +148,9 @@
     <ClInclude Include="nnue\features\features_common.h">
       <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
+    <ClInclude Include="nnue\features\king_piece_helpers.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
+    </ClInclude>
     <ClInclude Include="nnue\features\half_kp.h">
       <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>

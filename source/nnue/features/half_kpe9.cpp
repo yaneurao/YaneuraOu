@@ -7,6 +7,7 @@
 #include "half_kpe9.h"
 #include "../../position.h"
 #include "index_list.h"
+#include "king_piece_helpers.h"
 
 namespace YaneuraOu {
 namespace Eval::NNUE::Features {
@@ -53,18 +54,6 @@ inline IndexType HalfKPE9<AssociatedKing>::make_index(Square sq_k, BonaPiece p, 
        + (static_cast<IndexType>(fe_end) * static_cast<IndexType>(SQ_NB) * (effect1 * 3 + effect2));
 }
 
-// 駒の情報を取得する
-template <Side AssociatedKing>
-inline void HalfKPE9<AssociatedKing>::GetPieces(
-    const Position& pos, Color perspective,
-    BonaPiece* pieces, Square* sq_target_k) {
-  collect_bona_pieces(pos, perspective, pieces);
-  const PieceNumber target = (AssociatedKing == Side::kFriend) ?
-      static_cast<PieceNumber>(PIECE_NUMBER_KING + perspective) :
-      static_cast<PieceNumber>(PIECE_NUMBER_KING + ~perspective);
-  *sq_target_k = static_cast<Square>((pieces[target] - f_king) % SQ_NB);
-}
-
 // 特徴量のうち、値が1であるインデックスのリストを取得する
 template <Side AssociatedKing>
 void HalfKPE9<AssociatedKing>::append_active_indices(
@@ -74,7 +63,7 @@ void HalfKPE9<AssociatedKing>::append_active_indices(
 
   BonaPiece pieces[40];
   Square sq_target_k;
-  GetPieces(pos, perspective, pieces, &sq_target_k);
+  collect_pieces_with_king<AssociatedKing>(pos, perspective, pieces, &sq_target_k);
   auto& board_effect = pos.board_effect;
 
   for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_KING; ++i) {
@@ -95,7 +84,7 @@ void HalfKPE9<AssociatedKing>::append_changed_indices(
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
   BonaPiece pieces[40];
   Square sq_target_k;
-  GetPieces(pos, perspective, pieces, &sq_target_k);
+  collect_pieces_with_king<AssociatedKing>(pos, perspective, pieces, &sq_target_k);
 
   for (int i = 0; i < dp.count(); ++i) {
     if (dp.is_king(i)) continue;

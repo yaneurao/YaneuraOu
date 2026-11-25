@@ -13,7 +13,7 @@
 namespace YaneuraOu {
 namespace Eval::NNUE::Features {
 
-	// 特徴量HalfKP：自玉または敵玉の位置と、玉以外の駒の位置の組み合わせ
+	// 特徴量HalfKA2：視点側または相手側の玉と、手駒・両玉を含む全駒のBonaPieceの組み合わせ。両玉は同じ駒種の面にまとめる
 	template <Side AssociatedKing>
 	class HalfKA2 {
 	public:
@@ -44,10 +44,6 @@ namespace Eval::NNUE::Features {
 		// 玉の位置とBonaPieceから特徴量のインデックスを求める
 		static IndexType make_index(Square sq_k, BonaPiece p);
 
-	private:
-		// 駒の情報を取得する
-		static void GetPieces(const Position& pos, Color perspective,
-			BonaPiece* pieces, Square* sq_target_k);
 	};
 
 }  // namespace Eval::NNUE::Features

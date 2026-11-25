@@ -517,6 +517,7 @@
     <ClInclude Include="nnue\network.h" />
     <ClInclude Include="nnue\nnue_accumulator.h" />
     <ClInclude Include="nnue\features\features_common.h" />
+    <ClInclude Include="nnue\features\king_piece_helpers.h" />
     <ClInclude Include="nnue\features\feature_set.h" />
     <ClInclude Include="nnue\features\half_ka1.h" />
     <ClInclude Include="nnue\features\half_ka2.h" />

@@ -7,6 +7,7 @@
 #include "half_relative_kp.h"
 #include "../../position.h"
 #include "index_list.h"
+#include "king_piece_helpers.h"
 
 namespace YaneuraOu {
 namespace Eval::NNUE::Features {
@@ -24,18 +25,6 @@ inline IndexType HalfRelativeKP<AssociatedKing>::make_index(
   return H * W * piece_index + H * relative_file + relative_rank;
 }
 
-// 駒の情報を取得する
-template <Side AssociatedKing>
-inline void HalfRelativeKP<AssociatedKing>::GetPieces(
-    const Position& pos, Color perspective,
-    BonaPiece* pieces, Square* sq_target_k) {
-  collect_bona_pieces(pos, perspective, pieces);
-  const PieceNumber target = (AssociatedKing == Side::kFriend) ?
-      static_cast<PieceNumber>(PIECE_NUMBER_KING + perspective) :
-      static_cast<PieceNumber>(PIECE_NUMBER_KING + ~perspective);
-  *sq_target_k = static_cast<Square>((pieces[target] - f_king) % SQ_NB);
-}
-
 // 特徴量のうち、値が1であるインデックスのリストを取得する
 template <Side AssociatedKing>
 void HalfRelativeKP<AssociatedKing>::append_active_indices(
@@ -45,7 +34,7 @@ void HalfRelativeKP<AssociatedKing>::append_active_indices(
 
   BonaPiece pieces[40];
   Square sq_target_k;
-  GetPieces(pos, perspective, pieces, &sq_target_k);
+  collect_pieces_with_king<AssociatedKing>(pos, perspective, pieces, &sq_target_k);
   for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_KING; ++i) {
     if (pieces[i] >= fe_hand_end) {
       active->push_back(make_index(sq_target_k, pieces[i]));
