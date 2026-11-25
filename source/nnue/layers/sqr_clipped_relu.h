@@ -4,20 +4,21 @@
 #ifndef NNUE_LAYERS_SQR_CLIPPED_RELU_H_INCLUDED
 #define NNUE_LAYERS_SQR_CLIPPED_RELU_H_INCLUDED
 
+#include <algorithm>
+#include <cstdint>
+#include <iosfwd>
+
 #include "../../config.h"
 #include "../../extra/tools.h"
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../nnue_common.h"
-#include <algorithm>
-#include <cstdint>
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Layers {
+namespace YaneuraOu::Eval::NNUE::Layers {
 
 	// SqrClippedReLUレイヤー
-	template <IndexType InputDimensions>
+	template<IndexType InDims>
 	class SqrClippedReLU {
 	public:
 		// Input/output type
@@ -27,44 +28,40 @@ namespace Eval::NNUE::Layers {
 
 		// Number of input/output dimensions
 		// 入出力の次元数
-		static constexpr IndexType kInputDimensions = InputDimensions;
-		static constexpr IndexType kOutputDimensions = kInputDimensions;
+		static constexpr IndexType InputDimensions = InDims;
+		static constexpr IndexType OutputDimensions = InputDimensions;
 		static constexpr IndexType PaddedOutputDimensions =
-			ceil_to_multiple<IndexType>(kOutputDimensions, 32);
+			ceil_to_multiple<IndexType>(OutputDimensions, 32);
 
 		using OutputBuffer = OutputType[PaddedOutputDimensions];
 
 		// Hash value embedded in the evaluation file
 		// 評価関数ファイルに埋め込むハッシュ値
-		static constexpr u32 GetHashValue(u32 prevHash) {
-			u32 hash_value = 0x538D24C7u;
-			hash_value += prevHash;
-			return hash_value;
+		static constexpr u32 get_hash_value(u32 prevHash) {
+			u32 hashValue = 0x538D24C7u;
+			hashValue += prevHash;
+			return hashValue;
 		}
 
 		// 入力層からこの層までの構造を表す文字列
-		static std::string GetStructureString() {
+		static std::string get_structure_string() {
 			return "SqrClippedReLU[" +
-				std::to_string(kOutputDimensions) + "]";
+				std::to_string(OutputDimensions) + "]";
 		}
 
 		// Read network parameters
 		// パラメータを読み込む
-		Tools::Result ReadParameters(std::istream& /*stream*/) {
-			return Tools::ResultCode::Ok;
-		}
+		bool read_parameters(std::istream&) { return true; }
 
 		// パラメータを書き込む
-		bool WriteParameters(std::ostream& /*stream*/) const {
-			return true;
-		}
+		bool write_parameters(std::ostream&) const { return true; }
 
 		// Forward propagation
 		// 順伝播
-		void Propagate(const InputType* input, OutputType* output) const {
+		void propagate(const InputType* input, OutputType* output) const {
 
 #if defined(USE_SSE2)
-			constexpr IndexType NumChunks = kInputDimensions / 16;
+			constexpr IndexType NumChunks = InputDimensions / 16;
 			static_assert(WeightScaleBits == 6);
 
 			const auto in = reinterpret_cast<const __m128i*>(input);
@@ -79,6 +76,7 @@ namespace Eval::NNUE::Layers {
 				// We shift by WeightScaleBits * 2 = 12 and divide by 128
 				// which is an additional shift-right of 7, meaning 19 in total.
 				// MulHi strips the lower 16 bits so we need to shift out 3 more to match.
+				// 合計19bit右へずらす。MulHiで下位16bitが除かれるため、さらに3bit右へずらす。
 				words0 = _mm_srli_epi16(_mm_mulhi_epi16(words0, words0), 3);
 				words1 = _mm_srli_epi16(_mm_mulhi_epi16(words1, words1), 3);
 
@@ -89,24 +87,25 @@ namespace Eval::NNUE::Layers {
 			constexpr IndexType Start = 0;
 #endif
 
-			for (IndexType i = Start; i < kInputDimensions; ++i) {
+			for (IndexType i = Start; i < InputDimensions; ++i) {
 				output[i] = static_cast<OutputType>(
 					std::min(127ll, ((long long)(input[i]) * input[i]) >> (2 * WeightScaleBits + 7)));
 			}
-			if constexpr (PaddedOutputDimensions > kOutputDimensions) {
-				std::fill(output + kOutputDimensions, output + PaddedOutputDimensions, OutputType{0});
+			if constexpr (PaddedOutputDimensions > OutputDimensions) {
+				std::fill(output + OutputDimensions, output + PaddedOutputDimensions, OutputType{0});
 			}
 		}
 
 		// SqrClippedReLUとClippedReLUをまとめて計算する。
 		// SFNNの後段入力は [sqr(input[0..n-2]), clip(input[0..n-2])] という連結なので、
 		// 1回の入力変換から両方の出力を作る。
-		void PropagatePair(const InputType* input, OutputType* sqrOut, OutputType* clipOut) const {
+		// Stockfishの現行実装とは出力配置が異なるため、連結配置と重なりを許す書き込み順を維持する。
+		void propagate_pair(const InputType* input, OutputType* sqrOut, OutputType* clipOut) const {
 			static_assert(WeightScaleBits == 6);
 			[[maybe_unused]] constexpr int SimdShiftAmount = 2 * WeightScaleBits + 7 - 16;
 
 #if defined(USE_AVX512)
-			if constexpr (kInputDimensions == 16)
+			if constexpr (InputDimensions == 16)
 			{
 				const __m512i x = _mm512_load_si512(reinterpret_cast<const __m512i*>(input));
 				const __m256i w = _mm512_cvtsepi32_epi16(x);
@@ -121,7 +120,7 @@ namespace Eval::NNUE::Layers {
 			}
 #endif
 #if defined(USE_AVX2)
-			if constexpr (kInputDimensions == 16)
+			if constexpr (InputDimensions == 16)
 			{
 				const auto in = reinterpret_cast<const __m256i*>(input);
 				__m256i w = _mm256_packs_epi32(_mm256_load_si256(&in[0]), _mm256_load_si256(&in[1]));
@@ -141,9 +140,9 @@ namespace Eval::NNUE::Layers {
 			}
 #endif
 #if defined(USE_SSE2)
-			if constexpr (kInputDimensions % 8 == 0)
+			if constexpr (InputDimensions % 8 == 0)
 			{
-				constexpr IndexType NumChunks = kInputDimensions / 8;
+				constexpr IndexType NumChunks = InputDimensions / 8;
 				const auto in = reinterpret_cast<const __m128i*>(input);
 
 				// 出力領域は重なりうるので、sqr側をすべて書いてからclip側を書く。
@@ -167,18 +166,17 @@ namespace Eval::NNUE::Layers {
 				return;
 			}
 #endif
-			for (IndexType i = 0; i < kInputDimensions; ++i)
+			for (IndexType i = 0; i < InputDimensions; ++i)
 				sqrOut[i] = static_cast<OutputType>(
 					std::min(127ll, ((long long)(input[i]) * input[i]) >> (2 * WeightScaleBits + 7)));
-			for (IndexType i = 0; i < kInputDimensions; ++i)
+			for (IndexType i = 0; i < InputDimensions; ++i)
 				clipOut[i] = static_cast<OutputType>(
 					std::clamp(input[i] >> WeightScaleBits, 0, 127));
 		}
 
 	};
 
-}  // namespace Eval::NNUE::Layers
-}  // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Layers
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

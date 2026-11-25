@@ -441,7 +441,7 @@ class AffineTransformExplicit {
 
         // Fused path for SFNN's tiny tail: Affine(14->64) -> ClippedReLU(64)
         // -> Affine(64->1).  This avoids writing and re-reading the 64-byte
-        // activation buffer while preserving ClippedReLUExplicit's byte order.
+        // activation buffer while preserving ClippedReLU's byte order.
         void PropagateClippedReLUToOutput(
             const InputType* input,
             const AffineTransformExplicit<kOutputDimensions, 1>& next_layer,

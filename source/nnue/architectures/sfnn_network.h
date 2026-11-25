@@ -16,7 +16,7 @@
 #include "../layers/affine_transform_common_shard_input_explicit.h"
 #include "../layers/affine_transform_explicit.h"
 #include "../layers/affine_transform_sparse_input_explicit.h"
-#include "../layers/clipped_relu_explicit.h"
+#include "../layers/clipped_relu.h"
 #include "../layers/sqr_clipped_relu.h"
 
 #include <algorithm>
@@ -36,7 +36,7 @@ struct alignas(CacheLineSize) SfnnNetworkBuffer<Fc0Layer, Hidden1Dims, Hidden2Di
 	alignas(CacheLineSize) typename Layers::SqrClippedReLU<Hidden1Dims>::OutputType
 	    ac_sqr_0_out[ceil_to_multiple<IndexType>(Hidden1Dims * 2, 32)];
 	alignas(CacheLineSize) typename Layers::AffineTransformExplicit<Hidden1Dims * 2, Hidden2Dims>::OutputBuffer fc_1_out;
-	alignas(CacheLineSize) typename Layers::ClippedReLUExplicit<Hidden2Dims>::OutputBuffer ac_1_out;
+	alignas(CacheLineSize) typename Layers::ClippedReLU<Hidden2Dims>::OutputBuffer ac_1_out;
 	alignas(CacheLineSize) typename Layers::AffineTransformExplicit<Hidden2Dims, 1>::OutputBuffer fc_2_out;
 };
 
@@ -50,10 +50,10 @@ template <typename Fc0Layer, IndexType InputDims, IndexType Hidden1Dims, IndexTy
           bool UseShortcut = (Hidden1Dims % 8 == 7)>
 struct SfnnNetwork {
 	Fc0Layer fc_0;
-	Layers::ClippedReLUExplicit<Hidden1Dims> ac_0;
+	Layers::ClippedReLU<Hidden1Dims> ac_0;
 	Layers::SqrClippedReLU<Hidden1Dims> ac_sqr_0;
 	Layers::AffineTransformExplicit<Hidden1Dims * 2, Hidden2Dims> fc_1;
-	Layers::ClippedReLUExplicit<Hidden2Dims> ac_1;
+	Layers::ClippedReLU<Hidden2Dims> ac_1;
 	Layers::AffineTransformExplicit<Hidden2Dims, 1> fc_2;
 
 	using OutputType = i32;
@@ -84,20 +84,20 @@ struct SfnnNetwork {
 
 	Tools::Result ReadParameters(std::istream& stream) {
 		bool result = fc_0.ReadParameters(stream).is_ok()
-			&& ac_0.ReadParameters(stream).is_ok()
-			&& ac_sqr_0.ReadParameters(stream).is_ok()
+			&& ac_0.read_parameters(stream)
+			&& ac_sqr_0.read_parameters(stream)
 			&& fc_1.ReadParameters(stream).is_ok()
-			&& ac_1.ReadParameters(stream).is_ok()
+			&& ac_1.read_parameters(stream)
 			&& fc_2.ReadParameters(stream).is_ok();
 		return result ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
 
 	bool WriteParameters(std::ostream& stream) const {
 		return fc_0.WriteParameters(stream)
-			&& ac_0.WriteParameters(stream)
-			&& ac_sqr_0.WriteParameters(stream)
+			&& ac_0.write_parameters(stream)
+			&& ac_sqr_0.write_parameters(stream)
 			&& fc_1.WriteParameters(stream)
-			&& ac_1.WriteParameters(stream)
+			&& ac_1.write_parameters(stream)
 			&& fc_2.WriteParameters(stream);
 	}
 
@@ -117,7 +117,7 @@ struct SfnnNetwork {
 
 	void MakeHidden1Input(const typename decltype(fc_0)::OutputType* input,
 	                      typename decltype(ac_sqr_0)::OutputType* output) const {
-		ac_sqr_0.PropagatePair(input, output, output + kHidden1Dims);
+		ac_sqr_0.propagate_pair(input, output, output + kHidden1Dims);
 		std::fill(output + kHidden1Dims * 2,
 		          output + ceil_to_multiple<IndexType>(kHidden1Dims * 2, 32),
 		          typename decltype(ac_sqr_0)::OutputType{0});
@@ -164,7 +164,7 @@ struct SfnnNetwork {
 		} else {
 			MakeHidden1Input(buf.fc_0_out, buf.ac_sqr_0_out);
 			fc_1.Propagate(buf.ac_sqr_0_out, buf.fc_1_out);
-			ac_1.Propagate(buf.fc_1_out, buf.ac_1_out);
+			ac_1.propagate(buf.fc_1_out, buf.ac_1_out);
 			fc_2.Propagate(buf.ac_1_out, buf.fc_2_out);
 		}
 
