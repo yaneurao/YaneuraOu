@@ -146,9 +146,8 @@ class FeatureTransformer {
 #endif
 
 #else
-		for (usize i = 0; i < HalfDimensions; ++i) biases[i] = read_little_endian<BiasType>(stream);
-		for (usize i = 0; i < HalfDimensions * InputDimensions; ++i)
-			weights[i] = read_little_endian<WeightType>(stream);
+		read_little_endian(stream, biases, HalfDimensions);
+		read_little_endian(stream, weights, HalfDimensions * InputDimensions);
 #endif
 		return !stream.fail();
 	}

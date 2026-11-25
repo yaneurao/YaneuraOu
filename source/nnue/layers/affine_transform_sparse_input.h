@@ -78,8 +78,7 @@ public:
         // Read network parameters
         // パラメーターを読み込む。既存の重みの並び替えを維持する。
         bool read_parameters(std::istream& stream) {
-                for (usize i = 0; i < OutputDimensions; ++i)
-                        biases[i] = read_little_endian<BiasType>(stream);
+                read_little_endian(stream, biases, OutputDimensions);
                 for (usize i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
                         weights[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
                 return !stream.fail();
@@ -647,8 +646,7 @@ class AffineTransformSparseInput {
 	// パラメータを読み込む
 	bool read_parameters(std::istream& stream) {
 		if (!previous_layer_.read_parameters(stream)) return false;
-		for (usize i = 0; i < OutputDimensions; ++i)
-			biases[i] = read_little_endian<BiasType>(stream);
+		read_little_endian(stream, biases, OutputDimensions);
 		for (usize i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
 			weights[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
 		return !stream.fail();

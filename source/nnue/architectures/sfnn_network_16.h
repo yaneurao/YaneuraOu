@@ -5,7 +5,6 @@
 #include "../nnue_common.h"
 #include <algorithm>
 #include <cstdint>
-#include <type_traits>
 
 namespace YaneuraOu::Eval::NNUE {
 
@@ -15,24 +14,19 @@ struct SfnnAffine16 {
     i32 biases[Outputs];
     i16 weights[Outputs][PaddedInputs];
 
-    bool Read(std::istream& stream) {
+    bool read_parameters(std::istream& stream) {
         read_little_endian(stream, biases, Outputs);
         for (auto& row : weights)
             read_little_endian(stream, row, PaddedInputs);
         return bool(stream);
     }
 
-    bool Write(std::ostream& stream) const {
-        // Explicit byte order also supports hosts that are not little-endian.
-        const auto write = [&](auto value) {
-            using U = std::make_unsigned_t<decltype(value)>;
-            const U bits = static_cast<U>(value);
-            for (usize i = 0; i < sizeof(value); ++i)
-                stream.put(static_cast<char>((bits >> (i * 8)) & 255));
-        };
-        for (auto value : biases) write(value);
+    bool write_parameters(std::ostream& stream) const {
+        // Use the common little-endian writer without changing the nn16 layout.
+        // 共通のlittle-endian書き込みを使い、nn16のデータ配置は変えない。
+        write_little_endian(stream, biases, Outputs);
         for (const auto& row : weights)
-            for (auto value : row) write(value);
+            write_little_endian(stream, row, PaddedInputs);
         return bool(stream);
     }
 
@@ -70,7 +64,7 @@ struct SfnnNetwork16 {
     static constexpr usize BufferSize = sizeof(Buffer);
     static constexpr u32 get_hash_value() { return 0x6333718Au; }
 
-    bool SetWeightScale(u32 qb) {
+    bool set_weight_scale(u32 qb) {
         if (qb < 64 || qb > 16384 || (qb & (qb - 1))) return false;
         weight_scale = qb;
         shift = 0;
@@ -79,16 +73,16 @@ struct SfnnNetwork16 {
     }
 
     bool read_parameters(std::istream& stream) {
-        return fc_0.Read(stream) && fc_1.Read(stream) && fc_2.Read(stream);
+        return fc_0.read_parameters(stream) && fc_1.read_parameters(stream) && fc_2.read_parameters(stream);
     }
     bool write_parameters(std::ostream& stream) const {
-        return fc_0.Write(stream) && fc_1.Write(stream) && fc_2.Write(stream);
+        return fc_0.write_parameters(stream) && fc_1.write_parameters(stream) && fc_2.write_parameters(stream);
     }
 
-    u8 Clipped(i64 z) const {
+    u8 clipped(i64 z) const {
         return u8(std::clamp<i64>(z / weight_scale, 0, 127));
     }
-    u8 Squared(i64 z) const {
+    u8 squared(i64 z) const {
         // Beyond this bound the result saturates. Inside it, z*z fits int64
         // even for QB=16384. This also handles INT64_MIN without negation.
         const i64 bound = i64(weight_scale) * 128;
@@ -100,12 +94,12 @@ struct SfnnNetwork16 {
         auto& b = *reinterpret_cast<Buffer*>(buffer);
         fc_0.propagate(input, b.first);
         for (IndexType i = 0; i < Hidden1Dims; ++i) {
-            b.first_activated[i] = Squared(b.first[i]);
-            b.first_activated[Hidden1Dims + i] = Clipped(b.first[i]);
+            b.first_activated[i] = squared(b.first[i]);
+            b.first_activated[Hidden1Dims + i] = clipped(b.first[i]);
         }
         fc_1.propagate(b.first_activated, b.second);
         for (IndexType i = 0; i < Hidden2Dims; ++i)
-            b.second_activated[i] = Clipped(b.second[i]);
+            b.second_activated[i] = clipped(b.second[i]);
         fc_2.propagate(b.second_activated, b.output);
         if constexpr (UseShortcut) b.output[0] += b.first[Hidden1Dims];
         // Restore the QB=64 units expected by FV_SCALE (truncate toward zero).

@@ -106,10 +106,10 @@ namespace Progress {
 
 		Tools::Result read_parameters(std::istream& stream);
 
-		i64 SumQ16(const Position& pos, AccumulatorState* state = nullptr) const;
-		int BucketIndex(const Position& pos, int bucket_count, AccumulatorState* state = nullptr) const;
+		i64 sum_q16(const Position& pos, AccumulatorState* state = nullptr) const;
+		int bucket_index(const Position& pos, int bucket_count, AccumulatorState* state = nullptr) const;
 
-		i32 weights_q16_[SQ_NB][Eval::fe_end] = {};
+		i32 weights_q16[SQ_NB][Eval::fe_end] = {};
 	};
 
 } // namespace Progress

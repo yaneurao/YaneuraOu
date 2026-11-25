@@ -138,8 +138,8 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
       network.featureTransformer.update_accumulator_if_possible(pos, current_state(), refreshTable);
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
       {
-      const auto progress = network.progress.SumQ16(pos, current_state());
-      if (progress != network.progress.SumQ16(pos)) {
+      const auto progress = network.progress.sum_q16(pos, current_state());
+      if (progress != network.progress.sum_q16(pos)) {
         std::cout << "test_accumulator FAILED incremental progress" << std::endl;
         return;
       }
@@ -188,8 +188,8 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
       network.featureTransformer.update_accumulator_if_possible(pos, current_state(), refreshTable);
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
       {
-      const auto progress = network.progress.SumQ16(pos, current_state());
-      if (progress != network.progress.SumQ16(pos)) {
+      const auto progress = network.progress.sum_q16(pos, current_state());
+      if (progress != network.progress.sum_q16(pos)) {
         std::cout << "test_accumulator FAILED incremental progress" << std::endl;
         return;
       }

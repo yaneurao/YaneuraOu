@@ -71,8 +71,7 @@ class AffineTransformCommonShardInputExplicit {
 	}
 
 	bool read_parameters(std::istream& stream) {
-		for (usize i = 0; i < OutputDimensions; ++i)
-			biases[i] = read_little_endian<BiasType>(stream);
+		read_little_endian(stream, biases, OutputDimensions);
 
 		WeightType zero{};
 		for (usize i = 0; i < OutputDimensions * kPaddedEffectiveInputDimensions; ++i)

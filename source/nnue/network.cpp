@@ -136,7 +136,7 @@ namespace {
 Tools::Result Parameters::read_parameters(std::istream& stream) {
 	static_assert(sizeof(double) == 8 && std::numeric_limits<double>::is_iec559);
 	static_assert(kWeightCount == 81 * 1548);
-	for (auto& row : weights_q16_)
+	for (auto& row : weights_q16)
 		for (auto& weight : row) {
 			const auto bits = read_little_endian<u64>(stream);
 			if (stream.fail()) return Tools::ResultCode::FileReadError;
@@ -153,7 +153,7 @@ Tools::Result Parameters::read_parameters(std::istream& stream) {
 	    ? Tools::ResultCode::Ok : Tools::ResultCode::FileMismatch;
 }
 
-i64 Parameters::SumQ16(const Position& pos, AccumulatorState* state) const {
+i64 Parameters::sum_q16(const Position& pos, AccumulatorState* state) const {
     if (state && state->progressParameters == this)
         return state->progressSum;
 	const auto sq_bk = pos.square<KING>(BLACK);
@@ -181,16 +181,16 @@ i64 Parameters::SumQ16(const Position& pos, AccumulatorState* state) const {
         for (auto* current = state; current != base; current = current->previous)
             for (int i = 0; i < current->dirtyPiece.count(); ++i) {
                 const auto change = current->dirtyPiece.change(i);
-                sum_q16 += i64(weights_q16_[sq_bk][change.new_piece.fb])
-                         - weights_q16_[sq_bk][change.old_piece.fb];
-                sum_q16 += i64(weights_q16_[sq_wk][change.new_piece.fw])
-                         - weights_q16_[sq_wk][change.old_piece.fw];
+                sum_q16 += i64(weights_q16[sq_bk][change.new_piece.fb])
+                         - weights_q16[sq_bk][change.old_piece.fb];
+                sum_q16 += i64(weights_q16[sq_wk][change.new_piece.fw])
+                         - weights_q16[sq_wk][change.old_piece.fw];
             }
     } else {
         // Add progress features directly from the board and hands without materializing a list.
         // 盤面と手駒から進行度の特徴量を直接加算し、中間の駒リストを作らない。
-        const auto* blackWeights = weights_q16_[sq_bk];
-        const auto* whiteWeights = weights_q16_[sq_wk];
+        const auto* blackWeights = weights_q16[sq_bk];
+        const auto* whiteWeights = weights_q16[sq_wk];
         int count = 0;
         Bitboard occupied = pos.pieces() ^ pos.pieces(KING);
         while (occupied) {
@@ -237,10 +237,10 @@ i64 Parameters::SumQ16(const Position& pos, AccumulatorState* state) const {
                 break;
             for (int i = 0; i < child->dirtyPiece.count(); ++i) {
                 const auto change = child->dirtyPiece.change(i);
-                parentSum -= i64(weights_q16_[sq_bk][change.new_piece.fb])
-                           - weights_q16_[sq_bk][change.old_piece.fb];
-                parentSum -= i64(weights_q16_[sq_wk][change.new_piece.fw])
-                           - weights_q16_[sq_wk][change.old_piece.fw];
+                parentSum -= i64(weights_q16[sq_bk][change.new_piece.fb])
+                           - weights_q16[sq_bk][change.old_piece.fb];
+                parentSum -= i64(weights_q16[sq_wk][change.new_piece.fw])
+                           - weights_q16[sq_wk][change.old_piece.fw];
             }
             parent->progressSum = parentSum;
             parent->progressParameters = this;
@@ -250,12 +250,12 @@ i64 Parameters::SumQ16(const Position& pos, AccumulatorState* state) const {
     return sum_q16;
 }
 
-int Parameters::BucketIndex(const Position& pos, int bucket_count, AccumulatorState* state) const {
+int Parameters::bucket_index(const Position& pos, int bucket_count, AccumulatorState* state) const {
 	if (bucket_count <= 1)
 		return 0;
 
 	ASSERT_LV1(bucket_count == NNUE_SFNN_PROGRESS_BUCKETS);
-	return bucket_from_sum_q16(SumQ16(pos, state));
+	return bucket_from_sum_q16(sum_q16(pos, state));
 }
 
 } // namespace Progress
@@ -265,7 +265,7 @@ int Parameters::BucketIndex(const Position& pos, int bucket_count, AccumulatorSt
     const char* const kFileName = EvalFileDefaultName;
 
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
-    static std::string Nn16Architecture(u32 qb) {
+    static std::string nn16_architecture(u32 qb) {
         return "ModelType=SFNNWithoutPsqt;Features=" + FeatureTransformer::GetStructureString()
             + ",Network=SFNN-" + std::to_string(Network::kInputDims)
             + "{LayerStack=" + std::to_string(kLayerStacks)
@@ -316,7 +316,7 @@ namespace {
 
 	// テンポラリにパラメータを読み込み、共有メモリに配置する。
 	// 同じパラメータを持つ他プロセスが既に共有メモリを作成済みなら、そちらを参照する。
-	Tools::Result LoadAndShare(
+	Tools::Result load_and_share(
         LazyNumaReplicatedSystemWide<NnueNetworks>& network, [[maybe_unused]] const OptionsMap& options,
         std::istream& stream, [[maybe_unused]] std::string* failed_file) {
 		// テンポラリ領域にパラメータを読み込む
@@ -330,13 +330,13 @@ namespace {
         const auto qb = read_little_endian<u32>(stream);
         if (!stream) return Tools::ResultCode::FileReadError;
         for (auto& network : tmp->network)
-            if (!network.SetWeightScale(qb)) {
+            if (!network.set_weight_scale(qb)) {
                 sync_cout << "info string Invalid nn16 QB: " << qb << sync_endl;
                 return Tools::ResultCode::FileMismatch;
             }
-        if (hashValue != kHashValue || architecture != Nn16Architecture(qb)) {
+        if (hashValue != kHashValue || architecture != nn16_architecture(qb)) {
             sync_cout << "info string nn16 architecture mismatch: " << architecture
-                      << " expected " << Nn16Architecture(qb) << sync_endl;
+                      << " expected " << nn16_architecture(qb) << sync_endl;
             return Tools::ResultCode::FileMismatch;
         }
 #endif
@@ -421,7 +421,7 @@ namespace {
     Tools::Result read_parameters(
         LazyNumaReplicatedSystemWide<NnueNetworks>& network, const OptionsMap& options,
         std::istream& stream, std::string* failed_file) {
-        return LoadAndShare(
+        return load_and_share(
           network, options,
           stream, failed_file);
     }
@@ -429,7 +429,7 @@ namespace {
     bool write_parameters(const NnueNetworks& network, std::ostream& stream) {
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
         const auto qb = network.network[0].weight_scale;
-        if (!write_header(stream, kHashValue, Nn16Architecture(qb))) return false;
+        if (!write_header(stream, kHashValue, nn16_architecture(qb))) return false;
         for (int i = 0; i < 4; ++i)
             stream.put(static_cast<char>((qb >> (8 * i)) & 255));
 #else
@@ -726,7 +726,7 @@ namespace {
 #if NNUE_SFNN_PROGRESS_BUCKETS == 1
         return 0;
 #else
-        return network.progress.BucketIndex(pos, NNUE_SFNN_PROGRESS_BUCKETS, state);
+        return network.progress.bucket_index(pos, NNUE_SFNN_PROGRESS_BUCKETS, state);
 #endif
     }
 
@@ -779,7 +779,7 @@ namespace {
 #endif
 
     // 評価値を計算する
-    static Value ComputeScore(const NnueNetworks& network, const Position& pos,
+    static Value compute_score(const NnueNetworks& network, const Position& pos,
                               AccumulatorState* state, AccumulatorCaches& refreshTable, bool refresh = false) {
         alignas(CacheLineSize) char buffer[Network::BufferSize];
 #if defined(EVAL_SFNN)
@@ -906,11 +906,11 @@ Value evaluate(const NNUE::NnueNetworks& network, const Position& pos) {
     // Standalone evaluations rebuild directly without allocating a per-worker cache.
     // 探索外の評価は直接再構築し、Worker用のFinnyキャッシュを確保しない。
     NNUE::AccumulatorCaches refreshTable;
-    return NNUE::ComputeScore(network, pos, &state, refreshTable);
+    return NNUE::compute_score(network, pos, &state, refreshTable);
 }
 
 Value evaluate(const NNUE::NnueNetworks& network, const Position& pos, NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable) {
-    return NNUE::ComputeScore(network, pos, &stack.latest(), refreshTable);
+    return NNUE::compute_score(network, pos, &stack.latest(), refreshTable);
 }
 
 #if defined(EVAL_NNUE)

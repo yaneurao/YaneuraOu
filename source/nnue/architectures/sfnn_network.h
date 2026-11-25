@@ -98,7 +98,7 @@ struct SfnnNetwork {
 			&& fc_2.write_parameters(stream);
 	}
 
-	static typename decltype(ac_0)::OutputType ClippedReLUValue(i32 value) {
+	static typename decltype(ac_0)::OutputType clipped_relu_value(i32 value) {
 		const auto shifted = value >> WeightScaleBits;
 		if (shifted <= 0)
 			return 0;
@@ -120,7 +120,7 @@ struct SfnnNetwork {
 		          typename decltype(ac_sqr_0)::OutputType{0});
 	}
 
-	static void MakeHidden1InputPacked(const typename decltype(fc_0)::OutputType* input,
+	static void make_hidden1_input_packed(const typename decltype(fc_0)::OutputType* input,
 	                                   u32* output) {
 		constexpr IndexType kPackedWords = ceil_to_multiple<IndexType>(kHidden1Dims * 2, 8) / 4;
 		if constexpr (kHidden1Dims == 7) {
@@ -131,13 +131,13 @@ struct SfnnNetwork {
 			const auto s4 = static_cast<u32>(sqr_clipped_relu_value(input[4]));
 			const auto s5 = static_cast<u32>(sqr_clipped_relu_value(input[5]));
 			const auto s6 = static_cast<u32>(sqr_clipped_relu_value(input[6]));
-			const auto c0 = static_cast<u32>(ClippedReLUValue(input[0]));
-			const auto c1 = static_cast<u32>(ClippedReLUValue(input[1]));
-			const auto c2 = static_cast<u32>(ClippedReLUValue(input[2]));
-			const auto c3 = static_cast<u32>(ClippedReLUValue(input[3]));
-			const auto c4 = static_cast<u32>(ClippedReLUValue(input[4]));
-			const auto c5 = static_cast<u32>(ClippedReLUValue(input[5]));
-			const auto c6 = static_cast<u32>(ClippedReLUValue(input[6]));
+			const auto c0 = static_cast<u32>(clipped_relu_value(input[0]));
+			const auto c1 = static_cast<u32>(clipped_relu_value(input[1]));
+			const auto c2 = static_cast<u32>(clipped_relu_value(input[2]));
+			const auto c3 = static_cast<u32>(clipped_relu_value(input[3]));
+			const auto c4 = static_cast<u32>(clipped_relu_value(input[4]));
+			const auto c5 = static_cast<u32>(clipped_relu_value(input[5]));
+			const auto c6 = static_cast<u32>(clipped_relu_value(input[6]));
 			output[0] = s0 | (s1 << 8) | (s2 << 16) | (s3 << 24);
 			output[1] = s4 | (s5 << 8) | (s6 << 16) | (c0 << 24);
 			output[2] = c1 | (c2 << 8) | (c3 << 16) | (c4 << 24);
@@ -148,7 +148,7 @@ struct SfnnNetwork {
 			for (IndexType i = 0; i < kHidden1Dims; ++i)
 				bytes[i] = sqr_clipped_relu_value(input[i]);
 			for (IndexType i = 0; i < kHidden1Dims; ++i)
-				bytes[kHidden1Dims + i] = ClippedReLUValue(input[i]);
+				bytes[kHidden1Dims + i] = clipped_relu_value(input[i]);
 		}
 	}
 
@@ -156,7 +156,7 @@ struct SfnnNetwork {
 	const OutputType* propagate_tail(BufferType& buf) const {
 		if constexpr (kUsePackedTail) {
 			u32 ac_sqr_0_packed[ceil_to_multiple<IndexType>(kHidden1Dims * 2, 8) / 4];
-			MakeHidden1InputPacked(buf.fc_0_out, ac_sqr_0_packed);
+			make_hidden1_input_packed(buf.fc_0_out, ac_sqr_0_packed);
 			fc_1.propagate_clipped_relu_packed_to_output(ac_sqr_0_packed, fc_2, buf.fc_2_out);
 		} else {
 			make_hidden1_input(buf.fc_0_out, buf.ac_sqr_0_out);

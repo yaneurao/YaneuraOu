@@ -228,8 +228,7 @@ class AffineTransform {
         // Read network parameters
         // パラメーターを読み込む。重みの並び替えと融合計算用の複製は従来どおり行う。
         bool read_parameters(std::istream& stream) {
-                for (usize i = 0; i < OutputDimensions; ++i)
-                        biases[i] = read_little_endian<BiasType>(stream);
+                read_little_endian(stream, biases, OutputDimensions);
                 for (usize i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
                         weights[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
                 if constexpr (kHasClippedReLUPackedWeights) {
@@ -691,8 +690,7 @@ class AffineTransform {
 	// パラメータを読み込む
 	bool read_parameters(std::istream& stream) {
 		if (!previous_layer_.read_parameters(stream)) return false;
-		for (usize i = 0; i < OutputDimensions; ++i)
-			biases[i] = read_little_endian<BiasType>(stream);
+		read_little_endian(stream, biases, OutputDimensions);
 		for (usize i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
 			weights[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
 		return !stream.fail();
