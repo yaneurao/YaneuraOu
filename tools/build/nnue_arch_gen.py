@@ -36,25 +36,6 @@ original_arch : str = arch
 def strip_prefix_ci(text: str, prefix: str) -> str:
     return text[len(prefix):] if text.upper().startswith(prefix) else text
 
-SQ_NB = 81
-FILE_NB = 9
-FE_END = 1548
-F_KING = FE_END
-E_KING = F_KING + SQ_NB
-FE_END2 = E_KING + SQ_NB
-
-FEATURE_INFO = {
-    "halfkp": ("HalfKP(Friend)", 0x5D69D5B8, SQ_NB * FE_END),
-    "kp": ("K+P", 0, SQ_NB * 2 + FE_END),
-    "ka2": ("K+A2", 0, SQ_NB * 2 + E_KING),
-    "halfkpe9": ("HalfKPE9(Friend)", 0x5D69D5B8, SQ_NB * FE_END * 3 * 3),
-    "halfkpvm": ("HalfKP_vm(Friend)", 0x0B6B1D9A, 5 * FILE_NB * FE_END),
-    "halfka1": ("HalfKA1(Friend)", 0x5F134CB8, SQ_NB * FE_END2),
-    "halfkahm1": ("HalfKA_hm1(Friend)", 0x7F134CB8, 5 * FILE_NB * FE_END2),
-    "halfka2": ("HalfKA2(Friend)", 0x5F234CB8, SQ_NB * E_KING),
-    "halfkahm2": ("HalfKA_hm2(Friend)", 0x7F234CB8, 5 * FILE_NB * E_KING),
-}
-
 # makefileで指定したエディション名そのままかも知れないので削除。
 arch = strip_prefix_ci(arch, "YANEURAOU_ENGINE_")
 arch = strip_prefix_ci(arch, "NNUE_")
@@ -81,11 +62,6 @@ arch   = arch.replace('-','_')
 arch   = arch.upper()
 
 print(f"architecture name : {arch}")
-
-# if os.path.exists(out_path):
-#     print("Warning : file already exists. stop.")
-#     exit()
-#  🤔 ファイルがすでに存在していても上書きしたほうがいいと思う。
 
 arches = arch.split('_')
 if len(arches) <= 3 :
@@ -271,150 +247,50 @@ else:
 # ============================================================
 
 # アーキテクチャ名のアンダースコアでsplitした1つ目は入力特徴量。
-# 現在サポートしている入力特徴量は、
-#   halfkp
-#   kp
-#   ka2
-#   halfkpe9
-#   halfkpvm
-#   halfka1
-#   halfkahm1
-#   halfka2
-#   halfkahm2
-
 input_feature = arches[0].lower()
 
 print(f"input feature     : {input_feature}")
-
-raw_feature_name, raw_feature_hash, raw_feature_dims = FEATURE_INFO.get(input_feature, ("", 0, 0))
 
 header += f"""
     #include "../features/feature_set.h"
     """
 
-if input_feature == "halfkp":
-
-    header += f"""
-    #include "../features/half_kp.h"
-    """
-
-    raw_features = f"""
-        using RawFeatures = Features::FeatureSet<
-            Features::HalfKP<Features::Side::kFriend>>;
-    """
-
-elif input_feature == "kp":
-
-    header += f"""
-    #include "../features/k.h"
-    #include "../features/p.h"
-    """
-
-    raw_features = f"""
-        using RawFeatures = Features::FeatureSet<Features::K, Features::P>;
-    """
-
-elif input_feature == "ka2":
-
-    header += f"""
-    #include "../features/k.h"
-    #include "../features/a2.h"
-    """
-
-    raw_features = f"""
-        using RawFeatures = Features::FeatureSet<Features::K, Features::A2>;
-    """
-
-elif input_feature == "halfkpe9":
-
-    header += f"""
-    #include "../features/half_kpe9.h"
-    """
-
-    raw_features = f"""
-        using RawFeatures = Features::FeatureSet<
-            Features::HalfKPE9<Features::Side::kFriend>>;
-    """
-
-elif input_feature == "halfkpvm":
-
-    header += f"""
-    #include "../features/half_kp_vm.h"
-    """
-
-    raw_features = f"""
-        using RawFeatures = Features::FeatureSet<
-            Features::HalfKP_vm<Features::Side::kFriend>>;
-    """
-
-elif input_feature == "halfka1":
-
-    header += f"""
-    #include "../features/half_ka1.h"
-    """
-
-    raw_features = f"""
-        using RawFeatures = Features::FeatureSet<
-            Features::HalfKA1<Features::Side::kFriend>>;
-    """
-
-elif input_feature == "halfkahm1":
-
-    header += f"""
-    #include "../features/half_ka_hm1.h"
-    """
-
-    raw_features = f"""
-        using RawFeatures = Features::FeatureSet<
-            Features::HalfKA_hm1<Features::Side::kFriend>>;
-    """
-
-elif input_feature == "halfka2":
-
-    header += f"""
-    #include "../features/half_ka2.h"
-    """
-
-    raw_features = f"""
-        using RawFeatures = Features::FeatureSet<
-            Features::HalfKA2<Features::Side::kFriend>>;
-    """
-
-elif input_feature == "halfkahm2":
-
-    header += f"""
-    #include "../features/half_ka_hm2.h"
-    """
-
-    raw_features = f"""
-        using RawFeatures = Features::FeatureSet<
-            Features::HalfKA_hm2<Features::Side::kFriend>>;
-    """
-
-else:
-    # 知らない入力特徴量だった。
+# 特徴量ごとの違いは、読み込むヘッダーとFeatureSetの型だけにまとめる。
+feature_definitions = {
+    "halfkp": (("half_kp.h",), "Features::HalfKP<Features::Side::kFriend>"),
+    "kp": (("k.h", "p.h"), "Features::K, Features::P"),
+    "ka2": (("k.h", "a2.h"), "Features::K, Features::A2"),
+    "halfkpe9": (("half_kpe9.h",), "Features::HalfKPE9<Features::Side::kFriend>"),
+    "halfkpvm": (("half_kp_vm.h",), "Features::HalfKP_vm<Features::Side::kFriend>"),
+    "halfka1": (("half_ka1.h",), "Features::HalfKA1<Features::Side::kFriend>"),
+    "halfkahm1": (("half_ka_hm1.h",), "Features::HalfKA_hm1<Features::Side::kFriend>"),
+    "halfka2": (("half_ka2.h",), "Features::HalfKA2<Features::Side::kFriend>"),
+    "halfkahm2": (("half_ka_hm2.h",), "Features::HalfKA_hm2<Features::Side::kFriend>"),
+}
+if input_feature not in feature_definitions:
     print(f"Error : input feature {input_feature} is not supported.")
     raise SystemExit(1)
+
+feature_headers, feature_types = feature_definitions[input_feature]
+for feature_header in feature_headers:
+    header += f'#include "../features/{feature_header}"\n'
+raw_features = f"""
+        using RawFeatures = Features::FeatureSet<{feature_types}>;
+    """
 
 if SFNN:
     header += """
     #include "sfnn_network.h"
-
-    namespace YaneuraOu {
-    namespace Eval::NNUE {
-
-    // Input features used in evaluation function
-    // 評価関数で用いる入力特徴量
     """
-
-else:    
-
+else:
     header += """
     #include "../layers/input_slice.h"
     #include "../layers/affine_transform.h"
     #include "../layers/affine_transform_sparse_input.h"
     #include "../layers/clipped_relu.h"
+    """
 
+header += """
     namespace YaneuraOu {
     namespace Eval::NNUE {
 
@@ -469,14 +345,16 @@ if SFNN:
 
     small_sfnn_ft_macro = ""
     if int(layers[0]) < 128:
-        small_sfnn_ft_macro = "#define NNUE_SMALL_SFNN_FT"
+        small_sfnn_ft_macro = """
+        // 小幅SFNN専用。従来幅のSFNNでは定義せず、既存の高速経路をそのまま使う。
+        #define NNUE_SMALL_SFNN_FT
+        """
 
     header += f"""
         // Number of input feature dimensions after conversion
         // 変換後の入力特徴量の次元数
         constexpr IndexType kTransformedFeatureDimensions = {layers[0]};
 
-        // 小幅SFNN専用。従来幅のSFNNでは定義せず、既存の高速経路をそのまま使う。
         {small_sfnn_ft_macro}
 
         // Number of networks stored in the evaluation file
@@ -545,16 +423,8 @@ if SFNN:
     enable_common_shard_sfnn_accumulator_propagate = (
         sfnn_common_shard and group_count % 2 == 0 and group_input_dims % 64 == 0
     )
-    enable_sparse_sfnn_accumulator_propagate = (
-        False
-        and not sfnn_common_shard
-        and hidden1_output_dims == 8
-        and int(layers[0]) % 128 == 0
-    )
     sfnn_accumulator_propagate_macro = ""
     if enable_common_shard_sfnn_accumulator_propagate:
-        sfnn_accumulator_propagate_macro = "#define NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE"
-    elif enable_sparse_sfnn_accumulator_propagate:
         sfnn_accumulator_propagate_macro = "#define NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE"
 
     if not sfnn_common_shard and hidden1_output_dims == 16 and int(layers[0]) % 128 == 0:
@@ -562,6 +432,14 @@ if SFNN:
         #if defined(NNUE_SFNN_FUSED_FT)
         #define NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE
         #define NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE
+        #endif
+        """
+
+    # 有効な定義がある場合だけ条件分岐を出力し、空の#ifを生成しない。
+    if sfnn_accumulator_propagate_macro:
+        sfnn_accumulator_propagate_macro = f"""
+        #if !defined(ENABLE_SFNN_16BIT_WEIGHT)
+        {sfnn_accumulator_propagate_macro}
         #endif
         """
 
@@ -574,9 +452,7 @@ if SFNN:
     )
 
     header += f"""
-        #if !defined(ENABLE_SFNN_16BIT_WEIGHT)
         {sfnn_accumulator_propagate_macro}
-        #endif
 
         using Fc0Layer = {fc_0_type};
         #if defined(ENABLE_SFNN_16BIT_WEIGHT)
