@@ -14,7 +14,7 @@
 #include "sfnn_network_16.h"
 #endif
 #include "../layers/affine_transform_common_shard_input_explicit.h"
-#include "../layers/affine_transform_sparse_input_explicit.h"
+#include "../layers/affine_transform_sparse_input.h"
 #include "../layers/clipped_relu.h"
 #include "../layers/sqr_clipped_relu.h"
 
@@ -82,7 +82,7 @@ struct SfnnNetwork {
 	}
 
 	Tools::Result ReadParameters(std::istream& stream) {
-		bool result = fc_0.ReadParameters(stream).is_ok()
+		bool result = fc_0.read_parameters(stream)
 			&& ac_0.read_parameters(stream)
 			&& ac_sqr_0.read_parameters(stream)
 			&& fc_1.read_parameters(stream)
@@ -92,7 +92,7 @@ struct SfnnNetwork {
 	}
 
 	bool WriteParameters(std::ostream& stream) const {
-		return fc_0.WriteParameters(stream)
+		return fc_0.write_parameters(stream)
 			&& ac_0.write_parameters(stream)
 			&& ac_sqr_0.write_parameters(stream)
 			&& fc_1.write_parameters(stream)
@@ -174,7 +174,7 @@ struct SfnnNetwork {
 
 	const OutputType* Propagate(const TransformedFeatureType* transformedFeatures, char* buffer) const {
 		auto& buf = *reinterpret_cast<Buffer*>(buffer);
-		fc_0.Propagate(transformedFeatures, buf.fc_0_out);
+		fc_0.propagate(transformedFeatures, buf.fc_0_out);
 		return PropagateTail(buf);
 	}
 
@@ -186,7 +186,7 @@ struct SfnnNetwork {
 		auto& buf = *reinterpret_cast<Buffer*>(buffer);
 #if defined(NNUE_SFNN_FUSED_FT)
 		if constexpr (kHidden1OutputDims == 16
-		              && std::is_same_v<Fc0Layer, Layers::AffineTransformSparseInputExplicit<kInputDims, 16>>)
+		              && std::is_same_v<Fc0Layer, Layers::AffineTransformSparseInput<kInputDims, 16>>)
 			fc_0.template PropagateSfnn16FromAccumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
 		else
 			fc_0.template PropagateSfnnFromAccumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);

@@ -19,7 +19,7 @@ namespace Eval::NNUE::Layers {
 //
 // The on-disk nn.bin layout is kept compatible with the ordinary SFNN fc_0:
 //   bias[OutputDimensions], weight[OutputDimensions][pad(InputDimensions)].
-// During ReadParameters(), only common weights and the selected shard weights
+// During read_parameters(), only common weights and the selected shard weights
 // for each output are kept in memory.
 template <IndexType InputDimensions,
           IndexType OutputDimensions,
@@ -71,7 +71,7 @@ class AffineTransformCommonShardInputExplicit {
 		       + std::to_string(kShardGroupCount) + "]";
 	}
 
-	Tools::Result ReadParameters(std::istream& stream) {
+	bool read_parameters(std::istream& stream) {
 		for (usize i = 0; i < kOutputDimensions; ++i)
 			biases_[i] = read_little_endian<BiasType>(stream);
 
@@ -94,10 +94,10 @@ class AffineTransformCommonShardInputExplicit {
 			}
 		}
 
-		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
+		return !stream.fail();
 	}
 
-	bool WriteParameters(std::ostream& stream) const {
+	bool write_parameters(std::ostream& stream) const {
 		stream.write(reinterpret_cast<const char*>(biases_), kOutputDimensions * sizeof(BiasType));
 
 		for (IndexType out = 0; out < kOutputDimensions; ++out) {
@@ -171,7 +171,7 @@ class AffineTransformCommonShardInputExplicit {
 	}
 #endif
 
-	void Propagate(const InputType* input, OutputType* output) const {
+	void propagate(const InputType* input, OutputType* output) const {
 #if defined(USE_AVX512)
 		{
 			const auto common_input_vectors = reinterpret_cast<const __m512i*>(input);

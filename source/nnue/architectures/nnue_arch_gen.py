@@ -534,7 +534,7 @@ else:
 # ============================================================
 
 if SFNN:
-    fc_0_type = "Layers::AffineTransformSparseInputExplicit<kInputDims, kHidden1OutputDims>"
+    fc_0_type = "Layers::AffineTransformSparseInput<kInputDims, kHidden1OutputDims>"
     group_count = int(sfnn_group_count)
     if sfnn_common_shard:
         fc_0_type = "Layers::AffineTransformCommonShardInputExplicit<kInputDims, kHidden1OutputDims, kHidden1CommonDimensions, kHidden1ShardDimensions, kHidden1GroupCount>"
