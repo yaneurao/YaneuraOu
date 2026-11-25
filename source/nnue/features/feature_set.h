@@ -16,44 +16,38 @@
 namespace YaneuraOu {
 namespace Eval::NNUE::Features {
 
-// Class template that represents a list of values
-// 値のリストを表すクラステンプレート
-template <typename T, T... Values>
-struct CompileTimeList {
-  static constexpr bool Contains(T value) {
-    // The empty pack folds to false, so a separate empty-list specialization is unnecessary.
-    // 空のパックではfalseになるため、空リスト用の特殊化は不要。
-    return ((value == Values) || ...);
-  }
-  static constexpr std::array<T, sizeof...(Values)> kValues = {{Values...}};
-};
-
-// リストの先頭への追加を行うクラステンプレート
-template <typename T, typename ListType, T Value>
-struct AppendToList;
-template <typename T, T... Values, T AnotherValue>
-struct AppendToList<T, CompileTimeList<T, Values...>, AnotherValue> {
-  using Result = CompileTimeList<T, AnotherValue, Values...>;
-};
-
-// ソートされた重複のないリストへの追加を行うクラステンプレート
-template <typename T, typename ListType, T Value>
-struct InsertToSet;
-template <typename T, T First, T... Remaining, T AnotherValue>
-struct InsertToSet<T, CompileTimeList<T, First, Remaining...>, AnotherValue> {
-  using Result = std::conditional_t<
-      CompileTimeList<T, First, Remaining...>::Contains(AnotherValue),
-      CompileTimeList<T, First, Remaining...>,
-      std::conditional_t<(AnotherValue < First),
-          CompileTimeList<T, AnotherValue, First, Remaining...>,
-          typename AppendToList<T, typename InsertToSet<
-              T, CompileTimeList<T, Remaining...>, AnotherValue>::Result,
-              First>::Result>>;
-};
-template <typename T, T Value>
-struct InsertToSet<T, CompileTimeList<T>, Value> {
-  using Result = CompileTimeList<T, Value>;
-};
+// Sort and deduplicate refresh triggers at compile time.
+// 全計算が必要になる条件をコンパイル時に昇順へ並べ、重複を除く。
+// 配列の長さも従来どおり異なる条件の数とし、累積値やFinny Tablesの配置を維持する。
+template<TriggerEvent... Triggers>
+constexpr auto make_refresh_triggers() {
+  constexpr auto sorted = []() {
+    std::array<TriggerEvent, sizeof...(Triggers)> values{{Triggers...}};
+    for (usize i = 1; i < values.size(); ++i) {
+      const auto value = values[i];
+      usize j = i;
+      while (j > 0 && value < values[j - 1]) {
+        values[j] = values[j - 1];
+        --j;
+      }
+      values[j] = value;
+    }
+    return values;
+  }();
+  constexpr usize count = [&]() {
+    usize size = 0;
+    for (usize i = 0; i < sorted.size(); ++i)
+      if (i == 0 || sorted[i] != sorted[i - 1])
+        ++size;
+    return size;
+  }();
+  std::array<TriggerEvent, count> result{};
+  usize size = 0;
+  for (usize i = 0; i < sorted.size(); ++i)
+    if (i == 0 || sorted[i] != sorted[i - 1])
+      result[size++] = sorted[i];
+  return result;
+}
 
 // Base class of feature set
 // 特徴量セットの基底クラス
@@ -135,9 +129,8 @@ class FeatureSet<FirstFeatureType, RemainingFeatureTypes...> :
   static constexpr IndexType MaxActiveDimensions =
       Head::MaxActiveDimensions + Tail::MaxActiveDimensions;
   // 差分計算の代わりに全計算を行うタイミングのリスト
-  using SortedTriggerSet = typename InsertToSet<TriggerEvent,
-      typename Tail::SortedTriggerSet, Head::kRefreshTrigger>::Result;
-  static constexpr auto kRefreshTriggers = SortedTriggerSet::kValues;
+  static constexpr auto kRefreshTriggers =
+      make_refresh_triggers<Head::kRefreshTrigger, RemainingFeatureTypes::kRefreshTrigger...>();
 
   // 特徴量名を取得する
   static std::string GetName() {
@@ -205,9 +198,7 @@ class FeatureSet<FeatureType> : public FeatureSetBase<FeatureSet<FeatureType>> {
 
   // Trigger for full calculation instead of difference calculation
   // 差分計算の代わりに全計算を行うタイミングのリスト
-  using SortedTriggerSet =
-      CompileTimeList<TriggerEvent, FeatureType::kRefreshTrigger>;
-  static constexpr auto kRefreshTriggers = SortedTriggerSet::kValues;
+  static constexpr std::array<TriggerEvent, 1> kRefreshTriggers{{FeatureType::kRefreshTrigger}};
 
   // 特徴量名を取得する
   static std::string GetName() {
