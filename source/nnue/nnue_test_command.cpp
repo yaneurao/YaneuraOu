@@ -1,17 +1,30 @@
 ﻿// NNUE評価関数に関するUSI拡張コマンド
 
 #include "../config.h"
-#include "../extra/tools.h"
 
 #if defined(ENABLE_TEST_CMD) && (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
-#include "../extra/all.h"
-#include "network.h"
 #include "nnue_test_command.h"
 
-#include <set>
+#include <algorithm>
 #include <cstring>
+#include <fstream>
+#include <iostream>
 #include <memory>
+#include <set>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+#include "../engine.h"
+#include "../evaluate.h"
+#include "../extra/tools.h"
+#include "../misc.h"
+#include "../movegen.h"
+#include "../position.h"
+#include "../types.h"
+#include "network.h"
+#include "nnue_accumulator.h"
 
 namespace YaneuraOu {
 namespace Eval::NNUE {
@@ -20,7 +33,8 @@ namespace {
 
 // Check the actual int16 accumulator, not only the rounded final score.
 // Exercise both perspectives, promotions, captures, fallback paths and undo.
-void TestAccumulator(const Network& network, std::istream& stream) {
+// 丸めた最終評価値だけでなく16bitのFT累積値を比較し、両視点・成り・捕獲・全計算への切り替え・undoを検証する。
+void test_accumulator(const Network& network, std::istream& stream) {
   int games = 100;
   stream >> games;
   if (games <= 0) {
@@ -147,6 +161,7 @@ void TestAccumulator(const Network& network, std::istream& stream) {
 #endif
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE)
       // Check raw fc_0 outputs, including values hidden by FV_SCALE rounding.
+      // FV_SCALEで丸めると見えなくなる差も検出できるよう、fc_0の生の出力を比較する。
       alignas(CacheLineSize) TransformedFeatureType features[FeatureTransformer::BufferSize];
       network.featureTransformer.transform(pos, features, false, current_state(), refreshTable);
       const auto& fc = network.network[moves % kLayerStacks].fc_0;
@@ -226,7 +241,7 @@ void TestAccumulator(const Network& network, std::istream& stream) {
 }
 
 // 主に差分計算に関するRawFeaturesのテスト
-void TestFeatures(Position&) {
+void test_features() {
   Position pos;
   const u64 num_games = 1000;
 
@@ -349,7 +364,7 @@ void TestFeatures(Position&) {
 }
 
 // 評価関数の構造を表す文字列を出力する
-void PrintInfo(std::istream& stream) {
+void print_info(std::istream& stream) {
   std::cout << "network architecture: " << get_architecture_string() << std::endl;
 
   while (true) {
@@ -386,18 +401,17 @@ void PrintInfo(std::istream& stream) {
 
 // NNUE評価関数に関するUSI拡張コマンド
 void TestCommand(IEngine& engine, std::istream& stream) {
-  Position& pos = engine.get_position();
   std::string sub_command;
   stream >> sub_command;
 
   if (sub_command == "test_features") {
-    TestFeatures(pos);
+    test_features();
   } else if (sub_command == "test_accumulator") {
-    TestAccumulator(
+    test_accumulator(
       engine.get_network(),
       stream);
   } else if (sub_command == "info") {
-    PrintInfo(stream);
+    print_info(stream);
   } else {
     std::cout << "usage:" << std::endl;
     std::cout << " test nn test_features" << std::endl;
