@@ -259,30 +259,35 @@ int Parameters::bucket_index(const Position& pos, int bucket_count, AccumulatorS
     }
 
 namespace {
-	namespace Detail {
+namespace Detail {
 
-		// 評価関数パラメータを読み込む（参照版）
-		template <typename T>
-		Tools::Result read_parameters(std::istream& stream, T& obj) {
-			u32 header;
-			read_little_endian(stream, &header, 1);
-			if (!stream) return Tools::ResultCode::FileReadError;
-			// hash値、古い評価関数ファイルに対して一致するとは限らないので、警告に変更する。
-			if (header != T::get_hash_value())
-				sync_cout << "info string Warning : nn.bin hash mismatch." << sync_endl;
-			// 層内部はStockfishと同じboolを返し、ファイル読み込み境界で従来のエラー種別へ戻す。
-			return obj.read_parameters(stream) ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
-		}
+// Read evaluation function parameters
+// 評価関数パラメータを読み込む（参照版）
+template<typename T>
+Tools::Result read_parameters(std::istream& stream, T& reference) {
 
-		// 評価関数パラメータを書き込む（参照版）
-		template <typename T>
-		bool write_parameters(std::ostream& stream, const T& obj) {
-			constexpr u32 header = T::get_hash_value();
-			write_little_endian(stream, header);
-			return obj.write_parameters(stream);
-		}
+    u32 header;
+    read_little_endian(stream, &header, 1);
+    if (!stream)
+        return Tools::ResultCode::FileReadError;
+    // Stockfish rejects a hash mismatch; keep the warning for older shogi evaluation files.
+    // Stockfishは不一致をエラーにするが、古い将棋用評価関数との互換性のため警告として扱う。
+    if (header != T::get_hash_value())
+        sync_cout << "info string Warning : nn.bin hash mismatch." << sync_endl;
+    // 層内部はStockfishと同じboolを返し、ファイル読み込み境界で従来のエラー種別へ戻す。
+    return reference.read_parameters(stream) ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
+}
 
-	}  // namespace Detail
+// Write evaluation function parameters
+// 評価関数パラメータを書き込む（参照版）
+template<typename T>
+bool write_parameters(std::ostream& stream, const T& reference) {
+
+    write_little_endian<u32>(stream, T::get_hash_value());
+    return reference.write_parameters(stream);
+}
+
+}  // namespace Detail
 
 	// テンポラリにパラメータを読み込み、共有メモリに配置する。
 	// 同じパラメータを持つ他プロセスが既に共有メモリを作成済みなら、そちらを参照する。
@@ -318,7 +323,7 @@ namespace {
 				<< sync_endl;
 		}
 
-		result = Detail::read_parameters<FeatureTransformer>(stream, tmp->featureTransformer);
+		result = Detail::read_parameters(stream, tmp->featureTransformer);
 		if (result.is_not_ok()) {
 			sync_cout << "info string NNUE feature params read failed: " << result.to_string() << sync_endl;
 			return result;
@@ -339,7 +344,7 @@ namespace {
 		}
 #endif
 		for (int i = 0; i < kLayerStacks; ++i) {
-			result = Detail::read_parameters<NetworkArchitecture>(stream, tmp->network[i]);
+			result = Detail::read_parameters(stream, tmp->network[i]);
 			if (result.is_not_ok()) {
 				sync_cout << "info string NNUE network params read failed at stack " << i << ": " << result.to_string() << sync_endl;
 				return result;
@@ -414,9 +419,9 @@ namespace {
 #else
         if (!write_header(stream, Network::hash, get_architecture_string())) return false;
 #endif
-        if (!Detail::write_parameters<FeatureTransformer>(stream, network.featureTransformer)) return false;
+        if (!Detail::write_parameters(stream, network.featureTransformer)) return false;
         for (int i = 0; i < kLayerStacks; ++i) {
-            if (!Detail::write_parameters<NetworkArchitecture>(stream, network.network[i])) return false;
+            if (!Detail::write_parameters(stream, network.network[i])) return false;
         }
         return !stream.fail();
     }
