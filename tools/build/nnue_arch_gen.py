@@ -8,6 +8,13 @@ import os
 import subprocess
 import sys
 
+from nnue_arch_common import (
+    SFNN_HAND_BUCKETS,
+    SFNN_KING_BUCKETS,
+    SFNN_PROGRESS_BUCKETS,
+    normalize_sfnn_bucket_spec,
+)
+
 def dedent4(text: str) -> str:
     # 各行の先頭4文字（スペース4つ）を削除して結合し直す
     # 行が4文字未満、あるいはスペースでない場合を考慮して lstrip でも可
@@ -98,20 +105,7 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
     if layer_stack_spec == "":
         return "NONE", "1", "1", "0", "1", "0", "1"
 
-    normalized = layer_stack_spec
-    for long_name, short_name in {
-            "KING3_BY_KING3": "K3K3",
-            "KING3Z_BY_KING3Z": "K3K3Z",
-            "KING3ZONE_BY_KING3ZONE": "K3K3Z",
-            "KING9_BY_KING9": "K9K9",
-            "KING9Z_BY_KING9Z": "K9K9Z",
-            "KING9ZONE_BY_KING9ZONE": "K9K9Z",
-            "KING13Z_BY_KING13Z": "K13K13Z",
-            "KING13ZONE_BY_KING13ZONE": "K13K13Z",
-            "KING21_BY_KING21": "K21K21",
-            "KING29_BY_KING29": "K29K29",
-        }.items():
-        normalized = normalized.replace(long_name, short_name)
+    normalized = normalize_sfnn_bucket_spec(layer_stack_spec)
 
     hand_buckets = 1
     king_buckets = 1
@@ -122,41 +116,22 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec):
     king_type = 0
     progress_name = ""
 
-    hand_map = {
-        "HAND4": (4, 1),
-        "HAND16": (16, 2),
-        "HAND64": (64, 3),
-        "HAND64Z": (64, 4),
-        "HAND256": (256, 5),
-        "HAND1024": (1024, 6),
-    }
-    king_map = {
-        "K3K3": (9, 1),
-        "K3K3Z": (9, 7),
-        "K9K9": (81, 2),
-        "K21K21": (21 * 21, 3),
-        "K29K29": (29 * 29, 4),
-        "K9K9Z": (81, 5),
-        "K13K13Z": (13 * 13, 6),
-    }
-    progress_values = {2, 3, 4, 8, 16, 32}
-
     for token in [t for t in normalized.split("_") if t]:
-        if token in hand_map:
+        if token in SFNN_HAND_BUCKETS:
             if hand_buckets != 1:
                 print(f"Error! : duplicate SFNN hand bucket in {layer_stack_spec}.")
                 raise SystemExit(1)
             hand_name = token
-            hand_buckets, hand_type = hand_map[token]
-        elif token in king_map:
+            hand_buckets, hand_type = SFNN_HAND_BUCKETS[token]
+        elif token in SFNN_KING_BUCKETS:
             if king_buckets != 1:
                 print(f"Error! : duplicate SFNN king bucket in {layer_stack_spec}.")
                 raise SystemExit(1)
             king_name = token
-            king_buckets, king_type = king_map[token]
+            king_buckets, king_type = SFNN_KING_BUCKETS[token]
         elif token.startswith("PROGRESS"):
             raw = token[len("PROGRESS"):]
-            if not raw.isdigit() or int(raw) not in progress_values:
+            if not raw.isdigit() or int(raw) not in SFNN_PROGRESS_BUCKETS:
                 print(f"Error! : progress bucket must be progress2/3/4/8/16/32 , got {token}.")
                 raise SystemExit(1)
             if progress_buckets != 1:

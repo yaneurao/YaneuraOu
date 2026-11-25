@@ -6,6 +6,13 @@ import os
 import random
 import struct
 
+from nnue_arch_common import (
+    SFNN_HAND_BUCKETS,
+    SFNN_KING_BUCKETS,
+    SFNN_PROGRESS_BUCKETS,
+    normalize_sfnn_bucket_spec,
+)
+
 U32_MASK = 0xFFFFFFFF
 NNUE_FILE_VERSION = 0x7AF32F16
 SFNN_HASH_VALUE = 0x3C203B32
@@ -171,55 +178,24 @@ def parse_sfnn_layer_stack_spec(layer_stack_spec: str):
     if layer_stack_spec == "":
         return 1, 1, 1, 1
 
-    normalized = layer_stack_spec
-    for long_name, short_name in {
-        "KING3_BY_KING3": "K3K3",
-        "KING3Z_BY_KING3Z": "K3K3Z",
-        "KING3ZONE_BY_KING3ZONE": "K3K3Z",
-        "KING9_BY_KING9": "K9K9",
-        "KING9Z_BY_KING9Z": "K9K9Z",
-        "KING9ZONE_BY_KING9ZONE": "K9K9Z",
-        "KING13Z_BY_KING13Z": "K13K13Z",
-        "KING13ZONE_BY_KING13ZONE": "K13K13Z",
-        "KING21_BY_KING21": "K21K21",
-        "KING29_BY_KING29": "K29K29",
-    }.items():
-        normalized = normalized.replace(long_name, short_name)
+    normalized = normalize_sfnn_bucket_spec(layer_stack_spec)
 
     hand_buckets = 1
     king_buckets = 1
     progress_buckets = 1
-    hand_map = {
-        "HAND4": 4,
-        "HAND16": 16,
-        "HAND64": 64,
-        "HAND64Z": 64,
-        "HAND256": 256,
-        "HAND1024": 1024,
-    }
-    king_map = {
-        "K3K3": 9,
-        "K3K3Z": 9,
-        "K9K9": 81,
-        "K9K9Z": 81,
-        "K13K13Z": 13 * 13,
-        "K21K21": 21 * 21,
-        "K29K29": 29 * 29,
-    }
-    progress_values = {2, 3, 4, 8, 16, 32}
 
     for token in [t for t in normalized.split("_") if t]:
-        if token in hand_map:
+        if token in SFNN_HAND_BUCKETS:
             if hand_buckets != 1:
                 raise ValueError(f"duplicate SFNN hand bucket in {layer_stack_spec}")
-            hand_buckets = hand_map[token]
-        elif token in king_map:
+            hand_buckets = SFNN_HAND_BUCKETS[token][0]
+        elif token in SFNN_KING_BUCKETS:
             if king_buckets != 1:
                 raise ValueError(f"duplicate SFNN king bucket in {layer_stack_spec}")
-            king_buckets = king_map[token]
+            king_buckets = SFNN_KING_BUCKETS[token][0]
         elif token.startswith("PROGRESS"):
             raw = token[len("PROGRESS"):]
-            if not raw.isdigit() or int(raw) not in progress_values:
+            if not raw.isdigit() or int(raw) not in SFNN_PROGRESS_BUCKETS:
                 raise ValueError(f"progress bucket must be progress2/3/4/8/16/32, got {token}")
             if progress_buckets != 1:
                 raise ValueError(f"duplicate SFNN progress bucket in {layer_stack_spec}")
