@@ -28,6 +28,8 @@ class Position;
 
 namespace YaneuraOu::Eval::NNUE {
 
+// The embedding macro requires a string literal; share the name with loading and options.
+// 埋め込みには文字列リテラルが必要。同じ既定名を外部読み込み・オプション・ヘルプでも使う。
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
 #if !defined(EVAL_SFNN)
 #error ENABLE_SFNN_16BIT_WEIGHT requires an SFNN architecture
@@ -85,9 +87,6 @@ namespace Progress {
 
     // Stockfishの固定OutputScaleとは異なり、エンジンオプションで変更できる評価値の除数。
     extern int FV_SCALE;
-
-	// 評価関数ファイル名
-	extern const char* const kFileName;
 
 	// 評価関数の構造を表す文字列を取得する
 	std::string get_architecture_string();

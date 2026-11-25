@@ -415,7 +415,7 @@ void TestCommand(IEngine& engine, std::istream& stream) {
     std::cout << "usage:" << std::endl;
     std::cout << " test nn test_features" << std::endl;
     std::cout << " test nn test_accumulator [games=100]" << std::endl;
-    std::cout << " test nn info [path/to/" << kFileName << "...]" << std::endl;
+    std::cout << " test nn info [path/to/" << EvalFileDefaultName << "...]" << std::endl;
   }
 }
 

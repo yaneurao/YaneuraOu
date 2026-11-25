@@ -231,9 +231,6 @@ int Parameters::bucket_index(const Position& pos, int bucket_count, AccumulatorS
 } // namespace Progress
 #endif
 
-    // 評価関数ファイル名
-    const char* const kFileName = EvalFileDefaultName;
-
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
     static std::string nn16_architecture(u32 qb) {
         return "ModelType=SFNNWithoutPsqt;Features=" + FeatureTransformer::GetStructureString()
@@ -815,7 +812,7 @@ void load_eval(LazyNumaReplicatedSystemWide<NNUE::Network>& network, const Optio
     {
         const std::string dir_name = options["EvalDir"];
     #if !defined(__EMSCRIPTEN__)
-		const std::string file_name = NNUE::kFileName;
+		const std::string file_name = EvalFileDefaultName;
 #else
 		// WASM
         const std::string file_name = options["EvalFile"];
