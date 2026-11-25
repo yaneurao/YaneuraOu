@@ -10,9 +10,9 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstddef>
 #include <cstring>
 #include <fstream>
+#include <filesystem>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -26,10 +26,10 @@
 #include "../misc.h"
 #include "../position.h"
 #include "../types.h"
-#include "../memory.h"
 #include "../numa.h"
-#include "../usi.h"
+#include "../usioption.h"
 
+#include "nnue_architecture.h"
 #include "nnue_common.h"
 
 // Macro to embed the default efficiently updatable neural network (NNUE) file
