@@ -73,9 +73,6 @@ class FeatureTransformer {
   static constexpr usize kSimdWidth = 32;
   #elif defined(USE_SSE2)
   static constexpr usize kSimdWidth = 16;
-  #elif defined(USE_MMX)
-  static constexpr usize kSimdWidth = 8;
-
   #elif defined(USE_NEON)
   static constexpr usize kSimdWidth = 16;
   #elif defined(USE_WASM_SIMD)
@@ -504,11 +501,6 @@ class FeatureTransformer {
 		const __m128i k0x80s = _mm_set1_epi8(-128);
 #endif
 
-#elif defined(USE_MMX)
-		// USE_MMX を config.h では現状、有効化することがないので dead code
-		constexpr IndexType kNumChunks = HalfDimensions / kSimdWidth;
-		const __m64         k0x80s     = _mm_set1_pi8(-128);
-
 #elif defined(USE_NEON)
 		constexpr IndexType kNumChunks = HalfDimensions / (kSimdWidth / 2);
 		const int8x8_t      kZero      = {0};
@@ -578,16 +570,6 @@ class FeatureTransformer {
 				);
 			}
 
-#elif defined(USE_MMX)
-			// USE_MMX を config.h では現状、有効化することがないので dead code
-			auto out = reinterpret_cast<__m64*>(&output[offset]);
-			for (IndexType j = 0; j < kNumChunks; ++j) {
-				__m64       sum0 = *(&reinterpret_cast<const __m64*>(accumulation[perspectives[p]][0])[j * 2 + 0]);
-				__m64       sum1 = *(&reinterpret_cast<const __m64*>(accumulation[perspectives[p]][0])[j * 2 + 1]);
-				const __m64 packedbytes = _mm_packs_pi16(sum0, sum1);
-				out[j]                  = _mm_subs_pi8(_mm_adds_pi8(packedbytes, k0x80s), k0x80s);
-			}
-
 #elif defined(USE_NEON)
 			const auto out = reinterpret_cast<int8x8_t*>(&output[offset]);
 			for (IndexType j = 0; j < kNumChunks; ++j) {
@@ -607,10 +589,6 @@ class FeatureTransformer {
 			}
 #endif
 		}
-#if defined(USE_MMX)
-		// USE_MMX を config.h では現状、有効化することがないので dead code
-		_mm_empty();
-#endif
 #endif
 	}
 

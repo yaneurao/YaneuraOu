@@ -121,16 +121,6 @@ using vec_t = __m128i;
 #define NumRegistersSIMD (Is64Bit ? 16 : 8)
 #define MaxChunkSize 16
 
-#elif defined(USE_MMX)
-using vec_t = __m64;
-#define vec_load(a) (*(a))
-#define vec_store(a, b) *(a) = (b)
-#define vec_add_16(a, b) _mm_add_pi16(a, b)
-#define vec_sub_16(a, b) _mm_sub_pi16(a, b)
-#define vec_zero() _mm_setzero_si64()
-#define NumRegistersSIMD 8
-#define MaxChunkSize 8
-
 #elif defined(USE_NEON)
 using vec_t = int16x8_t;
 #if USE_NEON >= 8

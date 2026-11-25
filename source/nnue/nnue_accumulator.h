@@ -31,7 +31,7 @@ namespace Eval::NNUE {
 class AccumulatorCaches {
    public:
 #if defined(USE_FINNY_TABLES)
-#if defined(USE_AVX512) || defined(USE_AVX2) || defined(USE_SSE2) || defined(USE_MMX) || defined(USE_NEON)
+#if defined(USE_AVX512) || defined(USE_AVX2) || defined(USE_SSE2) || defined(USE_NEON)
     static constexpr bool kUseDirectFinny = std::is_same_v<
       RawFeatures, Features::FeatureSet<Features::HalfKA_hm2<Features::Side::kFriend>>>;
 #else
