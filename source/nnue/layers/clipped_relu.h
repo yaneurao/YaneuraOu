@@ -186,7 +186,7 @@ class ClippedReLU {
   // 入出力の型
   using InputType = typename PreviousLayer::OutputType;
   using OutputType = u8;
-  static_assert(std::is_same<InputType, i32>::value, "");
+  static_assert(std::is_same_v<InputType, i32>, "");
 
   // Number of input/output dimensions
   // 入出力の次元数
@@ -212,11 +212,6 @@ class ClippedReLU {
     u32 hashValue = 0x538D24C7u;
     hashValue += PreviousLayer::get_hash_value();
     return hashValue;
-  }
-
-  // ハッシュ値を前段の値から更新するときのヘルパー
-  static constexpr u32 get_hash_value(u32 prevHash) {
-    return 0x538D24C7u + prevHash;
   }
 
   // 入力層からこの層までの構造を表す文字列

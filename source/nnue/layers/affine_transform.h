@@ -629,7 +629,7 @@ class AffineTransform {
 	// 入出力の型
 	using InputType  = typename PreviousLayer::OutputType;
 	using OutputType = i32;
-	static_assert(std::is_same<InputType, u8>::value, "");
+	static_assert(std::is_same_v<InputType, u8>, "");
 
 	// Number of input/output dimensions
 	// 入出力の次元数

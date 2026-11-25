@@ -56,9 +56,9 @@ namespace Eval::NNUE {
 	static_assert(kTransformedFeatureDimensions % MaxSimdWidth == 0, "");
 	static_assert(NetworkArchitecture::OutputDimensions == 1, "");
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
-	static_assert(std::is_same<NetworkArchitecture::OutputType, i64>::value, "");
+	static_assert(std::is_same_v<NetworkArchitecture::OutputType, i64>, "");
 #else
-	static_assert(std::is_same<NetworkArchitecture::OutputType, i32>::value, "");
+	static_assert(std::is_same_v<NetworkArchitecture::OutputType, i32>, "");
 #endif
 
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
