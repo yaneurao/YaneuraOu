@@ -51,6 +51,20 @@ using namespace Eval;
 // set_max_repetition_ply()で設定される、千日手の最大遡り手数
 int Position::max_repetition_ply = 16;
 
+// 千日手検査の上限は、最大深さの探索でも保持履歴が上書きされない範囲に制限する。
+bool Position::set_max_repetition_ply(int ply) {
+    if (ply < 0)
+        return false;
+    if (usize(ply) + MAX_PLY >= MAX_HIST)
+        return false;
+    max_repetition_ply = ply;
+    return true;
+}
+
+// 手駒の枚数だけを更新する。合成Bitboardなど盤上の状態には触れない。
+void Position::put_hand_piece(Color c, PieceType pr) { add_hand(hand[c], pr); }
+void Position::remove_hand_piece(Color c, PieceType pr) { sub_hand(hand[c], pr); }
+
 // minor pieceは、香・桂・銀・金とその成駒に限ることにする。
 constexpr bool minor_piece_table[PIECE_NB] = {
   false,         false /*歩*/, true /*香*/,  true /*桂*/,      true /*銀*/,   false /*角*/,
@@ -513,6 +527,8 @@ void Position::reset_to_root(const Position& root) {
 // FENの正当性はGUI側の責任であると想定されています。
 
 // sfen文字列で盤面を設定する。
+std::optional<PositionSetError> Position::set_hirate() { return set(StartSFEN); }
+
 std::optional<PositionSetError> Position::set(const std::string& sfen) {
     reset_state();
 
@@ -866,6 +882,8 @@ string Position::fen() const {
 
 #else
 
+const std::string Position::sfen() const { return sfen(game_ply()); }
+
 const std::string Position::sfen(int gamePly_) const
 {
 	std::ostringstream ss;
@@ -1071,6 +1089,8 @@ bool Position::attackers_to_exist(Square s, Bitboard occupied, Color c) const {
 
 
 // 盤面を先後反転させた時のsfen文字列を取得する。
+const std::string Position::flipped_sfen() const { return flipped_sfen(game_ply()); }
+
 const std::string Position::flipped_sfen(int gamePly_) const
 {
 	std::ostringstream ss;
@@ -1245,6 +1265,9 @@ std::ostream& operator<<(std::ostream& os, const Position& pos)
 }
 
 #if defined (KEEP_LAST_MOVE)
+
+std::string Position::moves_from_start() const { return moves_from_start(false); }
+std::string Position::moves_from_start_pretty() const { return moves_from_start(true); }
 
 // 保持している履歴の範囲で、この局面にいたるまでの指し手を表示する。
 std::string Position::moves_from_start(bool is_pretty) const
@@ -3045,6 +3068,11 @@ RepetitionState Position::is_repetition(int ply, int& found_ply) const
 // ----------------------------------
 //      入玉判定
 // ----------------------------------
+
+void Position::set_ekr(EnteringKingRule ekr) {
+    this->ekr = ekr;
+    update_entering_point();
+}
 
 // 現在の盤面から、入玉に必要な駒点を計算し、enteringKingPointに設定する。
 void Position::update_entering_point() {

@@ -309,7 +309,7 @@ class Position {
     std::optional<PositionSetError> set(const std::string& sfenStr);
 
 	// 平手の初期盤面を設定する。
-    std::optional<PositionSetError> set_hirate() { return set(StartSFEN); }
+    std::optional<PositionSetError> set_hirate();
 #endif
 
 	// 局面のsfen文字列を取得する
@@ -321,11 +321,11 @@ class Position {
 #if STOCKFISH
     std::string fen() const;
 #else
-	const std::string sfen() const { return sfen(game_ply()); }
+	const std::string sfen() const;
 	const std::string sfen(int gamePly) const;
 
 	// sfen()のflip(先後反転 = 盤面を180度回転)させた時のsfenを返す。
-	const std::string flipped_sfen() const { return flipped_sfen(game_ply()); }
+	const std::string flipped_sfen() const;
 	const std::string flipped_sfen(int gamePly) const;
 
 	// sfen文字列をflip(先後反転)したsfen文字列に変換する。
@@ -395,14 +395,7 @@ class Position {
     // 上限を増やすと検査コストやコピーする履歴量が増える。許容範囲は下の保持領域の検査による。
 	// Reject a window that could overwrite the root history during a full-depth search.
     // 最大深さの探索でルート以前の履歴を上書きする長さは拒否する。失敗時は設定を維持する。
-    bool set_max_repetition_ply(int ply) {
-        if (ply < 0)
-            return false;
-        if (usize(ply) + MAX_PLY >= MAX_HIST)
-            return false;
-        max_repetition_ply = ply;
-        return true;
-    }
+    bool set_max_repetition_ply(int ply);
 
 #endif
 
@@ -664,7 +657,6 @@ class Position {
 	// 捕獲する指し手であるか。
     bool capture(Move m) const;
 
-	// capture_or_pawn_promotion()みたいなもの。
 	/*
 	    📓 Stockfishでは、この関数は、「捕獲する指し手かQUEENにpromoteする
 			指し手かのどちらかであるか」を判定する。
@@ -923,17 +915,6 @@ class Position {
 #endif
 
 #if !STOCKFISH
-	// put_pieceの手駒版
-    /*
-		手駒の枚数を更新する。将棋版はpieceCount[]を持たず、hand[]で管理する。
-		盤上の駒の配置・除去にはput_piece()・remove_piece()を用いる。
-	*/
-    void put_hand_piece(Color c, PieceType pt);
-
-	// remove_pieceの手駒版
-    // hand[]の該当する駒種の枚数を1枚減らす。
-    void remove_hand_piece(Color c, PieceType pt);
-
     // put_piece(),remove_piece()を用いたあとに呼び出す必要がある。
     // 📝 やねうら王ではHDKのような駒が合成されたBitboardを用いるため。
     void update_bitboards();
@@ -989,30 +970,6 @@ class Position {
 	// 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
 	bool is_mated() const;
 
-	// 捕獲する指し手か、成りの指し手であるかを判定する。
-	bool capture_or_promotion(Move m) const { return m.is_promote() || capture(m); }
-
-	// 歩の成る指し手であるか？
-	bool pawn_promotion(Move m) const
-	{
-		// 移動させる駒が歩かどうかは、Moveの上位16bitを見れば良い
-		return (m.is_promote() && raw_type_of(moved_piece_after(m)) == PAWN);
-	}
-
-	// 捕獲する指し手か、歩の成りの指し手であるかを返す。
-	bool capture_or_pawn_promotion(Move m) const
-	{
-		return pawn_promotion(m) || capture(m);
-	}
-
-	// 捕獲か価値のある駒の成り。(歩、角、飛車)
-	bool capture_or_valuable_promotion(Move m) const
-	{
-		// 歩の成りを角・飛車の成りにまで拡大する。
-		auto pr = raw_type_of(moved_piece_after(m));
-		return (m.is_promote() && (pr == PAWN || pr == BISHOP || pr == ROOK)) || capture(m);
-	}
-
 	// 入玉時の宣言勝ち
     /*
 		📓 宣言勝ちの条件を満たしているとき、MOVE_WINや、玉を移動する指し手(トライルール時)が返る。
@@ -1025,10 +982,7 @@ class Position {
 	// 入玉の宣言勝ちのルールを設定する。このルールに基づいて入玉の計算が行われる。
 	// 現在の盤面を見て、平手から足りない駒を計算するので、現在の盤面は適切に設定されている必要がある。
 	// 📝 start_searching()のなかで設定すると良いと思う。
-    void set_ekr(EnteringKingRule ekr) {
-        this->ekr = ekr;
-        update_entering_point();
-    }
+    void set_ekr(EnteringKingRule ekr);
 
 	// -- sfen化ヘルパ
   // packされたsfenを得る。引数に指定したバッファに返す。
@@ -1074,8 +1028,8 @@ class Position {
 
 #if defined(KEEP_LAST_MOVE)
   // 開始局面からこの局面にいたるまでの指し手を表示する。
-	std::string moves_from_start() const { return moves_from_start(false); }
-	std::string moves_from_start_pretty() const { return moves_from_start(true); }
+	std::string moves_from_start() const;
+	std::string moves_from_start_pretty() const;
 	std::string moves_from_start(bool is_pretty) const;
 #endif
 
@@ -1232,6 +1186,10 @@ private:
     static_assert(MAX_HIST >= MAX_PLY + 17);
 #endif
     StateInfo stateInfos[MAX_HIST];
+    // 手駒の枚数を更新する。盤上の駒にはput_piece()/remove_piece()を使う。
+    void put_hand_piece(Color c, PieceType pt);
+    void remove_hand_piece(Color c, PieceType pt);
+
     void reset_state();
     StateInfo* push_state();
     void pop_state();
@@ -1484,9 +1442,7 @@ inline bool Position::capture_stage(Move m) const
 #else
 
     // 📊　V7.73y3とy4,y5の比較。
-    //      return capture_or_valuable_promotion(m);
-    //      return capture_or_pawn_promotion(m);
-    //      よりは、単にcapture()にするのが良かった。
+    //      捕獲に歩・角・飛車の成りを含める案よりも、単にcapture()にするのが良かった。
 
     return capture(m);
 #endif
@@ -1586,23 +1542,6 @@ inline Value Position::material_value() const { return st->materialValue; }
 #endif
 
 #if !STOCKFISH
-
-// put_pieceの手駒版
-inline void Position::put_hand_piece(Color c, PieceType pr)
-{
-	add_hand(hand[c], pr);
-    //pieceCount[make_piece(c, pr)]++;
-    //pieceCount[make_piece(c, ALL_PIECES)]++;
-}
-
-// remove_pieceの手駒版
-inline void Position::remove_hand_piece(Color c, PieceType pr)
-{
-	sub_hand(hand[c], pr);
-    //pieceCount[make_piece(c, pr)]--;
-    //pieceCount[make_piece(c, ALL_PIECES)]--;
-}
-
 
 inline bool is_ok(Position& pos) { return pos.pos_is_ok(); }
 #endif
