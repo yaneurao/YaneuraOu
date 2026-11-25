@@ -98,22 +98,27 @@ def write_int8_values(stream, count: int, rng: random.Random, mode: str) -> None
     else:
         write_random_small_bytes(stream, count, rng, negative_byte=0xFF)
 
+def _write_random_small_values(stream, count: int, rng: random.Random, patterns, *, chunk_values: int) -> None:
+    # Preserve each writer's random-byte consumption and chunk boundaries.
+    # 各書き込み処理の乱数消費順とチャンク境界を保ち、seedごとの生成内容を維持する。
+    value_size = len(patterns[0])
+    table = bytes((0, 1, 2)[i % 3] for i in range(256))
+    while count:
+        n = min(count, chunk_values)
+        selector = rng.randbytes(n).translate(table)
+        out = bytearray(n * value_size)
+        for i, s in enumerate(selector):
+            out[i * value_size:i * value_size + value_size] = patterns[s]
+        stream.write(out)
+        count -= n
+
 def write_int16_values(stream, count: int, rng: random.Random, mode: str) -> None:
     if mode == "zero":
         write_zero_bytes(stream, count * 2)
         return
 
-    chunk_values = 1 << 19
     patterns = (b"\x00\x00", b"\x01\x00", b"\xff\xff")
-    table = bytes((0, 1, 2)[i % 3] for i in range(256))
-    while count:
-        n = min(count, chunk_values)
-        selector = rng.randbytes(n).translate(table)
-        out = bytearray(n * 2)
-        for i, s in enumerate(selector):
-            out[i * 2:i * 2 + 2] = patterns[s]
-        stream.write(out)
-        count -= n
+    _write_random_small_values(stream, count, rng, patterns, chunk_values=1 << 19)
 
 def write_sleb128_block_small(stream, count: int, rng: random.Random, mode: str) -> None:
     if count > U32_MASK:
@@ -159,17 +164,8 @@ def write_progress_parameters(stream, rng: random.Random, mode: str) -> None:
         write_zero_bytes(stream, count * 8)
         return
 
-    chunk_values = 1 << 18
     patterns = tuple(struct.pack("<d", value / 65536.0) for value in (0, 1, -1))
-    table = bytes((0, 1, 2)[i % 3] for i in range(256))
-    while count:
-        n = min(count, chunk_values)
-        selector = rng.randbytes(n).translate(table)
-        out = bytearray(n * 8)
-        for i, s in enumerate(selector):
-            out[i * 8:i * 8 + 8] = patterns[s]
-        stream.write(out)
-        count -= n
+    _write_random_small_values(stream, count, rng, patterns, chunk_values=1 << 18)
 
 def parse_sfnn_layer_stack_spec(layer_stack_spec: str):
     if layer_stack_spec == "":
