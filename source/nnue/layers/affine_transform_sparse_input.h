@@ -127,7 +127,7 @@ public:
                 return !stream.fail();
         }
 
-#if defined(USE_AVX512) && defined(EVAL_SFNN)
+#if defined(USE_AVX512)
         // Fused EWM + sparse affine for 16 outputs (H1=15 with shortcut or H1=16).
         // Keep the existing on-disk and in-memory weight ordering.
         // ファイル上・メモリ上の重み配置を保ち、EWMと疎なアフィン変換を融合して計算する。

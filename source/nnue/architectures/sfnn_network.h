@@ -81,21 +81,15 @@ struct SfnnNetwork {
 	}
 
 	bool read_parameters(std::istream& stream) {
-		return fc_0.read_parameters(stream)
-			&& ac_0.read_parameters(stream)
-			&& ac_sqr_0.read_parameters(stream)
-			&& fc_1.read_parameters(stream)
-			&& ac_1.read_parameters(stream)
-			&& fc_2.read_parameters(stream);
+		return fc_0.read_parameters(stream) && ac_0.read_parameters(stream)
+            && fc_1.read_parameters(stream) && ac_1.read_parameters(stream)
+            && fc_2.read_parameters(stream);
 	}
 
 	bool write_parameters(std::ostream& stream) const {
-		return fc_0.write_parameters(stream)
-			&& ac_0.write_parameters(stream)
-			&& ac_sqr_0.write_parameters(stream)
-			&& fc_1.write_parameters(stream)
-			&& ac_1.write_parameters(stream)
-			&& fc_2.write_parameters(stream);
+		return fc_0.write_parameters(stream) && ac_0.write_parameters(stream)
+            && fc_1.write_parameters(stream) && ac_1.write_parameters(stream)
+            && fc_2.write_parameters(stream);
 	}
 
 	static typename decltype(ac_0)::OutputType clipped_relu_value(i32 value) {

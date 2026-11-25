@@ -64,9 +64,9 @@ class FeatureSetBase {
   }
 
   // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
-  template <typename PositionType, typename IndexListType>
+  template <typename IndexListType>
   static void append_changed_indices(
-      const PositionType& pos, TriggerEvent trigger,
+      const Position& pos, TriggerEvent trigger,
       IndexListType removed[2], IndexListType added[2], bool reset[2],
       const Eval::DirtyPiece& dp) {
     if (dp.count() == 0) return;
