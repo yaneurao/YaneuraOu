@@ -40,12 +40,6 @@ std::string config_info()
 		"kp_256x2_32_32";
 	#elif defined(EVAL_NNUE_HALFKPE9)
 		"halfkpe9_256x2_32_32";
-	#elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_512X2_16_32)
-		"halfkp_512x2_16_32";
-	#elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_32)
-		"halfkp_1024x2_8_32";
-	#elif defined(YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_8_64)
-		"halfkp_1024x2_8_64";
 	#elif defined(EVAL_NNUE_HALFKP_VM_256X2_32_32)
 		"halfkpvm_256x2_32_32";
 	#else

@@ -256,15 +256,6 @@
     <ClInclude Include="nnue\architectures\halfkpvm_256x2-32-32.h">
       <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
-    <ClInclude Include="nnue\architectures\halfkp_512x2-16-32.h">
-      <Filter>リソース ファイル\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="nnue\architectures\halfkp_1024x2-8-32.h">
-      <Filter>リソース ファイル\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="nnue\architectures\halfkp_1024x2-8-64.h">
-      <Filter>リソース ファイル\nnue\architectures</Filter>
-    </ClInclude>
     <ClInclude Include="memory.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>

@@ -511,10 +511,7 @@
     <ClInclude Include="eval\kppt\evaluate_kppt.h" />
     <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h" />
     <ClInclude Include="nnue\architectures\halfkpe9_256x2-32-32.h" />
-    <ClInclude Include="nnue\architectures\halfkp_1024x2-8-32.h" />
-    <ClInclude Include="nnue\architectures\halfkp_1024x2-8-64.h" />
     <ClInclude Include="nnue\architectures\halfkp_256x2-32-32.h" />
-    <ClInclude Include="nnue\architectures\halfkp_512x2-16-32.h" />
     <ClInclude Include="nnue\architectures\halfkpvm_256x2-32-32.h" />
     <ClInclude Include="nnue\architectures\kp_256x2-32-32.h" />
     <ClInclude Include="nnue\network.h" />

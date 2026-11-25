@@ -26,8 +26,14 @@ YaneuraOu_backup*.lnk
 # embedded_nnue.cpp
 embedded_nnue.cpp
 
-# Generated SFNN architecture headers (nnue_arch_gen.py)
+# Generated architecture headers (nnue_arch_gen.py)
 /source/nnue/architectures/SFNN_*_[0-9]*_[0-9]*_[0-9]*.h
+/source/nnue/architectures/halfkp_512x2-16-32.h
+/source/nnue/architectures/halfkp_1024x2-8-32.h
+/source/nnue/architectures/halfkp_1024x2-8-64.h
+/source/nnue/architectures/HALFKP_512X2_16_32.h
+/source/nnue/architectures/HALFKP_1024X2_8_32.h
+/source/nnue/architectures/HALFKP_1024X2_8_64.h
 
 # experimental
 
