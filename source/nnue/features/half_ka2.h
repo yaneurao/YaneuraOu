@@ -21,28 +21,28 @@ namespace Eval::NNUE::Features {
 		static constexpr const char* kName =
 			(AssociatedKing == Side::kFriend) ? "HalfKA2(Friend)" : "HalfKA(Enemy)";
 		// 評価関数ファイルに埋め込むハッシュ値
-		static constexpr u32 kHashValue =
+		static constexpr u32 HashValue =
 			0x5f234cb9u ^ (AssociatedKing == Side::kFriend);
 		// 特徴量の次元数
-		static constexpr IndexType kDimensions =
+		static constexpr IndexType Dimensions =
 			static_cast<IndexType>(SQ_NB) * static_cast<IndexType>(e_king);
 		// 特徴量のうち、同時に値が1となるインデックスの数の最大値
-		static constexpr IndexType kMaxActiveDimensions = PIECE_NUMBER_NB;
+		static constexpr IndexType MaxActiveDimensions = PIECE_NUMBER_NB;
 		// 差分計算の代わりに全計算を行うタイミング
 		static constexpr TriggerEvent kRefreshTrigger =
 			(AssociatedKing == Side::kFriend) ?
 			TriggerEvent::kFriendKingMoved : TriggerEvent::kEnemyKingMoved;
 
 		// 特徴量のうち、値が1であるインデックスのリストを取得する
-		static void AppendActiveIndices(const Position& pos, Color perspective,
+		static void append_active_indices(const Position& pos, Color perspective,
 			IndexList* active);
 
 		// 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
-		static void AppendChangedIndices(const Position& pos, Color perspective,
+		static void append_changed_indices(const Position& pos, Color perspective,
 			IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp);
 
 		// 玉の位置とBonaPieceから特徴量のインデックスを求める
-		static IndexType MakeIndex(Square sq_k, BonaPiece p);
+		static IndexType make_index(Square sq_k, BonaPiece p);
 
 	private:
 		// 駒の情報を取得する

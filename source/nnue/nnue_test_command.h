@@ -3,6 +3,8 @@
 #ifndef NNUE_TEST_COMMAND_H_INCLUDED
 #define NNUE_TEST_COMMAND_H_INCLUDED
 
+#include <iosfwd>
+
 #include "../config.h"
 
 #if defined(ENABLE_TEST_CMD) && (defined(EVAL_NNUE) || defined(EVAL_SFNN))

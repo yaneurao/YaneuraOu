@@ -8,7 +8,7 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
-#include "../../position.h"
+#include "../nnue_common.h"
 #include "../nnue_architecture.h"
 
 namespace YaneuraOu {
@@ -46,7 +46,7 @@ private:
 //Type of feature index list
 // 特徴量のインデックスリストの型
 class IndexList
-	: public ValueList<IndexType, RawFeatures::kMaxActiveDimensions> {
+	: public ValueList<IndexType, RawFeatures::MaxActiveDimensions> {
 };
 
 } // namespace Eval::NNUE::Features

@@ -18,9 +18,9 @@ namespace {
 }
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
-void A2::AppendActiveIndices(
+void A2::append_active_indices(
     const Position& pos, Color perspective, IndexList* active) {
-  if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
+  if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
   BonaPiece pieces[40];
   collect_bona_pieces(pos, perspective, pieces);
@@ -30,7 +30,7 @@ void A2::AppendActiveIndices(
 }
 
 // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
-void A2::AppendChangedIndices(
+void A2::append_changed_indices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
   for (int i = 0; i < dp.count(); ++i) {

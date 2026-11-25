@@ -11,10 +11,10 @@ namespace YaneuraOu {
 namespace Eval::NNUE::Features {
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
-void P::AppendActiveIndices(
+void P::append_active_indices(
     const Position& pos, Color perspective, IndexList* active) {
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
-  if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
+  if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
   BonaPiece pieces[40];
   collect_bona_pieces(pos, perspective, pieces);
@@ -24,7 +24,7 @@ void P::AppendActiveIndices(
 }
 
 // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
-void P::AppendChangedIndices(
+void P::append_changed_indices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
   for (int i = 0; i < dp.count(); ++i) {

@@ -5,6 +5,7 @@
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "half_relative_kp.h"
+#include "../../position.h"
 #include "index_list.h"
 
 namespace YaneuraOu {
@@ -12,7 +13,7 @@ namespace Eval::NNUE::Features {
 
 // 玉の位置とBonaPieceから特徴量のインデックスを求める
 template <Side AssociatedKing>
-inline IndexType HalfRelativeKP<AssociatedKing>::MakeIndex(
+inline IndexType HalfRelativeKP<AssociatedKing>::make_index(
     Square sq_k, BonaPiece p) {
   constexpr IndexType W = kBoardWidth;
   constexpr IndexType H = kBoardHeight;
@@ -37,24 +38,24 @@ inline void HalfRelativeKP<AssociatedKing>::GetPieces(
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
 template <Side AssociatedKing>
-void HalfRelativeKP<AssociatedKing>::AppendActiveIndices(
+void HalfRelativeKP<AssociatedKing>::append_active_indices(
     const Position& pos, Color perspective, IndexList* active) {
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
-  if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
+  if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
   BonaPiece pieces[40];
   Square sq_target_k;
   GetPieces(pos, perspective, pieces, &sq_target_k);
   for (PieceNumber i = PIECE_NUMBER_ZERO; i < PIECE_NUMBER_KING; ++i) {
     if (pieces[i] >= fe_hand_end) {
-      active->push_back(MakeIndex(sq_target_k, pieces[i]));
+      active->push_back(make_index(sq_target_k, pieces[i]));
     }
   }
 }
 
 // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
 template <Side AssociatedKing>
-void HalfRelativeKP<AssociatedKing>::AppendChangedIndices(
+void HalfRelativeKP<AssociatedKing>::append_changed_indices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
   const Color target = AssociatedKing == Side::kFriend ? perspective : ~perspective;
@@ -65,12 +66,12 @@ void HalfRelativeKP<AssociatedKing>::AppendChangedIndices(
     const auto old_p = static_cast<BonaPiece>(
         dp.change(i).old_piece.from[perspective]);
     if (old_p >= fe_hand_end) {
-      removed->push_back(MakeIndex(sq_target_k, old_p));
+      removed->push_back(make_index(sq_target_k, old_p));
     }
     const auto new_p = static_cast<BonaPiece>(
         dp.change(i).new_piece.from[perspective]);
     if (new_p >= fe_hand_end) {
-      added->push_back(MakeIndex(sq_target_k, new_p));
+      added->push_back(make_index(sq_target_k, new_p));
     }
   }
 }

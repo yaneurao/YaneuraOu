@@ -5,6 +5,7 @@
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN)) && defined(LONG_EFFECT_LIBRARY) && defined(USE_BOARD_EFFECT_PREV)
 
 #include "pe9.h"
+#include "../../position.h"
 #include "index_list.h"
 
 namespace YaneuraOu {
@@ -45,7 +46,7 @@ inline bool IsDirty(const Eval::DirtyPiece& dp, BonaPiece p, Color perspective) 
 }
 
 // BonaPieceと利き数から特徴量のインデックスを求める
-IndexType PE9::MakeIndex(BonaPiece p, int effect1, int effect2) {
+IndexType PE9::make_index(BonaPiece p, int effect1, int effect2) {
   return p + (static_cast<IndexType>(fe_end) * (effect1 * 3 + effect2));
 }
 
@@ -57,10 +58,10 @@ inline void PE9::GetPieces(
 }
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
-void PE9::AppendActiveIndices(
+void PE9::append_active_indices(
     const Position& pos, Color perspective, IndexList* active) {
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
-  if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
+  if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
   BonaPiece pieces[40];
   GetPieces(pos, perspective, pieces);
@@ -70,7 +71,7 @@ void PE9::AppendActiveIndices(
     BonaPiece p = pieces[i];
     Square sq_p = GetSquareFromBonaPiece(p);
 
-    active->push_back(MakeIndex(p
+    active->push_back(make_index(p
         , GetEffectCount(pos, sq_p, perspective, perspective, false)
         , GetEffectCount(pos, sq_p, perspective, ~perspective, false)
       ));
@@ -78,7 +79,7 @@ void PE9::AppendActiveIndices(
 }
 
 // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
-void PE9::AppendChangedIndices(
+void PE9::append_changed_indices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
   BonaPiece pieces[40];
@@ -89,14 +90,14 @@ void PE9::AppendChangedIndices(
     
     const auto old_p = static_cast<BonaPiece>(dp.change(i).old_piece.from[perspective]);
     Square old_sq_p = GetSquareFromBonaPiece(old_p);
-    removed->push_back(MakeIndex(old_p
+    removed->push_back(make_index(old_p
         , GetEffectCount(pos, old_sq_p, perspective, perspective, true)
         , GetEffectCount(pos, old_sq_p, perspective, ~perspective, true)
       ));
 
     const auto new_p = static_cast<BonaPiece>(dp.change(i).new_piece.from[perspective]);
     Square new_sq_p = GetSquareFromBonaPiece(new_p);
-    added->push_back(MakeIndex(new_p
+    added->push_back(make_index(new_p
         , GetEffectCount(pos, new_sq_p, perspective, perspective, false)
         , GetEffectCount(pos, new_sq_p, perspective, ~perspective, false)
       ));
@@ -117,8 +118,8 @@ void PE9::AppendChangedIndices(
 
     if (   effectCount_prev_1 != effectCount_now_1
         || effectCount_prev_2 != effectCount_now_2) {
-      removed->push_back(MakeIndex(p, effectCount_prev_1, effectCount_prev_2));
-      added->push_back(MakeIndex(p, effectCount_now_1, effectCount_now_2));
+      removed->push_back(make_index(p, effectCount_prev_1, effectCount_prev_2));
+      added->push_back(make_index(p, effectCount_now_1, effectCount_now_2));
     }
   }
 }

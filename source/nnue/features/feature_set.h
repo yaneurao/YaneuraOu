@@ -71,7 +71,7 @@ class FeatureSetBase {
  public:
   // 特徴量のうち、値が1であるインデックスのリストを取得する
   template <typename IndexListType>
-  static void AppendActiveIndices(
+  static void append_active_indices(
       const Position& pos, TriggerEvent trigger, IndexListType active[2]) {
     for (const auto perspective : COLOR) {
       Derived::CollectActiveIndices(
@@ -81,7 +81,7 @@ class FeatureSetBase {
 
   // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
   template <typename PositionType, typename IndexListType>
-  static void AppendChangedIndices(
+  static void append_changed_indices(
       const PositionType& pos, TriggerEvent trigger,
       IndexListType removed[2], IndexListType added[2], bool reset[2],
       const Eval::DirtyPiece& dp) {
@@ -135,14 +135,14 @@ class FeatureSet<FirstFeatureType, RemainingFeatureTypes...> :
 
  public:
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr u32 kHashValue =
-      Head::kHashValue ^ (Tail::kHashValue << 1) ^ (Tail::kHashValue >> 31);
+  static constexpr u32 HashValue =
+      Head::HashValue ^ (Tail::HashValue << 1) ^ (Tail::HashValue >> 31);
   // 特徴量の次元数
-  static constexpr IndexType kDimensions =
-      Head::kDimensions + Tail::kDimensions;
+  static constexpr IndexType Dimensions =
+      Head::Dimensions + Tail::Dimensions;
   // 特徴量のうち、同時に値が1となるインデックスの数の最大値
-  static constexpr IndexType kMaxActiveDimensions =
-      Head::kMaxActiveDimensions + Tail::kMaxActiveDimensions;
+  static constexpr IndexType MaxActiveDimensions =
+      Head::MaxActiveDimensions + Tail::MaxActiveDimensions;
   // 差分計算の代わりに全計算を行うタイミングのリスト
   using SortedTriggerSet = typename InsertToSet<TriggerEvent,
       typename Tail::SortedTriggerSet, Head::kRefreshTrigger>::Result;
@@ -162,9 +162,9 @@ class FeatureSet<FirstFeatureType, RemainingFeatureTypes...> :
     Tail::CollectActiveIndices(pos, trigger, perspective, active);
     if (Head::kRefreshTrigger == trigger) {
       const auto start = active->size();
-      Head::AppendActiveIndices(pos, perspective, active);
+      Head::append_active_indices(pos, perspective, active);
       for (auto i = start; i < active->size(); ++i) {
-        (*active)[i] += Tail::kDimensions;
+        (*active)[i] += Tail::Dimensions;
       }
     }
   }
@@ -179,12 +179,12 @@ class FeatureSet<FirstFeatureType, RemainingFeatureTypes...> :
     if (Head::kRefreshTrigger == trigger) {
       const auto start_removed = removed->size();
       const auto start_added = added->size();
-      Head::AppendChangedIndices(pos, perspective, removed, added, dp);
+      Head::append_changed_indices(pos, perspective, removed, added, dp);
       for (auto i = start_removed; i < removed->size(); ++i) {
-        (*removed)[i] += Tail::kDimensions;
+        (*removed)[i] += Tail::Dimensions;
       }
       for (auto i = start_added; i < added->size(); ++i) {
-        (*added)[i] += Tail::kDimensions;
+        (*added)[i] += Tail::Dimensions;
       }
     }
   }
@@ -202,15 +202,15 @@ class FeatureSet<FeatureType> : public FeatureSetBase<FeatureSet<FeatureType>> {
  public:
   // Hash value embedded in the evaluation file
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr u32 kHashValue = FeatureType::kHashValue;
+  static constexpr u32 HashValue = FeatureType::HashValue;
   // Number of feature dimensions
   // 特徴量の次元数
-  static constexpr IndexType kDimensions = FeatureType::kDimensions;
+  static constexpr IndexType Dimensions = FeatureType::Dimensions;
 
   // Maximum number of simultaneously active features
   // 特徴量のうち、同時に値が1となるインデックスの数の最大値
-  static constexpr IndexType kMaxActiveDimensions =
-      FeatureType::kMaxActiveDimensions;
+  static constexpr IndexType MaxActiveDimensions =
+      FeatureType::MaxActiveDimensions;
 
   // Trigger for full calculation instead of difference calculation
   // 差分計算の代わりに全計算を行うタイミングのリスト
@@ -229,7 +229,7 @@ class FeatureSet<FeatureType> : public FeatureSetBase<FeatureSet<FeatureType>> {
       const Position& pos, const TriggerEvent trigger, const Color perspective,
       IndexList* const active) {
     if (FeatureType::kRefreshTrigger == trigger) {
-      FeatureType::AppendActiveIndices(pos, perspective, active);
+      FeatureType::append_active_indices(pos, perspective, active);
     }
   }
 
@@ -239,7 +239,7 @@ class FeatureSet<FeatureType> : public FeatureSetBase<FeatureSet<FeatureType>> {
       IndexList* const removed, IndexList* const added,
       const Eval::DirtyPiece& dp) {
     if (FeatureType::kRefreshTrigger == trigger) {
-      FeatureType::AppendChangedIndices(pos, perspective, removed, added, dp);
+      FeatureType::append_changed_indices(pos, perspective, removed, added, dp);
     }
   }
 

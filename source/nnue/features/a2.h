@@ -19,15 +19,15 @@ namespace Eval::NNUE::Features {
 class A2 {
  public:
   static constexpr const char* kName = "A2";
-  static constexpr u32 kHashValue = 0xA20DCB9Bu;
-  static constexpr IndexType kDimensions = e_king;
-  static constexpr IndexType kMaxActiveDimensions = PIECE_NUMBER_NB;
+  static constexpr u32 HashValue = 0xA20DCB9Bu;
+  static constexpr IndexType Dimensions = e_king;
+  static constexpr IndexType MaxActiveDimensions = PIECE_NUMBER_NB;
   static constexpr TriggerEvent kRefreshTrigger = TriggerEvent::kNone;
 
-  static void AppendActiveIndices(const Position& pos, Color perspective,
+  static void append_active_indices(const Position& pos, Color perspective,
                                   IndexList* active);
 
-  static void AppendChangedIndices(const Position& pos, Color perspective,
+  static void append_changed_indices(const Position& pos, Color perspective,
                                    IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp);
 };
 

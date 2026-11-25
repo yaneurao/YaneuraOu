@@ -5,16 +5,17 @@
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "k.h"
+#include "../../position.h"
 #include "index_list.h"
 
 namespace YaneuraOu {
 namespace Eval::NNUE::Features {
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
-void K::AppendActiveIndices(
+void K::append_active_indices(
     const Position& pos, Color perspective, IndexList* active) {
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
-  if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
+  if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
   for (Color c : {BLACK, WHITE}) {
     const Square sq = pos.square<KING>(c);
@@ -24,7 +25,7 @@ void K::AppendActiveIndices(
 }
 
 // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
-void K::AppendChangedIndices(
+void K::append_changed_indices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
   if (dp.king_moved()) {

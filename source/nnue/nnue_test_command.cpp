@@ -241,17 +241,17 @@ void TestFeatures(Position&) {
   std::vector<u64> num_updates(kRefreshTriggers.size() + 1);
   std::vector<u64> num_resets(kRefreshTriggers.size());
   constexpr IndexType kUnknown = -1;
-  std::vector<IndexType> trigger_map(RawFeatures::kDimensions, kUnknown);
+  std::vector<IndexType> trigger_map(RawFeatures::Dimensions, kUnknown);
   auto make_index_sets = [&](const Position& pos) {
     std::vector<std::vector<std::set<IndexType>>> index_sets(
         kRefreshTriggers.size(), std::vector<std::set<IndexType>>(2));
     for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
       Features::IndexList active_indices[2];
-      RawFeatures::AppendActiveIndices(pos, kRefreshTriggers[i],
+      RawFeatures::append_active_indices(pos, kRefreshTriggers[i],
                                        active_indices);
       for (const auto perspective : COLOR) {
         for (const auto index : active_indices[perspective]) {
-          ASSERT(index < RawFeatures::kDimensions);
+          ASSERT(index < RawFeatures::Dimensions);
           ASSERT(index_sets[i][perspective].count(index) == 0);
           ASSERT(trigger_map[index] == kUnknown || trigger_map[index] == i);
           index_sets[i][perspective].insert(index);
@@ -265,7 +265,7 @@ void TestFeatures(Position&) {
     for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
       Features::IndexList removed_indices[2], added_indices[2];
       bool reset[2];
-      RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i],
+      RawFeatures::append_changed_indices(pos, kRefreshTriggers[i],
                                         removed_indices, added_indices, reset, dirty);
       for (const auto perspective : COLOR) {
         if (reset[perspective]) {
@@ -273,7 +273,7 @@ void TestFeatures(Position&) {
           ++num_resets[i];
         } else {
           for (const auto index : removed_indices[perspective]) {
-            ASSERT(index < RawFeatures::kDimensions);
+            ASSERT(index < RawFeatures::Dimensions);
             ASSERT((*index_sets)[i][perspective].count(index) == 1);
             ASSERT(trigger_map[index] == kUnknown || trigger_map[index] == i);
             (*index_sets)[i][perspective].erase(index);
@@ -283,7 +283,7 @@ void TestFeatures(Position&) {
           }
         }
         for (const auto index : added_indices[perspective]) {
-          ASSERT(index < RawFeatures::kDimensions);
+          ASSERT(index < RawFeatures::Dimensions);
           ASSERT((*index_sets)[i][perspective].count(index) == 0);
           ASSERT(trigger_map[index] == kUnknown || trigger_map[index] == i);
           (*index_sets)[i][perspective].insert(index);
@@ -296,7 +296,7 @@ void TestFeatures(Position&) {
   };
 
   std::cout << "feature set: " << RawFeatures::GetName()
-            << "[" << RawFeatures::kDimensions << "]" << std::endl;
+            << "[" << RawFeatures::Dimensions << "]" << std::endl;
   std::cout << "start testing with random games";
 
   for (u64 i = 0; i < num_games; ++i) {
@@ -335,7 +335,7 @@ void TestFeatures(Position&) {
     num_observed_indices += count;
     std::cout << "TriggerEvent(" << static_cast<int>(kRefreshTriggers[i])
               << "): " << count << " features ("
-              << (100.0 * count / RawFeatures::kDimensions) << "%), "
+              << (100.0 * count / RawFeatures::Dimensions) << "%), "
               << num_updates[i] << " updates ("
               << (1.0 * num_updates[i] / num_moves) << " per move), "
               << num_resets[i] << " resets ("
@@ -343,8 +343,8 @@ void TestFeatures(Position&) {
               << std::endl;
   }
   std::cout << "observed " << num_observed_indices << " ("
-            << (100.0 * num_observed_indices / RawFeatures::kDimensions)
-            << "% of " << RawFeatures::kDimensions
+            << (100.0 * num_observed_indices / RawFeatures::Dimensions)
+            << "% of " << RawFeatures::Dimensions
             << ") features" << std::endl;
 }
 

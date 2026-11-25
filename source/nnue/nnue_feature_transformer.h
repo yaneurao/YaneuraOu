@@ -12,6 +12,7 @@
 #define USE_ELEMENT_WISE_MULTIPLY
 #endif
 
+#include "../position.h"
 #include "../types.h"
 #include "../memory.h"
 #include "nnue_common.h"
@@ -96,7 +97,7 @@ class FeatureTransformer {
 
 	// Number of input/output dimensions
 	// 入出力の次元数
-	static constexpr IndexType InputDimensions  = RawFeatures::kDimensions;
+	static constexpr IndexType InputDimensions  = RawFeatures::Dimensions;
 #if defined(USE_ELEMENT_WISE_MULTIPLY)
 	static constexpr IndexType OutputDimensions = HalfDimensions;
 #else
@@ -114,7 +115,7 @@ class FeatureTransformer {
 		// 学習部と整合性とるの面倒なのでSFNNのときはこれに固定しておく。
 		return 0x5f134ab8u;
 #else
-		return RawFeatures::kHashValue ^ OutputDimensions;
+		return RawFeatures::HashValue ^ OutputDimensions;
 #endif
 	}
 
@@ -283,7 +284,7 @@ class FeatureTransformer {
                 }
 #endif
                 Features::IndexList active[2];
-                RawFeatures::AppendActiveIndices(pos, kRefreshTriggers[0], active);
+                RawFeatures::append_active_indices(pos, kRefreshTriggers[0], active);
                 refresh_accumulator_from_scratch<Packed>(accumulator.accumulation[c][0], active[c], 0);
                 continue;
             }
@@ -334,7 +335,7 @@ class FeatureTransformer {
             // 玉が動く手の直前まで、各フレームは現在と同じ特徴量の座標系を使える。
             Features::IndexList removed[2], added[2];
             bool reset[2]{};
-            RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[0], removed, added,
+            RawFeatures::append_changed_indices(pos, kRefreshTriggers[0], removed, added,
                                               reset, dirty);
             for (const Color perspective : COLOR) {
                 assert(!reset[perspective]);
@@ -389,7 +390,7 @@ class FeatureTransformer {
 		auto& accumulator = accumulator_of(state);
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList active_indices[2];
-			RawFeatures::AppendActiveIndices(pos, kRefreshTriggers[i], active_indices);
+			RawFeatures::append_active_indices(pos, kRefreshTriggers[i], active_indices);
 			for (const auto perspective : COLOR) {
 #if defined(NNUE_FT_PACKED8)
 				if (sparse8_enabled_) refresh_accumulator_from_scratch<true>(
@@ -936,9 +937,9 @@ class FeatureTransformer {
         // 入力の並びは駒番号ではなく盤面の列挙順。位置ではなく多重集合として比較する。
         // 駒落ち等の0特徴量が複数あっても、それぞれ一度ずつ対応させる。
 #if defined(USE_AVX512)
-        if constexpr (RawFeatures::kMaxActiveDimensions <= 64) {
+        if constexpr (RawFeatures::MaxActiveDimensions <= 64) {
             u64 oldMatched = 0, newMatched = 0;
-            constexpr usize maxBlocks = (RawFeatures::kMaxActiveDimensions + 15) / 16;
+            constexpr usize maxBlocks = (RawFeatures::MaxActiveDimensions + 15) / 16;
             __m512i blocks[maxBlocks];
             __mmask16 masks[maxBlocks];
             const usize blockCount = (new_active.size() + 15) / 16;
@@ -978,8 +979,8 @@ class FeatureTransformer {
             return;
         }
 #endif
-        bool oldMatched[RawFeatures::kMaxActiveDimensions]{};
-        bool newMatched[RawFeatures::kMaxActiveDimensions]{};
+        bool oldMatched[RawFeatures::MaxActiveDimensions]{};
+        bool newMatched[RawFeatures::MaxActiveDimensions]{};
         for (usize i = 0; i < std::min(old_active.size(), new_active.size()); ++i)
             if (old_active[i] == new_active[i])
                 oldMatched[i] = newMatched[i] = true;
@@ -1233,7 +1234,7 @@ class FeatureTransformer {
 #endif
         Features::IndexList active;
         if (rebuild)
-            Features::HalfKA_hm2<Features::Side::kFriend>::AppendActiveIndices(pos, perspective, &active);
+            Features::HalfKA_hm2<Features::Side::kFriend>::append_active_indices(pos, perspective, &active);
 #if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
         if constexpr (Packed) {
             if (rebuild) prefetch_sparse8_columns(active);
@@ -1283,7 +1284,7 @@ class FeatureTransformer {
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList active_indices[2];
 			const auto trigger = kRefreshTriggers[i];
-			RawFeatures::AppendActiveIndices(pos, trigger, active_indices);
+			RawFeatures::append_active_indices(pos, trigger, active_indices);
 			for (int c = 0; c < COLOR_NB; ++c) {
 				const Color perspective = static_cast<Color>(c);
 				const Square bucket = finny_bucket_square(pos, trigger, perspective);
@@ -1313,7 +1314,7 @@ class FeatureTransformer {
 		auto& accumulator = accumulator_of(state);
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
 			Features::IndexList active_indices[2];
-			RawFeatures::AppendActiveIndices(pos, kRefreshTriggers[i], active_indices);
+			RawFeatures::append_active_indices(pos, kRefreshTriggers[i], active_indices);
 			for (int c = 0; c < COLOR_NB; ++c) {
 				const Color perspective = static_cast<Color>(c);
 #if defined(VECTOR)
@@ -1344,12 +1345,12 @@ class FeatureTransformer {
                 for (Color c : {BLACK, WHITE}) {
                     reset[c] = state->dirtyPiece.pc == make_piece(c, KING);
                     if (!reset[c])
-                        Features::HalfKA_hm2<Features::Side::kFriend>::AppendChangedIndices(
+                        Features::HalfKA_hm2<Features::Side::kFriend>::append_changed_indices(
                           pos, c, &removed_indices[c], &added_indices[c], state->dirtyPiece);
                 }
             } else
 #endif
-			RawFeatures::AppendChangedIndices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset, state->dirtyPiece);
+			RawFeatures::append_changed_indices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset, state->dirtyPiece);
 #if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
 			if constexpr (Packed) {
 				for (int c = 0; c < COLOR_NB; ++c) {

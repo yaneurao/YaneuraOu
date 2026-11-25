@@ -19,22 +19,22 @@ class K {
   // 特徴量名
   static constexpr const char* kName = "K";
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr u32 kHashValue = 0xD3CEE169u;
+  static constexpr u32 HashValue = 0xD3CEE169u;
 
   // 特徴量の次元数
-  static constexpr IndexType kDimensions = u32(SQ_NB) * 2;
+  static constexpr IndexType Dimensions = u32(SQ_NB) * 2;
 
   // 特徴量のうち、同時に値が1となるインデックスの数の最大値
-  static constexpr IndexType kMaxActiveDimensions = 2;
+  static constexpr IndexType MaxActiveDimensions = 2;
   // 差分計算の代わりに全計算を行うタイミング
   static constexpr TriggerEvent kRefreshTrigger = TriggerEvent::kNone;
 
   // 特徴量のうち、値が1であるインデックスのリストを取得する
-  static void AppendActiveIndices(const Position& pos, Color perspective,
+  static void append_active_indices(const Position& pos, Color perspective,
                                   IndexList* active);
 
   // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
-  static void AppendChangedIndices(const Position& pos, Color perspective,
+  static void append_changed_indices(const Position& pos, Color perspective,
                                    IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp);
 };
 

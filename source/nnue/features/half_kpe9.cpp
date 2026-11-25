@@ -5,6 +5,7 @@
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN)) && defined(LONG_EFFECT_LIBRARY) && defined(USE_BOARD_EFFECT_PREV)
 
 #include "half_kpe9.h"
+#include "../../position.h"
 #include "index_list.h"
 
 namespace YaneuraOu {
@@ -47,7 +48,7 @@ inline bool IsDirty(const Eval::DirtyPiece& dp, BonaPiece p, Color perspective) 
 
 // 玉の位置とBonaPieceと利き数から特徴量のインデックスを求める
 template <Side AssociatedKing>
-inline IndexType HalfKPE9<AssociatedKing>::MakeIndex(Square sq_k, BonaPiece p, int effect1, int effect2) {
+inline IndexType HalfKPE9<AssociatedKing>::make_index(Square sq_k, BonaPiece p, int effect1, int effect2) {
   return (static_cast<IndexType>(fe_end) * static_cast<IndexType>(sq_k) + p)
        + (static_cast<IndexType>(fe_end) * static_cast<IndexType>(SQ_NB) * (effect1 * 3 + effect2));
 }
@@ -66,10 +67,10 @@ inline void HalfKPE9<AssociatedKing>::GetPieces(
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
 template <Side AssociatedKing>
-void HalfKPE9<AssociatedKing>::AppendActiveIndices(
+void HalfKPE9<AssociatedKing>::append_active_indices(
     const Position& pos, Color perspective, IndexList* active) {
   // コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
-  if (RawFeatures::kMaxActiveDimensions < kMaxActiveDimensions) return;
+  if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
   BonaPiece pieces[40];
   Square sq_target_k;
@@ -80,7 +81,7 @@ void HalfKPE9<AssociatedKing>::AppendActiveIndices(
     BonaPiece p = pieces[i];
     Square sq_p = GetSquareFromBonaPiece(p);
 
-    active->push_back(MakeIndex(sq_target_k, p
+    active->push_back(make_index(sq_target_k, p
         , GetEffectCount(pos, sq_p, perspective, perspective, false)
         , GetEffectCount(pos, sq_p, perspective, ~perspective, false)
       ));
@@ -89,7 +90,7 @@ void HalfKPE9<AssociatedKing>::AppendActiveIndices(
 
 // 特徴量のうち、一手前から値が変化したインデックスのリストを取得する
 template <Side AssociatedKing>
-void HalfKPE9<AssociatedKing>::AppendChangedIndices(
+void HalfKPE9<AssociatedKing>::append_changed_indices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
   BonaPiece pieces[40];
@@ -101,14 +102,14 @@ void HalfKPE9<AssociatedKing>::AppendChangedIndices(
     
     const auto old_p = static_cast<BonaPiece>(dp.change(i).old_piece.from[perspective]);
     Square old_sq_p = GetSquareFromBonaPiece(old_p);
-    removed->push_back(MakeIndex(sq_target_k, old_p
+    removed->push_back(make_index(sq_target_k, old_p
         , GetEffectCount(pos, old_sq_p, perspective, perspective, true)
         , GetEffectCount(pos, old_sq_p, perspective, ~perspective, true)
       ));
 
     const auto new_p = static_cast<BonaPiece>(dp.change(i).new_piece.from[perspective]);
     Square new_sq_p = GetSquareFromBonaPiece(new_p);
-    added->push_back(MakeIndex(sq_target_k, new_p
+    added->push_back(make_index(sq_target_k, new_p
         , GetEffectCount(pos, new_sq_p, perspective, perspective, false)
         , GetEffectCount(pos, new_sq_p, perspective, ~perspective, false)
       ));
@@ -129,8 +130,8 @@ void HalfKPE9<AssociatedKing>::AppendChangedIndices(
 
     if (   effectCount_prev_1 != effectCount_now_1
         || effectCount_prev_2 != effectCount_now_2) {
-      removed->push_back(MakeIndex(sq_target_k, p, effectCount_prev_1, effectCount_prev_2));
-      added->push_back(MakeIndex(sq_target_k, p, effectCount_now_1, effectCount_now_2));
+      removed->push_back(make_index(sq_target_k, p, effectCount_prev_1, effectCount_prev_2));
+      added->push_back(make_index(sq_target_k, p, effectCount_now_1, effectCount_now_2));
     }
   }
 }
