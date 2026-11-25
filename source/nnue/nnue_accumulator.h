@@ -137,6 +137,11 @@ struct AccumulatorState: public Accumulator, Dirties {
 #endif
 };
 
+// AccumulatorStateのうち、FT累積値の部分だけを参照する。
+// 差分や前フレームへのリンクを含めず、累積値だけをコピーする場合にも使う。
+inline Accumulator& accumulator_of(AccumulatorState* state) { return *state; }
+inline const Accumulator& accumulator_of(const AccumulatorState* state) { return *state; }
+
 class AccumulatorStack {
    public:
     static constexpr usize MaxSize = MAX_PLY + 1;

@@ -40,24 +40,8 @@ alignas(CacheLineSize) inline constexpr
 // 各バイトが0～127の活性化値であるi32チャンクの非ゼロ要素を列挙する。
 template<IndexType InputDimensions>
 inline void find_nnz(const i32* input, u16* out, IndexType& count_out) {
+    using SIMD::vec_t;
 #if defined(USE_SSSE3)
-#if defined(USE_AVX512)
-	using vec_t = __m512i;
-	#define vec_nnz(a) _mm512_cmpgt_epi32_mask(a, _mm512_setzero_si512())
-#elif defined(USE_AVX2)
-    using vec_t = __m256i;
-#if defined(USE_NNUE_VNNI) && !defined(USE_AVXVNNI)
-#define vec_nnz(a) _mm256_cmpgt_epi32_mask(a, _mm256_setzero_si256())
-#else
-#define vec_nnz(a) \
-                        _mm256_movemask_ps( \
-                    _mm256_castsi256_ps(_mm256_cmpgt_epi32(a, _mm256_setzero_si256())))
-        #endif
-#elif defined(USE_SSSE3)
-    using vec_t = __m128i;
-#define vec_nnz(a) \
-                _mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(a, _mm_setzero_si128())))
-#endif
     using vec128_t = __m128i;
 #define vec128_zero _mm_setzero_si128()
 #define vec128_set_16(a) _mm_set1_epi16(a)
@@ -65,9 +49,6 @@ inline void find_nnz(const i32* input, u16* out, IndexType& count_out) {
 #define vec128_storeu(a, b) _mm_storeu_si128(a, b)
 #define vec128_add(a, b) _mm_add_epi16(a, b)
 #elif defined(USE_NEON)
-    using vec_t                        = uint32x4_t;
-        static constexpr u32 Mask[4] = {1, 2, 4, 8};
-#define vec_nnz(a) vaddvq_u32(vandq_u32(vtstq_u32(a, a), vld1q_u32(Mask)))
     using vec128_t                     = uint16x8_t;
 #define vec128_zero vdupq_n_u16(0)
 #define vec128_set_16(a) vdupq_n_u16(a)
@@ -110,7 +91,6 @@ inline void find_nnz(const i32* input, u16* out, IndexType& count_out) {
     }
     count_out = count;
 }
-#undef vec_nnz
 #undef vec128_zero
 #undef vec128_set_16
 #undef vec128_load

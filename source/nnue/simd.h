@@ -85,6 +85,7 @@ namespace YaneuraOu::Eval::NNUE::SIMD {
 
 #if defined(USE_AVX512)
 using vec_t = __m512i;
+#define vec_nnz(a) _mm512_cmpgt_epi32_mask(a, _mm512_setzero_si512())
 #define vec_load(a) _mm512_load_si512(a)
 #define vec_store(a, b) _mm512_store_si512(a, b)
 #define vec_add_16(a, b) _mm512_add_epi16(a, b)
@@ -109,6 +110,11 @@ static_assert(NNUE_FT_REGS >= 1 && NNUE_FT_REGS <= 24, "NNUE_FT_REGS must be in 
 #elif defined(USE_AVX2)
 // Stockfishの12とは異なり、既存の16レジスタ設定を維持する。
 using vec_t = __m256i;
+#if defined(USE_NNUE_VNNI) && !defined(USE_AVXVNNI)
+#define vec_nnz(a) _mm256_cmpgt_epi32_mask(a, _mm256_setzero_si256())
+#else
+#define vec_nnz(a) _mm256_movemask_ps(_mm256_castsi256_ps(_mm256_cmpgt_epi32(a, _mm256_setzero_si256())))
+#endif
 #define vec_load(a) _mm256_load_si256(a)
 #define vec_store(a, b) _mm256_store_si256(a, b)
 #define vec_add_16(a, b) _mm256_add_epi16(a, b)
@@ -126,6 +132,9 @@ using vec_t = __m256i;
 #elif defined(USE_SSE2)
 // Stockfishの12/6とは異なり、既存の64bit/32bit向け16/8レジスタ設定を維持する。
 using vec_t = __m128i;
+#if defined(USE_SSSE3)
+#define vec_nnz(a) _mm_movemask_ps(_mm_castsi128_ps(_mm_cmpgt_epi32(a, _mm_setzero_si128())))
+#endif
 #define vec_load(a) (*(a))
 #define vec_store(a, b) *(a) = (b)
 #define vec_add_16(a, b) _mm_add_epi16(a, b)
@@ -152,6 +161,16 @@ using vec_t = __m64;
 
 #elif defined(USE_NEON)
 using vec_t = int16x8_t;
+#if USE_NEON >= 8
+// Nonzero masks use the same 32-bit chunks as the x86 sparse input path.
+// x86の疎な入力経路と同じ32bitチャンク単位で非ゼロ判定する。
+inline unsigned neon_vec_nnz(vec_t a) {
+    static constexpr u32 Mask[4] = {1, 2, 4, 8};
+    const auto chunks = vreinterpretq_u32_s16(a);
+    return vaddvq_u32(vandq_u32(vtstq_u32(chunks, chunks), vld1q_u32(Mask)));
+}
+#define vec_nnz(a) SIMD::neon_vec_nnz(a)
+#endif
 #define vec_load(a) (*(a))
 #define vec_store(a, b) *(a) = (b)
 #define vec_add_16(a, b) vaddq_s16(a, b)
