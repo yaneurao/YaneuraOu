@@ -207,22 +207,7 @@ std::string USI_PIECE_KANJI[] = {
 		  "^歩","^香","^桂","^銀","^角","^飛","^金","^玉","^と","^杏","^圭","^全","^馬","^龍","^菌","^王"
 };
 std::string pretty(Piece pc) {
-#if 1
 	return USI_PIECE_KANJI[pc];
-#else
-	// 色を変えたほうがわかりやすい。Linuxは簡単だが、MS-DOSは設定が面倒。
-	// Linux : https://qiita.com/dojineko/items/49aa30018bb721b0b4a9
-	// MS-DOS : https://one-person.hatenablog.jp/entry/2017/02/23/125809
-
-	std::string result;
-	if (pc != NO_PIECE)
-		result = (color_of(pc) == BLACK) ? "\\e[32;40;1m" : "\\e[33;40;1m";
-	result += USI_PIECE_KANJI[pc];
-	if (pc != NO_PIECE)
-		result += "\\e[m";
-
-	return result;
-#endif
 }
 #endif
 
@@ -1079,10 +1064,6 @@ bool Position::attackers_to_exist(Square s, Bitboard occupied, Color c) const {
 #endif
 
 
-// 🚧
-
-
-
 // 盤面を先後反転させた時のsfen文字列を取得する。
 const std::string Position::flipped_sfen() const { return flipped_sfen(game_ply()); }
 
@@ -1167,17 +1148,10 @@ const std::string Position::flipped_sfen(int gamePly_) const
 // sfen文字列をflip(先後反転)したsfen文字列に変換する。
 const std::string Position::sfen_to_flipped_sfen(std::string sfen)
 {
-#if 1
 	Position pos;
 
 	pos.set(sfen);
 	return pos.flipped_sfen();
-#else
-	// この局面クラスを利用せず文字列操作だけで求めて返す。
-	// https://yaneuraou.yaneu.com/2023/12/15/chatgpt-wrote-a-program-to-flip-a-shogi-board/
-
-	// 文字列操作だけで書く。あとで書くかも。
-#endif
 }
 
 
@@ -1936,12 +1910,6 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
             prefetch(tt->get_cluster(key));
         }
 
-#if defined(USE_PARTIAL_KEY) & 0
-        // 打ち歩なら、pawnKeyの更新が必要
-        if (pr == PAWN)
-            st->pawnKey ^= Zobrist::psq[pc][to];
-#endif
-
         put_piece(pc, to);
         put_piece_for_partial_key(st, pc, to);
 
@@ -2090,7 +2058,6 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
         // 王手している駒のbitboardを更新する。
         if (givesCheck)
         {
-#if 1
             // 高速化のために差分更新する時用
 
             const StateInfo* prevSt = previousSt;
@@ -2126,10 +2093,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 
             // 差分更新したcheckersBBが正しく更新されているかをテストするためのassert
             ASSERT_LV3(st->checkersBB == attackers_to<Us>(square<KING>(them)));
-#else
-            // 差分更新しないとき用。(デバッグ等の目的で用いる)
-            st->checkersBB = attackers_to<Us>(square<KING>(Them));
-#endif
+
             // 手番側は2手前のものからの継続。
             st->continuousCheck[Us] += 2;
         }
@@ -2878,19 +2842,16 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 //      千日手判定
 // ----------------------------------
 
-#if 0
+#if STOCKFISH
 // Tests whether the position is drawn by 50-move rule
 // or by repetition. It does not detect stalemates.
-// この処理は、局面が50手ルールまたは繰り返しによって
-// 引き分けになっているかどうかをテストします。ステイルメイトは検出されません。
+// 50手ルールまたは局面の繰り返しによる引き分けを判定する。ステイルメイトは判定しない。
 bool Position::is_draw(int ply) const {
 
-    if (st->rule50 > 99 && (!checkers() || MoveList<LEGAL>(*this).size()))
+    if (st->rule50 > 99 && (!checkers() || MoveList<ALL>(*this).size()))
         return true;
 
-    // Return a draw score if a position repeats once earlier but strictly
-    // after the root, or repeats twice before or at the root.
-    return st->repetition && st->repetition < ply;
+    return is_repetition(ply);
 }
 #endif
 
