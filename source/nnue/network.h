@@ -94,7 +94,7 @@ namespace Progress {
 
 	// ヘッダを読み込む
 	Tools::Result read_header(std::istream& stream,
-	    u32* hashValue, std::string* architecture, u32* version_out = nullptr);
+	    u32* hashValue, std::string* architecture);
 
 	// 評価関数パラメータを読み込む
 	// On a sidecar read failure, replace failed_file with its path.

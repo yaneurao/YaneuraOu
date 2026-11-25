@@ -193,8 +193,6 @@ class ClippedReLU {
   static constexpr IndexType InputDimensions =
       PreviousLayer::OutputDimensions;
   static constexpr IndexType OutputDimensions = InputDimensions;
-  static constexpr IndexType PaddedOutputDimensions =
-      ceil_to_multiple<IndexType>(OutputDimensions, MaxSimdWidth);
 
   // Size of forward propagation buffer used in this layer
   // この層で使用する順伝播用バッファのサイズ

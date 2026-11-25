@@ -294,7 +294,7 @@ namespace {
 
 		u32 hashValue;
 		std::string architecture;
-		Tools::Result result = read_header(stream, &hashValue, &architecture, nullptr);
+		Tools::Result result = read_header(stream, &hashValue, &architecture);
 		if (result.is_not_ok()) return result;
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
         const auto qb = read_little_endian<u32>(stream);
@@ -365,14 +365,12 @@ namespace {
 
     // ヘッダを読み込む
     Tools::Result read_header(std::istream& stream,
-        u32* hashValue, std::string* architecture, u32* version_out) {
+        u32* hashValue, std::string* architecture) {
         u32 version = 0, size = 0;
         read_little_endian(stream, &version, 1);
         read_little_endian(stream, hashValue, 1);
         read_little_endian(stream, &size, 1);
 		if (!stream) return Tools::ResultCode::FileReadError;
-		if (version_out)
-			*version_out = version;
         if (version != Version) {
 			sync_cout << "info string NNUE header version mismatch: expected " << Version
 				<< " got " << version << sync_endl;
