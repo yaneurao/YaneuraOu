@@ -1,6 +1,7 @@
 ﻿// Definition of layer SqrClippedReLU of NNUE evaluation function
 // NNUE評価関数の層SqrClippedReLUの定義
 
+// Definition of layer ClippedReLU of NNUE evaluation function
 #ifndef NNUE_LAYERS_SQR_CLIPPED_RELU_H_INCLUDED
 #define NNUE_LAYERS_SQR_CLIPPED_RELU_H_INCLUDED
 
@@ -10,7 +11,7 @@
 
 #include "../../config.h"
 
-#if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
+#if defined(EVAL_NNUE) || defined(EVAL_SFNN)
 
 #include "../nnue_common.h"
 
@@ -171,6 +172,6 @@ namespace YaneuraOu::Eval::NNUE::Layers {
 
 } // namespace YaneuraOu::Eval::NNUE::Layers
 
-#endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
+#endif // defined(EVAL_NNUE) || defined(EVAL_SFNN)
 
 #endif // NNUE_LAYERS_SQR_CLIPPED_RELU_H_INCLUDED

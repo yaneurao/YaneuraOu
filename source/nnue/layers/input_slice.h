@@ -67,8 +67,6 @@ class InputSlice {
       char* /*buffer*/) const {
     return transformed_features + Offset;
   }
-
- private:
 };
 
 } // namespace Eval::NNUE::Layers
