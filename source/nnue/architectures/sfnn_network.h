@@ -1,11 +1,10 @@
 // Common SFNN without PSQT network implementation.
 // Architecture headers should only select types and constants.
 
-#ifndef CLASSIC_NNUE_SFNN_NETWORK_H_INCLUDED
-#define CLASSIC_NNUE_SFNN_NETWORK_H_INCLUDED
+#ifndef NNUE_SFNN_NETWORK_H_INCLUDED
+#define NNUE_SFNN_NETWORK_H_INCLUDED
 
 #include "../../config.h"
-#include "../../extra/tools.h"
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
@@ -56,7 +55,7 @@ struct SfnnNetwork {
 	Layers::AffineTransform<Hidden2Dims, 1> fc_2;
 
 	using OutputType = i32;
-	static constexpr IndexType kOutputDimensions = 1;
+	static constexpr IndexType OutputDimensions = 1;
 	static constexpr IndexType kInputDims = InputDims;
 	static constexpr IndexType kHidden1Dims = Hidden1Dims;
 	static constexpr IndexType kHidden2Dims = Hidden2Dims;
@@ -75,23 +74,22 @@ struct SfnnNetwork {
 #endif
 
 	using Buffer = SfnnNetworkBuffer<Fc0Layer, kHidden1Dims, kHidden2Dims, kUsePackedTail>;
-	static constexpr usize kBufferSize = sizeof(Buffer);
+	static constexpr usize BufferSize = sizeof(Buffer);
 
-	static constexpr u32 GetHashValue() {
+	static constexpr u32 get_hash_value() {
 		return 0x6333718Au;
 	}
 
-	Tools::Result ReadParameters(std::istream& stream) {
-		bool result = fc_0.read_parameters(stream)
+	bool read_parameters(std::istream& stream) {
+		return fc_0.read_parameters(stream)
 			&& ac_0.read_parameters(stream)
 			&& ac_sqr_0.read_parameters(stream)
 			&& fc_1.read_parameters(stream)
 			&& ac_1.read_parameters(stream)
 			&& fc_2.read_parameters(stream);
-		return result ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
 
-	bool WriteParameters(std::ostream& stream) const {
+	bool write_parameters(std::ostream& stream) const {
 		return fc_0.write_parameters(stream)
 			&& ac_0.write_parameters(stream)
 			&& ac_sqr_0.write_parameters(stream)
@@ -109,12 +107,12 @@ struct SfnnNetwork {
 		return static_cast<typename decltype(ac_0)::OutputType>(shifted);
 	}
 
-	static typename decltype(ac_sqr_0)::OutputType SqrClippedReLUValue(i32 value) {
+	static typename decltype(ac_sqr_0)::OutputType sqr_clipped_relu_value(i32 value) {
 		const auto sqr = (static_cast<long long>(value) * value) >> (2 * WeightScaleBits + 7);
 		return static_cast<typename decltype(ac_sqr_0)::OutputType>(sqr >= 127 ? 127 : sqr);
 	}
 
-	void MakeHidden1Input(const typename decltype(fc_0)::OutputType* input,
+	void make_hidden1_input(const typename decltype(fc_0)::OutputType* input,
 	                      typename decltype(ac_sqr_0)::OutputType* output) const {
 		ac_sqr_0.propagate_pair(input, output, output + kHidden1Dims);
 		std::fill(output + kHidden1Dims * 2,
@@ -126,13 +124,13 @@ struct SfnnNetwork {
 	                                   u32* output) {
 		constexpr IndexType kPackedWords = ceil_to_multiple<IndexType>(kHidden1Dims * 2, 8) / 4;
 		if constexpr (kHidden1Dims == 7) {
-			const auto s0 = static_cast<u32>(SqrClippedReLUValue(input[0]));
-			const auto s1 = static_cast<u32>(SqrClippedReLUValue(input[1]));
-			const auto s2 = static_cast<u32>(SqrClippedReLUValue(input[2]));
-			const auto s3 = static_cast<u32>(SqrClippedReLUValue(input[3]));
-			const auto s4 = static_cast<u32>(SqrClippedReLUValue(input[4]));
-			const auto s5 = static_cast<u32>(SqrClippedReLUValue(input[5]));
-			const auto s6 = static_cast<u32>(SqrClippedReLUValue(input[6]));
+			const auto s0 = static_cast<u32>(sqr_clipped_relu_value(input[0]));
+			const auto s1 = static_cast<u32>(sqr_clipped_relu_value(input[1]));
+			const auto s2 = static_cast<u32>(sqr_clipped_relu_value(input[2]));
+			const auto s3 = static_cast<u32>(sqr_clipped_relu_value(input[3]));
+			const auto s4 = static_cast<u32>(sqr_clipped_relu_value(input[4]));
+			const auto s5 = static_cast<u32>(sqr_clipped_relu_value(input[5]));
+			const auto s6 = static_cast<u32>(sqr_clipped_relu_value(input[6]));
 			const auto c0 = static_cast<u32>(ClippedReLUValue(input[0]));
 			const auto c1 = static_cast<u32>(ClippedReLUValue(input[1]));
 			const auto c2 = static_cast<u32>(ClippedReLUValue(input[2]));
@@ -148,20 +146,20 @@ struct SfnnNetwork {
 			std::memset(output, 0, kPackedWords * sizeof(u32));
 			auto bytes = reinterpret_cast<typename decltype(ac_sqr_0)::OutputType*>(output);
 			for (IndexType i = 0; i < kHidden1Dims; ++i)
-				bytes[i] = SqrClippedReLUValue(input[i]);
+				bytes[i] = sqr_clipped_relu_value(input[i]);
 			for (IndexType i = 0; i < kHidden1Dims; ++i)
 				bytes[kHidden1Dims + i] = ClippedReLUValue(input[i]);
 		}
 	}
 
 	template <typename BufferType>
-	const OutputType* PropagateTail(BufferType& buf) const {
+	const OutputType* propagate_tail(BufferType& buf) const {
 		if constexpr (kUsePackedTail) {
 			u32 ac_sqr_0_packed[ceil_to_multiple<IndexType>(kHidden1Dims * 2, 8) / 4];
 			MakeHidden1InputPacked(buf.fc_0_out, ac_sqr_0_packed);
-			fc_1.PropagateClippedReLUPackedToOutput(ac_sqr_0_packed, fc_2, buf.fc_2_out);
+			fc_1.propagate_clipped_relu_packed_to_output(ac_sqr_0_packed, fc_2, buf.fc_2_out);
 		} else {
-			MakeHidden1Input(buf.fc_0_out, buf.ac_sqr_0_out);
+			make_hidden1_input(buf.fc_0_out, buf.ac_sqr_0_out);
 			fc_1.propagate(buf.ac_sqr_0_out, buf.fc_1_out);
 			ac_1.propagate(buf.fc_1_out, buf.ac_1_out);
 			fc_2.propagate(buf.ac_1_out, buf.fc_2_out);
@@ -172,28 +170,28 @@ struct SfnnNetwork {
 		return buf.fc_2_out;
 	}
 
-	const OutputType* Propagate(const TransformedFeatureType* transformedFeatures, char* buffer) const {
+	const OutputType* propagate(const TransformedFeatureType* transformedFeatures, char* buffer) const {
 		auto& buf = *reinterpret_cast<Buffer*>(buffer);
 		fc_0.propagate(transformedFeatures, buf.fc_0_out);
-		return PropagateTail(buf);
+		return propagate_tail(buf);
 	}
 
 #if defined(USE_AVX512)
 	template <typename AccumulationType>
-	const OutputType* PropagateFromAccumulator(const AccumulationType& accumulation,
+	const OutputType* propagate_from_accumulator(const AccumulationType& accumulation,
 	                                           Color sideToMove,
 	                                           char* buffer) const {
 		auto& buf = *reinterpret_cast<Buffer*>(buffer);
 #if defined(NNUE_SFNN_FUSED_FT)
 		if constexpr (kHidden1OutputDims == 16
 		              && std::is_same_v<Fc0Layer, Layers::AffineTransformSparseInput<kInputDims, 16>>)
-			fc_0.template PropagateSfnn16FromAccumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
+			fc_0.template propagate_sfnn16_from_accumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
 		else
-			fc_0.template PropagateSfnnFromAccumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
+			fc_0.template propagate_sfnn_from_accumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
 #else
-		fc_0.template PropagateSfnnFromAccumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
+		fc_0.template propagate_sfnn_from_accumulator<kInputDims>(accumulation, sideToMove, buf.fc_0_out);
 #endif
-		return PropagateTail(buf);
+		return propagate_tail(buf);
 	}
 #endif
 };
@@ -203,4 +201,4 @@ struct SfnnNetwork {
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
-#endif // CLASSIC_NNUE_SFNN_NETWORK_H_INCLUDED
+#endif // NNUE_SFNN_NETWORK_H_INCLUDED

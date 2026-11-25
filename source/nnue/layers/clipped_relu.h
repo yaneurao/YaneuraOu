@@ -9,7 +9,6 @@
 #include <iosfwd>
 
 #include "../../config.h"
-#include "../../extra/tools.h"
 
 #if defined(EVAL_NNUE) || defined(EVAL_SFNN)
 #include "../nnue_common.h"
@@ -208,66 +207,66 @@ class ClippedReLU {
 
   // Number of input/output dimensions
   // 入出力の次元数
-  static constexpr IndexType kInputDimensions =
-      PreviousLayer::kOutputDimensions;
-  static constexpr IndexType kOutputDimensions = kInputDimensions;
-  static constexpr IndexType kPaddedOutputDimensions =
-      ceil_to_multiple<IndexType>(kOutputDimensions, MaxSimdWidth);
+  static constexpr IndexType InputDimensions =
+      PreviousLayer::OutputDimensions;
+  static constexpr IndexType OutputDimensions = InputDimensions;
+  static constexpr IndexType PaddedOutputDimensions =
+      ceil_to_multiple<IndexType>(OutputDimensions, MaxSimdWidth);
 
   // Size of forward propagation buffer used in this layer
   // この層で使用する順伝播用バッファのサイズ
-  static constexpr usize kSelfBufferSize =
-      ceil_to_multiple(kOutputDimensions * sizeof(OutputType), CacheLineSize);
+  static constexpr usize SelfBufferSize =
+      ceil_to_multiple(OutputDimensions * sizeof(OutputType), CacheLineSize);
 
   // Size of the forward propagation buffer used from the input layer to this layer
   // 入力層からこの層までで使用する順伝播用バッファのサイズ
-  static constexpr usize kBufferSize =
-      PreviousLayer::kBufferSize + kSelfBufferSize;
+  static constexpr usize BufferSize =
+      PreviousLayer::BufferSize + SelfBufferSize;
 
   // Hash value embedded in the evaluation file
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr u32 GetHashValue() {
-    u32 hash_value = 0x538D24C7u;
-    hash_value += PreviousLayer::GetHashValue();
-    return hash_value;
+  static constexpr u32 get_hash_value() {
+    u32 hashValue = 0x538D24C7u;
+    hashValue += PreviousLayer::get_hash_value();
+    return hashValue;
   }
 
   // ハッシュ値を前段の値から更新するときのヘルパー
-  static constexpr u32 GetHashValue(u32 prevHash) {
+  static constexpr u32 get_hash_value(u32 prevHash) {
     return 0x538D24C7u + prevHash;
   }
 
   // 入力層からこの層までの構造を表す文字列
   static std::string GetStructureString() {
     return "ClippedReLU[" +
-        std::to_string(kOutputDimensions) + "](" +
+        std::to_string(OutputDimensions) + "](" +
         PreviousLayer::GetStructureString() + ")";
   }
 
   // Read network parameters
   // パラメータを読み込む
-  Tools::Result ReadParameters(std::istream& stream) {
-    return previous_layer_.ReadParameters(stream);
+  bool read_parameters(std::istream& stream) {
+    return previous_layer_.read_parameters(stream);
   }
 
   // パラメータを書き込む
-  bool WriteParameters(std::ostream& stream) const {
-    return previous_layer_.WriteParameters(stream);
+  bool write_parameters(std::ostream& stream) const {
+    return previous_layer_.write_parameters(stream);
   }
 
   // Forward propagation
   // 順伝播
-  const OutputType* Propagate(
+  const OutputType* propagate(
       const TransformedFeatureType* transformed_features, char* buffer) const {
-    const auto input = previous_layer_.Propagate(
-        transformed_features, buffer + kSelfBufferSize);
+    const auto input = previous_layer_.propagate(
+        transformed_features, buffer + SelfBufferSize);
     const auto output = reinterpret_cast<OutputType*>(buffer);
 
   // 端数が生じないように、適切なSIMD幅を選択する。
   #if defined(USE_AVX512)
-    if constexpr (kInputDimensions % 64 == 0)
+    if constexpr (InputDimensions % 64 == 0)
     {
-      constexpr IndexType kNumChunks = kInputDimensions / 64;
+      constexpr IndexType kNumChunks = InputDimensions / 64;
       const __m512i kZero = _mm512_setzero_si512();
       const __m512i kOffsets = _mm512_set_epi32(15, 11, 7, 3, 14, 10, 6, 2, 13, 9, 5, 1, 12, 8, 4, 0);
       const auto in = reinterpret_cast<const __m512i*>(input);
@@ -288,9 +287,9 @@ class ClippedReLU {
   #endif
 
   #if defined(USE_AVX2)
-    if constexpr (kInputDimensions % 32 == 0)
+    if constexpr (InputDimensions % 32 == 0)
     {
-      constexpr IndexType kNumChunks = kInputDimensions / 32;
+      constexpr IndexType kNumChunks = InputDimensions / 32;
       const __m256i kZero = _mm256_setzero_si256();
       const __m256i kOffsets = _mm256_set_epi32(7, 3, 6, 2, 5, 1, 4, 0);
       const auto in = reinterpret_cast<const __m256i*>(input);
@@ -311,9 +310,9 @@ class ClippedReLU {
   #endif
 
   #if defined(USE_SSE2)
-    if constexpr (kInputDimensions % 16 == 0)
+    if constexpr (InputDimensions % 16 == 0)
     {
-      constexpr IndexType kNumChunks = kInputDimensions / 16;
+      constexpr IndexType kNumChunks = InputDimensions / 16;
 
   #ifdef USE_SSE41
       const __m128i kZero = _mm_setzero_si128();
@@ -344,9 +343,9 @@ class ClippedReLU {
   #endif
 
   #if defined(USE_MMX)
-    if constexpr (kInputDimensions % 8 == 0)
+    if constexpr (InputDimensions % 8 == 0)
     {
-      constexpr IndexType kNumChunks = kInputDimensions / 8;
+      constexpr IndexType kNumChunks = InputDimensions / 8;
       const __m64 k0x80s = _mm_set1_pi8(-128);
       const auto in = reinterpret_cast<const __m64*>(input);
       const auto out = reinterpret_cast<__m64*>(output);
@@ -367,9 +366,9 @@ class ClippedReLU {
   #endif
 
   #if defined(USE_NEON)
-    if constexpr (kInputDimensions % 8 == 0)
+    if constexpr (InputDimensions % 8 == 0)
     {
-      constexpr IndexType kNumChunks = kInputDimensions / 8;
+      constexpr IndexType kNumChunks = InputDimensions / 8;
       const int8x8_t kZero = {0};
       const auto in = reinterpret_cast<const int32x4_t*>(input);
       const auto out = reinterpret_cast<int8x8_t*>(output);
@@ -385,12 +384,12 @@ class ClippedReLU {
 
   #endif
 
-    for (IndexType i = 0; i < kInputDimensions; ++i) {
+    for (IndexType i = 0; i < InputDimensions; ++i) {
       output[i] = static_cast<OutputType>(
           std::clamp(input[i] >> WeightScaleBits, 0, 127));
     }
-    if constexpr (kPaddedOutputDimensions > kOutputDimensions) {
-      std::fill(output + kOutputDimensions, output + kPaddedOutputDimensions, OutputType{0});
+    if constexpr (PaddedOutputDimensions > OutputDimensions) {
+      std::fill(output + OutputDimensions, output + PaddedOutputDimensions, OutputType{0});
     }
     return output;
   }

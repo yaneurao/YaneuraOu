@@ -9,7 +9,6 @@
 #include <iosfwd>
 
 #include "../../config.h"
-#include "../../extra/tools.h"
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

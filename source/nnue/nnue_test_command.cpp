@@ -43,11 +43,11 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
   auto evaluate = [&]() { return Eval::evaluate(network, pos, *stack, refreshTable); };
   auto fresh_evaluate = [&]() { return Eval::evaluate(network, pos); };
   PRNG prng(20261025);
-  std::uint64_t moves = 0, pawn_moves = 0, pawn_captures = 0, promotions = 0, king_moves = 0, checksum = 0;
+  u64 moves = 0, pawn_moves = 0, pawn_captures = 0, promotions = 0, king_moves = 0, checksum = 0;
   for (int game = 0; game < games; ++game) {
     pos.set_hirate();
     stack->reset();
-    network.featureTransformer.EnsureAccumulator(pos, true, current_state(), refreshTable);
+    network.featureTransformer.ensure_accumulator(pos, true, current_state(), refreshTable);
     // Cover delayed updates and null moves before testing ordinary one-ply updates.
     // 通常の1手差分に加え、評価を省略した連続着手とnull moveも検証する。
     PRNG delayed_prng(20261113 + game);
@@ -72,7 +72,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
           do_move(child);
           const Value child_score = evaluate();
           const auto child_accumulator = accumulator_of(current_state());
-          network.featureTransformer.RefreshAccumulatorForTest(pos, current_state());
+          network.featureTransformer.refresh_accumulator_for_test(pos, current_state());
           if (child_score != evaluate()
               || std::memcmp(child_accumulator.accumulation,
                              accumulator_of(current_state()).accumulation,
@@ -93,7 +93,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
         return;
       }
       const auto delayed = accumulator_of(current_state());
-      network.featureTransformer.RefreshAccumulatorForTest(pos, current_state());
+      network.featureTransformer.refresh_accumulator_for_test(pos, current_state());
       if (std::memcmp(delayed.accumulation, accumulator_of(current_state()).accumulation,
                       sizeof(delayed.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED delayed FT" << std::endl;
@@ -103,7 +103,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
         undo_move(*it);
         const Value ancestor_score = evaluate();
         const auto ancestor = accumulator_of(current_state());
-        network.featureTransformer.RefreshAccumulatorForTest(pos, current_state());
+        network.featureTransformer.refresh_accumulator_for_test(pos, current_state());
         if (ancestor_score != evaluate()
             || std::memcmp(ancestor.accumulation, accumulator_of(current_state()).accumulation,
                            sizeof(ancestor.accumulation)) != 0) {
@@ -135,7 +135,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
           }
         }
       }
-      network.featureTransformer.UpdateAccumulatorIfPossible(pos, current_state(), refreshTable);
+      network.featureTransformer.update_accumulator_if_possible(pos, current_state(), refreshTable);
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
       {
       const auto progress = network.progress.SumQ16(pos, current_state());
@@ -147,29 +147,29 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
 #endif
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE)
       // Check raw fc_0 outputs, including values hidden by FV_SCALE rounding.
-      alignas(CacheLineSize) TransformedFeatureType features[FeatureTransformer::kBufferSize];
-      network.featureTransformer.Transform(pos, features, false, current_state(), refreshTable);
+      alignas(CacheLineSize) TransformedFeatureType features[FeatureTransformer::BufferSize];
+      network.featureTransformer.transform(pos, features, false, current_state(), refreshTable);
       const auto& fc = network.network[moves % kLayerStacks].fc_0;
       using Fc = std::remove_cv_t<std::remove_reference_t<decltype(fc)>>;
       alignas(CacheLineSize) typename Fc::OutputBuffer separate, fused;
-      fc.Propagate(features, separate);
-      fc.template PropagateSfnn16FromAccumulator<kTransformedFeatureDimensions>(
+      fc.propagate(features, separate);
+      fc.template propagate_sfnn16_from_accumulator<kTransformedFeatureDimensions>(
           accumulator_of(current_state()).accumulation, pos.side_to_move(), fused);
-      if (std::memcmp(separate, fused, sizeof(typename Fc::OutputType) * Fc::kOutputDimensions) != 0) {
+      if (std::memcmp(separate, fused, sizeof(typename Fc::OutputType) * Fc::OutputDimensions) != 0) {
         std::cout << "test_accumulator FAILED fused fc_0 game " << game << " ply " << ply << std::endl;
         return;
       }
 #endif
       const auto incremental = accumulator_of(current_state());
       const Value score = evaluate();
-      network.featureTransformer.EnsureAccumulator(pos, true, current_state(), refreshTable);
+      network.featureTransformer.ensure_accumulator(pos, true, current_state(), refreshTable);
       const Value cached_reference = evaluate();
       if (score != cached_reference || std::memcmp(incremental.accumulation,
           accumulator_of(current_state()).accumulation, sizeof(incremental.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED cached refresh game " << game << " ply " << ply << std::endl;
         return;
       }
-      network.featureTransformer.RefreshAccumulatorForTest(pos, current_state());
+      network.featureTransformer.refresh_accumulator_for_test(pos, current_state());
       const Value reference = evaluate();
       if (score != reference || std::memcmp(incremental.accumulation,
           accumulator_of(current_state()).accumulation, sizeof(incremental.accumulation)) != 0) {
@@ -177,7 +177,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
                   << " sfen " << pos.sfen() << std::endl;
         return;
       }
-      checksum = checksum * 6364136223846793005ULL + static_cast<std::uint64_t>(score);
+      checksum = checksum * 6364136223846793005ULL + static_cast<u64>(score);
       undo_move(move);
       if (std::memcmp(parent.accumulation, accumulator_of(current_state()).accumulation,
                       sizeof(parent.accumulation)) != 0) {
@@ -185,7 +185,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
         return;
       }
       do_move(move);
-      network.featureTransformer.UpdateAccumulatorIfPossible(pos, current_state(), refreshTable);
+      network.featureTransformer.update_accumulator_if_possible(pos, current_state(), refreshTable);
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
       {
       const auto progress = network.progress.SumQ16(pos, current_state());
@@ -228,7 +228,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
 // 主に差分計算に関するRawFeaturesのテスト
 void TestFeatures(Position&) {
   Position pos;
-  const std::uint64_t num_games = 1000;
+  const u64 num_games = 1000;
 
   pos.set_hirate();
   const int MAX_PLY = 256; // 256手までテスト
@@ -237,9 +237,9 @@ void TestFeatures(Position&) {
 
   PRNG prng(20171128);
 
-  std::uint64_t num_moves = 0;
-  std::vector<std::uint64_t> num_updates(kRefreshTriggers.size() + 1);
-  std::vector<std::uint64_t> num_resets(kRefreshTriggers.size());
+  u64 num_moves = 0;
+  std::vector<u64> num_updates(kRefreshTriggers.size() + 1);
+  std::vector<u64> num_resets(kRefreshTriggers.size());
   constexpr IndexType kUnknown = -1;
   std::vector<IndexType> trigger_map(RawFeatures::kDimensions, kUnknown);
   auto make_index_sets = [&](const Position& pos) {
@@ -299,7 +299,7 @@ void TestFeatures(Position&) {
             << "[" << RawFeatures::kDimensions << "]" << std::endl;
   std::cout << "start testing with random games";
 
-  for (std::uint64_t i = 0; i < num_games; ++i) {
+  for (u64 i = 0; i < num_games; ++i) {
     auto index_sets = make_index_sets(pos);
     for (ply = 0; ply < MAX_PLY; ++ply) {
       MoveList<LEGAL_ALL> mg(pos); // 全合法手の生成
@@ -329,7 +329,7 @@ void TestFeatures(Position&) {
             << num_updates.back() << " updates, "
             << (1.0 * num_updates.back() / num_moves)
             << " updates per move" << std::endl;
-  std::size_t num_observed_indices = 0;
+  usize num_observed_indices = 0;
   for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
     const auto count = std::count(trigger_map.begin(), trigger_map.end(), i);
     num_observed_indices += count;
@@ -350,26 +350,26 @@ void TestFeatures(Position&) {
 
 // 評価関数の構造を表す文字列を出力する
 void PrintInfo(std::istream& stream) {
-  std::cout << "network architecture: " << GetArchitectureString() << std::endl;
+  std::cout << "network architecture: " << get_architecture_string() << std::endl;
 
   while (true) {
     std::string file_name;
     stream >> file_name;
     if (file_name.empty()) break;
 
-    std::uint32_t hash_value;
+    u32 hashValue;
     std::string architecture;
     const Tools::Result result = [&]() {
       std::ifstream file_stream(file_name, std::ios::binary);
       if (!file_stream) return Tools::Result(Tools::ResultCode::FileReadError);
-	  return ReadHeader(file_stream, &hash_value, &architecture);
+	  return read_header(file_stream, &hashValue, &architecture);
     }();
 
     std::cout << file_name << ": ";
     if (result.is_ok()) {
-      if (hash_value == kHashValue) {
+      if (hashValue == kHashValue) {
         std::cout << "matches with this binary";
-        if (architecture != GetArchitectureString()) {
+        if (architecture != get_architecture_string()) {
           std::cout << ", but architecture string differs: " << architecture;
         }
         std::cout << std::endl;

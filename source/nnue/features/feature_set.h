@@ -1,8 +1,8 @@
 ﻿// A class template that represents the input feature set of the NNUE evaluation function
 // NNUE評価関数の入力特徴量セットを表すクラステンプレート
 
-#ifndef CLASSIC_NNUE_FEATURE_SET_H_INCLUDED
-#define CLASSIC_NNUE_FEATURE_SET_H_INCLUDED
+#ifndef NNUE_FEATURE_SET_H_INCLUDED
+#define NNUE_FEATURE_SET_H_INCLUDED
 
 #include "../../config.h"
 

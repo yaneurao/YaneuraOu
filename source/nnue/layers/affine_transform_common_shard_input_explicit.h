@@ -5,7 +5,6 @@
 #define NNUE_LAYERS_AFFINE_TRANSFORM_COMMON_SHARD_INPUT_EXPLICIT_H_INCLUDED
 
 #include "../../config.h"
-#include "../../extra/tools.h"
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
@@ -21,8 +20,8 @@ namespace Eval::NNUE::Layers {
 //   bias[OutputDimensions], weight[OutputDimensions][pad(InputDimensions)].
 // During read_parameters(), only common weights and the selected shard weights
 // for each output are kept in memory.
-template <IndexType InputDimensions,
-          IndexType OutputDimensions,
+template <IndexType InDims,
+          IndexType OutDims,
           IndexType CommonDimensions,
           IndexType ShardDimensions,
           IndexType ShardGroupCount>
@@ -31,60 +30,60 @@ class AffineTransformCommonShardInputExplicit {
 	using InputType  = u8;
 	using OutputType = i32;
 
-	static constexpr IndexType kInputDimensions        = InputDimensions;
-	static constexpr IndexType kOutputDimensions       = OutputDimensions;
+	static constexpr IndexType InputDimensions        = InDims;
+	static constexpr IndexType OutputDimensions       = OutDims;
 	static constexpr IndexType kCommonDimensions       = CommonDimensions;
 	static constexpr IndexType kShardDimensions        = ShardDimensions;
 	static constexpr IndexType kShardGroupCount        = ShardGroupCount;
 	static constexpr IndexType kShardTotalDimensions   = kShardDimensions * kShardGroupCount;
 	static constexpr IndexType kEffectiveInputDimensions = kCommonDimensions + kShardDimensions;
-	static constexpr IndexType kGroupOutputDimensions  = kOutputDimensions / kShardGroupCount;
-	static constexpr IndexType kPaddedInputDimensions  = ceil_to_multiple<IndexType>(kInputDimensions, MaxSimdWidth);
+	static constexpr IndexType kGroupOutputDimensions  = OutputDimensions / kShardGroupCount;
+	static constexpr IndexType PaddedInputDimensions  = ceil_to_multiple<IndexType>(InputDimensions, MaxSimdWidth);
 	static constexpr IndexType kPaddedEffectiveInputDimensions =
 	    ceil_to_multiple<IndexType>(kEffectiveInputDimensions, MaxSimdWidth);
-	static constexpr IndexType kPaddedOutputDimensions =
-	    ceil_to_multiple<IndexType>(kOutputDimensions, MaxSimdWidth);
+	static constexpr IndexType PaddedOutputDimensions =
+	    ceil_to_multiple<IndexType>(OutputDimensions, MaxSimdWidth);
 
 	static_assert(kShardGroupCount > 1, "Common+shard affine requires more than one shard group.");
 	static_assert(kShardDimensions > 0, "ShardDimensions must be positive.");
-	static_assert(kCommonDimensions + kShardTotalDimensions == kInputDimensions,
+	static_assert(kCommonDimensions + kShardTotalDimensions == InputDimensions,
 	              "CommonDimensions + ShardDimensions * ShardGroupCount must be InputDimensions.");
-	static_assert(kOutputDimensions % kShardGroupCount == 0,
+	static_assert(OutputDimensions % kShardGroupCount == 0,
 	              "OutputDimensions must be divisible by ShardGroupCount.");
 	static_assert(kCommonDimensions % 64 == 0, "CommonDimensions must be a multiple of 64.");
 	static_assert(kShardDimensions % 64 == 0, "ShardDimensions must be a multiple of 64.");
 
-	using OutputBuffer = OutputType[kPaddedOutputDimensions];
+	using OutputBuffer = OutputType[PaddedOutputDimensions];
 
-	static constexpr u32 GetHashValue(u32 prevHash) {
-		u32 hash_value = 0xCC03DAE4u;
-		hash_value += kOutputDimensions;
-		hash_value ^= prevHash >> 1;
-		hash_value ^= prevHash << 31;
-		return hash_value;
+	static constexpr u32 get_hash_value(u32 prevHash) {
+		u32 hashValue = 0xCC03DAE4u;
+		hashValue += OutputDimensions;
+		hashValue ^= prevHash >> 1;
+		hashValue ^= prevHash << 31;
+		return hashValue;
 	}
 
 	static std::string GetStructureString() {
-		return "AffineTransformCommonShardInput[" + std::to_string(kOutputDimensions) + "<-"
-		       + std::to_string(kInputDimensions) + ",c" + std::to_string(kCommonDimensions)
+		return "AffineTransformCommonShardInput[" + std::to_string(OutputDimensions) + "<-"
+		       + std::to_string(InputDimensions) + ",c" + std::to_string(kCommonDimensions)
 		       + ",s" + std::to_string(kShardDimensions) + "x"
 		       + std::to_string(kShardGroupCount) + "]";
 	}
 
 	bool read_parameters(std::istream& stream) {
-		for (usize i = 0; i < kOutputDimensions; ++i)
+		for (usize i = 0; i < OutputDimensions; ++i)
 			biases_[i] = read_little_endian<BiasType>(stream);
 
 		WeightType zero{};
-		for (usize i = 0; i < kOutputDimensions * kPaddedEffectiveInputDimensions; ++i)
+		for (usize i = 0; i < OutputDimensions * kPaddedEffectiveInputDimensions; ++i)
 			weights_[i] = zero;
 
-		for (IndexType out = 0; out < kOutputDimensions; ++out) {
+		for (IndexType out = 0; out < OutputDimensions; ++out) {
 			const IndexType group      = out / kGroupOutputDimensions;
 			const IndexType shard_base = kCommonDimensions + group * kShardDimensions;
 			const IndexType weight_base = out * kPaddedEffectiveInputDimensions;
 
-			for (IndexType in = 0; in < kPaddedInputDimensions; ++in) {
+			for (IndexType in = 0; in < PaddedInputDimensions; ++in) {
 				const WeightType w = read_little_endian<WeightType>(stream);
 				if (in < kCommonDimensions) {
 					weights_[weight_base + in] = w;
@@ -98,14 +97,14 @@ class AffineTransformCommonShardInputExplicit {
 	}
 
 	bool write_parameters(std::ostream& stream) const {
-		stream.write(reinterpret_cast<const char*>(biases_), kOutputDimensions * sizeof(BiasType));
+		stream.write(reinterpret_cast<const char*>(biases_), OutputDimensions * sizeof(BiasType));
 
-		for (IndexType out = 0; out < kOutputDimensions; ++out) {
+		for (IndexType out = 0; out < OutputDimensions; ++out) {
 			const IndexType group       = out / kGroupOutputDimensions;
 			const IndexType shard_base  = kCommonDimensions + group * kShardDimensions;
 			const IndexType weight_base = out * kPaddedEffectiveInputDimensions;
 
-			for (IndexType in = 0; in < kPaddedInputDimensions; ++in) {
+			for (IndexType in = 0; in < PaddedInputDimensions; ++in) {
 				WeightType w{};
 				if (in < kCommonDimensions) {
 					w = weights_[weight_base + in];
@@ -121,10 +120,10 @@ class AffineTransformCommonShardInputExplicit {
 
 #if defined(USE_AVX512)
 	template <IndexType HalfDimensions, typename AccumulationType>
-	void PropagateSfnnFromAccumulator(const AccumulationType& accumulation,
+	void propagate_sfnn_from_accumulator(const AccumulationType& accumulation,
 	                                  Color sideToMove,
 	                                  OutputType* output) const {
-		static_assert(kInputDimensions == HalfDimensions);
+		static_assert(InputDimensions == HalfDimensions);
 		static_assert((HalfDimensions / 2) % 64 == 0);
 
 		const __m512i zero = _mm512_setzero_si512();
@@ -138,7 +137,7 @@ class AffineTransformCommonShardInputExplicit {
 		    6;
 #endif
 
-		for (IndexType out = 0; out < kOutputDimensions; ++out) {
+		for (IndexType out = 0; out < OutputDimensions; ++out) {
 			__m512i sum = _mm512_setzero_si512();
 			const auto weight_vectors =
 			    reinterpret_cast<const __m512i*>(weights_ + out * kPaddedEffectiveInputDimensions);
@@ -166,7 +165,7 @@ class AffineTransformCommonShardInputExplicit {
 			output[out] = SIMD::m512_hadd(sum, biases_[out]);
 		}
 
-		for (IndexType out = kOutputDimensions; out < kPaddedOutputDimensions; ++out)
+		for (IndexType out = OutputDimensions; out < PaddedOutputDimensions; ++out)
 			output[out] = OutputType{};
 	}
 #endif
@@ -176,7 +175,7 @@ class AffineTransformCommonShardInputExplicit {
 		{
 			const auto common_input_vectors = reinterpret_cast<const __m512i*>(input);
 
-			for (IndexType out = 0; out < kOutputDimensions; ++out) {
+			for (IndexType out = 0; out < OutputDimensions; ++out) {
 				__m512i sum = _mm512_setzero_si512();
 				const auto weight_vectors =
 				    reinterpret_cast<const __m512i*>(weights_ + out * kPaddedEffectiveInputDimensions);
@@ -194,13 +193,13 @@ class AffineTransformCommonShardInputExplicit {
 				output[out] = SIMD::m512_hadd(sum, biases_[out]);
 			}
 
-			for (IndexType out = kOutputDimensions; out < kPaddedOutputDimensions; ++out)
+			for (IndexType out = OutputDimensions; out < PaddedOutputDimensions; ++out)
 				output[out] = OutputType{};
 			return;
 		}
 #endif
 
-		for (IndexType out = 0; out < kOutputDimensions; ++out) {
+		for (IndexType out = 0; out < OutputDimensions; ++out) {
 			const IndexType group = out / kGroupOutputDimensions;
 			const IndexType shard_base = kCommonDimensions + group * kShardDimensions;
 			const IndexType weight_base = out * kPaddedEffectiveInputDimensions;
@@ -216,7 +215,7 @@ class AffineTransformCommonShardInputExplicit {
 			output[out] = sum;
 		}
 
-		for (IndexType out = kOutputDimensions; out < kPaddedOutputDimensions; ++out)
+		for (IndexType out = OutputDimensions; out < PaddedOutputDimensions; ++out)
 			output[out] = OutputType{};
 	}
 
@@ -251,8 +250,8 @@ class AffineTransformCommonShardInputExplicit {
 	}
 #endif
 
-	alignas(CacheLineSize) BiasType biases_[kOutputDimensions];
-	alignas(CacheLineSize) WeightType weights_[kOutputDimensions * kPaddedEffectiveInputDimensions];
+	alignas(CacheLineSize) BiasType biases_[OutputDimensions];
+	alignas(CacheLineSize) WeightType weights_[OutputDimensions * kPaddedEffectiveInputDimensions];
 };
 
 }  // namespace Eval::NNUE::Layers

@@ -3,7 +3,6 @@
 #define NNUE_SFNN_NETWORK_16_H_INCLUDED
 
 #include "../nnue_common.h"
-#include "../../extra/tools.h"
 #include <algorithm>
 #include <cstdint>
 #include <type_traits>
@@ -37,7 +36,7 @@ struct SfnnAffine16 {
         return bool(stream);
     }
 
-    void Propagate(const u8* input, i64* output) const {
+    void propagate(const u8* input, i64* output) const {
         for (IndexType o = 0; o < Outputs; ++o) {
             i64 sum = biases[o];
             for (IndexType i = 0; i < Inputs; ++i)
@@ -53,7 +52,7 @@ struct SfnnNetwork16 {
     static constexpr IndexType kHidden1Dims = Hidden1Dims;
     static constexpr IndexType kHidden2Dims = Hidden2Dims;
     static constexpr bool kUseShortcut = UseShortcut;
-    static constexpr IndexType kOutputDimensions = 1;
+    static constexpr IndexType OutputDimensions = 1;
     using OutputType = i64;
     SfnnAffine16<InputDims, Hidden1Dims + (UseShortcut ? 1 : 0)> fc_0;
     SfnnAffine16<Hidden1Dims * 2, Hidden2Dims> fc_1;
@@ -68,8 +67,8 @@ struct SfnnNetwork16 {
         u8 second_activated[Hidden2Dims];
         OutputType output[1];
     };
-    static constexpr usize kBufferSize = sizeof(Buffer);
-    static constexpr u32 GetHashValue() { return 0x6333718Au; }
+    static constexpr usize BufferSize = sizeof(Buffer);
+    static constexpr u32 get_hash_value() { return 0x6333718Au; }
 
     bool SetWeightScale(u32 qb) {
         if (qb < 64 || qb > 16384 || (qb & (qb - 1))) return false;
@@ -79,11 +78,10 @@ struct SfnnNetwork16 {
         return true;
     }
 
-    Tools::Result ReadParameters(std::istream& stream) {
-        return fc_0.Read(stream) && fc_1.Read(stream) && fc_2.Read(stream)
-            ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
+    bool read_parameters(std::istream& stream) {
+        return fc_0.Read(stream) && fc_1.Read(stream) && fc_2.Read(stream);
     }
-    bool WriteParameters(std::ostream& stream) const {
+    bool write_parameters(std::ostream& stream) const {
         return fc_0.Write(stream) && fc_1.Write(stream) && fc_2.Write(stream);
     }
 
@@ -98,17 +96,17 @@ struct SfnnNetwork16 {
         return u8(std::min<i64>((z * z) >> (2 * shift + 7), 127));
     }
 
-    const OutputType* Propagate(const TransformedFeatureType* input, char* buffer) const {
+    const OutputType* propagate(const TransformedFeatureType* input, char* buffer) const {
         auto& b = *reinterpret_cast<Buffer*>(buffer);
-        fc_0.Propagate(input, b.first);
+        fc_0.propagate(input, b.first);
         for (IndexType i = 0; i < Hidden1Dims; ++i) {
             b.first_activated[i] = Squared(b.first[i]);
             b.first_activated[Hidden1Dims + i] = Clipped(b.first[i]);
         }
-        fc_1.Propagate(b.first_activated, b.second);
+        fc_1.propagate(b.first_activated, b.second);
         for (IndexType i = 0; i < Hidden2Dims; ++i)
             b.second_activated[i] = Clipped(b.second[i]);
-        fc_2.Propagate(b.second_activated, b.output);
+        fc_2.propagate(b.second_activated, b.output);
         if constexpr (UseShortcut) b.output[0] += b.first[Hidden1Dims];
         // Restore the QB=64 units expected by FV_SCALE (truncate toward zero).
         b.output[0] /= weight_scale / 64;

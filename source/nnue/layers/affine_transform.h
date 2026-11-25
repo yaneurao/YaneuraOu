@@ -8,7 +8,6 @@
 #include <iostream>
 
 #include "../../config.h"
-#include "../../extra/tools.h"
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
@@ -19,7 +18,7 @@ namespace YaneuraOu::Eval::NNUE::Layers {
 
 // 旧NNUE・SFNNで共用する非整列入力向けの実装。既存のSIMD経路を維持する。
 
-template<IndexType kInputDimensions, IndexType kPaddedInputDimensions, IndexType kOutputDimensions>
+template<IndexType InputDimensions, IndexType PaddedInputDimensions, IndexType OutputDimensions>
 static void affine_transform_unaligned(i32*       output,
                                        const i8*  weights,
                                        const i32* biases,
@@ -27,27 +26,27 @@ static void affine_transform_unaligned(i32*       output,
 #if defined(USE_SSE2) || defined(USE_NEON)
 
 #if defined(USE_AVX512)
-	constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(kInputDimensions, 64) / 64;
+	constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(InputDimensions, 64) / 64;
     const __m512i       kZeros      = _mm512_setzero_si512();
     const auto          inputVector = reinterpret_cast<const __m512i*>(input);
 #elif defined(USE_AVX2)
-	constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(kInputDimensions, 32) / 32;
+	constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(InputDimensions, 32) / 32;
     const __m256i       kZeros      = _mm256_setzero_si256();
     const auto          inputVector = reinterpret_cast<const __m256i*>(input);
 #elif defined(USE_SSE2)
     // At least a multiple of 16, with SSE2.
-    constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(kInputDimensions, 16) / 16;
+    constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(InputDimensions, 16) / 16;
     const __m128i       kZeros      = _mm_setzero_si128();
     const auto          inputVector = reinterpret_cast<const __m128i*>(input);
 
 #elif defined(USE_NEON)
-    constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(kInputDimensions, 16) / 16;
+    constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(InputDimensions, 16) / 16;
     const auto          inputVector = reinterpret_cast<const int8x8_t*>(input);
 #endif
 
-    for (IndexType i = 0; i < kOutputDimensions; ++i)
+    for (IndexType i = 0; i < OutputDimensions; ++i)
     {
-        const IndexType offset = i * kPaddedInputDimensions;
+        const IndexType offset = i * PaddedInputDimensions;
 
 #if defined(USE_AVX512)
 
@@ -155,16 +154,16 @@ static void affine_transform_unaligned(i32*       output,
 #endif
     }
 #else
-    std::memcpy(output, biases, sizeof(i32) * kOutputDimensions);
+    std::memcpy(output, biases, sizeof(i32) * OutputDimensions);
 
     // Traverse weights in transpose order to take advantage of input sparsity
-    for (IndexType i = 0; i < kInputDimensions; ++i)
+    for (IndexType i = 0; i < InputDimensions; ++i)
         if (input[i])
         {
             const i8* w  = &weights[i];
             const int          in = input[i];
-            for (IndexType j = 0; j < kOutputDimensions; ++j)
-                output[j] += w[j * kPaddedInputDimensions] * in;
+            for (IndexType j = 0; j < OutputDimensions; ++j)
+                output[j] += w[j * PaddedInputDimensions] * in;
         }
 #endif
 }
@@ -523,7 +522,7 @@ class AffineTransform {
         }
 
 #if defined(USE_AVX512)
-        void PropagateClippedReLUPackedToOutput(
+        void propagate_clipped_relu_packed_to_output(
             const u32* input32,
             const AffineTransform<OutputDimensions, 1>& next_layer,
             OutputType* output) const {
@@ -597,18 +596,18 @@ class AffineTransform {
                                                      next_layer.biases_[0]);
                 } else {
                         static_assert(OutputDimensions == 64,
-                                "PropagateClippedReLUPackedToOutput currently supports 64 hidden units.");
+                                "propagate_clipped_relu_packed_to_output currently supports 64 hidden units.");
                 }
         }
 
         // Fused path for SFNN's tiny tail: Affine(14->64) -> ClippedReLU(64)
         // -> Affine(64->1).  This avoids writing and re-reading the 64-byte
         // activation buffer while preserving ClippedReLU's byte order.
-        void PropagateClippedReLUToOutput(
+        void propagate_clipped_relu_to_output(
             const InputType* input,
             const AffineTransform<OutputDimensions, 1>& next_layer,
             OutputType* output) const {
-                PropagateClippedReLUPackedToOutput(
+                propagate_clipped_relu_packed_to_output(
                     reinterpret_cast<const u32*>(input), next_layer, output);
         }
 #endif
@@ -626,7 +625,7 @@ class AffineTransform {
 // 従来NNUEは前段レイヤーを所有するため、再帰型APIとバッファ配置を維持する。
 // Affine transformation layer
 // アフィン変換層
-template <typename PreviousLayer, IndexType OutputDimensions>
+template <typename PreviousLayer, IndexType OutDims>
 class AffineTransform {
    public:
 	// Input/output type
@@ -637,52 +636,52 @@ class AffineTransform {
 
 	// Number of input/output dimensions
 	// 入出力の次元数
-	static constexpr IndexType kInputDimensions       = PreviousLayer::kOutputDimensions;
-	static constexpr IndexType kOutputDimensions      = OutputDimensions;
-	static constexpr IndexType kPaddedInputDimensions = ceil_to_multiple<IndexType>(kInputDimensions, MaxSimdWidth);
+	static constexpr IndexType InputDimensions       = PreviousLayer::OutputDimensions;
+	static constexpr IndexType OutputDimensions      = OutDims;
+	static constexpr IndexType PaddedInputDimensions = ceil_to_multiple<IndexType>(InputDimensions, MaxSimdWidth);
 
 	// Size of forward propagation buffer used in this layer
 	// この層で使用する順伝播用バッファのサイズ
-	static constexpr usize kSelfBufferSize =
-	    ceil_to_multiple(kOutputDimensions * sizeof(OutputType), CacheLineSize);
+	static constexpr usize SelfBufferSize =
+	    ceil_to_multiple(OutputDimensions * sizeof(OutputType), CacheLineSize);
 
 	// Size of the forward propagation buffer used from the input layer to this layer
 	// 入力層からこの層までで使用する順伝播用バッファのサイズ
-	static constexpr usize kBufferSize = PreviousLayer::kBufferSize + kSelfBufferSize;
+	static constexpr usize BufferSize = PreviousLayer::BufferSize + SelfBufferSize;
 
 	// 評価関数ファイルに埋め込むハッシュ値
 	// Hash value embedded in the evaluation file
-	static constexpr u32 GetHashValue() {
-		u32 hash_value = 0xCC03DAE4u;
-		hash_value += kOutputDimensions;
-		hash_value ^= PreviousLayer::GetHashValue() >> 1;
-		hash_value ^= PreviousLayer::GetHashValue() << 31;
-		return hash_value;
+	static constexpr u32 get_hash_value() {
+		u32 hashValue = 0xCC03DAE4u;
+		hashValue += OutputDimensions;
+		hashValue ^= PreviousLayer::get_hash_value() >> 1;
+		hashValue ^= PreviousLayer::get_hash_value() << 31;
+		return hashValue;
 	}
 
 	// ハッシュ値を前段の値から更新するときのヘルパー
-	static constexpr u32 GetHashValue(u32 prevHash) {
-		u32 hash_value = 0xCC03DAE4u;
-		hash_value += kOutputDimensions;
-		hash_value ^= prevHash >> 1;
-		hash_value ^= prevHash << 31;
-		return hash_value;
+	static constexpr u32 get_hash_value(u32 prevHash) {
+		u32 hashValue = 0xCC03DAE4u;
+		hashValue += OutputDimensions;
+		hashValue ^= prevHash >> 1;
+		hashValue ^= prevHash << 31;
+		return hashValue;
 	}
 
 	// 入力層からこの層までの構造を表す文字列
 	static std::string GetStructureString() {
-		return "AffineTransform[" + std::to_string(kOutputDimensions) + "<-" + std::to_string(kInputDimensions) + "](" +
+		return "AffineTransform[" + std::to_string(OutputDimensions) + "<-" + std::to_string(InputDimensions) + "](" +
 		       PreviousLayer::GetStructureString() + ")";
 	}
 
-	static constexpr IndexType GetWeightIndexScrambled(IndexType i) {
-        return (i / 4) % (kPaddedInputDimensions / 4) * kOutputDimensions * 4
-             + i / kPaddedInputDimensions * 4 + i % 4;
+	static constexpr IndexType get_weight_index_scrambled(IndexType i) {
+        return (i / 4) % (PaddedInputDimensions / 4) * OutputDimensions * 4
+             + i / PaddedInputDimensions * 4 + i % 4;
     }
 
-    static constexpr IndexType GetWeightIndex(IndexType i) {
+    static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
-        return kOutputDimensions % 4 == 0 ? GetWeightIndexScrambled(i) : i;
+        return OutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;
 #else
         return i;
 #endif
@@ -690,37 +689,36 @@ class AffineTransform {
 
 	// Read network parameters
 	// パラメータを読み込む
-	Tools::Result ReadParameters(std::istream& stream) {
-		Tools::Result result = previous_layer_.ReadParameters(stream);
-		if (result.is_not_ok()) return result;
-		for (usize i = 0; i < kOutputDimensions; ++i)
+	bool read_parameters(std::istream& stream) {
+		if (!previous_layer_.read_parameters(stream)) return false;
+		for (usize i = 0; i < OutputDimensions; ++i)
 			biases_[i] = read_little_endian<BiasType>(stream);
-		for (usize i = 0; i < kOutputDimensions * kPaddedInputDimensions; ++i)
-			weights_[GetWeightIndex(IndexType(i))] = read_little_endian<WeightType>(stream);
-		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
+		for (usize i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+			weights_[get_weight_index(IndexType(i))] = read_little_endian<WeightType>(stream);
+		return !stream.fail();
 	}
 
 	// パラメータを書き込む
-	bool WriteParameters(std::ostream& stream) const {
-		if (!previous_layer_.WriteParameters(stream))
+	bool write_parameters(std::ostream& stream) const {
+		if (!previous_layer_.write_parameters(stream))
 			return false;
 		// 実行環境によらずlittle-endianで書き込む。
-		write_little_endian(stream, biases_, kOutputDimensions);
-		write_little_endian(stream, weights_, kOutputDimensions * kPaddedInputDimensions);
+		write_little_endian(stream, biases_, OutputDimensions);
+		write_little_endian(stream, weights_, OutputDimensions * PaddedInputDimensions);
 		return !stream.fail();
 	}
 
 	// Forward propagation
 	// 順伝播
-	const OutputType* Propagate(const TransformedFeatureType* transformed_features, char* buffer) const {
-		const auto input = previous_layer_.Propagate(transformed_features, buffer + kSelfBufferSize);
+	const OutputType* propagate(const TransformedFeatureType* transformed_features, char* buffer) const {
+		const auto input = previous_layer_.propagate(transformed_features, buffer + SelfBufferSize);
 
 #if defined(USE_WASM_SIMD)
 		{
 			// Simplify variable names (y = Ax + b)
-			constexpr int n = kInputDimensions;
-			constexpr int m = kOutputDimensions;
-			constexpr int n_stride = kPaddedInputDimensions;
+			constexpr int n = InputDimensions;
+			constexpr int m = OutputDimensions;
+			constexpr int n_stride = PaddedInputDimensions;
 			auto A = *reinterpret_cast<const i8(*)[m][n_stride]>(weights_);
 			auto x = *reinterpret_cast<const u8(*)[n]>(input);
 			auto b = *reinterpret_cast<const i32(*)[m]>(biases_);
@@ -733,13 +731,13 @@ class AffineTransform {
 
 #if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
 
-		if constexpr (kOutputDimensions > 1)
+		if constexpr (OutputDimensions > 1)
 		{
 #if defined(USE_AVX512)
-			if constexpr (kOutputDimensions % 16 == 0)
+			if constexpr (OutputDimensions % 16 == 0)
 			{
-				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
-				constexpr IndexType kNumRegs = kOutputDimensions / 16;
+				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / 4;
+				constexpr IndexType kNumRegs = OutputDimensions / 16;
 
 				const auto   input32 = reinterpret_cast<const i32*>(input);
 				const __m512i* biasvec = reinterpret_cast<const __m512i*>(biases_);
@@ -751,7 +749,7 @@ class AffineTransform {
 				for (IndexType i = 0; i < kNumChunks; ++i)
 				{
 					const __m512i in = _mm512_set1_epi32(input32[i]);
-					const auto  col  = reinterpret_cast<const __m512i*>(&weights_[i * kOutputDimensions * 4]);
+					const auto  col  = reinterpret_cast<const __m512i*>(&weights_[i * OutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
 						SIMD::m512_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -766,10 +764,10 @@ class AffineTransform {
 #endif
 
 #if defined(USE_AVX2)
-			if constexpr (kOutputDimensions % 8 == 0)
+			if constexpr (OutputDimensions % 8 == 0)
 			{
-				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
-				constexpr IndexType kNumRegs = kOutputDimensions / 8;
+				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / 4;
+				constexpr IndexType kNumRegs = OutputDimensions / 8;
 
 				const auto   input32 = reinterpret_cast<const i32*>(input);
 				const __m256i* biasvec = reinterpret_cast<const __m256i*>(biases_);
@@ -781,7 +779,7 @@ class AffineTransform {
 				for (IndexType i = 0; i < kNumChunks; ++i)
 				{
 					const __m256i in = _mm256_set1_epi32(input32[i]);
-					const auto  col  = reinterpret_cast<const __m256i*>(&weights_[i * kOutputDimensions * 4]);
+					const auto  col  = reinterpret_cast<const __m256i*>(&weights_[i * OutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
 						SIMD::m256_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -796,10 +794,10 @@ class AffineTransform {
 #endif
 
 #if defined(USE_SSSE3)
-			if constexpr (kOutputDimensions % 4 == 0)
+			if constexpr (OutputDimensions % 4 == 0)
 			{
-				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
-				constexpr IndexType kNumRegs = kOutputDimensions / 4;
+				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / 4;
+				constexpr IndexType kNumRegs = OutputDimensions / 4;
 
 				const auto   input32 = reinterpret_cast<const i32*>(input);
 				const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases_);
@@ -811,7 +809,7 @@ class AffineTransform {
 				for (IndexType i = 0; i < kNumChunks; ++i)
 				{
 					const __m128i in = _mm_set1_epi32(input32[i]);
-					const auto  col = reinterpret_cast<const __m128i*>(&weights_[i * kOutputDimensions * 4]);
+					const auto  col = reinterpret_cast<const __m128i*>(&weights_[i * OutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
 						SIMD::m128_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -826,11 +824,11 @@ class AffineTransform {
 #endif
 
 #if defined(USE_NEON_DOTPROD)
-			if constexpr (kOutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
+			if constexpr (OutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
 			{
-				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
+				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / 4;
 				constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
-				constexpr IndexType kNumRegs = kOutputDimensions / kOutputSimdWidth;
+				constexpr IndexType kNumRegs = OutputDimensions / kOutputSimdWidth;
 
 				const auto       input32 = reinterpret_cast<const i32*>(input);
 				const int32x4_t* biasvec = reinterpret_cast<const int32x4_t*>(biases_);
@@ -842,7 +840,7 @@ class AffineTransform {
 				for (IndexType i = 0; i < kNumChunks; ++i)
 				{
 					const int32x4_t in = vdupq_n_s32(input32[i]);
-					const auto  col = reinterpret_cast<const int32x4_t*>(&weights_[i * kOutputDimensions * 4]);
+					const auto  col = reinterpret_cast<const int32x4_t*>(&weights_[i * OutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
 						SIMD::dotprod_m128_add_dpbusd_epi32(acc[k], in, col[k]);
@@ -856,10 +854,10 @@ class AffineTransform {
 			else
 #endif
 
-				affine_transform_unaligned<kInputDimensions, kPaddedInputDimensions, kOutputDimensions>(
+				affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
 				output, weights_, biases_, input);
 		}
-		else if constexpr (kOutputDimensions == 1)
+		else if constexpr (OutputDimensions == 1)
 		{
     // We cannot use AVX512 for the last layer because there are only 32 inputs
     // and the buffer is not padded to 64 elements.
@@ -888,9 +886,9 @@ class AffineTransform {
 			const auto inputVector = reinterpret_cast<const vec_t*>(input);
             static constexpr IndexType kInputSimdWidth = sizeof(vec_t) / sizeof(InputType);
 
-            static_assert(kPaddedInputDimensions % kInputSimdWidth == 0);
+            static_assert(PaddedInputDimensions % kInputSimdWidth == 0);
 
-            constexpr IndexType kNumChunks = kPaddedInputDimensions / kInputSimdWidth;
+            constexpr IndexType kNumChunks = PaddedInputDimensions / kInputSimdWidth;
             vec_t               sum0      = vec_setzero();
             const auto          row0      = reinterpret_cast<const vec_t*>(&weights_[0]);
 
@@ -910,7 +908,7 @@ class AffineTransform {
 
 #else
         // Use dense implementation for the other architectures.
-        affine_transform_unaligned<kInputDimensions, kPaddedInputDimensions, kOutputDimensions>(
+        affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
           output, weights_, biases_, input);
 #endif
 
@@ -926,8 +924,8 @@ class AffineTransform {
 	PreviousLayer previous_layer_;
 
 	// パラメータ
-	alignas(CacheLineSize) BiasType biases_[kOutputDimensions];
-	alignas(CacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
+	alignas(CacheLineSize) BiasType biases_[OutputDimensions];
+	alignas(CacheLineSize) WeightType weights_[OutputDimensions * PaddedInputDimensions];
 };
 #endif
 

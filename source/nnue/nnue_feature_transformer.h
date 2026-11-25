@@ -5,7 +5,6 @@
 #define NNUE_FEATURE_TRANSFORMER_H_INCLUDED
 
 #include "../config.h"
-#include "../extra/tools.h"
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
@@ -106,44 +105,44 @@ class FeatureTransformer {
 
 	// Number of input/output dimensions
 	// 入出力の次元数
-	static constexpr IndexType kInputDimensions  = RawFeatures::kDimensions;
+	static constexpr IndexType InputDimensions  = RawFeatures::kDimensions;
 #if defined(USE_ELEMENT_WISE_MULTIPLY)
-	static constexpr IndexType kOutputDimensions = kHalfDimensions;
+	static constexpr IndexType OutputDimensions = kHalfDimensions;
 #else
-	static constexpr IndexType kOutputDimensions = kHalfDimensions * 2;
+	static constexpr IndexType OutputDimensions = kHalfDimensions * 2;
 #endif
 
 	// Size of forward propagation buffer
 	// 順伝播用バッファのサイズ
-	static constexpr usize kBufferSize = kOutputDimensions * sizeof(OutputType);
+	static constexpr usize BufferSize = OutputDimensions * sizeof(OutputType);
 
 	// Hash value embedded in the evaluation file
 	// 評価関数ファイルに埋め込むハッシュ値
-	static constexpr u32 GetHashValue() {
+	static constexpr u32 get_hash_value() {
 #if defined(EVAL_SFNN)
 		// 学習部と整合性とるの面倒なのでSFNNのときはこれに固定しておく。
 		return 0x5f134ab8u;
 #else
-		return RawFeatures::kHashValue ^ kOutputDimensions;
+		return RawFeatures::kHashValue ^ OutputDimensions;
 #endif
 	}
 
 	// A string that represents the structure
 	// 構造を表す文字列
 	static std::string GetStructureString() {
-		return RawFeatures::GetName() + "[" + std::to_string(kInputDimensions) + "->"
+		return RawFeatures::GetName() + "[" + std::to_string(InputDimensions) + "->"
 		       + std::to_string(kHalfDimensions) + "x2]";
 	}
 
 	// Read network parameters
 	// パラメータを読み込む
-	Tools::Result ReadParameters(std::istream& stream) {
+	bool read_parameters(std::istream& stream) {
 #if defined(USE_ELEMENT_WISE_MULTIPLY)
 #if defined(NNUE_FT_PACKED8)
 		sparse8_enabled_ = false;
 #endif
 		read_leb_128<BiasType>(stream, biases_, kHalfDimensions);
-		read_leb_128<WeightType>(stream, weights_, kHalfDimensions * kInputDimensions);
+		read_leb_128<WeightType>(stream, weights_, kHalfDimensions * InputDimensions);
 
 #if defined(VECTOR) && !defined(NNUE_SMALL_SFNN_FT)
 		permute_weights(inverse_order_packs);
@@ -156,22 +155,22 @@ class FeatureTransformer {
 
 #else
 		for (usize i = 0; i < kHalfDimensions; ++i) biases_[i] = read_little_endian<BiasType>(stream);
-		for (usize i = 0; i < kHalfDimensions * kInputDimensions; ++i)
+		for (usize i = 0; i < kHalfDimensions * InputDimensions; ++i)
 			weights_[i] = read_little_endian<WeightType>(stream);
 #endif
-		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
+		return !stream.fail();
 	}
 
 	// Write network parameters
 	// パラメータを書き込む
-	bool WriteParameters(std::ostream& stream) const {
+	bool write_parameters(std::ostream& stream) const {
 		write_little_endian(stream, biases_, kHalfDimensions);
 #if defined(NNUE_FT_PACKED8)
 		if (sparse8_enabled_) {
 			// Preserve the existing writer's int16 layout, including permutation/scaling.
 			alignas(CacheLineSize) WeightType column[kHalfDimensions];
 			const auto* packed = reinterpret_cast<const i8*>(weights_);
-			for (IndexType i = 0; i < kInputDimensions; ++i) {
+			for (IndexType i = 0; i < InputDimensions; ++i) {
 				for (IndexType j = 0; j < kHalfDimensions; ++j)
 					column[j] = int(packed[i * kHalfDimensions + j]) * 2;
 				apply_sparse8_corrections(column, i, 1);
@@ -179,13 +178,13 @@ class FeatureTransformer {
 			}
 		} else
 #endif
-		write_little_endian(stream, weights_, kHalfDimensions * kInputDimensions);
+		write_little_endian(stream, weights_, kHalfDimensions * InputDimensions);
 		return !stream.fail();
 	}
 
 	// Proceed with the difference calculation if possible
 	// 可能なら差分計算を進める
-	bool UpdateAccumulatorIfPossible(const Position& pos, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
+	bool update_accumulator_if_possible(const Position& pos, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
 		const auto now = state;
 		if (accumulator_of(now).computed_accumulation) {
@@ -371,9 +370,9 @@ class FeatureTransformer {
     }
 #endif
 
-    void EnsureAccumulator(const Position& pos, bool refresh, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
+    void ensure_accumulator(const Position& pos, bool refresh, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
-		if (refresh || !UpdateAccumulatorIfPossible(pos, state, refreshTable)) {
+		if (refresh || !update_accumulator_if_possible(pos, state, refreshTable)) {
 #if defined(NNUE_FT_PACKED8)
 			if (sparse8_enabled_) refresh_accumulator<true>(pos, state, refreshTable);
 			else
@@ -394,7 +393,7 @@ class FeatureTransformer {
 #if defined(ENABLE_TEST_CMD)
 	// Independent reference for checking both incremental updates and Finny.
 	// Deliberately bypass all cached accumulators.
-	void RefreshAccumulatorForTest(const Position& pos, AccumulatorState* state) const {
+	void refresh_accumulator_for_test(const Position& pos, AccumulatorState* state) const {
         state = resolve_state(pos, state);
 		auto& accumulator = accumulator_of(state);
 		for (IndexType i = 0; i < kRefreshTriggers.size(); ++i) {
@@ -416,10 +415,10 @@ class FeatureTransformer {
 
 	// Convert input features
 	// 入力特徴量を変換する
-	void Transform(const Position& pos, OutputType* output, bool refresh, AccumulatorState* state,
+	void transform(const Position& pos, OutputType* output, bool refresh, AccumulatorState* state,
                    AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
-		EnsureAccumulator(pos, refresh, state, refreshTable);
+		ensure_accumulator(pos, refresh, state, refreshTable);
 		const auto& accumulation = accumulator_of(state).accumulation;
 
 #if defined(USE_ELEMENT_WISE_MULTIPLY)
@@ -671,7 +670,7 @@ class FeatureTransformer {
 		for (IndexType i = 0; i < kHalfDimensions * sizeof(BiasType) / sizeof(uint64_t); i += di)
 			order_fn(&b[i]);
 
-		for (IndexType j = 0; j < kInputDimensions; ++j)
+		for (IndexType j = 0; j < InputDimensions; ++j)
 		{
 			uint64_t* w =
 				reinterpret_cast<uint64_t*>(const_cast<WeightType*>(&weights_[j * kHalfDimensions]));
@@ -683,7 +682,7 @@ class FeatureTransformer {
 	}
 
 	inline void scale_weights(bool read) const {
-		for (IndexType j = 0; j < kInputDimensions; ++j)
+		for (IndexType j = 0; j < InputDimensions; ++j)
 		{
 			WeightType* w = const_cast<WeightType*>(&weights_[j * kHalfDimensions]);
 			for (IndexType i = 0; i < kHalfDimensions; ++i)
@@ -709,7 +708,7 @@ class FeatureTransformer {
 	// 重みの列とSIMDタイルはFT幅に追従する。補正位置がu16に収まることだけを確認する。
 	static_assert(kHalfDimensions - 1 <= std::numeric_limits<u16>::max(),
 	              "NNUE_FT_SPARSE8 correction positions must fit in u16");
-	static constexpr usize kSparse8Bytes = usize(kHalfDimensions) * kInputDimensions;
+	static constexpr usize kSparse8Bytes = usize(kHalfDimensions) * InputDimensions;
 
 	void prepare_sparse8_weights() {
 		usize count = 0;
@@ -728,7 +727,7 @@ class FeatureTransformer {
 		std::vector<Sparse8Correction> corrections;
 		corrections.reserve(count);
 		auto* packed = reinterpret_cast<i8*>(weights_);
-		for (IndexType i = 0; i < kInputDimensions; ++i) {
+		for (IndexType i = 0; i < InputDimensions; ++i) {
 			sparse8_offsets_[i] = static_cast<u32>(corrections.size());
 			for (IndexType j = 0; j < kHalfDimensions; ++j) {
 				const int value = weights_[usize(i) * kHalfDimensions + j];
@@ -740,7 +739,7 @@ class FeatureTransformer {
 					corrections.push_back({u16(j), i16(residual)});
 			}
 		}
-		sparse8_offsets_[kInputDimensions] = static_cast<u32>(corrections.size());
+		sparse8_offsets_[InputDimensions] = static_cast<u32>(corrections.size());
 		if (!corrections.empty())
 			std::memcpy(packed + kSparse8Bytes, corrections.data(), corrections.size() * sizeof(Sparse8Correction));
 		sparse8_enabled_ = true;
@@ -1519,9 +1518,9 @@ class FeatureTransformer {
 	// parameter
 	// パラメータ
 	alignas(CacheLineSize) BiasType biases_[kHalfDimensions];
-	alignas(CacheLineSize) WeightType weights_[kHalfDimensions * kInputDimensions];
+	alignas(CacheLineSize) WeightType weights_[kHalfDimensions * InputDimensions];
 #if defined(NNUE_FT_PACKED8)
-	u32 sparse8_offsets_[kInputDimensions + 1];
+	u32 sparse8_offsets_[InputDimensions + 1];
 	bool sparse8_enabled_ = false;
 #endif
 

@@ -1,10 +1,9 @@
 ﻿// NNUE評価関数の層Sumの定義
 
-#ifndef CLASSIC_NNUE_LAYERS_SUM_H_INCLUDED
-#define CLASSIC_NNUE_LAYERS_SUM_H_INCLUDED
+#ifndef NNUE_LAYERS_SUM_H_INCLUDED
+#define NNUE_LAYERS_SUM_H_INCLUDED
 
 #include "../../config.h"
-#include "../../extra/tools.h"
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
@@ -27,55 +26,54 @@ class Sum : public Sum<RemainingPreviousLayers...> {
   static_assert(std::is_same<InputType, typename Tail::InputType>::value, "");
 
   // 入出力の次元数
-  static constexpr IndexType kInputDimensions = Head::kOutputDimensions;
-  static constexpr IndexType kOutputDimensions = kInputDimensions;
-  static_assert(kInputDimensions == Tail::kInputDimensions , "");
+  static constexpr IndexType InputDimensions = Head::OutputDimensions;
+  static constexpr IndexType OutputDimensions = InputDimensions;
+  static_assert(InputDimensions == Tail::InputDimensions , "");
 
   // この層で使用する順伝播用バッファのサイズ
-  static constexpr std::size_t kSelfBufferSize =
-      ceil_to_multiple(kOutputDimensions * sizeof(OutputType), CacheLineSize);
+  static constexpr usize SelfBufferSize =
+      ceil_to_multiple(OutputDimensions * sizeof(OutputType), CacheLineSize);
 
   // 入力層からこの層までで使用する順伝播用バッファのサイズ
-  static constexpr std::size_t kBufferSize =
-      std::max(Head::kBufferSize + kSelfBufferSize, Tail::kBufferSize);
+  static constexpr usize BufferSize =
+      std::max(Head::BufferSize + SelfBufferSize, Tail::BufferSize);
 
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t GetHashValue() {
-    std::uint32_t hash_value = 0xBCE400B4u;
-    hash_value ^= Head::GetHashValue() >> 1;
-    hash_value ^= Head::GetHashValue() << 31;
-    hash_value ^= Tail::GetHashValue() >> 2;
-    hash_value ^= Tail::GetHashValue() << 30;
-    return hash_value;
+  static constexpr u32 get_hash_value() {
+    u32 hashValue = 0xBCE400B4u;
+    hashValue ^= Head::get_hash_value() >> 1;
+    hashValue ^= Head::get_hash_value() << 31;
+    hashValue ^= Tail::get_hash_value() >> 2;
+    hashValue ^= Tail::get_hash_value() << 30;
+    return hashValue;
   }
 
   // 入力層からこの層までの構造を表す文字列
   static std::string GetStructureString() {
     return "Sum[" +
-        std::to_string(kOutputDimensions) + "](" + GetSummandsString() + ")";
+        std::to_string(OutputDimensions) + "](" + GetSummandsString() + ")";
   }
 
   // パラメータを読み込む
-  Tools::Result ReadParameters(std::istream& stream) {
-    auto result = Tail::ReadParameters(stream);
-	if (result.is_not_ok()) return result;
-    return previous_layer_.ReadParameters(stream);
+  bool read_parameters(std::istream& stream) {
+    if (!Tail::read_parameters(stream)) return false;
+    return previous_layer_.read_parameters(stream);
   }
 
   // パラメータを書き込む
-  bool WriteParameters(std::ostream& stream) const {
-    if (!Tail::WriteParameters(stream)) return false;
-    return previous_layer_.WriteParameters(stream);
+  bool write_parameters(std::ostream& stream) const {
+    if (!Tail::write_parameters(stream)) return false;
+    return previous_layer_.write_parameters(stream);
   }
 
   // 順伝播
-  const OutputType* Propagate(
+  const OutputType* propagate(
       const TransformedFeatureType* transformed_features, char* buffer) const {
-    Tail::Propagate(transformed_features, buffer);
-    const auto head_output = previous_layer_.Propagate(
-        transformed_features, buffer + kSelfBufferSize);
+    Tail::propagate(transformed_features, buffer);
+    const auto head_output = previous_layer_.propagate(
+        transformed_features, buffer + SelfBufferSize);
     const auto output = reinterpret_cast<OutputType*>(buffer);
-    for (IndexType i = 0; i < kOutputDimensions; ++i) {
+    for (IndexType i = 0; i < OutputDimensions; ++i) {
       output[i] += head_output[i];
     }
     return output;
@@ -100,41 +98,41 @@ class Sum<PreviousLayer> {
   using OutputType = InputType;
 
   // 入出力の次元数
-  static constexpr IndexType kInputDimensions =
-      PreviousLayer::kOutputDimensions;
-  static constexpr IndexType kOutputDimensions = kInputDimensions;
+  static constexpr IndexType InputDimensions =
+      PreviousLayer::OutputDimensions;
+  static constexpr IndexType OutputDimensions = InputDimensions;
 
   // 入力層からこの層までで使用する順伝播用バッファのサイズ
-  static constexpr std::size_t kBufferSize = PreviousLayer::kBufferSize;
+  static constexpr usize BufferSize = PreviousLayer::BufferSize;
 
   // 評価関数ファイルに埋め込むハッシュ値
-  static constexpr std::uint32_t GetHashValue() {
-    std::uint32_t hash_value = 0xBCE400B4u;
-    hash_value ^= PreviousLayer::GetHashValue() >> 1;
-    hash_value ^= PreviousLayer::GetHashValue() << 31;
-    return hash_value;
+  static constexpr u32 get_hash_value() {
+    u32 hashValue = 0xBCE400B4u;
+    hashValue ^= PreviousLayer::get_hash_value() >> 1;
+    hashValue ^= PreviousLayer::get_hash_value() << 31;
+    return hashValue;
   }
 
   // 入力層からこの層までの構造を表す文字列
   static std::string GetStructureString() {
     return "Sum[" +
-        std::to_string(kOutputDimensions) + "](" + GetSummandsString() + ")";
+        std::to_string(OutputDimensions) + "](" + GetSummandsString() + ")";
   }
 
   // パラメータを読み込む
-  Tools::Result ReadParameters(std::istream& stream) {
-    return previous_layer_.ReadParameters(stream);
+  bool read_parameters(std::istream& stream) {
+    return previous_layer_.read_parameters(stream);
   }
 
   // パラメータを書き込む
-  bool WriteParameters(std::ostream& stream) const {
-    return previous_layer_.WriteParameters(stream);
+  bool write_parameters(std::ostream& stream) const {
+    return previous_layer_.write_parameters(stream);
   }
 
   // 順伝播
-  const OutputType* Propagate(
+  const OutputType* propagate(
       const TransformedFeatureType* transformed_features, char* buffer) const {
-    return previous_layer_.Propagate(transformed_features, buffer);
+    return previous_layer_.propagate(transformed_features, buffer);
   }
 
  protected:
@@ -147,7 +145,7 @@ class Sum<PreviousLayer> {
   PreviousLayer previous_layer_;
 };
 
-} // namespace Layers::NNUE::Eval
+} // namespace Eval::NNUE::Layers
 } // namespace YaneuraOu
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))

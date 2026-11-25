@@ -104,7 +104,7 @@ namespace Progress {
 	struct Parameters {
 		static constexpr int kWeightCount = int(SQ_NB) * int(Eval::fe_end);
 
-		Tools::Result ReadParameters(std::istream& stream);
+		Tools::Result read_parameters(std::istream& stream);
 
 		i64 SumQ16(const Position& pos, AccumulatorState* state = nullptr) const;
 		int BucketIndex(const Position& pos, int bucket_count, AccumulatorState* state = nullptr) const;
@@ -123,7 +123,7 @@ namespace Progress {
 	constexpr int kLayerStacks = LayerStacks;
 #else
 	constexpr u32 kHashValue =
-	    FeatureTransformer::GetHashValue() ^ Network::GetHashValue();
+	    FeatureTransformer::get_hash_value() ^ Network::get_hash_value();
 	constexpr int kLayerStacks = 1;
 #endif
 
@@ -155,25 +155,25 @@ namespace Progress {
 	extern const char* const kFileName;
 
 	// 評価関数の構造を表す文字列を取得する
-	std::string GetArchitectureString();
+	std::string get_architecture_string();
 
 	// ヘッダを読み込む
-	Tools::Result ReadHeader(std::istream& stream,
-	    u32* hash_value, std::string* architecture, u32* version_out = nullptr);
+	Tools::Result read_header(std::istream& stream,
+	    u32* hashValue, std::string* architecture, u32* version_out = nullptr);
 
 	// ヘッダを書き込む
-	bool WriteHeader(std::ostream& stream,
-	    u32 hash_value, const std::string& architecture);
+	bool write_header(std::ostream& stream,
+	    u32 hashValue, const std::string& architecture);
 
 	// 評価関数パラメータを読み込む
 	// On a sidecar read failure, replace failed_file with its path.
     // 補助ファイルの読み込みに失敗したとき、failed_fileにそのパスを設定する。
-    Tools::Result ReadParameters(LazyNumaReplicatedSystemWide<NnueNetworks>& network,
+    Tools::Result read_parameters(LazyNumaReplicatedSystemWide<NnueNetworks>& network,
                                 const OptionsMap& options, std::istream& stream,
                                 std::string* failed_file = nullptr);
 
 	// 評価関数パラメータを書き込む
-	bool WriteParameters(const NnueNetworks& network, std::ostream& stream);
+	bool write_parameters(const NnueNetworks& network, std::ostream& stream);
 
 } // namespace Eval::NNUE
 } // namespace YaneuraOu

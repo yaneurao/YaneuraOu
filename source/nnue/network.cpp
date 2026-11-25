@@ -133,12 +133,12 @@ namespace {
 
 } // namespace
 
-Tools::Result Parameters::ReadParameters(std::istream& stream) {
+Tools::Result Parameters::read_parameters(std::istream& stream) {
 	static_assert(sizeof(double) == 8 && std::numeric_limits<double>::is_iec559);
 	static_assert(kWeightCount == 81 * 1548);
 	for (auto& row : weights_q16_)
 		for (auto& weight : row) {
-			const auto bits = read_little_endian<std::uint64_t>(stream);
+			const auto bits = read_little_endian<u64>(stream);
 			if (stream.fail()) return Tools::ResultCode::FileReadError;
 			double value;
 			std::memcpy(&value, &bits, sizeof(value));
@@ -277,7 +277,8 @@ int Parameters::BucketIndex(const Position& pos, int bucket_count, AccumulatorSt
 #endif
 
     // 評価関数の構造を表す文字列を取得する
-    std::string GetArchitectureString() {
+    // GetStructureString()は既存の生成済みarchitectureヘッダーのメタデータAPIなので維持する。
+    std::string get_architecture_string() {
         const std::string base = "Features=" + FeatureTransformer::GetStructureString() +
 			",Network=" + Network::GetStructureString();
 #if defined(EVAL_SFNN)
@@ -292,22 +293,23 @@ namespace {
 
 		// 評価関数パラメータを読み込む（参照版）
 		template <typename T>
-		Tools::Result ReadParameters(std::istream& stream, T& obj) {
+		Tools::Result read_parameters(std::istream& stream, T& obj) {
 			u32 header;
 			stream.read(reinterpret_cast<char*>(&header), sizeof(header));
 			if (!stream) return Tools::ResultCode::FileReadError;
 			// hash値、古い評価関数ファイルに対して一致するとは限らないので、警告に変更する。
-			if (header != T::GetHashValue())
+			if (header != T::get_hash_value())
 				sync_cout << "info string Warning : nn.bin hash mismatch." << sync_endl;
-			return obj.ReadParameters(stream);
+			// 層内部はStockfishと同じboolを返し、ファイル読み込み境界で従来のエラー種別へ戻す。
+			return obj.read_parameters(stream) ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 		}
 
 		// 評価関数パラメータを書き込む（参照版）
 		template <typename T>
-		bool WriteParameters(std::ostream& stream, const T& obj) {
-			constexpr u32 header = T::GetHashValue();
+		bool write_parameters(std::ostream& stream, const T& obj) {
+			constexpr u32 header = T::get_hash_value();
 			stream.write(reinterpret_cast<const char*>(&header), sizeof(header));
-			return obj.WriteParameters(stream);
+			return obj.write_parameters(stream);
 		}
 
 	}  // namespace Detail
@@ -320,9 +322,9 @@ namespace {
 		// テンポラリ領域にパラメータを読み込む
         auto tmp = std::make_unique<NnueNetworks>();
 
-		u32 hash_value;
+		u32 hashValue;
 		std::string architecture;
-		Tools::Result result = ReadHeader(stream, &hash_value, &architecture, nullptr);
+		Tools::Result result = read_header(stream, &hashValue, &architecture, nullptr);
 		if (result.is_not_ok()) return result;
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
         const auto qb = read_little_endian<u32>(stream);
@@ -332,21 +334,21 @@ namespace {
                 sync_cout << "info string Invalid nn16 QB: " << qb << sync_endl;
                 return Tools::ResultCode::FileMismatch;
             }
-        if (hash_value != kHashValue || architecture != Nn16Architecture(qb)) {
+        if (hashValue != kHashValue || architecture != Nn16Architecture(qb)) {
             sync_cout << "info string nn16 architecture mismatch: " << architecture
                       << " expected " << Nn16Architecture(qb) << sync_endl;
             return Tools::ResultCode::FileMismatch;
         }
 #endif
-		if (hash_value != kHashValue) {
+		if (hashValue != kHashValue) {
 			sync_cout << "info string Warning: NNUE hash mismatch: expected " << kHashValue
-				<< " got " << hash_value
+				<< " got " << hashValue
 				<< " arch_in_file=" << architecture
-				<< " arch_expected=" << GetArchitectureString()
+				<< " arch_expected=" << get_architecture_string()
 				<< sync_endl;
 		}
 
-		result = Detail::ReadParameters<FeatureTransformer>(stream, tmp->featureTransformer);
+		result = Detail::read_parameters<FeatureTransformer>(stream, tmp->featureTransformer);
 		if (result.is_not_ok()) {
 			sync_cout << "info string NNUE feature params read failed: " << result.to_string() << sync_endl;
 			return result;
@@ -357,7 +359,7 @@ namespace {
 		std::ifstream progress_stream(progress_path, std::ios::binary);
 		sync_cout << "info string loading progress file : " << progress_path << sync_endl;
 		result = progress_stream.is_open()
-		    ? tmp->progress.ReadParameters(progress_stream)
+		    ? tmp->progress.read_parameters(progress_stream)
 		    : Tools::Result(Tools::ResultCode::FileNotFound);
 		if (result.is_not_ok()) {
 			if (failed_file) *failed_file = progress_path.u8string();
@@ -367,7 +369,7 @@ namespace {
 		}
 #endif
 		for (int i = 0; i < kLayerStacks; ++i) {
-			result = Detail::ReadParameters<Network>(stream, tmp->network[i]);
+			result = Detail::read_parameters<Network>(stream, tmp->network[i]);
 			if (result.is_not_ok()) {
 				sync_cout << "info string NNUE network params read failed at stack " << i << ": " << result.to_string() << sync_endl;
 				return result;
@@ -385,11 +387,11 @@ namespace {
 
 	}  // namespace
     // ヘッダを読み込む
-    Tools::Result ReadHeader(std::istream& stream,
-        u32* hash_value, std::string* architecture, u32* version_out) {
+    Tools::Result read_header(std::istream& stream,
+        u32* hashValue, std::string* architecture, u32* version_out) {
         u32 version = 0, size = 0;
         stream.read(reinterpret_cast<char*>(&version), sizeof(version));
-        stream.read(reinterpret_cast<char*>(hash_value), sizeof(*hash_value));
+        stream.read(reinterpret_cast<char*>(hashValue), sizeof(*hashValue));
         stream.read(reinterpret_cast<char*>(&size), sizeof(size));
 		if (!stream) return Tools::ResultCode::FileReadError;
 		if (version_out)
@@ -405,10 +407,10 @@ namespace {
     }
 
     // ヘッダを書き込む
-    bool WriteHeader(std::ostream& stream,
-        u32 hash_value, const std::string& architecture) {
+    bool write_header(std::ostream& stream,
+        u32 hashValue, const std::string& architecture) {
         stream.write(reinterpret_cast<const char*>(&Version), sizeof(Version));
-        stream.write(reinterpret_cast<const char*>(&hash_value), sizeof(hash_value));
+        stream.write(reinterpret_cast<const char*>(&hashValue), sizeof(hashValue));
         const u32 size = static_cast<u32>(architecture.size());
         stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
         stream.write(architecture.data(), size);
@@ -416,7 +418,7 @@ namespace {
     }
 
     	// 評価関数パラメータを読み込む
-    Tools::Result ReadParameters(
+    Tools::Result read_parameters(
         LazyNumaReplicatedSystemWide<NnueNetworks>& network, const OptionsMap& options,
         std::istream& stream, std::string* failed_file) {
         return LoadAndShare(
@@ -424,18 +426,18 @@ namespace {
           stream, failed_file);
     }
     // 評価関数パラメータを書き込む
-    bool WriteParameters(const NnueNetworks& network, std::ostream& stream) {
+    bool write_parameters(const NnueNetworks& network, std::ostream& stream) {
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
         const auto qb = network.network[0].weight_scale;
-        if (!WriteHeader(stream, kHashValue, Nn16Architecture(qb))) return false;
+        if (!write_header(stream, kHashValue, Nn16Architecture(qb))) return false;
         for (int i = 0; i < 4; ++i)
             stream.put(static_cast<char>((qb >> (8 * i)) & 255));
 #else
-        if (!WriteHeader(stream, kHashValue, GetArchitectureString())) return false;
+        if (!write_header(stream, kHashValue, get_architecture_string())) return false;
 #endif
-        if (!Detail::WriteParameters<FeatureTransformer>(stream, network.featureTransformer)) return false;
+        if (!Detail::write_parameters<FeatureTransformer>(stream, network.featureTransformer)) return false;
         for (int i = 0; i < kLayerStacks; ++i) {
-            if (!Detail::WriteParameters<Network>(stream, network.network[i])) return false;
+            if (!Detail::write_parameters<Network>(stream, network.network[i])) return false;
         }
         return !stream.fail();
     }
@@ -779,25 +781,25 @@ namespace {
     // 評価値を計算する
     static Value ComputeScore(const NnueNetworks& network, const Position& pos,
                               AccumulatorState* state, AccumulatorCaches& refreshTable, bool refresh = false) {
-        alignas(CacheLineSize) char buffer[Network::kBufferSize];
+        alignas(CacheLineSize) char buffer[Network::BufferSize];
 #if defined(EVAL_SFNN)
         const auto bucket = stack_index_for_nnue(pos, network, state);
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
         auto& accumulator = accumulator_of(state);
-        network.featureTransformer.EnsureAccumulator(pos, refresh, state, refreshTable);
-        const auto output = network.network[bucket].PropagateFromAccumulator(
+        network.featureTransformer.ensure_accumulator(pos, refresh, state, refreshTable);
+        const auto output = network.network[bucket].propagate_from_accumulator(
             accumulator.accumulation, pos.side_to_move(), buffer);
 #else
         alignas(CacheLineSize) TransformedFeatureType
-            transformed_features[FeatureTransformer::kBufferSize];
-        network.featureTransformer.Transform(pos, transformed_features, refresh, state, refreshTable);
-        const auto output = network.network[bucket].Propagate(transformed_features, buffer);
+            transformed_features[FeatureTransformer::BufferSize];
+        network.featureTransformer.transform(pos, transformed_features, refresh, state, refreshTable);
+        const auto output = network.network[bucket].propagate(transformed_features, buffer);
 #endif
 #else
         alignas(CacheLineSize) TransformedFeatureType
-            transformed_features[FeatureTransformer::kBufferSize];
-        network.featureTransformer.Transform(pos, transformed_features, refresh, state, refreshTable);
-        const auto output = network.network[0].Propagate(transformed_features, buffer);
+            transformed_features[FeatureTransformer::BufferSize];
+        network.featureTransformer.transform(pos, transformed_features, refresh, state, refreshTable);
+        const auto output = network.network[0].propagate(transformed_features, buffer);
 #endif
 
         // VALUE_MAX_EVALより大きな値が返ってくるとaspiration searchがfail highして
@@ -856,7 +858,7 @@ void load_eval(LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>& network, const 
 				if (!stream.is_open())
 					return Tools::Result(Tools::ResultCode::FileNotFound);
 
-                return NNUE::ReadParameters(
+                return NNUE::read_parameters(
                   network, options,
                   stream, &failed_file);
             }
@@ -878,7 +880,7 @@ void load_eval(LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>& network, const 
                 std::istream stream(&buffer);
                 sync_cout << "info string loading eval file : <internal>" << sync_endl;
 
-                return NNUE::ReadParameters(
+                return NNUE::read_parameters(
                   network, options,
                   stream, &failed_file);
             }
@@ -914,7 +916,7 @@ Value evaluate(const NNUE::NnueNetworks& network, const Position& pos, NNUE::Acc
 #if defined(EVAL_NNUE)
 void evaluate_with_no_return(const NNUE::NnueNetworks& network, const Position& pos,
                              NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable) {
-    network.featureTransformer.UpdateAccumulatorIfPossible(pos, &stack.latest(), refreshTable);
+    network.featureTransformer.update_accumulator_if_possible(pos, &stack.latest(), refreshTable);
 }
 #endif
 

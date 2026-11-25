@@ -1,8 +1,8 @@
 ﻿// Input features and network structure used in NNUE evaluation function
 // NNUE評価関数で用いる入力特徴量とネットワーク構造
 
-#ifndef CLASSIC_NNUE_ARCHITECTURE_H_INCLUDED
-#define CLASSIC_NNUE_ARCHITECTURE_H_INCLUDED
+#ifndef NNUE_ARCHITECTURE_H_INCLUDED
+#define NNUE_ARCHITECTURE_H_INCLUDED
 
 #include <cstdint>
 #include <type_traits>
@@ -74,7 +74,7 @@ namespace YaneuraOu {
 namespace Eval::NNUE {
 
 	static_assert(kTransformedFeatureDimensions % MaxSimdWidth == 0, "");
-	static_assert(Network::kOutputDimensions == 1, "");
+	static_assert(Network::OutputDimensions == 1, "");
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
 	static_assert(std::is_same<Network::OutputType, i64>::value, "");
 #else
