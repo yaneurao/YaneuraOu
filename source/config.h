@@ -307,10 +307,6 @@
 //    検討目的なら、これをオンにするのは好ましくないかも知れない。
 // #define ENABLE_QUICK_DRAW
 
-// 差分計算型の評価関数を用いるのか？
-// ※ 次の子nodeに行くときに必ずevaluate()を呼び出さないといけないタイプの評価関数。
-// #define USE_DIFF_EVAL
-
 // PolicyBookを使うのか？
 // TODO : ⇨ PolicyBookについて、記事を書く。
 // #define USE_POLICY_BOOK
@@ -356,7 +352,7 @@ constexpr int POSITION_HISTORY_SIZE = 512;
 
 // --- 通常の思考エンジンとして実行ファイルを公開するとき用の設定集
 
-#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_MATERIAL) || defined(YANEURAOU_ENGINE_SFNN)
+#if defined(YANEURAOU_ENGINE_MATERIAL) || defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_SFNN)
 
 	#define YANEURAOU_ENGINE
 	#if !defined(YANEURAOU_ENGINE_SFNN)
@@ -373,10 +369,6 @@ constexpr int POSITION_HISTORY_SIZE = 512;
 
 	// 定跡関連コマンド
 	#define ENABLE_MAKEBOOK_CMD
-
-	#if defined(YANEURAOU_ENGINE_KPPT) || defined(YANEURAOU_ENGINE_KPP_KKPT) || defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_SFNN)
-		#define USE_DIFF_EVAL
-	#endif
 
 	#if (defined(YANEURAOU_ENGINE_NNUE) || defined(YANEURAOU_ENGINE_SFNN)) && !defined(NNUE_EMBEDDING)
 		// NNUE_EMBEDDING_OFFは評価関数データの実行ファイルへの埋め込みを無効にする。
