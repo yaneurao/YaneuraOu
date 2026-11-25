@@ -39,11 +39,11 @@ class AffineTransformCommonShardInputExplicit {
 	static constexpr IndexType kShardTotalDimensions   = kShardDimensions * kShardGroupCount;
 	static constexpr IndexType kEffectiveInputDimensions = kCommonDimensions + kShardDimensions;
 	static constexpr IndexType kGroupOutputDimensions  = kOutputDimensions / kShardGroupCount;
-	static constexpr IndexType kPaddedInputDimensions  = CeilToMultiple<IndexType>(kInputDimensions, kMaxSimdWidth);
+	static constexpr IndexType kPaddedInputDimensions  = ceil_to_multiple<IndexType>(kInputDimensions, MaxSimdWidth);
 	static constexpr IndexType kPaddedEffectiveInputDimensions =
-	    CeilToMultiple<IndexType>(kEffectiveInputDimensions, kMaxSimdWidth);
+	    ceil_to_multiple<IndexType>(kEffectiveInputDimensions, MaxSimdWidth);
 	static constexpr IndexType kPaddedOutputDimensions =
-	    CeilToMultiple<IndexType>(kOutputDimensions, kMaxSimdWidth);
+	    ceil_to_multiple<IndexType>(kOutputDimensions, MaxSimdWidth);
 
 	static_assert(kShardGroupCount > 1, "Common+shard affine requires more than one shard group.");
 	static_assert(kShardDimensions > 0, "ShardDimensions must be positive.");
@@ -251,8 +251,8 @@ class AffineTransformCommonShardInputExplicit {
 	}
 #endif
 
-	alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
-	alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedEffectiveInputDimensions];
+	alignas(CacheLineSize) BiasType biases_[kOutputDimensions];
+	alignas(CacheLineSize) WeightType weights_[kOutputDimensions * kPaddedEffectiveInputDimensions];
 };
 
 }  // namespace Eval::NNUE::Layers

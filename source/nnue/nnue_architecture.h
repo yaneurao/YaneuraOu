@@ -70,7 +70,7 @@
 namespace YaneuraOu {
 namespace Eval::NNUE {
 
-	static_assert(kTransformedFeatureDimensions % kMaxSimdWidth == 0, "");
+	static_assert(kTransformedFeatureDimensions % MaxSimdWidth == 0, "");
 	static_assert(Network::kOutputDimensions == 1, "");
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
 	static_assert(std::is_same<Network::OutputType, i64>::value, "");

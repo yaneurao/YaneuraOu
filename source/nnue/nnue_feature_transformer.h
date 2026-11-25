@@ -243,7 +243,7 @@ class FeatureTransformer {
 #if defined(NNUE_FT_PACKED8)
 		if (sparse8_enabled_) {
 			// Preserve the existing writer's int16 layout, including permutation/scaling.
-			alignas(kCacheLineSize) WeightType column[kHalfDimensions];
+			alignas(CacheLineSize) WeightType column[kHalfDimensions];
 			const auto* packed = reinterpret_cast<const i8*>(weights_);
 			for (IndexType i = 0; i < kInputDimensions; ++i) {
 				for (IndexType j = 0; j < kHalfDimensions; ++j)
@@ -1552,8 +1552,8 @@ class FeatureTransformer {
 
 	// parameter
 	// パラメータ
-	alignas(kCacheLineSize) BiasType biases_[kHalfDimensions];
-	alignas(kCacheLineSize) WeightType weights_[kHalfDimensions * kInputDimensions];
+	alignas(CacheLineSize) BiasType biases_[kHalfDimensions];
+	alignas(CacheLineSize) WeightType weights_[kHalfDimensions * kInputDimensions];
 #if defined(NNUE_FT_PACKED8)
 	u32 sparse8_offsets_[kInputDimensions + 1];
 	bool sparse8_enabled_ = false;

@@ -1,5 +1,5 @@
 // Definition of layer ClippedReLUExplicit of NNUE evaluation function
-// 📝 このheaderはSFNNで使う新しい仕様のaffine_transform.h
+// SFNNで使う、前段レイヤーを所有しない明示次元型のClippedReLU。
 
 #ifndef NNUE_LAYERS_CLIPPED_RELU_EXPLICIT_H_INCLUDED
 #define NNUE_LAYERS_CLIPPED_RELU_EXPLICIT_H_INCLUDED
@@ -24,7 +24,7 @@ class ClippedReLUExplicit {
   static constexpr IndexType kInputDimensions = InputDimensions;
   static constexpr IndexType kOutputDimensions = kInputDimensions;
   static constexpr IndexType PaddedOutputDimensions =
-          CeilToMultiple<IndexType>(kOutputDimensions, 32);
+          ceil_to_multiple<IndexType>(kOutputDimensions, 32);
 
   using OutputBuffer = OutputType[PaddedOutputDimensions];
 
@@ -60,10 +60,10 @@ class ClippedReLUExplicit {
       for (IndexType i = 0; i < kNumChunks; ++i) {
         const __m512i words0 = _mm512_srai_epi16(_mm512_packs_epi32(
               _mm512_loadA_si512(&in[i * 4 + 0]),
-              _mm512_loadA_si512(&in[i * 4 + 1])), kWeightScaleBits);
+              _mm512_loadA_si512(&in[i * 4 + 1])), WeightScaleBits);
         const __m512i words1 = _mm512_srai_epi16(_mm512_packs_epi32(
               _mm512_loadA_si512(&in[i * 4 + 2]),
-              _mm512_loadA_si512(&in[i * 4 + 3])), kWeightScaleBits);
+              _mm512_loadA_si512(&in[i * 4 + 3])), WeightScaleBits);
           _mm512_storeA_si512(&out[i], _mm512_permutexvar_epi32(kOffsets, _mm512_max_epi8(
             _mm512_packs_epi16(words0, words1), kZero)));
       }
@@ -83,10 +83,10 @@ class ClippedReLUExplicit {
       for (IndexType i = 0; i < kNumChunks; ++i) {
         const __m256i words0 = _mm256_srai_epi16(_mm256_packs_epi32(
               _mm256_loadA_si256(&in[i * 4 + 0]),
-              _mm256_loadA_si256(&in[i * 4 + 1])), kWeightScaleBits);
+              _mm256_loadA_si256(&in[i * 4 + 1])), WeightScaleBits);
         const __m256i words1 = _mm256_srai_epi16(_mm256_packs_epi32(
               _mm256_loadA_si256(&in[i * 4 + 2]),
-              _mm256_loadA_si256(&in[i * 4 + 3])), kWeightScaleBits);
+              _mm256_loadA_si256(&in[i * 4 + 3])), WeightScaleBits);
           _mm256_storeA_si256(&out[i], _mm256_permutevar8x32_epi32(_mm256_max_epi8(
             _mm256_packs_epi16(words0, words1), kZero), kOffsets));
       }
@@ -110,10 +110,10 @@ class ClippedReLUExplicit {
         for (IndexType i = 0; i < kNumChunks; ++i) {
           const __m128i words0 = _mm_srai_epi16(_mm_packs_epi32(
               _mm_load_si128(&in[i * 4 + 0]),
-              _mm_load_si128(&in[i * 4 + 1])), kWeightScaleBits);
+              _mm_load_si128(&in[i * 4 + 1])), WeightScaleBits);
           const __m128i words1 = _mm_srai_epi16(_mm_packs_epi32(
               _mm_load_si128(&in[i * 4 + 2]),
-              _mm_load_si128(&in[i * 4 + 3])), kWeightScaleBits);
+              _mm_load_si128(&in[i * 4 + 3])), WeightScaleBits);
           const __m128i packedbytes = _mm_packs_epi16(words0, words1);
           _mm_store_si128(&out[i],
   #if defined(USE_SSE41)
@@ -138,10 +138,10 @@ class ClippedReLUExplicit {
       for (IndexType i = 0; i < kNumChunks; ++i) {
         const __m64 words0 = _mm_srai_pi16(
             _mm_packs_pi32(in[i * 4 + 0], in[i * 4 + 1]),
-            kWeightScaleBits);
+            WeightScaleBits);
         const __m64 words1 = _mm_srai_pi16(
             _mm_packs_pi32(in[i * 4 + 2], in[i * 4 + 3]),
-            kWeightScaleBits);
+            WeightScaleBits);
         const __m64 packedbytes = _mm_packs_pi16(words0, words1);
         out[i] = _mm_subs_pi8(_mm_adds_pi8(packedbytes, k0x80s), k0x80s);
       }
@@ -161,8 +161,8 @@ class ClippedReLUExplicit {
       for (IndexType i = 0; i < kNumChunks; ++i) {
         int16x8_t shifted;
         const auto pack = reinterpret_cast<int16x4_t*>(&shifted);
-        pack[0] = vqshrn_n_s32(in[i * 2 + 0], kWeightScaleBits);
-        pack[1] = vqshrn_n_s32(in[i * 2 + 1], kWeightScaleBits);
+        pack[0] = vqshrn_n_s32(in[i * 2 + 0], WeightScaleBits);
+        pack[1] = vqshrn_n_s32(in[i * 2 + 1], WeightScaleBits);
         out[i] = vmax_s8(vqmovn_s16(shifted), kZero);
       }
     }
@@ -172,7 +172,7 @@ class ClippedReLUExplicit {
 
     for (IndexType i = 0; i < kInputDimensions; ++i) {
       output[i] = static_cast<OutputType>(
-          std::max(0, std::min(127, input[i] >> kWeightScaleBits)));
+          std::clamp(input[i] >> WeightScaleBits, 0, 127));
     }
     if constexpr (PaddedOutputDimensions > kOutputDimensions) {
       std::fill(output + kOutputDimensions, output + PaddedOutputDimensions, OutputType{0});

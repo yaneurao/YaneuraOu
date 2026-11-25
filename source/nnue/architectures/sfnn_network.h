@@ -31,19 +31,19 @@ template <typename Fc0Layer, IndexType Hidden1Dims, IndexType Hidden2Dims, bool 
 struct SfnnNetworkBuffer;
 
 template <typename Fc0Layer, IndexType Hidden1Dims, IndexType Hidden2Dims>
-struct alignas(kCacheLineSize) SfnnNetworkBuffer<Fc0Layer, Hidden1Dims, Hidden2Dims, false> {
-	alignas(kCacheLineSize) typename Fc0Layer::OutputBuffer fc_0_out;
-	alignas(kCacheLineSize) typename Layers::SqrClippedReLU<Hidden1Dims>::OutputType
-	    ac_sqr_0_out[CeilToMultiple<IndexType>(Hidden1Dims * 2, 32)];
-	alignas(kCacheLineSize) typename Layers::AffineTransformExplicit<Hidden1Dims * 2, Hidden2Dims>::OutputBuffer fc_1_out;
-	alignas(kCacheLineSize) typename Layers::ClippedReLUExplicit<Hidden2Dims>::OutputBuffer ac_1_out;
-	alignas(kCacheLineSize) typename Layers::AffineTransformExplicit<Hidden2Dims, 1>::OutputBuffer fc_2_out;
+struct alignas(CacheLineSize) SfnnNetworkBuffer<Fc0Layer, Hidden1Dims, Hidden2Dims, false> {
+	alignas(CacheLineSize) typename Fc0Layer::OutputBuffer fc_0_out;
+	alignas(CacheLineSize) typename Layers::SqrClippedReLU<Hidden1Dims>::OutputType
+	    ac_sqr_0_out[ceil_to_multiple<IndexType>(Hidden1Dims * 2, 32)];
+	alignas(CacheLineSize) typename Layers::AffineTransformExplicit<Hidden1Dims * 2, Hidden2Dims>::OutputBuffer fc_1_out;
+	alignas(CacheLineSize) typename Layers::ClippedReLUExplicit<Hidden2Dims>::OutputBuffer ac_1_out;
+	alignas(CacheLineSize) typename Layers::AffineTransformExplicit<Hidden2Dims, 1>::OutputBuffer fc_2_out;
 };
 
 template <typename Fc0Layer, IndexType Hidden1Dims, IndexType Hidden2Dims>
-struct alignas(kCacheLineSize) SfnnNetworkBuffer<Fc0Layer, Hidden1Dims, Hidden2Dims, true> {
-	alignas(kCacheLineSize) typename Fc0Layer::OutputBuffer fc_0_out;
-	alignas(kCacheLineSize) typename Layers::AffineTransformExplicit<Hidden2Dims, 1>::OutputBuffer fc_2_out;
+struct alignas(CacheLineSize) SfnnNetworkBuffer<Fc0Layer, Hidden1Dims, Hidden2Dims, true> {
+	alignas(CacheLineSize) typename Fc0Layer::OutputBuffer fc_0_out;
+	alignas(CacheLineSize) typename Layers::AffineTransformExplicit<Hidden2Dims, 1>::OutputBuffer fc_2_out;
 };
 
 template <typename Fc0Layer, IndexType InputDims, IndexType Hidden1Dims, IndexType Hidden2Dims,
@@ -102,7 +102,7 @@ struct SfnnNetwork {
 	}
 
 	static typename decltype(ac_0)::OutputType ClippedReLUValue(i32 value) {
-		const auto shifted = value >> kWeightScaleBits;
+		const auto shifted = value >> WeightScaleBits;
 		if (shifted <= 0)
 			return 0;
 		if (shifted >= 127)
@@ -111,7 +111,7 @@ struct SfnnNetwork {
 	}
 
 	static typename decltype(ac_sqr_0)::OutputType SqrClippedReLUValue(i32 value) {
-		const auto sqr = (static_cast<long long>(value) * value) >> (2 * kWeightScaleBits + 7);
+		const auto sqr = (static_cast<long long>(value) * value) >> (2 * WeightScaleBits + 7);
 		return static_cast<typename decltype(ac_sqr_0)::OutputType>(sqr >= 127 ? 127 : sqr);
 	}
 
@@ -119,13 +119,13 @@ struct SfnnNetwork {
 	                      typename decltype(ac_sqr_0)::OutputType* output) const {
 		ac_sqr_0.PropagatePair(input, output, output + kHidden1Dims);
 		std::fill(output + kHidden1Dims * 2,
-		          output + CeilToMultiple<IndexType>(kHidden1Dims * 2, 32),
+		          output + ceil_to_multiple<IndexType>(kHidden1Dims * 2, 32),
 		          typename decltype(ac_sqr_0)::OutputType{0});
 	}
 
 	static void MakeHidden1InputPacked(const typename decltype(fc_0)::OutputType* input,
 	                                   u32* output) {
-		constexpr IndexType kPackedWords = CeilToMultiple<IndexType>(kHidden1Dims * 2, 8) / 4;
+		constexpr IndexType kPackedWords = ceil_to_multiple<IndexType>(kHidden1Dims * 2, 8) / 4;
 		if constexpr (kHidden1Dims == 7) {
 			const auto s0 = static_cast<u32>(SqrClippedReLUValue(input[0]));
 			const auto s1 = static_cast<u32>(SqrClippedReLUValue(input[1]));
@@ -158,7 +158,7 @@ struct SfnnNetwork {
 	template <typename BufferType>
 	const OutputType* PropagateTail(BufferType& buf) const {
 		if constexpr (kUsePackedTail) {
-			u32 ac_sqr_0_packed[CeilToMultiple<IndexType>(kHidden1Dims * 2, 8) / 4];
+			u32 ac_sqr_0_packed[ceil_to_multiple<IndexType>(kHidden1Dims * 2, 8) / 4];
 			MakeHidden1InputPacked(buf.fc_0_out, ac_sqr_0_packed);
 			fc_1.PropagateClippedReLUPackedToOutput(ac_sqr_0_packed, fc_2, buf.fc_2_out);
 		} else {

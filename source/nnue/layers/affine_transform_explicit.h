@@ -30,8 +30,8 @@ class AffineTransformExplicit {
         // Number of input/output dimensions
         static constexpr IndexType kInputDimensions       = InputDimensions;
         static constexpr IndexType kOutputDimensions      = OutputDimensions;
-        static constexpr IndexType kPaddedInputDimensions = CeilToMultiple<IndexType>(kInputDimensions, kMaxSimdWidth);
-        static constexpr IndexType kPaddedOutputDimensions = CeilToMultiple<IndexType>(kOutputDimensions, kMaxSimdWidth);
+        static constexpr IndexType kPaddedInputDimensions = ceil_to_multiple<IndexType>(kInputDimensions, MaxSimdWidth);
+        static constexpr IndexType kPaddedOutputDimensions = ceil_to_multiple<IndexType>(kOutputDimensions, MaxSimdWidth);
         static constexpr bool kHasClippedReLUPackedWeights =
                 kInputDimensions == 64 && kOutputDimensions == 1;
         static constexpr IndexType kClippedReLUPackedWeightDimensions =
@@ -119,7 +119,7 @@ class AffineTransformExplicit {
 #if defined(USE_AVX512)
                         if constexpr (kOutputDimensions % 16 == 0)
                         {
-                                constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+                                constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
                                 constexpr IndexType kNumRegs = kOutputDimensions / 16;
 
                                 constexpr IndexType kNumAccums = kNumRegs;
@@ -181,7 +181,7 @@ class AffineTransformExplicit {
 #if defined(USE_AVX2)
                         if constexpr (kOutputDimensions % 8 == 0)
                         {
-                                constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+                                constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
                                 constexpr IndexType kNumRegs = kOutputDimensions / 8;
 
                                 constexpr IndexType kNumAccums = kNumRegs;
@@ -243,7 +243,7 @@ class AffineTransformExplicit {
 #if defined(USE_SSSE3)
                         if constexpr (kOutputDimensions % 4 == 0)
                         {
-                                constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+                                constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
                                 constexpr IndexType kNumRegs = kOutputDimensions / 4;
 
                                 const auto   input32 = reinterpret_cast<const i32*>(input);
@@ -273,7 +273,7 @@ class AffineTransformExplicit {
 #if defined(USE_NEON_DOTPROD)
                         if constexpr (kOutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
                         {
-                                constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+                                constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
                                 constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
                                 constexpr IndexType kNumRegs = kOutputDimensions / kOutputSimdWidth;
 
@@ -366,7 +366,7 @@ class AffineTransformExplicit {
             const AffineTransformExplicit<kOutputDimensions, 1>& next_layer,
             OutputType* output) const {
                 if constexpr (kOutputDimensions == 64) {
-                        constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+                        constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
                         constexpr IndexType kNumRegs = kOutputDimensions / 16;
 
                         constexpr IndexType kNumAccums = kNumRegs;
@@ -419,9 +419,9 @@ class AffineTransformExplicit {
 
                         const __m512i kZero = _mm512_setzero_si512();
                         const __m512i words0 = _mm512_srai_epi16(
-                                _mm512_packs_epi32(acc[0], acc[1]), kWeightScaleBits);
+                                _mm512_packs_epi32(acc[0], acc[1]), WeightScaleBits);
                         const __m512i words1 = _mm512_srai_epi16(
-                                _mm512_packs_epi32(acc[2], acc[3]), kWeightScaleBits);
+                                _mm512_packs_epi32(acc[2], acc[3]), WeightScaleBits);
                         const __m512i clipped =
                                 _mm512_max_epi8(_mm512_packs_epi16(words0, words1), kZero);
 
@@ -455,9 +455,9 @@ class AffineTransformExplicit {
         using BiasType   = OutputType;
         using WeightType = i8;
 
-        alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
-        alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
-        alignas(kCacheLineSize) WeightType
+        alignas(CacheLineSize) BiasType biases_[kOutputDimensions];
+        alignas(CacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
+        alignas(CacheLineSize) WeightType
                 weights_clipped_relu_packed_[kClippedReLUPackedWeightDimensions];
 };
 

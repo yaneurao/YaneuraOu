@@ -21,7 +21,7 @@ class InputSlice {
  public:
   // Need to maintain alignment
   // アライメントを維持する必要がある
-  static_assert(Offset % kMaxSimdWidth == 0, "");
+  static_assert(Offset % MaxSimdWidth == 0, "");
 
   // Output type
   // 出力の型

@@ -392,8 +392,8 @@ namespace {
 		if (!stream) return Tools::ResultCode::FileReadError;
 		if (version_out)
 			*version_out = version;
-        if (version != kVersion) {
-			sync_cout << "info string NNUE header version mismatch: expected " << kVersion
+        if (version != Version) {
+			sync_cout << "info string NNUE header version mismatch: expected " << Version
 				<< " got " << version << sync_endl;
 			return Tools::ResultCode::FileMismatch;
 		}
@@ -405,7 +405,7 @@ namespace {
     // ヘッダを書き込む
     bool WriteHeader(std::ostream& stream,
         u32 hash_value, const std::string& architecture) {
-        stream.write(reinterpret_cast<const char*>(&kVersion), sizeof(kVersion));
+        stream.write(reinterpret_cast<const char*>(&Version), sizeof(Version));
         stream.write(reinterpret_cast<const char*>(&hash_value), sizeof(hash_value));
         const u32 size = static_cast<u32>(architecture.size());
         stream.write(reinterpret_cast<const char*>(&size), sizeof(size));
@@ -777,7 +777,7 @@ namespace {
     // 評価値を計算する
     static Value ComputeScore(const NnueNetworks& network, const Position& pos,
                               AccumulatorState* state, AccumulatorCaches& refreshTable, bool refresh = false) {
-        alignas(kCacheLineSize) char buffer[Network::kBufferSize];
+        alignas(CacheLineSize) char buffer[Network::kBufferSize];
 #if defined(EVAL_SFNN)
         const auto bucket = stack_index_for_nnue(pos, network, state);
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
@@ -786,13 +786,13 @@ namespace {
         const auto output = network.network[bucket].PropagateFromAccumulator(
             accumulator.accumulation, pos.side_to_move(), buffer);
 #else
-        alignas(kCacheLineSize) TransformedFeatureType
+        alignas(CacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
         network.feature_transformer.Transform(pos, transformed_features, refresh, state, refreshTable);
         const auto output = network.network[bucket].Propagate(transformed_features, buffer);
 #endif
 #else
-        alignas(kCacheLineSize) TransformedFeatureType
+        alignas(CacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
         network.feature_transformer.Transform(pos, transformed_features, refresh, state, refreshTable);
         const auto output = network.network[0].Propagate(transformed_features, buffer);

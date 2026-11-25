@@ -12,7 +12,7 @@ namespace YaneuraOu::Eval::NNUE {
 
 template <IndexType Inputs, IndexType Outputs>
 struct SfnnAffine16 {
-    static constexpr IndexType PaddedInputs = CeilToMultiple<IndexType>(Inputs, 32);
+    static constexpr IndexType PaddedInputs = ceil_to_multiple<IndexType>(Inputs, 32);
     i32 biases[Outputs];
     i16 weights[Outputs][PaddedInputs];
 
@@ -61,7 +61,7 @@ struct SfnnNetwork16 {
     u32 weight_scale = 4096;
     unsigned shift = 12;
 
-    struct alignas(kCacheLineSize) Buffer {
+    struct alignas(CacheLineSize) Buffer {
         i64 first[Hidden1Dims + (UseShortcut ? 1 : 0)];
         i64 second[Hidden2Dims];
         u8 first_activated[Hidden1Dims * 2];

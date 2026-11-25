@@ -147,11 +147,11 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
 #endif
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE)
       // Check raw fc_0 outputs, including values hidden by FV_SCALE rounding.
-      alignas(kCacheLineSize) TransformedFeatureType features[FeatureTransformer::kBufferSize];
+      alignas(CacheLineSize) TransformedFeatureType features[FeatureTransformer::kBufferSize];
       network.feature_transformer.Transform(pos, features, false, current_state(), refreshTable);
       const auto& fc = network.network[moves % kLayerStacks].fc_0;
       using Fc = std::remove_cv_t<std::remove_reference_t<decltype(fc)>>;
-      alignas(kCacheLineSize) typename Fc::OutputBuffer separate, fused;
+      alignas(CacheLineSize) typename Fc::OutputBuffer separate, fused;
       fc.Propagate(features, separate);
       fc.template PropagateSfnn16FromAccumulator<kTransformedFeatureDimensions>(
           accumulator_of(current_state()).accumulation, pos.side_to_move(), fused);

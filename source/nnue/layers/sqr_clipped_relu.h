@@ -30,7 +30,7 @@ namespace Eval::NNUE::Layers {
 		static constexpr IndexType kInputDimensions = InputDimensions;
 		static constexpr IndexType kOutputDimensions = kInputDimensions;
 		static constexpr IndexType PaddedOutputDimensions =
-			CeilToMultiple<IndexType>(kOutputDimensions, 32);
+			ceil_to_multiple<IndexType>(kOutputDimensions, 32);
 
 		using OutputBuffer = OutputType[PaddedOutputDimensions];
 
@@ -65,7 +65,7 @@ namespace Eval::NNUE::Layers {
 
 #if defined(USE_SSE2)
 			constexpr IndexType NumChunks = kInputDimensions / 16;
-			static_assert(kWeightScaleBits == 6);
+			static_assert(WeightScaleBits == 6);
 
 			const auto in = reinterpret_cast<const __m128i*>(input);
 			const auto out = reinterpret_cast<__m128i*>(output);
@@ -91,7 +91,7 @@ namespace Eval::NNUE::Layers {
 
 			for (IndexType i = Start; i < kInputDimensions; ++i) {
 				output[i] = static_cast<OutputType>(
-					std::min(127ll, ((long long)(input[i]) * input[i]) >> (2 * kWeightScaleBits + 7)));
+					std::min(127ll, ((long long)(input[i]) * input[i]) >> (2 * WeightScaleBits + 7)));
 			}
 			if constexpr (PaddedOutputDimensions > kOutputDimensions) {
 				std::fill(output + kOutputDimensions, output + PaddedOutputDimensions, OutputType{0});
@@ -102,8 +102,8 @@ namespace Eval::NNUE::Layers {
 		// SFNNの後段入力は [sqr(input[0..n-2]), clip(input[0..n-2])] という連結なので、
 		// 1回の入力変換から両方の出力を作る。
 		void PropagatePair(const InputType* input, OutputType* sqrOut, OutputType* clipOut) const {
-			static_assert(kWeightScaleBits == 6);
-			[[maybe_unused]] constexpr int SimdShiftAmount = 2 * kWeightScaleBits + 7 - 16;
+			static_assert(WeightScaleBits == 6);
+			[[maybe_unused]] constexpr int SimdShiftAmount = 2 * WeightScaleBits + 7 - 16;
 
 #if defined(USE_AVX512)
 			if constexpr (kInputDimensions == 16)
@@ -115,7 +115,7 @@ namespace Eval::NNUE::Layers {
 				_mm_storeu_si128(reinterpret_cast<__m128i*>(sqrOut), _mm256_cvtsepi16_epi8(sq));
 
 				const __m256i cl = _mm256_srli_epi16(
-					_mm256_max_epi16(w, _mm256_setzero_si256()), kWeightScaleBits);
+					_mm256_max_epi16(w, _mm256_setzero_si256()), WeightScaleBits);
 				_mm_storeu_si128(reinterpret_cast<__m128i*>(clipOut), _mm256_cvtsepi16_epi8(cl));
 				return;
 			}
@@ -133,7 +133,7 @@ namespace Eval::NNUE::Layers {
 				                                 _mm256_extracti128_si256(sq, 1)));
 
 				const __m256i cl = _mm256_srli_epi16(
-					_mm256_max_epi16(w, _mm256_setzero_si256()), kWeightScaleBits);
+					_mm256_max_epi16(w, _mm256_setzero_si256()), WeightScaleBits);
 				_mm_storeu_si128(reinterpret_cast<__m128i*>(clipOut),
 				                 _mm_packs_epi16(_mm256_castsi256_si128(cl),
 				                                 _mm256_extracti128_si256(cl, 1)));
@@ -160,7 +160,7 @@ namespace Eval::NNUE::Layers {
 					const __m128i w = _mm_packs_epi32(_mm_load_si128(&in[i * 2 + 0]),
 					                                  _mm_load_si128(&in[i * 2 + 1]));
 					const __m128i cl = _mm_srli_epi16(_mm_max_epi16(w, _mm_setzero_si128()),
-					                                  kWeightScaleBits);
+					                                  WeightScaleBits);
 					_mm_storel_epi64(reinterpret_cast<__m128i*>(clipOut + i * 8),
 					                 _mm_packs_epi16(cl, cl));
 				}
@@ -169,10 +169,10 @@ namespace Eval::NNUE::Layers {
 #endif
 			for (IndexType i = 0; i < kInputDimensions; ++i)
 				sqrOut[i] = static_cast<OutputType>(
-					std::min(127ll, ((long long)(input[i]) * input[i]) >> (2 * kWeightScaleBits + 7)));
+					std::min(127ll, ((long long)(input[i]) * input[i]) >> (2 * WeightScaleBits + 7)));
 			for (IndexType i = 0; i < kInputDimensions; ++i)
 				clipOut[i] = static_cast<OutputType>(
-					std::max(0, std::min(127, input[i] >> kWeightScaleBits)));
+					std::clamp(input[i] >> WeightScaleBits, 0, 127));
 		}
 
 	};

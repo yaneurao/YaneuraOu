@@ -1,14 +1,15 @@
 ﻿// Constants used in NNUE evaluation function
 // NNUE評価関数で用いる定数など
 
-#ifndef CLASSIC_NNUE_COMMON_H_INCLUDED
-#define CLASSIC_NNUE_COMMON_H_INCLUDED
+#ifndef NNUE_COMMON_H_INCLUDED
+#define NNUE_COMMON_H_INCLUDED
 
-#include <cstdint>
-
-#include <algorithm>   // std::min
+#include <algorithm>
 #include <cassert>
-#include <cstring>		// std::memcpy()
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <type_traits>
 
 #include "../config.h"
 #include "../extra/tools.h"
@@ -21,8 +22,6 @@
 #if defined(USE_WASM_SIMD)
 #include "wasm_simd.h"
 #endif
-
-namespace YaneuraOu {
 
 // HACK: Use _mm256_loadu_si256() instead of _mm256_load_si256. Otherwise a binary
 //       compiled with older g++ crashes because the output memory is not aligned
@@ -52,14 +51,15 @@ namespace YaneuraOu {
 #endif
 #endif
 
-namespace Eval::NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
   // Version of the evaluation file
   // 評価関数ファイルのバージョンを表す定数
+  // 既存の将棋用nn.binとの互換性を保つため、StockfishのVersionの値には合わせない。
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
-  constexpr u32 kVersion = 0x7AF32F17u;
+  constexpr u32 Version = 0x7AF32F17u;
 #else
-  constexpr u32 kVersion = 0x7AF32F16u;
+  constexpr u32 Version = 0x7AF32F16u;
 #endif
 
   // LEB128圧縮データを識別するためのmagic string
@@ -70,14 +70,15 @@ namespace Eval::NNUE {
   // 評価値の計算で利用する定数
   extern int FV_SCALE; // default 16。水匠5では24がベストらしいのでエンジンオプション"FV_SCALE"で変更可能にした。
 
-  constexpr int kWeightScaleBits = 6;
+  constexpr int WeightScaleBits = 6;
 
   // Size of cache line (in bytes)
   // キャッシュラインのサイズ（バイト単位）
-  constexpr usize kCacheLineSize = 64;
+  constexpr usize CacheLineSize = 64;
 
   // SIMD width (in bytes)
   // SIMD幅（バイト単位）
+  // Stockfishでは削除済みだが、将棋のFT差分更新ではSIMDチャンク幅として使用する。
   #if defined(USE_AVX2)
   constexpr usize kSimdWidth = 32;
   #elif defined(USE_SSE2)
@@ -90,31 +91,7 @@ namespace Eval::NNUE {
   #elif defined(USE_WASM_SIMD)
   constexpr usize kSimdWidth = 16;
   #endif
-  constexpr usize kMaxSimdWidth = 32;
-
-  // unique number for each piece type on each square
-  // 将棋では、BonaPieceで事足りるのでここでは定義しない。
-  #if 0 // チェス用 for chess
-  enum {
-    PS_NONE     =  0,
-    PS_W_PAWN   =  1,
-    PS_B_PAWN   =  1 * SQUARE_NB + 1,
-    PS_W_KNIGHT =  2 * SQUARE_NB + 1,
-    PS_B_KNIGHT =  3 * SQUARE_NB + 1,
-    PS_W_BISHOP =  4 * SQUARE_NB + 1,
-    PS_B_BISHOP =  5 * SQUARE_NB + 1,
-    PS_W_ROOK   =  6 * SQUARE_NB + 1,
-    PS_B_ROOK   =  7 * SQUARE_NB + 1,
-    PS_W_QUEEN  =  8 * SQUARE_NB + 1,
-    PS_B_QUEEN  =  9 * SQUARE_NB + 1,
-    PS_W_KING   = 10 * SQUARE_NB + 1,
-    PS_END      = PS_W_KING, // pieces without kings (pawns included)
-    PS_B_KING   = 11 * SQUARE_NB + 1,
-    PS_END2     = 12 * SQUARE_NB + 1
-  };
-  extern const u32 kpp_board_index[PIECE_NB][COLOR_NB];
-
-  #endif
+  constexpr usize MaxSimdWidth = 32;
 
   // Type of input feature after conversion
   // 変換後の入力特徴量の型
@@ -126,37 +103,48 @@ namespace Eval::NNUE {
   // Round n up to be a multiple of base
   // n以上で最小のbaseの倍数を求める
   template <typename IntType>
-  constexpr IntType CeilToMultiple(IntType n, IntType base) {
+  constexpr IntType ceil_to_multiple(IntType n, IntType base) {
     return (n + base - 1) / base * base;
   }
 
-  // read_little_endian() is our utility to read an integer (signed or unsigned, any size)
-  // from a stream in little-endian order. We swap the byte order after the read if
-  // necessary to return a result with the byte ordering of the compiling machine.
-  template <typename IntType>
-  inline IntType read_little_endian(std::istream& stream) {
+// Utility to read an integer (signed or unsigned, any size)
+// from a stream in little-endian order. We swap the byte order after the read if
+// necessary to return a result with the byte ordering of the compiling machine.
+// ストリームから整数をlittle-endianで読み込み、実行環境のバイト順で返す。
+// little-endian環境では直接読み込み、それ以外では読み込み後にバイト順を変換する。
+template<typename IntType>
+inline IntType read_little_endian(std::istream& stream) {
+    IntType result;
 
-      IntType result;
-      u8 u[sizeof(IntType)];
-      typename std::make_unsigned<IntType>::type v = 0;
+    if (IsLittleEndian)
+        stream.read(reinterpret_cast<char*>(&result), sizeof(IntType));
+    else
+    {
+        u8                            u[sizeof(IntType)];
+        std::make_unsigned_t<IntType> v = 0;
 
-      stream.read(reinterpret_cast<char*>(u), sizeof(IntType));
-      for (usize i = 0; i < sizeof(IntType); ++i)
-          v = (v << 8) | u[sizeof(IntType) - i - 1];
+        stream.read(reinterpret_cast<char*>(u), sizeof(IntType));
+        for (usize i = 0; i < sizeof(IntType); ++i)
+            v = (v << 8) | u[sizeof(IntType) - i - 1];
 
-      std::memcpy(&result, &v, sizeof(IntType));
-      return result;
-  }
+        std::memcpy(&result, &v, sizeof(IntType));
+    }
 
-  // little-endianで複数の整数を読み込む
-  template <typename IntType>
-  inline void read_little_endian(std::istream& stream, IntType* out, usize count) {
-	  if (IsLittleEndian)
-		  stream.read(reinterpret_cast<char*>(out), sizeof(IntType) * count);
-	  else
-		  for (usize i = 0; i < count; ++i)
-			  out[i] = read_little_endian<IntType>(stream);
-  }
+    return result;
+}
+
+
+// Read integers in bulk from a little-endian stream.
+// This reads N integers from stream s and puts them in array out.
+// little-endianの整数をまとめて読み込み、配列outへ格納する。
+template<typename IntType>
+inline void read_little_endian(std::istream& stream, IntType* out, usize count) {
+    if (IsLittleEndian)
+        stream.read(reinterpret_cast<char*>(out), sizeof(IntType) * count);
+    else
+        for (usize i = 0; i < count; ++i)
+            out[i] = read_little_endian<IntType>(stream);
+}
 
   // signed LEB128で圧縮された整数を読み込む
   template<typename IntType>
@@ -204,8 +192,7 @@ namespace Eval::NNUE {
 
 	  assert(bytes_left == 0);
   }
-} // namespace Eval::NNUE
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

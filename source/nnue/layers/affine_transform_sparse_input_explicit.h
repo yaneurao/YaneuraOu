@@ -18,7 +18,7 @@ namespace Eval::NNUE::Layers {
 
 #if defined(USE_SSSE3) || USE_NEON >= 8
 
-alignas(kCacheLineSize) static inline const
+alignas(CacheLineSize) static inline const
   std::array<std::array<u16, 8>, 256> lookup_indices_explicit = []() {
       std::array<std::array<u16, 8>, 256> v{};
       for (unsigned i = 0; i < 256; ++i)
@@ -120,8 +120,8 @@ public:
         // Number of input/output dimensions
         static constexpr IndexType kInputDimensions       = InputDimensions;
         static constexpr IndexType kOutputDimensions      = OutputDimensions;
-        static constexpr IndexType kPaddedInputDimensions = CeilToMultiple<IndexType>(kInputDimensions, kMaxSimdWidth);
-        static constexpr IndexType kPaddedOutputDimensions = CeilToMultiple<IndexType>(kOutputDimensions, kMaxSimdWidth);
+        static constexpr IndexType kPaddedInputDimensions = ceil_to_multiple<IndexType>(kInputDimensions, MaxSimdWidth);
+        static constexpr IndexType kPaddedOutputDimensions = ceil_to_multiple<IndexType>(kOutputDimensions, MaxSimdWidth);
 
 #if defined(USE_SSSE3) || USE_NEON >= 8
     static constexpr IndexType kChunkSize = 4;
@@ -196,7 +196,7 @@ public:
                 __m512i sum0 = _mm512_load_si512(reinterpret_cast<const __m512i*>(biases_));
                 __m512i sum1 = zero, sum2 = zero;
                 const Color perspectives[2] = {sideToMove, ~sideToMove};
-                alignas(kCacheLineSize) u32 input32[16];
+                alignas(CacheLineSize) u32 input32[16];
                 for (IndexType p = 0; p < 2; ++p) {
                         const auto* in0 = reinterpret_cast<const __m512i*>(&accumulation[perspectives[p]][0][0]);
                         const auto* in1 = reinterpret_cast<const __m512i*>(&accumulation[perspectives[p]][0][HalfDimensions / 2]);
@@ -266,7 +266,7 @@ public:
 #else
                 __m256i acc = _mm256_load_si256(biasvec);
 #endif
-                alignas(kCacheLineSize) u32 input32[kInput32PerVector];
+                alignas(CacheLineSize) u32 input32[kInput32PerVector];
 
                 for (IndexType p = 0; p < 2; ++p) {
                         const auto perspective = perspectives[p];
@@ -369,7 +369,7 @@ public:
 #if defined(USE_AVX512)
         if constexpr (kOutputDimensions % 16 == 0)
         {
-            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kNumRegs   = kOutputDimensions / 16;
             u16       nnz[kNumChunks];
             IndexType           count;
@@ -446,7 +446,7 @@ public:
 #if defined(USE_AVX2)
         if constexpr (kOutputDimensions % 8 == 0)
         {
-            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kNumRegs   = kOutputDimensions / 8;
             u16       nnz[kNumChunks];
             IndexType           count;
@@ -518,7 +518,7 @@ public:
 #if defined(USE_SSSE3)
         if constexpr (kOutputDimensions % 4 == 0)
         {
-            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kNumRegs   = kOutputDimensions / 4;
             u16       nnz[kNumChunks];
             IndexType           count;
@@ -554,7 +554,7 @@ public:
 #if defined(USE_NEON_DOTPROD)
         if constexpr (kOutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
         {
-            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
             constexpr IndexType kNumRegs   = kOutputDimensions / kOutputSimdWidth;
             u16       nnz[kNumChunks];
@@ -591,7 +591,7 @@ public:
 #if defined(USE_NEON) && !defined(USE_NEON_DOTPROD)
         if constexpr (kOutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
         {
-            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
             constexpr IndexType kNumRegs   = kOutputDimensions / kOutputSimdWidth;
             u16       nnz[kNumChunks];
@@ -641,8 +641,8 @@ public:
         using BiasType   = OutputType;
         using WeightType = i8;
 
-        alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
-        alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
+        alignas(CacheLineSize) BiasType biases_[kOutputDimensions];
+        alignas(CacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
 };
 
 }  // namespace Eval::NNUE::Layers

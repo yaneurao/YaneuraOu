@@ -33,7 +33,7 @@ class Sum : public Sum<RemainingPreviousLayers...> {
 
   // この層で使用する順伝播用バッファのサイズ
   static constexpr std::size_t kSelfBufferSize =
-      CeilToMultiple(kOutputDimensions * sizeof(OutputType), kCacheLineSize);
+      ceil_to_multiple(kOutputDimensions * sizeof(OutputType), CacheLineSize);
 
   // 入力層からこの層までで使用する順伝播用バッファのサイズ
   static constexpr std::size_t kBufferSize =

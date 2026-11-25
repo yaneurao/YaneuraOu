@@ -1,10 +1,11 @@
 ﻿// Definition of layer AffineTransform of NNUE evaluation function
 // NNUE評価関数の層AffineTransformの定義
 
-#ifndef CLASSIC_NNUE_LAYERS_AFFINE_TRANSFORM_H_INCLUDED
-#define CLASSIC_NNUE_LAYERS_AFFINE_TRANSFORM_H_INCLUDED
+#ifndef NNUE_LAYERS_AFFINE_TRANSFORM_H_INCLUDED
+#define NNUE_LAYERS_AFFINE_TRANSFORM_H_INCLUDED
 
 #include <cstdint>
+#include <iosfwd>
 
 #include "../../config.h"
 #include "../../extra/tools.h"
@@ -17,6 +18,9 @@
 namespace YaneuraOu {
 namespace Eval::NNUE::Layers {
 
+// 従来NNUEでは前段レイヤーを所有するため、現行Stockfishの明示次元型とはAPIが異なる。
+// SFNNではAffineTransformExplicitを使い、従来NNUEのバッファ構造は維持する。
+
 template<IndexType kInputDimensions, IndexType kPaddedInputDimensions, IndexType kOutputDimensions>
 static void affine_transform_unaligned(i32*       output,
                                        const i8*  weights,
@@ -25,21 +29,21 @@ static void affine_transform_unaligned(i32*       output,
 #if defined(USE_SSE2) || defined(USE_NEON)
 
 #if defined(USE_AVX512)
-	constexpr IndexType kNumChunks  = CeilToMultiple<IndexType>(kInputDimensions, 64) / 64;
+	constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(kInputDimensions, 64) / 64;
     const __m512i       kZeros      = _mm512_setzero_si512();
     const auto          inputVector = reinterpret_cast<const __m512i*>(input);
 #elif defined(USE_AVX2)
-	constexpr IndexType kNumChunks  = CeilToMultiple<IndexType>(kInputDimensions, 32) / 32;
+	constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(kInputDimensions, 32) / 32;
     const __m256i       kZeros      = _mm256_setzero_si256();
     const auto          inputVector = reinterpret_cast<const __m256i*>(input);
 #elif defined(USE_SSE2)
     // At least a multiple of 16, with SSE2.
-    constexpr IndexType kNumChunks  = CeilToMultiple<IndexType>(kInputDimensions, 16) / 16;
+    constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(kInputDimensions, 16) / 16;
     const __m128i       kZeros      = _mm_setzero_si128();
     const auto          inputVector = reinterpret_cast<const __m128i*>(input);
 
 #elif defined(USE_NEON)
-    constexpr IndexType kNumChunks  = CeilToMultiple<IndexType>(kInputDimensions, 16) / 16;
+    constexpr IndexType kNumChunks  = ceil_to_multiple<IndexType>(kInputDimensions, 16) / 16;
     const auto          inputVector = reinterpret_cast<const int8x8_t*>(input);
 #endif
 
@@ -182,12 +186,12 @@ class AffineTransform {
 	// 入出力の次元数
 	static constexpr IndexType kInputDimensions       = PreviousLayer::kOutputDimensions;
 	static constexpr IndexType kOutputDimensions      = OutputDimensions;
-	static constexpr IndexType kPaddedInputDimensions = CeilToMultiple<IndexType>(kInputDimensions, kMaxSimdWidth);
+	static constexpr IndexType kPaddedInputDimensions = ceil_to_multiple<IndexType>(kInputDimensions, MaxSimdWidth);
 
 	// Size of forward propagation buffer used in this layer
 	// この層で使用する順伝播用バッファのサイズ
 	static constexpr usize kSelfBufferSize =
-	    CeilToMultiple(kOutputDimensions * sizeof(OutputType), kCacheLineSize);
+	    ceil_to_multiple(kOutputDimensions * sizeof(OutputType), CacheLineSize);
 
 	// Size of the forward propagation buffer used from the input layer to this layer
 	// 入力層からこの層までで使用する順伝播用バッファのサイズ
@@ -282,7 +286,7 @@ class AffineTransform {
 #if defined(USE_AVX512)
 			if constexpr (kOutputDimensions % 16 == 0)
 			{
-				constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
 				constexpr IndexType kNumRegs = kOutputDimensions / 16;
 
 				const auto   input32 = reinterpret_cast<const i32*>(input);
@@ -312,7 +316,7 @@ class AffineTransform {
 #if defined(USE_AVX2)
 			if constexpr (kOutputDimensions % 8 == 0)
 			{
-				constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
 				constexpr IndexType kNumRegs = kOutputDimensions / 8;
 
 				const auto   input32 = reinterpret_cast<const i32*>(input);
@@ -342,7 +346,7 @@ class AffineTransform {
 #if defined(USE_SSSE3)
 			if constexpr (kOutputDimensions % 4 == 0)
 			{
-				constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
 				constexpr IndexType kNumRegs = kOutputDimensions / 4;
 
 				const auto   input32 = reinterpret_cast<const i32*>(input);
@@ -372,7 +376,7 @@ class AffineTransform {
 #if defined(USE_NEON_DOTPROD)
 			if constexpr (kOutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
 			{
-				constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / 4;
+				constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / 4;
 				constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
 				constexpr IndexType kNumRegs = kOutputDimensions / kOutputSimdWidth;
 
@@ -470,8 +474,8 @@ class AffineTransform {
 	PreviousLayer previous_layer_;
 
 	// パラメータ
-	alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
-	alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
+	alignas(CacheLineSize) BiasType biases_[kOutputDimensions];
+	alignas(CacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
 };
 
 } // namespace Eval::NNUE::Layers

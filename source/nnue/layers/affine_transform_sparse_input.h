@@ -2,11 +2,12 @@
 // Definition of the AffineTransform layer with block-sparse input in the NNUE evaluation function
 // NNUE評価関数におけるブロック疎な入力を持つAffineTransform層の定義
 
-#ifndef CLASSIC_NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
-#define CLASSIC_NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
+#ifndef NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
+#define NNUE_LAYERS_AFFINE_TRANSFORM_SPARSE_INPUT_H_INCLUDED
 
 #include <algorithm>
 #include <cstdint>
+#include <iosfwd>
 
 #include "../../config.h"
 #include "../../extra/tools.h"
@@ -20,9 +21,12 @@
 namespace YaneuraOu {
 namespace Eval::NNUE::Layers {
 
+// 従来NNUEでは前段レイヤーを所有するため、現行Stockfishの明示次元型とはAPIが異なる。
+// SFNNではAffineTransformSparseInputExplicitを使う。
+
 #if defined(USE_SSSE3) || USE_NEON >= 8
 
-alignas(kCacheLineSize) static inline const
+alignas(CacheLineSize) static inline const
   std::array<std::array<u16, 8>, 256> lookup_indices = []() {
       std::array<std::array<u16, 8>, 256> v{};
       for (unsigned i = 0; i < 256; ++i)
@@ -129,12 +133,12 @@ class AffineTransformSparseInput {
 	// 入出力の次元数
 	static constexpr IndexType kInputDimensions       = PreviousLayer::kOutputDimensions;
 	static constexpr IndexType kOutputDimensions      = OutputDimensions;
-	static constexpr IndexType kPaddedInputDimensions = CeilToMultiple<IndexType>(kInputDimensions, kMaxSimdWidth);
+	static constexpr IndexType kPaddedInputDimensions = ceil_to_multiple<IndexType>(kInputDimensions, MaxSimdWidth);
 
 	// Size of forward propagation buffer used in this layer
 	// この層で使用する順伝播用バッファのサイズ
 	static constexpr usize kSelfBufferSize =
-	    CeilToMultiple(kOutputDimensions * sizeof(OutputType), kCacheLineSize);
+	    ceil_to_multiple(kOutputDimensions * sizeof(OutputType), CacheLineSize);
 
 	// Size of the forward propagation buffer used from the input layer to this layer
 	// 入力層からこの層までで使用する順伝播用バッファのサイズ
@@ -233,7 +237,7 @@ class AffineTransformSparseInput {
 #if defined(USE_AVX512)
         if constexpr (kOutputDimensions % 16 == 0)
         {
-            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kNumRegs   = kOutputDimensions / 16;
             u16       nnz[kNumChunks];
             IndexType           count;
@@ -270,7 +274,7 @@ class AffineTransformSparseInput {
 #if defined(USE_AVX2)
         if constexpr (kOutputDimensions % 8 == 0)
         {
-            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kNumRegs   = kOutputDimensions / 8;
             u16       nnz[kNumChunks];
             IndexType           count;
@@ -307,7 +311,7 @@ class AffineTransformSparseInput {
 #if defined(USE_SSSE3)
         if constexpr (kOutputDimensions % 4 == 0)
         {
-            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kNumRegs   = kOutputDimensions / 4;
             u16       nnz[kNumChunks];
             IndexType           count;
@@ -344,7 +348,7 @@ class AffineTransformSparseInput {
 #if defined(USE_NEON_DOTPROD)
         if constexpr (kOutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
         {
-            constexpr IndexType kNumChunks = CeilToMultiple<IndexType>(kInputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(kInputDimensions, 8) / kChunkSize;
             constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
             constexpr IndexType kNumRegs   = kOutputDimensions / kOutputSimdWidth;
             u16       nnz[kNumChunks];
@@ -402,8 +406,8 @@ class AffineTransformSparseInput {
 	PreviousLayer previous_layer_;
 
 	// パラメータ
-	alignas(kCacheLineSize) BiasType biases_[kOutputDimensions];
-	alignas(kCacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
+	alignas(CacheLineSize) BiasType biases_[kOutputDimensions];
+	alignas(CacheLineSize) WeightType weights_[kOutputDimensions * kPaddedInputDimensions];
 };
 
 } // namespace Eval::NNUE::Layers

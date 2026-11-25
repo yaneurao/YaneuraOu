@@ -43,7 +43,7 @@ class AccumulatorCaches {
         int pieceCount = 0;
     };
 
-    struct alignas(kCacheLineSize) Entry {
+    struct alignas(CacheLineSize) Entry {
         i16 accumulation[kTransformedFeatureDimensions];
         // Raw snapshots and generic feature lists are alternative cache formats.
         // 生の盤面と汎用特徴量リストは別々の保存方式なので、同じ領域を共用する。
