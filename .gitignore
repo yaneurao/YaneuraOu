@@ -26,6 +26,9 @@ YaneuraOu_backup*.lnk
 # embedded_nnue.cpp
 embedded_nnue.cpp
 
+# Generated SFNN architecture headers (nnue_arch_gen.py)
+/source/nnue/architectures/SFNN_*_[0-9]*_[0-9]*_[0-9]*.h
+
 # experimental
 
 evaluate_experimental.*
