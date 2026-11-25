@@ -37,11 +37,8 @@
 #include "../../movegen.h"
 #include "../../movepick.h"
 
-#if STOCKFISH
-#include "nnue/network.h"
-#include "nnue/nnue_accumulator.h"
-// TODO : やねうら王側も同じ構造にすべきか？
-#endif
+#include "../../nnue/network.h"
+#include "../../nnue/nnue_accumulator.h"
 #include "../../position.h"
 #include "../../thread.h"
 #include "../../timeman.h"
@@ -61,9 +58,6 @@
 #include "../../book/book.h"
 #include "../../extra/tools.h"
 #include "../../mate/mate.h"
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-#include "../../eval/nnue/evaluate_nnue.h"
-#endif
 
 namespace YaneuraOu {
 

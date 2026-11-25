@@ -10,7 +10,7 @@
 #include "../../book/book.h"
 #include "../../tt.h"
 #include "../../score.h"
-#include "../../eval/classic_accumulator.h"
+#include "../../nnue/nnue_accumulator.h"
 
 namespace YaneuraOu {
 
@@ -569,57 +569,24 @@ class YaneuraOuWorker: public Worker {
     // 📝 より詳しい説明は、Worker::pre_start_searching()のコメントを読むこと。
     virtual void pre_start_searching() override;
 
-	// NNUEの評価関数の計算用
-
 #if STOCKFISH
-	// TODO : あとでよく考える。
-
-	// NNUE評価関数のパラメーターがNumaごとにコピーされるようにする。
-	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
-
-	// Used by NNUE
-	// NNUEで使う
-
-	// NNUE評価関数のnetworkのL1層を保持しているstack
-    Eval::NNUE::AccumulatorStack  accumulatorStack;
-	// NNUE評価関数の差分計算用
-    Eval::NNUE::AccumulatorCaches refreshTable;
+    // NNUE評価関数のパラメーターをNUMAノードごとに複製する。
+    const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
+#else
+    const Eval::NetworkStorage& network;
+    using Dirties = Eval::NNUE::Dirties;
 #endif
+
+    // Used by NNUE
+    // NNUEで使用する。旧評価関数では共通ヘッダーが対応する実装を選ぶ。
+    // accumulatorStackは評価用の累積値、refreshTableはFinnyキャッシュを保持する。
+    Eval::NNUE::AccumulatorStack  accumulatorStack;
+    Eval::NNUE::AccumulatorCaches refreshTable;
 
 #if STOCKFISH
     friend class Stockfish::ThreadPool;
 #else
-	// 🌈 以下、やねうら王独自追加 🌈
-
-    const Eval::NetworkStorage& network;
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-    using Dirties = Eval::NNUE::Dirties;
-    Eval::NNUE::AccumulatorStack accumulatorStack;
-    Eval::NNUE::AccumulatorCaches refreshTable;
-#elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
-    using Dirties = Eval::DirtyPiece;
-    Eval::Classic::AccumulatorStack accumulatorStack;
-#else
-    using Dirties = Eval::EmptyDirties;
-    // 累積値を使わない評価関数でも、同じ形で初期化・着手・undoを呼べるようにする。
-    // 差分の配列やスタック位置は持たず、push()/reset()/pop()による更新も行わない。
-    struct {
-        Dirties& push([[maybe_unused]] const Position& pos) noexcept { return dirties; }
-        void reset() noexcept {}
-        void pop() noexcept {}
-
-       private:
-        Dirties dirties;
-    } accumulatorStack;
-#endif
-
-#if !defined(EVAL_SFNN) && !defined(EVAL_NNUE)
-    // Evaluators without Finny tables keep the same clear() call.
-    // Finny Tablesを使わない評価関数も同じ形でclear()を呼べるようにする。
-    struct {
-        void clear(const Eval::NetworkStorage&) noexcept {}
-    } refreshTable;
-#endif
+    // 🌈 以下、やねうら王独自追加 🌈
 
 	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。
     // 💡 このWorkerから派生させるようなclass設計だと必要になるので用意した。

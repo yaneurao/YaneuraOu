@@ -26,6 +26,9 @@
     <Filter Include="リソース ファイル\eval\kpp_kkpt">
       <UniqueIdentifier>{da7e0fa7-bf52-4802-ac0e-7b3db259ddf6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="リソース ファイル\nnue">
+      <UniqueIdentifier>{2d00a834-9c46-46de-b05d-470372329d05}</UniqueIdentifier>
+    </Filter>
     <Filter Include="リソース ファイル\eval\nnue">
       <UniqueIdentifier>{f8a06299-f305-4fab-af37-06d5d05b9690}</UniqueIdentifier>
     </Filter>
@@ -135,6 +138,12 @@
     </ClInclude>
     <ClInclude Include="eval\evaluate_mir_inv_tools.h">
       <Filter>リソース ファイル\eval</Filter>
+    </ClInclude>
+    <ClInclude Include="nnue\network.h">
+      <Filter>リソース ファイル\nnue</Filter>
+    </ClInclude>
+    <ClInclude Include="nnue\nnue_accumulator.h">
+      <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
     <ClInclude Include="eval\nnue\evaluate_nnue.h">
       <Filter>リソース ファイル\eval\nnue</Filter>

@@ -38,13 +38,8 @@ namespace Eval {
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     using NetworkStorage = LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>;
 #else
-    // Keep network access uniform for engines without NNUE weights.
-    // NNUEの重みを持たないエンジンでも、同じ形でネットワークを参照できるようにする。
-    class NetworkStorage {
-       public:
-        explicit NetworkStorage(NumaReplicationContext&) {}
-        const NetworkStorage& operator[](const NumaReplicatedAccessToken&) const { return *this; }
-    };
+    // 実体は探索・Engine側の共通入口nnue/network.hで定義する。
+    class NetworkStorage;
 #endif
 
 #if defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)

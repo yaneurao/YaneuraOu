@@ -14,6 +14,7 @@
 
 #include "misc.h"
 #include "history.h"
+#include "nnue/network.h"
 #include "numa.h"
 #include "position.h"
 #include "search.h"
@@ -22,12 +23,6 @@
 #include "types.h"
 #include "usioption.h"
 
-#if !STOCKFISH
-#include "evaluate.h"
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-#include "eval/nnue/evaluate_nnue.h"
-#endif
-#endif
 
 namespace YaneuraOu {
 

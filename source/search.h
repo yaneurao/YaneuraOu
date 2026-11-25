@@ -20,6 +20,7 @@
 #endif
 #include "history.h"
 #include "misc.h"
+#include "nnue/nnue_accumulator.h"
 #include "numa.h"
 #include "position.h"
 #include "score.h"
@@ -698,9 +699,8 @@ protected:
 	// 置換表
     TranspositionTable& tt;
 
-    // network参照は派生クラスYaneuraOuWorkerが保持する。
-    // SFNN・従来NNUEのaccumulatorStackは派生クラスYaneuraOuWorkerが保持する。
-    // refreshTableに相当するFinnyキャッシュはFeatureTransformer内のthread_local変数で保持する。
+    // network参照・accumulatorStack・refreshTableは派生クラスYaneuraOuWorkerが保持する。
+    // 評価関数ごとの実装はnnue/network.h・nnue/nnue_accumulator.hで選択する。
 #if STOCKFISH
 	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
 
