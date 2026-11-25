@@ -152,25 +152,14 @@ class AccumulatorStack {
         // 探索の初回evaluate()では局面の差分更新ができないので、
         // SFNN・従来NNUEとも累積値を未計算の状態へ戻す。
         size = 1;
-        auto& st = latest();
-        st.computed_accumulation = false;
-        st.previous = nullptr;
-        st.dirtyPiece = {};
-#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
-        st.progressParameters = nullptr;
-#endif
+        invalidate(latest(), nullptr);
     }
 
     Dirties& push([[maybe_unused]] const Position& pos) noexcept {
         assert(size < MaxSize);
         auto* previous = &latest();
         auto& st = accumulators[size++];
-        st.computed_accumulation = false;
-        st.previous = previous;
-        st.dirtyPiece = {};
-#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
-        st.progressParameters = nullptr;
-#endif
+        invalidate(st, previous);
         return st;
     }
 
@@ -180,6 +169,17 @@ class AccumulatorStack {
     }
 
    private:
+    // Reset frame metadata without clearing the FT accumulation arrays.
+    // FT累積値の配列は消去せず、計算済みフラグ・履歴リンク・着手差分・進行度キャッシュの参照を初期化する。
+    static void invalidate(AccumulatorState& st, AccumulatorState* previous) noexcept {
+        st.computed_accumulation = false;
+        st.previous = previous;
+        st.dirtyPiece = {};
+#if defined(EVAL_SFNN) && defined(NNUE_SFNN_PROGRESS_BUCKETS) && NNUE_SFNN_PROGRESS_BUCKETS != 1
+        st.progressParameters = nullptr;
+#endif
+    }
+
     std::array<AccumulatorState, MaxSize> accumulators;
     usize size = 1;
 };
