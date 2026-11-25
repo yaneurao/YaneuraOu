@@ -228,18 +228,10 @@ class FeatureTransformer {
 			prepare_sparse8_weights();
 #endif
 
-#if defined(USE_FINNY_TABLES)
-		if (!stream.fail())
-			++finny_generation_;
-#endif
 #else
 		for (usize i = 0; i < kHalfDimensions; ++i) biases_[i] = read_little_endian<BiasType>(stream);
 		for (usize i = 0; i < kHalfDimensions * kInputDimensions; ++i)
 			weights_[i] = read_little_endian<WeightType>(stream);
-#if defined(USE_FINNY_TABLES)
-		if (!stream.fail())
-			++finny_generation_;
-#endif
 #endif
 		return !stream.fail() ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
@@ -267,7 +259,7 @@ class FeatureTransformer {
 
 	// Proceed with the difference calculation if possible
 	// 可能なら差分計算を進める
-	bool UpdateAccumulatorIfPossible(const Position& pos, AccumulatorState* state) const {
+	bool UpdateAccumulatorIfPossible(const Position& pos, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
 		const auto now = state;
 		if (accumulator_of(now).computed_accumulation) {
@@ -276,18 +268,18 @@ class FeatureTransformer {
 		const auto prev = now->previous;
 		if (prev && accumulator_of(prev).computed_accumulation) {
 #if defined(NNUE_FT_PACKED8)
-			if (sparse8_enabled_) update_accumulator<true>(pos, state);
+			if (sparse8_enabled_) update_accumulator<true>(pos, state, refreshTable);
 			else
 #endif
-				update_accumulator<false>(pos, state);
+				update_accumulator<false>(pos, state, refreshTable);
 			return true;
 		}
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
         if constexpr (kUseMultiPly) {
 #if defined(NNUE_FT_PACKED8)
-            if (sparse8_enabled_) return update_from_computed_ancestor<true>(pos, state);
+            if (sparse8_enabled_) return update_from_computed_ancestor<true>(pos, state, refreshTable);
 #endif
-            return update_from_computed_ancestor<false>(pos, state);
+            return update_from_computed_ancestor<false>(pos, state, refreshTable);
         }
 #endif
         return false;
@@ -297,7 +289,7 @@ class FeatureTransformer {
     // Merge changes directly from a computed ancestor, skipping intermediate FT states.
     // 計算済み祖先からの変化をまとめ、中間局面のFT計算を省略する。
     template<bool Packed>
-    bool update_from_computed_ancestor(const Position& pos, AccumulatorState* state) const {
+    bool update_from_computed_ancestor(const Position& pos, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
         const auto* ancestor = state;
         // Find a usable ancestor before converting any feature indices.
@@ -367,8 +359,8 @@ class FeatureTransformer {
             // Stockfishと同様に、玉を動かした側だけを更新し直し、他方は祖先の累積値を使う。
             if (reset[c]) {
 #if defined(USE_FINNY_TABLES) && defined(USE_FINNY_RESET) && defined(VECTOR)
-                if constexpr (kUseFinnyTables) {
-                    auto& cache = finny_cache();
+                if (kUseFinnyTables && !refreshTable.empty()) {
+                    auto& cache = *refreshTable;
                     auto& entry = cache.entries[0][c][pos.square<KING>(color)];
                     refresh_from_position<Packed>(pos, color, accumulator.accumulation[c][0], entry, 0);
                     continue;
@@ -453,14 +445,14 @@ class FeatureTransformer {
     }
 #endif
 
-    void EnsureAccumulator(const Position& pos, bool refresh, AccumulatorState* state) const {
+    void EnsureAccumulator(const Position& pos, bool refresh, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
-		if (refresh || !UpdateAccumulatorIfPossible(pos, state)) {
+		if (refresh || !UpdateAccumulatorIfPossible(pos, state, refreshTable)) {
 #if defined(NNUE_FT_PACKED8)
-			if (sparse8_enabled_) refresh_accumulator<true>(pos, state);
+			if (sparse8_enabled_) refresh_accumulator<true>(pos, state, refreshTable);
 			else
 #endif
-				refresh_accumulator<false>(pos, state);
+				refresh_accumulator<false>(pos, state, refreshTable);
 #if defined(EVAL_SFNN) && defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
             if constexpr (kUseMultiPly) {
 #if defined(NNUE_FT_PACKED8)
@@ -498,9 +490,10 @@ class FeatureTransformer {
 
 	// Convert input features
 	// 入力特徴量を変換する
-	void Transform(const Position& pos, OutputType* output, bool refresh, AccumulatorState* state) const {
+	void Transform(const Position& pos, OutputType* output, bool refresh, AccumulatorState* state,
+                   AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
-		EnsureAccumulator(pos, refresh, state);
+		EnsureAccumulator(pos, refresh, state, refreshTable);
 		const auto& accumulation = accumulator_of(state).accumulation;
 
 #if defined(USE_ELEMENT_WISE_MULTIPLY)
@@ -1006,76 +999,8 @@ class FeatureTransformer {
 	// 王位置ごとにrefresh済みaccumulatorを持ち、次回はactive featureの差分だけを適用する。
 #if defined(USE_FINNY_TABLES)
 	static constexpr bool kUseFinnyTables = kHalfDimensions <= 4096;
-#if defined(VECTOR)
-    static constexpr bool kUseDirectFinny = std::is_same_v<
-      RawFeatures, Features::FeatureSet<Features::HalfKA_hm2<Features::Side::kFriend>>>;
-#else
-    static constexpr bool kUseDirectFinny = false;
-#endif
-
-    struct FinnyPosition {
-        std::array<Piece, SQ_NB_PLUS1> pieces{};
-        Hand hands[COLOR_NB]{};
-        int pieceCount = 0;
-    };
-
-    struct alignas(kCacheLineSize) FinnyEntry {
-        BiasType accumulation[kHalfDimensions];
-        // Raw board data and the legacy feature list are alternative cache formats.
-        // 生の盤面と旧特徴量リストは別々の保存方式なので、同じ領域を共用する。
-        union {
-            FinnyPosition position;
-            Features::IndexList active_indices;
-        };
-
-        FinnyEntry(): FinnyEntry(std::bool_constant<kUseDirectFinny>{}) {}
-
-        bool is_initialized() const {
-            // HalfKA_hm2 requires both kings, so zero pieces denotes an unused raw snapshot.
-            // HalfKA_hm2は両玉が必要なので、駒数0を未使用の盤面として扱える。
-            if constexpr (kUseDirectFinny)
-                return position.pieceCount != 0;
-            else
-                return active_indices.size() != 0;
-        }
-
-        void reset_position() {
-            if constexpr (kUseDirectFinny)
-                position = {};
-            else
-                active_indices.resize(0);
-        }
-
-       private:
-        FinnyEntry(std::true_type): position{} {}
-        FinnyEntry(std::false_type): active_indices{} {}
-    };
-
-	struct FinnyCache {
-		using TriggerEntries = std::array<std::array<FinnyEntry, SQ_NB>, COLOR_NB>;
-
-		const FeatureTransformer* owner = nullptr;
-		std::uint64_t generation = 0;
-		std::array<TriggerEntries, kRefreshTriggers.size()> entries;
-
-		void reset(const FeatureTransformer* new_owner, std::uint64_t new_generation) {
-			owner = new_owner;
-			generation = new_generation;
-			for (auto& trigger_entries : entries)
-				for (auto& perspective_entries : trigger_entries)
-					for (auto& entry : perspective_entries)
-						entry.reset_position();
-		}
-	};
-
-	FinnyCache& finny_cache() const {
-		static thread_local LargePagePtr<FinnyCache> cache;
-		if (!cache)
-			cache = make_unique_large_page<FinnyCache>();
-		if (cache->owner != this || cache->generation != finny_generation_)
-			cache->reset(this, finny_generation_);
-		return *cache;
-	}
+    static constexpr bool kUseDirectFinny = AccumulatorCaches::kUseDirectFinny;
+    using FinnyEntry = AccumulatorCaches::Entry;
 
 	static Square finny_bucket_square(
 		const Position& pos, Features::TriggerEvent trigger, Color perspective) {
@@ -1427,9 +1352,9 @@ class FeatureTransformer {
 #endif
 
 	template <bool Packed = false>
-	void refresh_accumulator_with_finny_cache(const Position& pos, AccumulatorState* state) const {
+	void refresh_accumulator_with_finny_cache(const Position& pos, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
-		auto& cache = finny_cache();
+		auto& cache = *refreshTable;
 
 		auto& accumulator = accumulator_of(state);
 #if defined(VECTOR)
@@ -1464,11 +1389,11 @@ class FeatureTransformer {
 	// Calculate cumulative value without using difference calculation
 	// 差分計算を用いずに累積値を計算する
 	template <bool Packed = false>
-	void refresh_accumulator(const Position& pos, AccumulatorState* state) const {
+	void refresh_accumulator(const Position& pos, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
 #if defined(USE_FINNY_TABLES)
-		if constexpr (kUseFinnyTables) {
-			refresh_accumulator_with_finny_cache<Packed>(pos, state);
+		if (kUseFinnyTables && !refreshTable.empty()) {
+			refresh_accumulator_with_finny_cache<Packed>(pos, state, refreshTable);
 			return;
 		}
 #endif
@@ -1495,7 +1420,7 @@ class FeatureTransformer {
 	// Calculate cumulative value using difference calculation
 	// 差分計算を用いて累積値を計算する
 	template <bool Packed = false>
-	void update_accumulator(const Position& pos, AccumulatorState* state) const {
+	void update_accumulator(const Position& pos, AccumulatorState* state, [[maybe_unused]] AccumulatorCaches& refreshTable) const {
         state = resolve_state(pos, state);
 		const auto& prev_accumulator = accumulator_of(state->previous);
 		auto&      accumulator      = accumulator_of(state);
@@ -1527,9 +1452,9 @@ class FeatureTransformer {
 			for (int c = 0; c < COLOR_NB; ++c) {
 				const Color perspective = static_cast<Color>(c);
 #if defined(USE_FINNY_TABLES) && defined(USE_FINNY_RESET)
-				if constexpr (kUseFinnyTables) {
+				if (kUseFinnyTables && !refreshTable.empty()) {
 					if (reset[perspective]) {
-						auto& cache = finny_cache();
+						auto& cache = *refreshTable;
 						const auto bucket = finny_bucket_square(pos, kRefreshTriggers[i], perspective);
 						auto& entry = cache.entries[i][perspective][bucket];
 						// On reset, added_indices contains every active feature.
@@ -1634,9 +1559,6 @@ class FeatureTransformer {
 	bool sparse8_enabled_ = false;
 #endif
 
-#if defined(USE_FINNY_TABLES)
-	std::uint64_t finny_generation_ = 0;
-#endif
 };
 
 } // namespace Eval::NNUE

@@ -32,20 +32,22 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
   Position pos;
 
   auto stack = std::make_unique<AccumulatorStack>();
+  AccumulatorCaches refreshTable;
+  refreshTable.clear(network);
   auto current_state = [&]() { return &stack->latest(); };
   auto do_move = [&](Move move) {
     auto& dirties = stack->push(pos);
     pos.do_move(move, pos.gives_check(move), dirties);
   };
   auto undo_move = [&](Move move) { pos.undo_move(move); stack->pop(); };
-  auto evaluate = [&]() { return Eval::evaluate(network, pos, *stack); };
+  auto evaluate = [&]() { return Eval::evaluate(network, pos, *stack, refreshTable); };
   auto fresh_evaluate = [&]() { return Eval::evaluate(network, pos); };
   PRNG prng(20261025);
   std::uint64_t moves = 0, pawn_moves = 0, pawn_captures = 0, promotions = 0, king_moves = 0, checksum = 0;
   for (int game = 0; game < games; ++game) {
     pos.set_hirate();
     stack->reset();
-    network.feature_transformer.EnsureAccumulator(pos, true, current_state());
+    network.feature_transformer.EnsureAccumulator(pos, true, current_state(), refreshTable);
     // Cover delayed updates and null moves before testing ordinary one-ply updates.
     // 通常の1手差分に加え、評価を省略した連続着手とnull moveも検証する。
     PRNG delayed_prng(20261113 + game);
@@ -133,7 +135,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
           }
         }
       }
-      network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
+      network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state(), refreshTable);
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
       {
       const auto progress = network.progress.SumQ16(pos, current_state());
@@ -146,7 +148,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE)
       // Check raw fc_0 outputs, including values hidden by FV_SCALE rounding.
       alignas(kCacheLineSize) TransformedFeatureType features[FeatureTransformer::kBufferSize];
-      network.feature_transformer.Transform(pos, features, false, current_state());
+      network.feature_transformer.Transform(pos, features, false, current_state(), refreshTable);
       const auto& fc = network.network[moves % kLayerStacks].fc_0;
       using Fc = std::remove_cv_t<std::remove_reference_t<decltype(fc)>>;
       alignas(kCacheLineSize) typename Fc::OutputBuffer separate, fused;
@@ -160,7 +162,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
 #endif
       const auto incremental = accumulator_of(current_state());
       const Value score = evaluate();
-      network.feature_transformer.EnsureAccumulator(pos, true, current_state());
+      network.feature_transformer.EnsureAccumulator(pos, true, current_state(), refreshTable);
       const Value cached_reference = evaluate();
       if (score != cached_reference || std::memcmp(incremental.accumulation,
           accumulator_of(current_state()).accumulation, sizeof(incremental.accumulation)) != 0) {
@@ -183,7 +185,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
         return;
       }
       do_move(move);
-      network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state());
+      network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state(), refreshTable);
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
       {
       const auto progress = network.progress.SumQ16(pos, current_state());

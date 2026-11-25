@@ -18,7 +18,7 @@ class NumaReplicationContext;
 class NumaReplicatedAccessToken;
 template<typename T> class LazyNumaReplicatedSystemWide;
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-namespace Eval::NNUE { struct NnueNetworks; }
+namespace Eval::NNUE { struct NnueNetworks; struct Dirties; }
 #endif
 
 namespace Eval {
@@ -75,13 +75,13 @@ namespace Eval {
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     void load_eval(LazyNumaReplicatedSystemWide<NNUE::NnueNetworks>& network,
                    const OptionsMap& options);
-    namespace NNUE { class AccumulatorStack; }
+    namespace NNUE { class AccumulatorStack; class AccumulatorCaches; }
     Value evaluate(const NNUE::NnueNetworks& network, const Position& pos);
     Value evaluate(const NNUE::NnueNetworks& network, const Position& pos,
-                   NNUE::AccumulatorStack& stack);
+                   NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable);
 #if defined(EVAL_NNUE)
     void evaluate_with_no_return(const NNUE::NnueNetworks& network, const Position& pos,
-                                 NNUE::AccumulatorStack& stack);
+                                 NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable);
 #endif
 #else
     void load_eval();

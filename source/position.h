@@ -17,10 +17,6 @@
 #if !STOCKFISH
 #include "evaluate.h"
 
-#if defined(EVAL_NNUE) || defined(EVAL_SFNN)
-#include "eval/nnue/nnue_accumulator.h"
-#endif
-
 #include "extra/key128.h"
 #include "extra/long_effect.h"
 #endif

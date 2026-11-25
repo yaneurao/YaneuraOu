@@ -595,6 +595,7 @@ class YaneuraOuWorker: public Worker {
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     using Dirties = Eval::NNUE::Dirties;
     Eval::NNUE::AccumulatorStack accumulatorStack;
+    Eval::NNUE::AccumulatorCaches refreshTable;
 #elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
     using Dirties = Eval::DirtyPiece;
     Eval::Classic::AccumulatorStack accumulatorStack;
@@ -610,6 +611,14 @@ class YaneuraOuWorker: public Worker {
        private:
         Dirties dirties;
     } accumulatorStack;
+#endif
+
+#if !defined(EVAL_SFNN) && !defined(EVAL_NNUE)
+    // Evaluators without Finny tables keep the same clear() call.
+    // Finny Tablesを使わない評価関数も同じ形でclear()を呼べるようにする。
+    struct {
+        void clear(const Eval::NetworkStorage&) noexcept {}
+    } refreshTable;
 #endif
 
 	// WorkerのポインタをYaneuraOuWorkerのポインタにupcastする。

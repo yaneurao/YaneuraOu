@@ -1003,9 +1003,7 @@ void Search::YaneuraOuWorker::pre_start_searching() {
 #endif
 
 void Search::YaneuraOuWorker::start_searching() {
-    // SFNN・従来NNUEともWorkerが累積値を所有する。
-    // 探索の初回evaluate()では局面の差分更新ができないので
-    // accumulatorの初回フラグをセットする。
+
     accumulatorStack.reset();
 
     // Non-main threads go directly to iterative_deepening()
@@ -2447,11 +2445,7 @@ void Search::YaneuraOuWorker::clear() {
 
 	// 📝 lowPlyHistoryの初期化は、対局ごとではなく、局面ごと("go"のごと)に変更された。
 
-#if STOCKFISH
     refreshTable.clear(network[numaAccessToken]);
-#else
-    accumulatorStack.reset();
-#endif
 }
 
 #if !STOCKFISH
@@ -2670,7 +2664,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         {
             evaluated = true;
             #if defined(EVAL_NNUE)
-            Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack);
+            Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack, refreshTable);
 #elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
             Eval::evaluate_with_no_return(pos, accumulatorStack);
 #else
@@ -2685,7 +2679,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         {
             evaluated = true;
             #if defined(EVAL_NNUE)
-            Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack);
+            Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack, refreshTable);
 #elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
             Eval::evaluate_with_no_return(pos, accumulatorStack);
 #else
@@ -4768,7 +4762,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         {
             evaluated = true;
             #if defined(EVAL_NNUE)
-            Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack);
+            Eval::evaluate_with_no_return(network[numaAccessToken], pos, accumulatorStack, refreshTable);
 #elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
             Eval::evaluate_with_no_return(pos, accumulatorStack);
 #else
@@ -5433,18 +5427,12 @@ TimePoint Search::Worker::elapsed() const {
 // 手番側から見た、現在の探索木上の局面を評価する。
 Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
 
-#if STOCKFISH
+#if STOCKFISH || defined(EVAL_SFNN) || defined(EVAL_NNUE)
     return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack, refreshTable);
-#else
-
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-    return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack);
 #elif defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
     return Eval::evaluate(pos, accumulatorStack);
 #else
 	return Eval::evaluate(pos);
-#endif
-
 #endif
 }
 

@@ -780,7 +780,9 @@ dummyのデフォルトは`random-small`である。完全に0で初期化した
 ## Finny reset updates
 
 `-DUSE_LAZY_EVALUATE -DUSE_FINNY_TABLES`を指定すると、FT幅4096以下で
-玉位置別・視点別・スレッド別のFinnyキャッシュを使う。
+玉位置別・視点別のFinnyキャッシュを各Workerの`refreshTable`が所有する。
+担当スレッド上でLarge Pageに確保し、対局の初期化や評価関数の再読み込み後に無効化する。
+通常の`go`開始時は累積値スタックだけをリセットし、Finnyキャッシュは再利用する。
 追加で`-DUSE_FINNY_RESET`を指定した場合のみ、通常の差分更新でresetになった視点も、
 `refresh_accumulator()`と同じキャッシュを参照する。
 `USE_FINNY_RESET`未定義時は従来のreset処理を使う。

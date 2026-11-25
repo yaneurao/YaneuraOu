@@ -776,25 +776,25 @@ namespace {
 
     // 評価値を計算する
     static Value ComputeScore(const NnueNetworks& network, const Position& pos,
-                              AccumulatorState* state, bool refresh = false) {
+                              AccumulatorState* state, AccumulatorCaches& refreshTable, bool refresh = false) {
         alignas(kCacheLineSize) char buffer[Network::kBufferSize];
 #if defined(EVAL_SFNN)
         const auto bucket = stack_index_for_nnue(pos, network, state);
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
         auto& accumulator = accumulator_of(state);
-        network.feature_transformer.EnsureAccumulator(pos, refresh, state);
+        network.feature_transformer.EnsureAccumulator(pos, refresh, state, refreshTable);
         const auto output = network.network[bucket].PropagateFromAccumulator(
             accumulator.accumulation, pos.side_to_move(), buffer);
 #else
         alignas(kCacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
-        network.feature_transformer.Transform(pos, transformed_features, refresh, state);
+        network.feature_transformer.Transform(pos, transformed_features, refresh, state, refreshTable);
         const auto output = network.network[bucket].Propagate(transformed_features, buffer);
 #endif
 #else
         alignas(kCacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
-        network.feature_transformer.Transform(pos, transformed_features, refresh, state);
+        network.feature_transformer.Transform(pos, transformed_features, refresh, state, refreshTable);
         const auto output = network.network[0].Propagate(transformed_features, buffer);
 #endif
 
@@ -899,17 +899,20 @@ Value evaluate(const NNUE::NnueNetworks& network, const Position& pos) {
     // Standalone evaluation must not change a search worker's stack.
     // 探索外の評価では、探索Workerのスタックを変更しない。
     NNUE::AccumulatorState state;
-    return NNUE::ComputeScore(network, pos, &state);
+    // Standalone evaluations rebuild directly without allocating a per-worker cache.
+    // 探索外の評価は直接再構築し、Worker用のFinnyキャッシュを確保しない。
+    NNUE::AccumulatorCaches refreshTable;
+    return NNUE::ComputeScore(network, pos, &state, refreshTable);
 }
 
-Value evaluate(const NNUE::NnueNetworks& network, const Position& pos, NNUE::AccumulatorStack& stack) {
-    return NNUE::ComputeScore(network, pos, &stack.latest());
+Value evaluate(const NNUE::NnueNetworks& network, const Position& pos, NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable) {
+    return NNUE::ComputeScore(network, pos, &stack.latest(), refreshTable);
 }
 
 #if defined(EVAL_NNUE)
 void evaluate_with_no_return(const NNUE::NnueNetworks& network, const Position& pos,
-                             NNUE::AccumulatorStack& stack) {
-    network.feature_transformer.UpdateAccumulatorIfPossible(pos, &stack.latest());
+                             NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable) {
+    network.feature_transformer.UpdateAccumulatorIfPossible(pos, &stack.latest(), refreshTable);
 }
 #endif
 
