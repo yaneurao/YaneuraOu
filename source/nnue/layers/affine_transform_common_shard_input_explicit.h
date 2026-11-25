@@ -20,6 +20,9 @@ namespace Eval::NNUE::Layers {
 //   bias[OutputDimensions], weight[OutputDimensions][pad(InputDimensions)].
 // During read_parameters(), only common weights and the selected shard weights
 // for each output are kept in memory.
+// commonと対応するshardだけを各出力が参照する、入力次元を明示したAffine層。
+// nn.binは通常のSFNN fc_0と同じbias・行優先の重み配置で、little-endianで読み書きする。
+// 読み込み時には、各出力が使うcommonと対応するshardの重みだけをメモリに保持する。
 template <IndexType InDims,
           IndexType OutDims,
           IndexType CommonDimensions,
@@ -63,13 +66,6 @@ class AffineTransformCommonShardInputExplicit {
 		return hashValue;
 	}
 
-	static std::string GetStructureString() {
-		return "AffineTransformCommonShardInput[" + std::to_string(OutputDimensions) + "<-"
-		       + std::to_string(InputDimensions) + ",c" + std::to_string(kCommonDimensions)
-		       + ",s" + std::to_string(kShardDimensions) + "x"
-		       + std::to_string(kShardGroupCount) + "]";
-	}
-
 	bool read_parameters(std::istream& stream) {
 		read_little_endian(stream, biases, OutputDimensions);
 
@@ -96,7 +92,7 @@ class AffineTransformCommonShardInputExplicit {
 	}
 
 	bool write_parameters(std::ostream& stream) const {
-		stream.write(reinterpret_cast<const char*>(biases), OutputDimensions * sizeof(BiasType));
+		write_little_endian(stream, biases, OutputDimensions);
 
 		for (IndexType out = 0; out < OutputDimensions; ++out) {
 			const IndexType group       = out / kGroupOutputDimensions;
@@ -110,7 +106,7 @@ class AffineTransformCommonShardInputExplicit {
 				} else if (shard_base <= in && in < shard_base + kShardDimensions) {
 					w = weights[weight_base + kCommonDimensions + (in - shard_base)];
 				}
-				stream.write(reinterpret_cast<const char*>(&w), sizeof(w));
+				write_little_endian(stream, w);
 			}
 		}
 
