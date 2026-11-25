@@ -118,26 +118,11 @@
     <ClInclude Include="extra\key128.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
-    <ClInclude Include="eval\evaluate_io.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\evaluate_common.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\classic_accumulator.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\evalsum.h">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClInclude>
     <ClInclude Include="eval\kppt\evaluate_kppt.h">
       <Filter>リソース ファイル\eval\kppt</Filter>
     </ClInclude>
     <ClInclude Include="eval\kpp_kkpt\evaluate_kpp_kkpt.h">
       <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\evaluate_mir_inv_tools.h">
-      <Filter>リソース ファイル\eval</Filter>
     </ClInclude>
     <ClInclude Include="nnue\network.h">
       <Filter>リソース ファイル\nnue</Filter>
@@ -429,9 +414,6 @@
     <ClCompile Include="extra\sfen_packer.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate_io.cpp">
-      <Filter>リソース ファイル\eval</Filter>
-    </ClCompile>
     <ClCompile Include="eval\evaluate.cpp">
       <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
@@ -440,9 +422,6 @@
     </ClCompile>
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp">
       <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
-    </ClCompile>
-    <ClCompile Include="eval\evaluate_mir_inv_tools.cpp">
-      <Filter>リソース ファイル\eval</Filter>
     </ClCompile>
     <ClCompile Include="eval\nnue\evaluate_nnue.cpp">
       <Filter>リソース ファイル\eval\nnue</Filter>

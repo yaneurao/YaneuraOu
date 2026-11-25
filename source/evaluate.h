@@ -141,11 +141,6 @@ namespace Eval {
 	// ⚠  後手の駒に対してもプラスの値が返る。
 	extern int ProDiffPieceValue[PIECE_NB];
 
-	// 指し手moveによる捕獲の価値に、成りの価値増分を加算する。
-	// 移動先が空なら捕獲分は0。成らない手なら0、成る手なら成りの価値増分だけを返す。
-	// ⚠  後手の駒に対してもプラスの値が返る。
-	Value CapturePieceValuePlusPromote(const Position& pos, Move move);
-
 #if defined(USE_BONA_PIECE)
 
 	// --- 評価関数で使う定数 KPP(玉と任意2駒)のPに相当するenum

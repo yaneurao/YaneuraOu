@@ -193,8 +193,6 @@ LOCAL_SRC_FILES := \
   ../../../source/mate/mate_solver.cpp                                       \
   ../../../source/eval/evaluate_bona_piece.cpp                               \
   ../../../source/eval/evaluate.cpp                                          \
-  ../../../source/eval/evaluate_io.cpp                                       \
-  ../../../source/eval/evaluate_mir_inv_tools.cpp                            \
   ../../../source/eval/material/evaluate_material.cpp                        \
   ../../../source/testcmd/mate_test_cmd.cpp                                  \
   ../../../source/testcmd/normal_test_cmd.cpp                                \

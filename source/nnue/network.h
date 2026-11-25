@@ -1,3 +1,6 @@
+// Stockfishとのinclude構造・型名の互換性を維持するための共通入口。
+// 評価関数の種類に応じて、やねうら王の実装・型の別名・ダミー実装を提供する。
+
 #ifndef NETWORK_H_INCLUDED
 #define NETWORK_H_INCLUDED
 

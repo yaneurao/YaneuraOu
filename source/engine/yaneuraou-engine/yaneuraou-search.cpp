@@ -3802,10 +3802,8 @@ moves_loop:  // When in check, search starts here
 
                 if (!givesCheck && lmrDepth < 8)
                 {
-                    // 🤔 StockfishのPieceValue[]は、
-                    //     やねうら王ではCapturePieceValue[] + CapturePieceValue[capturedPiece]
-                    //       = CapturePieceValuePlusPromote()
-                    //     のほうがより正確な評価ではないか？
+                    // 🤔 StockfishのPieceValue[]より、捕獲価値に成りの増分も加えた値のほうが、
+                    //     より正確な評価ではないか？
 
                     Value futilityValue = ss->staticEval + 234 + 247 * lmrDepth
                                         + PieceValue[capturedPiece] + 134 * captHist / 1024;

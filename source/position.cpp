@@ -34,9 +34,6 @@
 #include "testcmd/unit_test.h"
 #endif
 
-#if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT) || defined(EVAL_NNUE)
-#include "eval/evaluate_common.h"
-#endif
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
 #include "eval/nnue/nnue_accumulator.h"
 #endif

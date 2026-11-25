@@ -359,8 +359,6 @@ SOURCES  = \
 	mate/mate_solver.cpp                                                       \
 	eval/evaluate_bona_piece.cpp                                               \
 	eval/evaluate.cpp                                                          \
-	eval/evaluate_io.cpp                                                       \
-	eval/evaluate_mir_inv_tools.cpp                                            \
 	eval/material/evaluate_material.cpp                                        \
 	testcmd/unit_test.cpp                                                      \
 	testcmd/mate_test_cmd.cpp                                                  \

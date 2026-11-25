@@ -1,5 +1,4 @@
 ﻿#include "../../config.h"
-#include "../classic_accumulator.h"
 #include "../../extra/tools.h"
 
 //
@@ -15,12 +14,12 @@
 
 #if defined (EVAL_KPPT)
 
-#include <fstream>
+#include "../../nnue/nnue_accumulator.h"
+
 #include <iostream>
-#include <unordered_set>
 
 #include "evaluate_kppt.h"
-#include "../evaluate_io.h"
+#include "../../extra/system_io.h"
 #include "../../evaluate.h"
 #include "../../position.h"
 #include "../../misc.h"
@@ -122,23 +121,33 @@ namespace Eval {
 	// 評価関数ファイルを読み込む
 	void load_eval_impl()
 	{
-		// EvalIOを利用して評価関数ファイルを読み込む。
-		// inputをEvalInfo::build_kppt16()で構築すると、Apery(WCSC27)の16bit KK/KKPを
-		// build_kppt32()で指定した出力側の32bit形式へ変換して読み込める。
-		// また、eval_convert()に渡している引数のinputとoutputを入れ替えるとファイルに書き出すことが出来る。EvalIOマジ、っょぃ。
-        auto make_name = [&](std::string filename) {
-            auto eval_dir      = Options["EvalDir"];
-            auto abs_eval_path = CommandLine::get_binary_directory() / path_from_utf8(std::string(eval_dir));
-            return (abs_eval_path / path_from_utf8(filename)).u8string();
+        // 形式変換せず、現在のKK・KKP・KPP配列と同じサイズのファイルだけを読み込む。
+        // 既存の64bitサイズ定数を使い、fe_end変更時も実際の配列サイズに追従する。
+        const auto evalDir = CommandLine::get_binary_directory()
+                           / path_from_utf8(std::string(Options["EvalDir"]));
+        auto read = [&](const char* filename, void* destination, u64 expectedSize) {
+            const auto path = evalDir / path_from_utf8(filename);
+            const auto result = SystemIO::ReadFileToMemory(path, [&](size_t size) -> void* {
+                if (u64(size) != expectedSize) {
+                    sync_cout << "info string Error! : file size incorrect , file = "
+                              << path.u8string() << " , actual size = " << size
+                              << " , needed_size = " << expectedSize << sync_endl;
+                    return nullptr;
+                }
+                return destination;
+            });
+            if (result.is_not_ok()) {
+                sync_cout << "info string Error! : read file error , file = "
+                          << path.u8string() << sync_endl;
+                return false;
+            }
+            return true;
         };
-		auto input = EvalIO::EvalInfo::build_kppt32(make_name(KK_BIN), make_name(KKP_BIN), make_name(KPP_BIN));
-		auto output = EvalIO::EvalInfo::build_kppt32((void*)kk, (void*)kkp, (void*)kpp);
 
-		// 評価関数の実験のためにfe_endをKPPT32から変更しているかも知れないので現在のfe_endの値をもとに読み込む。
-		input.fe_end = output.fe_end = Eval::fe_end;
-
-		if (!EvalIO::eval_convert(input, output, nullptr))
-			goto Error;
+        if (!read("KK_synthesized.bin", static_cast<void*>(kk), size_of_kk)
+            || !read("KKP_synthesized.bin", static_cast<void*>(kkp), size_of_kkp)
+            || !read("KPP_synthesized.bin", static_cast<void*>(kpp), size_of_kpp))
+            goto Error;
 
 		{
 			// 読み込み後に値を補正するとcheck sumが変化してしまうので、値の補正はlearnコマンド実行時にやるように変更した。
@@ -948,43 +957,6 @@ namespace Eval {
 	}
 
 
-	// 評価関数のそれぞれのパラメーターに対して関数fを適用してくれるoperator。
-	// パラメーターの分析などに用いる。
-	void foreach_eval_param(std::function<void(s32,s32)>f , int type)
-	{
-		// KK
-		if (type == -1 || type == 0)
-		{
-			for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB; ++i)
-			{
-				auto v = ((ValueKk*)kk)[i];
-				f(v[0], v[1]);
-
-				//if (v[0] == 0) cout << "v[0]==0" << (Square)(i / SQ_NB) << (Square)(i % SQ_NB) << endl;
-				//if (v[1] == 0) cout << "v[1]==0" << (Square)(i / SQ_NB) << (Square)(i % SQ_NB) << endl;
-			}
-		}
-
-		// KKP
-		if (type == -1 || type == 1)
-		{
-			for (u64 i = 0; i < (u64)SQ_NB * (u64)SQ_NB * (u64)fe_end; ++i)
-			{
-				auto v = ((ValueKkp*)kkp)[i];
-				f(v[0], v[1]);
-			}
-		}
-
-		// KPP
-		if (type == -1 || type == 2)
-		{
-			for (u64 i = 0; i < (u64)SQ_NB * (u64)fe_end * (u64)fe_end; ++i)
-			{
-				auto v = ((ValueKpp*)kpp)[i];
-				f(v[0], v[1]);
-			}
-		}
-	}
 
 } // namespace Eval
 } // namespace YaneuraOu

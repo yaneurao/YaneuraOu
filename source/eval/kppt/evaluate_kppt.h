@@ -8,7 +8,6 @@
 #if defined (EVAL_KPPT)
 
 #include "../../evaluate.h"
-#include "../evaluate_common.h"
 
 namespace YaneuraOu {
 namespace Eval {

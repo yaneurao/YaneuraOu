@@ -53,16 +53,6 @@ namespace Eval {
         VALUE_ZERO, ProPawnValue - PawnValue, ProLanceValue - LanceValue, ProKnightValue - KnightValue, ProSilverValue - SilverValue, HorseValue - BishopValue, DragonValue - RookValue, VALUE_ZERO ,
     };
 
-	// 指し手moveによってtoの地点の駒が捕獲できることがわかっている時の、駒を捕獲する価値
-	// moveが成りの指し手である場合、その価値も上乗せして計算する。
-	Value CapturePieceValuePlusPromote(const Position& pos, Move move)
-	{
-		return (Value)CapturePieceValue[pos.piece_on(move.to_sq())]
-			// 駒が成る時は、駒の移動元であるfrom_sq(move)はまだ成っていない駒であることが保証される。
-			+ (move.is_promote() ? (Value)ProDiffPieceValue[pos.piece_on(move.from_sq())] : VALUE_ZERO);
-	}
-
-
 #if defined(USE_BONA_PIECE)
 
 	ExtBonaPiece kpp_board_index[PIECE_NB] = {
