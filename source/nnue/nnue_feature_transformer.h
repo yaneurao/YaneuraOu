@@ -8,26 +8,28 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <cstring>
+#include <iosfwd>
+
 #if defined(EVAL_SFNN)
 #define USE_ELEMENT_WISE_MULTIPLY
 #endif
 
 #include "../position.h"
 #include "../types.h"
-#include "../memory.h"
+#include "nnue_accumulator.h"
+#include "nnue_architecture.h"
 #include "nnue_common.h"
 #include "simd.h"
-#include "nnue_architecture.h"
-#include "nnue_accumulator.h"
 #include "features/index_list.h"
 
 #if defined(USE_FINNY_TABLES) || (defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1)
 #include "features/half_ka_hm2.h"
 #endif
 
-#include <algorithm>  // std::clamp
-#include <array>
-#include <cstring>  // std::memset()
 
 // Lossless packed FT weights; keep unsupported builds on the original path.
 #if defined(NNUE_FT_SPARSE8) && (defined(USE_AVX512) || defined(USE_AVX2)) && defined(EVAL_SFNN)
@@ -36,10 +38,6 @@
 #include <vector>
 #endif
 
-#if defined(USE_FINNY_TABLES)
-#include <cstdint>
-#include <memory>
-#endif
 
 namespace YaneuraOu {
 namespace Eval::NNUE {
@@ -617,9 +615,9 @@ class FeatureTransformer {
 	}
 
    private:
-	static void order_packs([[maybe_unused]] uint64_t* v) {
+	static void order_packs([[maybe_unused]] u64* v) {
 #if defined(USE_AVX512)  // _mm512_set_epi32 packs in the order [15 11 7 3 14 10 6 2 13 9 5 1 12 8 4 0]
-		uint64_t tmp0 = v[4], tmp1 = v[5];
+		u64 tmp0 = v[4], tmp1 = v[5];
 		v[4] = v[6], v[5] = v[7];
 		v[6] = tmp0, v[7] = tmp1;
 		tmp0 = v[8], tmp1 = v[9];
@@ -627,15 +625,15 @@ class FeatureTransformer {
 		v[12] = v[10], v[13] = v[11];
 		v[10] = tmp0, v[11] = tmp1;
 #elif defined(USE_AVX2)  // _mm256_set_epi32 packs in the order [7 3 6 2 5 1 4 0]
-		uint64_t tmp0 = v[2], tmp1 = v[3];
+		u64 tmp0 = v[2], tmp1 = v[3];
 		v[2] = v[4], v[3] = v[5];
 		v[4] = tmp0, v[5] = tmp1;
 #endif
 	}
 
-	static void inverse_order_packs([[maybe_unused]] uint64_t* v) {
+	static void inverse_order_packs([[maybe_unused]] u64* v) {
 #if defined(USE_AVX512)
-		uint64_t tmp0 = v[2], tmp1 = v[3];
+		u64 tmp0 = v[2], tmp1 = v[3];
 		v[2] = v[4], v[3] = v[5];
 		v[4] = v[8], v[5] = v[9];
 		v[8] = tmp0, v[9] = tmp1;
@@ -644,28 +642,28 @@ class FeatureTransformer {
 		v[12] = v[10], v[13] = v[11];
 		v[10] = tmp0, v[11] = tmp1;
 #elif defined(USE_AVX2)  // Inverse _mm256_packs_epi16 ordering
-		uint64_t tmp0 = v[2], tmp1 = v[3];
+		u64 tmp0 = v[2], tmp1 = v[3];
 		v[2] = v[4], v[3] = v[5];
 		v[4] = tmp0, v[5] = tmp1;
 #endif
 	}
 
-	void permute_weights([[maybe_unused]] void (*order_fn)(uint64_t*)) const {
+	void permute_weights([[maybe_unused]] void (*order_fn)(u64*)) const {
 #if defined(USE_AVX2)
 #if defined(USE_AVX512)
 		constexpr IndexType di = 16;
 #else
 		constexpr IndexType di = 8;
 #endif
-		uint64_t* b = reinterpret_cast<uint64_t*>(const_cast<BiasType*>(&biases[0]));
-		for (IndexType i = 0; i < HalfDimensions * sizeof(BiasType) / sizeof(uint64_t); i += di)
+		u64* b = reinterpret_cast<u64*>(const_cast<BiasType*>(&biases[0]));
+		for (IndexType i = 0; i < HalfDimensions * sizeof(BiasType) / sizeof(u64); i += di)
 			order_fn(&b[i]);
 
 		for (IndexType j = 0; j < InputDimensions; ++j)
 		{
-			uint64_t* w =
-				reinterpret_cast<uint64_t*>(const_cast<WeightType*>(&weights[j * HalfDimensions]));
-			for (IndexType i = 0; i < HalfDimensions * sizeof(WeightType) / sizeof(uint64_t);
+			u64* w =
+				reinterpret_cast<u64*>(const_cast<WeightType*>(&weights[j * HalfDimensions]));
+			for (IndexType i = 0; i < HalfDimensions * sizeof(WeightType) / sizeof(u64);
 					i += di)
 				order_fn(&w[i]);
 		}

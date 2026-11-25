@@ -10,7 +10,6 @@
 #include <type_traits>
 
 #include "../config.h"
-#include "../extra/tools.h"
 #include "../evaluate.h"
 
 // 探索・Engine・評価実装で共用するネットワーク定義。
@@ -83,6 +82,8 @@
 #endif
 
 namespace YaneuraOu {
+// 入出力の結果型は宣言だけで足りる。結果を使う実装側でextra/tools.hを読み込む。
+namespace Tools { struct Result; }
 class Position;
 
 namespace Eval::NNUE {
