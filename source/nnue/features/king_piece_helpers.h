@@ -1,5 +1,5 @@
-// Shared piece collection for shogi HalfKP/HalfKA feature families.
-// 将棋のHalfKP・HalfKA系の特徴量で共用する駒情報の収集処理。
+// Shared piece collection and feature-coordinate helpers for shogi HalfKP/HalfKA.
+// 将棋のHalfKP・HalfKA系で共用する駒情報収集・特徴量座標変換の補助処理。
 
 #ifndef NNUE_FEATURES_KING_PIECE_HELPERS_H_INCLUDED
 #define NNUE_FEATURES_KING_PIECE_HELPERS_H_INCLUDED
@@ -12,6 +12,18 @@
 #include "features_common.h"
 
 namespace YaneuraOu::Eval::NNUE::Features {
+
+// Mirror a board piece for a horizontally mirrored king; hand pieces are unchanged.
+// 左右反転した玉に合わせて盤上の駒を反転する。持駒は反転しない。
+inline BonaPiece mirror_piece(BonaPiece p) {
+    if (p >= fe_hand_end) {
+        IndexType piece_index = (p - fe_hand_end) / SQ_NB;
+        Square sq_p = static_cast<Square>((p - fe_hand_end) % SQ_NB);
+        sq_p = Mir(sq_p);
+        p = static_cast<BonaPiece>(fe_hand_end + piece_index * static_cast<IndexType>(SQ_NB) + sq_p);
+    }
+    return p;
+}
 
 // Return the associated king square in the feature's perspective, not the side to move.
 // 特徴量の視点に合わせた玉位置を返す。perspectiveは現在の手番とは独立。

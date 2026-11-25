@@ -17,14 +17,7 @@ namespace YaneuraOu::Eval::NNUE::Features {
 		if (sq_k >= SQ_61) {
 			// 玉が6筋～9筋にいる場合、4筋～1筋に反転する。
 			sq_k = Mir(sq_k);
-
-			if (p >= fe_hand_end) {
-				// 持駒は反転しない。
-				IndexType piece_index = (p - fe_hand_end) / SQ_NB;
-				Square sq_p = static_cast<Square>((p - fe_hand_end) % SQ_NB);
-				sq_p = Mir(sq_p);
-				p = static_cast<BonaPiece>(fe_hand_end + piece_index * static_cast<IndexType>(SQ_NB) + sq_p);
-			}
+			p = mirror_piece(p);
 		}
 		// 両玉を区別して含める
 		return static_cast<IndexType>(fe_end2) * static_cast<IndexType>(sq_k) + static_cast<IndexType>(p);
