@@ -39,9 +39,7 @@ template <Side AssociatedKing>
 void HalfKP<AssociatedKing>::append_changed_indices(
     const Position& pos, Color perspective,
     IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
-  const Color target = AssociatedKing == Side::kFriend ? perspective : ~perspective;
-  const Square sq_target_k = perspective == BLACK ? pos.square<KING>(target)
-                                                 : Inv(pos.square<KING>(target));
+  const Square sq_target_k = oriented_king_square<AssociatedKing>(pos, perspective);
   for (int i = 0; i < dp.count(); ++i) {
     if (dp.is_king(i)) continue;
     const auto old_p = static_cast<BonaPiece>(

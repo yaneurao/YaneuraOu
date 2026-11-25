@@ -7,6 +7,7 @@
 #include "half_ka_hm2.h"
 #include "../../position.h"
 #include "index_list.h"
+#include "king_piece_helpers.h"
 
 namespace YaneuraOu {
 namespace Eval::NNUE::Features {
@@ -37,9 +38,7 @@ namespace Eval::NNUE::Features {
 		// コンパイラの警告を回避するため、配列サイズが小さい場合は何もしない
 		if (RawFeatures::MaxActiveDimensions < MaxActiveDimensions) return;
 
-        const Color target = AssociatedKing == Side::kFriend ? perspective : ~perspective;
-        const Square king = perspective == BLACK ? pos.square<KING>(target)
-                                                  : Inv(pos.square<KING>(target));
+        const Square king = oriented_king_square<AssociatedKing>(pos, perspective);
         const IndexContext indices(king, perspective);
         int count = 0;
         Bitboard occupied = pos.pieces();
@@ -68,9 +67,7 @@ namespace Eval::NNUE::Features {
 		const Position& pos, Color perspective,
 		IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
         if (dp.count() == 0) return;
-        const Color target = AssociatedKing == Side::kFriend ? perspective : ~perspective;
-        const Square king = perspective == BLACK ? pos.square<KING>(target)
-                                                  : Inv(pos.square<KING>(target));
+        const Square king = oriented_king_square<AssociatedKing>(pos, perspective);
         const IndexContext indices(king, perspective);
         if (dp.from == SQ_NONE)
             removed->push_back(indices.hand(color_of(dp.pc), raw_type_of(dp.pc), dp.handSlot));

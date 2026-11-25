@@ -24,6 +24,7 @@
 
 #if defined(USE_FINNY_TABLES) || (defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1)
 #include "features/half_ka_hm2.h"
+#include "features/king_piece_helpers.h"
 #endif
 
 
@@ -1105,8 +1106,7 @@ class FeatureTransformer {
     template<bool Packed>
     void refresh_from_position(const Position& pos, Color perspective, BiasType* current,
                                FinnyEntry& entry, IndexType trigger_index) const {
-        const Square king = perspective == BLACK ? pos.square<KING>(perspective)
-                                                 : Inv(pos.square<KING>(perspective));
+        const Square king = Features::oriented_king_square<Features::Side::kFriend>(pos, perspective);
         Features::IndexList removed, added;
         const Features::HalfKA_hm2<Features::Side::kFriend>::IndexContext indices(king, perspective);
         int pieceCount = entry.position.pieceCount;
