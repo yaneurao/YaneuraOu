@@ -881,12 +881,9 @@ class Position {
 #if !STOCKFISH
     StateInfo* state() const;
 
+    static constexpr usize MAX_HIST = POSITION_HISTORY_SIZE;
 #if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
-    // 初期局面・保持履歴を含む固定長領域。末尾2枠は詰み判定の補助着手にも使う。
-    static constexpr usize MAX_HIST = 2048;
     usize remaining_state_capacity() const { return MAX_HIST - 1 - stateIdx; }
-#else
-    static constexpr usize MAX_HIST = 512;
 #endif
 #endif
     // Copy only the history needed by shogi repetition detection.

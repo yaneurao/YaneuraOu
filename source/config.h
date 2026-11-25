@@ -336,6 +336,15 @@
 // 通常探索時の最大探索深さ
 constexpr int MAX_PLY_NUM = 246;
 
+// Positionが保持するStateInfoの数（初期局面・過去の履歴を含む）。
+// 詰将棋では2000手の探索と詰み判定用の補助着手を収める固定長領域、
+// 通常探索では512枠のリングバッファとして使う。
+#if defined(YANEURAOU_MATE_ENGINE) || defined(TANUKI_MATE_ENGINE)
+constexpr int POSITION_HISTORY_SIZE = 2048;
+#else
+constexpr int POSITION_HISTORY_SIZE = 512;
+#endif
+
 // デバッグ時の標準出力への局面表示などに日本語文字列を用いる。
 #define PRETTY_JP
 
