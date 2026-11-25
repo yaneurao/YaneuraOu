@@ -636,6 +636,7 @@
     <ClCompile Include="testcmd\mate_test_cmd.cpp" />
     <ClCompile Include="testcmd\normal_test_cmd.cpp" />
     <ClCompile Include="testcmd\unit_test.cpp" />
+    <ClCompile Include="testcmd\position_test.cpp" />
     <ClCompile Include="timeman.cpp" />
     <ClCompile Include="tune.cpp" />
     <ClCompile Include="types.cpp" />

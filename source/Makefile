@@ -358,6 +358,7 @@ SOURCES  = \
 	evaluate.cpp                                                          \
 	eval/material/evaluate_material.cpp                                        \
 	testcmd/unit_test.cpp                                                      \
+	testcmd/position_test.cpp                                                  \
 	testcmd/mate_test_cmd.cpp                                                  \
 	testcmd/normal_test_cmd.cpp                                                
 
