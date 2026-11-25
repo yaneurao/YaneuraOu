@@ -26,6 +26,9 @@ YaneuraOu_backup*.lnk
 # embedded_nnue.cpp
 embedded_nnue.cpp
 
+# Python bytecode caches
+__pycache__/
+
 # Generated architecture headers (nnue_arch_gen.py)
 /source/nnue/architectures/SFNN_*_[0-9]*_[0-9]*_[0-9]*.h
 /source/nnue/architectures/halfkp_512x2-16-32.h
