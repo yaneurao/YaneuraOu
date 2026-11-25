@@ -11,7 +11,6 @@ NNUE_FILE_VERSION = 0x7AF32F16
 SFNN_HASH_VALUE = 0x3C203B32
 SFNN_FEATURE_TRANSFORMER_HASH = 0x5F134AB8
 SFNN_NETWORK_HASH = 0x6333718A
-PROGRESS_HASH_VALUE = 0x6F50524F
 LEB128_MAGIC = b"COMPRESSED_LEB128"
 
 SQ_NB = 81
@@ -70,23 +69,6 @@ def write_u32(stream, value: int) -> None:
 
 def write_i32_zeros(stream, count: int) -> None:
     stream.write(b"\x00\x00\x00\x00" * count)
-
-def write_i32_values(stream, count: int, rng: random.Random, mode: str) -> None:
-    if mode == "zero":
-        write_i32_zeros(stream, count)
-        return
-
-    chunk_values = 1 << 18
-    patterns = (b"\x00\x00\x00\x00", b"\x01\x00\x00\x00", b"\xff\xff\xff\xff")
-    table = bytes((0, 1, 2)[i % 3] for i in range(256))
-    while count:
-        n = min(count, chunk_values)
-        selector = rng.randbytes(n).translate(table)
-        out = bytearray(n * 4)
-        for i, s in enumerate(selector):
-            out[i * 4:i * 4 + 4] = patterns[s]
-        stream.write(out)
-        count -= n
 
 def write_header(stream, hash_value: int, architecture: str) -> None:
     encoded = architecture.encode("utf-8")
@@ -170,9 +152,24 @@ def write_sfnn_network(stream, transformed_dims: int, hidden1: int, hidden2: int
     write_affine_explicit(stream, hidden2, 1, rng, mode)
 
 def write_progress_parameters(stream, rng: random.Random, mode: str) -> None:
-    write_u32(stream, PROGRESS_HASH_VALUE)
-    write_i32_zeros(stream, 1)
-    write_i32_values(stream, SQ_NB * FE_END, rng, mode)
+    # progress.bin is headerless little-endian doubles; the loader converts to Q16.
+    # progress.binはヘッダーなしのlittle-endian double列。読み込み側でQ16へ変換する。
+    count = SQ_NB * FE_END
+    if mode == "zero":
+        write_zero_bytes(stream, count * 8)
+        return
+
+    chunk_values = 1 << 18
+    patterns = tuple(struct.pack("<d", value / 65536.0) for value in (0, 1, -1))
+    table = bytes((0, 1, 2)[i % 3] for i in range(256))
+    while count:
+        n = min(count, chunk_values)
+        selector = rng.randbytes(n).translate(table)
+        out = bytearray(n * 8)
+        for i, s in enumerate(selector):
+            out[i * 8:i * 8 + 8] = patterns[s]
+        stream.write(out)
+        count -= n
 
 def parse_sfnn_layer_stack_spec(layer_stack_spec: str):
     if layer_stack_spec == "":
@@ -320,13 +317,13 @@ def main() -> None:
                 f"[{feature_dims}->{spec['transformed_dims']}x2],Network={spec['network_name']}"
                 f"{{LayerStack={spec['layer_stacks']}}}"
             )
-            hash_value = SFNN_HASH_VALUE
-            if spec["progress_buckets"] != 1:
-                hash_value = u32(hash_value ^ PROGRESS_HASH_VALUE)
-            write_header(stream, hash_value, architecture_string)
+            write_header(stream, SFNN_HASH_VALUE, architecture_string)
             write_feature_transformer(stream, feature_dims, spec["transformed_dims"], feature_hash, rng, args.dummy_mode, sfnn=True)
             if spec["progress_buckets"] != 1:
-                write_progress_parameters(stream, rng, args.dummy_mode)
+                progress_path = os.path.join(dir_name, "progress.bin")
+                with open(progress_path, "wb") as progress_stream:
+                    write_progress_parameters(progress_stream, rng, args.dummy_mode)
+                print(f"dummy progress.bin path : {progress_path}")
             for _ in range(spec["layer_stacks"]):
                 write_sfnn_network(stream, spec["transformed_dims"], spec["hidden1"], spec["hidden2"], rng, args.dummy_mode)
         else:

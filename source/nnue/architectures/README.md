@@ -179,27 +179,20 @@ idx = idx * progress_bucket_count + progress_bucket
 | `hand1024` | 1024 | 歩、香桂、銀金、角、飛の有無5bitを手番側/非手番側で見る。 |
 
 進行度bucketは`progress2`、`progress3`、`progress4`、`progress8`、`progress16`、
-`progress32`を指定できる。進行度は進行度用パラメータから`0..255`の整数として計算し、
-次の式でbucket化する。
+`progress32`を指定できる。進行度の和をQ16で求め、sigmoidを等分した境界値との比較で
+bucketを選ぶ。整数の`0..255`へ丸める処理は挟まない。
 
-```text
-progress_bucket = min(progress * progress_bucket_count / 256, progress_bucket_count - 1)
-```
-
-進行度パラメータは別ファイルではなく、`nn.bin`の中に格納する。SFNNで`progressN`を使う場合、
-`nn.bin`のセクション順は次の通り。
+進行度パラメーターは`EvalDir/progress.bin`から読み込む。ヘッダー・ハッシュ・biasを持たない
+little-endianの`double weights[81][1548]`であり、読み込み時にQ16へ変換する。
+`nn.bin`には進行度のセクションを追加せず、通常どおりFTの後に後段ネットワークを並べる。
 
 ```text
 NNUE header
 FeatureTransformer section
-Progress section
 LayerStack network section 0
 LayerStack network section 1
 ...
 ```
-
-Progress sectionは、section hash、`int32 bias_q16`、`int32 weights_q16[81][1548]`の順に
-little-endianで保存する。`progress.bin`のような外部ファイルは使わない。
 
 ### Progress 実装上の注意
 
@@ -229,7 +222,7 @@ little-endianで保存する。`progress.bin`のような外部ファイルは�
 ```
 
 同じ理由で、Makefileでprogress専用の`.cpp`を追加する設計にはしない。progress未使用時は
-`NNUE_SFNN_PROGRESS_BUCKETS`が`1`になり、progress用の読み書き、hash変更、bucket計算、
+`NNUE_SFNN_PROGRESS_BUCKETS`が`1`になり、progress用の読み込み・bucket計算、
 `Eval::NNUE::Network`内の追加パラメータ、評価用の進行度cacheがすべてコンパイル対象外になる
 必要がある。
 
@@ -775,7 +768,8 @@ python3 tools/build/nnue_arch_gen.py \
 ```
 
 dummyのデフォルトは`random-small`である。完全に0で初期化したい場合は
-`--dummy-mode zero`を指定する。
+`--dummy-mode zero`を指定する。`progressN`付きの構成では、`nn.bin`と同じフォルダに
+`progress.bin`も生成する。使用する評価関数とは別のダミー専用フォルダを指定すること。
 
 ## Finny reset updates
 
