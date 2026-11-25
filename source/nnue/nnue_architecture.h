@@ -11,6 +11,9 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
+// NetworkはStockfishのNetworkArchitectureに相当する後段構成の型。
+// StockfishのNetworkに相当する共有ネットワーク全体はnetwork.hのNnueNetworks。
+
 // Defines the network structure
 // 入力特徴量とネットワーク構造が定義されたヘッダをincludeする
 

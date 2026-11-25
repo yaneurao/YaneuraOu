@@ -6,7 +6,7 @@
 #if defined(ENABLE_TEST_CMD) && (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../extra/all.h"
-#include "evaluate_nnue.h"
+#include "network.h"
 #include "nnue_test_command.h"
 
 #include <set>
@@ -47,7 +47,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
   for (int game = 0; game < games; ++game) {
     pos.set_hirate();
     stack->reset();
-    network.feature_transformer.EnsureAccumulator(pos, true, current_state(), refreshTable);
+    network.featureTransformer.EnsureAccumulator(pos, true, current_state(), refreshTable);
     // Cover delayed updates and null moves before testing ordinary one-ply updates.
     // 通常の1手差分に加え、評価を省略した連続着手とnull moveも検証する。
     PRNG delayed_prng(20261113 + game);
@@ -72,7 +72,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
           do_move(child);
           const Value child_score = evaluate();
           const auto child_accumulator = accumulator_of(current_state());
-          network.feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+          network.featureTransformer.RefreshAccumulatorForTest(pos, current_state());
           if (child_score != evaluate()
               || std::memcmp(child_accumulator.accumulation,
                              accumulator_of(current_state()).accumulation,
@@ -93,7 +93,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
         return;
       }
       const auto delayed = accumulator_of(current_state());
-      network.feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+      network.featureTransformer.RefreshAccumulatorForTest(pos, current_state());
       if (std::memcmp(delayed.accumulation, accumulator_of(current_state()).accumulation,
                       sizeof(delayed.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED delayed FT" << std::endl;
@@ -103,7 +103,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
         undo_move(*it);
         const Value ancestor_score = evaluate();
         const auto ancestor = accumulator_of(current_state());
-        network.feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+        network.featureTransformer.RefreshAccumulatorForTest(pos, current_state());
         if (ancestor_score != evaluate()
             || std::memcmp(ancestor.accumulation, accumulator_of(current_state()).accumulation,
                            sizeof(ancestor.accumulation)) != 0) {
@@ -135,7 +135,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
           }
         }
       }
-      network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state(), refreshTable);
+      network.featureTransformer.UpdateAccumulatorIfPossible(pos, current_state(), refreshTable);
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
       {
       const auto progress = network.progress.SumQ16(pos, current_state());
@@ -148,7 +148,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN16_ACCUMULATOR_PROPAGATE)
       // Check raw fc_0 outputs, including values hidden by FV_SCALE rounding.
       alignas(CacheLineSize) TransformedFeatureType features[FeatureTransformer::kBufferSize];
-      network.feature_transformer.Transform(pos, features, false, current_state(), refreshTable);
+      network.featureTransformer.Transform(pos, features, false, current_state(), refreshTable);
       const auto& fc = network.network[moves % kLayerStacks].fc_0;
       using Fc = std::remove_cv_t<std::remove_reference_t<decltype(fc)>>;
       alignas(CacheLineSize) typename Fc::OutputBuffer separate, fused;
@@ -162,14 +162,14 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
 #endif
       const auto incremental = accumulator_of(current_state());
       const Value score = evaluate();
-      network.feature_transformer.EnsureAccumulator(pos, true, current_state(), refreshTable);
+      network.featureTransformer.EnsureAccumulator(pos, true, current_state(), refreshTable);
       const Value cached_reference = evaluate();
       if (score != cached_reference || std::memcmp(incremental.accumulation,
           accumulator_of(current_state()).accumulation, sizeof(incremental.accumulation)) != 0) {
         std::cout << "test_accumulator FAILED cached refresh game " << game << " ply " << ply << std::endl;
         return;
       }
-      network.feature_transformer.RefreshAccumulatorForTest(pos, current_state());
+      network.featureTransformer.RefreshAccumulatorForTest(pos, current_state());
       const Value reference = evaluate();
       if (score != reference || std::memcmp(incremental.accumulation,
           accumulator_of(current_state()).accumulation, sizeof(incremental.accumulation)) != 0) {
@@ -185,7 +185,7 @@ void TestAccumulator(const NnueNetworks& network, std::istream& stream) {
         return;
       }
       do_move(move);
-      network.feature_transformer.UpdateAccumulatorIfPossible(pos, current_state(), refreshTable);
+      network.featureTransformer.UpdateAccumulatorIfPossible(pos, current_state(), refreshTable);
 #if defined(EVAL_SFNN) && NNUE_SFNN_PROGRESS_BUCKETS != 1
       {
       const auto progress = network.progress.SumQ16(pos, current_state());

@@ -127,9 +127,6 @@
     <ClInclude Include="nnue\nnue_accumulator.h">
       <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
-    <ClInclude Include="nnue\evaluate_nnue.h">
-      <Filter>リソース ファイル\nnue</Filter>
-    </ClInclude>
     <ClInclude Include="nnue\nnue_architecture.h">
       <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
@@ -405,7 +402,7 @@
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp">
       <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
     </ClCompile>
-    <ClCompile Include="nnue\evaluate_nnue.cpp">
+    <ClCompile Include="nnue\network.cpp">
       <Filter>リソース ファイル\nnue</Filter>
     </ClCompile>
     <ClCompile Include="nnue\nnue_test_command.cpp">

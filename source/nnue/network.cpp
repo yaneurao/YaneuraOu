@@ -1,4 +1,6 @@
-﻿// NNUE評価関数の計算に関するコード
+﻿// NNUE/SFNNネットワークの読み込み・計算・共有に関するコード
+
+#include "network.h"
 
 #include "../config.h"
 #include "../extra/tools.h"
@@ -22,9 +24,9 @@
 #include "../evaluate.h"
 #include "../position.h"
 #include "../memory.h"
+#include "../numa.h"
 #include "../usi.h"
 
-#include "evaluate_nnue.h"
 #include "nnue_common.h"
 
 // Macro to embed the default efficiently updatable neural network (NNUE) file
@@ -344,7 +346,7 @@ namespace {
 				<< sync_endl;
 		}
 
-		result = Detail::ReadParameters<FeatureTransformer>(stream, tmp->feature_transformer);
+		result = Detail::ReadParameters<FeatureTransformer>(stream, tmp->featureTransformer);
 		if (result.is_not_ok()) {
 			sync_cout << "info string NNUE feature params read failed: " << result.to_string() << sync_endl;
 			return result;
@@ -431,7 +433,7 @@ namespace {
 #else
         if (!WriteHeader(stream, kHashValue, GetArchitectureString())) return false;
 #endif
-        if (!Detail::WriteParameters<FeatureTransformer>(stream, network.feature_transformer)) return false;
+        if (!Detail::WriteParameters<FeatureTransformer>(stream, network.featureTransformer)) return false;
         for (int i = 0; i < kLayerStacks; ++i) {
             if (!Detail::WriteParameters<Network>(stream, network.network[i])) return false;
         }
@@ -782,19 +784,19 @@ namespace {
         const auto bucket = stack_index_for_nnue(pos, network, state);
 #if defined(USE_AVX512) && defined(NNUE_HAS_SFNN_ACCUMULATOR_PROPAGATE)
         auto& accumulator = accumulator_of(state);
-        network.feature_transformer.EnsureAccumulator(pos, refresh, state, refreshTable);
+        network.featureTransformer.EnsureAccumulator(pos, refresh, state, refreshTable);
         const auto output = network.network[bucket].PropagateFromAccumulator(
             accumulator.accumulation, pos.side_to_move(), buffer);
 #else
         alignas(CacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
-        network.feature_transformer.Transform(pos, transformed_features, refresh, state, refreshTable);
+        network.featureTransformer.Transform(pos, transformed_features, refresh, state, refreshTable);
         const auto output = network.network[bucket].Propagate(transformed_features, buffer);
 #endif
 #else
         alignas(CacheLineSize) TransformedFeatureType
             transformed_features[FeatureTransformer::kBufferSize];
-        network.feature_transformer.Transform(pos, transformed_features, refresh, state, refreshTable);
+        network.featureTransformer.Transform(pos, transformed_features, refresh, state, refreshTable);
         const auto output = network.network[0].Propagate(transformed_features, buffer);
 #endif
 
@@ -912,7 +914,7 @@ Value evaluate(const NNUE::NnueNetworks& network, const Position& pos, NNUE::Acc
 #if defined(EVAL_NNUE)
 void evaluate_with_no_return(const NNUE::NnueNetworks& network, const Position& pos,
                              NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable) {
-    network.feature_transformer.UpdateAccumulatorIfPossible(pos, &stack.latest(), refreshTable);
+    network.featureTransformer.UpdateAccumulatorIfPossible(pos, &stack.latest(), refreshTable);
 }
 #endif
 

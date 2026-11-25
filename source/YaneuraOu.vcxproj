@@ -520,7 +520,6 @@
     <ClInclude Include="nnue\architectures\sfnn-1536.h" />
     <ClInclude Include="nnue\network.h" />
     <ClInclude Include="nnue\nnue_accumulator.h" />
-    <ClInclude Include="nnue\evaluate_nnue.h" />
     <ClInclude Include="nnue\features\features_common.h" />
     <ClInclude Include="nnue\features\feature_set.h" />
     <ClInclude Include="nnue\features\half_ka1.h" />
@@ -606,7 +605,7 @@
     <ClCompile Include="eval\kppt\evaluate_kppt.cpp" />
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp" />
     <ClCompile Include="eval\material\evaluate_material.cpp" />
-    <ClCompile Include="nnue\evaluate_nnue.cpp" />
+    <ClCompile Include="nnue\network.cpp" />
     <ClCompile Include="nnue\features\half_ka1.cpp" />
     <ClCompile Include="nnue\features\half_ka2.cpp" />
     <ClCompile Include="nnue\features\half_ka_hm1.cpp" />

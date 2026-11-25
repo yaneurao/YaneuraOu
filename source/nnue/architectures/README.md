@@ -205,7 +205,7 @@ little-endianで保存する。`progress.bin`のような外部ファイルは�
 ### Progress 実装上の注意
 
 `progressN`は評価関数の一部なので、進行度計算用の型や読み書き処理は
-`source/nnue/evaluate_nnue.h`と`source/nnue/evaluate_nnue.cpp`に置く。
+`source/nnue/network.h`と`source/nnue/network.cpp`に置く。
 `source/nnue_progress.h`や`source/nnue_progress.cpp`のような評価関数外の専用ファイルは
 作らない。
 
@@ -863,7 +863,7 @@ python3 tools/memo/bench_sfnn_experiments.py --build \
 
 ## Implementation
 
-探索時のbucket計算は`source/nnue/evaluate_nnue.cpp`の
+探索時のbucket計算は`source/nnue/network.cpp`の
 `stack_index_for_nnue()`に実装されている。
 
 architecture headerの生成は`source/nnue/architectures/nnue_arch_gen.py`が行う。

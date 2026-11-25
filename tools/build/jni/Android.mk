@@ -222,7 +222,7 @@ endif
 
 ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
 LOCAL_SRC_FILES += \
-  ../../../source/nnue/evaluate_nnue.cpp                                \
+  ../../../source/nnue/network.cpp                                \
   ../../../source/nnue/nnue_test_command.cpp                            \
   ../../../source/nnue/features/k.cpp                                   \
   ../../../source/nnue/features/p.cpp                                   \

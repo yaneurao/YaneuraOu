@@ -494,7 +494,7 @@ ifneq (,$(IS_NNUE_EDITION))
 
 	# 大して大きなファイルではないので全部してしまう。
 	SOURCES += \
-		nnue/evaluate_nnue.cpp                                     \
+		nnue/network.cpp                                     \
 		nnue/nnue_test_command.cpp                                 \
 		nnue/features/k.cpp                                        \
 		nnue/features/p.cpp                                        \
