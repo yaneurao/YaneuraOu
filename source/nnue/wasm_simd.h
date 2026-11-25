@@ -1,3 +1,6 @@
+#ifndef NNUE_WASM_SIMD_H_INCLUDED
+#define NNUE_WASM_SIMD_H_INCLUDED
+
 #include "../config.h"
 
 #if defined(USE_WASM_SIMD)
@@ -11,3 +14,5 @@ void affine(const int8_t A[m][n_stride], const uint8_t x[n], const int32_t b[m],
 
 } // namespace emscripten_wasm_simd
 #endif
+
+#endif // NNUE_WASM_SIMD_H_INCLUDED
