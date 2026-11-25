@@ -62,11 +62,14 @@ static inline void sparse_affine_transform_ssse3(const u8* input, i32* output,
 
 #if defined(EVAL_SFNN)
 // Stockfishと同じ明示次元型のAPIを使う。非ゼロ抽出とFTからの直接計算は既存の最適化を維持する。
-// AffineTransform layer that takes block-sparse input (Explicit Dimensions)
+// Sparse input implementation
+// 疎な入力を使う実装。
 template<IndexType InDims, IndexType OutDims>
 class AffineTransformSparseInput {
-public:
-        using InputType = u8;
+   public:
+        // Input/output type
+        // 入出力の型
+        using InputType  = u8;
         using OutputType = i32;
 
         // Number of input/output dimensions
@@ -570,10 +573,6 @@ public:
         alignas(CacheLineSize) WeightType weights[OutputDimensions * PaddedInputDimensions];
 };
 
-// 生成済みアーキテクチャヘッダーで使われている旧型名だけを受け付ける。
-// 生成器は新名称を出力する。実体は同じで、別の層や重み配列を持たない。
-template<IndexType InDims, IndexType OutDims>
-using AffineTransformSparseInputExplicit = AffineTransformSparseInput<InDims, OutDims>;
 #else
 // 従来NNUEでは前段レイヤーを所有するため、現行Stockfishの明示次元型とはAPIが異なる。
 // SFNNの明示次元型とは分岐を分け、従来の再帰型APIとバッファ配置を維持する。
