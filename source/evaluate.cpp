@@ -1,13 +1,13 @@
-﻿#include "../evaluate.h"
+﻿#include "evaluate.h"
 
 #include <algorithm>
 #include <array>
 #include <cassert>
 #include <map>
 
-#include "../misc.h"
-#include "../position.h"
-#include "../types.h"
+#include "misc.h"
+#include "position.h"
+#include "types.h"
 
 namespace YaneuraOu {
 namespace Eval

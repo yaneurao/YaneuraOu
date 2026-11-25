@@ -411,8 +411,8 @@
     <ClCompile Include="extra\sfen_packer.cpp">
       <Filter>リソース ファイル\extra</Filter>
     </ClCompile>
-    <ClCompile Include="eval\evaluate.cpp">
-      <Filter>リソース ファイル\eval</Filter>
+    <ClCompile Include="evaluate.cpp">
+      <Filter>リソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="eval\kppt\evaluate_kppt.cpp">
       <Filter>リソース ファイル\eval\kppt</Filter>

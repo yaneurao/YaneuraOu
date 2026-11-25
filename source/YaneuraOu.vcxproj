@@ -606,7 +606,7 @@
     <ClCompile Include="eval\deep\nn.cpp" />
     <ClCompile Include="eval\deep\nn_onnx_runtime.cpp" />
     <ClCompile Include="eval\deep\nn_tensorrt.cpp" />
-    <ClCompile Include="eval\evaluate.cpp" />
+    <ClCompile Include="evaluate.cpp" />
     <ClCompile Include="eval\kppt\evaluate_kppt.cpp" />
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp" />
     <ClCompile Include="eval\material\evaluate_material.cpp" />
