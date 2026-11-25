@@ -3,6 +3,57 @@
 
 from typing import NamedTuple
 
+# Board and BonaPiece constants for the default shogi feature encoding.
+# 標準の将棋用特徴量で使う盤面とBonaPieceの定数。
+U32_MASK = 0xFFFFFFFF
+SQ_NB = 81
+FILE_NB = 9
+FE_END = 1548
+F_KING = FE_END
+E_KING = F_KING + SQ_NB
+FE_END2 = E_KING + SQ_NB
+
+
+class NnueFeatureSpec(NamedTuple):
+    headers: tuple
+    cpp_types: str
+    name: str
+    hash_value: int
+    dimensions: int
+
+
+# Keep C++ feature selection and dummy-file metadata in the same entry.
+# C++の特徴量選択とダミー評価関数のメタデータを、同じ項目で管理する。
+NNUE_FEATURES = {
+    "halfkp": NnueFeatureSpec(
+        ("half_kp.h",), "Features::HalfKP<Features::Side::kFriend>",
+        "HalfKP(Friend)", 0x5D69D5B8, SQ_NB * FE_END),
+    "kp": NnueFeatureSpec(
+        ("k.h", "p.h"), "Features::K, Features::P",
+        "K+P", 0xD3CEE169 ^ ((0x764CFB4B << 1) & U32_MASK) ^ (0x764CFB4B >> 31), SQ_NB * 2 + FE_END),
+    "ka2": NnueFeatureSpec(
+        ("k.h", "a2.h"), "Features::K, Features::A2",
+        "K+A2", 0xD3CEE169 ^ ((0xA20DCB9B << 1) & U32_MASK) ^ (0xA20DCB9B >> 31), SQ_NB * 2 + E_KING),
+    "halfkpe9": NnueFeatureSpec(
+        ("half_kpe9.h",), "Features::HalfKPE9<Features::Side::kFriend>",
+        "HalfKPE9(Friend)", 0x5D69D5B8, SQ_NB * FE_END * 3 * 3),
+    "halfkpvm": NnueFeatureSpec(
+        ("half_kp_vm.h",), "Features::HalfKP_vm<Features::Side::kFriend>",
+        "HalfKP_vm(Friend)", 0x0B6B1D9A, 5 * FILE_NB * FE_END),
+    "halfka1": NnueFeatureSpec(
+        ("half_ka1.h",), "Features::HalfKA1<Features::Side::kFriend>",
+        "HalfKA1(Friend)", 0x5F134CB8, SQ_NB * FE_END2),
+    "halfkahm1": NnueFeatureSpec(
+        ("half_ka_hm1.h",), "Features::HalfKA_hm1<Features::Side::kFriend>",
+        "HalfKA_hm1(Friend)", 0x7F134CB8, 5 * FILE_NB * FE_END2),
+    "halfka2": NnueFeatureSpec(
+        ("half_ka2.h",), "Features::HalfKA2<Features::Side::kFriend>",
+        "HalfKA2(Friend)", 0x5F234CB8, SQ_NB * E_KING),
+    "halfkahm2": NnueFeatureSpec(
+        ("half_ka_hm2.h",), "Features::HalfKA_hm2<Features::Side::kFriend>",
+        "HalfKA_hm2(Friend)", 0x7F234CB8, 5 * FILE_NB * E_KING),
+}
+
 # Bucket tables contain (number of buckets, C++ bucket type ID).
 # バケット表は（バケット数、既存アーキテクチャの型ID）の組。型IDは互換性維持のため変更しない。
 

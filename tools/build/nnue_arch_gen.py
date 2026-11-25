@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 from nnue_arch_common import (
+    NNUE_FEATURES,
     SfnnBucketError,
     parse_sfnn_buckets,
     sfnn_hidden1_output_dims,
@@ -184,22 +185,12 @@ header += f"""
     """
 
 # 特徴量ごとの違いは、読み込むヘッダーとFeatureSetの型だけにまとめる。
-feature_definitions = {
-    "halfkp": (("half_kp.h",), "Features::HalfKP<Features::Side::kFriend>"),
-    "kp": (("k.h", "p.h"), "Features::K, Features::P"),
-    "ka2": (("k.h", "a2.h"), "Features::K, Features::A2"),
-    "halfkpe9": (("half_kpe9.h",), "Features::HalfKPE9<Features::Side::kFriend>"),
-    "halfkpvm": (("half_kp_vm.h",), "Features::HalfKP_vm<Features::Side::kFriend>"),
-    "halfka1": (("half_ka1.h",), "Features::HalfKA1<Features::Side::kFriend>"),
-    "halfkahm1": (("half_ka_hm1.h",), "Features::HalfKA_hm1<Features::Side::kFriend>"),
-    "halfka2": (("half_ka2.h",), "Features::HalfKA2<Features::Side::kFriend>"),
-    "halfkahm2": (("half_ka_hm2.h",), "Features::HalfKA_hm2<Features::Side::kFriend>"),
-}
-if input_feature not in feature_definitions:
+feature = NNUE_FEATURES.get(input_feature)
+if feature is None:
     print(f"Error : input feature {input_feature} is not supported.")
     raise SystemExit(1)
 
-feature_headers, feature_types = feature_definitions[input_feature]
+feature_headers, feature_types = feature.headers, feature.cpp_types
 for feature_header in feature_headers:
     header += f'#include "../features/{feature_header}"\n'
 raw_features = f"""

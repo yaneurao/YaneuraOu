@@ -7,37 +7,21 @@ import random
 import struct
 
 from nnue_arch_common import (
+    FE_END,
+    NNUE_FEATURES,
+    SQ_NB,
+    U32_MASK,
     SfnnBucketError,
     parse_sfnn_buckets,
     sfnn_hidden1_output_dims,
     strip_nnue_arch_prefixes,
 )
 
-U32_MASK = 0xFFFFFFFF
 NNUE_FILE_VERSION = 0x7AF32F16
 SFNN_HASH_VALUE = 0x3C203B32
 SFNN_FEATURE_TRANSFORMER_HASH = 0x5F134AB8
 SFNN_NETWORK_HASH = 0x6333718A
 LEB128_MAGIC = b"COMPRESSED_LEB128"
-
-SQ_NB = 81
-FILE_NB = 9
-FE_END = 1548
-F_KING = FE_END
-E_KING = F_KING + SQ_NB
-FE_END2 = E_KING + SQ_NB
-
-FEATURE_INFO = {
-    "halfkp": ("HalfKP(Friend)", 0x5D69D5B8, SQ_NB * FE_END),
-    "kp": ("K+P", 0xD3CEE169 ^ ((0x764CFB4B << 1) & U32_MASK) ^ (0x764CFB4B >> 31), SQ_NB * 2 + FE_END),
-    "ka2": ("K+A2", 0xD3CEE169 ^ ((0xA20DCB9B << 1) & U32_MASK) ^ (0xA20DCB9B >> 31), SQ_NB * 2 + E_KING),
-    "halfkpe9": ("HalfKPE9(Friend)", 0x5D69D5B8, SQ_NB * FE_END * 3 * 3),
-    "halfkpvm": ("HalfKP_vm(Friend)", 0x0B6B1D9A, 5 * FILE_NB * FE_END),
-    "halfka1": ("HalfKA1(Friend)", 0x5F134CB8, SQ_NB * FE_END2),
-    "halfkahm1": ("HalfKA_hm1(Friend)", 0x7F134CB8, 5 * FILE_NB * FE_END2),
-    "halfka2": ("HalfKA2(Friend)", 0x5F234CB8, SQ_NB * E_KING),
-    "halfkahm2": ("HalfKA_hm2(Friend)", 0x7F234CB8, 5 * FILE_NB * E_KING),
-}
 
 
 def u32(value: int) -> int:
@@ -247,9 +231,10 @@ def main() -> None:
     args = parser.parse_args()
 
     spec = parse_arch(args.arch)
-    feature_name, feature_hash, feature_dims = FEATURE_INFO.get(spec["feature"], ("", 0, 0))
-    if not feature_name:
+    feature = NNUE_FEATURES.get(spec["feature"])
+    if feature is None:
         raise ValueError(f"unsupported feature: {spec['feature']}")
+    feature_name, feature_hash, feature_dims = feature.name, feature.hash_value, feature.dimensions
 
     rng = random.Random(args.dummy_seed)
     dir_name = os.path.dirname(args.output)
