@@ -91,9 +91,9 @@ SFNNは通常NNUEと同じくFeatureTransformerとaccumulatorを使うが、変�
 後段networkが通常NNUEと異なる。
 SFNN・従来NNUEとも、累積値と着手の差分は探索Workerの`AccumulatorStack`で管理する。`EVAL_SFNN`と`EVAL_NNUE`は排他的に定義する。
 
-`SFNN_*`でビルドすると`EVAL_SFNN`が定義され、FeatureTransformerでは
-`USE_ELEMENT_WISE_MULTIPLY`が有効になる。この経路では、2視点分のaccumulatorを
-element-wise multiplyで混ぜて、最終的に`FT`次元の変換後特徴量を後段に渡す。
+`SFNN_*`でビルドすると`EVAL_SFNN`が定義され、FeatureTransformerは
+2視点分のaccumulatorをelement-wise multiplyで混ぜて、最終的に`FT`次元の
+変換後特徴量を後段に渡す。
 そのため、SFNNのarchitecture名は`1024_7_64`のようになり、通常NNUEの
 `256x2_32_32`のような`x2`表記を持たない。
 

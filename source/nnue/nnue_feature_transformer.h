@@ -14,10 +14,6 @@
 #include <cstring>
 #include <iosfwd>
 
-#if defined(EVAL_SFNN)
-#define USE_ELEMENT_WISE_MULTIPLY
-#endif
-
 #include "../position.h"
 #include "../types.h"
 #include "nnue_accumulator.h"
@@ -93,7 +89,7 @@ class FeatureTransformer {
 	// Number of input/output dimensions
 	// 入出力の次元数
 	static constexpr IndexType InputDimensions  = RawFeatures::Dimensions;
-#if defined(USE_ELEMENT_WISE_MULTIPLY)
+#if defined(EVAL_SFNN)
 	static constexpr IndexType OutputDimensions = HalfDimensions;
 #else
 	static constexpr IndexType OutputDimensions = HalfDimensions * 2;
@@ -124,7 +120,7 @@ class FeatureTransformer {
 	// Read network parameters
 	// パラメータを読み込む
 	bool read_parameters(std::istream& stream) {
-#if defined(USE_ELEMENT_WISE_MULTIPLY)
+#if defined(EVAL_SFNN)
 #if defined(NNUE_FT_PACKED8)
 		sparse8_enabled_ = false;
 #endif
@@ -132,9 +128,9 @@ class FeatureTransformer {
 		read_leb_128<WeightType>(stream, weights, HalfDimensions * InputDimensions);
 
 #if defined(VECTOR) && !defined(NNUE_SMALL_SFNN_FT)
-		permute_weights(inverse_order_packs);
+		permute_weights();
 #endif
-		scale_weights(true);
+		scale_weights();
 #if defined(NNUE_FT_PACKED8)
 		if (!stream.fail())
 			prepare_sparse8_weights();
@@ -407,7 +403,7 @@ class FeatureTransformer {
 		ensure_accumulator(pos, refresh, state, refreshTable);
 		const auto& accumulation = accumulator_of(state).accumulation;
 
-#if defined(USE_ELEMENT_WISE_MULTIPLY)
+#if defined(EVAL_SFNN)
 
 #if defined(VECTOR) && !defined(NNUE_SMALL_SFNN_FT)
 			// Packed output is sizeof(vec_t) bytes for each SIMD register
@@ -593,22 +589,9 @@ class FeatureTransformer {
 	}
 
    private:
-	static void order_packs([[maybe_unused]] u64* v) {
-#if defined(USE_AVX512)  // _mm512_set_epi32 packs in the order [15 11 7 3 14 10 6 2 13 9 5 1 12 8 4 0]
-		u64 tmp0 = v[4], tmp1 = v[5];
-		v[4] = v[6], v[5] = v[7];
-		v[6] = tmp0, v[7] = tmp1;
-		tmp0 = v[8], tmp1 = v[9];
-		v[8] = v[12], v[9] = v[13];
-		v[12] = v[10], v[13] = v[11];
-		v[10] = tmp0, v[11] = tmp1;
-#elif defined(USE_AVX2)  // _mm256_set_epi32 packs in the order [7 3 6 2 5 1 4 0]
-		u64 tmp0 = v[2], tmp1 = v[3];
-		v[2] = v[4], v[3] = v[5];
-		v[4] = tmp0, v[5] = tmp1;
-#endif
-	}
-
+    // Convert loaded shogi SFNN weights to the existing SIMD order and scale.
+    // 読み込んだ将棋用SFNNの重みを、従来のSIMD配置・内部スケールへ変換する。
+    // 書き出し側からは呼ばず、共有ネットワークを確定する前の読み込み時だけ変更する。
 	static void inverse_order_packs([[maybe_unused]] u64* v) {
 #if defined(USE_AVX512)
 		u64 tmp0 = v[2], tmp1 = v[3];
@@ -626,39 +609,39 @@ class FeatureTransformer {
 #endif
 	}
 
-	void permute_weights([[maybe_unused]] void (*order_fn)(u64*)) const {
+	void permute_weights() {
 #if defined(USE_AVX2)
 #if defined(USE_AVX512)
 		constexpr IndexType di = 16;
 #else
 		constexpr IndexType di = 8;
 #endif
-		u64* b = reinterpret_cast<u64*>(const_cast<BiasType*>(&biases[0]));
+		u64* b = reinterpret_cast<u64*>(&biases[0]);
 		for (IndexType i = 0; i < HalfDimensions * sizeof(BiasType) / sizeof(u64); i += di)
-			order_fn(&b[i]);
+			inverse_order_packs(&b[i]);
 
 		for (IndexType j = 0; j < InputDimensions; ++j)
 		{
 			u64* w =
-				reinterpret_cast<u64*>(const_cast<WeightType*>(&weights[j * HalfDimensions]));
+				reinterpret_cast<u64*>(&weights[j * HalfDimensions]);
 			for (IndexType i = 0; i < HalfDimensions * sizeof(WeightType) / sizeof(u64);
 					i += di)
-				order_fn(&w[i]);
+				inverse_order_packs(&w[i]);
 		}
 #endif
 	}
 
-	inline void scale_weights(bool read) const {
+	void scale_weights() {
 		for (IndexType j = 0; j < InputDimensions; ++j)
 		{
-			WeightType* w = const_cast<WeightType*>(&weights[j * HalfDimensions]);
+			WeightType* w = &weights[j * HalfDimensions];
 			for (IndexType i = 0; i < HalfDimensions; ++i)
-				w[i] = read ? w[i] * 2 : w[i] / 2;
+				w[i] *= 2;
 		}
 
-		BiasType* b = const_cast<BiasType*>(biases);
+		BiasType* b = biases;
 		for (IndexType i = 0; i < HalfDimensions; ++i)
-			b[i] = read ? b[i] * 2 : b[i] / 2;
+			b[i] *= 2;
 	}
 
 #if defined(NNUE_FT_PACKED8)
