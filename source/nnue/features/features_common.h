@@ -10,8 +10,7 @@
 
 #include "../nnue_common.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 // インデックスリストの型
 class IndexList;
@@ -36,8 +35,7 @@ enum class Side {
   kEnemy,   // 視点の相手側
 };
 
-} // namespace Eval::NNUE::Features
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

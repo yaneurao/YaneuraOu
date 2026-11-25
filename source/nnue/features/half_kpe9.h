@@ -10,8 +10,7 @@
 #include "../../evaluate.h"
 #include "features_common.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 
 // 特徴量HalfKPE9：自玉または敵玉の位置と、玉以外の駒の位置と、利き数の組み合わせ
@@ -49,8 +48,7 @@ class HalfKPE9 {
 
 };
 
-} // namespace Eval::NNUE::Features
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

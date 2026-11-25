@@ -36,8 +36,7 @@
 #endif
 
 
-namespace YaneuraOu {
-namespace Eval::NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
 /*
  例) FT1536のときのkNumChunksの計算
@@ -1431,8 +1430,7 @@ class FeatureTransformer {
 
 };
 
-} // namespace Eval::NNUE
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

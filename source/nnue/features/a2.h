@@ -11,8 +11,7 @@
 #include "../../evaluate.h"
 #include "features_common.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 // 特徴量A2：玉を含む全駒のBonaPiece
 // 後手玉(e_king..fe_end2)は自玉plane(f_king..e_king)にマージするので次元数は e_king
@@ -31,8 +30,7 @@ class A2 {
                                    IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp);
 };
 
-}  // namespace Eval::NNUE::Features
-}  // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

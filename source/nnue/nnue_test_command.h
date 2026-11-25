@@ -11,13 +11,14 @@
 
 namespace YaneuraOu {
 class IEngine;
-namespace Eval::NNUE {
+} // namespace YaneuraOu
+
+namespace YaneuraOu::Eval::NNUE {
 
 // NNUE評価関数に関するUSI拡張コマンド
 void TestCommand(IEngine& engine, std::istream& stream);
 
-} // namespace Eval::NNUE
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE
 
 #endif  // defined(ENABLE_TEST_CMD) && (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

@@ -10,8 +10,7 @@
 #include "../../evaluate.h"
 #include "features_common.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 // 特徴量HalfRelativeKP：自玉または敵玉を基準とした、玉以外の各駒の相対位置
 template <Side AssociatedKing>
@@ -52,8 +51,7 @@ class HalfRelativeKP {
 
 };
 
-} // namespace Eval::NNUE::Features
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

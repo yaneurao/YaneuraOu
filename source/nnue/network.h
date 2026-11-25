@@ -24,8 +24,9 @@ namespace YaneuraOu {
 // 入出力の結果型は宣言だけで足りる。結果を使う実装側でextra/tools.hを読み込む。
 namespace Tools { struct Result; }
 class Position;
+} // namespace YaneuraOu
 
-namespace Eval::NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
 #if !defined(EVAL_SFNN)
@@ -111,8 +112,7 @@ namespace Progress {
 	// 評価関数パラメータを書き込む
 	bool write_parameters(const Network& network, std::ostream& stream);
 
-} // namespace Eval::NNUE
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE
 
 // Networkのコンテンツハッシュ。共有メモリの名前に使われる。
 // 同一の評価関数パラメーターを持つプロセス同士で自動的にメモリが共有される。

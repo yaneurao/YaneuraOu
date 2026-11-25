@@ -22,8 +22,7 @@
 #include <cstring>
 #include <type_traits>
 
-namespace YaneuraOu {
-namespace Eval::NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
 template <typename Fc0Layer, IndexType Hidden1Dims, IndexType Hidden2Dims, bool PackedTail>
 struct SfnnNetworkBuffer;
@@ -197,8 +196,7 @@ struct SfnnNetwork {
 #endif
 };
 
-}  // namespace Eval::NNUE
-}  // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

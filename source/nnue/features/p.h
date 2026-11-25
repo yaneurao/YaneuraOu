@@ -10,8 +10,7 @@
 #include "../../evaluate.h"
 #include "features_common.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 // 特徴量P：玉以外の駒のBonaPiece
 class P {
@@ -36,8 +35,7 @@ class P {
                                    IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp);
 };
 
-} // namespace Eval::NNUE::Features
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

@@ -9,8 +9,7 @@
 #include "index_list.h"
 #include "king_piece_helpers.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 	// 玉の位置とBonaPieceから特徴量のインデックスを求める
 	template <Side AssociatedKing>
@@ -53,7 +52,6 @@ namespace Eval::NNUE::Features {
 	template class HalfKA2<Side::kFriend>;
 	template class HalfKA2<Side::kEnemy>;
 
-}  // namespace Eval::NNUE::Features
-}  // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))

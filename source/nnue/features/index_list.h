@@ -11,8 +11,7 @@
 #include "../nnue_common.h"
 #include "../nnue_architecture.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 // Class template used for feature index list
 // 特徴量のインデックスリストに使うクラステンプレート
@@ -41,8 +40,7 @@ class IndexList
 	: public ValueList<IndexType, RawFeatures::MaxActiveDimensions> {
 };
 
-} // namespace Eval::NNUE::Features
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

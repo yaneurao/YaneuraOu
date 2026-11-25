@@ -11,8 +11,7 @@
 #include "../nnue_common.h"
 #include "../simd.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Layers {
+namespace YaneuraOu::Eval::NNUE::Layers {
 
 // AffineTransform layer for common+shard dense input (Explicit Dimensions).
 //
@@ -249,8 +248,7 @@ class AffineTransformCommonShardInputExplicit {
 	alignas(CacheLineSize) WeightType weights[OutputDimensions * kPaddedEffectiveInputDimensions];
 };
 
-}  // namespace Eval::NNUE::Layers
-}  // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Layers
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

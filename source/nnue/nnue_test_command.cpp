@@ -26,8 +26,7 @@
 #include "network.h"
 #include "nnue_accumulator.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
 namespace {
 
@@ -420,7 +419,6 @@ void TestCommand(IEngine& engine, std::istream& stream) {
   }
 }
 
-} // namespace Eval::NNUE
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE
 
 #endif  // defined(ENABLE_TEST_CMD) && (defined(EVAL_NNUE) || defined(EVAL_SFNN))

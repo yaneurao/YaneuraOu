@@ -9,8 +9,7 @@
 #include "index_list.h"
 #include "king_piece_helpers.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 
 inline Square GetSquareFromBonaPiece(BonaPiece p) {
@@ -128,7 +127,6 @@ void HalfKPE9<AssociatedKing>::append_changed_indices(
 template class HalfKPE9<Side::kFriend>;
 template class HalfKPE9<Side::kEnemy>;
 
-} // namespace Eval::NNUE::Features
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))

@@ -7,8 +7,7 @@
 #include "p.h"
 #include "index_list.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 // 特徴量のうち、値が1であるインデックスのリストを取得する
 void P::append_active_indices(
@@ -34,7 +33,6 @@ void P::append_changed_indices(
   }
 }
 
-} // namespace Eval::NNUE::Features
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))

@@ -291,8 +291,7 @@ else:
     """
 
 header += """
-    namespace YaneuraOu {
-    namespace Eval::NNUE {
+    namespace YaneuraOu::Eval::NNUE {
 
     // Input features used in evaluation function
     // 評価関数で用いる入力特徴量
@@ -467,8 +466,7 @@ if SFNN:
             }}
         }};
 
-    }}  // namespace Eval::NNUE
-    }}  // namespace YaneuraOu
+    }} // namespace YaneuraOu::Eval::NNUE
 
     #endif // NNUE_{arch}_H_INCLUDED
     """
@@ -479,8 +477,7 @@ else:
     header += f"""
         using NetworkArchitecture = Layers::OutputLayer;
 
-    }} // namespace Eval::NNUE
-    }} // namespace YaneuraOu
+    }} // namespace YaneuraOu::Eval::NNUE
 
     #endif // #ifndef NNUE_{arch}_H_INCLUDED
     """

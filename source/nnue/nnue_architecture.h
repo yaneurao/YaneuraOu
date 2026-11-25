@@ -113,8 +113,7 @@
 #endif
 #endif
 
-namespace YaneuraOu {
-namespace Eval::NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
 #if defined(EVAL_SFNN)
 	constexpr int kLayerStacks = LayerStacks;
@@ -146,8 +145,7 @@ namespace Eval::NNUE {
 	// 差分計算の代わりに全計算を行うタイミングのリスト
 	constexpr auto kRefreshTriggers = RawFeatures::kRefreshTriggers;
 
-} // namespace Eval::NNUE
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

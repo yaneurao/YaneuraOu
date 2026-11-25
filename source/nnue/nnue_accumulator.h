@@ -23,8 +23,7 @@
 #include <cassert>
 #include <type_traits>
 
-namespace YaneuraOu {
-namespace Eval::NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
 // Per-worker Finny tables; the shared network contains only immutable parameters.
 // WorkerごとのFinny Tables。共有ネットワークには読み取り専用のパラメーターだけを置く。
@@ -187,8 +186,7 @@ class AccumulatorStack {
 };
 
 
-} // namespace Eval::NNUE
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE
 #else
 #if defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
 #include <array>
@@ -196,8 +194,7 @@ class AccumulatorStack {
 #include <ostream>
 
 // KPPT・KPP_KKPT専用。NNUE/SFNNやダミー構成ではこれらの定義は読み込まない。
-namespace YaneuraOu {
-namespace Eval {
+namespace YaneuraOu::Eval {
 
 	// KPPT,KPP_PPTで使うためのヘルパクラス
 	// 手番つきの評価値の合計を計算するために用いる。
@@ -415,8 +412,7 @@ namespace Eval {
 	static bool operator == (const EvalSum& lhs, const EvalSum rhs) { return lhs.p[0] == rhs.p[0] && lhs.p[1] == rhs.p[1] && lhs.p[2] == rhs.p[2]; }
 	static bool operator != (const EvalSum& lhs, const EvalSum rhs) { return !(lhs == rhs); }
 
-} // namespace Eval
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval
 
 namespace YaneuraOu::Eval::Classic {
 

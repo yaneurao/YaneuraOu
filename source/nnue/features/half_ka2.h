@@ -10,8 +10,7 @@
 #include "../../evaluate.h"
 #include "features_common.h"
 
-namespace YaneuraOu {
-namespace Eval::NNUE::Features {
+namespace YaneuraOu::Eval::NNUE::Features {
 
 	// 特徴量HalfKA2：視点側または相手側の玉と、手駒・両玉を含む全駒のBonaPieceの組み合わせ。両玉は同じ駒種の面にまとめる
 	template <Side AssociatedKing>
@@ -46,8 +45,7 @@ namespace Eval::NNUE::Features {
 
 	};
 
-}  // namespace Eval::NNUE::Features
-}  // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::Features
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 

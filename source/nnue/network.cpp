@@ -63,9 +63,7 @@ const unsigned char gEmbeddedNNUEData[1] = {0x0};
 const unsigned int  gEmbeddedNNUESize = 1;
 #endif
 
-namespace YaneuraOu {
-namespace Eval {
-namespace NNUE {
+namespace YaneuraOu::Eval::NNUE {
 
 	int FV_SCALE = 16; // 水匠5では24がベストらしいのでエンジンオプション"FV_SCALE"で変更可能にした。
 
@@ -796,7 +794,9 @@ namespace {
         return score;
     }
 
-}  // namespace NNUE
+} // namespace YaneuraOu::Eval::NNUE
+
+namespace YaneuraOu::Eval {
 
 // 評価関数ファイルを読み込む
 void load_eval(LazyNumaReplicatedSystemWide<NNUE::Network>& network, const OptionsMap& options) {
@@ -893,7 +893,6 @@ void print_eval_stat(Position& /*pos*/) {
     std::cout << "--- EVAL STAT: not implemented" << std::endl;
 }
 
-} // namespace Eval
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval
 
 #endif  // (defined(EVAL_NNUE) || defined(EVAL_SFNN))
