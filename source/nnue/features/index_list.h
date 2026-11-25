@@ -13,31 +13,31 @@
 
 namespace YaneuraOu::Eval::NNUE::Features {
 
-// Class template used for feature index list
-// 特徴量のインデックスリストに使うクラステンプレート
-template <typename T, usize MaxSize>
-class ValueList {
+// Storage dedicated to feature indices; the search's ValueList has a different API.
+// 特徴量インデックス専用の格納領域。探索用のmisc.hのValueListとはAPIが異なる。
+// 既存のコード生成を維持するため、IndexListとの継承構造は残す。
+class IndexListStorage {
 
 public:
 	usize size() const { return size_; }
 	void resize(usize size) { size_ = size; }
-	void push_back(const T& value) { values_[size_++] = value; }
-	T& operator[](usize index) { return values_[index]; }
-	T* begin() { return values_; }
-	T* end() { return values_ + size_; }
-	const T& operator[](usize index) const { return values_[index]; }
-	const T* begin() const { return values_; }
-	const T* end() const { return values_ + size_; }
+	void push_back(const IndexType& value) { values_[size_++] = value; }
+	IndexType& operator[](usize index) { return values_[index]; }
+	IndexType* begin() { return values_; }
+	IndexType* end() { return values_ + size_; }
+	const IndexType& operator[](usize index) const { return values_[index]; }
+	const IndexType* begin() const { return values_; }
+	const IndexType* end() const { return values_ + size_; }
 
 private:
-	T values_[MaxSize];
+	IndexType values_[RawFeatures::MaxActiveDimensions];
 	usize size_ = 0;
 };
 
 //Type of feature index list
 // 特徴量のインデックスリストの型
 class IndexList
-	: public ValueList<IndexType, RawFeatures::MaxActiveDimensions> {
+	: public IndexListStorage {
 };
 
 } // namespace YaneuraOu::Eval::NNUE::Features
