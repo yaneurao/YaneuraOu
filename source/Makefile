@@ -241,7 +241,7 @@ else
 		EM_INITIAL_MEMORY_SIZE=$(shell if [ $(MATERIAL_LEVEL) -ge 5 ]; then echo 385875968; else echo 138412032; fi)
 		CPPFLAGS += -Wno-unused-parameter
 		# 🚧 ワークアラウンド : USE_WASM_SIMDは定義しない。
-		#     eval/nnue/wasm_simd.cppのカーネルは重みを行優先の配置で読むが、
+		#     nnue/wasm_simd.cppのカーネルは重みを行優先の配置で読むが、
 		#     USE_SSE42からUSE_SSSE3が有効になるため、AffineTransform::GetWeightIndex()は
 		#     重みをSSSE3向けに並べ替えて格納する。この不整合により、AffineTransformの
 		#     出力が正しくならない。
@@ -481,7 +481,7 @@ ifneq (,$(IS_NNUE_EDITION))
 			# 知らないNNUEのarchitectureなので、architecture headerを動的に生成する。
 			ARCH_HEADER_FILE = \"architectures/$(NNUE_ARCH).h\"
 			CPPFLAGS += -DNNUE_ARCHITECTURE_HEADER=$(ARCH_HEADER_FILE)
-			ARCH_GEN_SCRIPT = $(PYTHON) eval/nnue/architectures/nnue_arch_gen.py $(NNUE_ARCH) eval/nnue/architectures
+			ARCH_GEN_SCRIPT = $(PYTHON) nnue/architectures/nnue_arch_gen.py $(NNUE_ARCH) nnue/architectures
 
 			# SFNN_* の層形状に応じたSIMD経路を選択する。
 			ifneq (,$(filter SFNN%,$(NNUE_ARCH_UPPER)))
@@ -494,25 +494,25 @@ ifneq (,$(IS_NNUE_EDITION))
 
 	# 大して大きなファイルではないので全部してしまう。
 	SOURCES += \
-		eval/nnue/evaluate_nnue.cpp                                     \
-		eval/nnue/nnue_test_command.cpp                                 \
-		eval/nnue/features/k.cpp                                        \
-		eval/nnue/features/p.cpp                                        \
-		eval/nnue/features/a2.cpp                                       \
-		eval/nnue/features/half_kp.cpp                                  \
-		eval/nnue/features/half_ka1.cpp                                 \
-		eval/nnue/features/half_ka_hm1.cpp                              \
-		eval/nnue/features/half_ka2.cpp                                 \
-		eval/nnue/features/half_ka_hm2.cpp                              \
-		eval/nnue/features/half_kp_vm.cpp                               \
-		eval/nnue/features/half_relative_kp.cpp                         \
-		eval/nnue/features/half_kpe9.cpp                                \
-		eval/nnue/features/pe9.cpp                                      \
+		nnue/evaluate_nnue.cpp                                     \
+		nnue/nnue_test_command.cpp                                 \
+		nnue/features/k.cpp                                        \
+		nnue/features/p.cpp                                        \
+		nnue/features/a2.cpp                                       \
+		nnue/features/half_kp.cpp                                  \
+		nnue/features/half_ka1.cpp                                 \
+		nnue/features/half_ka_hm1.cpp                              \
+		nnue/features/half_ka2.cpp                                 \
+		nnue/features/half_ka_hm2.cpp                              \
+		nnue/features/half_kp_vm.cpp                               \
+		nnue/features/half_relative_kp.cpp                         \
+		nnue/features/half_kpe9.cpp                                \
+		nnue/features/pe9.cpp                                      \
 		engine/yaneuraou-engine/yaneuraou-search.cpp
 
 	ifneq (,$(findstring em++,$(COMPILER)))
 		SOURCES += \
-			eval/nnue/wasm_simd.cpp
+			nnue/wasm_simd.cpp
 	endif
 	ifeq ($(EVAL_EMBEDDING),ON)
 		CPPFLAGS += -DNNUE_EMBEDDING
@@ -521,7 +521,7 @@ ifneq (,$(IS_NNUE_EDITION))
 			#     wasm-ldがリンクできないため使えない。代わりに、パラメーターを文字列リテラルとして
 			#     持つembedded_nnue.cppをリンクする。このファイルはtools/build/wasm_build.jsが生成する。
 			SOURCES += \
-				eval/nnue/embedded_nnue.cpp
+				nnue/embedded_nnue.cpp
 		endif
 	endif
 endif

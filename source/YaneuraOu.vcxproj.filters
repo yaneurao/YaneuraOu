@@ -29,16 +29,13 @@
     <Filter Include="リソース ファイル\nnue">
       <UniqueIdentifier>{2d00a834-9c46-46de-b05d-470372329d05}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\eval\nnue">
-      <UniqueIdentifier>{f8a06299-f305-4fab-af37-06d5d05b9690}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="リソース ファイル\eval\nnue\architectures">
+    <Filter Include="リソース ファイル\nnue\architectures">
       <UniqueIdentifier>{f5b056d1-3ff2-456f-b355-2e1bf03c8047}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\eval\nnue\features">
+    <Filter Include="リソース ファイル\nnue\features">
       <UniqueIdentifier>{834f320f-c9fd-430a-9768-3a781b14b0b4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\eval\nnue\layers">
+    <Filter Include="リソース ファイル\nnue\layers">
       <UniqueIdentifier>{4c668a86-42fd-403c-9b17-80360d9c8db9}</UniqueIdentifier>
     </Filter>
     <Filter Include="リソース ファイル\engine\yaneuraou-engine">
@@ -130,68 +127,65 @@
     <ClInclude Include="nnue\nnue_accumulator.h">
       <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\evaluate_nnue.h">
-      <Filter>リソース ファイル\eval\nnue</Filter>
+    <ClInclude Include="nnue\evaluate_nnue.h">
+      <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\nnue_accumulator.h">
-      <Filter>リソース ファイル\eval\nnue</Filter>
+    <ClInclude Include="nnue\nnue_architecture.h">
+      <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\nnue_architecture.h">
-      <Filter>リソース ファイル\eval\nnue</Filter>
+    <ClInclude Include="nnue\nnue_common.h">
+      <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\nnue_common.h">
-      <Filter>リソース ファイル\eval\nnue</Filter>
+    <ClInclude Include="nnue\nnue_feature_transformer.h">
+      <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\nnue_feature_transformer.h">
-      <Filter>リソース ファイル\eval\nnue</Filter>
+    <ClInclude Include="nnue\nnue_test_command.h">
+      <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\nnue_test_command.h">
-      <Filter>リソース ファイル\eval\nnue</Filter>
+    <ClInclude Include="nnue\features\feature_set.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\feature_set.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\features_common.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\features_common.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\half_kp.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\half_kp.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\half_relative_kp.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\half_relative_kp.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\index_list.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\index_list.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\k.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\k.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\p.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\p.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\layers\affine_transform.h">
+      <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\layers\affine_transform.h">
-      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    <ClInclude Include="nnue\layers\affine_transform_sparse_input.h">
+      <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\layers\affine_transform_sparse_input.h">
-      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    <ClInclude Include="nnue\layers\clipped_relu.h">
+      <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\layers\clipped_relu.h">
-      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    <ClInclude Include="nnue\layers\input_slice.h">
+      <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\layers\input_slice.h">
-      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    <ClInclude Include="nnue\layers\simd.h">
+      <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\layers\simd.h">
-      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    <ClInclude Include="nnue\layers\sum.h">
+      <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\layers\sum.h">
-      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    <ClInclude Include="nnue\architectures\halfkp_256x2-32-32.h">
+      <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_256x2-32-32.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
-    </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\kp_256x2-32-32.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    <ClInclude Include="nnue\architectures\kp_256x2-32-32.h">
+      <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
     <ClInclude Include="usi.h">
       <Filter>リソース ファイル</Filter>
@@ -211,14 +205,14 @@
     <ClInclude Include="thread_native.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\half_kpe9.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\half_kpe9.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\pe9.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\pe9.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkpe9_256x2-32-32.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    <ClInclude Include="nnue\architectures\halfkpe9_256x2-32-32.h">
+      <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
     <ClInclude Include="book\apery_book.h">
       <Filter>リソース ファイル\book</Filter>
@@ -256,20 +250,20 @@
     <ClInclude Include="testcmd\unit_test.h">
       <Filter>リソース ファイル\testcmd</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\half_kp_vm.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\half_kp_vm.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkpvm_256x2-32-32.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    <ClInclude Include="nnue\architectures\halfkpvm_256x2-32-32.h">
+      <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_512x2-16-32.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    <ClInclude Include="nnue\architectures\halfkp_512x2-16-32.h">
+      <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-8-32.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    <ClInclude Include="nnue\architectures\halfkp_1024x2-8-32.h">
+      <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\halfkp_1024x2-8-64.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    <ClInclude Include="nnue\architectures\halfkp_1024x2-8-64.h">
+      <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
     <ClInclude Include="memory.h">
       <Filter>リソース ファイル</Filter>
@@ -340,29 +334,29 @@
     <ClInclude Include="shm_unix.h">
       <Filter>リソース ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\architectures\sfnn-1536.h">
-      <Filter>リソース ファイル\eval\nnue\architectures</Filter>
+    <ClInclude Include="nnue\architectures\sfnn-1536.h">
+      <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\layers\affine_transform_explicit.h">
-      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    <ClInclude Include="nnue\layers\affine_transform_explicit.h">
+      <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\layers\affine_transform_sparse_input_explicit.h">
-      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    <ClInclude Include="nnue\layers\affine_transform_sparse_input_explicit.h">
+      <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\layers\clipped_relu_explicit.h">
-      <Filter>リソース ファイル\eval\nnue\layers</Filter>
+    <ClInclude Include="nnue\layers\clipped_relu_explicit.h">
+      <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\half_ka1.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\half_ka1.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\half_ka_hm1.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\half_ka_hm1.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\half_ka_hm2.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\half_ka_hm2.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
-    <ClInclude Include="eval\nnue\features\half_ka2.h">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClInclude Include="nnue\features\half_ka2.h">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -420,23 +414,23 @@
     <ClCompile Include="eval\kpp_kkpt\evaluate_kpp_kkpt.cpp">
       <Filter>リソース ファイル\eval\kpp_kkpt</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\evaluate_nnue.cpp">
-      <Filter>リソース ファイル\eval\nnue</Filter>
+    <ClCompile Include="nnue\evaluate_nnue.cpp">
+      <Filter>リソース ファイル\nnue</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\nnue_test_command.cpp">
-      <Filter>リソース ファイル\eval\nnue</Filter>
+    <ClCompile Include="nnue\nnue_test_command.cpp">
+      <Filter>リソース ファイル\nnue</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\half_kp.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\half_kp.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\half_relative_kp.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\half_relative_kp.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\k.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\k.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\p.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\p.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
     <ClCompile Include="types.cpp">
       <Filter>リソース ファイル</Filter>
@@ -456,11 +450,11 @@
     <ClCompile Include="engine\yaneuraou-engine\yaneuraou-search.cpp">
       <Filter>リソース ファイル\engine\yaneuraou-engine</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\half_kpe9.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\half_kpe9.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\pe9.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\pe9.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
     <ClCompile Include="eval\material\evaluate_material.cpp">
       <Filter>リソース ファイル\eval\material</Filter>
@@ -516,8 +510,8 @@
     <ClCompile Include="testcmd\unit_test.cpp">
       <Filter>リソース ファイル\testcmd</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\half_kp_vm.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\half_kp_vm.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
     <ClCompile Include="book\makebook2025.cpp">
       <Filter>リソース ファイル\book</Filter>
@@ -564,17 +558,17 @@
     <ClCompile Include="engine\dlshogi-engine\UctSearch.cpp">
       <Filter>リソース ファイル\engine\dlshogi-engine</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\half_ka1.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\half_ka1.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\half_ka_hm1.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\half_ka_hm1.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\half_ka_hm2.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\half_ka_hm2.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
-    <ClCompile Include="eval\nnue\features\half_ka2.cpp">
-      <Filter>リソース ファイル\eval\nnue\features</Filter>
+    <ClCompile Include="nnue\features\half_ka2.cpp">
+      <Filter>リソース ファイル\nnue\features</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

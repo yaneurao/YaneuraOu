@@ -18,7 +18,7 @@
 #include "../evaluate.h"
 #include "unit_test.h"
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
-#include "../eval/nnue/nnue_test_command.h"
+#include "../nnue/nnue_test_command.h"
 #endif
 
 namespace YaneuraOu {

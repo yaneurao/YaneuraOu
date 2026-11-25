@@ -73,7 +73,7 @@ EXTRA_CPPFLAGS =
 # cf.【連載】評価関数を作ってみよう！その1 : http://yaneuraou.yaneu.com/2020/11/17/make-evaluate-function/
 MATERIAL_LEVEL = 1
 
-# NNUE評価関数を実行ファイルに内蔵する。 `eval/nnue/embedded_nnue.cpp` が別途必要。
+# NNUE評価関数を実行ファイルに内蔵する。 `nnue/embedded_nnue.cpp` が別途必要。
 EVAL_EMBEDDING = OFF
 # EVAL_EMBEDDING = ON
 
@@ -222,19 +222,19 @@ endif
 
 ifeq ($(findstring YANEURAOU_ENGINE_NNUE,$(YANEURAOU_EDITION)),YANEURAOU_ENGINE_NNUE)
 LOCAL_SRC_FILES += \
-  ../../../source/eval/nnue/evaluate_nnue.cpp                                \
-  ../../../source/eval/nnue/nnue_test_command.cpp                            \
-  ../../../source/eval/nnue/features/k.cpp                                   \
-  ../../../source/eval/nnue/features/p.cpp                                   \
-  ../../../source/eval/nnue/features/half_kp.cpp                             \
-  ../../../source/eval/nnue/features/half_kp_vm.cpp                          \
-  ../../../source/eval/nnue/features/half_relative_kp.cpp                    \
-  ../../../source/eval/nnue/features/half_kpe9.cpp                           \
-  ../../../source/eval/nnue/features/pe9.cpp                                 \
+  ../../../source/nnue/evaluate_nnue.cpp                                \
+  ../../../source/nnue/nnue_test_command.cpp                            \
+  ../../../source/nnue/features/k.cpp                                   \
+  ../../../source/nnue/features/p.cpp                                   \
+  ../../../source/nnue/features/half_kp.cpp                             \
+  ../../../source/nnue/features/half_kp_vm.cpp                          \
+  ../../../source/nnue/features/half_relative_kp.cpp                    \
+  ../../../source/nnue/features/half_kpe9.cpp                           \
+  ../../../source/nnue/features/pe9.cpp                                 \
   ../../../source/engine/yaneuraou-engine/yaneuraou-search.cpp
 	ifeq ($(EVAL_EMBEDDING),ON)
 		LOCAL_SRC_FILES += \
-			../../../source/eval/nnue/embedded_nnue.cpp
+			../../../source/nnue/embedded_nnue.cpp
 		CPPFLAGS += -DEVAL_EMBEDDING
 	endif
 endif

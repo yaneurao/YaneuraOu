@@ -10,7 +10,7 @@
 // 探索・Engine側の共通入口。評価実装の内部からは実装ヘッダーを直接読む。
 // このヘッダーから実装を選び、実装からこの入口を読み返す循環を作らない。
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-#include "../eval/nnue/evaluate_nnue.h"
+#include "evaluate_nnue.h"
 #else
 namespace YaneuraOu::Eval {
 

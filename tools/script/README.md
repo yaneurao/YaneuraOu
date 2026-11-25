@@ -51,6 +51,6 @@ HOMEPATH engine1 evaldir1 engine2 evaldir2 threads loop numa { rtime1 ... rtimeN
 
 ## このフォルダ以外の関連ツール
 
-- [nnue_arch_gen.py](../../source/eval/nnue/architectures/nnue_arch_gen.py)：NNUE/SFNNのアーキテクチャ名からC++ヘッダーを生成。使い方は[アーキテクチャのREADME](../../source/eval/nnue/architectures/README.md)を参照。
+- [nnue_arch_gen.py](../../source/nnue/architectures/nnue_arch_gen.py)：NNUE/SFNNのアーキテクチャ名からC++ヘッダーを生成。使い方は[アーキテクチャのREADME](../../source/nnue/architectures/README.md)を参照。
 - 旧`readme.txt`にあった`eval_bin_to_cpp_literal.py`は、現在のリポジトリにはありません。
 - Dockerでのエンジンビルドは[tools/docker/README.md](../docker/README.md)、調査・実験結果は[tools/memo/README.md](../memo/README.md)を参照。

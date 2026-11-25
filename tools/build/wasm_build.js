@@ -106,13 +106,13 @@ for(const pkgobj of pkglist) {
       if (!fs.existsSync(".dl/suisho5_20211123.halfkp.nnue.cpp.gz")) {
         execSync("curl --create-dirs -RLo .dl/suisho5_20211123.halfkp.nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suisho5_20211123.halfkp.nnue.cpp.gz");
       }
-      execSync("gzip -cd .dl/suisho5_20211123.halfkp.nnue.cpp.gz > source/eval/nnue/embedded_nnue.cpp");
+      execSync("gzip -cd .dl/suisho5_20211123.halfkp.nnue.cpp.gz > source/nnue/embedded_nnue.cpp");
       break;
     case "k-p":
       if(!fs.existsSync(".dl/suishopetite_20211123.k_p.nnue.cpp.gz")) {
         execSync("curl --create-dirs -RLo .dl/suishopetite_20211123.k_p.nnue.cpp.gz https://github.com/mizar/YaneuraOu/releases/download/resource/suishopetite_20211123.k_p.nnue.cpp.gz");
       }
-      execSync("gzip -cd .dl/suishopetite_20211123.k_p.nnue.cpp.gz > source/eval/nnue/embedded_nnue.cpp");
+      execSync("gzip -cd .dl/suishopetite_20211123.k_p.nnue.cpp.gz > source/nnue/embedded_nnue.cpp");
       break;
   }
   // mkdir

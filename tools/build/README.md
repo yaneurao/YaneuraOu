@@ -122,7 +122,7 @@ node tools/build/wasm_docker_build.js halfkp.noeval
 
 パッケージ名は`halfkp`、`k-p`、`halfkp.noeval`、`halfkpe9.noeval`、`halfkpvm.noeval`、`k-p.noeval`、`material`、`material9`、`yaneuraou-mate`、`tanuki-mate`です。生成本体では引数なしで全構成、引数ありで指定名に一致した構成を生成します。
 
-`halfkp`と`k-p`は評価関数のC++データをダウンロードし、`source/eval/nnue/embedded_nnue.cpp`へ展開します。ダウンロード先は`.dl/`です。`noeval`は評価関数を埋め込まない構成です。
+`halfkp`と`k-p`は評価関数のC++データをダウンロードし、`source/nnue/embedded_nnue.cpp`へ展開します。ダウンロード先は`.dl/`です。`noeval`は評価関数を埋め込まない構成です。
 
 ## 関連資料
 

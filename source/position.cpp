@@ -35,7 +35,7 @@
 #endif
 
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-#include "eval/nnue/nnue_accumulator.h"
+#include "nnue/nnue_accumulator.h"
 #endif
 
 using std::string;
