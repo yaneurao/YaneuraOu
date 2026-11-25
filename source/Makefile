@@ -468,7 +468,7 @@ ifneq (,$(IS_NNUE_EDITION))
 			# 知らないNNUEのarchitectureなので、architecture headerを動的に生成する。
 			ARCH_HEADER_FILE = \"architectures/$(NNUE_ARCH).h\"
 			CPPFLAGS += -DNNUE_ARCHITECTURE_HEADER=$(ARCH_HEADER_FILE)
-			ARCH_GEN_SCRIPT = $(PYTHON) nnue/architectures/nnue_arch_gen.py $(NNUE_ARCH) nnue/architectures
+			ARCH_GEN_SCRIPT = $(PYTHON) ../tools/build/nnue_arch_gen.py $(NNUE_ARCH) nnue/architectures
 
 			# SFNN_* の層形状に応じたSIMD経路を選択する。
 			ifneq (,$(filter SFNN%,$(NNUE_ARCH_UPPER)))

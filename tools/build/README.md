@@ -5,6 +5,7 @@ Linux・Windows・Android・WebAssembly向けのビルド補助ツールです�
 ## 目次
 
 - [Linux・Windows](#ビルド)
+- [NNUE/SFNNの生成ツール](#nnuesfnnの生成ツール)
 - [PGO](#pgo)
 - [Android](#android)
 - [WebAssembly](#webassembly)
@@ -53,6 +54,19 @@ bash tools/build/mingw_gcc.sh \
 ```powershell
 .\tools\build\msys2_build.ps1 -Edition YANEURAOU_ENGINE_NNUE -Compiler clang++ -Target normal -Cpu AVX2
 ```
+
+## NNUE/SFNNの生成ツール
+
+| ファイル | 役割 |
+| --- | --- |
+| [nnue_arch_gen.py](nnue_arch_gen.py) | アーキテクチャ名からC++ヘッダーを生成。既定の出力先は`source/nnue/architectures/`。Makefileからも呼び出す。 |
+| [nnue_dummy_gen.py](nnue_dummy_gen.py) | ビルド・動作検証用のダミー`nn.bin`を生成。`nnue_arch_gen.py --write-dummy-nn`からも呼び出せる。棋力評価用の学習済みモデルではない。 |
+
+```sh
+python3 tools/build/nnue_arch_gen.py NNUE_halfkp_512x2_16_32
+```
+
+アーキテクチャ名、出力先、ダミー生成の指定は[アーキテクチャのREADME](../../source/nnue/architectures/README.md#generated-headers)を参照してください。
 
 ## PGO
 

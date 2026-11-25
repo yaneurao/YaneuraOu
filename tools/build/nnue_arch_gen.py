@@ -19,7 +19,7 @@ print("NNUE architecture header generator by yaneurao V1.03 , 2026/07/20")
 
 parser = argparse.ArgumentParser(description="NNUEのarchitecture headerを生成する。")
 parser.add_argument('arch', type=str, nargs='?', default="halfkp_256x2-32-32", help="architectureを指定する。例) halfkp_1024x2-8-64, YANEURAOU_ENGINE_NNUE_HALFKP_1024X2_16_32とか")
-parser.add_argument('out_dir', type=str, nargs='?', default=None, help="出力先のフォルダを指定する。省略時はこのスクリプトと同じフォルダ。")
+parser.add_argument('out_dir', type=str, nargs='?', default=None, help="出力先のフォルダを指定する。省略時はsource/nnue/architectures。")
 parser.add_argument('--write-dummy-nn', type=str, default="", help="指定pathに、このarchitecture用のdummy nn.binを生成する。")
 parser.add_argument('--dummy-mode', type=str, choices=("random-small", "zero"), default="random-small", help="dummy nn.binの初期化方式。デフォルトはrandom-small。")
 parser.add_argument('--dummy-seed', type=int, default=20260722, help="random-small用の乱数seed。")
@@ -27,7 +27,9 @@ parser.add_argument('--dummy-seed', type=int, default=20260722, help="random-sma
 args = parser.parse_args()
 
 arch    : str = args.arch
-out_dir : str = args.out_dir or os.path.dirname(os.path.abspath(__file__))
+# 生成ヘッダーはスクリプトの配置場所ではなく、従来どおりarchitectureフォルダへ出力する。
+default_out_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "source", "nnue", "architectures"))
+out_dir : str = args.out_dir or default_out_dir
 dummy_nn_path : str = args.write_dummy_nn
 original_arch : str = arch
 

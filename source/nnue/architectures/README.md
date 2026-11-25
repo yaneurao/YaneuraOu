@@ -751,17 +751,18 @@ hand1024_k29k29 : 1024 * 841 = 861184 buckets
 
 ## Generated Headers
 
-`nnue_arch_gen.py`はarchitecture名からheaderを生成する。
+`tools/build/nnue_arch_gen.py`はarchitecture名からheaderを生成する。
+出力先を省略すると、実行ディレクトリによらず`source/nnue/architectures/`に出力する。
 
 ```bash
-python3 source/nnue/architectures/nnue_arch_gen.py \
+python3 tools/build/nnue_arch_gen.py \
   SFNN_halfka2_1024_7_64_hand64_k3k3
 ```
 
 第2引数を指定すると、出力先ディレクトリを変更できる。
 
 ```bash
-python3 source/nnue/architectures/nnue_arch_gen.py \
+python3 tools/build/nnue_arch_gen.py \
   SFNN_halfka2_1024_7_64_hand64_k3k3 \
   /tmp/nnue_arch
 ```
@@ -769,7 +770,7 @@ python3 source/nnue/architectures/nnue_arch_gen.py \
 探索速度の概算だけ見たい場合は、dummyの`nn.bin`を生成できる。
 
 ```bash
-python3 source/nnue/architectures/nnue_arch_gen.py \
+python3 tools/build/nnue_arch_gen.py \
   SFNN_halfka2_1024_7_64_hand64_k3k3 \
   --write-dummy-nn /tmp/nn.bin
 ```
@@ -866,7 +867,7 @@ python3 tools/memo/bench_sfnn_experiments.py --build \
 探索時のbucket計算は`source/nnue/network.cpp`の
 `stack_index_for_nnue()`に実装されている。
 
-architecture headerの生成は`source/nnue/architectures/nnue_arch_gen.py`が行う。
+architecture headerの生成は`tools/build/nnue_arch_gen.py`が行う。
 このスクリプトはarchitecture名の解析、入力特徴量、次元数、LayerStack数、
 bucket数、`Fc0Layer`と`Network`型の選択だけを生成する。
 
@@ -874,7 +875,7 @@ SFNNの具体的な推論処理は`source/nnue/architectures/sfnn_network.h`に�
 `Propagate()`や`PropagateFromAccumulator()`など、探索速度に影響する処理を
 `nnue_arch_gen.py`の文字列生成に埋め込まない。
 
-dummy `nn.bin`の生成処理は`source/nnue/architectures/nnue_dummy_gen.py`に置く。
+dummy `nn.bin`の生成処理は`tools/build/nnue_dummy_gen.py`に置く。
 互換のため、`nnue_arch_gen.py --write-dummy-nn`からも呼び出せる。
 
 新しい入力特徴量やLayerStack方式を追加するときは、生成器、探索時bucket計算、
