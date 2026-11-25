@@ -19,6 +19,47 @@
 
 namespace YaneuraOu::Eval::NNUE::Layers {
 
+#if defined(USE_SSSE3)
+// Shared 128-bit block-sparse kernel. Wider kernels retain each layer's accumulation strategy.
+// 共通の128bitブロック疎行列計算。広いSIMD幅では各層の累積器の使い分けを維持する。
+// VNNI系での複数累積器など、SFNN固有の演算順序を保つためAVX2/AVX512経路は各層に残す。
+template<IndexType InputDimensions, IndexType OutputDimensions, IndexType ChunkSize>
+static inline void sparse_affine_transform_ssse3(const u8* input, i32* output,
+                                        const i8* weights, const i32* biases) {
+
+    constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / ChunkSize;
+    constexpr IndexType kNumRegs   = OutputDimensions / 4;
+    u16       nnz[kNumChunks];
+    IndexType           count;
+
+    const auto input32 = reinterpret_cast<const i32*>(input);
+
+    find_nnz<kNumChunks>(input32, nnz, count);
+
+    const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases);
+    __m128i        acc[kNumRegs];
+
+    for (IndexType k = 0; k < kNumRegs; ++k)
+        acc[k] = biasvec[k];
+
+    for (IndexType j = 0; j < count; ++j)
+    {
+        const auto    i  = nnz[j];
+        const __m128i in = _mm_set1_epi32(input32[i]);
+        const auto    col =
+        reinterpret_cast<const __m128i*>(&weights[i * OutputDimensions * ChunkSize]);
+        for (IndexType k = 0; k < kNumRegs; ++k)
+            SIMD::m128_add_dpbusd_epi32(acc[k], in, col[k]);
+    }
+
+    __m128i* outptr = reinterpret_cast<__m128i*>(output);
+
+    for (IndexType k = 0; k < kNumRegs; ++k)
+        outptr[k] = acc[k];
+
+}
+#endif
+
 #if defined(EVAL_SFNN)
 // Stockfishと同じ明示次元型のAPIを使う。非ゼロ抽出とFTからの直接計算は既存の最適化を維持する。
 // AffineTransform layer that takes block-sparse input (Explicit Dimensions)
@@ -431,35 +472,8 @@ public:
 #if defined(USE_SSSE3)
         if constexpr (OutputDimensions % 4 == 0)
         {
-            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / ChunkSize;
-            constexpr IndexType kNumRegs   = OutputDimensions / 4;
-            u16       nnz[kNumChunks];
-            IndexType           count;
-
-            const auto input32 = reinterpret_cast<const i32*>(input);
-
-            find_nnz<kNumChunks>(input32, nnz, count);
-
-            const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases);
-            __m128i        acc[kNumRegs];
-
-            for (IndexType k = 0; k < kNumRegs; ++k)
-                acc[k] = biasvec[k];
-
-            for (IndexType j = 0; j < count; ++j)
-            {
-                const auto    i  = nnz[j];
-                const __m128i in = _mm_set1_epi32(input32[i]);
-                const auto    col =
-                reinterpret_cast<const __m128i*>(&weights[i * OutputDimensions * ChunkSize]);
-                for (IndexType k = 0; k < kNumRegs; ++k)
-                    SIMD::m128_add_dpbusd_epi32(acc[k], in, col[k]);
-            }
-
-            __m128i* outptr = reinterpret_cast<__m128i*>(output);
-
-            for (IndexType k = 0; k < kNumRegs; ++k)
-                outptr[k] = acc[k];
+            sparse_affine_transform_ssse3<InputDimensions, OutputDimensions, ChunkSize>(
+              input, output, weights, biases);
         }
         else
 #endif
@@ -540,8 +554,6 @@ public:
             affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
               output, weights, biases, input);
 
-#undef vec_set_32
-#undef vec_add_dpbusd_32
 
 #else
         // Use dense implementation for the other architectures.
@@ -593,19 +605,15 @@ class AffineTransformSparseInput {
 	static constexpr usize BufferSize = PreviousLayer::BufferSize + SelfBufferSize;
 
 #if defined(USE_SSSE3) || USE_NEON >= 8
-    static constexpr IndexType kChunkSize = 4;
+    static constexpr IndexType ChunkSize = 4;
 #else
-    static constexpr IndexType kChunkSize = 1;
+    static constexpr IndexType ChunkSize = 1;
 #endif
 
-	// 評価関数ファイルに埋め込むハッシュ値
 	// Hash value embedded in the evaluation file
+	// 評価関数ファイルに埋め込むハッシュ値
 	static constexpr u32 get_hash_value() {
-		u32 hashValue = 0xCC03DAE4u;
-		hashValue += OutputDimensions;
-		hashValue ^= PreviousLayer::get_hash_value() >> 1;
-		hashValue ^= PreviousLayer::get_hash_value() << 31;
-		return hashValue;
+		return get_hash_value(PreviousLayer::get_hash_value());
 	}
 
 	// ハッシュ値を前段の値から更新するときのヘルパー
@@ -624,8 +632,8 @@ class AffineTransformSparseInput {
 	}
 
 	static constexpr IndexType get_weight_index_scrambled(IndexType i) {
-        return (i / kChunkSize) % (PaddedInputDimensions / kChunkSize) * OutputDimensions * kChunkSize
-             + i / PaddedInputDimensions * kChunkSize + i % kChunkSize;
+        return (i / ChunkSize) % (PaddedInputDimensions / ChunkSize) * OutputDimensions * ChunkSize
+             + i / PaddedInputDimensions * ChunkSize + i % ChunkSize;
     }
 
     static constexpr IndexType get_weight_index(IndexType i) {
@@ -682,7 +690,7 @@ class AffineTransformSparseInput {
 #if defined(USE_AVX512)
         if constexpr (OutputDimensions % 16 == 0)
         {
-            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / ChunkSize;
             constexpr IndexType kNumRegs   = OutputDimensions / 16;
             u16       nnz[kNumChunks];
             IndexType           count;
@@ -703,7 +711,7 @@ class AffineTransformSparseInput {
                 const auto    i  = nnz[j];
                 const __m512i in = _mm512_set1_epi32(input32[i]);
                 const auto    col =
-                reinterpret_cast<const __m512i*>(&weights[i * OutputDimensions * kChunkSize]);
+                reinterpret_cast<const __m512i*>(&weights[i * OutputDimensions * ChunkSize]);
                 for (IndexType k = 0; k < kNumRegs; ++k)
                     SIMD::m512_add_dpbusd_epi32(acc[k], in, col[k]);
             }
@@ -719,7 +727,7 @@ class AffineTransformSparseInput {
 #if defined(USE_AVX2)
         if constexpr (OutputDimensions % 8 == 0)
         {
-            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / ChunkSize;
             constexpr IndexType kNumRegs   = OutputDimensions / 8;
             u16       nnz[kNumChunks];
             IndexType           count;
@@ -740,7 +748,7 @@ class AffineTransformSparseInput {
                 const auto    i  = nnz[j];
                 const __m256i in = _mm256_set1_epi32(input32[i]);
                 const auto    col =
-                reinterpret_cast<const __m256i*>(&weights[i * OutputDimensions * kChunkSize]);
+                reinterpret_cast<const __m256i*>(&weights[i * OutputDimensions * ChunkSize]);
                 for (IndexType k = 0; k < kNumRegs; ++k)
                     SIMD::m256_add_dpbusd_epi32(acc[k], in, col[k]);
             }
@@ -756,36 +764,8 @@ class AffineTransformSparseInput {
 #if defined(USE_SSSE3)
         if constexpr (OutputDimensions % 4 == 0)
         {
-            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / kChunkSize;
-            constexpr IndexType kNumRegs   = OutputDimensions / 4;
-            u16       nnz[kNumChunks];
-            IndexType           count;
-
-            const auto input32 = reinterpret_cast<const i32*>(input);
-
-            // Find indices of nonzero 32-bit blocks
-            find_nnz<kNumChunks>(input32, nnz, count);
-
-            const __m128i* biasvec = reinterpret_cast<const __m128i*>(biases);
-            __m128i        acc[kNumRegs];
-
-            for (IndexType k = 0; k < kNumRegs; ++k)
-                acc[k] = biasvec[k];
-
-            for (IndexType j = 0; j < count; ++j)
-            {
-                const auto    i  = nnz[j];
-                const __m128i in = _mm_set1_epi32(input32[i]);
-                const auto    col =
-                reinterpret_cast<const __m128i*>(&weights[i * OutputDimensions * kChunkSize]);
-                for (IndexType k = 0; k < kNumRegs; ++k)
-                    SIMD::m128_add_dpbusd_epi32(acc[k], in, col[k]);
-            }
-
-            __m128i* outptr = reinterpret_cast<__m128i*>(output);
-
-            for (IndexType k = 0; k < kNumRegs; ++k)
-                outptr[k] = acc[k];
+            sparse_affine_transform_ssse3<InputDimensions, OutputDimensions, ChunkSize>(
+              input, output, weights, biases);
         }
         else
 #endif
@@ -793,7 +773,7 @@ class AffineTransformSparseInput {
 #if defined(USE_NEON_DOTPROD)
         if constexpr (OutputDimensions % (sizeof(int32x4_t) / sizeof(OutputType)) == 0)
         {
-            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / kChunkSize;
+            constexpr IndexType kNumChunks = ceil_to_multiple<IndexType>(InputDimensions, 8) / ChunkSize;
             constexpr IndexType kOutputSimdWidth = sizeof(int32x4_t) / sizeof(OutputType);
             constexpr IndexType kNumRegs   = OutputDimensions / kOutputSimdWidth;
             u16       nnz[kNumChunks];
@@ -815,7 +795,7 @@ class AffineTransformSparseInput {
                 const auto      i  = nnz[j];
                 const int8x16_t in = vreinterpretq_s8_u32(vdupq_n_u32(input32[i]));
                 const auto     col =
-                reinterpret_cast<const int8x16_t*>(&weights[i * OutputDimensions * kChunkSize]);
+                reinterpret_cast<const int8x16_t*>(&weights[i * OutputDimensions * ChunkSize]);
                 for (IndexType k = 0; k < kNumRegs; ++k)
                     SIMD::dotprod_m128_add_dpbusd_epi32(acc[k], in, col[k]);
             }
@@ -830,8 +810,6 @@ class AffineTransformSparseInput {
             affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
               output, weights, biases, input);
 
-#undef vec_set_32
-#undef vec_add_dpbusd_32
 
 #else
         // Use dense implementation for the other architectures.
