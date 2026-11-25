@@ -1457,52 +1457,6 @@ class FeatureTransformer {
 		accumulator.computed_accumulation = true;
 	}
 
-    // LEB128圧縮データを識別するためのmagic string。
-    static constexpr char Leb128MagicString[] = "COMPRESSED_LEB128";
-    static constexpr usize Leb128MagicStringSize = sizeof(Leb128MagicString) - 1;
-
-    // 将棋用FTファイルのsigned LEB128形式を読み込む。従来の復号処理を維持する。
-    template<typename IntType>
-    static void read_leb_128(std::istream& stream, IntType* out, usize count) {
-        // Check the presence of our LEB128 magic string
-        // LEB128圧縮データの識別文字列を確認する。
-        char leb128MagicString[Leb128MagicStringSize];
-        stream.read(leb128MagicString, Leb128MagicStringSize);
-        assert(strncmp(Leb128MagicString, leb128MagicString, Leb128MagicStringSize) == 0);
-
-        static_assert(std::is_signed_v<IntType>, "Not implemented for unsigned types");
-
-        const u32 BUF_SIZE = 4096;
-        u8 buf[BUF_SIZE];
-        auto bytes_left = read_little_endian<u32>(stream);
-        u32 buf_pos = BUF_SIZE;
-        for (usize i = 0; i < count; ++i)
-        {
-            IntType result = 0;
-            usize shift = 0;
-            do
-            {
-                if (buf_pos == BUF_SIZE)
-                {
-                    stream.read(reinterpret_cast<char*>(buf), std::min(bytes_left, BUF_SIZE));
-                    buf_pos = 0;
-                }
-
-                u8 byte = buf[buf_pos++];
-                --bytes_left;
-                result |= (byte & 0x7f) << shift;
-                shift += 7;
-
-                if ((byte & 0x80) == 0)
-                {
-                    out[i] = (sizeof(IntType) * 8 <= shift || (byte & 0x40) == 0)
-                      ? result : result | ~((1 << shift) - 1);
-                    break;
-                }
-            } while (shift < sizeof(IntType) * 8);
-        }
-        assert(bytes_left == 0);
-    }
 
 	// parameter
 	// パラメータ
