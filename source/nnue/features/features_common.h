@@ -8,7 +8,6 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
-#include "../../evaluate.h"
 #include "../nnue_common.h"
 
 namespace YaneuraOu {

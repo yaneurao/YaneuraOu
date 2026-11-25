@@ -8,8 +8,10 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
-#include "features_common.h"
 #include <array>
+
+#include "../../evaluate.h"
+#include "features_common.h"
 
 namespace YaneuraOu {
 namespace Eval::NNUE::Features {
@@ -17,24 +19,13 @@ namespace Eval::NNUE::Features {
 // Class template that represents a list of values
 // 値のリストを表すクラステンプレート
 template <typename T, T... Values>
-struct CompileTimeList;
-template <typename T, T First, T... Remaining>
-struct CompileTimeList<T, First, Remaining...> {
+struct CompileTimeList {
   static constexpr bool Contains(T value) {
-    return value == First || CompileTimeList<T, Remaining...>::Contains(value);
+    // The empty pack folds to false, so a separate empty-list specialization is unnecessary.
+    // 空のパックではfalseになるため、空リスト用の特殊化は不要。
+    return ((value == Values) || ...);
   }
-  static constexpr std::array<T, sizeof...(Remaining) + 1>
-      kValues = {{First, Remaining...}};
-};
-template <typename T, T First, T... Remaining>
-constexpr std::array<T, sizeof...(Remaining) + 1>
-    CompileTimeList<T, First, Remaining...>::kValues;
-template <typename T>
-struct CompileTimeList<T> {
-  static constexpr bool Contains(T /*value*/) {
-    return false;
-  }
-  static constexpr std::array<T, 0> kValues = {{}};
+  static constexpr std::array<T, sizeof...(Values)> kValues = {{Values...}};
 };
 
 // リストの先頭への追加を行うクラステンプレート

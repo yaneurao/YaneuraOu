@@ -30,14 +30,6 @@ public:
 	const T* begin() const { return values_; }
 	const T* end() const { return values_ + size_; }
 
-	void swap(ValueList& other) {
-		const usize max_size = std::max(size_, other.size_);
-		for (usize i = 0; i < max_size; ++i) {
-			std::swap(values_[i], other.values_[i]);
-		}
-		std::swap(size_, other.size_);
-	}
-
 private:
 	T values_[MaxSize];
 	usize size_ = 0;
