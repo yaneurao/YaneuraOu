@@ -15,9 +15,10 @@ namespace YaneuraOu::Eval::NNUE::Features {
 template <Side AssociatedKing>
 inline IndexType HalfKP_vm<AssociatedKing>::make_index(Square sq_k, BonaPiece p) {
 	if (sq_k >= SQ_61) {
-            sq_k = Mir(sq_k);
-            p = mirror_piece(p);
-        }
+		// 玉が6筋～9筋にいる場合、4筋～1筋に反転する。
+		sq_k = Mir(sq_k);
+		p = mirror_piece(p);
+	}
 	return static_cast<IndexType>(fe_end) * static_cast<IndexType>(sq_k) + p;
 }
 

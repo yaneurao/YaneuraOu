@@ -39,14 +39,7 @@ namespace YaneuraOu::Eval::NNUE::Features {
 		const Position& pos, Color perspective,
 		IndexList* removed, IndexList* added, const Eval::DirtyPiece& dp) {
 		const Square sq_target_k = oriented_king_square<AssociatedKing>(pos, perspective);
-		for (int i = 0; i < dp.count(); ++i) {
-			const auto old_p = static_cast<BonaPiece>(
-				dp.change(i).old_piece.from[perspective]);
-			removed->push_back(make_index(sq_target_k, old_p));
-			const auto new_p = static_cast<BonaPiece>(
-				dp.change(i).new_piece.from[perspective]);
-			added->push_back(make_index(sq_target_k, new_p));
-		}
+		append_halfka_changed_indices<HalfKA1>(sq_target_k, perspective, removed, added, dp);
 	}
 
 	template class HalfKA1<Side::kFriend>;

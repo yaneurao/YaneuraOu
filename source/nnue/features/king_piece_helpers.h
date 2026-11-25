@@ -10,6 +10,7 @@
 #include "../../evaluate.h"
 #include "../../position.h"
 #include "features_common.h"
+#include "index_list.h"
 
 namespace YaneuraOu::Eval::NNUE::Features {
 
@@ -34,6 +35,23 @@ template<Side AssociatedKing>
 inline Square oriented_king_square(const Position& pos, const Color& perspective) {
     const Color target = AssociatedKing == Side::kFriend ? perspective : ~perspective;
     return perspective == BLACK ? pos.square<KING>(target) : Inv(pos.square<KING>(target));
+}
+
+// Enumerate both old and new features, including kings, for HalfKA variants.
+// HalfKA系の変更前後の特徴量を、玉を含めて元の順序で列挙する。
+// 玉のplaneを分けるか統合するか、左右反転するかは各Featureのmake_indexに任せる。
+// Keep the loop in its caller, including the larger mirrored HalfKA_hm1 instantiation.
+// 左右反転を含むHalfKA_hm1でも、このループの関数呼び出しを増やさない。
+template<typename Feature>
+sf_always_inline void append_halfka_changed_indices(
+  Square sq_k, Color perspective, IndexList* removed, IndexList* added,
+  const Eval::DirtyPiece& dp) {
+    for (int i = 0; i < dp.count(); ++i) {
+        const auto old_p = static_cast<BonaPiece>(dp.change(i).old_piece.from[perspective]);
+        removed->push_back(Feature::make_index(sq_k, old_p));
+        const auto new_p = static_cast<BonaPiece>(dp.change(i).new_piece.from[perspective]);
+        added->push_back(Feature::make_index(sq_k, new_p));
+    }
 }
 
 // Preserve the fixed BonaPiece order and derive the perspective-oriented king square
