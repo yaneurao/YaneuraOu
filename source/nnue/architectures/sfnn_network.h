@@ -14,7 +14,6 @@
 #include "sfnn_network_16.h"
 #endif
 #include "../layers/affine_transform_common_shard_input_explicit.h"
-#include "../layers/affine_transform_explicit.h"
 #include "../layers/affine_transform_sparse_input_explicit.h"
 #include "../layers/clipped_relu.h"
 #include "../layers/sqr_clipped_relu.h"
@@ -35,15 +34,15 @@ struct alignas(CacheLineSize) SfnnNetworkBuffer<Fc0Layer, Hidden1Dims, Hidden2Di
 	alignas(CacheLineSize) typename Fc0Layer::OutputBuffer fc_0_out;
 	alignas(CacheLineSize) typename Layers::SqrClippedReLU<Hidden1Dims>::OutputType
 	    ac_sqr_0_out[ceil_to_multiple<IndexType>(Hidden1Dims * 2, 32)];
-	alignas(CacheLineSize) typename Layers::AffineTransformExplicit<Hidden1Dims * 2, Hidden2Dims>::OutputBuffer fc_1_out;
+	alignas(CacheLineSize) typename Layers::AffineTransform<Hidden1Dims * 2, Hidden2Dims>::OutputBuffer fc_1_out;
 	alignas(CacheLineSize) typename Layers::ClippedReLU<Hidden2Dims>::OutputBuffer ac_1_out;
-	alignas(CacheLineSize) typename Layers::AffineTransformExplicit<Hidden2Dims, 1>::OutputBuffer fc_2_out;
+	alignas(CacheLineSize) typename Layers::AffineTransform<Hidden2Dims, 1>::OutputBuffer fc_2_out;
 };
 
 template <typename Fc0Layer, IndexType Hidden1Dims, IndexType Hidden2Dims>
 struct alignas(CacheLineSize) SfnnNetworkBuffer<Fc0Layer, Hidden1Dims, Hidden2Dims, true> {
 	alignas(CacheLineSize) typename Fc0Layer::OutputBuffer fc_0_out;
-	alignas(CacheLineSize) typename Layers::AffineTransformExplicit<Hidden2Dims, 1>::OutputBuffer fc_2_out;
+	alignas(CacheLineSize) typename Layers::AffineTransform<Hidden2Dims, 1>::OutputBuffer fc_2_out;
 };
 
 template <typename Fc0Layer, IndexType InputDims, IndexType Hidden1Dims, IndexType Hidden2Dims,
@@ -52,9 +51,9 @@ struct SfnnNetwork {
 	Fc0Layer fc_0;
 	Layers::ClippedReLU<Hidden1Dims> ac_0;
 	Layers::SqrClippedReLU<Hidden1Dims> ac_sqr_0;
-	Layers::AffineTransformExplicit<Hidden1Dims * 2, Hidden2Dims> fc_1;
+	Layers::AffineTransform<Hidden1Dims * 2, Hidden2Dims> fc_1;
 	Layers::ClippedReLU<Hidden2Dims> ac_1;
-	Layers::AffineTransformExplicit<Hidden2Dims, 1> fc_2;
+	Layers::AffineTransform<Hidden2Dims, 1> fc_2;
 
 	using OutputType = i32;
 	static constexpr IndexType kOutputDimensions = 1;
@@ -86,9 +85,9 @@ struct SfnnNetwork {
 		bool result = fc_0.ReadParameters(stream).is_ok()
 			&& ac_0.read_parameters(stream)
 			&& ac_sqr_0.read_parameters(stream)
-			&& fc_1.ReadParameters(stream).is_ok()
+			&& fc_1.read_parameters(stream)
 			&& ac_1.read_parameters(stream)
-			&& fc_2.ReadParameters(stream).is_ok();
+			&& fc_2.read_parameters(stream);
 		return result ? Tools::ResultCode::Ok : Tools::ResultCode::FileReadError;
 	}
 
@@ -96,9 +95,9 @@ struct SfnnNetwork {
 		return fc_0.WriteParameters(stream)
 			&& ac_0.write_parameters(stream)
 			&& ac_sqr_0.write_parameters(stream)
-			&& fc_1.WriteParameters(stream)
+			&& fc_1.write_parameters(stream)
 			&& ac_1.write_parameters(stream)
-			&& fc_2.WriteParameters(stream);
+			&& fc_2.write_parameters(stream);
 	}
 
 	static typename decltype(ac_0)::OutputType ClippedReLUValue(i32 value) {
@@ -163,9 +162,9 @@ struct SfnnNetwork {
 			fc_1.PropagateClippedReLUPackedToOutput(ac_sqr_0_packed, fc_2, buf.fc_2_out);
 		} else {
 			MakeHidden1Input(buf.fc_0_out, buf.ac_sqr_0_out);
-			fc_1.Propagate(buf.ac_sqr_0_out, buf.fc_1_out);
+			fc_1.propagate(buf.ac_sqr_0_out, buf.fc_1_out);
 			ac_1.propagate(buf.fc_1_out, buf.ac_1_out);
-			fc_2.Propagate(buf.ac_1_out, buf.fc_2_out);
+			fc_2.propagate(buf.ac_1_out, buf.fc_2_out);
 		}
 
 		if constexpr (kUseShortcut)

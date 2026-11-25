@@ -337,9 +337,6 @@
     <ClInclude Include="nnue\architectures\sfnn-1536.h">
       <Filter>リソース ファイル\nnue\architectures</Filter>
     </ClInclude>
-    <ClInclude Include="nnue\layers\affine_transform_explicit.h">
-      <Filter>リソース ファイル\nnue\layers</Filter>
-    </ClInclude>
     <ClInclude Include="nnue\layers\affine_transform_sparse_input_explicit.h">
       <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>

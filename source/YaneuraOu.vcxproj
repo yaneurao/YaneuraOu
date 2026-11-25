@@ -536,7 +536,6 @@
     <ClInclude Include="nnue\features\p.h" />
     <ClInclude Include="nnue\features\pe9.h" />
     <ClInclude Include="nnue\layers\affine_transform.h" />
-    <ClInclude Include="nnue\layers\affine_transform_explicit.h" />
     <ClInclude Include="nnue\layers\affine_transform_sparse_input.h" />
     <ClInclude Include="nnue\layers\affine_transform_sparse_input_explicit.h" />
     <ClInclude Include="nnue\layers\clipped_relu.h" />
