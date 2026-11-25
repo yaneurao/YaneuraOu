@@ -1,8 +1,8 @@
 ﻿// A class that converts the input features of the NNUE evaluation function
 // NNUE評価関数の入力特徴量の変換を行うクラス
 
-#ifndef CLASSIC_NNUE_FEATURE_TRANSFORMER_H_INCLUDED
-#define CLASSIC_NNUE_FEATURE_TRANSFORMER_H_INCLUDED
+#ifndef NNUE_FEATURE_TRANSFORMER_H_INCLUDED
+#define NNUE_FEATURE_TRANSFORMER_H_INCLUDED
 
 #include "../config.h"
 #include "../extra/tools.h"
@@ -53,93 +53,6 @@ inline AccumulatorState* resolve_state([[maybe_unused]] const Position& pos,
 inline Accumulator& accumulator_of(AccumulatorState* state) { return *state; }
 inline const Accumulator& accumulator_of(const AccumulatorState* state) { return *state; }
 
-// If vector instructions are enabled, we update and refresh the
-// accumulator tile by tile such that each tile fits in the CPU's
-// vector registers.
-// ベクトル命令が有効な場合、変数のタイルを、
-// 各タイルがCPUのベクトルレジスタに収まるように、更新してリフレッシュする。
-#define VECTOR
-
-#if defined(USE_AVX512)
-using vec_t = __m512i;
-#define vec_load(a) _mm512_load_si512(a)
-#define vec_store(a, b) _mm512_store_si512(a, b)
-#define vec_add_16(a, b) _mm512_add_epi16(a, b)
-#define vec_sub_16(a, b) _mm512_sub_epi16(a, b)
-#define vec_mulhi_16(a, b) _mm512_mulhi_epi16(a, b)
-#define vec_set_16(a) _mm512_set1_epi16(a)
-#define vec_max_16(a, b) _mm512_max_epi16(a, b)
-#define vec_min_16(a, b) _mm512_min_epi16(a, b)
-#define vec_slli_16(a, b) _mm512_slli_epi16(a, b)
-#define vec_packus_16(a, b) _mm512_packus_epi16(a, b)
-#define vec_zero() _mm512_setzero_si512()
-#if defined(NNUE_FT_REGS)
-static_assert(NNUE_FT_REGS >= 1 && NNUE_FT_REGS <= 24, "NNUE_FT_REGS must be in [1, 24]");
-static constexpr IndexType kNumRegs = NNUE_FT_REGS;
-#else
-static constexpr IndexType kNumRegs = 24;
-#endif
-
-#elif defined(USE_AVX2)
-using vec_t = __m256i;
-#define vec_load(a) _mm256_load_si256(a)
-#define vec_store(a, b) _mm256_store_si256(a, b)
-#define vec_add_16(a, b) _mm256_add_epi16(a, b)
-#define vec_sub_16(a, b) _mm256_sub_epi16(a, b)
-#define vec_mulhi_16(a, b) _mm256_mulhi_epi16(a, b)
-#define vec_set_16(a) _mm256_set1_epi16(a)
-#define vec_max_16(a, b) _mm256_max_epi16(a, b)
-#define vec_min_16(a, b) _mm256_min_epi16(a, b)
-#define vec_slli_16(a, b) _mm256_slli_epi16(a, b)
-#define vec_packus_16(a, b) _mm256_packus_epi16(a, b)
-#define vec_zero() _mm256_setzero_si256()
-static constexpr IndexType kNumRegs = 16;
-
-#elif defined(USE_SSE2)
-using vec_t = __m128i;
-#define vec_load(a) (*(a))
-#define vec_store(a, b) *(a) = (b)
-#define vec_add_16(a, b) _mm_add_epi16(a, b)
-#define vec_sub_16(a, b) _mm_sub_epi16(a, b)
-#define vec_mulhi_16(a, b) _mm_mulhi_epi16(a, b)
-#define vec_set_16(a) _mm_set1_epi16(a)
-#define vec_max_16(a, b) _mm_max_epi16(a, b)
-#define vec_min_16(a, b) _mm_min_epi16(a, b)
-#define vec_slli_16(a, b) _mm_slli_epi16(a, b)
-#define vec_packus_16(a, b) _mm_packus_epi16(a, b)
-#define vec_zero() _mm_setzero_si128()
-static constexpr IndexType kNumRegs = Is64Bit ? 16 : 8;
-
-#elif defined(USE_MMX)
-using vec_t = __m64;
-#define vec_load(a) (*(a))
-#define vec_store(a, b) *(a) = (b)
-#define vec_add_16(a, b) _mm_add_pi16(a, b)
-#define vec_sub_16(a, b) _mm_sub_pi16(a, b)
-#define vec_zero() _mm_setzero_si64()
-static constexpr IndexType kNumRegs = 8;
-
-#elif defined(USE_NEON)
-using vec_t = int16x8_t;
-#define vec_load(a) (*(a))
-#define vec_store(a, b) *(a) = (b)
-#define vec_add_16(a, b) vaddq_s16(a, b)
-#define vec_sub_16(a, b) vsubq_s16(a, b)
-#define vec_mulhi_16(a, b) vqdmulhq_s16(a, b)
-#define vec_set_16(a) vdupq_n_s16(a)
-#define vec_max_16(a, b) vmaxq_s16(a, b)
-#define vec_min_16(a, b) vminq_s16(a, b)
-#define vec_slli_16(a, b) vshlq_s16(a, vec_set_16(b))
-#define vec_packus_16(a, b) reinterpret_cast<vec_t>(vcombine_u8(vqmovun_s16(a), vqmovun_s16(b)))
-#define vec_zero() \
-	vec_t { 0 }
-static constexpr IndexType kNumRegs = 16;
-
-#else
-#undef VECTOR
-
-#endif
-
 /*
  例) SFNN1536のときのkNumChunksの計算
 
@@ -156,12 +69,13 @@ static constexpr IndexType kNumRegs = 16;
 └─────────┴───────────────┴─────────────────┴────────────┘
 */
 
-constexpr IndexType MaxChunkSize = 16;
-
 // Input feature converter
 // 入力特徴量変換器
 class FeatureTransformer {
    private:
+#if defined(VECTOR)
+    using vec_t = SIMD::vec_t;
+#endif
   // SIMD width (in bytes)
   // SIMD幅（バイト単位）
   // Stockfishでは削除済みだが、従来NNUEの変換ではこの幅を使う。
@@ -182,12 +96,6 @@ class FeatureTransformer {
 	// Number of output dimensions for one side
 	// 片側分の出力の次元数
 	static constexpr IndexType kHalfDimensions = kTransformedFeatureDimensions;
-
-#if defined(VECTOR)
-	//static constexpr IndexType kTileHeight = kNumRegs * sizeof(vec_t) / 2;
-	//static_assert(kHalfDimensions % kTileHeight == 0, "kTileHeight must divide kHalfDimensions");
-	// ⇨  AVX-512でこの制約守れないっぽ。
-#endif
 
    public:
 	// Output type
@@ -518,11 +426,7 @@ class FeatureTransformer {
 
 #if defined(VECTOR) && !defined(NNUE_SMALL_SFNN_FT)
 			// Packed output is sizeof(vec_t) bytes for each SIMD register
-#if defined(USE_AVX512)
-			constexpr IndexType OutputChunkSize = 64;
-#else
-			constexpr IndexType OutputChunkSize = kSimdWidth;
-#endif
+			constexpr IndexType OutputChunkSize = MaxChunkSize;
 		static_assert((kHalfDimensions / 2) % OutputChunkSize == 0);
 		constexpr IndexType NumOutputChunks = kHalfDimensions / 2 / OutputChunkSize;
 
@@ -893,7 +797,7 @@ class FeatureTransformer {
 	static_assert(kHalfDimensions % kVectorHeight == 0, "kVectorHeight must divide kHalfDimensions");
 	static constexpr IndexType kNumVectorChunks = kHalfDimensions / kVectorHeight;
 	static constexpr IndexType kTileRegs = [] {
-		IndexType regs = std::min(kNumRegs, kNumVectorChunks);
+		IndexType regs = std::min<IndexType>(NumRegistersSIMD, kNumVectorChunks);
 		while (kNumVectorChunks % regs != 0)
 			--regs;
 		return regs;

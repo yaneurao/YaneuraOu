@@ -31,6 +31,7 @@
 #endif
 
 #include "../types.h"
+#include "nnue_common.h"
 
 // HACK: Use _mm256_loadu_si256() instead of _mm256_load_si256. Otherwise a binary
 //       compiled with older g++ crashes because the output memory is not aligned
@@ -72,9 +73,109 @@
 #endif
 
 // Stockfishと同じ配置・名前空間でNNUEのSIMDヘルパーを提供する。
-// FT用のベクトル型・マクロは、現在はnnue_feature_transformer.h側で定義する。
+// FT用のベクトル型・マクロもここに集約し、評価実装から共有する。
 // LSX/LASX/RVVのincludeは命令の宣言を読むためのもので、計算経路の移植とは別。
 namespace YaneuraOu::Eval::NNUE::SIMD {
+
+// If vector instructions are enabled, we update and refresh the
+// accumulator tile by tile such that each tile fits in the CPU's
+// vector registers.
+// CPUのベクトルレジスタに収まるタイル単位で累積値を更新・再構築する。
+#define VECTOR
+
+#if defined(USE_AVX512)
+using vec_t = __m512i;
+#define vec_load(a) _mm512_load_si512(a)
+#define vec_store(a, b) _mm512_store_si512(a, b)
+#define vec_add_16(a, b) _mm512_add_epi16(a, b)
+#define vec_sub_16(a, b) _mm512_sub_epi16(a, b)
+#define vec_mulhi_16(a, b) _mm512_mulhi_epi16(a, b)
+#define vec_set_16(a) _mm512_set1_epi16(a)
+#define vec_max_16(a, b) _mm512_max_epi16(a, b)
+#define vec_min_16(a, b) _mm512_min_epi16(a, b)
+#define vec_slli_16(a, b) _mm512_slli_epi16(a, b)
+#define vec_packus_16(a, b) _mm512_packus_epi16(a, b)
+#define vec_zero() _mm512_setzero_si512()
+#if defined(NNUE_FT_REGS)
+static_assert(NNUE_FT_REGS >= 1 && NNUE_FT_REGS <= 24, "NNUE_FT_REGS must be in [1, 24]");
+#define NumRegistersSIMD NNUE_FT_REGS
+#define MaxChunkSize 64
+#else
+// Stockfishの16とは異なり、既存のAVX512向け24レジスタ最適化を維持する。
+#define NumRegistersSIMD 24
+#define MaxChunkSize 64
+#endif
+
+#elif defined(USE_AVX2)
+// Stockfishの12とは異なり、既存の16レジスタ設定を維持する。
+using vec_t = __m256i;
+#define vec_load(a) _mm256_load_si256(a)
+#define vec_store(a, b) _mm256_store_si256(a, b)
+#define vec_add_16(a, b) _mm256_add_epi16(a, b)
+#define vec_sub_16(a, b) _mm256_sub_epi16(a, b)
+#define vec_mulhi_16(a, b) _mm256_mulhi_epi16(a, b)
+#define vec_set_16(a) _mm256_set1_epi16(a)
+#define vec_max_16(a, b) _mm256_max_epi16(a, b)
+#define vec_min_16(a, b) _mm256_min_epi16(a, b)
+#define vec_slli_16(a, b) _mm256_slli_epi16(a, b)
+#define vec_packus_16(a, b) _mm256_packus_epi16(a, b)
+#define vec_zero() _mm256_setzero_si256()
+#define NumRegistersSIMD 16
+#define MaxChunkSize 32
+
+#elif defined(USE_SSE2)
+// Stockfishの12/6とは異なり、既存の64bit/32bit向け16/8レジスタ設定を維持する。
+using vec_t = __m128i;
+#define vec_load(a) (*(a))
+#define vec_store(a, b) *(a) = (b)
+#define vec_add_16(a, b) _mm_add_epi16(a, b)
+#define vec_sub_16(a, b) _mm_sub_epi16(a, b)
+#define vec_mulhi_16(a, b) _mm_mulhi_epi16(a, b)
+#define vec_set_16(a) _mm_set1_epi16(a)
+#define vec_max_16(a, b) _mm_max_epi16(a, b)
+#define vec_min_16(a, b) _mm_min_epi16(a, b)
+#define vec_slli_16(a, b) _mm_slli_epi16(a, b)
+#define vec_packus_16(a, b) _mm_packus_epi16(a, b)
+#define vec_zero() _mm_setzero_si128()
+#define NumRegistersSIMD (Is64Bit ? 16 : 8)
+#define MaxChunkSize 16
+
+#elif defined(USE_MMX)
+using vec_t = __m64;
+#define vec_load(a) (*(a))
+#define vec_store(a, b) *(a) = (b)
+#define vec_add_16(a, b) _mm_add_pi16(a, b)
+#define vec_sub_16(a, b) _mm_sub_pi16(a, b)
+#define vec_zero() _mm_setzero_si64()
+#define NumRegistersSIMD 8
+#define MaxChunkSize 8
+
+#elif defined(USE_NEON)
+using vec_t = int16x8_t;
+#define vec_load(a) (*(a))
+#define vec_store(a, b) *(a) = (b)
+#define vec_add_16(a, b) vaddq_s16(a, b)
+#define vec_sub_16(a, b) vsubq_s16(a, b)
+#define vec_mulhi_16(a, b) vqdmulhq_s16(a, b)
+#define vec_set_16(a) vdupq_n_s16(a)
+#define vec_max_16(a, b) vmaxq_s16(a, b)
+#define vec_min_16(a, b) vminq_s16(a, b)
+#define vec_slli_16(a, b) vshlq_s16(a, vec_set_16(b))
+#define vec_packus_16(a, b) reinterpret_cast<vec_t>(vcombine_u8(vqmovun_s16(a), vqmovun_s16(b)))
+#define vec_zero() \
+	vec_t { 0 }
+#define NumRegistersSIMD 16
+#define MaxChunkSize 16
+
+#else
+#undef VECTOR
+
+#endif
+
+#ifdef VECTOR
+static_assert(MaxChunkSize == sizeof(vec_t), "MaxChunkSize must equal one vector.");
+#endif
+
 
 
 #if defined(USE_AVX512)
