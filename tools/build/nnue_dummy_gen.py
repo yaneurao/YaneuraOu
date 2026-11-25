@@ -7,10 +7,8 @@ import random
 import struct
 
 from nnue_arch_common import (
-    SFNN_HAND_BUCKETS,
-    SFNN_KING_BUCKETS,
-    SFNN_PROGRESS_BUCKETS,
-    normalize_sfnn_bucket_spec,
+    SfnnBucketError,
+    parse_sfnn_buckets,
     sfnn_hidden1_output_dims,
     strip_nnue_arch_prefixes,
 )
@@ -169,35 +167,18 @@ def write_progress_parameters(stream, rng: random.Random, mode: str) -> None:
     _write_random_small_values(stream, count, rng, patterns, chunk_values=1 << 18)
 
 def parse_sfnn_layer_stack_spec(layer_stack_spec: str):
-    if layer_stack_spec == "":
-        return 1, 1, 1, 1
-
-    normalized = normalize_sfnn_bucket_spec(layer_stack_spec)
-
-    hand_buckets = 1
-    king_buckets = 1
-    progress_buckets = 1
-
-    for token in [t for t in normalized.split("_") if t]:
-        if token in SFNN_HAND_BUCKETS:
-            if hand_buckets != 1:
-                raise ValueError(f"duplicate SFNN hand bucket in {layer_stack_spec}")
-            hand_buckets = SFNN_HAND_BUCKETS[token][0]
-        elif token in SFNN_KING_BUCKETS:
-            if king_buckets != 1:
-                raise ValueError(f"duplicate SFNN king bucket in {layer_stack_spec}")
-            king_buckets = SFNN_KING_BUCKETS[token][0]
-        elif token.startswith("PROGRESS"):
-            raw = token[len("PROGRESS"):]
-            if not raw.isdigit() or int(raw) not in SFNN_PROGRESS_BUCKETS:
-                raise ValueError(f"progress bucket must be progress2/3/4/8/16/32, got {token}")
-            if progress_buckets != 1:
-                raise ValueError(f"duplicate SFNN progress bucket in {layer_stack_spec}")
-            progress_buckets = int(raw)
+    try:
+        buckets = parse_sfnn_buckets(layer_stack_spec)
+    except SfnnBucketError as error:
+        if error.kind == "unknown":
+            message = f"unsupported SFNN layer stack token: {error.token}"
+        elif error.kind == "progress_value":
+            message = f"progress bucket must be progress2/3/4/8/16/32, got {error.token}"
         else:
-            raise ValueError(f"unsupported SFNN layer stack token: {token}")
+            message = f"duplicate SFNN {error.kind} bucket in {layer_stack_spec}"
+        raise ValueError(message) from None
 
-    return hand_buckets * king_buckets * progress_buckets, hand_buckets, king_buckets, progress_buckets
+    return buckets.layer_stacks, buckets.hand_buckets, buckets.king_buckets, buckets.progress_buckets
 
 def write_normal_network(stream, transformed_dims: int, first_layer_multiplier: int, hidden1: int, hidden2: int, rng: random.Random, mode: str) -> None:
     write_u32(stream, normal_network_hash(transformed_dims, first_layer_multiplier, hidden1, hidden2))

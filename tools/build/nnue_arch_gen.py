@@ -9,10 +9,8 @@ import subprocess
 import sys
 
 from nnue_arch_common import (
-    SFNN_HAND_BUCKETS,
-    SFNN_KING_BUCKETS,
-    SFNN_PROGRESS_BUCKETS,
-    normalize_sfnn_bucket_spec,
+    SfnnBucketError,
+    parse_sfnn_buckets,
     sfnn_hidden1_output_dims,
     strip_nnue_arch_prefixes,
 )
@@ -100,54 +98,21 @@ sfnn_shard_dims = "0"
 sfnn_common_shard = False
 
 def parse_sfnn_layer_stack_spec(layer_stack_spec):
-    if layer_stack_spec == "":
-        return "NONE", "1", "1", "0", "1", "0", "1"
-
-    normalized = normalize_sfnn_bucket_spec(layer_stack_spec)
-
-    hand_buckets = 1
-    king_buckets = 1
-    progress_buckets = 1
-    hand_name = ""
-    hand_type = 0
-    king_name = ""
-    king_type = 0
-    progress_name = ""
-
-    for token in [t for t in normalized.split("_") if t]:
-        if token in SFNN_HAND_BUCKETS:
-            if hand_buckets != 1:
-                print(f"Error! : duplicate SFNN hand bucket in {layer_stack_spec}.")
-                raise SystemExit(1)
-            hand_name = token
-            hand_buckets, hand_type = SFNN_HAND_BUCKETS[token]
-        elif token in SFNN_KING_BUCKETS:
-            if king_buckets != 1:
-                print(f"Error! : duplicate SFNN king bucket in {layer_stack_spec}.")
-                raise SystemExit(1)
-            king_name = token
-            king_buckets, king_type = SFNN_KING_BUCKETS[token]
-        elif token.startswith("PROGRESS"):
-            raw = token[len("PROGRESS"):]
-            if not raw.isdigit() or int(raw) not in SFNN_PROGRESS_BUCKETS:
-                print(f"Error! : progress bucket must be progress2/3/4/8/16/32 , got {token}.")
-                raise SystemExit(1)
-            if progress_buckets != 1:
-                print(f"Error! : duplicate SFNN progress bucket in {layer_stack_spec}.")
-                raise SystemExit(1)
-            progress_name = token
-            progress_buckets = int(raw)
-        else:
-            print(f"Error! : unknown SFNN layer stack token {token} in {layer_stack_spec}.")
+    try:
+        buckets = parse_sfnn_buckets(layer_stack_spec)
+    except SfnnBucketError as error:
+        if error.kind == "unknown":
+            print(f"Error! : unknown SFNN layer stack token {error.token} in {layer_stack_spec}.")
             print("Error! : SFNN layer stack tokens are hand4/16/64/64z/256/1024, k3k3/k3k3z/k9k9/k9k9z/k13k13z/k21k21/k29k29, and progress2/3/4/8/16/32.")
-            raise SystemExit(1)
+        elif error.kind == "progress_value":
+            print(f"Error! : progress bucket must be progress2/3/4/8/16/32 , got {error.token}.")
+        else:
+            print(f"Error! : duplicate SFNN {error.kind} bucket in {layer_stack_spec}.")
+        raise SystemExit(1) from None
 
-    canonical = "_".join([name for name in [hand_name, king_name, progress_name] if name])
-    if canonical == "":
-        canonical = "NONE"
-
-    layer_count = hand_buckets * king_buckets * progress_buckets
-    return canonical, str(layer_count), str(hand_buckets), str(hand_type), str(king_buckets), str(king_type), str(progress_buckets)
+    return (buckets.canonical, str(buckets.layer_stacks), str(buckets.hand_buckets),
+            str(buckets.hand_type), str(buckets.king_buckets), str(buckets.king_type),
+            str(buckets.progress_buckets))
 
 
 if arches[0].startswith("SFNN"):
