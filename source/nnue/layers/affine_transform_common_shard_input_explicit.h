@@ -10,7 +10,7 @@
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../nnue_common.h"
-#include "simd.h"
+#include "../simd.h"
 
 namespace YaneuraOu {
 namespace Eval::NNUE::Layers {
@@ -148,7 +148,7 @@ class AffineTransformCommonShardInputExplicit {
 				    transform_accumulator_chunk<HalfDimensions>(accumulation, perspectives,
 				                                                zero, one, shift, j,
 				                                                kChunksPerPerspective);
-				Simd::m512_add_dpbusd_epi32(sum, transformed, weight_vectors[j]);
+				SIMD::m512_add_dpbusd_epi32(sum, transformed, weight_vectors[j]);
 			}
 
 			const IndexType group = out / kGroupOutputDimensions;
@@ -160,10 +160,10 @@ class AffineTransformCommonShardInputExplicit {
 				                                                zero, one, shift,
 				                                                shard_chunk_base + j,
 				                                                kChunksPerPerspective);
-				Simd::m512_add_dpbusd_epi32(sum, transformed, weight_vectors[weight_chunk_base + j]);
+				SIMD::m512_add_dpbusd_epi32(sum, transformed, weight_vectors[weight_chunk_base + j]);
 			}
 
-			output[out] = Simd::m512_hadd(sum, biases_[out]);
+			output[out] = SIMD::m512_hadd(sum, biases_[out]);
 		}
 
 		for (IndexType out = kOutputDimensions; out < kPaddedOutputDimensions; ++out)
@@ -182,16 +182,16 @@ class AffineTransformCommonShardInputExplicit {
 				    reinterpret_cast<const __m512i*>(weights_ + out * kPaddedEffectiveInputDimensions);
 
 				for (IndexType j = 0; j < kCommonDimensions / 64; ++j)
-					Simd::m512_add_dpbusd_epi32(sum, common_input_vectors[j], weight_vectors[j]);
+					SIMD::m512_add_dpbusd_epi32(sum, common_input_vectors[j], weight_vectors[j]);
 
 				const IndexType group = out / kGroupOutputDimensions;
 				const auto shard_input_vectors =
 				    reinterpret_cast<const __m512i*>(input + kCommonDimensions + group * kShardDimensions);
 				const IndexType weight_chunk_base = kCommonDimensions / 64;
 				for (IndexType j = 0; j < kShardDimensions / 64; ++j)
-					Simd::m512_add_dpbusd_epi32(sum, shard_input_vectors[j], weight_vectors[weight_chunk_base + j]);
+					SIMD::m512_add_dpbusd_epi32(sum, shard_input_vectors[j], weight_vectors[weight_chunk_base + j]);
 
-				output[out] = Simd::m512_hadd(sum, biases_[out]);
+				output[out] = SIMD::m512_hadd(sum, biases_[out]);
 			}
 
 			for (IndexType out = kOutputDimensions; out < kPaddedOutputDimensions; ++out)

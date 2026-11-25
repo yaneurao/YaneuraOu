@@ -13,7 +13,7 @@
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
 #include "../nnue_common.h"
-#include "simd.h"
+#include "../simd.h"
 
 namespace YaneuraOu::Eval::NNUE::Layers {
 
@@ -313,8 +313,8 @@ class AffineTransform {
                                         const auto col1 = reinterpret_cast<const __m512i*>(&weights_[(i + 1) * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumAccums; ++k) {
-                                                Simd::m512_add_dpbusd_epi32(acc[k], in0, col0[k]);
-                                                Simd::m512_add_dpbusd_epi32(acc[k + kNumAccums], in1, col1[k]);
+                                                SIMD::m512_add_dpbusd_epi32(acc[k], in0, col0[k]);
+                                                SIMD::m512_add_dpbusd_epi32(acc[k + kNumAccums], in1, col1[k]);
                                         }
                                 }
 
@@ -330,7 +330,7 @@ class AffineTransform {
                                         const auto  col  = reinterpret_cast<const __m512i*>(&weights_[i * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumAccums; ++k)
-                                                Simd::m512_add_dpbusd_epi32(acc[k], in, col[k]);
+                                                SIMD::m512_add_dpbusd_epi32(acc[k], in, col[k]);
                                 }
 
                                 __m512i* outptr = reinterpret_cast<__m512i*>(output);
@@ -375,8 +375,8 @@ class AffineTransform {
                                         const auto col1 = reinterpret_cast<const __m256i*>(&weights_[(i + 1) * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumAccums; ++k) {
-                                                Simd::m256_add_dpbusd_epi32(acc[k], in0, col0[k]);
-                                                Simd::m256_add_dpbusd_epi32(acc[k + kNumAccums], in1, col1[k]);
+                                                SIMD::m256_add_dpbusd_epi32(acc[k], in0, col0[k]);
+                                                SIMD::m256_add_dpbusd_epi32(acc[k + kNumAccums], in1, col1[k]);
                                         }
                                 }
 
@@ -392,7 +392,7 @@ class AffineTransform {
                                         const auto  col  = reinterpret_cast<const __m256i*>(&weights_[i * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumAccums; ++k)
-                                                Simd::m256_add_dpbusd_epi32(acc[k], in, col[k]);
+                                                SIMD::m256_add_dpbusd_epi32(acc[k], in, col[k]);
                                 }
 
                                 __m256i* outptr = reinterpret_cast<__m256i*>(output);
@@ -422,7 +422,7 @@ class AffineTransform {
                                         const auto  col = reinterpret_cast<const __m128i*>(&weights_[i * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumRegs; ++k)
-                                                Simd::m128_add_dpbusd_epi32(acc[k], in, col[k]);
+                                                SIMD::m128_add_dpbusd_epi32(acc[k], in, col[k]);
                                 }
 
                                 __m128i* outptr = reinterpret_cast<__m128i*>(output);
@@ -453,7 +453,7 @@ class AffineTransform {
                                         const auto  col = reinterpret_cast<const int32x4_t*>(&weights_[i * OutputDimensions * 4]);
 
                                         for (IndexType k = 0; k < kNumRegs; ++k)
-                                                Simd::dotprod_m128_add_dpbusd_epi32(acc[k], in, col[k]);
+                                                SIMD::dotprod_m128_add_dpbusd_epi32(acc[k], in, col[k]);
                                 }
 
                                 int32x4_t* outptr = reinterpret_cast<int32x4_t*>(output);
@@ -475,22 +475,22 @@ class AffineTransform {
                         using vec_t = __m256i;
 #define vec_setzero() _mm256_setzero_si256()
 #define vec_set_32 _mm256_set1_epi32
-#define vec_add_dpbusd_32 Simd::m256_add_dpbusd_epi32
-#define vec_hadd Simd::m256_hadd
+#define vec_add_dpbusd_32 SIMD::m256_add_dpbusd_epi32
+#define vec_hadd SIMD::m256_hadd
 #elif defined(USE_SSSE3)
                         using vec_t = __m128i;
 #define vec_setzero() _mm_setzero_si128()
 #define vec_set_32 _mm_set1_epi32
-#define vec_add_dpbusd_32 Simd::m128_add_dpbusd_epi32
-#define vec_hadd Simd::m128_hadd
+#define vec_add_dpbusd_32 SIMD::m128_add_dpbusd_epi32
+#define vec_hadd SIMD::m128_hadd
 #elif defined(USE_NEON_DOTPROD)
                         using vec_t = int32x4_t;
 #define vec_setzero() vdupq_n_s32(0)
 #define vec_set_32 vdupq_n_s32
 #define vec_add_dpbusd_32(acc, a, b) \
-                        Simd::dotprod_m128_add_dpbusd_epi32(acc, vreinterpretq_s8_s32(a), \
+                        SIMD::dotprod_m128_add_dpbusd_epi32(acc, vreinterpretq_s8_s32(a), \
                                                                                        vreinterpretq_s8_s32(b))
-#define vec_hadd Simd::neon_m128_hadd
+#define vec_hadd SIMD::neon_m128_hadd
 #endif
 
                         const auto inputVector = reinterpret_cast<const vec_t*>(input);
@@ -560,8 +560,8 @@ class AffineTransform {
                                         &weights_[(i + 1) * OutputDimensions * 4]);
 
                                 for (IndexType k = 0; k < kNumAccums; ++k) {
-                                        Simd::m512_add_dpbusd_epi32(acc[k], in0, col0[k]);
-                                        Simd::m512_add_dpbusd_epi32(acc[k + kNumAccums], in1, col1[k]);
+                                        SIMD::m512_add_dpbusd_epi32(acc[k], in0, col0[k]);
+                                        SIMD::m512_add_dpbusd_epi32(acc[k + kNumAccums], in1, col1[k]);
                                 }
                         }
 
@@ -577,7 +577,7 @@ class AffineTransform {
                                         &weights_[i * OutputDimensions * 4]);
 
                                 for (IndexType k = 0; k < kNumAccums; ++k)
-                                        Simd::m512_add_dpbusd_epi32(acc[k], in, col[k]);
+                                        SIMD::m512_add_dpbusd_epi32(acc[k], in, col[k]);
                         }
 
                         const __m512i kZero = _mm512_setzero_si512();
@@ -591,10 +591,10 @@ class AffineTransform {
                         __m512i sum = _mm512_setzero_si512();
                         const auto row0 =
                                 reinterpret_cast<const __m512i*>(&next_layer.weights_clipped_relu_packed_[0]);
-                        Simd::m512_add_dpbusd_epi32(sum, clipped, row0[0]);
+                        SIMD::m512_add_dpbusd_epi32(sum, clipped, row0[0]);
                         const __m256i sum_lo = _mm512_castsi512_si256(sum);
                         const __m256i sum_hi = _mm512_extracti64x4_epi64(sum, 1);
-                        output[0] = Simd::m256_hadd(_mm256_add_epi32(sum_lo, sum_hi),
+                        output[0] = SIMD::m256_hadd(_mm256_add_epi32(sum_lo, sum_hi),
                                                      next_layer.biases_[0]);
                 } else {
                         static_assert(OutputDimensions == 64,
@@ -756,7 +756,7 @@ class AffineTransform {
 					const auto  col  = reinterpret_cast<const __m512i*>(&weights_[i * kOutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
-						Simd::m512_add_dpbusd_epi32(acc[k], in, col[k]);
+						SIMD::m512_add_dpbusd_epi32(acc[k], in, col[k]);
 				}
 
 				__m512i* outptr = reinterpret_cast<__m512i*>(output);
@@ -786,7 +786,7 @@ class AffineTransform {
 					const auto  col  = reinterpret_cast<const __m256i*>(&weights_[i * kOutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
-						Simd::m256_add_dpbusd_epi32(acc[k], in, col[k]);
+						SIMD::m256_add_dpbusd_epi32(acc[k], in, col[k]);
 				}
 
 				__m256i* outptr = reinterpret_cast<__m256i*>(output);
@@ -816,7 +816,7 @@ class AffineTransform {
 					const auto  col = reinterpret_cast<const __m128i*>(&weights_[i * kOutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
-						Simd::m128_add_dpbusd_epi32(acc[k], in, col[k]);
+						SIMD::m128_add_dpbusd_epi32(acc[k], in, col[k]);
 				}
 
 				__m128i* outptr = reinterpret_cast<__m128i*>(output);
@@ -847,7 +847,7 @@ class AffineTransform {
 					const auto  col = reinterpret_cast<const int32x4_t*>(&weights_[i * kOutputDimensions * 4]);
 
 					for (IndexType k = 0; k < kNumRegs; ++k)
-						Simd::dotprod_m128_add_dpbusd_epi32(acc[k], in, col[k]);
+						SIMD::dotprod_m128_add_dpbusd_epi32(acc[k], in, col[k]);
 				}
 
 				int32x4_t* outptr = reinterpret_cast<int32x4_t*>(output);
@@ -869,22 +869,22 @@ class AffineTransform {
 			using vec_t = __m256i;
 #define vec_setzero() _mm256_setzero_si256()
 #define vec_set_32 _mm256_set1_epi32
-#define vec_add_dpbusd_32 Simd::m256_add_dpbusd_epi32
-#define vec_hadd Simd::m256_hadd
+#define vec_add_dpbusd_32 SIMD::m256_add_dpbusd_epi32
+#define vec_hadd SIMD::m256_hadd
 #elif defined(USE_SSSE3)
 			using vec_t = __m128i;
 #define vec_setzero() _mm_setzero_si128()
 #define vec_set_32 _mm_set1_epi32
-#define vec_add_dpbusd_32 Simd::m128_add_dpbusd_epi32
-#define vec_hadd Simd::m128_hadd
+#define vec_add_dpbusd_32 SIMD::m128_add_dpbusd_epi32
+#define vec_hadd SIMD::m128_hadd
 #elif defined(USE_NEON_DOTPROD)
 			using vec_t = int32x4_t;
 #define vec_setzero() vdupq_n_s32(0)
 #define vec_set_32 vdupq_n_s32
 #define vec_add_dpbusd_32(acc, a, b) \
-			Simd::dotprod_m128_add_dpbusd_epi32(acc, vreinterpretq_s8_s32(a), \
+			SIMD::dotprod_m128_add_dpbusd_epi32(acc, vreinterpretq_s8_s32(a), \
 												vreinterpretq_s8_s32(b))
-#define vec_hadd Simd::neon_m128_hadd
+#define vec_hadd SIMD::neon_m128_hadd
 #endif
 
 			const auto inputVector = reinterpret_cast<const vec_t*>(input);

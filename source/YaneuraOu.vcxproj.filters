@@ -172,8 +172,8 @@
     <ClInclude Include="nnue\layers\input_slice.h">
       <Filter>リソース ファイル\nnue\layers</Filter>
     </ClInclude>
-    <ClInclude Include="nnue\layers\simd.h">
-      <Filter>リソース ファイル\nnue\layers</Filter>
+    <ClInclude Include="nnue\simd.h">
+      <Filter>リソース ファイル\nnue</Filter>
     </ClInclude>
     <ClInclude Include="nnue\layers\sum.h">
       <Filter>リソース ファイル\nnue\layers</Filter>

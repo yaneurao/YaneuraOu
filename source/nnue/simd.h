@@ -1,5 +1,7 @@
-﻿#ifndef CLASSIC_SIMD_H_INCLUDED
-#define CLASSIC_SIMD_H_INCLUDED
+﻿#ifndef NNUE_SIMD_H_INCLUDED
+#define NNUE_SIMD_H_INCLUDED
+
+#include "../config.h"
 
 #if defined(USE_AVX2)
     #include <immintrin.h>
@@ -17,18 +19,19 @@
     #include <arm_neon.h>
 #endif
 
-#include "../../types.h"
+#include "../types.h"
 
 // CPU capability switch for NNUE dot-product code. For SFNN H1=7 networks
 // (fc0: ->8, packed tail: 14->64->1), measured AVX512VNNI was slower than
 // AVX512 maddubs/madd, so only that NNUE shape uses the fallback.
+// H1=7のSFNNではVNNI版よりmaddubs/madd版が速かったため、その形状だけ既存の経路を使う。
 #if defined(USE_VNNI) && !defined(NNUE_SFNN_HIDDEN1_7)
     #define USE_NNUE_VNNI
 #endif
 
-namespace YaneuraOu {
-namespace Simd
-{
+// Stockfishと同じ配置・名前空間でNNUEのSIMDヘルパーを提供する。
+// FT用のベクトル型・マクロは、現在はnnue_feature_transformer.h側で定義する。
+namespace YaneuraOu::Eval::NNUE::SIMD {
 
 
 #if defined(USE_AVX512)
@@ -37,17 +40,14 @@ namespace Simd
     return _mm512_reduce_add_epi32(sum) + bias;
 }
 
-[[maybe_unused]] static void m512_add_maddubs_epi32(__m512i& acc, __m512i a, __m512i b) {
-    __m512i product0 = _mm512_maddubs_epi16(a, b);
-    product0         = _mm512_madd_epi16(product0, _mm512_set1_epi16(1));
-    acc              = _mm512_add_epi32(acc, product0);
-}
-
 [[maybe_unused]] static void m512_add_dpbusd_epi32(__m512i& acc, __m512i a, __m512i b) {
+
     #if defined(USE_NNUE_VNNI)
     acc = _mm512_dpbusd_epi32(acc, a, b);
     #else
-    m512_add_maddubs_epi32(acc, a, b);
+    __m512i product0 = _mm512_maddubs_epi16(a, b);
+    product0         = _mm512_madd_epi16(product0, _mm512_set1_epi16(1));
+    acc              = _mm512_add_epi32(acc, product0);
     #endif
 }
 
@@ -62,17 +62,14 @@ namespace Simd
     return _mm_cvtsi128_si32(sum128) + bias;
 }
 
-[[maybe_unused]] static void m256_add_maddubs_epi32(__m256i& acc, __m256i a, __m256i b) {
-    __m256i product0 = _mm256_maddubs_epi16(a, b);
-    product0         = _mm256_madd_epi16(product0, _mm256_set1_epi16(1));
-    acc              = _mm256_add_epi32(acc, product0);
-}
-
 [[maybe_unused]] static void m256_add_dpbusd_epi32(__m256i& acc, __m256i a, __m256i b) {
+
     #if defined(USE_NNUE_VNNI)
     acc = _mm256_dpbusd_epi32(acc, a, b);
     #else
-    m256_add_maddubs_epi32(acc, a, b);
+    __m256i product0 = _mm256_maddubs_epi16(a, b);
+    product0         = _mm256_madd_epi16(product0, _mm256_set1_epi16(1));
+    acc              = _mm256_add_epi32(acc, product0);
     #endif
 }
 
@@ -129,7 +126,6 @@ namespace Simd
 #endif
 
 
-} // namespace Simd 
-} // namespace YaneuraOu
+} // namespace YaneuraOu::Eval::NNUE::SIMD
 
-#endif // ifndef SIMD_H_INCLUDED
+#endif // NNUE_SIMD_H_INCLUDED
