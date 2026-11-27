@@ -684,7 +684,7 @@ std::optional<PositionSetError> Position::set_from_packed_sfen(const PackedSfen&
 
 	//	sync_cout << sfen() << *this << pieces(BLACK) << pieces(WHITE) << pieces() << sync_endl;
 
-	//if (!is_ok(*this))
+	//if (!pos_is_ok())
 	//	std::cout << "info string Illigal Position?" << endl;
 
 	return std::nullopt;

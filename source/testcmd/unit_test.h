@@ -29,7 +29,7 @@ namespace Test {
 		~UnitTester();
 
 		// Test用のコマンド
-		// 例) tester.test("局面の整合性テストその1",pos.is_ok());
+		// 例) tester.test("局面の整合性テストその1",pos.pos_is_ok());
 		void test(const std::string& message, bool b);
 
 		// Section()を呼び出した時に返す、インスタンス用の型

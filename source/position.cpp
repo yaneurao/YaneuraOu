@@ -913,7 +913,7 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
 
 #if ASSERT_LV >= 3
     // これassertにしてしまうと、先手玉のいない局面や駒落ちの局面で落ちて困る。
-    if (!is_ok(*this))
+    if (!pos_is_ok())
         std::cout << "info string Illigal Position?" << std::endl;
 		// ⚠ UnitTestで駒落ちのテストをするので、そのときに引っかかるが…。
 #endif

@@ -1399,11 +1399,6 @@ inline Value Position::material_value() const { return st->materialValue; }
 #endif
 
 #if !STOCKFISH
-
-inline bool is_ok(Position& pos) { return pos.pos_is_ok(); }
-#endif
-
-#if !STOCKFISH
 // 🚧
 
 

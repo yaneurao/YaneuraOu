@@ -53,7 +53,7 @@ namespace Test
 	}
 
 	// Test用のコマンド
-	// 例) tester.test("局面の整合性テストその1",pos.is_ok());
+	// 例) tester.test("局面の整合性テストその1",pos.pos_is_ok());
 	void UnitTester::test(const std::string& message, bool b)
 	{
 		stringstream ss;
