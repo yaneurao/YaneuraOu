@@ -986,8 +986,13 @@ void Position::update_slider_blockers(Color c) const {
 
 	Square ksq = square<KING>(c);
 
+#if STOCKFISH
     st->blockersForKing[c] = ZERO;
     st->pinners[~c]        = ZERO;
+#else
+    // 計算途中の値は他で参照しない。ループ中はレジスターに集計し、最後に一度だけ書き戻す。
+    Bitboard blockersForKing(ZERO), pinners(ZERO);
+#endif
 
     // Snipers are sliders that attack 's' when a piece and other snipers are removed
     // snipersは、間の駒と他のsnipersを取り除くと玉の升へ利く長い利きの駒。
@@ -1043,11 +1048,22 @@ void Position::update_slider_blockers(Color c) const {
         if (POPCNT64(b.merge()) == 1)
 #endif
         {
+#if STOCKFISH
             st->blockersForKing[c] |= b;
             if (b & pieces(c))
                 st->pinners[~c] |= sniperSq;
+#else
+            blockersForKing |= b;
+            if (b & pieces(c))
+                pinners |= sniperSq;
+#endif
         }
     }
+#if !STOCKFISH
+    StateInfo* const state = st;
+    state->blockersForKing[c] = blockersForKing;
+    state->pinners[~c]        = pinners;
+#endif
 }
 
 

@@ -445,6 +445,28 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
                     quiets.contains(make_move(SQ_57, SQ_56, B_GOLD))
                       && !quiets.contains(make_move(SQ_57, SQ_47, B_GOLD)));
 
+        // 異なる直線のピンを両方蓄積し、再計算でも同じ集合を得る。
+        pos_init("4r3k/9/9/9/8b/9/4G4/5S3/4K4 b - 1");
+        const Bitboard twoBlockers = square_bb(SQ_57) | SQ_48;
+        const Bitboard twoPinners = square_bb(SQ_51) | SQ_15;
+        bool multiplePins = pos.blockers_for_king(BLACK) == twoBlockers
+                         && pos.pinners(WHITE) == twoPinners;
+        pos.update_slider_blockers(BLACK);
+        tester.test("accumulate blockers and pinners on separate rays",
+                    multiplePins && pos.blockers_for_king(BLACK) == twoBlockers
+                                 && pos.pinners(WHITE) == twoPinners);
+
+        // 同じ筋に複数の敵飛車がある場合、遠い飛車もpinnersへ残す。
+        pos_init("4r3k/9/4r4/9/9/9/4G4/9/4K4 b - 1");
+        tester.test("accumulate pinners sharing one blocker",
+                    pos.blockers_for_king(BLACK) == square_bb(SQ_57)
+                      && pos.pinners(WHITE) == (square_bb(SQ_51) | SQ_53));
+
+        // 遮る駒が2枚ならピンにならず、結果として空集合を書き戻す。
+        pos_init("4r3k/9/9/9/9/4S4/4G4/9/4K4 b - 1");
+        tester.test("write empty blocker and pinner sets",
+                    !pos.blockers_for_king(BLACK) && !pos.pinners(WHITE));
+
         // 王手している飛車の利きへ玉を動かす手は生成せず、合駒は生成する。
         pos_init("4k4/9/9/9/4r4/9/9/9/4K4 b G 1");
         auto evasions = MoveList<LEGAL_ALL>(pos);
