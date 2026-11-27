@@ -280,19 +280,6 @@ std::optional<PositionSetError> Engine::set_position(const std::string&         
 }
 
 
-#if 0
-void Engine::usinewgame()
-{
-	wait_for_search_finished();
-
-	//tt.clear(threads);
-	threads.clear();
-
-	// @TODO wont work with multiple instances
-	//Tablebases::init(options["SyzygyPath"]);  // Free mapped files
-	// 📌 将棋ではTablebasesは用いない。
-}
-#endif
 
 void Engine::isready()
 {

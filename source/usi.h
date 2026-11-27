@@ -117,12 +117,6 @@ public:
 	// cpからValueへ。to_cpの逆変換。
 	static Value cp_to_value(int v);
 
-	// スコアを歩の価値を100として正規化して出力する。
-	// MATEではないスコアなら"cp x"のように出力する。
-	// MATEのスコアなら、"mate x"のように出力する。
-	// 
-	static std::string value(Value v);
-
     // USIの指し手文字列などに使われている盤上の升を表す文字列をSquare型に変換する
     // 変換できなかった場合はSQ_NBが返る。高速化のために用意した。
     static Square usi_to_sq(char f, char r);
