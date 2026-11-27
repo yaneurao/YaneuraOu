@@ -489,27 +489,18 @@ class Position {
 	// 現局面で王手している駒
 	Bitboard checkers() const;
 
-	// c側の玉に対してpinしている駒(その駒をc側の玉との直線上から動かしたときにc側の玉に王手となる)
+	// c側の玉への遠方駒の利きを遮る駒。自駒・敵駒の両方を含む。
 	Bitboard blockers_for_king(Color c) const;
-
-#if !STOCKFISH
-	// ↑のtemplate版
-	template <Color C>
-	Bitboard blockers_for_king() const { return st->blockersForKing[C]; }
-#endif
 
 	// 現局面で駒Ptを動かしたときに王手となる升を表現するBitboard
 	Bitboard check_squares(PieceType pt) const;
 
-	// c側の玉に対してpinしている駒
-	// ※ pinされているではなく、pinしているということに注意。
-	// 　すなわち、pinされている駒が移動した時に、この大駒によって王が素抜きにあう。
+	// c側の遠方駒のうち、相手の駒を相手玉に対してピンしている駒。
+	// blockers_for_king(c)とは異なり、c側の玉を遮る駒の集合ではない。
+	// ピンされた相手駒が直線を外れると、この遠方駒が相手玉へ利く。
 	Bitboard pinners(Color c) const;
 
 #if !STOCKFISH
-	// c側の玉に対して、指し手mが空き王手となるのか。
-	bool is_discovery_check_on_king(Color c, Move m) const { return st->blockersForKing[c] & m.from_sq(); }
-
 	// 現局面で王手がかかっているか。
 	// 📝 StockfishのBitboardはuint64_tだが、将棋では128bit構造体なので
 	//     boolへの変換を暗黙でやりたくない。

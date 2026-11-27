@@ -796,7 +796,7 @@ namespace Mate {
         Bitboard dcCandidates = pos.blockers_for_king(Them) & pos.pieces(Us);
 
 		// 相手玉側のpinされている駒の列挙(相手玉側は、この駒を動かすと素抜きに遭う)
-        Bitboard pinned = pos.blockers_for_king<Them>() & pos.pieces(Them);
+        Bitboard pinned = pos.blockers_for_king(Them) & pos.pieces(Them);
 	
 		Square from, to;
 
@@ -980,7 +980,7 @@ namespace Mate {
 		Bitboard bb_check;
 
 		// 自分のpin駒
-        Bitboard our_pinned = pos.blockers_for_king<Us>() & pos.pieces(Us);
+        Bitboard our_pinned = pos.blockers_for_king(Us) & pos.pieces(Us);
 
 		// 自玉
         Square our_king = pos.square<KING>(Us);

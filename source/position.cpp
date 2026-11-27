@@ -2140,9 +2140,9 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 
             // 2) 開き王手になるのか
             const Square ksq = square<KING>(them);
-            // pos->discovered_check_candidates()で取得したいが、もうstを更新してしまっているので出来ないので
-            // prevSt->blockersForKing[~Us] & pieces(Us)と愚直に書く。
-            // また、pieces(Us)のうち今回移動させる駒は、実はすでに移動させてしまっているので、fromと書く。
+            // stは着手後へ切り替わっているので、着手前のblockersForKingはprevStから読む。
+            // 自駒の候補だけを調べるが、移動した駒はすでにpieces(Us)のfromから消えているため、
+            // 着手前にその駒があったfromの升でマスクする。
 
             if (discovered(from, to, ksq, prevSt->blockersForKing[them] & from))
             {
