@@ -644,7 +644,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
                     if (ml.size() == 0)
                         break;
 
-                    Move m = Move(ml.at(size_t(my_rand.rand(ml.size()))));
+                    Move m = ml.begin()[my_rand.rand(ml.size())];
                     pos.do_move(m);
 
 					// 📓 sfen経由でset()を呼び出す。この時、set()によってpartial keyが初期化される。
@@ -802,7 +802,7 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
                     if (ml.size() == 0)
                         break;
 
-                    Move m = Move(ml.at(size_t(my_rand.rand(ml.size()))));
+                    Move m = ml.begin()[my_rand.rand(ml.size())];
 
                     pos.do_move(m);
 

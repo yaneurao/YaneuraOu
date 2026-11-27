@@ -99,7 +99,7 @@ struct ExtMove: public Move {
 #else
     // Move型から暗黙で代入できる。
     // 💡 こうしておけば、MoveList* curに対して *cur++ = move; のように書ける。
-    void operator=(const Move m) { data = m.to_u32(); }
+    void operator=(Move m) { data = m.to_u32(); }
 #endif
 
 	// 補足 : このクラスの変数をMove型にしたいときは、このクラスの変数を Move(m) のようにすれば良い。
@@ -161,20 +161,11 @@ struct MoveList {
     const Move* end() const { return last; }
 
 	// 生成された指し手の数
-    usize size() const { return last - moveList; }
+    usize       size() const { return last - moveList; }
 
 	// 生成された指し手のなかに引数で指定された指し手が含まれているかの判定。
     // ⚠ ASSERTなどで用いる。遅いので通常探索等では用いないこと。
     bool        contains(Move move) const { return std::find(begin(), end(), move) != end(); }
-
-#if !STOCKFISH
-	// 🌈 i番目の要素を返す
-	// 📝 生成された合法手からランダムに選びたい時などに用いる。
-    const Move at(usize i) const {
-        ASSERT_LV3(i < size());
-        return begin()[i];
-    }
-#endif
 
    private:
     // moveList : 指し手生成バッファ。自前で持っている。
