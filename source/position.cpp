@@ -688,30 +688,57 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
     // the game instead of KQkq and also X-FEN standard that, in case of Chess960,
     // if an inner rook is associated with the castling right, the castling tag is
     // replaced by the file letter of the involved rook, as for the Shredder-FEN.
-
-    while ((ss >> token) && !std::isspace(token))
+    // 3. キャスリング権。通常のFEN、ルークの開始筋を使うShredder-FEN、
+    // Chess960で内側のルークを指定するときに筋の文字を使うX-FENに対応する。
+    //
+    // NOTE: Due to the prevalence of incorrect (or missing) castling rights the
+    // validation is less strict. However, incorrect castling rights are still sanitized.
+    // 注: 不正または欠落したキャスリング権の指定が多いため、検証は厳格にしすぎない。
+    // ただし、成立しないキャスリング権は取り除く。
+    int num_castling_rights = 0;
+    for (;;)
     {
-        Square rsq;
-        Color  c    = std::islower(token) ? BLACK : WHITE;
-        Piece  rook = make_piece(c, ROOK);
+        if (!(ss >> token))
+            break;
 
-        token = char(std::toupper(token));
+        if (isspace(token))
+            break;
 
-        if (token == 'K')
-            for (rsq = relative_square(c, SQ_H1); piece_on(rsq) != rook; --rsq)
-            {}
+        if (num_castling_rights == 0 && token == '-')
+        {
+            ss >> std::ws;
+            break;
+        }
 
-        else if (token == 'Q')
-            for (rsq = relative_square(c, SQ_A1); piece_on(rsq) != rook; ++rsq)
-            {}
+        if (++num_castling_rights > 4)
+            return PositionSetError("Invalid FEN. Maximum of 4 castling rights can be specified.");
 
-        else if (token >= 'A' && token <= 'H')
-            rsq = make_square(File(token - 'A'), relative_rank(c, RANK_1));
+        char upper = toupper(token);
+        if (upper != 'K' && upper != 'Q' && (upper < 'A' || upper > 'H'))
+            return PositionSetError(std::string("Invalid FEN. Expected castling rights. Got: ")
+                                    + std::string(1, token));
 
-        else
+        Color  c   = islower(token) ? BLACK : WHITE;
+        Square ksq = square<KING>(c);
+
+        if (rank_of(ksq) != relative_rank(c, RANK_1) || file_of(ksq) == FILE_A
+            || file_of(ksq) == FILE_H)
             continue;
 
-        set_castling_right(c, rsq);
+        Bitboard rooks = pieces(c, ROOK);
+        if (upper == 'K')
+            rooks &= between_bb(ksq, relative_square(c, SQ_H1));
+        else if (upper == 'Q')
+            rooks &= between_bb(ksq, relative_square(c, SQ_A1));
+        else
+            rooks &=
+              square_bb(make_square(static_cast<File>(upper - 'A'), relative_rank(c, RANK_1)));
+
+        if (rooks)
+        {
+            Square rsq = upper == 'K' ? msb(rooks) : lsb(rooks);
+            set_castling_right(c, rsq);
+        }
     }
 
     // 4. En passant square.
