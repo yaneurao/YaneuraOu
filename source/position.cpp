@@ -82,10 +82,91 @@ namespace Zobrist {
 
 #if STOCKFISH
 
-HASH_KEY psq[PIECE_NB][SQUARE_NB];
-HASH_KEY enpassant[FILE_NB];
-HASH_KEY castling[CASTLING_RIGHT_NB];
-HASH_KEY side;
+// constexpr-generated Zobrist constants
+// constexprで生成するZobrist定数。
+struct Keys {
+    Key psq[PIECE_NB][SQUARE_NB];
+    Key enpassant[FILE_NB];
+    Key castling[CASTLING_RIGHT_NB];
+};
+
+constexpr Keys generate_keys() {
+    Keys k{};
+    u64  s    = 1070372;
+    auto next = [&s] {
+        s ^= s >> 12;
+        s ^= (s << 25) & 0xFFFFFFFFFFFFFFFFULL;
+        s ^= s >> 27;
+        return Key((s * 2685821657736338717ULL) & 0xFFFFFFFFFFFFFFFFULL);
+    };
+    for (Piece pc : {W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING, B_PAWN, B_KNIGHT,
+                     B_BISHOP, B_ROOK, B_QUEEN, B_KING})
+        for (Square sq = SQ_A1; sq <= SQ_H8; ++sq)
+            k.psq[pc][sq] = next() << 1;
+    // Pawns on these squares will promote: keep the impossible placements zero
+    // この段へ到達した歩は昇格するため、存在しない配置のキーは0のままにする。
+    for (Square sq = SQ_A8; sq <= SQ_H8; ++sq)
+        k.psq[W_PAWN][sq] = Key(0);
+    for (Square sq = SQ_A1; sq <= SQ_H1; ++sq)
+        k.psq[B_PAWN][sq] = Key(0);
+    for (auto& e : k.enpassant)
+        e = next() << 1;
+    for (auto& c : k.castling)
+        c = next() << 1;
+    return k;
+}
+
+constexpr Keys keys = generate_keys();
+
+constexpr auto& psq       = keys.psq;
+constexpr auto& enpassant = keys.enpassant;
+constexpr auto& castling  = keys.castling;
+// The least significant bit of keys is used to store the side to move.
+// The psq, enpassant and castling keys should have that bit set to zero.
+// キーの最下位bitは手番に使う。psq・enpassant・castlingでは、このbitを0にする。
+constexpr Key side = 1ULL;
+
+// No combination of ep and castling key components may cancel, so that a
+// matching piecePlacement and Zobrist key guarantee a unique position.
+// 駒配置とZobristキーが一致すれば局面も一意に定まるよう、
+// en passantとキャスリングのキー成分が相殺する組み合わせを許さない。
+static_assert(
+  [] {
+      for (int a = 0; a < CASTLING_RIGHT_NB; ++a)
+          for (int b = a; b < CASTLING_RIGHT_NB; ++b)
+              for (int f1 = 0; f1 <= FILE_NB; ++f1)  // 0 means no ep component
+                  // 0はen passantの成分がないことを表す。
+                  for (int f2 = f1; f2 <= FILE_NB; ++f2)
+                  {
+                      Key cr = castling[a] ^ castling[b];
+                      Key ep = (f1 ? enpassant[f1 - 1] : 0) ^ (f2 ? enpassant[f2 - 1] : 0);
+                      if (a == b && f1 == f2)
+                          continue;  // identical components
+                          // 同一の成分同士は検査しない。
+                      if ((cr ^ ep) == 0)
+                          return false;  // a cancellation exists
+                          // 相殺する組み合わせが存在する。
+                  }
+      return true;
+  }(),
+  "Zobrist ep/castling keys must not cancel: matching piecePlacement "
+  "and key guarantee a unique position");
+
+// the least significant bit is reserved for the side to move
+// 最下位bitは手番専用に予約する。
+static_assert(
+  [] {
+      bool any = false;
+      for (auto& row : psq)
+          for (Key e : row)
+              any |= (e & 1ULL);
+      for (Key e : castling)
+          any |= (e & 1ULL);
+      for (Key e : enpassant)
+          any |= (e & 1ULL);
+      return !any;
+  }(),
+  "Least significant bit of psq, castling and ep keys must be zero");
 
 #else
 
@@ -111,6 +192,8 @@ HASH_KEY hand[COLOR_NB][PIECE_HAND_NB];
 //       Zorbrist keyの初期化
 // ----------------------------------
 
+// 将棋版は既存のseed・生成順と可変長HASH_KEYを維持するため、起動時に初期化する。
+#if !STOCKFISH
 void Position::init() {
 	PRNG rng(20151225); // 開発開始日 == 電王トーナメント2015,最終日
 
@@ -145,6 +228,7 @@ void Position::init() {
                 set_rand(Zobrist::hand[c][pr]);
 
 }
+#endif
 
 // ----------------------------------
 //  Partial Keyの更新のためのヘルパー
