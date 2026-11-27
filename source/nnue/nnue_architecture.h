@@ -135,11 +135,15 @@ template<Side AssociatedKing> class HalfKA_hm2;
 	static_assert(std::is_same_v<NetworkArchitecture::OutputType, i32>, "");
 #endif
 
+// Feature identity shared by the multi-ply and direct Finny paths.
+// 複数手の遅延更新と盤面から直接更新するFinny経路で共用する特徴量の型判定。
+inline constexpr bool kUseHalfKAHm2 = std::is_same_v<
+  RawFeatures, Features::FeatureSet<Features::HalfKA_hm2<Features::Side::kFriend>>>;
+
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
     // Multi-ply updates currently support this single feature set only.
     // 複数手の差分更新は、現在この単一特徴量の組み合わせに対応する。
-    inline constexpr bool kUseMultiPly = std::is_same_v<
-      RawFeatures, Features::FeatureSet<Features::HalfKA_hm2<Features::Side::kFriend>>>;
+    inline constexpr bool kUseMultiPly = kUseHalfKAHm2;
 #else
     inline constexpr bool kUseMultiPly = false;
 #endif

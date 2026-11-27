@@ -1270,13 +1270,8 @@ class FeatureTransformer {
 			RawFeatures::append_active_indices(pos, kRefreshTriggers[i], active_indices);
 			for (int c = 0; c < COLOR_NB; ++c) {
 				const Color perspective = static_cast<Color>(c);
-#if defined(VECTOR)
-				auto* current = accumulator.accumulation[perspective][i];
-				refresh_accumulator_from_scratch<Packed>(current, active_indices[perspective], i);
-#else
-				refresh_accumulator_from_scratch<Packed>(
-					accumulator.accumulation[perspective][i], active_indices[perspective], i);
-#endif
+                refresh_accumulator_from_scratch<Packed>(
+                  accumulator.accumulation[perspective][i], active_indices[perspective], i);
 			}
 		}
 
