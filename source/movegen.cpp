@@ -490,7 +490,7 @@ Move* generate_evasions(const Position& pos, Move* moveList)
 
 	// この関数を呼び出しているということは、王手がかかっているはずであり、
 	// 王手をしている駒があるばすだから、checkers(王手をしている駒)が存在しなければおかしいのでassertを入れてある
-	ASSERT_LV2(pos.in_check());
+	ASSERT_LV2(pos.checkers());
 
 	// 自玉に王手をかけている敵の駒の利き(そこには玉は移動できないので)
 	Bitboard sliderAttacks = Bitboard(ZERO);
@@ -946,7 +946,7 @@ Move* generate(const Position& pos, Move* moveList, Square recapSq)
 
 		// 合法性な指し手のみを生成する。
 		// 自殺手や打ち歩詰めが含まれているのでそれを取り除く。かなり重い。ゆえにLEGALは特殊な状況でしか使うべきではない。
-		auto last = pos.in_check() ? generateEvasionMoves<All>(pos, moveList) : generate<NON_EVASIONS, All>(pos, moveList);
+		auto last = pos.checkers() ? generateEvasionMoves<All>(pos, moveList) : generate<NON_EVASIONS, All>(pos, moveList);
 
 		// 合法ではない指し手を末尾の指し手と入れ替え
 		while (moveList != last)
@@ -966,7 +966,7 @@ Move* generate(const Position& pos, Move* moveList, Square recapSq)
 
 		// 王手がかかっている局面においては王手生成において、回避手になっていない指し手も含まれるので(王手放置での駒打ち等)
 		// pseudo_legal()でない指し手はここで除外する。これはレアケースなので少々の無駄は許容する。
-		if (pos.in_check())
+		if (pos.checkers())
 			while (moveList != last)
 			{
 				if (!pos.pseudo_legal_s<All>(*moveList))

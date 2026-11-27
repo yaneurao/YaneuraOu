@@ -250,7 +250,7 @@ MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceTo
     {
 
     // ProbCutから呼び出されているので王手はかかっていないはず。
-    ASSERT_LV3(!pos.in_check());
+    ASSERT_LV3(!pos.checkers());
 
     // PROBCUT段階ではSEEがthreshold以上の手を返す。
     // 先行するTT手については、捕獲と合法性の条件を確認する。

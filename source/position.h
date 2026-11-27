@@ -488,13 +488,6 @@ class Position {
 	// ピンされた相手駒が直線を外れると、この遠方駒が相手玉へ利く。
 	Bitboard pinners(Color c) const;
 
-#if !STOCKFISH
-	// 現局面で王手がかかっているか。
-	// 📝 StockfishのBitboardはuint64_tだが、将棋では128bit構造体なので
-	//     boolへの変換を暗黙でやりたくない。
-    bool in_check() const { return checkers(); }
-#endif
-
     // -----------------------
     // Attacks to/from a given square
 	// 与えられたマスへ/から の 利き

@@ -984,7 +984,7 @@ namespace Mate::Dfpn32
 		template <bool or_node>
 		void ExpandNode(Position& pos, NodeType* node)
 		{
-			pos.in_check() ? ExpandNode<or_node,true>(pos, node) : ExpandNode<or_node,false>(pos, node);
+			pos.checkers() ? ExpandNode<or_node,true>(pos, node) : ExpandNode<or_node,false>(pos, node);
 
 			nodes_searched++;
 		}
@@ -1163,7 +1163,7 @@ namespace Mate::Dfpn32
 #if 1
 			// このnodeで1手詰めであるなら、その1手だけの子ノードを生成して、このノードにぶら下げておく。
 			// mate_1ply()、王手がかかっていると呼び出せないので、王手がかかっていない時だけ。
-			if (or_node && !pos.in_check())
+			if (or_node && !pos.checkers())
 			{
 				Move mate_move = Mate::mate_1ply(pos);
 				if (mate_move != Move::none())

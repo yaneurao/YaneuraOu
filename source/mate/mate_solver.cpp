@@ -110,7 +110,7 @@ namespace Mate {
 		else if (ply == 1)
 			// 王手がかかっていないなら1手詰めを呼び出せるが、王手がかかっているなら1手詰めを呼べないので
 			// evasionのなかから詰む指し手を探す必要がある。レアケースなので、ここでは不詰み扱いをしておく。
-			return !pos.in_check() ? mate_1ply(pos) : Move::none();
+			return !pos.checkers() ? mate_1ply(pos) : Move::none();
 
 		// OR接点なので一つでも詰みを見つけたらそれで良し。
 
@@ -263,8 +263,8 @@ namespace Mate {
 		root_game_ply = pos.game_ply();
 
 		// 2×2の四通りのtemplateを呼び分ける。
-		return GEN_ALL ? (pos.in_check() ? mate_odd_ply<true,true >(pos, depth) : mate_odd_ply<false,true >(pos, depth))
-		               : (pos.in_check() ? mate_odd_ply<true,false>(pos, depth) : mate_odd_ply<false,false>(pos, depth));
+		return GEN_ALL ? (pos.checkers() ? mate_odd_ply<true,true >(pos, depth) : mate_odd_ply<false,true >(pos, depth))
+		               : (pos.checkers() ? mate_odd_ply<true,false>(pos, depth) : mate_odd_ply<false,false>(pos, depth));
 	}
 
 

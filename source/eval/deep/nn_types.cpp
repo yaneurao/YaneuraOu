@@ -222,7 +222,7 @@ const InputFeatureSpec& input_feature_spec() {
 		}
 
 		// 王手がかかっているか(のlayerが1枚)
-		if (position.in_check()) {
+		if (position.checkers()) {
 			// std::fill_n((*features2)[MAX_FEATURES2_HAND_NUM], SQ_NB, dtype_one);
 			int f2idx = f2idx_b + (int)MAX_FEATURES2_HAND_NUM;
 			packed_features2[f2idx >> 3] |= (1 << (f2idx & 7));
@@ -491,10 +491,10 @@ void make_input_features_sub(const Position& position,
         }
     }
 
-    if (position.in_check())
+    if (position.checkers())
     {
         // 王手がかかっているか(のlayerが1枚)
-        // std::fill_n((*features2)[MAX_FEATURES2_HAND_NUM], SQ_NB, position.in_check() ? dtype_one : dtype_zero);
+        // std::fill_n((*features2)[MAX_FEATURES2_HAND_NUM], SQ_NB, position.checkers() ? dtype_one : dtype_zero);
         int f2idx = f2idx_b + (int) MAX_FEATURES2_HAND_NUM;
         set_packed_feature(packed_features2, f2idx);
     }

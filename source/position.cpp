@@ -1526,7 +1526,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 		if (piece_on(to) != NO_PIECE || hand_count(hand[us], pr) == 0)
 			return false;
 
-		if (in_check())
+		if (checkers())
 		{
 			// 王手されている局面なので合駒でなければならない
 			Bitboard target = checkers();

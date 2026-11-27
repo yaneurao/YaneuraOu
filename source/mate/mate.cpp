@@ -79,7 +79,7 @@ Move weak_mate_3ply(const Position& pos, int ply) {
 
             This->do_move(m, true);
 
-            ASSERT_LV3(pos.in_check());
+            ASSERT_LV3(pos.checkers());
 
             // この局面ですべてのevasionを試す
             for (auto m2 : MoveList<EVASIONS>(pos))
@@ -93,7 +93,7 @@ Move weak_mate_3ply(const Position& pos, int ply) {
 
                 This->do_move(m2, false);
 
-                ASSERT_LV3(!pos.in_check());
+                ASSERT_LV3(!pos.checkers());
 
                 if (!weak_mate_3ply(pos, ply - 2))
                 {

@@ -499,7 +499,7 @@ public:
 		// if (n is a terminal node) { handle n and return; }
 
 		// 1手読みルーチンによるチェック
-		if (or_node && !n.in_check() && Mate::mate_1ply(n)) {
+		if (or_node && !n.checkers() && Mate::mate_1ply(n)) {
 			entry.pn = 0;
 			entry.dn = kInfinitePnDn;
 			entry.minimum_distance = std::min(entry.minimum_distance, depth);
@@ -903,7 +903,7 @@ public:
 		auto& mate_state = memo[key];
 
 		auto mate1ply = Mate::mate_1ply(pos);
-		if (or_node && !pos.in_check() && mate1ply) {
+		if (or_node && !pos.checkers() && mate1ply) {
 			mate_state.num_moves_to_mate = 1;
 			mate_state.move_to_mate = mate1ply;
 
