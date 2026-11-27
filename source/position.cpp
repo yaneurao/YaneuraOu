@@ -342,6 +342,13 @@ void Position::set_extra_bitboards() const {
     st->threats[ALL_PIECES] = 0;
 }
 #else
+// 先後の振り分けも局面実装内に置く。呼び出し元はこのファイル内だけ。
+template<bool doNullMove>
+inline void Position::set_extra_bitboards() const {
+    sideToMove == BLACK ? set_extra_bitboards<doNullMove, BLACK>()
+                       : set_extra_bitboards<doNullMove, WHITE>();
+}
+
 template<bool doNullMove, Color Us>
 void Position::set_extra_bitboards() const {
 

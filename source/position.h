@@ -927,10 +927,7 @@ private:
 	void set_extra_bitboards() const;
 
 	template <bool doNullMove>
-	void set_extra_bitboards() const
-	{
-		sideToMove == BLACK ? set_extra_bitboards<doNullMove, BLACK>() : set_extra_bitboards<doNullMove, WHITE>();
-	}
+	void set_extra_bitboards() const;
 #endif
 
 #if STOCKFISH
