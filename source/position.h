@@ -391,7 +391,7 @@ class Position {
 
     // 千日手検査の遡り上限を設定する。既定値は16手。
     // QUICK無効時はdo_move()での繰り返し情報の計算とhas_repeated()に用いる。
-    // QUICK有効時の通常のis_repetition(ply)は16手固定で、この設定を使わない。
+    // QUICK有効時のis_repetition(ply)でも、この設定を遡り上限に用いる。
     // found_plyを返す版は、QUICK有効時にもplyと設定上限の両方で検査範囲を制限する。
     // 両モードとも、局面コピーではmax(16, 設定値)を基準に過去のStateInfoを保持する。
     // 上限を増やすと検査コストやコピーする履歴量が増える。許容範囲は下の保持領域の検査による。
@@ -828,7 +828,7 @@ class Position {
     // そこまでの局面と同一局面であるかを、局面を遡って調べる。
     //
     // 1. ENABLE_QUICK_DRAWがdefineされている時(大会用に少しでも強くしたい時)
-    // plyは無視される。遡る手数は16手固定。
+    // plyは無視される。遡る手数はmax_repetition_plyで制限する(既定値16手)。
     //
     // 2. ENABLE_QUICK_DRAWがdefineされていない時
     // do_move()で設定上限まで遡って計算した繰り返し情報を使う。
@@ -836,7 +836,7 @@ class Position {
     RepetitionState is_repetition(int ply = 16) const;
 
     // 千日手が見つかったとき、現局面から何手遡ったかをfound_plyにも返す版。
-    // QUICK有効時は、通常版と異なりplyとset_max_repetition_ply()の設定値でも遡り範囲を制限する。
+    // QUICK有効時は、設定上限に加えて引数plyでも遡り範囲を制限する。
     // QUICK無効時は計算済みの繰り返し情報を使う。定跡生成で使用する。
     RepetitionState is_repetition(int ply, int& found_ply) const;
 

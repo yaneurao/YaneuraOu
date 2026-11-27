@@ -2911,12 +2911,12 @@ RepetitionState Position::is_repetition(int ply) const
 	ASSERT_LV3(st->repWindow >= 0);
 
 	// 遡り可能な手数。
-	// 最大でも(root以降であっても)16手までしか遡らないことにする。
-	// (これ以上遡っても千日手が見つかることが稀)
+	// root以降も含め、設定されたmax_repetition_ply手まで遡る(既定値16手)。
+	// 既定値を超えて遡っても千日手が見つかることは稀。
 	// ここss->ply(rootからの手数)にするとR5ぐらい弱くなる。
 	// また、root以前にも遡る。こうした方が+R5ぐらい強くなる。
 
-	int end = std::min({16, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});
+	int end = std::min({max_repetition_ply, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});
 
 	// 少なくとも4手かけないと千日手にはならないから、4手前から調べていく。
 	if (end < 4)
