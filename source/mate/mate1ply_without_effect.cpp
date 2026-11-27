@@ -663,21 +663,24 @@ namespace {
 	template <Color Us>
 	bool can_piece_capture(const Position& pos, Square to, const Bitboard& pinned, const Bitboard& slide)
 	{
-		Square sq_king = pos.square<KING>(Us);
-
 		// 玉以外の駒でこれが取れるのか？(toの地点には敵の利きがある or 届かないので玉では取れないものとする)
 		Bitboard sum = pos.pieces(KING).andnot(pos.attackers_to<Us>(to, slide));
-		while (sum)
-		{
-			Square from = sum.pop_lsb();
+        if (!sum)
+            return false;
 
-			// fromからtoに移動させて素抜きに合わないならばこれをもって良し。
-			if (!pinned
-				|| !(pinned & from)
-				|| aligned(from, to, sq_king)
-				)
-				return true;
-		}
+        // ピンされていない捕獲駒があれば、升番号を取り出さずに捕獲可能と判定できる。
+        if (pinned.andnot(sum))
+            return true;
+
+        // ここに残る捕獲駒はすべてピンされている。玉の位置と方向はこの経路だけで調べる。
+        const Square sq_king = pos.square<KING>(Us);
+        do
+        {
+            Square from = sum.pop_lsb();
+            // ピンの方向に沿って動けるなら、素抜きにならず捕獲できる。
+            if (aligned(from, to, sq_king))
+                return true;
+        } while (sum);
 
 		return false;
 	}
