@@ -774,11 +774,6 @@ class Position {
     // 現局面の手番を返す。
     Color side_to_move() const;
 
-    // 最後のnull move以降で、保持履歴を実際に遡れる手数を返す。
-#if !STOCKFISH
-    int rep_window() const;
-#endif
-
     // (将棋の)開始局面からの手数を返す。
     // 平手の開始局面なら1が返る。(0ではない)
     int game_ply() const;
@@ -821,7 +816,10 @@ class Position {
 	// 歩以外の駒の駒割。やねうら王では使わない。
     Value non_pawn_material(Color c) const;
     Value non_pawn_material() const;
+#endif
+    // 反復判定で保持履歴を遡れる手数。将棋版は捕獲・歩の移動ではリセットしない。
     int   rep_window() const;
+#if STOCKFISH
     bool  dtz_is_dtm() const;  // Pawnless && (3-men || 4-men-minors-only)
     // 歩がなく、3駒または小駒のみの4駒の局面。
 #endif
@@ -1319,16 +1317,14 @@ inline HASH_KEY Position::non_pawn_key(Color c) const { return HASH_KEY(); }
 
 #if STOCKFISH
 inline Value Position::non_pawn_material(Color c) const { return st->nonPawnMaterial[c]; }
+#endif
 
 inline int Position::rep_window() const { return st->repWindow; }
 
+#if STOCKFISH
 inline Value Position::non_pawn_material() const {
     return non_pawn_material(WHITE) + non_pawn_material(BLACK);
 }
-#endif
-
-#if !STOCKFISH
-inline int Position::rep_window() const { return st->repWindow; }
 #endif
 
 inline int Position::game_ply() const { return gamePly; }
