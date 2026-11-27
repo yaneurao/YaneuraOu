@@ -1605,18 +1605,20 @@ Bitboard Position::pinned_pieces(Square avoid) const {
 	Bitboard b, pinners, result = Bitboard(ZERO);
     Square   ksq = square<KING>(C);
 
-	// avoidを除外して考える。
-	Bitboard avoid_bb = ~square_bb(avoid);
+    // andnotで盤上の駒から直接除外する。反転を全81升へ制限するマスクは不要。
+    const Bitboard removed = square_bb(avoid);
 
 	pinners = (
 		(  pieces(ROOK_DRAGON)   & Attacks::rookStepEffect    (ksq))
 		| (pieces(BISHOP_HORSE)  & Attacks::bishopStepEffect  (ksq))
 		| (pieces(LANCE)         & Attacks::lanceStepEffect<C>(ksq)))
-                & avoid_bb & pieces(~C);
+                & pieces(~C);
+    pinners = removed.andnot(pinners);
 
+    const Bitboard occupancy = removed.andnot(pieces());
 	while (pinners)
 	{
-		b = Attacks::between_exclusive_bb(ksq, pinners.pop_lsb()) & pieces() & avoid_bb;
+		b = Attacks::between_exclusive_bb(ksq, pinners.pop_lsb()) & occupancy;
 		if (!b.more_than_one())
             result |= b & pieces(C);
 	}
@@ -1634,17 +1636,18 @@ Bitboard Position::pinned_pieces(Square from, Square to) const {
 	Bitboard b, pinners, result = Bitboard(ZERO);
     Square   ksq = square<KING>(C);
 
-	// avoidを除外して考える。
-	Bitboard avoid_bb = ~square_bb(from);
+    // andnotで盤上の駒から直接除外する。反転を全81升へ制限するマスクは不要。
+    const Bitboard removed = square_bb(from);
 
 	pinners = (
 		(  pieces(ROOK_DRAGON)  & Attacks::rookStepEffect    (ksq))
 		| (pieces(BISHOP_HORSE) & Attacks::bishopStepEffect  (ksq))
 		| (pieces(LANCE)        & Attacks::lanceStepEffect<C>(ksq)))
-            & avoid_bb & pieces(~C);
+            & pieces(~C);
+    pinners = removed.andnot(pinners);
 
 	// fromからは消えて、toの地点に駒が現れているものとして
-	Bitboard new_pieces = (pieces() & avoid_bb) | to;
+	Bitboard new_pieces = removed.andnot(pieces()) | to;
 	while (pinners)
 	{
 		b = Attacks::between_exclusive_bb(ksq, pinners.pop_lsb()) & new_pieces;
