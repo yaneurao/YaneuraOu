@@ -5146,14 +5146,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
             // Futility pruning and moveCount pruning
             // futility枝刈りとmove countに基づく枝刈り
 
-            if (!givesCheck && move.to_sq() != prevSq && !is_loss(futilityBase)
-#if STOCKFISH            
-				// TODO : ここの最適化、optimizerに任せるか？
-                && move.type_of() != PROMOTION
-				// 📝 この最後の条件、入れたほうがいいのか？
-				// 📊 入れない方が良さげ。(V7.74taya-t50 VS V7.74taya-t51)
-#endif                
-				)
+            if (!givesCheck && move.to_sq() != prevSq && !is_loss(futilityBase))
             {
 				// 💡 MoveCountに基づく枝刈り
 				// move.to_sq() != prevSq のときなので、つまりは、直前に動かされた駒を取り返す以外の指し手。
