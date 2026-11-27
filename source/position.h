@@ -504,9 +504,7 @@ class Position {
     Bitboard attackers_to(Square s, const Bitboard& occupied) const;
 #endif
 
-#if STOCKFISH
     void     update_slider_blockers(Color c) const;
-#endif
     Bitboard xattacks_by(PieceType pt, Color c, Bitboard occupied) const;
 #if STOCKFISH
     Bitboard threats_by(PieceType pt) const;
@@ -546,24 +544,6 @@ class Position {
                 != 0);  // 影の利きがある
     }
 #endif
-
-#endif
-
-	// update_slider_blockers() calculates st->blockersForKing[c] and st->pinners[~c],
-    // which store respectively the pieces preventing king of color c from being in check
-    // and the slider pieces of color ~c pinning pieces of color c to the king.
-
-    // update_slider_blockers()はst->blockersForKing[c]およびst->pinners[~c]を計算します。
-    // これらはそれぞれ、色cの王が王手状態になるのを防ぐ駒と、色cの駒を王にピン留めする手番~cの
-    // スライダー駒を格納しています。
-    // ※　「ピン留め」とは、移動させた時に開き王手となること。
-
-	// 注意)
-    // 	 王 歩 ^飛 ^飛
-    //  のようなケースにおいては、この両方の飛車がpinnersとして列挙される。(SEEの処理でこういう列挙がなされて欲しいので)
-
-#if !STOCKFISH
-    void update_slider_blockers(Color c) const;
 
 #endif
 
