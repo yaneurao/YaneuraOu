@@ -2310,9 +2310,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 }
 
 void Search::YaneuraOuWorker::do_move(
-  Position& pos, const Move move, const bool givesCheck,
-  const bool capture, Stack* const ss) {
-
+  Position& pos, const Move move, const bool givesCheck, const bool capture, Stack& ss) {
 #if STOCKFISH
     // prefetch_key() does not model castling, en passant or promotion exactly.
     // The correction-history prefetches also approximate castling and promotion.
@@ -2322,28 +2320,27 @@ void Search::YaneuraOuWorker::do_move(
     // これらのまれな手では、使われないキャッシュラインを先読みする。
     prefetch(tt.get_cluster(pos.prefetch_key(move)));
 
-    if (ss != nullptr)
-    {
-        const Piece  pc = pos.moved_piece(move);
-        const Square to = move.to_sq();
-
-        prefetch(&(*(ss - 1)->continuationCorrectionHistory)[pc][to]);
-        prefetch(&(*(ss - 3)->continuationCorrectionHistory)[pc][to]);
-        prefetch(&(*(ss - 5)->continuationCorrectionHistory)[pc][to]);
-    }
 #endif
 
-#if !STOCKFISH && defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN) && !defined(NO_PREFETCH)
+    // Stockfish uses the piece before promotion; shogi histories use the piece after promotion.
+    // Stockfishは成り前、将棋の履歴は成り後の駒を使う。moved_piece()の仕様差でこの違いを保つ。
+    // Shogi Move retains the post-promotion piece, so these indices stay valid after do_move().
+    // やねうら王のMoveが成り後の駒情報を保持するため、この添字はdo_move()後にも使える。
+    const Piece  pc = pos.moved_piece(move);
+    const Square to = move.to_sq();
+
+#if STOCKFISH
+    prefetch(&(*(&ss - 1)->continuationCorrectionHistory)[pc][to]);
+    prefetch(&(*(&ss - 3)->continuationCorrectionHistory)[pc][to]);
+    prefetch(&(*(&ss - 5)->continuationCorrectionHistory)[pc][to]);
+#else
+#if defined(NNUE_FT_SPARSE8) && defined(USE_AVX512) && defined(EVAL_SFNN) && !defined(NO_PREFETCH)
     // 子局面の補正値が読むss-2/ss-4/ss-6は、着手前にはss-1/ss-3/ss-5に当たる。
-    if (ss != nullptr) {
-        const Piece  pc = pos.moved_piece(move);
-        const Square to = move.to_sq();
-        _mm_prefetch(reinterpret_cast<const char*>(&(*(ss-1)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
-        _mm_prefetch(reinterpret_cast<const char*>(&(*(ss-3)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
-        _mm_prefetch(reinterpret_cast<const char*>(&(*(ss-5)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
-    }
+    _mm_prefetch(reinterpret_cast<const char*>(&(*(&ss - 1)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
+    _mm_prefetch(reinterpret_cast<const char*>(&(*(&ss - 3)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
+    _mm_prefetch(reinterpret_cast<const char*>(&(*(&ss - 5)->continuationCorrectionHistory)[pc][to]), _MM_HINT_T0);
 #endif
-
+#endif
 
     // RelaxedAtomic increments use a relaxed load/store pair, avoiding locking instructions.
     // RelaxedAtomicの加算はrelaxedなload/storeで行い、ロック命令を避ける。
@@ -2359,24 +2356,9 @@ void Search::YaneuraOuWorker::do_move(
     pos.do_move(move, givesCheck, dirties, &tt, &sharedHistory);
 #endif
 
-    if (ss != nullptr)
-    {
-#if STOCKFISH
-        auto& dirtyPiece = dirties.dirtyPiece;
-#else
-        // Stockfishは成り前の駒を使うが、やねうら王の履歴は成り後の駒で管理する。
-        // 実際のDirtyPieceは変更せず、履歴設定用に成り後の駒をpcとして持たせる。
-        // moved_piece()なら、dirtiesを持たない旧評価関数でも利用できる。
-        const struct {
-            Piece pc;
-        } dirtyPiece{pos.moved_piece(move)};
-#endif
-        ss->currentMove  = move;
-        ss->continuationHistory =
-          &continuationHistory[ss->inCheck][capture][dirtyPiece.pc][move.to_sq()];
-        ss->continuationCorrectionHistory =
-          &continuationCorrectionHistory[dirtyPiece.pc][move.to_sq()];
-    }
+    ss.currentMove                   = move;
+    ss.continuationHistory           = &continuationHistory[ss.inCheck][capture][pc][to];
+    ss.continuationCorrectionHistory = &continuationCorrectionHistory[pc][to];
 }
 
 void Search::YaneuraOuWorker::do_null_move(Position& pos, Stack* const ss) {
@@ -2653,7 +2635,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         evaluated = true;
         return this->evaluate(pos);
     };
-    auto do_move = [&](Position & pos, Move move, bool givesCheck, bool capture, Stack* ss) {
+    auto do_move = [&](Position & pos, Move move, bool givesCheck, bool capture, Stack& ss) {
         if (!evaluated)
         {
             evaluated = true;
@@ -3604,7 +3586,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
             capture = pos.capture_stage(move);
             assert(capture);
 
-            do_move(pos, move, pos.gives_check(move), capture, ss);
+            do_move(pos, move, pos.gives_check(move), capture, *ss);
 
             // Perform a preliminary qsearch to verify that the move holds
             // この指し手がよさげであることを確認するための予備的なqsearch
@@ -4047,7 +4029,7 @@ moves_loop:  // When in check, search starts here
         // -----------------------
 
 		// 指し手で1手進める
-        do_move(pos, move, givesCheck, capture, ss);
+        do_move(pos, move, givesCheck, capture, *ss);
 
         // Add extension to new depth
         // 求まった延長する手数を新しいdepthに加算
@@ -4749,7 +4731,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
         evaluated = true;
         return this->evaluate(pos);
     };
-    auto do_move = [&](Position& pos, Move move, bool givesCheck, bool capture, Stack* ss) {
+    auto do_move = [&](Position& pos, Move move, bool givesCheck, bool capture, Stack& ss) {
         if (!evaluated)
         {
             evaluated = true;
@@ -5245,7 +5227,7 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
 		// 📝 1手動かして、再帰的にqsearch()を呼ぶ
 
-        do_move(pos, move, givesCheck, capture, ss);
+        do_move(pos, move, givesCheck, capture, *ss);
 
 #if STOCKFISH
         value = -qsearch<nodeType>(pos, ss + 1, -beta, -alpha);

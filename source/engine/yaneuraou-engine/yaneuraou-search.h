@@ -439,8 +439,7 @@ class YaneuraOuWorker: public Worker {
     //     givesCheckとcapture_stage()の結果を呼び出し元から渡し、再計算を避ける。
 
     void
-    do_move(Position& pos, const Move move, const bool givesCheck,
-            const bool capture, Stack* const ss);
+    do_move(Position& pos, const Move move, const bool givesCheck, const bool capture, Stack& ss);
     void do_null_move(Position& pos, Stack* const ss);
 
 	void undo_move(Position& pos, const Move move);
