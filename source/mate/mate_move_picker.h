@@ -127,7 +127,7 @@ namespace Mate {
 					// v : この指し手を指したあとの先手から見た駒割
 					int v = value + (cap == NO_PIECE ? 0 : - Eval::PieceValue[cap]*2);
 
-					auto pc = pos.moved_piece_after(move);
+					auto pc = pos.moved_piece(move);
 
 					// 成れるなら、成る価値を加算
 					if (move.is_promote())

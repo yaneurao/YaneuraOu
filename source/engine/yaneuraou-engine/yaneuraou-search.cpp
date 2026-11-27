@@ -5588,12 +5588,7 @@ void update_all_stats(const Position&          pos,
 
     for (Move move : capturesSearched)
     {
-        /*
-		   🤔 ここ、moved_piece_before() で、捕獲前の駒の価値で考えたほうがいいか？
-
-		       → MovePickerでcaptureHistoryを用いる時に
-			      moved_piece_afterの方で表引きしてるので、それに倣う必要がある。
-		*/
+        // captureHistoryはMovePickerと同じく、moved_piece()が返す成り後の駒で表引きする。
 
         movedPiece    = pos.moved_piece(move);
         capturedPiece = type_of(pos.piece_on(move.to_sq()));

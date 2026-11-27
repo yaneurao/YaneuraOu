@@ -1360,9 +1360,9 @@ bool Position::gives_check(Move m) const
 	// 移動先
 	const Square to = m.to_sq();
 
-	// 駒打ち・移動する指し手どちらであってもmove_piece_after(m)で移動後の駒が取得できるので
+	// 駒打ち・移動する指し手どちらであってもmoved_piece(m)で成り後の駒が取得できるので
 	// 直接王手の処理は共通化できる。
-	if (st->checkSquares[type_of(moved_piece_after(m))] & to)
+	if (st->checkSquares[type_of(moved_piece(m))] & to)
 		return true;
 
 	// -- 移動する指し手ならば、これで開き王手になるかどうかの判定が必要。
@@ -1517,7 +1517,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 		// KING打ちのような値であることはないと仮定できる。
 
 		// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-		if (moved_piece_after(m) != make_piece(us, pr))
+		if (moved_piece(m) != make_piece(us, pr))
 			return false;
 
 		ASSERT_LV3(PAWN <= pr && pr < KING);
@@ -1586,7 +1586,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 				return false;
 
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-			if (moved_piece_after(m) != make_promoted_piece(pc))
+			if (moved_piece(m) != make_promoted_piece(pc))
 				return false;
 		}
 		else {
@@ -1595,13 +1595,13 @@ bool Position::pseudo_legal_s(const Move m) const {
 			// ※　MOVE_WINやMOVE_NULLに対してfalseが返ることを保証しなければならないので以下の実装時に注意すること。
 
 			// 上位32bitに移動後の駒が格納されている。それと一致するかのテスト
-			if (moved_piece_after(m) != pc)
+			if (moved_piece(m) != pc)
 				return false;
 
 			// is_ok(m) == falseな指し手、具体的にはMOVE_WINやMOVE_NULLに対して本関数がfalseを返すことを保証する。
 			// 
 			// is_ok(m) == falseの時、Position::to_move(m)はそのままmを返すので、この時、
-			// moved_piece_after(m) == NO_PIECEであるが、from_sq(m)のPieceがたまたまNO_PIECEであった場合、
+			// moved_piece(m) == NO_PIECEであるが、from_sq(m)のPieceがたまたまNO_PIECEであった場合、
 			// ここまで抜けてくるのでその場合、falseを返すことを保証しなければならない。
 			if (pt == NO_PIECE_TYPE)
 				return false;
@@ -1951,7 +1951,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE) || defined(EVAL_KPPT) || defined(EVAL_KPP_KKPT)
     if (dirty) {
         dirty->pc = moved_piece_before(m);
-        dirty->after = moved_piece_after(m);
+        dirty->after = moved_piece(m);
         dirty->captured = captured;
         dirty->from = m.is_drop() ? SQ_NONE : m.from_sq();
         dirty->to = to;
@@ -1967,7 +1967,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
         // 移動先の升は空のはず
         ASSERT_LV3(empty(to));
 
-        Piece     pc = moved_piece_after(m);
+        Piece     pc = moved_piece(m);
         PieceType pr = raw_type_of(pc);
         ASSERT_LV3(PAWN <= pr && pr < PIECE_HAND_NB);
 
@@ -2033,7 +2033,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 
         // 移動先に駒の配置
         // もし成る指し手であるなら、成った後の駒を配置する。
-        Piece moved_after_pc = moved_piece_after(m);
+        Piece moved_after_pc = moved_piece(m);
 
 #if defined(USE_MATERIAL_VALUE)
         materialDiff = m.is_promote() ? Eval::ProDiffPieceValue[moved_pc] : 0;
@@ -2383,7 +2383,7 @@ void Position::undo_move_impl(Move m) {
 
     // --- 移動後の駒
 
-    Piece moved_after_pc = moved_piece_after(m);
+    Piece moved_after_pc = moved_piece(m);
 
 
     // 移動前の駒

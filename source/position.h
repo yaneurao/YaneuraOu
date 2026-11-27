@@ -368,18 +368,6 @@ class Position {
 #endif
 	}
 
-	// moved_pieceの拡張版。
-	// 成りの指し手のときは成りの指し手を返す。(移動後の駒)
-	// Moveの上位16bitにそれが格納されているので、単にそれを返しているだけ。
-	Piece moved_piece_after(Move m) const
-	{
-		// ASSERT_LV3(is_ok(m));
-		// ⇨ MovePicker から Move::none()に対してこの関数が呼び出されることがあるのでこのASSERTは書けない。
-
-		return m.moved_after_piece();
-	}
-
-
 	// 定跡DBや置換表から取り出したMove16(16bit型の指し手)を32bit化する。
 	// is_ok(m) == false ならば、mをそのまま返す。
 	// 例 : MOVE_WINやMOVE_NULLに対してはそれがそのまま返ってくる。つまり、この時、上位16bitは0(NO_PIECE)である。
@@ -664,11 +652,8 @@ class Position {
 	// (つまり、mのfromにある駒は自駒であることは確定しているものとする。)
 	bool gives_check(Move m) const;
 
-	// 指し手mで移動させた駒(成りの指し手である場合は、成った後の駒)
-    // 💡 Stockfishの探索部で用いているので、それと互換性を保つために用意。
-    // 📝 Stockfishでは移動させた駒(moved_piece_before())を期待しているが、
-	//     moved_piece_after()にしたほうが強いっぽいので、やねうら王では
-	//     moved_piece()は、moved_piece_after()のaliasとする。
+    // 指し手mで移動する駒。Stockfishは移動前、将棋版は成り後の駒を返す。
+    // 将棋版はこの値を継続履歴などの添字に用いるため、従来どおり成り後の駒を使う。
     Piece moved_piece(Move m) const;
 
 	// 直前の指し手によって捕獲した駒。先後の区別あり。
@@ -1190,11 +1175,9 @@ inline Piece Position::moved_piece(Move m) const {
 #if STOCKFISH
     return piece_on(m.from_sq());
 #else
-    // 📝 Stockfishでは移動させた駒(moved_piece_before())を期待しているが、
-    //     moved_piece_after()にしたほうが強いっぽいので、やねうら王では
-    //     moved_piece()は、moved_piece_after()のaliasとする。
-
-	return moved_piece_after(m);
+    // Stockfishは盤上の移動前の駒を返すが、将棋版はMoveに保持した成り後の駒を返す。
+    // Move::none()に対しても呼ばれるため、通常手であるというassertは置かない。
+    return m.moved_after_piece();
 #endif
 }
 
