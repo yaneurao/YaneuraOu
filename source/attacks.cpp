@@ -11,19 +11,79 @@
 
 namespace YaneuraOu::Attacks {
 
-#if STOCKFISH
-Bitboard LineBB[SQUARE_NB][SQUARE_NB];
-Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
-Bitboard inverse_RayPassBB[SQUARE_NB][SQUARE_NB];
-Bitboard DiagBB[SQUARE_NB];
-Bitboard AntiDiagBB[SQUARE_NB];
-#else
+#if !STOCKFISH
 // StockfishのLineBBは[升][升]、将棋版は[升][方向]。
-// StockfishのBetweenBBは終点込みだが、将棋版は両端を除く圧縮表。
-// 配列を縮小しているので、升の組を方向または圧縮indexへ変換して参照する。
 Bitboard LineBB[SQ_NB][4];
-Bitboard BetweenBB[638];
-u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
+
+namespace {
+// SIMD版Bitboardの演算はconstexprではないため、生成中だけ2個のu64で計算する。
+// 638個の区間を共有し、探索中は従来と同じ2段の表引きを使う。
+struct BetweenData {
+    std::array<std::array<u64, 2>, 638> masks{};
+    std::array<std::array<u16, SQ_NB_PLUS1>, SQ_NB_PLUS1> indices{};
+    usize count = 1;  // 0番は空の区間と、SQ_NBを含む組に使う。
+};
+
+constexpr BetweenData make_between_data() {
+    BetweenData result{};
+    // 重複排除用のハッシュ表はコンパイル時だけ使い、実行ファイルには保持しない。
+    // 全区間との線形比較を避け、コンパイラー既定のconstexpr評価上限に収める。
+    std::array<u16, 2048> slots{};
+    for (int from = 0; from < SQ_NB; ++from)
+        for (int to = from + 1; to < SQ_NB; ++to)
+        {
+            const int df = to / 9 - from / 9;
+            const int dr = to % 9 - from % 9;
+            const int adf = df < 0 ? -df : df;
+            const int adr = dr < 0 ? -dr : dr;
+            if (df != 0 && dr != 0 && adf != adr)
+                continue;
+
+            const int length = adf > adr ? adf : adr;
+            const int step = (to - from) / length;
+            u64 lo = 0, hi = 0;
+            for (int sq = from + step; sq != to; sq += step)
+                if (sq < 63)
+                    lo |= u64(1) << sq;
+                else
+                    hi |= u64(1) << (sq - 63);
+            if (!(lo | hi))
+                continue;
+
+            u64 hash = lo ^ (hi * UINT64_C(0x9e3779b97f4a7c15));
+            hash = (hash ^ (hash >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+            hash = (hash ^ (hash >> 27)) * UINT64_C(0x94d049bb133111eb);
+            hash ^= hash >> 31;
+            usize slot = hash & (slots.size() - 1);
+            while (slots[slot]
+                   && (result.masks[slots[slot]][0] != lo || result.masks[slots[slot]][1] != hi))
+                slot = (slot + 1) & (slots.size() - 1);
+            if (!slots[slot])
+            {
+                slots[slot] = u16(result.count);
+                result.masks[result.count++] = {lo, hi};
+            }
+            result.indices[from][to] = result.indices[to][from] = slots[slot];
+        }
+    return result;
+}
+
+constexpr auto Between = make_between_data();
+static_assert(Between.count == 638);
+
+template<usize... I>
+constexpr auto make_between_bitboards(std::index_sequence<I...>) {
+    // 各要素を直接構築し、constexprではないBitboardのコピーや代入を呼ばない。
+    return std::array<Bitboard, sizeof...(I)>{{Bitboard(Between.masks[I][0], Between.masks[I][1])...}};
+}
+}
+
+// Stockfishの表は終点込み。将棋版は両端を除く区間を共有し、公開between_bb()で終点を足す。
+// 内部区間が必要な将棋専用処理は、between_exclusive_bb()で追加演算なしに参照できる。
+alignas(64) extern constexpr std::array<Bitboard, 638> BetweenBB =
+  make_between_bitboards(std::make_index_sequence<638>{});
+alignas(64) extern constexpr std::array<std::array<u16, SQ_NB_PLUS1>, SQ_NB_PLUS1> BetweenIndex =
+  Between.indices;
 #endif
 
 
@@ -109,6 +169,48 @@ static constexpr auto make_dual_magics() {
 }
 
 alignas(64) extern constexpr std::array<DualMagic, SQUARE_NB> DualMagics = make_dual_magics();
+
+alignas(64) extern constexpr SquarePairBB LineBB = []() {
+    SquarePairBB t{};
+    for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1)
+        for (PieceType pt : {BISHOP, ROOK})
+            for (Square s2 = SQ_A1; s2 <= SQ_H8; ++s2)
+                if (PseudoAttacks[pt][s1] & s2)
+                    t[s1][s2] = (PseudoAttacks[pt][s1] & PseudoAttacks[pt][s2]) | s1 | s2;
+    return t;
+}();
+
+alignas(64) extern constexpr SquarePairBB BetweenBB = []() {
+    SquarePairBB t{};
+    for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1)
+        for (Square s2 = SQ_A1; s2 <= SQ_H8; ++s2)
+            t[s1][s2] =
+              (LineBB[s1][s2] & ((~Bitboard(0) << s1) ^ (~Bitboard(0) << s2)) & ~square_bb(s1))
+              | s2;
+    return t;
+}();
+
+alignas(64) extern constexpr SquarePairBB inverse_RayPassBB = []() {
+    SquarePairBB t{};
+    for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1)
+        for (Square s2 = SQ_A1; s2 <= SQ_H8; ++s2)
+            t[s2][s1] = LineBB[s1][s2] & (s2 > s1 ? ~Bitboard(0) << (s1 + 1) : square_bb(s1) - 1);
+    return t;
+}();
+
+alignas(64) extern constexpr SquareBB DiagBB = []() {
+    SquareBB t{};
+    for (Square s = SQ_A1; s <= SQ_H8; ++s)
+        t[s] = line_mask(s, NORTH_EAST, SOUTH_WEST) | s;
+    return t;
+}();
+
+alignas(64) extern constexpr SquareBB AntiDiagBB = []() {
+    SquareBB t{};
+    for (Square s = SQ_A1; s <= SQ_H8; ++s)
+        t[s] = line_mask(s, NORTH_WEST, SOUTH_EAST) | s;
+    return t;
+}();
 #else
 // 指定した升から、壁に突き当たるまで一方向へ延長したマスクを返す。
 static Bitboard ray_mask(Square sq, Effect8::Direct d) {
@@ -299,59 +401,7 @@ static void init_pseudo_attacks() {
 }
 
 static void init_lines() {
-	// 6) BetweenBB , LineBBの初期化
-    // Stockfishと異なり、BetweenBBの各値は両端を含めず、BetweenIndexを対称にする。
-	{
-		u16 between_index = 1;
-		// BetweenBB[0] == Bitboard(ZERO)であることを保証する。
-
-		for (auto s1 : SQ)
-			for (auto s2 : SQ)
-			{
-				// 十字方向か、斜め方向かだけを判定して、例えば十字方向なら
-				// rookEffect(sq1,square_bb(s2)) & rookEffect(sq2,square_bb(s1))
-				// のように初期化したほうが明快なコードだが、この初期化をそこに依存したくないので愚直にやる。
-
-				// これについてはあとで設定する。
-				if (s1 >= s2)
-					continue;
-
-				// 方角を用いるテーブルの初期化
-				if (Effect8::directions_of(s1, s2))
-				{
-					Bitboard bb(ZERO);
-					// 間に挟まれた升を1に
-					Square delta = (s2 - s1) / dist(s1, s2);
-					for (Square s = s1 + delta; s != s2; s += delta)
-						bb |= s;
-
-					// Bitboard(ZERO)なら、このindexとしては0を指しておけば良いので書き換える必要ない。
-					if (!bb)
-						continue;
-
-                    // 端点が異なっても同じ升集合なら、既存のBitboardを共有する。
-                    // 重複判定は起動時だけ行い、探索中の表引きは変更しない。
-                    u16 index = 1;
-                    while (index < between_index && BetweenBB[index] != bb)
-                        ++index;
-                    if (index == between_index)
-                    {
-                        ASSERT_LV1(between_index < std::size(BetweenBB));
-                        BetweenBB[between_index++] = bb;
-                    }
-                    BetweenIndex[s1][s2] = index;
-				}
-			}
-
-		ASSERT_LV1(between_index == std::size(BetweenBB));
-
-		// 対称性を考慮して、さらにシュリンクする。
-		for (auto s1 : SQ)
-			for (auto s2 : SQ)
-				if (s1 > s2)
-					BetweenIndex[s1][s2] = BetweenIndex[s2][s1];
-
-	}
+    // 6) LineBBの初期化。BetweenBBとBetweenIndexはコンパイル時に生成済み。
     // 利き関数に依存せず空盤上の直線マスクを作り、始点の升も含める。
     static constexpr std::array<std::array<Effect8::Direct, 2>, 4> directions = {{
       {Effect8::DIRECT_RU, Effect8::DIRECT_LD},
@@ -433,29 +483,8 @@ static void init_check_candidates() {
 
 #endif
 
+#if !STOCKFISH
 void init() {
-#if STOCKFISH
-
-    for (Square s1 = SQ_A1; s1 <= SQ_H8; ++s1)
-    {
-        for (PieceType pt : {BISHOP, ROOK})
-            for (Square s2 = SQ_A1; s2 <= SQ_H8; ++s2)
-            {
-                if (PseudoAttacks[pt][s1] & s2)
-                {
-                    LineBB[s1][s2] = (attacks_bb(pt, s1, 0) & attacks_bb(pt, s2, 0)) | s1 | s2;
-                    BetweenBB[s1][s2] =
-                      (attacks_bb(pt, s1, square_bb(s2)) & attacks_bb(pt, s2, square_bb(s1)));
-                    inverse_RayPassBB[s2][s1] =
-                      attacks_bb(pt, s1, 0) & (attacks_bb(pt, s2, square_bb(s1)) | s2);
-                }
-                BetweenBB[s1][s2] |= s2;
-            }
-
-        DiagBB[s1]     = line_mask(s1, NORTH_EAST, SOUTH_WEST) | s1;
-        AntiDiagBB[s1] = line_mask(s1, NORTH_WEST, SOUTH_EAST) | s1;
-    }
-#else
     // 各テーブルの依存関係に従って初期化する。
     init_directions();
     init_sliding_attacks();
@@ -476,8 +505,8 @@ void init() {
 #if defined (USE_MATE_1PLY)
 	Mate::init();
 #endif
-#endif
 }
+#endif
 
 #if !STOCKFISH
 

@@ -24,9 +24,9 @@
 
 namespace YaneuraOu::Attacks {
 
+#if !STOCKFISH
 void init();
 
-#if !STOCKFISH
 // Initialize attack tables after Bitboards::init().
 // 利きテーブルを初期化するinit()は、Bitboards::init()のあとに呼ぶ。
 // StockfishにはBitboards::init()がないが、将棋版では先に基本表の初期化が必要。
@@ -307,11 +307,14 @@ inline DualMagic dual_magic(Square s) { return {s}; }
 #endif
 
 #if STOCKFISH
-extern Bitboard LineBB[SQUARE_NB][SQUARE_NB];
-extern Bitboard BetweenBB[SQUARE_NB][SQUARE_NB];
-extern Bitboard inverse_RayPassBB[SQUARE_NB][SQUARE_NB];
-extern Bitboard DiagBB[SQUARE_NB];
-extern Bitboard AntiDiagBB[SQUARE_NB];
+using SquareBB     = std::array<Bitboard, SQUARE_NB>;
+using SquarePairBB = std::array<SquareBB, SQUARE_NB>;
+
+extern const SquarePairBB LineBB;
+extern const SquarePairBB BetweenBB;
+extern const SquarePairBB inverse_RayPassBB;
+extern const SquareBB     DiagBB;
+extern const SquareBB     AntiDiagBB;
 #else
 // 2升を通過する直線。[0]:右上から左下、[1]:横、[2]:左上から右下、[3]:縦。
 // StockfishのLineBB[s1][s2]とは添字の意味が異なり、将棋版はLineBB[升][方向]。
@@ -322,8 +325,8 @@ extern Bitboard LineBB[SQ_NB][4];
 // StockfishのBetweenBB[s1][s2]は終点込みの直接表。将棋版の表は両端を除く圧縮表。
 // 公開between_bb()は終点を追加するため、返す升集合はStockfishと同じ。
 // 同一のBitboardを共有して縮小してあり、between_bb()から参照する。
-extern Bitboard BetweenBB[638];
-extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
+extern const std::array<Bitboard, 638> BetweenBB;
+extern const std::array<std::array<u16, SQ_NB_PLUS1>, SQ_NB_PLUS1> BetweenIndex;
 #endif
 
 // horizontal/vertical/diagonal line passing through s1 and s2
@@ -846,7 +849,7 @@ static const Bitboard around24_bb(Square sq)
 // assuming an empty board.
 // 盤上に他の駒がないものとして、指定した駒種の利きを返す。
 #if STOCKFISH
-sf_always_inline Bitboard attacks_bb(PieceType pt, Square s, Color c = COLOR_NB) {
+sf_always_inline constexpr Bitboard attacks_bb(PieceType pt, Square s, Color c = COLOR_NB) {
 
     assert((pt != PAWN || c < COLOR_NB) && is_ok(s));
     return pt == PAWN ? PseudoAttacks[c][s] : PseudoAttacks[pt][s];
