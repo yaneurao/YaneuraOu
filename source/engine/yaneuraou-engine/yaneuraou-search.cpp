@@ -57,6 +57,7 @@
 #include "yaneuraou-search.h"
 #include "../../book/book.h"
 #include "../../extra/tools.h"
+#include "../../extra/sfen_packer.h"
 #include "../../mate/mate.h"
 
 namespace YaneuraOu {

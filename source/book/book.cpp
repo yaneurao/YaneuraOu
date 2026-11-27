@@ -16,6 +16,7 @@
 #include "../position.h"
 #include "../misc.h"
 #include "../extra/tools.h"
+#include "../extra/sfen_packer.h"
 #include "../search.h"
 #include "../thread.h"
 #include "../usi.h"

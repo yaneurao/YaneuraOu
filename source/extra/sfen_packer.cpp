@@ -1,4 +1,6 @@
-﻿#include "../config.h"
+﻿#include "sfen_packer.h"
+
+#include "../config.h"
 
 #include "../misc.h"
 #include "../position.h"

@@ -9,6 +9,7 @@
 #include "../attacks.h"
 #include "../book/book.h"
 #include "../evaluate.h"
+#include "../extra/sfen_packer.h"
 #include "../misc.h"
 #include "../movegen.h"
 #include "../usi.h"

@@ -16,6 +16,7 @@
 #include "../search.h"
 #include "../movegen.h"
 #include "../evaluate.h"
+#include "../extra/sfen_packer.h"
 #include "unit_test.h"
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 #include "../nnue/nnue_test_command.h"

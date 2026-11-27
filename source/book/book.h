@@ -16,6 +16,8 @@
 
 namespace YaneuraOu {
 
+struct PackedSfen;
+
 namespace Search {
 struct LimitsType;
 using  RootMoves = std::vector<RootMove>;

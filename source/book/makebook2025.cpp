@@ -1,6 +1,7 @@
 ﻿#include "../types.h"
 #include "../extra/parser.h"
 #include "../extra/system_io.h"
+#include "../extra/sfen_packer.h"
 
 #if defined (ENABLE_MAKEBOOK_CMD)
 

@@ -103,6 +103,9 @@
     <ClInclude Include="extra\parser.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>
+    <ClInclude Include="extra\sfen_packer.h">
+      <Filter>リソース ファイル\extra</Filter>
+    </ClInclude>
     <ClInclude Include="extra\long_effect.h">
       <Filter>リソース ファイル\extra</Filter>
     </ClInclude>

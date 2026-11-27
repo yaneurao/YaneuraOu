@@ -546,6 +546,7 @@
     <ClInclude Include="extra\tools.h" />
     <ClInclude Include="extra\system_io.h" />
     <ClInclude Include="extra\parser.h" />
+    <ClInclude Include="extra\sfen_packer.h" />
     <ClInclude Include="extra\key128.h" />
     <ClInclude Include="extra\long_effect.h" />
     <ClInclude Include="extra\macros.h" />
