@@ -255,14 +255,25 @@ enum CorrHistType {
 // 歩、小駒、先後それぞれの歩以外の駒に対する補正。
 template<typename T, int D>
 struct CorrectionBundle {
+#if STOCKFISH
+    StatsEntry<T, D, true> pawn[2];  // Indexed by queen exists
+                                    // Queenの有無で添字を分ける。
+#else
+    // 将棋には、チェスのqueenのような強い駒がないので、これは、将棋では意味はない。
     StatsEntry<T, D, true> pawn;
+#endif
     StatsEntry<T, D, true> minor;
     StatsEntry<T, D, true> nonPawnWhite;
     StatsEntry<T, D, true> nonPawnBlack;
 
     // 各メンバーを同じ値で初期化する。
     void fill(T val) {
+#if STOCKFISH
+        pawn[0]      = val;
+        pawn[1]      = val;
+#else
         pawn         = val;
+#endif
         minor        = val;
         nonPawnWhite = val;
         nonPawnBlack = val;

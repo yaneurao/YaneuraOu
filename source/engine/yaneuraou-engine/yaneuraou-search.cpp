@@ -765,7 +765,11 @@ const std::array<int, MAX_MOVES> reductions = [] {
 int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack* const ss) {
     const auto  m      = (ss - 1)->currentMove;
     const auto& shared = w.sharedHistory;
+#if STOCKFISH
+    const int   pcv    = shared.pawn_correction_entry(pos).pawn[bool(pos.pieces(QUEEN))];
+#else
     const int   pcv    = shared.pawn_correction_entry(pos).pawn;
+#endif
     const int   micv   = shared.minor_piece_correction_entry(pos).minor;
     const int   wnpcv  = shared.nonpawn_correction_entry<WHITE>(pos).nonPawnWhite;
     const int   bnpcv  = shared.nonpawn_correction_entry<BLACK>(pos).nonPawnBlack;
@@ -798,7 +802,11 @@ void update_correction_history(const Position&          pos,
 
     auto&         shared        = workerThread.sharedHistory;
 
+#if STOCKFISH
+    shared.pawn_correction_entry(pos).pawn[bool(pos.pieces(QUEEN))] << bonus;
+#else
     shared.pawn_correction_entry(pos).pawn << bonus;
+#endif
     shared.minor_piece_correction_entry(pos).minor << bonus * 150 / 128;
     shared.nonpawn_correction_entry<WHITE>(pos).nonPawnWhite << bonus * nonPawnWeight / 128;
     shared.nonpawn_correction_entry<BLACK>(pos).nonPawnBlack << bonus * nonPawnWeight / 128;
