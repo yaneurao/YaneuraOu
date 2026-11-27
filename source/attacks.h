@@ -342,8 +342,14 @@ inline Bitboard line_bb(Square s1, Square s2) {
     static_assert(Effect8::DIRECT_RU == 0 && Effect8::DIRECT_LD == 7, "");
     auto directions = Effect8::directions_of(s1, s2);
     ASSERT_LV3(directions != 0);
-    static const int a[8] = {0, 1, 2, 3, 3, 2, 1, 0};
-    return LineBB[s1][a[(int)Effect8::pop_directions(directions)]];
+    // directions_of()は0または1bit。方向bitから直接4方向の添字へ変換し、ctzを省く。
+    static constexpr auto lineIndex = [] {
+        std::array<u8, (1u << Effect8::DIRECT_LD) + 1> indices{};
+        for (int d = 0; d < Effect8::DIRECT_NB; ++d)
+            indices[1u << d] = u8(d < 4 ? d : 7 - d);
+        return indices;
+    }();
+    return LineBB[s1][lineIndex[directions]];
 #endif
 }
 

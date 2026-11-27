@@ -318,7 +318,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 
     {
         // 表の生成方法に依存せず、8方向へ歩いてStockfish互換の端点仕様を検証する。
-        bool inclusiveOk = true, exclusiveOk = true, sentinelOk = true;
+        bool inclusiveOk = true, exclusiveOk = true, sentinelOk = true, lineOk = true;
         for (Square from : SQ)
             for (Square to : SQ)
             {
@@ -336,6 +336,20 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
                             if (sq == to)
                             {
                                 interior = ray;
+                                // 両側の盤端まで歩き、方向から求めた直線の全升と照合する。
+                                Bitboard line = square_bb(from);
+                                for (int sign : {-1, 1})
+                                {
+                                    int lf = int(file_of(from)) + sign * df;
+                                    int lr = int(rank_of(from)) + sign * dr;
+                                    while (0 <= lf && lf < FILE_NB && 0 <= lr && lr < RANK_NB)
+                                    {
+                                        line |= File(lf) | Rank(lr);
+                                        lf += sign * df;
+                                        lr += sign * dr;
+                                    }
+                                }
+                                lineOk &= line_bb(from, to) == line;
                                 break;
                             }
                             ray |= sq;
@@ -350,6 +364,7 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
             sentinelOk &= !between_exclusive_bb(sq, SQ_NB)
                        && !between_exclusive_bb(SQ_NB, sq);
         sentinelOk &= !between_exclusive_bb(SQ_NB, SQ_NB);
+        tester.test("line_bb matches geometry for all aligned square pairs", lineOk);
         tester.test("between_bb includes destination for all 81 x 81 pairs", inclusiveOk);
         tester.test("between_exclusive_bb excludes both endpoints", exclusiveOk);
         tester.test("between_exclusive_bb accepts absent king squares", sentinelOk);
