@@ -1516,7 +1516,8 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 			// 王と王手している駒との間の升に駒を打っていない場合、それは王手を回避していることに
 			// ならないので、これは非合法手。
-			if (!(between_bb(square<KING>(us), checksq) & to))
+            // toが空升であることは確認済み。占有升checksqを足すORとマスク読み出しは不要。
+			if (!(between_exclusive_bb(square<KING>(us), checksq) & to))
 				return false;
 		}
 

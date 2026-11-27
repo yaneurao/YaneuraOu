@@ -452,6 +452,18 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
                     !evasions.contains(make_move(SQ_59, SQ_58, B_KING))
                       && evasions.contains(make_move_drop(GOLD, SQ_58, BLACK)));
 
+        // 駒打ちの擬似合法性を直接検証する。終点の飛車・玉は占有升なので打てない。
+        bool interpositionDrops = true;
+        for (Square to : SQ)
+        {
+            const Move drop = make_move_drop(GOLD, to, BLACK);
+            const bool expected = file_of(to) == FILE_5
+                               && RANK_6 <= rank_of(to) && rank_of(to) <= RANK_8;
+            interpositionDrops &= pos.pseudo_legal(drop, false) == expected
+                               && pos.pseudo_legal(drop, true) == expected;
+        }
+        tester.test("pseudo-legal interposition drops on all 81 squares", interpositionDrops);
+
         // 両王手は玉の移動だけで回避する。手駒があっても合駒は生成しない。
         pos_init("4k4/9/9/9/4r4/9/6b2/9/4K4 b G 1");
         auto doubleCheck = MoveList<LEGAL_ALL>(pos);
