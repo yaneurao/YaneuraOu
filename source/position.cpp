@@ -479,7 +479,13 @@ void Position::copy_state_infos(const Position& other) {
     stateCount = std::min(stateCount, MAX_HIST);
     stateIdx = stateCount - 1;
     for (usize i = 0; i < stateCount; ++i)
-        stateInfos[stateIdx - i] = *other.previous_state(i);
+    {
+        auto& state = stateInfos[stateIdx - i];
+        state = *other.previous_state(i);
+        // コピー元の履歴を切り詰めるため、各状態から実際に遡れる手数へ補正する。
+        // Stockfishは履歴配列全体をコピーするので、この補正を必要としない。
+        state.repWindow = std::min(state.repWindow, int(stateIdx - i));
+    }
     st = &stateInfos[stateIdx];
 }
 
@@ -1810,7 +1816,9 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     ++st->rule50;
     st->repWindow = std::min(st->repWindow + 1, MAX_HIST - 1);
 #else
-    ++st->repWindow;
+    // 将棋では捕獲・歩の移動でも以前の局面へ戻り得るので、そこで0には戻さない。
+    // 保持領域の上限までで打ち止めにし、千日手検査時の保持手数との比較を省く。
+    st->repWindow = std::min(st->repWindow + 1, int(MAX_HIST - 1));
 #endif
 
 #if STOCKFISH
@@ -2181,7 +2189,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     st->repetition_times = 0;
     st->repetition_type  = REPETITION_NONE;
 
-    int end = std::min({max_repetition_ply, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});  // 設定上限・null move・保持履歴で遡り範囲を制限する。
+    int end = std::min(max_repetition_ply, st->repWindow);  // repWindowはnull moveと保持履歴で制限済み。設定上限を適用する。
 
     // ※　チェスは終局までの平均手数が100手程度らしいが、将棋AIの対局では平均手数は160手以上で
     // 　長い手数の対局では300手以上になることも珍しくはないので、初手まで千日手判定のために遡ると
@@ -2916,7 +2924,7 @@ RepetitionState Position::is_repetition(int ply) const
 	// ここss->ply(rootからの手数)にするとR5ぐらい弱くなる。
 	// また、root以前にも遡る。こうした方が+R5ぐらい強くなる。
 
-	int end = std::min({max_repetition_ply, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});
+	int end = std::min(max_repetition_ply, st->repWindow);
 
 	// 少なくとも4手かけないと千日手にはならないから、4手前から調べていく。
 	if (end < 4)
@@ -2968,7 +2976,7 @@ RepetitionState Position::is_repetition(int ply) const
 bool Position::has_repeated() const {
 
     StateInfo* stc = st;
-    int        end = std::min({max_repetition_ply, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});
+    int        end = std::min(max_repetition_ply, st->repWindow);
     usize distance = 0;
     while (end-- >= 4)
     {
@@ -3002,7 +3010,7 @@ RepetitionState Position::is_repetition(int ply, int& found_ply) const
 
 	// 遡り可能な手数。
 	// 最大でもply手までしか遡らないことにする。
-	int end = std::min({ply, max_repetition_ply, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});
+	int end = std::min({ply, max_repetition_ply, st->repWindow});
 
 	found_ply = 0;
 

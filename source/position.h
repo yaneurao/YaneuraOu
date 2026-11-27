@@ -90,9 +90,9 @@ struct StateInfo {
 #endif
 
 
-    // 将棋版は最後のnull moveからの手数を保持し、検査時に設定上限と保持履歴長で制限する。
+    // 最後のnull move以降で、保持している履歴を実際に遡れる手数。
     // 捕獲・歩の移動でも以前の局面へ戻り得るため、Stockfishと異なり0へ戻さない。
-    // Stockfishのu16・着手時の上限制限とは異なり、従来のintと更新方法を維持する。
+    // Stockfishと異なり型はintのまま。設定上限は検査時に適用する。
     int repWindow;
 
     // 🌈 この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
@@ -805,7 +805,7 @@ class Position {
     // 現局面の手番を返す。
     Color side_to_move() const;
 
-    // 将棋版は最後のnull move以降の手数を返す。実際に遡る範囲は検査時に制限する。
+    // 最後のnull move以降で、保持履歴を実際に遡れる手数を返す。
 #if !STOCKFISH
     int rep_window() const;
 #endif
