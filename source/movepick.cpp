@@ -185,6 +185,7 @@ void partial_insertion_sort(ExtMove* begin, ExtMove* end, int limit) {
 
 // MovePicker constructor for the main search and for the quiescence search
 // 通常探索と静止探索で用いるMovePickerのコンストラクタ。
+#if STOCKFISH
 MovePicker::MovePicker(const Position&              p,
                        Move                         ttm,
                        Depth                        d,
@@ -193,11 +194,19 @@ MovePicker::MovePicker(const Position&              p,
                        const CapturePieceToHistory* cph,
                        const PieceToHistory**       ch,
                        const SharedHistories*       sh,
-                       int                          pl
-#if !STOCKFISH
-                       ,bool generate_all_legal_moves
+                       int                          pl) :
+#else
+MovePicker::MovePicker(const Position&              p,
+                       Move                         ttm,
+                       Depth                        d,
+                       const ButterflyHistory*      mh,
+                       const LowPlyHistory*         lph,
+                       const CapturePieceToHistory* cph,
+                       const PieceToHistory**       ch,
+                       const SharedHistories*       sh,
+                       int                          pl,
+                       bool                         generate_all_legal_moves) :
 #endif
-                       ) :
     pos(p),
     mainHistory(mh),
     lowPlyHistory(lph),
@@ -206,12 +215,12 @@ MovePicker::MovePicker(const Position&              p,
     sharedHistory(sh),
     ttMove(ttm),
     depth(d),
-    ply(pl)
-#if !STOCKFISH
-    ,
-    generate_all_legal_moves(generate_all_legal_moves)
+#if STOCKFISH
+    ply(pl) {
+#else
+    ply(pl),
+    generate_all_legal_moves(generate_all_legal_moves) {
 #endif
-{
     // 王手中は王手回避、王手なしではdepth > 0なら通常探索、それ以外は静止探索。
     first_stage = pos.checkers() ? EVASION : depth > 0 ? GOOD_CAPTURE : QSEARCH;
 
@@ -233,21 +242,24 @@ MovePicker::MovePicker(const Position&              p,
 // thresholdは呼び出し元が指定する枝刈りの閾値（probCutBeta - ss->staticEval）。
 // ただし、先に返すTT手は捕獲手かつ合法手であることを確認し、SEEでは制限しない。
 
-MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceToHistory* cph
-#if !STOCKFISH
-    , bool generate_all_legal_moves
+#if STOCKFISH
+MovePicker::MovePicker(const Position& p, Move ttm, int th, const CapturePieceToHistory* cph) :
+#else
+MovePicker::MovePicker(const Position& p,
+                       Move ttm,
+                       int th,
+                       const CapturePieceToHistory* cph,
+                       bool generate_all_legal_moves) :
 #endif
-
-                       ) :
     pos(p),
     captureHistory(cph),
     ttMove(ttm),
-    threshold(th)
-#if !STOCKFISH
-    ,generate_all_legal_moves(generate_all_legal_moves)
+#if STOCKFISH
+    threshold(th) {
+#else
+    threshold(th),
+    generate_all_legal_moves(generate_all_legal_moves) {
 #endif
-
-    {
 
     // ProbCutから呼び出されているので王手はかかっていないはず。
     ASSERT_LV3(!pos.checkers());

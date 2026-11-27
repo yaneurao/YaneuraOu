@@ -37,28 +37,37 @@ class MovePicker {
     MovePicker& operator=(const MovePicker&) = delete;
 
     // 通常探索(main search)と静止探索から呼び出されるとき用のコンストラクタ。
-    MovePicker(const Position&              /* pos_    */,
-               Move                         /* ttMove_ */,
-               Depth                        /* depth_  */,
-               const ButterflyHistory*      /* mh      */,
-               const LowPlyHistory*         /* lph     */,
-               const CapturePieceToHistory* /* cph     */,
-               const PieceToHistory**       /* ch      */,
-               const SharedHistories*       /* sh      */,
-               int                          /* ply_    */
-#if !STOCKFISH
-              ,bool generate_all_legal_moves
+#if STOCKFISH
+    MovePicker(const Position&,
+               Move,
+               Depth,
+               const ButterflyHistory*,
+               const LowPlyHistory*,
+               const CapturePieceToHistory*,
+               const PieceToHistory**,
+               const SharedHistories*,
+               int);
+#else
+    MovePicker(const Position&,
+               Move,
+               Depth,
+               const ButterflyHistory*,
+               const LowPlyHistory*,
+               const CapturePieceToHistory*,
+               const PieceToHistory**,
+               const SharedHistories*,
+               int,
+               bool generate_all_legal_moves);
 #endif
-    );
 
     // 通常探索のProbCut用。SEEがthreshold以上の捕獲手を返す。
     // thresholdは呼び出し元指定の枝刈りの閾値で、直前に取られた駒の価値ではない。
     // 先行するTT手は捕獲手かつ合法手なら返し、SEEの条件は課さない。
-    MovePicker(const Position&, Move /* ttMove_ */, int /* threshold_ */, const CapturePieceToHistory*
-#if !STOCKFISH
-    , bool generate_all_legal_moves
+#if STOCKFISH
+    MovePicker(const Position&, Move, int, const CapturePieceToHistory*);
+#else
+    MovePicker(const Position&, Move, int, const CapturePieceToHistory*, bool generate_all_legal_moves);
 #endif
-    );
 
     // 呼び出されるごとに新しい合法手をひとつ返す。
     // 指し手が尽きればMove::none()が返る。
@@ -79,44 +88,44 @@ class MovePicker {
     template<GenType T>
     ExtMove* generate_and_score();
 
-    const Position& pos;
+    const Position&              pos;
 
     // コンストラクタで渡されたhistoryのポインタを保存しておく変数。
     const ButterflyHistory*      mainHistory;
     const LowPlyHistory*         lowPlyHistory;
     const CapturePieceToHistory* captureHistory;
     const PieceToHistory**       continuationHistory;
-	const SharedHistories*       sharedHistory;
+    const SharedHistories*       sharedHistory;
 
     // 置換表の指し手(コンストラクタで渡される)
-    Move ttMove;
+    Move                         ttMove;
 
     // cur            : 次に返す候補
     // endCur         : 現在走査する領域の終端
     // endBadCaptures : movesから始まる悪い捕獲手の領域の終端
     // endBadMoves    : 悪い捕獲手と、その直後へ詰めた悪いquietの領域の終端
-    ExtMove *cur, *endCur, *endBadCaptures, *endBadMoves;
+    ExtMove *                    cur, *endCur, *endBadCaptures, *endBadMoves;
 
     // 現在の段階と、TT手の処理後に開始する段階
-    Stages stage;
-    Stages first_stage;
+    Stages                       stage;
+    Stages                       first_stage;
 
     // ProbCutでSEE判定に用いる、呼び出し元指定の閾値
-    int threshold;
+    int                          threshold;
 
     // コンストラクタで渡された探索深さ
-    Depth depth;
+    Depth                        depth;
 
     // コンストラクタで渡されたrootからの手数
-    int ply;
+    int                          ply;
 
     // next_move()で、quietな指し手をskipするかのフラグ
-    bool skipQuiets = false;
+    bool                         skipQuiets = false;
 
     // 指し手生成バッファ
     // 最大合法手の数 = 593
     // cf. https://www.nara-wu.ac.jp/math/personal/shinoda/bunki.html
-    ExtMove moves[MAX_MOVES];
+    ExtMove                      moves[MAX_MOVES];
 
 #if !STOCKFISH
     // Position::pseudo_legal()に渡す第2パラメーター。
