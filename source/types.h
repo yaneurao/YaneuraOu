@@ -401,7 +401,8 @@ namespace Effect8
 static bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 {
     // directions_of()は0または1bit。ANDで非ゼロ判定と同方向の比較をまとめる。
-    return Effect8::directions_of(sq1, sq3) & Effect8::directions_of(sq2, sq3);
+    // 両方の向きを反転しても同方向かは変わらない。玉を始点に揃え、表の行アドレスを共用する。
+    return Effect8::directions_of(sq3, sq1) & Effect8::directions_of(sq3, sq2);
 }
 
 // --------------------
