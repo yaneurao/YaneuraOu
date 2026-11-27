@@ -497,27 +497,13 @@ static const Bitboard enemy_field(Color Us) { return BB_Table::EnemyField[Us]; }
 template <Color C>
 static Bitboard pawn_drop_mask(const Bitboard& pawns) {
 	// Quigy[WCSC31]の手法 : cf. https://www.apply.computer-shogi.org/wcsc31/appeal/Qugiy/appeal.pdf
-
-	const Bitboard left(0x4020100804020100ULL, 0x0000000000020100ULL);
-
-	// 9段目だけ1にしたbitboardから、歩の升を引き算すると、桁借りで上位bit(9段目)が0になる。これを敷衍するという考えかた。
-	Bitboard t = left - pawns;
-
-	// (left - pawns) & leftでは、歩のない筋の9段目だけが1として残る。
-	// そのbitを起点へ移し、もう一度減算して歩を打てる段へ敷き延ばす。
-	// 先手は2～9段目、後手は1～8段目だけを残し、行き所のない段を除く。
-
-	if (C == BLACK)
-	{
-		// 2段目に移動させて、それを9段目まで敷衍させる。
-		t = (t & left) >> 7;
-		return left ^ (left - t);
-	}
-	else {
-		// 1段目に移動させて、それを8段目まで敷衍させる。
-		t = (t & left) >> 8;
-		return left.andnot(left - t);
-	}
+	// 先後で番兵以外を共通化することでさらに命令数を減らすことができる。
+	// 先手は仮想的な十段目を番兵とする。
+	const Bitboard s = C == BLACK ? BB_Table::Rank9BB << 1 : BB_Table::Rank9BB;
+	// 歩の立っていない筋では番兵が立つ。
+	const Bitboard t = s - pawns & s;
+	// 先手だと0b1000000000 - 0b10 = 0b111111110で1段目、後手は0b100000000 - 0b000000001 = 0b011111111で9段目が空く。
+	return t - (t >> 8);
 }
 
 
