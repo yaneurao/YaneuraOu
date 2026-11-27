@@ -7,6 +7,10 @@
 #include "misc.h"
 #include "position.h"
 
+#if !STOCKFISH
+#include "evaluate.h"
+#endif
+
 namespace YaneuraOu {
 #if !STOCKFISH
 using Eval::PieceValue;

@@ -15,8 +15,6 @@
 #include "types.h"
 
 #if !STOCKFISH
-#include "evaluate.h"
-
 #include "extra/key128.h"
 #include "extra/long_effect.h"
 #endif
@@ -24,6 +22,17 @@
 namespace YaneuraOu {
 
 struct SharedHistories;
+
+#if !STOCKFISH
+// 着手差分は参照・ポインターだけで受け取るため、評価実装の定義は不要。
+namespace Eval {
+struct DirtyPiece;
+struct EmptyDirties;
+#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
+namespace NNUE { struct Dirties; }
+#endif
+}
+#endif
 
 // --------------------
 //     局面の情報

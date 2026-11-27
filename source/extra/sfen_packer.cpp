@@ -2,6 +2,7 @@
 
 #include "../config.h"
 
+#include "../evaluate.h"
 #include "../misc.h"
 #include "../position.h"
 

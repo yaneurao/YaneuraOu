@@ -24,6 +24,7 @@
 #include "movegen.h"
 
 #if !STOCKFISH
+#include "evaluate.h"
 #include "extra/tools.h"
 #include "tt.h"
 #include "mate/mate.h"
