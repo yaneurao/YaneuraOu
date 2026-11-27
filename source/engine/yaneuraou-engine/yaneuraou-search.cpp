@@ -871,7 +871,7 @@ bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
 #if STOCKFISH
     if (pos.capture_stage(move) || pos.rule50_count() < 10)
         return false;
-    if (pos.plies_from_null() < 6 || ss->ply < 20)
+    if (pos.rep_window() < 6 || ss->ply < 20)
         return false;
     return move.from_sq() == (ss - 2)->currentMove.to_sq()
         && (ss - 2)->currentMove.from_sq() == (ss - 4)->currentMove.to_sq();
@@ -880,7 +880,7 @@ bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
     if (pos.capture_stage(move) || move.is_drop())
         return false;
 
-    if (pos.plies_from_null() < 6 || ss->ply < 20)
+    if (pos.rep_window() < 6 || ss->ply < 20)
         return false;
 
     const Move move2 = (ss - 2)->currentMove;

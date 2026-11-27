@@ -51,7 +51,7 @@ struct StateInfo {
     Value  nonPawnMaterial[COLOR_NB];
     int    castlingRights;
     int    rule50;
-    int    pliesFromNull;
+    u16    repWindow;
     Square epSquare;
 
     // Not copied when making a move (will be recomputed anyhow)
@@ -90,8 +90,10 @@ struct StateInfo {
 #endif
 
 
-	// null moveを越えずに遡り可能な手数
-	int pliesFromNull;
+    // 将棋版は最後のnull moveからの手数を保持し、検査時に設定上限と保持履歴長で制限する。
+    // 捕獲・歩の移動でも以前の局面へ戻り得るため、Stockfishと異なり0へ戻さない。
+    // Stockfishのu16・着手時の上限制限とは異なり、従来のintと更新方法を維持する。
+    int repWindow;
 
     // 🌈 この手番側の連続王手は何手前からやっているのか(連続王手の千日手の検出のときに必要)
     int continuousCheck[COLOR_NB];
@@ -803,9 +805,9 @@ class Position {
     // 現局面の手番を返す。
     Color side_to_move() const;
 
-    // 最後のnull move以降の手数を返す。
+    // 将棋版は最後のnull move以降の手数を返す。実際に遡る範囲は検査時に制限する。
 #if !STOCKFISH
-    int plies_from_null() const;
+    int rep_window() const;
 #endif
 
     // (将棋の)開始局面からの手数を返す。
@@ -850,7 +852,7 @@ class Position {
 	// 歩以外の駒の駒割。やねうら王では使わない。
     Value non_pawn_material(Color c) const;
     Value non_pawn_material() const;
-    int   plies_from_null() const;
+    int   rep_window() const;
     bool  dtz_is_dtm() const;  // Pawnless && (3-men || 4-men-minors-only)
     // 歩がなく、3駒または小駒のみの4駒の局面。
 #endif
@@ -1379,7 +1381,7 @@ inline HASH_KEY Position::non_pawn_key(Color c) const { return HASH_KEY(); }
 #if STOCKFISH
 inline Value Position::non_pawn_material(Color c) const { return st->nonPawnMaterial[c]; }
 
-inline int Position::plies_from_null() const { return st->pliesFromNull; }
+inline int Position::rep_window() const { return st->repWindow; }
 
 inline Value Position::non_pawn_material() const {
     return non_pawn_material(WHITE) + non_pawn_material(BLACK);
@@ -1387,7 +1389,7 @@ inline Value Position::non_pawn_material() const {
 #endif
 
 #if !STOCKFISH
-inline int Position::plies_from_null() const { return st->pliesFromNull; }
+inline int Position::rep_window() const { return st->repWindow; }
 #endif
 
 inline int Position::game_ply() const { return gamePly; }

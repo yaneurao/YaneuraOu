@@ -1781,8 +1781,10 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 
 #if STOCKFISH
     ++st->rule50;
+    st->repWindow = std::min(st->repWindow + 1, MAX_HIST - 1);
+#else
+    ++st->repWindow;
 #endif
-    ++st->pliesFromNull;
 
 #if STOCKFISH
     Color us   = sideToMove;
@@ -2152,8 +2154,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     st->repetition_times = 0;
     st->repetition_type  = REPETITION_NONE;
 
-    //int end        = std::min(st->rule50, st->pliesFromNull);
-    int end = std::min({max_repetition_ply, st->pliesFromNull, int(std::min(stateIdx, MAX_HIST - 1))});  // 設定上限・null move・保持履歴で遡り範囲を制限する。
+    int end = std::min({max_repetition_ply, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});  // 設定上限・null move・保持履歴で遡り範囲を制限する。
 
     // ※　チェスは終局までの平均手数が100手程度らしいが、将棋AIの対局では平均手数は160手以上で
     // 　長い手数の対局では300手以上になることも珍しくはないので、初手まで千日手判定のために遡ると
@@ -2480,7 +2481,7 @@ void Position::do_null_move(const T& tt) {
     st->key ^= Zobrist::side;
     prefetch(tt.get_cluster(key()));
 
-	st->pliesFromNull = 0;
+	st->repWindow = 0;
 
     sideToMove = ~sideToMove;
 
@@ -2511,7 +2512,7 @@ void Position::do_null_move(const T& tt) {
         prefetch(tt.get_cluster(key));
     }
 
-	st->pliesFromNull = 0;
+	st->repWindow = 0;
 
 	// 手番が変わるので手番側の手駒情報であるst->handの更新が必要。
     st->hand = hand[sideToMove];
@@ -2879,8 +2880,8 @@ RepetitionState Position::is_repetition(int ply) const
 
 	return REPETITION_NONE;
 #else
-	// pliesFromNullが未初期化になっていないかのチェックのためのassert
-	ASSERT_LV3(st->pliesFromNull >= 0);
+	// repWindowが未初期化になっていないかのチェックのためのassert
+	ASSERT_LV3(st->repWindow >= 0);
 
 	// 遡り可能な手数。
 	// 最大でも(root以降であっても)16手までしか遡らないことにする。
@@ -2888,7 +2889,7 @@ RepetitionState Position::is_repetition(int ply) const
 	// ここss->ply(rootからの手数)にするとR5ぐらい弱くなる。
 	// また、root以前にも遡る。こうした方が+R5ぐらい強くなる。
 
-	int end = std::min({16, st->pliesFromNull, int(std::min(stateIdx, MAX_HIST - 1))});
+	int end = std::min({16, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});
 
 	// 少なくとも4手かけないと千日手にはならないから、4手前から調べていく。
 	if (end < 4)
@@ -2940,8 +2941,7 @@ RepetitionState Position::is_repetition(int ply) const
 bool Position::has_repeated() const {
 
     StateInfo* stc = st;
-    //int        end = std::min(st->rule50, st->pliesFromNull);
-    int        end = std::min({max_repetition_ply, st->pliesFromNull, int(std::min(stateIdx, MAX_HIST - 1))});
+    int        end = std::min({max_repetition_ply, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});
     usize distance = 0;
     while (end-- >= 4)
     {
@@ -2970,12 +2970,12 @@ RepetitionState Position::is_repetition(int ply, int& found_ply) const
 
 	return REPETITION_NONE;
 #else
-	// pliesFromNullが未初期化になっていないかのチェックのためのassert
-	ASSERT_LV3(st->pliesFromNull >= 0);
+	// repWindowが未初期化になっていないかのチェックのためのassert
+	ASSERT_LV3(st->repWindow >= 0);
 
 	// 遡り可能な手数。
 	// 最大でもply手までしか遡らないことにする。
-	int end = std::min({ply, max_repetition_ply, st->pliesFromNull, int(std::min(stateIdx, MAX_HIST - 1))});
+	int end = std::min({ply, max_repetition_ply, st->repWindow, int(std::min(stateIdx, MAX_HIST - 1))});
 
 	found_ply = 0;
 
