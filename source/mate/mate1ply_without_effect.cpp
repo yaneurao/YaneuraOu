@@ -610,7 +610,7 @@ Bitboard pinned_pieces(const Position& pos, Square from, Square to) {
 	inline bool can_pawn_drop(const Position& pos, Square sq)
 	{
 		// 歩を持っていて、二歩ではない。
-		return hand_count(pos.hand_of<Us>(), PAWN) > 0 && !((pos.pieces(Us,PAWN) & file_bb(sq)));
+		return hand_count(pos.hand_of(Us), PAWN) > 0 && !((pos.pieces(Us,PAWN) & file_bb(sq)));
 	}
 
 }
@@ -811,8 +811,8 @@ namespace Mate {
 		// 攻撃範囲計算用
 		Bitboard bb_attacks;
 
-		Hand ourHand  = pos.hand_of<Us  >();
-		Hand themHand = pos.hand_of<Them>();
+		Hand ourHand  = pos.hand_of(Us);
+		Hand themHand = pos.hand_of(Them);
 
 		// 飛車を短く打つ場合
 		if (hand_count(ourHand, ROOK))

@@ -343,10 +343,6 @@ class Position {
 	// c側の手駒を返す。
 	Hand hand_of(Color c) const { ASSERT_LV3(is_ok(c));  return hand[c]; }
 
-	// ↑のtemplate版
-	template <Color C>
-	Hand hand_of() const { ASSERT_LV3(is_ok(C));  return hand[C]; }
-
 
 	// 現局面に対して
 	// この指し手によって移動させる駒を返す。(移動前の駒)
