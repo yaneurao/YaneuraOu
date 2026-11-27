@@ -1025,7 +1025,13 @@ void Position::update_slider_blockers(Color c) const {
     while (snipers)
     {
         Square   sniperSq = snipers.pop_lsb();
+#if STOCKFISH
         Bitboard b        = between_bb(ksq, sniperSq) & occupancy;
+#else
+        // occupancyから全snipersを除いてあるので、終点sniperSqは必ずANDで消える。
+        // Stockfishと同じ結果のまま、終点を追加するORとそのマスクの読み出しを省く。
+        Bitboard b        = between_exclusive_bb(ksq, sniperSq) & occupancy;
+#endif
 
         // snipperと玉との間にある駒が1個であるなら。
         if (b && !b.more_than_one())
