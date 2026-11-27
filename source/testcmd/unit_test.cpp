@@ -410,6 +410,17 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
                 }
             }
         tester.test("single blocker count for all between-square occupancy subsets", blockerCountOk);
+
+        // mergeの前提を満たす全1枚・2枚配置と空集合で、複数bit判定を検証する。
+        bool multipleBitsOk = !Bitboard(ZERO).more_than_one();
+        for (Square from : SQ)
+            for (Square to : SQ)
+            {
+                const Bitboard b = square_bb(from) | to;
+                if (!b.cross_over())
+                    multipleBitsOk &= b.more_than_one() == (from != to);
+            }
+        tester.test("more_than_one for empty, single and paired squares", multipleBitsOk);
     }
 
 	{

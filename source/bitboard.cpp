@@ -299,8 +299,11 @@ void Bitboard::decrement(const Bitboard hi_in,const Bitboard lo_in, Bitboard& hi
 // 2つの64bitをORして数えるため、同じbit位置が両方に立つ盤面には使えない。
 bool Bitboard::more_than_one() const
 {
-	ASSERT_LV2(!cross_over());
-	return POPCNT64(merge()) > 1;
+    ASSERT_LV2(!cross_over());
+    // Stockfishと同じく最下位の1bitを消し、まだbitが残るかを調べる。
+    // 枚数そのものは不要なので、popcountと比較を省ける。
+    const u64 b = merge();
+    return b & (b - 1);
 }
 
 #endif
