@@ -528,7 +528,8 @@ Move* generate_evasions(const Position& pos, Move* moveList)
 	// 王手回避のための玉の移動先は、玉の利きで、自駒のない場所でかつさきほどの王手していた駒が利いていないところが候補として挙げられる
 	// これがまだ自殺手である可能性もあるが、それはis_legal()でチェックすればいいと思う。
 
-	Bitboard bb = kingEffect(ksq) & ~(pos.pieces(Us) | sliderAttacks);
+    // kingEffectは盤内の升だけなので、反転を全81升へ制限せず直接AND-NOTする。
+    Bitboard bb = (pos.pieces(Us) | sliderAttacks).andnot(kingEffect(ksq));
 	while (bb) { Square to = bb.pop_lsb(); *moveList++ = make_move(ksq, to , Us, KING); }
 
 	// 両王手(checkersCnt == 2)であるなら、王の移動のみが回避手となる。ゆえにこれで指し手生成は終了。
