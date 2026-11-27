@@ -256,15 +256,6 @@ void TimeManagement::init(const Search::LimitsType& limits,
     //     以降、elapsed_time()は、ここからの経過時間を返す。
     startTime = limits.startTime;
 
-	// TODO あとで
-#if 0
-    // reinit()が呼び出された時のために呼び出し条件を保存しておく。
-    lastcall_Limits = &limits;
-    lastcall_Us     = us;
-    lastcall_Ply    = ply;
-    lastcall_Opt    = const_cast<OptionsMap*>(&options);
-#endif
-
     init_(limits, us, ply, options, max_moves_to_draw);
 }
 

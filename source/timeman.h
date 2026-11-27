@@ -34,20 +34,19 @@ class TimeManagement {
 	// ⚠ optionsに"USI_Ponder"と"Stochastic_Ponder"オプションが含まれていること。
 #if STOCKFISH
     void init(Search::LimitsType& limits,
-#else
-    // やねうら王はnodes-as-timeによるlimitsの書換えを行わない。
-    void init(const Search::LimitsType& limits,
-#endif
               Color               us,
               int                 ply,
               const OptionsMap&   options,
-#if STOCKFISH
-			  double& originalTimeAdjust
-			  // 💡 やねうら王では使わないことにする。
+              double&             originalTimeAdjust);
 #else
-			  int max_moves_to_draw
+    // やねうら王はnodes-as-timeによるlimitsの書換えを行わない。
+    // originalTimeAdjustは使わず、将棋の最大手数を時間配分の計算に渡す。
+    void init(const Search::LimitsType& limits,
+              Color                     us,
+              int                       ply,
+              const OptionsMap&         options,
+              int                       max_moves_to_draw);
 #endif
-    );
 
     TimePoint optimum() const;
     TimePoint maximum() const;
