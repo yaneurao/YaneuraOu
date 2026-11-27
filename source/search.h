@@ -176,8 +176,7 @@ struct Stack {
 // root(探索開始局面)での指し手として使われる。それぞれのroot moveに対して、
 // その指し手のscore（評価値）とPVを保持する。fail lowした手では、PVはその手への反証手順となる。
 // scoreはnon-pvの指し手では-VALUE_INFINITEで初期化される。
-struct RootMove
-{
+struct RootMove {
 	// pv[0]には、このコンストラクタの引数で渡されたmを設定する。
     explicit RootMove(Move m) { pv.push_back(m); }
 
@@ -191,7 +190,12 @@ struct RootMove
 	// GUIに返すponder moveをできる限り準備しようとしますが、
 	// そうでない場合、「ponder on」の際に考えるべきものが何もなくなります。
 
-	bool extract_ponder_from_tt(const TranspositionTable& tt, Position& pos, Move ponder_candidate);
+#if STOCKFISH
+    bool extract_ponder_from_tt(const TranspositionTable& tt, Position& pos);
+#else
+    // 将棋版は、反復深化で得たponder候補も補完に使う。
+    bool extract_ponder_from_tt(const TranspositionTable& tt, Position& pos, Move ponder_candidate);
+#endif
 
     // 未確定の評価値を、証明済みの勝ち・負けとして扱わないための判定。
     bool is_inexact() const { return inexactLower || inexactUpper; }
@@ -212,48 +216,46 @@ struct RootMove
 
 	// この指し手のためにどれだけのnodeを探索したか。
 	// 💡 反復深化がもう1回回りそうかの判定に用いる。
-    u64 effort             = 0;
+    u64         effort           = 0;
 
 	// 今回の(反復深化の)iterationでの探索結果のスコア
-	Value score			   = -VALUE_INFINITE;
+    Value       score            = -VALUE_INFINITE;
 
 	// 前回の(反復深化の)iterationでの探索結果のスコア
 	// 次のiteration時の探索窓の範囲を決めるときに使う。
-	Value previousScore    = -VALUE_INFINITE;
+    Value       previousScore    = -VALUE_INFINITE;
 
 	// aspiration searchの時に用いる。previousScoreの移動平均。
-	Value averageScore	   = -VALUE_INFINITE;
+    Value       averageScore     = -VALUE_INFINITE;
 
 	// aspiration searchの時に用いる。二乗平均スコア。
-	Value meanSquaredScore = - VALUE_INFINITE * VALUE_INFINITE;
+    Value       meanSquaredScore = -VALUE_INFINITE * VALUE_INFINITE;
 
 	// USIに出力する用のscore
 	// 🤔 (usiScoreではなく)Stockfishの変数名のままuciScoreにしておくことで
 	//     ソースコードの差分を減らすことにする。
-	Value uciScore		   = -VALUE_INFINITE;
+    Value       uciScore         = -VALUE_INFINITE;
 
-	// スコアが下界のみの未確定値であるか。
-	bool inexactLower      = false;
-
-	// スコアが上界のみの未確定値であるか。
-	bool inexactUpper      = false;
+    bool        inexactLower     = false;  // By default root scores are exact, unless flagged as a
+    bool        inexactUpper     = false;  // one-sided bound here. See also `enum Bound` in types.h
+    // ルートのスコアは既定では確定値。inexactLowerは下界のみ、inexactUpperは上界のみの
+    // 未確定値であることを示す。types.hのBound列挙型も参照。
 
     // 前回の評価値が確定値であるか。MultiPVの途中停止時の復元に用いる。
     bool previousScoreExact = false;
 
 	// このスレッドがrootから最大、何手目まで探索したか(選択深さの最大)
-	int selDepth           = 0;
+    int         selDepth           = 0;
 
 #if STOCKFISH
 	// 💡 チェスのtablebase絡みの変数。将棋では未使用。
-	int tbRank          = 0;
-	Value tbScore;
+    int         tbRank             = 0;
+    Value       tbScore;
 #endif
 
-	// この指し手で進めたときのpv
-	RootPVMoves pv;
-    // 前回の反復で得たPV。previousScoreと組にして保存する。
-    RootPVMoves previousPV;
+    // pvはこの指し手で進めたときのPV。
+    // previousPVは前回の反復で得たPVで、previousScoreと組にして保存する。
+    RootPVMoves pv, previousPV;
 };
 
 using RootMoves = std::vector<RootMove>;

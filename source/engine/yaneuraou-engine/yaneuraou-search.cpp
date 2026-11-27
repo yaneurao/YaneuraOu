@@ -6162,13 +6162,14 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
 // GUIに返す予想手をできる限り見つける。
 // 予想手がないと、ponderが有効でも次に考える指し手がなくなるためである。
 
-bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
-                                              Position&                 pos
-#if !STOCKFISH
+#if STOCKFISH
+bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt, Position& pos) {
+#else
 // 🌈 やねうら王では、反復深化で見つかったponder候補の手も使う。
-                                              ,Move                      ponder_candidate
+bool RootMove::extract_ponder_from_tt(const TranspositionTable& tt,
+                                    Position&                 pos,
+                                    Move                      ponder_candidate) {
 #endif
-                                              ) {
 
 #if STOCKFISH
     assert(pv.size() == 1 && pv[0] != Move::none());
