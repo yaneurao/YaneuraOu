@@ -190,10 +190,6 @@ class OptionsMap {
     std::string set_option_if_exists(const std::string& option_name,
                                      const std::string& option_value);
 
-    // idxを指定して、それに対応するOptionを取得する。
-    // ⚠ 値が存在しないidxを指定すると落ちる。
-    std::pair<const std::string, const Option&> get_option_by_idx(usize idx) const;
-
 #endif
 
    private:
@@ -214,6 +210,10 @@ class OptionsMap {
     InfoListener info;
 
 #if !STOCKFISH
+    // idxを指定して、それに対応するOptionを取得する。
+    // ⚠ 値が存在しないidxを指定すると落ちる。
+    std::pair<const std::string, const Option&> get_option_by_idx(usize idx) const;
+
     // 指定がなければ従来互換のV1。
     int book_options_version = 1;
 
