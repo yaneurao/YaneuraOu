@@ -4469,8 +4469,8 @@ moves_loop:  // When in check, search starts here
       // whileループの終わり。
 
 	// -----------------------
-    // Step 23. Check for mate and stalemate, otherwise update bestmove/countermove stats
-    // Step 23. 詰み・ステイルメイトを確認し、それ以外は最善手／応手の統計を更新する
+    // Step 23. Check for mate and stalemate, otherwise update best move and history stats
+    // Step 23. 詰み・ステイルメイトを確認し、それ以外は最善手と履歴の統計を更新する
     // -----------------------
 
 	// このStockfishのassert、合法手を生成しているので重すぎる。良くない。
@@ -4518,8 +4518,8 @@ moves_loop:  // When in check, search starts here
             ttMoveHistory << (bestMove == ttData.move ? 918 : -747);
     }
 
-    // Bonus for prior quiet countermove that caused the fail low
-    // fail lowを引き起こした1手前のquiet countermoveに対するボーナス
+    // Bonus for the prior quiet move that caused the fail low
+    // fail lowを引き起こした1手前のquiet手に対するボーナス
 
 	/*
 		📓 bestMoveがない == fail lowしているケースなので、
@@ -4552,8 +4552,8 @@ moves_loop:  // When in check, search starts here
             sharedHistory.pawn_entry(pos)[pos.piece_on(prevSq)][prevSq] << scaledBonus * 324 / 8192;
     }
 
-    // Bonus for prior capture countermove that caused the fail low
-    // 前のfail lowを引き起こしたcapture countermoveに対するボーナス
+    // Bonus for the prior capture that caused the fail low
+    // fail lowを引き起こした1手前の捕獲手に対するボーナス
 
     else if (prevSq != SQ_NONE)
     {
