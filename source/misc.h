@@ -601,8 +601,6 @@ class PRNG
 	// 0からn-1までの乱数を返す。(一様分布ではないが現実的にはこれで十分)
 	u64 rand(u64 n) { return rand<u64>() % n; }
 
-	// 内部で使用している乱数seedを返す。
-	u64 get_seed() const { return s;  }
 #endif
 
 };
