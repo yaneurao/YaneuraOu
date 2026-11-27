@@ -323,15 +323,15 @@ class Position {
 #if STOCKFISH
     std::string fen() const;
 #else
-	const std::string sfen() const;
-	const std::string sfen(int gamePly) const;
+	std::string sfen() const;
+	std::string sfen(int gamePly) const;
 
 	// sfen()のflip(先後反転 = 盤面を180度回転)させた時のsfenを返す。
-	const std::string flipped_sfen() const;
-	const std::string flipped_sfen(int gamePly) const;
+	std::string flipped_sfen() const;
+	std::string flipped_sfen(int gamePly) const;
 
 	// sfen文字列をflip(先後反転)したsfen文字列に変換する。
-	static const std::string sfen_to_flipped_sfen(std::string sfen);
+	static std::string sfen_to_flipped_sfen(std::string sfen);
 
 #endif
 

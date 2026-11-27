@@ -895,9 +895,9 @@ string Position::fen() const {
 
 #else
 
-const std::string Position::sfen() const { return sfen(game_ply()); }
+std::string Position::sfen() const { return sfen(game_ply()); }
 
-const std::string Position::sfen(int gamePly_) const
+std::string Position::sfen(int gamePly_) const
 {
 	std::ostringstream ss;
 
@@ -1127,9 +1127,9 @@ bool Position::attackers_to_exist(Square s, Bitboard occupied, Color c) const {
 
 
 // 盤面を先後反転させた時のsfen文字列を取得する。
-const std::string Position::flipped_sfen() const { return flipped_sfen(game_ply()); }
+std::string Position::flipped_sfen() const { return flipped_sfen(game_ply()); }
 
-const std::string Position::flipped_sfen(int gamePly_) const
+std::string Position::flipped_sfen(int gamePly_) const
 {
 	std::ostringstream ss;
 
@@ -1208,7 +1208,7 @@ const std::string Position::flipped_sfen(int gamePly_) const
 }
 
 // sfen文字列をflip(先後反転)したsfen文字列に変換する。
-const std::string Position::sfen_to_flipped_sfen(std::string sfen)
+std::string Position::sfen_to_flipped_sfen(std::string sfen)
 {
 	Position pos;
 
