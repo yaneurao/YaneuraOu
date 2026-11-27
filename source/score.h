@@ -12,7 +12,7 @@ namespace YaneuraOu {
 class Position;
 #endif
 
-// GUIで要求されている評価値の単位でValueを保持しているclass
+// USI出力用の通常評価値(cp)、または詰みまでの手数を保持する。
 class Score {
    public:
 	// 詰み
@@ -37,12 +37,12 @@ class Score {
     Score() = default;
 
 	// ValueからこのScore構造体を構築する。
-	// 💡 Stockfishでは、Position classが勝率への変換パラメーターを保持しているので
-	//     変換に際してPosition classが必要なのだが、やねうら王では使わないのでコメントアウト。
+	// Stockfishは局面の駒の構成に応じた勝率モデルでcpへ換算するため、Positionが必要。
+	// 将棋版はPawnValueによる固定換算なので、Positionを受け取らない。
 #if STOCKFISH
     Score(Value v, const Position& pos);
 #else
-    Score(Value v /*, const Position& pos*/);
+    Score(Value v);
 
 	// 🌈 Valueの値を(cpへの変換をせずに)そのままScoreに変換する。
     static Score from_internal_value(Value v);
@@ -71,8 +71,8 @@ class Score {
 #if STOCKFISH
     std::variant<Mate, Tablebase, InternalUnits> score;
 #else
-	// MateかInternalUnitsかのいずれか。
-    std::variant<Mate, /* Tablebase ,*/ InternalUnits> score;
+    // 将棋版はMateかInternalUnitsで保持する。
+    std::variant<Mate, InternalUnits> score;
 #endif
 };
 

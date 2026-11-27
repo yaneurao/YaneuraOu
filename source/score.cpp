@@ -11,13 +11,12 @@ namespace YaneuraOu {
 #if STOCKFISH
 Score::Score(Value v, const Position& pos) {
 #else
-Score::Score(Value v /*, const Position& pos*/) {
+Score::Score(Value v) {
 #endif
 
     assert(-VALUE_INFINITE < v && v < VALUE_INFINITE);
 
     if (!is_decisive(v))
-
 #if STOCKFISH
         score = InternalUnits{UCIEngine::to_cp(v, pos)};
 
@@ -28,7 +27,7 @@ Score::Score(Value v /*, const Position& pos*/) {
     }
 
 #else
-		score = InternalUnits{USIEngine::to_cp(v /*, pos*/)};
+        score = InternalUnits{USIEngine::to_cp(v)};
 #endif
 
     else
