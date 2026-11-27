@@ -189,17 +189,26 @@ void Position::UnitTest(Test::UnitTester& tester, IEngine& engine) {
     {
         auto section2 = tester.section("attacks_bb");
         hirate_init();
-        tester.test("attacks_by<BLACK,PAWN>", pos.attacks_by<BLACK, PAWN>() == BB_Table::Rank6BB);
-        tester.test("attacks_by<WHITE,PAWN>", pos.attacks_by<WHITE, PAWN>() == BB_Table::Rank4BB);
-        tester.test("attacks_by<BLACK,KNIGHT>",
-                    pos.attacks_by<BLACK, KNIGHT>()
+        tester.test("xattacks_by(PAWN,BLACK)", pos.xattacks_by(PAWN, BLACK, pos.pieces()) == BB_Table::Rank6BB);
+        tester.test("xattacks_by(PAWN,WHITE)", pos.xattacks_by(PAWN, WHITE, pos.pieces()) == BB_Table::Rank4BB);
+        tester.test("xattacks_by(KNIGHT,BLACK)",
+                    pos.xattacks_by(KNIGHT, BLACK, pos.pieces())
                       == (square_bb(SQ_97) | square_bb(SQ_77) | square_bb(SQ_37) | square_bb(SQ_17)));
-        tester.test("attacks_by<BLACK,GOLDS>",
-                    pos.attacks_by<BLACK, GOLDS>()
+        tester.test("xattacks_by(GOLDS,BLACK)",
+                    pos.xattacks_by(GOLDS, BLACK, pos.pieces())
                       == (goldEffect<BLACK>(SQ_69) | goldEffect<BLACK>(SQ_49)));
-        tester.test("attacks_by<WHITE,GOLDS>",
-                    pos.attacks_by<WHITE, GOLDS>()
+        tester.test("xattacks_by(GOLDS,WHITE)",
+                    pos.xattacks_by(GOLDS, WHITE, pos.pieces())
                       == (goldEffect<WHITE>(SQ_61) | goldEffect<WHITE>(SQ_41)));
+
+        // 玉で遮断される通常の利きと、occupiedからその玉を除いたX線の利きを区別する。
+        pos_init("8B/9/9/9/4k4/9/9/9/K8 w - 1");
+        const Bitboard normal = pos.xattacks_by(BISHOP, BLACK, pos.pieces());
+        const Bitboard xray = pos.xattacks_by(BISHOP, BLACK,
+                                             pos.pieces() ^ pos.pieces(WHITE, KING));
+        tester.test("xattacks_by respects the supplied occupancy",
+                    (normal & SQ_55) && !(normal & SQ_66) && (xray & SQ_66));
+        hirate_init();
     }
 
 #if defined(ENABLE_QUICK_DRAW)

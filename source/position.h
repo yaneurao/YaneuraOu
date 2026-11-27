@@ -506,7 +506,9 @@ class Position {
 
 #if STOCKFISH
     void     update_slider_blockers(Color c) const;
+#endif
     Bitboard xattacks_by(PieceType pt, Color c, Bitboard occupied) const;
+#if STOCKFISH
     Bitboard threats_by(PieceType pt) const;
 
 #else
@@ -563,8 +565,6 @@ class Position {
 #if !STOCKFISH
     void update_slider_blockers(Color c) const;
 
-	// c側の駒Ptの利きのある升を表現するBitboardを返す。(MovePickerで用いている。)
-	template<Color C , PieceType Pt> Bitboard attacks_by() const;
 #endif
 
     // Properties of moves
@@ -1232,9 +1232,9 @@ inline Square Position::castling_rook_square(CastlingRights cr) const {
 
 inline Bitboard Position::attackers_to(Square s) const { return attackers_to(s, pieces()); }
 
-#if STOCKFISH
 // includes X-ray attacks through the king of color ~c
-// ~c側の玉を透過するX線の利きも含む。
+// ~c側の玉を透過するX線の利きも含む。呼び出し側でその玉をoccupiedから除く。
+// occupiedにpieces()を渡すと、玉で遮断される従来の通常の利きを返す。
 inline Bitboard Position::xattacks_by(PieceType pt, Color c, Bitboard occupied) const {
 
     if (pt == PAWN)
@@ -1245,11 +1245,17 @@ inline Bitboard Position::xattacks_by(PieceType pt, Color c, Bitboard occupied) 
         Bitboard threats   = 0;
         Bitboard attackers = pieces(c, pt);
         while (attackers)
+#if STOCKFISH
             threats |= Attacks::attacks_bb(pt, pop_lsb(attackers), occupied);
+#else
+            // 将棋は香・桂・銀・金などの向きが手番で変わるため、駒種に手番を付けて渡す。
+            threats |= Attacks::attacks_bb(make_piece(c, pt), attackers.pop_lsb(), occupied);
+#endif
         return threats;
     }
 }
 
+#if STOCKFISH
 inline Bitboard Position::threats_by(PieceType pt) const {
     if (!st->threats[ALL_PIECES])
         compute_threats();
@@ -1514,22 +1520,7 @@ inline Bitboard Position::attackers_to(Square sq, const Bitboard& occ) const {
     // clang-format on
 }
 
-// c側の駒Ptの利きのある升を表現するBitboardを返す。(MovePickerで用いている。)
-// 遠方駒に関しては盤上の駒を考慮した利き。
-template<Color C, PieceType Pt>
-Bitboard Position::attacks_by() const {
-    if constexpr (Pt == PAWN)
-        return C == WHITE ? pawn_attacks_bb<WHITE>(pieces(WHITE, PAWN))
-                          : pawn_attacks_bb<BLACK>(pieces(BLACK, PAWN));
-    else
-    {
-        Bitboard threats   = Bitboard(ZERO);
-        Bitboard attackers = pieces(C, Pt);
-        while (attackers)
-            threats |= Attacks::attacks_bb(make_piece(C, Pt), attackers.pop_lsb(), pieces());
-        return threats;
-    }
-}
+
 #endif
 
 

@@ -313,7 +313,7 @@ ExtMove* MovePicker::generate_and_score() {
 		// 歩による脅威だけ。
 		// squares threatened by pawns
         // 相手の歩の利きがある升。
-		threatenedByPawn = (~us == BLACK) ? pos.attacks_by<BLACK, PAWN>() : pos.attacks_by<WHITE, PAWN>();
+		threatenedByPawn = pos.xattacks_by(PAWN, ~us, pos.pieces());
 
 		// 歩以外の自駒で、相手の歩の利きにある駒
 		threatened =  (pos.pieces(us,PAWN).andnot(pos.pieces(us))                 & threatenedByPawn );
