@@ -13,13 +13,7 @@
 namespace YaneuraOu {
 
 class Position;
-struct StateInfo;
-class NumaReplicationContext;
-class NumaReplicatedAccessToken;
 template<typename T> class LazyNumaReplicatedSystemWide;
-#if defined(EVAL_SFNN) || defined(EVAL_NNUE)
-namespace Eval::NNUE { struct Network; struct Dirties; }
-#endif
 
 namespace Eval {
 
@@ -36,6 +30,13 @@ namespace Eval {
 #else
 #define EvalFileDefaultName "nn.bin"
 #endif
+
+namespace NNUE {
+struct Network;
+class AccumulatorCaches;
+class AccumulatorStack;
+struct Dirties;
+}
 #endif
 
 #if !defined(EVAL_SFNN) && !defined(EVAL_NNUE) && !defined(EVAL_KPPT) && !defined(EVAL_KPP_KKPT)
@@ -85,7 +86,6 @@ namespace Eval {
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     void load_eval(LazyNumaReplicatedSystemWide<NNUE::Network>& network,
                    const OptionsMap& options);
-    namespace NNUE { class AccumulatorStack; class AccumulatorCaches; }
     Value evaluate(const NNUE::Network& network, const Position& pos);
     Value evaluate(const NNUE::Network& network, const Position& pos,
                    NNUE::AccumulatorStack& stack, NNUE::AccumulatorCaches& refreshTable);

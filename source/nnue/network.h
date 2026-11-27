@@ -105,6 +105,11 @@ struct std::hash<YaneuraOu::Eval::NNUE::Network> {
 	}
 };
 #else
+namespace YaneuraOu {
+class NumaReplicationContext;
+class NumaReplicatedAccessToken;
+}
+
 namespace YaneuraOu::Eval {
 
 // NNUEの重みを持たないエンジンでも、同じ形でネットワークを参照できるようにする。
