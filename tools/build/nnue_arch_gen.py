@@ -412,8 +412,18 @@ else:
 if out_dir:
     os.makedirs(out_dir, exist_ok=True)
 
-with open(out_path, "w", encoding = 'utf-8') as f:
-    f.write(dedent4(header))
+# Preserve the timestamp when the generated contents have not changed.
+# 同じ構成での再ビルドを妨げないよう、内容が同じなら更新日時を維持する。
+header_text = dedent4(header)
+try:
+    with open(out_path, "r", encoding="utf-8") as f:
+        previous_header = f.read()
+except FileNotFoundError:
+    previous_header = None
+
+if previous_header != header_text:
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(header_text)
 
 print("..done!")
 

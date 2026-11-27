@@ -649,24 +649,87 @@ NVCC_CPPFLAGS += -D$(YANEURAOU_EDITION) -DTARGET_CPU=\"$(TARGET_CPU)\"
 OBJECTS  = $(addprefix $(OBJDIR)/, $(SOURCES:.cpp=.o))
 CUDA_OBJECTS = $(addprefix $(OBJDIR)/, $(CUDA_SOURCES:.cu=.o))
 OBJC_OBJECTS = $(addprefix $(OBJDIR)/, $(OBJC_SOURCES:.mm=.o))
-DEPENDS  = $(OBJECTS:.o=.d)
+DEPENDS  = $(OBJECTS:.o=.d) $(OBJC_OBJECTS:.o=.d)
 
-all: clean $(TARGET)
-.PHONY : all normal tournament prof profgen profuse pgo clean
+# コマンド変更を検出するため、通常ビルドではcleanを強制しない。
+all: $(TARGET)
+.PHONY : all normal tournament prof profgen profuse pgo clean run_python_script FORCE
 
-$(TARGET): $(OBJECTS) $(CUDA_OBJECTS) $(OBJC_OBJECTS)
-	$(COMPILER) -o $@ $^ $(LDFLAGS) $(CPPFLAGS) $(LIBS)
+.DELETE_ON_ERROR:
 
-$(OBJDIR)/%.o: %.cpp
+pound     := \#
+backslash := $(strip \ )
+define newline
+
+
+endef
+
+# A *.cmd file is a small Makefile stub which keeps the (escaped) command that
+# is used to build the target (either *.o or the engine executable).
+# 各ターゲットの隣にコマンドを記録し、フラグやコンパイラーが変われば再ビルドする。
+
+escape_cmd = \
+  $(subst $(newline),$$(newline),\
+  $(subst $(pound),$$(pound),\
+  $(subst $(backslash),$$(backslash),\
+  $(subst $$,$$$$,$(1)))))
+
+cmd_file = $(dir $(1)).$(notdir $(1)).cmd
+cmd_record = $(call shell_quote,$(1)) $(call shell_quote,$(compiler_path)) $(call shell_quote,$(compiler_version))$(if $(2), $(call shell_quote,$(2)))
+check_force = $(if $(and $(wildcard $@),$(findstring $(1),$(saved_cmd_$@)),$(findstring $(saved_cmd_$@),$(1))),,FORCE)
+
+make_short_flags = $(filter-out -%,$(firstword $(MAKEFLAGS)))
+make_inspection = $(strip $(foreach mode,n q t,$(findstring $(mode),$(make_short_flags))))
+
+build_and_record = $(if $(findstring s,$(make_short_flags)),,printf '%s\n' $(call shell_quote,$(1)) &&) \
+	record=$(call shell_quote,$(call cmd_file,$@)) && \
+	rm -f "$$record" "$$record.tmp" && \
+	$(1) && \
+	$(if $(3),test -s "$$record.tmp" &&) \
+	printf '\n%s\n' $(call shell_quote,saved_cmd_$@ := $(call escape_cmd,$(call cmd_record,$(1),$(2)))) \
+	  $(if $(3),$(call shell_quote,$(call escape_cmd,$(3)):)) >> "$$record.tmp" && \
+	mv -f "$$record.tmp" "$$record"
+
+compiler_path := $(realpath $(shell command -v $(call shell_quote,$(firstword $(COMPILER))) 2>/dev/null))
+compiler_version := $(shell $(COMPILER) --version 2>/dev/null)
+ifneq ($(strip $(CUDA_OBJECTS)),)
+  nvcc_path := $(realpath $(shell command -v nvcc 2>/dev/null))
+  nvcc_version := $(shell nvcc --version 2>/dev/null)
+endif
+
+tracked_targets := $(TARGET) $(OBJECTS) $(CUDA_OBJECTS) $(OBJC_OBJECTS)
+CMD_FILES = $(foreach target,$(tracked_targets),$(call cmd_file,$(target)))
+ifneq ($(MAKECMDGOALS),clean)
+  -include $(CMD_FILES)
+endif
+
+.SECONDEXPANSION:
+
+link_cmd = $(COMPILER) -o $@ $(OBJECTS) $(CUDA_OBJECTS) $(OBJC_OBJECTS) $(LDFLAGS) $(CPPFLAGS) $(LIBS)
+compile_cpp_cmd = $(COMPILER) $(CPPFLAGS) $(INCLUDE) -o $@ -c $*.cpp
+compile_cuda_cmd = nvcc $(NVCC_CPPFLAGS) $(INCLUDE) -o $@ $*.cu
+compile_objc_cmd = $(COMPILER) $(CPPFLAGS) -fobjc-arc $(INCLUDE) -o $@ -c $*.mm
+
+$(TARGET): $(OBJECTS) $(CUDA_OBJECTS) $(OBJC_OBJECTS) $$(call check_force,$$(call cmd_record,$$(link_cmd)))
+ifeq (,$(make_inspection))
+	+@$(call build_and_record,$(link_cmd))
+else
+	@$(call build_and_record,$(link_cmd))
+endif
+
+$(OBJDIR)/%.o: %.cpp $$(call check_force,$$(call cmd_record,$$(compile_cpp_cmd)))
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	$(COMPILER) $(CPPFLAGS) $(INCLUDE) -o $@ -c $<
+	@$(call build_and_record,$(compile_cpp_cmd))
 
-$(OBJDIR)/%.o: %.cu
-	nvcc $(NVCC_CPPFLAGS) $(INCLUDE) -o $@ $<
-
-$(OBJDIR)/%.o: %.mm
+$(OBJDIR)/%.o: %.cu $$(call check_force,$$(call cmd_record,$$(compile_cuda_cmd),$$(nvcc_path) $$(nvcc_version)))
 	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
-	$(COMPILER) $(CPPFLAGS) -fobjc-arc $(INCLUDE) -o $@ -c $<
+	@$(call build_and_record,$(compile_cuda_cmd),$(nvcc_path) $(nvcc_version))
+
+$(OBJDIR)/%.o: %.mm $$(call check_force,$$(call cmd_record,$$(compile_objc_cmd)))
+	@[ -d $(dir $@) ] || mkdir -p $(dir $@)
+	@$(call build_and_record,$(compile_objc_cmd))
+
+FORCE:
 
 # https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html
 
@@ -717,6 +780,6 @@ pgo:
 	+$(PGO_COMMAND) all
 
 clean:
-	rm -f $(OBJECTS) $(CUDA_OBJECTS) $(OBJC_OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda}
+	rm -f $(OBJECTS) $(CUDA_OBJECTS) $(OBJC_OBJECTS) $(DEPENDS) $(TARGET) ${OBJECTS:.o=.gcda} $(CMD_FILES) $(addsuffix .tmp,$(CMD_FILES))
 
 -include $(DEPENDS)

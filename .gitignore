@@ -261,3 +261,7 @@ FakesAssemblies/
 GeneratedArtifacts/
 _Pvt_Extensions/
 ModelManifest.xml
+
+# Make compile/link command records
+.*.cmd
+.*.cmd.tmp
