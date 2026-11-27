@@ -521,18 +521,17 @@ class Worker
 {
 public:
 
-	Worker(SharedState& sharedState,
 #if STOCKFISH
-	std::unique_ptr<SearchManager> sm,
-	usize threadIdx,
-	usize numaThreadIdx,
-	usize numaTotal,
-	NumaReplicatedAccessToken numaAccessToken
+    Worker(SharedState&,
+           std::unique_ptr<SearchManager>,
+           usize,
+           usize,
+           usize,
+           NumaReplicatedAccessToken);
 #else
-          // 🌈 上記の4つの引数を一纏めにした構造体
-          const ThreadIds& ids
+    // スレッド識別情報はThreadIdsで受け取り、探索マネージャーは派生クラスが保持する。
+    Worker(SharedState& sharedState, const ThreadIds& ids);
 #endif
-	);
 
 	virtual ~Worker() { }
 
@@ -672,10 +671,9 @@ protected:
     //Value rootDelta;
 #endif
 
-    // 📑 Stockfishではこれらはコンストラクタで渡される。
-	//     やねうら王では、set_thread_ids()で渡される。
+    // Stockfishでは個別の引数、やねうら王ではThreadIdsにまとめてコンストラクターへ渡す。
 	// threadIdx       : threadのindex。0からの連番。0がmain thread
-	// numaThreadIdx   : 何番目のNUMAを使うか。
+	// numaThreadIdx   : 同じNUMAノード内でのthreadのindex。
 	// numaTotal       : NUMA内のThreadの合計個数。
 	// numaAccessToken : このWorker threadに対応するNumaのtoken
     usize                    threadIdx, numaThreadIdx, numaTotal;

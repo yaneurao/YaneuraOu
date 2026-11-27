@@ -8,23 +8,18 @@
 
 namespace YaneuraOu {
 
-Search::Worker::Worker(SharedState& sharedState,
 #if STOCKFISH
+Search::Worker::Worker(SharedState&                   sharedState,
                        std::unique_ptr<SearchManager> sm,
-                       usize                           threadId,
-                       usize                           numaThreadId,
-                       usize                           numaTotalThreads,
-                       NumaReplicatedAccessToken       token
+                       usize                          threadId,
+                       usize                          numaThreadId,
+                       usize                          numaTotalThreads,
+                       NumaReplicatedAccessToken      token) :
 #else
-                       const ThreadIds& ids
+Search::Worker::Worker(SharedState& sharedState, const ThreadIds& ids) :
 #endif
-) : 
     // Unpack the SharedState struct into member variables
     // SharedState構造体の内容を各メンバー変数へ展開する。
-	// 🌈 これは、やねうら王ではYaneuraOuWorkerのほうが持っている。
-    //sharedHistory(sharedState.sharedHistories.at(token.get_numa_index())),
-	options(sharedState.options),
-	threads(sharedState.threads),
 #if STOCKFISH
 	threadIdx(threadId),
     numaThreadIdx(numaThreadId),
@@ -37,33 +32,13 @@ Search::Worker::Worker(SharedState& sharedState,
     numaTotal(ids.numaTotal),
     numaAccessToken(ids.numaAccessToken),
 #endif
-	tt(sharedState.tt)
-    //network(sharedState.network),
-	//refreshTable(network[token])
-{
+    options(sharedState.options),
+    threads(sharedState.threads),
+    tt(sharedState.tt) {
+    // sharedHistory・network・refreshTableは、派生クラスYaneuraOuWorkerが保持する。
     // Worker生成後、ThreadPool::set()からThreadPool::clear()を経てclear()を呼ぶ。
     // 派生Workerの初期化も必要なため、この基底コンストラクターではclear()を呼ばない。
 }
-
-// TODO : あとで
-#if 0
-void Search::Worker::ensure_network_replicated() {
-    // Access once to force lazy initialization.
-    // We do this because we want to avoid initialization during search.
-    // 一度アクセスして、遅延初期化を実行しておく。
-    // 探索中に初期化が発生するのを避けるため。
-    (void) (network[numaAccessToken]);
-}
-#endif
-
-// void Search::Worker::start_searching()
-// 💡　エンジン実装部で定義する。
-
-// Reset histories, usually before a new game
-// 通常、新しい対局の前に履歴をリセットする。
-//void Search::Worker::clear()
-// 💡　エンジン実装部で定義する。
-
 
 } // namespace YaneuraOu
 
