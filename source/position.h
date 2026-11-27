@@ -930,34 +930,6 @@ class Position {
 #if !STOCKFISH
 	// --- misc
 
-	// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
-	// 手番側のpinされている駒はpos.pinned_pieces(pos.side_to_move())のようにして取得できる。
-	// LONG_EFFECT_LIBRARYを使うときのmateルーチンで使用しているので消さないで！
-	Bitboard pinned_pieces(Color c) const { ASSERT_LV3(is_ok(c)); return st->blockersForKing[c] & pieces(c); }
-
-	// ↑のtemplate版
-	template<Color C>
-	Bitboard pinned_pieces() const { ASSERT_LV3(is_ok(C)); return st->blockersForKing[C] & pieces<C>(); }
-
-	// avoidで指定されている遠方駒は除外して、pinされている駒のbitboardを得る。
-	// ※利きのない1手詰め判定のときに必要。
-	Bitboard pinned_pieces(Color c, Square avoid) const { return c == BLACK ? pinned_pieces<BLACK>(avoid) : pinned_pieces<WHITE>(avoid); }
-
-	template<Color C>
-	Bitboard pinned_pieces(Square avoid) const;
-
-	// fromからtoに駒が移動したものと仮定して、pinを得る
-	// ※利きのない1手詰め判定のときに必要。
-	Bitboard pinned_pieces(Color c, Square from, Square to) const
-	{
-		return c == BLACK ? pinned_pieces<BLACK>(from,to) : pinned_pieces<WHITE>(from,to);
-	}
-
-	// ↑のtemplate版
-	template<Color C>
-	Bitboard pinned_pieces(Square from, Square to) const;
-
-
 	// 手番側の駒をfromからtoに移動させると素抜きに遭うのか？
 	bool discovered(Square from, Square to, Square ourKing, const Bitboard& pinned) const
 	{
@@ -1595,71 +1567,6 @@ Bitboard Position::attacks_by() const {
         return threats;
     }
 }
-
-// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
-// avoidで指定されている遠方駒は除外して、pinされている駒のbitboardを得る。
-template<Color C>
-Bitboard Position::pinned_pieces(Square avoid) const {
-    // clang-format off
-
-	Bitboard b, pinners, result = Bitboard(ZERO);
-    Square   ksq = square<KING>(C);
-
-    // andnotで盤上の駒から直接除外する。反転を全81升へ制限するマスクは不要。
-    const Bitboard removed = square_bb(avoid);
-
-	pinners = (
-		(  pieces(ROOK_DRAGON)   & Attacks::rookStepEffect    (ksq))
-		| (pieces(BISHOP_HORSE)  & Attacks::bishopStepEffect  (ksq))
-		| (pieces(LANCE)         & Attacks::lanceStepEffect<C>(ksq)))
-                & pieces(~C);
-    pinners = removed.andnot(pinners);
-
-    const Bitboard occupancy = removed.andnot(pieces());
-	while (pinners)
-	{
-		b = Attacks::between_exclusive_bb(ksq, pinners.pop_lsb()) & occupancy;
-		if (!b.more_than_one())
-            result |= b & pieces(C);
-	}
-	return result;
-
-    // clang-format on
-}
-
-// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
-// fromからtoに駒が移動したものと仮定して、pinを得る
-template<Color C>
-Bitboard Position::pinned_pieces(Square from, Square to) const {
-    // clang-format off
-
-	Bitboard b, pinners, result = Bitboard(ZERO);
-    Square   ksq = square<KING>(C);
-
-    // andnotで盤上の駒から直接除外する。反転を全81升へ制限するマスクは不要。
-    const Bitboard removed = square_bb(from);
-
-	pinners = (
-		(  pieces(ROOK_DRAGON)  & Attacks::rookStepEffect    (ksq))
-		| (pieces(BISHOP_HORSE) & Attacks::bishopStepEffect  (ksq))
-		| (pieces(LANCE)        & Attacks::lanceStepEffect<C>(ksq)))
-            & pieces(~C);
-    pinners = removed.andnot(pinners);
-
-	// fromからは消えて、toの地点に駒が現れているものとして
-	Bitboard new_pieces = removed.andnot(pieces()) | to;
-	while (pinners)
-	{
-		b = Attacks::between_exclusive_bb(ksq, pinners.pop_lsb()) & new_pieces;
-		if (!b.more_than_one())
-			result |= b & pieces(C);
-	}
-	return result;
-
-    // clang-format on
-}
-
-
 #endif
 
 

@@ -357,8 +357,69 @@ namespace {
 	const Bitboard RANK5_7BB = Rank5BB | Rank6BB | Rank7BB;
 
 	//
-	//　以下、本当ならPositionに用意すべきヘルパ関数
+	// 以下は1手詰め判定の内部で使う補助関数
 	//
+
+    // 駒を除去・移動したと仮定する、将棋の1手詰め専用のピン判定。
+    // StockfishのPosition APIには対応する操作がないため、この実装ファイル内の補助関数とする。
+// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
+// avoidで指定されている遠方駒は除外して、pinされている駒のbitboardを得る。
+template<Color C>
+Bitboard pinned_pieces(const Position& pos, Square avoid) {
+
+	Bitboard b, pinners, result = Bitboard(ZERO);
+    Square   ksq = pos.square<KING>(C);
+
+    // andnotで盤上の駒から直接除外する。反転を全81升へ制限するマスクは不要。
+    const Bitboard removed = square_bb(avoid);
+
+	pinners = (
+		(  pos.pieces(ROOK_DRAGON)   & Attacks::rookStepEffect    (ksq))
+		| (pos.pieces(BISHOP_HORSE)  & Attacks::bishopStepEffect  (ksq))
+		| (pos.pieces(LANCE)         & Attacks::lanceStepEffect<C>(ksq)))
+                & pos.pieces(~C);
+    pinners = removed.andnot(pinners);
+
+    const Bitboard occupancy = removed.andnot(pos.pieces());
+	while (pinners)
+	{
+		b = Attacks::between_exclusive_bb(ksq, pinners.pop_lsb()) & occupancy;
+		if (!b.more_than_one())
+            result |= b & pos.pieces(C);
+	}
+	return result;
+
+}
+
+// ピンされているc側の駒。下手な方向に移動させるとc側の玉が素抜かれる。
+// fromからtoに駒が移動したものと仮定して、pinを得る
+template<Color C>
+Bitboard pinned_pieces(const Position& pos, Square from, Square to) {
+
+	Bitboard b, pinners, result = Bitboard(ZERO);
+    Square   ksq = pos.square<KING>(C);
+
+    // andnotで盤上の駒から直接除外する。反転を全81升へ制限するマスクは不要。
+    const Bitboard removed = square_bb(from);
+
+	pinners = (
+		(  pos.pieces(ROOK_DRAGON)  & Attacks::rookStepEffect    (ksq))
+		| (pos.pieces(BISHOP_HORSE) & Attacks::bishopStepEffect  (ksq))
+		| (pos.pieces(LANCE)        & Attacks::lanceStepEffect<C>(ksq)))
+            & pos.pieces(~C);
+    pinners = removed.andnot(pinners);
+
+	// fromからは消えて、toの地点に駒が現れているものとして
+	Bitboard new_pieces = removed.andnot(pos.pieces()) | to;
+	while (pinners)
+	{
+		b = Attacks::between_exclusive_bb(ksq, pinners.pop_lsb()) & new_pieces;
+		if (!b.more_than_one())
+			result |= b & pos.pieces(C);
+	}
+	return result;
+
+}
 
 	// 上の関数群とは異なる。UsのSliderの利きを列挙する。
 	// avoid升にいる駒の利きは除外される。
@@ -942,7 +1003,7 @@ namespace Mate {
 			// 飛　龍　^金 　^王
 			// こういうケースがあるので龍自体を除去しないとおかしくなるな…。
 
-			Bitboard new_pin = pos.pinned_pieces<Them>(from);
+			Bitboard new_pin = pinned_pieces<Them>(pos, from);
 			// ここで調べるのは近接王手だけなのでpinが解除されることはないから移動先toによるpinの解除/増加はなく、
 			// 考慮しなくてよい。
 
@@ -988,7 +1049,7 @@ namespace Mate {
 			// 角
 			//   この場合、飛車を移動させて金があらたにpinに入るのか..
 
-			Bitboard new_pin = pos.pinned_pieces<Them>(from);
+			Bitboard new_pin = pinned_pieces<Them>(pos, from);
 
 			while (bb_check)
 			{
@@ -1049,7 +1110,7 @@ namespace Mate {
 			//      香
 			// こういう配置から斜めに馬が移動しての王手で金が新たにpinされる。
 
-			Bitboard new_pin = pos.pinned_pieces<Them>(from);
+			Bitboard new_pin = pinned_pieces<Them>(pos, from);
 
 			while (bb_check)
 			{
@@ -1077,7 +1138,7 @@ namespace Mate {
 			from = bb.pop_lsb();
 			Bitboard slide = pos.pieces() ^ from;
 			bb_check = bishopEffect(from, slide) & bb_move & kingEffect(sq_king);
-			Bitboard new_pin = pos.pinned_pieces<Them>(from);
+			Bitboard new_pin = pinned_pieces<Them>(pos, from);
 
 			while (bb_check)
 			{
@@ -1477,7 +1538,7 @@ namespace Mate {
 			if (!bb_check) { continue; }
 
 			Bitboard slide   = pos.pieces()          ^ from;
-			Bitboard new_pin = pos.pinned_pieces<Them>(from);
+			Bitboard new_pin = pinned_pieces<Them>(pos, from);
 
 			while (bb_check)
 			{
@@ -1504,7 +1565,7 @@ namespace Mate {
 			if (!bb_check) { continue; }
 
 			Bitboard slide   = pos.pieces()          ^ from;
-			Bitboard new_pin = pos.pinned_pieces<Them>(from);
+			Bitboard new_pin = pinned_pieces<Them>(pos, from);
 
 			while (bb_check)
 			{
@@ -1554,7 +1615,7 @@ namespace Mate {
 			if (!bb_check) { continue; }
 
 			Bitboard slide   = pos.pieces()          ^ from;
-			Bitboard new_pin = pos.pinned_pieces<Them>(from);
+			Bitboard new_pin = pinned_pieces<Them>(pos, from);
 
 			while (bb_check)
 			{
@@ -2010,7 +2071,7 @@ namespace Mate {
 
 					Bitboard new_slide = slide | to;
 
-					Bitboard new_pinned = pos.pinned_pieces(Them, from, to);
+					Bitboard new_pinned = pinned_pieces<Them>(pos, from, to);
 
 					// fromの地点に駒が利いていないか。
 					// fromからtoに移動したときに、toの影になってfromの地点に利いていない場合を考慮しこう書く。

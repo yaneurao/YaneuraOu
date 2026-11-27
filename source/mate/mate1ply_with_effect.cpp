@@ -168,7 +168,8 @@ namespace Mate
 		//     移動による詰み
 		// -----------------------
 
-		const auto& pinned = pos.pinned_pieces(pos.side_to_move());
+        const Color us = pos.side_to_move();
+        const Bitboard pinned = pos.blockers_for_king(us) & pos.pieces(us);
 
 		// 利きが2つ以上ある場所
 		Directions a8_effect_us_gt1 = pos.board_effect[Us].around8_greater_than_one(themKing); // 1)
