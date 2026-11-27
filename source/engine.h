@@ -30,9 +30,6 @@ namespace YaneuraOu {
 //       定数
 // --------------------
 
-// 最大スレッド数
-static int    MaxThreads = std::max(1024, 4 * int(get_hardware_concurrency()));
-
 // 最大USI_Hash
 #if !defined(__EMSCRIPTEN__)
 // Hash上限。32bitモードなら2GB、64bitモードなら32TB
@@ -43,6 +40,9 @@ constexpr int MaxHashMB = Is64Bit ? 33554432 : 2048;
 // stockfish.wasmの数値を基本的に使用している
 constexpr int MaxHashMB = 2048;
 #endif
+
+// 最大スレッド数。実体とCPU数の取得はengine.cppの1箇所にまとめる。
+extern int    MaxThreads;
 
 // 前方宣言
 namespace Book { struct BookMoveSelector; }

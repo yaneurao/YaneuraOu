@@ -35,6 +35,8 @@
 
 namespace YaneuraOu {
 
+int MaxThreads = std::max(1024, 4 * int(get_hardware_concurrency()));
+
 // The default configuration will attempt to group L3 domains up to 32 threads.
 // This size was found to be a good balance between the Elo gain of increased
 // history sharing and the speed loss from more cross-cache accesses (see
