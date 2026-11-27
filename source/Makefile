@@ -675,20 +675,35 @@ escape_cmd = \
   $(subst $$,$$$$,$(1)))))
 
 cmd_file = $(dir $(1)).$(notdir $(1)).cmd
+# C:/...のコロンを変数名に残すと、ターゲット固有変数として解釈されるため符号化する。
+cmd_key = saved_cmd_$(subst :,%3A,$(1))
 cmd_record = $(call shell_quote,$(1)) $(call shell_quote,$(compiler_path)) $(call shell_quote,$(compiler_version))$(if $(2), $(call shell_quote,$(2)))
-check_force = $(if $(and $(wildcard $@),$(findstring $(1),$(saved_cmd_$@)),$(findstring $(saved_cmd_$@),$(1))),,FORCE)
+check_force = $(if $(and $(wildcard $@),$(findstring $(1),$($(call cmd_key,$@))),$(findstring $($(call cmd_key,$@)),$(1))),,FORCE)
 
 make_short_flags = $(filter-out -%,$(firstword $(MAKEFLAGS)))
 make_inspection = $(strip $(foreach mode,n q t,$(findstring $(mode),$(make_short_flags))))
 
+ifeq ($(OS),Windows_NT)
+# MinGWの長いリンク命令を表示・実行・記録用に1つのシェル行へ3重に埋め込むと、
+# Windows/MSYS2の起動経路で引用符付きコマンドが壊れる。表示と記録はmake自身で行う。
+# Stockfishの通常の相対パスと異なり、やねうら王のWindows CIは長い絶対パスのOBJDIRを使う。
+# .dは独立したファイルなので、.cmd.tmpを先に書き、ビルド成功時だけ公開できる。
+# レシピは実行前に展開されるため、$(file)用のディレクトリも展開時に用意する。
+define build_and_record
+$(if $(make_inspection),$(1),$(if $(findstring s,$(make_short_flags)),,$(info $(1)))$(if $(wildcard $(dir $@)),,$(shell mkdir -p $(call shell_quote,$(dir $@))))$(file >$(call cmd_file,$@).tmp,$(call cmd_key,$@) := $(call escape_cmd,$(call cmd_record,$(1),$(2))))rm -f $(call shell_quote,$(call cmd_file,$@))
+$(1)
+mv -f $(call shell_quote,$(call cmd_file,$@).tmp) $(call shell_quote,$(call cmd_file,$@)))
+endef
+else
 build_and_record = $(if $(findstring s,$(make_short_flags)),,printf '%s\n' $(call shell_quote,$(1)) &&) \
 	record=$(call shell_quote,$(call cmd_file,$@)) && \
 	rm -f "$$record" "$$record.tmp" && \
 	$(1) && \
 	$(if $(3),test -s "$$record.tmp" &&) \
-	printf '\n%s\n' $(call shell_quote,saved_cmd_$@ := $(call escape_cmd,$(call cmd_record,$(1),$(2)))) \
+	printf '\n%s\n' $(call shell_quote,$(call cmd_key,$@) := $(call escape_cmd,$(call cmd_record,$(1),$(2)))) \
 	  $(if $(3),$(call shell_quote,$(call escape_cmd,$(3)):)) >> "$$record.tmp" && \
 	mv -f "$$record.tmp" "$$record"
+endif
 
 compiler_path := $(realpath $(shell command -v $(call shell_quote,$(firstword $(COMPILER))) 2>/dev/null))
 compiler_version := $(shell $(COMPILER) --version 2>/dev/null)

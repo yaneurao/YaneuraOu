@@ -119,6 +119,85 @@ class MakeCommandTest(unittest.TestCase):
         self.assertEqual(self.output(), "0 3")
 
 
+class WindowsMakeCommandTest(MakeCommandTest):
+    def setUp(self):
+        super().setUp()
+        # Exercise the Windows recipes with the available native compiler.
+        self.base += ["OS=Windows_NT", "LDFLAGS=$(EXTRA_LDFLAGS)"]
+
+    def test_long_link_commands_stay_within_shell_limit(self):
+        shell = self.root / "limited-sh"
+        shell.write_text(
+            "#!" + sys.executable + "\n"
+            "import os, sys\n"
+            "if '-c' in sys.argv:\n"
+            "    command = sys.argv[sys.argv.index('-c') + 1]\n"
+            "    if len(command) > 8191:\n"
+            "        sys.exit('fixture: shell command exceeds 8191 characters')\n"
+            "os.execv('/bin/sh', ['sh', *sys.argv[1:]])\n"
+        )
+        shell.chmod(0o755)
+        sources = ["probe.cpp"]
+        (self.source / "padding").mkdir()
+        for i in range(45):
+            name = f"padding/translation_unit_{i:03}.cpp"
+            (self.source / name).write_text(f"int padding_{i}() {{ return {i}; }}\n")
+            sources.append(name)
+        prefix = "../Users/runneradmin/AppData/Local/Temp/tmpbtih1z.tmp"
+        settings = (
+            "SHELL=../limited-sh", "SOURCES=" + " ".join(sources),
+            "OBJDIR=" + prefix + "/obj", "TARGET=" + prefix + "/engine",
+        )
+        self.make(*settings)
+        output = self.root / prefix.removeprefix("../") / "engine"
+        before = output.stat().st_mtime_ns
+        self.make(*settings)
+        self.assertEqual(output.stat().st_mtime_ns, before)
+
+    def test_quoted_compiler_identity_round_trip(self):
+        wrapper = self.root / "quoted-g++"
+        wrapper.write_text(
+            '#!/bin/sh\nif [ "$1" = --version ]; then\n'
+            + shlex.quote(COMPILER) + ' --version\nprintf "%s\\n" "$YO_FIXTURE_VERSION"\n'
+            'else\nexec ' + shlex.quote(COMPILER) + ' "$@"\nfi\n'
+        )
+        wrapper.chmod(0o755)
+        env = dict(os.environ, YO_FIXTURE_VERSION="compiler's #tag $value \\ path")
+        self.make("COMPILER=../quoted-g++", env=env)
+        before = self.stamp()
+        self.make("COMPILER=../quoted-g++", env=env)
+        self.assertEqual(self.stamp(), before)
+
+    def test_drive_letter_record_key_round_trip(self):
+        extra = self.source / "drive-key.mk"
+        extra.write_text(
+            "drive_target := C:/Users/runneradmin/AppData/Local/Temp/engine.exe\n"
+            "$(eval $(call cmd_key,$(drive_target)) := tracked)\n"
+            "$(if $(filter tracked,$($(call cmd_key,$(drive_target)))),,"
+            "$(error drive-letter command record did not round-trip))\n"
+            "key-check: ; @true\n"
+        )
+        self.make("-f", "Makefile", "-f", extra.name, goal="key-check")
+
+    def test_inspection_does_not_create_records_or_directories(self):
+        self.make("-n")
+        result = self.make("-q", goal="all", success=False)
+        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertFalse((self.root / "obj").exists())
+        self.assertFalse((self.root / "engine").exists())
+        self.assertFalse(list(self.root.rglob(".*.cmd*")))
+
+    def test_failed_link_does_not_publish_command_record(self):
+        self.make()
+        before = self.stamp()
+        self.make("EXTRA_LDFLAGS=-Wl,--yaneuraou-invalid-link-option", success=False)
+        self.assertFalse((self.root / ".engine.cmd").exists())
+        self.make()
+        self.assertEqual(self.stamp()[0], before[0])
+        self.assertNotEqual(self.stamp()[1], before[1])
+        self.assertEqual(self.output(), "0 1")
+
+
 class GeneratedArchitectureTest(unittest.TestCase):
     def test_unchanged_header_keeps_timestamp(self):
         with tempfile.TemporaryDirectory() as tmp:
