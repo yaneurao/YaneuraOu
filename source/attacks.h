@@ -344,9 +344,9 @@ inline Bitboard line_bb(Square s1, Square s2) {
     ASSERT_LV3(directions != 0);
     // directions_of()は0または1bit。方向bitから直接4方向の添字へ変換し、ctzを省く。
     static constexpr auto lineIndex = [] {
-        std::array<u8, (1u << Effect8::DIRECT_LD) + 1> indices{};
+        std::array<u8, (usize{1} << Effect8::DIRECT_LD) + 1> indices{};
         for (int d = 0; d < Effect8::DIRECT_NB; ++d)
-            indices[1u << d] = u8(d < 4 ? d : 7 - d);
+            indices[usize{1} << d] = u8(d < 4 ? d : 7 - d);
         return indices;
     }();
     return LineBB[s1][lineIndex[directions]];
