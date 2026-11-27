@@ -400,8 +400,8 @@ namespace Effect8
 // ただし玉はsq3として、sq1,sq2は同じ側にいるものとする。(玉を挟んでの一直線は一直線とはみなさない)
 static bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 {
-	auto d1 = Effect8::directions_of(sq1, sq3);
-	return d1 && d1 == Effect8::directions_of(sq2, sq3);
+    // directions_of()は0または1bit。ANDで非ゼロ判定と同方向の比較をまとめる。
+    return Effect8::directions_of(sq1, sq3) & Effect8::directions_of(sq2, sq3);
 }
 
 // --------------------

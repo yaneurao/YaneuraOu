@@ -370,6 +370,48 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
         tester.test("between_exclusive_bb accepts absent king squares", sentinelOk);
     }
 
+    {
+        // 同じ半直線上にあるかを座標で検証する。玉を挟む場合・同一升も含める。
+        auto sign = [](int v) { return (v > 0) - (v < 0); };
+        bool alignedOk = true;
+        for (Square king : SQ)
+            for (Square from : SQ)
+                for (Square to : SQ)
+                {
+                    int df = int(file_of(from)) - int(file_of(king));
+                    int dr = int(rank_of(from)) - int(rank_of(king));
+                    int tf = int(file_of(to)) - int(file_of(king));
+                    int tr = int(rank_of(to)) - int(rank_of(king));
+                    bool fromRay = (df || dr) && (!df || !dr || std::abs(df) == std::abs(dr));
+                    bool toRay = (tf || tr) && (!tf || !tr || std::abs(tf) == std::abs(tr));
+                    bool expected = fromRay && toRay && sign(df) == sign(tf) && sign(dr) == sign(tr);
+                    alignedOk &= aligned(from, to, king) == expected;
+                }
+        tester.test("aligned matches geometry for all 81 x 81 x 81 triples", alignedOk);
+
+        // 玉とsniperの間にあり得る全占有パターンを列挙し、merge後の1枚判定を検証する。
+        bool blockerCountOk = true;
+        for (Square from : SQ)
+            for (Square to : SQ)
+            {
+                Bitboard interior = between_exclusive_bb(from, to);
+                Square squares[7];
+                int count = 0;
+                while (interior)
+                    squares[count++] = interior.pop_lsb();
+                for (int subset = 0; subset < (1 << count); ++subset)
+                {
+                    Bitboard b(ZERO);
+                    for (int i = 0; i < count; ++i)
+                        if (subset & (1 << i))
+                            b |= squares[i];
+                    blockerCountOk &= !b.cross_over()
+                                   && (POPCNT64(b.merge()) == 1) == (b.popcount() == 1);
+                }
+            }
+        tester.test("single blocker count for all between-square occupancy subsets", blockerCountOk);
+    }
+
 	{
 		// 方向利き
 

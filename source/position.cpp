@@ -1034,7 +1034,14 @@ void Position::update_slider_blockers(Color c) const {
 #endif
 
         // snipperと玉との間にある駒が1個であるなら。
+#if STOCKFISH
         if (b && !b.more_than_one())
+#else
+        // bは玉とsniperを結ぶ直線上なので、2領域をmergeしてもbitは重ならない。
+        // 非ゼロ判定と複数枚判定を、ちょうど1枚かの判定にまとめて分岐を省く。
+        ASSERT_LV2(!b.cross_over());
+        if (POPCNT64(b.merge()) == 1)
+#endif
         {
             st->blockersForKing[c] |= b;
             if (b & pieces(c))
