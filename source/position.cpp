@@ -1646,7 +1646,13 @@ bool Position::pseudo_legal_s(const Move m) const {
 				// 例) 王■■■^飛
 				// となっているときに■の升か、^飛 のところが移動先であれば王手は回避できている。
 				// (素抜きになる可能性はあるが、そのチェックはここでは不要)
-				if (!(between_bb(square<KING>(us), checkers().pop_lsb()) & to))
+#if STOCKFISH
+                if (!(between_bb(square<KING>(us), lsb(checkers())) & to))
+#else
+                // 単独王手のbitboardを再利用し、終点の升マスクを表から作り直さない。
+                const Bitboard checker = checkers();
+                if (!((between_exclusive_bb(square<KING>(us), checker.lsb()) | checker) & to))
+#endif
 					return false;
 			}
 
