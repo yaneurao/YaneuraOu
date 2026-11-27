@@ -1510,7 +1510,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 			// 王と王手している駒との間の升に駒を打っていない場合、それは王手を回避していることに
 			// ならないので、これは非合法手。
-			if (!(between_bb(checksq, square<KING>(us)) & to))
+			if (!(between_bb(square<KING>(us), checksq) & to))
 				return false;
 		}
 
@@ -1639,7 +1639,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 				// 例) 王■■■^飛
 				// となっているときに■の升か、^飛 のところが移動先であれば王手は回避できている。
 				// (素抜きになる可能性はあるが、そのチェックはここでは不要)
-				if (!((between_bb(checkers().pop_lsb(), square<KING>(us)) | checkers()) & to))
+				if (!(between_bb(square<KING>(us), checkers().pop_lsb()) & to))
 					return false;
 			}
 

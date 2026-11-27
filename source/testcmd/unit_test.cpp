@@ -316,17 +316,56 @@ void Bitboard::UnitTest(Test::UnitTester& tester, IEngine& engine)
 		tester.test("attacks_bb", all_ok);
 	}
 
+    {
+        // 表の生成方法に依存せず、8方向へ歩いてStockfish互換の端点仕様を検証する。
+        bool inclusiveOk = true, exclusiveOk = true, sentinelOk = true;
+        for (Square from : SQ)
+            for (Square to : SQ)
+            {
+                Bitboard interior(ZERO);
+                for (int df = -1; df <= 1; ++df)
+                    for (int dr = -1; dr <= 1; ++dr)
+                    {
+                        if (df == 0 && dr == 0)
+                            continue;
+                        Bitboard ray(ZERO);
+                        int f = int(file_of(from)) + df, r = int(rank_of(from)) + dr;
+                        while (0 <= f && f < FILE_NB && 0 <= r && r < RANK_NB)
+                        {
+                            const Square sq = File(f) | Rank(r);
+                            if (sq == to)
+                            {
+                                interior = ray;
+                                break;
+                            }
+                            ray |= sq;
+                            f += df;
+                            r += dr;
+                        }
+                    }
+                inclusiveOk &= between_bb(from, to) == (interior | to);
+                exclusiveOk &= between_exclusive_bb(from, to) == interior;
+            }
+        for (Square sq : SQ)
+            sentinelOk &= !between_exclusive_bb(sq, SQ_NB)
+                       && !between_exclusive_bb(SQ_NB, sq);
+        sentinelOk &= !between_exclusive_bb(SQ_NB, SQ_NB);
+        tester.test("between_bb includes destination for all 81 x 81 pairs", inclusiveOk);
+        tester.test("between_exclusive_bb excludes both endpoints", exclusiveOk);
+        tester.test("between_exclusive_bb accepts absent king squares", sentinelOk);
+    }
+
 	{
 		// 方向利き
 
 		bool all_ok = true;
 		Bitboard occ = square_bb(SQ_77);
 		Bitboard zero(ZERO);
-		all_ok &= rayEffect<Effect8::DIRECT_LD>(SQ_55, occ) == between_bb(SQ_55, SQ_88);
+		all_ok &= rayEffect<Effect8::DIRECT_LD>(SQ_55, occ) == between_exclusive_bb(SQ_55, SQ_88);
 		all_ok &= rayEffect<Effect8::DIRECT_LD>(SQ_55, zero) == QUGIY_STEP_EFFECT[Effect8::DIRECT_LD - 2][SQ_55];
 
 		Bitboard occ2 = square_bb(SQ_33);
-		all_ok &= rayEffect<Effect8::DIRECT_RU>(SQ_55, occ2) == between_bb(SQ_55, SQ_22);
+		all_ok &= rayEffect<Effect8::DIRECT_RU>(SQ_55, occ2) == between_exclusive_bb(SQ_55, SQ_22);
 
 		tester.test("rayEffect", all_ok);
 	}

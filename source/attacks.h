@@ -319,7 +319,8 @@ extern Bitboard AntiDiagBB[SQUARE_NB];
 extern Bitboard LineBB[SQ_NB][4];
 
 // 2升に挟まれている升を返すためのテーブル(その2升は含まない)。
-// StockfishのBetweenBB[s1][s2]は終点込みの直接表。将棋版は両端を除く圧縮表。
+// StockfishのBetweenBB[s1][s2]は終点込みの直接表。将棋版の表は両端を除く圧縮表。
+// 公開between_bb()は終点を追加するため、返す升集合はStockfishと同じ。
 // 同一のBitboardを共有して縮小してあり、between_bb()から参照する。
 extern Bitboard BetweenBB[638];
 extern u16 BetweenIndex[SQ_NB_PLUS1][SQ_NB_PLUS1];
@@ -343,20 +344,26 @@ inline Bitboard line_bb(Square s1, Square s2) {
 #endif
 }
 
+#if !STOCKFISH
+// 将棋専用: 両端を除いた区間。合駒打ち・1手詰め用のピン判定などで使う。
+// 圧縮表を直接参照し、終点を追加してから再び除く演算を避ける。
+// 縦横斜めの関係にない組・同じ升・SQ_NBを含む組では空を返す。
+inline Bitboard between_exclusive_bb(Square s1, Square s2) {
+    return BetweenBB[BetweenIndex[s1][s2]];
+}
+#endif
+
 // horizontal/vertical/diagonal line segment from s1 to s2,
 // excluding s1 but including s2
-// Stockfishでは、s1を含まずs2を含む、s1からs2までの縦・横・斜めの線分。
-// 将棋版とは端点の扱いが異なる。下記#elseの仕様を参照。
+// 始点s1を除き、終点s2を含む、縦・横・斜めの線分。
+// Stockfishと同じく、同じ升・一直線でない組でもs2だけを返す。入力は盤上の2升。
 inline Bitboard between_bb(Square s1, Square s2) {
 #if STOCKFISH
     assert(is_ok(s1) && is_ok(s2));
     return BetweenBB[s1][s2];
 #else
-    // Stockfishとの仕様差: 将棋版はs1・s2の両端を含まない。
-    // 縦横斜めの関係にない組やs1 == s2では空。Stockfish版はその場合もs2だけを返す。
-    // 将棋版はどちらかがSQ_NBでも空を返すが、Stockfish版は両方とも盤上の升を要求する。
-    // 終点の駒を数えないピン計算や合駒生成が依存するため、単純に終点込みへ変えてはならない。
-    return BetweenBB[BetweenIndex[s1][s2]];
+    ASSERT_LV3(s1 < SQ_NB && s2 < SQ_NB);
+    return between_exclusive_bb(s1, s2) | s2;
 #endif
 }
 

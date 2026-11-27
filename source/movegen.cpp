@@ -545,8 +545,8 @@ Move* generate_evasions(const Position& pos, Move* moveList)
 		// target1 == 王手している駒と王との間の升 == 3)の駒打ちの場所
 		// target2 == 移動による指し手は1)+2) = 王手している駒と王との間の升 + 王手している駒　の升
 
-		const Bitboard target1 = between_bb(checksq, ksq);
-		const Bitboard target2 = target1 | checksq;
+		const Bitboard target1 = between_exclusive_bb(ksq, checksq);
+		const Bitboard target2 = between_bb(ksq, checksq);
 
 		// あとはNON_EVASIONS扱いで普通に指し手生成。
 		moveList = GeneratePieceMoves<NON_EVASIONS, PAWN   , Us, All>()(pos, moveList, target2);
@@ -716,8 +716,8 @@ Move* make_move_check(const Position& pos, Piece pc, Square from, Square ksq, co
     if (!(enemy_field(Us) & from))                                     \
       dst &= enemy_field(Us);                                          \
     moveList = make_move_target_pro<X, Us, All, true>(from, dst, moveList);  \
-    if (file_of(from) == file_of(ksq) && !(between_bb(from, ksq) & occ).more_than_one()){ \
-      dst = pos.pieces(~Us) & between_bb(from, ksq) & target;            \
+    if (file_of(from) == file_of(ksq) && !(between_exclusive_bb(from, ksq) & occ).more_than_one()){ \
+      dst = pos.pieces(~Us) & between_exclusive_bb(from, ksq) & target;            \
       moveList = make_move_target_pro<X, Us, All, false>(from, dst, moveList); \
     }}
 

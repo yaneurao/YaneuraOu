@@ -1616,7 +1616,7 @@ Bitboard Position::pinned_pieces(Square avoid) const {
 
 	while (pinners)
 	{
-		b = Attacks::between_bb(ksq, pinners.pop_lsb()) & pieces() & avoid_bb;
+		b = Attacks::between_exclusive_bb(ksq, pinners.pop_lsb()) & pieces() & avoid_bb;
 		if (!b.more_than_one())
             result |= b & pieces(C);
 	}
@@ -1647,7 +1647,7 @@ Bitboard Position::pinned_pieces(Square from, Square to) const {
 	Bitboard new_pieces = (pieces() & avoid_bb) | to;
 	while (pinners)
 	{
-		b = Attacks::between_bb(ksq, pinners.pop_lsb()) & new_pieces;
+		b = Attacks::between_exclusive_bb(ksq, pinners.pop_lsb()) & new_pieces;
 		if (!b.more_than_one())
 			result |= b & pieces(C);
 	}
