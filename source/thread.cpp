@@ -35,16 +35,21 @@ namespace YaneuraOu {
 // スリープ状態に入るまで待機します。
 // 'searching' および 'exit' は、すでに設定されている必要がある点に注意してください。
 
-Thread::Thread(Search::SharedState& sharedState,
 #if STOCKFISH
+Thread::Thread(Search::SharedState&                   sharedState,
                std::unique_ptr<Search::SearchManager> sm,
+               usize                                  n,
+               usize                                  numaN,
+               usize                                  totalNumaCount,
+               OptionalThreadToNumaNodeBinder         binder) :
 #else
+Thread::Thread(Search::SharedState&         sharedState,
                Search::WorkerFactory          worker_factory,
-#endif
                usize                         n,               // threadIdx
                usize                         numaN,           // numaThreadIdx
                usize                         totalNumaCount,  // numaTotal
                OptionalThreadToNumaNodeBinder binder) :
+#endif
     idx(n),
     idxInNuma(numaN),
     totalNuma(totalNumaCount),
@@ -223,17 +228,17 @@ static usize next_power_of_two(u64 count) { return count > 1 ? (2ULL << msb(coun
 // 作成され起動されたスレッドは、すぐに idle_loop 内でスリープ状態に入ります。
 // リサイズ時には、必要に応じてスレッドのバインディングを可能にするために再作成されます。
 
-void ThreadPool::set(const NumaConfig&   numaConfig,
-                     Search::SharedState sharedState,
 #if STOCKFISH
-                     const Search::SearchManager::UpdateContext& updateContext
+void ThreadPool::set(const NumaConfig&                           numaConfig,
+                     Search::SharedState                         sharedState,
+                     const Search::SearchManager::UpdateContext& updateContext) {
 #else
+void ThreadPool::set(const NumaConfig&             numaConfig,
+                     Search::SharedState          sharedState,
                      const Search::UpdateContext& updateContext,
-                     // 🤔 やねうら王ではさらに抽象化する。
                      usize                       requested_threads,
-                     const Search::WorkerFactory& worker_factory
+                     const Search::WorkerFactory& worker_factory) {
 #endif
-) {
 
     /*  📓
 		このあと、スレッドをいったん全部解体しているのは、確保するスレッド数がいま確保しているスレッド数と

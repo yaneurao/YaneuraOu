@@ -20,7 +20,7 @@ class OptionsMap;
 class Position;
 #if STOCKFISH
 using Value = int;
-// これ参照していないので削除すべきだと思う。
+// Stockfish参照用の宣言。将棋版ではtypes.hのValueを使う。
 #endif
 
 // --------------------
@@ -88,7 +88,7 @@ private:
 // 構築後、ネイティブスレッドは idle_loop() で開始され、開始信号を待ちます。
 // 信号を受け取るとスレッドは検索を開始し、検索が終了すると再び idle_loop() に戻り、新しい信号を待ちます。
 // ⇨  探索時に用いる、それぞれのスレッド。これを探索用スレッド数だけ確保する。
-//    ただしメインスレッドはこのclassを継承してMainThreadにして使う。
+//    メインスレッドも同じThreadクラスを使い、スレッド番号0として扱う。
 
 class Thread {
 public:
@@ -97,19 +97,22 @@ public:
 	// threadIdx     : ThreadPoolで何番目のthreadであるか。この値は、idx(スレッドID)となる。
 	// numaThreadIdx : NUMA内で何番目のthreadであるか。
 	// numaTotal     : NUMA内は何個のthreadがあるか。
-	Thread(
-		Search::SharedState&,
 #if STOCKFISH
-		std::unique_ptr<Search::SearchManager>,
+    Thread(Search::SharedState&,
+           std::unique_ptr<Search::SearchManager>,
+           usize,
+           usize,
+           usize,
+           OptionalThreadToNumaNodeBinder);
 #else
-		// 📌 やねうら王では、SearchManagerを渡す代わりに、Workerのfactoryを使ってWorkerを直接生成する。
-		Search::WorkerFactory          factory,
+    // やねうら王では、SearchManagerの代わりにfactoryでWorker派生クラスを生成する。
+    Thread(Search::SharedState&,
+           Search::WorkerFactory factory,
+           usize,
+           usize,
+           usize,
+           OptionalThreadToNumaNodeBinder);
 #endif
-		usize                         /*threadIdx*/,
-		usize						  /*numaThreadIdx*/,
-		usize						  /*numaTotal*/,
-		OptionalThreadToNumaNodeBinder /*binder*/
-	);
 	virtual ~Thread();
 
 	// スレッド起動後、この関数が呼び出される。
@@ -235,13 +238,14 @@ public:
 
 	// requested_threadsの数になるように、スレッド数を変更する。
     // 💡 各ThreadのWorkerに対してclear()が1度以上呼び出されることは保証されている。
-    void set(const NumaConfig&            numaConfig,
-             Search::SharedState /*sharedState*/,
 #if STOCKFISH
+    void  set(const NumaConfig& numaConfig,
+              Search::SharedState,
               const Search::SearchManager::UpdateContext&);
 #else
+    void set(const NumaConfig& numaConfig,
+             Search::SharedState,
              const Search::UpdateContext&,
-			 // 🌈 やねうら王独自追加
              usize                       requested_threads,
              const Search::WorkerFactory& worker_factory);
 #endif
