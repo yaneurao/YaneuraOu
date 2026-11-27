@@ -12,7 +12,6 @@
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
 #include "sfnn_network_16.h"
 #endif
-#include "../layers/affine_transform_common_shard_input_explicit.h"
 #include "../layers/affine_transform_sparse_input.h"
 #include "../layers/clipped_relu.h"
 #include "../layers/sqr_clipped_relu.h"

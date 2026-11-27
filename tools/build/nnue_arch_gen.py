@@ -198,6 +198,10 @@ raw_features = f"""
     """
 
 if SFNN:
+    # Only common+shard architectures need this fc_0 implementation.
+    # common+shard専用のfc_0は、その構成のヘッダーだけが読み込む。
+    if sfnn_common_shard:
+        header += '#include "../layers/affine_transform_common_shard_input_explicit.h"\n'
     header += """
     #include "sfnn_network.h"
     """
