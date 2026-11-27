@@ -261,6 +261,7 @@ TTWriter::TTWriter(Cluster* cl, int idx) :
 void TTWriter::penalize(int penalty) {
     auto& entry = cluster->entry[index];
     // Guard against racy underflows, default to "unoccupied"
+    // 競合によるアンダーフローを防ぎ、0以下なら未使用として扱う。
     entry.depth8 = std::max(int(entry.depth8) - penalty, 0);
 }
 
@@ -548,7 +549,7 @@ Cluster* TranspositionTable::get_cluster(const Key key) const {
 #if STOCKFISH
 
     return &table[mul_hi64(key, clusterCount)];
-	// 💡 mul_hi64は、64bit * 64bitの掛け算をして下位64bitを取得する関数。
+	// 💡 mul_hi64は、64bit * 64bitの掛け算をして上位64bitを取得する関数。
 
 	// key(64bit) × clusterCount / 2^64 の値は 0 ～ clusterCount - 1 である。
     // 掛け算が必要にはなるが、こうすることで custerCountを2^Nで確保しないといけないという制約が外れる。
