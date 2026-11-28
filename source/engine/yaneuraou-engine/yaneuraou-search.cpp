@@ -5052,8 +5052,8 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
             //  🌈 一手詰め判定
             // -----------------------
 
-            // 置換表にhitした場合は、すでに詰みを調べたはずなので
-            // 置換表にhitしなかったときにのみ調べる。
+            // 王手されておらずTTにヒットしなかった場合に、1手詰めを調べる。
+            // TTヒット時はここでmate_1ply()を呼ばない。
 
 			ASSERT_LV3(!ss->inCheck && !ss->ttHit);
             if (true)
@@ -5349,11 +5349,8 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
 		📝  王手されていないqsearch()では捕獲手しか生成しない。
 		     有効なTT手は非捕獲手でも先に調べるが、moveCount==0でも詰みとは限らない。
-	
-			 王手されている局面なら、evasion(王手回避手)を生成するから、moveCount==0なら詰みと確定する。
-			 しかし置換表にhitした時にはbestValueの初期値は -VALUE_INFINITEではないので、そう考えると
-			 ここは(Stockfishのコードのように)bestValue == -VALUE_INFINITEとするのではなくmoveCount == 0としたほうが良いように思うのだが…。
-			 →　置換表にhitしたのに枝刈りがなされていない時点で有効手があるわけで詰みではないことは言えるのか…。
+		     王手中は回避手を生成するため、moveCount==0なら詰みとして返す。
+		     王手中のbestValueはTTヒットの有無にかかわらず-VALUE_INFINITEで初期化する。
 			 cf. https://yaneuraou.yaneu.com/2022/04/22/yaneuraous-qsearch-is-buggy/
 
 		🤔
