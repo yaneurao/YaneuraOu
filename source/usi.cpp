@@ -1388,6 +1388,17 @@ Move USIEngine::to_move(const Position& pos, std::string str) {
 	return Move::none();
 }
 
+// USI形式のマス表記をSquareに変換する。変換できなければSQ_NBを返す。
+static Square usi_to_sq(char f, char r) {
+    File file = toFile(f);
+    Rank rank = toRank(r);
+
+    if (is_ok(file) && is_ok(rank))
+        return file | rank;
+
+    return SQ_NB;
+}
+
 // USI形式から指し手への変換。本来この関数は要らないのだが、
 // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
 // やねうら王、独自追加。
@@ -1428,20 +1439,6 @@ END:
 	return move;
 }
 
-// USIの指し手文字列などに使われている盤上の升を表す文字列をSquare型に変換する
-// 変換できなかった場合はSQ_NBが返る。高速化のために用意した。
-Square USIEngine::usi_to_sq(char f, char r) {
-    File file = toFile(f);
-    Rank rank = toRank(r);
-
-    if (is_ok(file) && is_ok(rank))
-        return file | rank;
-
-    return SQ_NB;
-}
-
-// USIプロトコルのマス目文字列をSquare型に変換する。
-// 変換できない文字である場合、SQ_NBを返す。
 #endif
 
 void USIEngine::on_update_no_moves(const Engine::InfoShort& info) {

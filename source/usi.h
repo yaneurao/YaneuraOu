@@ -121,10 +121,6 @@ public:
 	// cpからValueへ。to_cpの逆変換。
 	static Value cp_to_value(int v);
 
-    // USIの指し手文字列などに使われている盤上の升を表す文字列をSquare型に変換する
-    // 変換できなかった場合はSQ_NBが返る。高速化のために用意した。
-    static Square usi_to_sq(char f, char r);
-
     // Move16をUSIプロトコルで使う文字列に変換する。
     static std::string move(Move16 m);
 
