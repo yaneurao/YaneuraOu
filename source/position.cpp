@@ -2991,6 +2991,44 @@ void Position::undo_move(Move m) {
 
 #endif
 
+#if STOCKFISH
+// Helper used to do/undo a castling move. This is a bit
+// tricky in Chess960 where from/to squares can overlap.
+// キャスリングの着手・undo用ヘルパー。Chess960では移動元と移動先が重なり得る。
+template<bool Do>
+void Position::do_castling(Color                              us,
+                           Square                             from,
+                           Square&                            to,
+                           Square&                            rfrom,
+                           Square&                            rto,
+                           DirtyThreats* const                dts,
+                           [[maybe_unused]] DirtyPiece* const dp) {
+
+    bool kingSide = to > from;
+    rfrom         = to;  // Castling is encoded as "king captures friendly rook"
+    // キャスリングはキングが自分のルークを取る指し手として表現する。
+    rto           = relative_square(us, kingSide ? SQ_F1 : SQ_D1);
+    to            = relative_square(us, kingSide ? SQ_G1 : SQ_C1);
+
+    assert(!Do || dp);
+
+    if constexpr (Do)
+    {
+        dp->to        = to;
+        dp->remove_pc = dp->add_pc = make_piece(us, ROOK);
+        dp->remove_sq              = rfrom;
+        dp->add_sq                 = rto;
+    }
+
+    // Remove both pieces first since squares could overlap in Chess960
+    // Chess960では升が重なる場合があるため、先に両方の駒を取り除く。
+    remove_piece(Do ? from : to, dts);
+    remove_piece(Do ? rfrom : rto, dts);
+    put_piece(make_piece(us, KING), Do ? to : from, dts);
+    put_piece(make_piece(us, ROOK), Do ? rto : rfrom, dts);
+}
+#endif
+
 // Used to do a "null move": it flips
 // the side to move without executing any move on the board.
 // null move用。盤上の駒を動かさずに手番を反転する。
