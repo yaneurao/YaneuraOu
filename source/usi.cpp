@@ -1718,17 +1718,12 @@ void USIEngine::UnitTest(Test::UnitTester& tester, IEngine& engine) {
     Position  pos;
 
 
-    // 平手初期化
-    auto hirate_init = [&] { pos.set_hirate(); };
-
     // SFEN文字列でのPosition初期化
     auto sfen_init = [&](const std::string& sfen) { pos.set(sfen); };
 
     {
         auto section2 = tester.section("to_move()");
         {
-            //auto section3 = tester.section("unpromoted pawn move");
-
             sfen_init("2sgkgs2/9/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL w - 1");
 
             auto moves =
