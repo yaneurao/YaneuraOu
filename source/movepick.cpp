@@ -266,7 +266,11 @@ MovePicker::MovePicker(const Position& p,
 #endif
 
     // ProbCutから呼び出されているので王手はかかっていないはず。
+#if STOCKFISH
+    assert(!pos.checkers());
+#else
     ASSERT_LV3(!pos.checkers());
+#endif
 
     // PROBCUT段階ではSEEがthreshold以上の手を返す。
     // 先行するTT手については、捕獲と合法性の条件を確認する。
@@ -605,7 +609,11 @@ dispatch:
         return select([&]() { return pos.see_ge(*cur, threshold); });
 
     default :
+#if STOCKFISH
+        assert(false);
+#else
         ASSERT(false);
+#endif
         sf_unreachable();
     }
 }
