@@ -2691,6 +2691,22 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 	ASSERT_LV5(pos_is_ok());
 }
 
+#if STOCKFISH
+Key Position::prefetch_key(Move m) const {
+    Square from     = m.from_sq();
+    Square to       = m.to_sq();
+    Piece  pc       = piece_on(from);
+    Piece  captured = piece_on(to);
+    Key    k        = st->key ^ Zobrist::side;
+
+    k ^= Zobrist::psq[captured][to] ^ Zobrist::psq[pc][to] ^ Zobrist::psq[pc][from];
+
+    if (captured || type_of(pc) == PAWN)
+        return k;
+
+    return adjust_key50<true>(k);
+}
+#else
 // ある指し手を指した後のhash keyを返す。
 HASH_KEY Position::key_after(Move m) const {
 
@@ -2746,6 +2762,7 @@ HASH_KEY Position::key_after(Move m) const {
 
     return k ^ h;
 }
+#endif
 
 #if !STOCKFISH
 // 指し手で盤面を1手戻す。do_move()の逆変換。
