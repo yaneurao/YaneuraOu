@@ -1469,10 +1469,11 @@ bool Position::gives_check(Move m) const
 		&&  !aligned(from, to, square<KING>(~sideToMove)));
 }
 
-// 現局面で指し手がないかをテストする。指し手生成ルーチンを用いるので速くない。探索中には使わないこと。
+// 現局面に合法手がないかを判定する。指し手生成を伴うため、通常の探索では使わず、
+// 最大手数超過時の詰み判定など、限られた経路で呼び出す。
 bool Position::is_mated() const
 {
-	// 不成で詰めろを回避できるパターンはないのでLEGAL_ALLである必要はない。
+	// 不成を省略しても合法手の有無は変わらないので、LEGAL_ALLである必要はない。
 	return MoveList<LEGAL>(*this).size() == 0;
 }
 
@@ -1779,7 +1780,8 @@ bool Position::pseudo_legal_s(const Move m) const {
 	return true;
 }
 
-// 生成した指し手(CAPTUREとかNON_CAPTUREとか)が、合法であるかどうかをテストする。
+// 疑似合法手を前提に、自玉への王手が残らないかを判定する。
+// 駒打ちのルールや王手回避など、疑似合法性の確認は呼び出し側で済ませる。
 bool Position::legal(Move m) const
 {
 	if (m.is_drop())
