@@ -340,11 +340,8 @@ template <Color Us> struct GenerateDropMoves {
 			// 2) 二歩のところには打てない
 			// 3) 打ち歩詰め回避
 
-			// ここでは2)のためにソフトウェア飽和加算に似たテクニックを用いる
-			// cf. http://yaneuraou.yaneu.com/2015/10/15/%E7%B8%A6%E5%9E%8Bbitboard%E3%81%AE%E5%94%AF%E4%B8%80%E3%81%AE%E5%BC%B1%E7%82%B9%E3%82%92%E5%85%8B%E6%9C%8D%E3%81%99%E3%82%8B/
-			// このときにテーブルを引くので、用意するテーブルのほうで先に1)の処理をしておく。
-			// →　この方法はPEXTが必要なので愚直な方法に変更する。
-			// →　pawn_drop_mask()はQugiyのアルゴリズムを用いるように変更する。[2021/12/01]
+			// pawn_drop_mask()で二歩になる筋と歩を打てない最終段を除外する。
+			// このマスクはQugiyのアルゴリズムで求める（実装はbitboard.h）。
 
 			// 歩の打てる場所
 			Bitboard target2 = target & pawn_drop_mask<Us>(pos.pieces(Us, PAWN));
@@ -360,7 +357,7 @@ template <Color Us> struct GenerateDropMoves {
 					target2 ^= pe;
 			}
 
-			// targetで表現される升に歩を打つ指し手の生成。
+			// 条件を満たしたtarget2の升に歩を打つ指し手を生成する。
 			target2.foreach([&](Square sq) {
 				*moveList++ = make_move_drop(PAWN , sq , Us );
 			});
@@ -467,8 +464,6 @@ template<Color Us, bool All>
 Move* generate_evasions(const Position& pos, Move* moveList)
 {
 	Move* mlist_org = moveList;
-
-	// この実装において引数のtargetは無視する。
 
 	// この関数を呼び出しているということは、王手がかかっているはずであり、
 	// 王手をしている駒があるばすだから、checkers(王手をしている駒)が存在しなければおかしいのでassertを入れてある
