@@ -58,29 +58,35 @@ const std::vector<std::string> Defaults = {
   "1r6/1P4bk/3qr1p1/N6p/3pp2P/6R1/3Q1PP1/1R4K1 w - - 1 42",
 
   // Positions with high numbers of changed threats
+  // 利きの変化が多い局面。
   "k7/2n1n3/1nbNbn2/2NbRBn1/1nbRQR2/2NBRBN1/3N1N2/7K w - - 0 1",
   "K7/8/8/BNQNQNB1/N5N1/R1Q1q2r/n5n1/bnqnqnbk w - - 0 1",
 
   // 5-man positions
+  // 盤上に5駒ある局面。
   "8/8/8/8/5kp1/P7/8/1K1N4 w - - 0 1",     // Kc2 - mate
   "8/8/8/5N2/8/p7/8/2NK3k w - - 0 1",      // Na2 - mate
   "8/3k4/8/8/8/4B3/4KB2/2B5 w - - 0 1",    // draw
 
   // 6-man positions
+  // 盤上に6駒ある局面。
   "8/8/1P6/5pr1/8/4R3/7k/2K5 w - - 0 1",   // Re5 - mate
   "8/2p4P/8/kr6/6R1/8/8/1K6 w - - 0 1",    // Ka2 - mate
   "8/8/3P3k/8/1p6/8/1P6/1K3n2 b - - 0 1",  // Nd2 - draw
 
   // 7-man positions
+  // 盤上に7駒ある局面。
   "8/R7/2q5/8/6k1/8/1P5p/K6R w - - 0 124", // Draw
 
   // Mate and stalemate positions
+  // 詰みとステイルメイトの局面。
   "6k1/3b3r/1p1p4/p1n2p2/1PPNpP1q/P3Q1p1/1R1RB1P1/5K2 b - - 0 1",
   "r2r1n2/pp2bk2/2p1p2p/3q4/3PN1QP/2P3R1/P4PP1/5RK1 w - - 0 1",
   "8/8/8/8/8/6k1/6p1/6K1 w - -",
   "7k/7P/6K1/8/3B4/8/8/8 b - -",
 
   // Chess 960
+  // チェス960の局面。
   "setoption name UCI_Chess960 value true",
   "bbqnnrkr/pppppppp/8/8/8/8/PPPPPPPP/BBQNNRKR w HFhf - 0 1 moves g2g3 d7d5 d2d4 c8h3 c1g5 e8d6 g5e7 f7f6",
   "nqbnrkrb/pppppppp/8/8/8/8/PPPPPPPP/NQBNRKRB w KQkq - 0 1",
@@ -92,6 +98,7 @@ const std::vector<std::string> Defaults = {
 // human-randomly picked 5 games with <60 moves from
 // https://tests.stockfishchess.org/tests/view/665c71f9fd45fb0f907c21e0
 // only moves for one side
+// 上記のテストから60手未満の5対局を人手で適当に選び、片側の手番の局面のみを使う。
 const std::vector<std::vector<std::string>> BenchmarkPositions = {
     {
         "rnbq1k1r/ppp1bppp/4pn2/8/2B5/2NP1N2/PPP2PPP/R1BQR1K1 b - - 2 8",
