@@ -19,7 +19,7 @@ namespace YaneuraOu {
 // カスタムコンパレータを定義します。UCIオプションは大文字と小文字を区別しないためです。
 // ⇨ USIではここがプロトコル上どうなっているのかはわからないが、同様の処理にしておく。
 struct CaseInsensitiveLess {
-	bool operator() (const std::string&, const std::string&) const;
+    bool operator()(const std::string&, const std::string&) const;
 };
 
 class OptionsMap;
@@ -154,11 +154,11 @@ class OptionsMap {
     const Option& operator[](const std::string&) const;
 
     // Optionを一つ追加する。options_mapに追加される。
-    void add(const std::string& /* option_name */, const Option& option);
+    void add(const std::string&, const Option& option);
 
     // 保持しているOptionのなかで、このoption_nameを持つものの数。
     // 💡 ある名前のoption項目を持っているかどうかを調べるのに使う。
-    usize count(const std::string& /* option_name */) const;
+    usize count(const std::string&) const;
 
 #if !STOCKFISH
 
