@@ -839,7 +839,8 @@ public:
 			return true;
 		}
 
-		const auto& entry = transposition_table.LookUp(pos, root_color);
+		// 未ヒット時にはエントリーが初期化・置換されるため、呼び出しを維持する。
+		(void) transposition_table.LookUp(pos, root_color);
 
 		for (const auto& move : move_picker) {
 			const auto& child_entry = transposition_table.LookUpChildEntry(pos, move, root_color);
@@ -934,7 +935,8 @@ public:
 
 		auto best_num_moves_to_mate = or_node ? int_max : int_min;
 		auto best_move_to_mate = Move::none();
-		const auto& entry = transposition_table.LookUp(pos, root_color);
+		// 未ヒット時にはエントリーが初期化・置換されるため、呼び出しを維持する。
+		(void) transposition_table.LookUp(pos, root_color);
 
 		for (const auto& move : move_picker) {
 			const auto& child_entry = transposition_table.LookUpChildEntry(pos, move, root_color);
