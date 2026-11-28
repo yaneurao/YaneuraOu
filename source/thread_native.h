@@ -76,14 +76,14 @@ struct ThreadCallable final: ThreadCallableBase {
 // 対応するプラットフォームでは、Linuxの標準値と同じ8MBのスタックサイズを指定して
 // pthread_create()を呼び出す。
 
-// スレッドのデフォルトスタックサイズが小さい環境で、
-// 少なくとも8MB確保するためのthread生成のためのwrapper
+// largeStack指定時に8MBのスタックサイズを設定するスレッド生成ラッパー。
+// 指定しない場合はプラットフォームの既定値を使う。
 
 class NativeThread {
     pthread_t thread;
     bool      running_ = false;
 
-	// 少なくともこのサイズのスタック領域を確保したい
+    // largeStack指定時に設定するスタックサイズ。
     static constexpr usize TH_STACK_SIZE = 8 * 1024 * 1024;
 
     void start(NativeThreadOptions options, ThreadCallableBase* func) {
