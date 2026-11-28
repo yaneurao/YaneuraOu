@@ -111,10 +111,10 @@ using AtomicStats = MultiArray<StatsEntry<T, D, true>, Sizes...>;
 // 全スレッド数に応じてスケールする必要がある、スレッド間で共有される履歴情報のために使われます。
 // SizeMultiplier は、スレッド1本あたりに確保される T の個数を表します。
 
-// 📓 TをSizeMultiplier分確保。
+// 📓 Tをs × SizeMultiplier個確保する。sにはスレッド数を2の冪に切り上げた値を渡す。
 template<typename T, int SizeMultiplier>
 struct DynStats {
-	// s : スレッド数
+	// s : 確保サイズを決めるスレッド数（2の冪に切り上げ済み）
     explicit DynStats(usize s) :
         size(s * SizeMultiplier),
         data(make_unique_large_page<T[]>(size)) {}
@@ -122,7 +122,8 @@ struct DynStats {
     // Sets all values in the range to 0
     // 範囲内のすべての値を0にする。
     // 注: Stockfishの原文は0としているが、実装は指定したvalueでこのスレッドの担当範囲を初期化する。
-	// 📓 並列で呼び出すことを想定している。threadIdxがthread id、numaTotalがthreadの総数。 
+	// 📓 並列で呼び出すことを想定している。threadIdxはNUMAノード内の番号、
+	//    numaTotalは同じノード内のスレッド数。
     void clear_range(int value, usize threadIdx, usize numaTotal) {
         usize start = u64(threadIdx) * size / numaTotal;
         assert(start < size);
