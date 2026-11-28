@@ -1697,7 +1697,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             mainHistory[c][i] = mainHistory[c][i] * 729 / 1024;
 
     // Iterative deepening loop until requested to stop or the target depth is reached
-    // 要求があるか、または目標深度に達するまで反復深化ループを実行します
+    // 停止が要求されるか、目標深度に達するまで反復深化ループを実行する。
 
     // 📝 rootDepthはこのthreadの反復深化での探索中の深さ。
     //     limits.depth("go"コマンドの時に"depth"として指定された探索深さ)が指定されている時は、
@@ -1809,9 +1809,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
             /*
 				📓 探索窓を狭めてこの範囲で探索して、この窓の範囲のscoreが返ってきたらラッキー、みたいな探索。
 
-					探索が浅いときは (-VALUE_INFINITE,+VALUE_INFINITE)の範囲で探索する。
-					探索深さが一定以上あるなら前回の反復深化のiteration時の最小値と最大値
-					より少し幅を広げたぐらいの探索窓をデフォルトとする。
+					各反復で、前回までの平均評価値を中心にdeltaだけ広げた探索窓を設定する。
+					fail highまたはfail lowなら窓を広げて再探索する。
 
 					Reset aspiration window starting size
 					aspiration windowの開始サイズをリセットする
