@@ -249,27 +249,27 @@ class Position {
 	//   SFEN文字列の入出力
     // -----------------------
 
-    // sfen文字列で盤面を設定する
     // StateInfoはPosition内部に保持する。スレッド間のコピーはcopy_state_infos()を使う。
 #if STOCKFISH
-	std::optional<PositionSetError> set(const std::string& fenStr, bool isChess960);
+    std::optional<PositionSetError> set(const std::string& fenStr, bool isChess960);
     std::optional<PositionSetError> set(const std::string& code, Color c);
 #else
+    // sfen文字列で盤面を設定する。
     std::optional<PositionSetError> set(const std::string& sfenStr);
 
 	// 平手の初期盤面を設定する。
     std::optional<PositionSetError> set_hirate();
 #endif
 
+#if STOCKFISH
+    std::string fen() const;
+#else
 	// 局面のsfen文字列を取得する
 	// 📝 USIプロトコルにおいては不要な機能ではあるが、デバッグのために局面を標準出力に出力して
 	// 　 その局面から開始させたりしたいときに、sfenで現在の局面を出力出来ないと困るので用意してある。
 	//    引数としてintを取るほうのsfen()は、出力するsfen文字列の末尾の手数を指定できるバージョン。
 	// 💡 裏技 : gamePlyが負なら、sfen文字列末尾の手数を出力しない。
 
-#if STOCKFISH
-    std::string fen() const;
-#else
 	std::string sfen() const;
 	std::string sfen(int gamePly) const;
 
