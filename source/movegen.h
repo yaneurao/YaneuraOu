@@ -139,38 +139,38 @@ std::ostream& operator<<(std::ostream& os, ExtMove m);
 
 template<GenType T>
 struct MoveList {
-	/*
-		📓
-			 局面をコンストラクタの引数に渡して使う。
+    /*
+        📓
+             局面をコンストラクタの引数に渡して使う。
 
-			 すると指し手が生成され、lastが初期化されるので、
-			 このclassのbegin(),end()が正常な値を返すようになる。
-			 lastは内部のバッファを指している。コピー操作は禁止されていないが、
-			 コピーするとlastが元のバッファを指すため、このクラスをコピーしてはならない。
-    
-			 for(auto move : MoveList<LEGAL_ALL>(pos)) ...
-			 のような書き方ができる。
-	*/
+             すると指し手が生成され、lastが初期化されるので、
+             このclassのbegin(),end()が正常な値を返すようになる。
+             lastは内部のバッファを指している。コピー操作は禁止されていないが、
+             コピーするとlastが元のバッファを指すため、このクラスをコピーしてはならない。
+
+             for(auto move : MoveList<LEGAL_ALL>(pos)) ...
+             のような書き方ができる。
+    */
 
     explicit MoveList(const Position& pos) :
         last(generate<T>(pos, moveList)) {}
 
-	// 内部的に持っている指し手生成バッファの先頭
+    // 内部的に持っている指し手生成バッファの先頭
     const Move* begin() const { return moveList; }
 
-	// 生成された指し手の末尾のひとつ先
+    // 生成された指し手の末尾のひとつ先
     const Move* end() const { return last; }
 
-	// 生成された指し手の数
+    // 生成された指し手の数
     usize       size() const { return last - moveList; }
 
-	// 生成された指し手のなかに引数で指定された指し手が含まれているかの判定。
+    // 生成された指し手のなかに引数で指定された指し手が含まれているかの判定。
     // ⚠ ASSERTなどで用いる。遅いので通常探索等では用いないこと。
     bool        contains(Move move) const { return std::find(begin(), end(), move) != end(); }
 
    private:
     // moveList : 指し手生成バッファ。自前で持っている。
-	// last     : 生成された指し手の末尾の要素 + 1 を指すポインター。
+    // last     : 生成された指し手の末尾の要素 + 1 を指すポインター。
     Move moveList[MAX_MOVES], *last;
 };
 
