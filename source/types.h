@@ -984,10 +984,9 @@ static Move16 flip_move(Move16 m) {
     if (m == Move16::none())
         return m;
 
-	return 
-		m.is_drop   ()  ? make_move_drop16   (m.move_dropped_piece(), Flip(m.to_sq())):
-        m.is_promote()  ? make_move_promote16(Flip(m.from_sq())     , Flip(m.to_sq())):
-					      make_move16        (Flip(m.from_sq())     , Flip(m.to_sq()));
+    return m.is_drop()    ? make_move_drop16(m.move_dropped_piece(), Flip(m.to_sq()))
+         : m.is_promote() ? make_move_promote16(Flip(m.from_sq()), Flip(m.to_sq()))
+                          : make_move16(Flip(m.from_sq()), Flip(m.to_sq()));
 }
 
 // 見た目に、わかりやすい形式で表示する
