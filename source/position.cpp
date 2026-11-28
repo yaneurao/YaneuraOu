@@ -1826,6 +1826,85 @@ bool Position::pseudo_legal_s(const Move m) const {
 	return true;
 }
 
+#if STOCKFISH
+bool Position::legal(Move m) const {
+
+    Color  us   = sideToMove;
+    Square from = m.from_sq();
+    Square to   = m.to_sq();
+    Piece  pc   = moved_piece(m);
+
+    // Use a slower but simpler function for uncommon cases
+    // まれな指し手には、低速だが単純な方法を使う。
+    if (m.type_of() != NORMAL)
+        return MoveList<ALL>(*this).contains(m);
+
+    // Is not a promotion, so the promotion piece must be empty
+    // 成りではないため、成り駒の指定はない。
+    assert(m.promotion_type() - KNIGHT == NO_PIECE_TYPE);
+
+    // If the 'from' square is not occupied by a piece belonging to the side to
+    // move, the move is obviously not legal.
+    // 移動元に手番側の駒がなければ合法手ではない。
+    if (pc == NO_PIECE || color_of(pc) != us)
+        return false;
+
+    // The destination square cannot be occupied by a friendly piece
+    // 移動先に自駒があってはならない。
+    if (pieces(us) & to)
+        return false;
+
+    // Handle the special case of a pawn move
+    // ポーンの指し手を個別に扱う。
+    if (type_of(pc) == PAWN)
+    {
+        // We have already handled promotion moves, so destination cannot be on the 8th/1st rank
+        // 成りは処理済みなので、移動先は最終段にはならない。
+        if ((Rank8BB | Rank1BB) & to)
+            return false;
+
+        // Check if it's a valid capture, single push, or double push
+        // 捕獲、1マス前進、2マス前進のいずれかが成立するか確認する。
+        const bool isCapture    = bool(attacks_bb(PAWN, from, us) & pieces(~us) & to);
+        const bool isSinglePush = (from + pawn_push(us) == to) && empty(to);
+        const bool isDoublePush = (from + 2 * pawn_push(us) == to)
+                               && (relative_rank(us, from) == RANK_2) && empty(to)
+                               && empty(to - pawn_push(us));
+
+        if (!(isCapture || isSinglePush || isDoublePush))
+            return false;
+    }
+    else if (!(attacks_bb(type_of(pc), from, pieces()) & to))
+        return false;
+
+
+    if (type_of(pc) != KING)
+    {
+        if (checkers())
+        {
+            // In double check, only a king move can evade
+            // 両王手はキングの移動でのみ回避できる。
+            if (more_than_one(checkers()))
+                return false;
+
+            // The move must block the check or capture the checker
+            // 王手を遮るか、王手している駒を取る必要がある。
+            if (!(between_bb(square<KING>(us), lsb(checkers())) & to))
+                return false;
+        }
+        // When not in check, a non-king move is legal if and only if it is not pinned
+        // or it is moving along the ray towards or away from the king.
+        // 王手されていない場合、キング以外の手はピンされていないか、ピンの直線上を移動する必要がある。
+        return !(blockers_for_king(us) & from) || line_bb(from, to) & pieces(us, KING);
+    }
+    else
+        // If the moving piece is a king, check whether the destination square is
+        // attacked by the opponent.
+        // キングの移動先に相手の利きがないことを確認する。
+        return !(to & threats_by(ALL_PIECES));
+}
+
+#else
 // 疑似合法手を前提に、自玉への王手が残らないかを判定する。
 // 駒打ちのルールや王手回避など、疑似合法性の確認は呼び出し側で済ませる。
 bool Position::legal(Move m) const
@@ -1851,6 +1930,8 @@ bool Position::legal(Move m) const
 			 || aligned(from, m.to_sq(), square<KING>(us));
 	}
 }
+
+#endif
 
 // legal()では、成れるかどうかのチェックをしていない。
 // (先手の指し手を後手の指し手と混同しない限り、指し手生成された段階で
