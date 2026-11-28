@@ -775,7 +775,9 @@ void USIEngine::bench(std::istream& args) {
     std::string token;
     u64         num, nodes = 0, cnt = 1;
     u64         nodesSearched = 0;
+#if STOCKFISH
     const auto& options       = engine.get_options();
+#endif
 
     engine.set_on_update_full([&](const auto& i) {
         nodesSearched = i.nodes;
