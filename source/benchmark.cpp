@@ -414,6 +414,7 @@ namespace YaneuraOu::Benchmark {
 // 引数は以下の5つです：TTサイズ（MB単位）、使用するサーチスレッド数、
 // 各局面に費やす制限値、FEN形式の局面を読み込むファイル名、
 // そして制限の種類（depth、perft、nodes、movetime（ミリ秒））。
+// やねうら王では局面ファイルをSFEN形式で読み込む。
 // 使用例：
 // bench                            : 各デフォルト局面を15秒ずつ探索（TT=1024MB）
 // bench 64 1 15 default depth      : デフォルトの局面を深さ15まで探索（TT=64MB）

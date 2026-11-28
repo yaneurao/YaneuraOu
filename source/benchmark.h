@@ -25,7 +25,9 @@ struct BenchmarkSetup {
     std::string              filledInvocation;
 };
 
-// speedtestに続く引数を読み込み、設定とコマンド列を返す。
+// speedtestに続く引数（スレッド数、置換表サイズMiB、合計時間秒）を読み込み、
+// 設定とコマンド列を返す。省略時は順にハードウェアのスレッド数、
+// 1スレッドあたり128 MiB、150秒を使用する。
 BenchmarkSetup setup_benchmark(std::istream&);
 
 }  // namespace YaneuraOu::Benchmark
