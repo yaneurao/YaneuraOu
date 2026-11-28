@@ -85,6 +85,7 @@ namespace YaneuraOu {
 // 現時点ではそこまで重要ではない。
 // パスが4095バイトを超える場合、パスの何バイト分からハッシュが計算されるかは未規定。
 // 空文字列のハッシュになる場合もある。
+// 関数名にHashとあるが、ここではパス文字列を返し、呼び出し側でhash_string()を適用する。
 
 inline std::string getExecutablePathHash() {
     char  executable_path[4096] = {0};
