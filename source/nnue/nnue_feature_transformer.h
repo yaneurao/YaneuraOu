@@ -1298,7 +1298,7 @@ class FeatureTransformer {
                 }
             } else
 #endif
-			RawFeatures::append_changed_indices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset, state->dirtyPiece);
+                RawFeatures::append_changed_indices(pos, kRefreshTriggers[i], removed_indices, added_indices, reset, state->dirtyPiece);
 #if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
 			if constexpr (Packed) {
 				for (int c = 0; c < COLOR_NB; ++c) {
@@ -1326,9 +1326,9 @@ class FeatureTransformer {
                               accumulator.accumulation[perspective][i], entry, i);
                         else
 #endif
-						refresh_accumulator_using_finny_entry<Packed>(
-							accumulator.accumulation[perspective][i], entry,
-							added_indices[perspective], i);
+                            refresh_accumulator_using_finny_entry<Packed>(
+                              accumulator.accumulation[perspective][i], entry,
+                              added_indices[perspective], i);
 						continue;
 					}
 				}
