@@ -43,6 +43,21 @@ class HalfKP {
   // 玉の位置とBonaPieceから特徴量のインデックスを求める
   static IndexType make_index(Square sq_k, BonaPiece p);
 
+  // 自玉の位置と盤面・手駒から特徴量番号を直接求める。
+  struct IndexContext {
+    IndexContext(Square king, Color c) : perspective(c), kingOffset(IndexType(fe_end) * IndexType(king)) {}
+    IndexType board(Piece pc, Square sq) const {
+      return kingOffset + kpp_board_index[pc].from[perspective]
+        + IndexType(perspective == BLACK ? sq : Inv(sq));
+    }
+    IndexType hand(Color c, PieceType pt, int slot) const {
+      return kingOffset + kpp_hand_index[c][pt].from[perspective] + slot;
+    }
+    IndexType zero() const { return kingOffset; }
+    Color perspective;
+    IndexType kingOffset;
+  };
+
 };
 
 } // namespace YaneuraOu::Eval::NNUE::Features

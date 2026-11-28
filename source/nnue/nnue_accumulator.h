@@ -39,7 +39,7 @@ class AccumulatorCaches {
    public:
 #if defined(USE_FINNY_TABLES)
 #if defined(USE_AVX512) || defined(USE_AVX2) || defined(USE_SSE2) || defined(USE_NEON)
-    static constexpr bool kUseDirectFinny = kUseHalfKAHm2 || kUseHalfKA2 || kUseHalfKPvm;
+    static constexpr bool kUseDirectFinny = kUseHalfKAHm2 || kUseHalfKA2 || kUseHalfKPvm || kUseHalfKP;
 #else
     static constexpr bool kUseDirectFinny = false;
 #endif
@@ -59,8 +59,8 @@ class AccumulatorCaches {
         };
         Entry(): Entry(std::bool_constant<kUseDirectFinny>{}) {}
         bool is_initialized() const {
-            // HalfKA includes kings; HalfKP_vm stores its piece count plus one.
-            // HalfKAは玉を含み、HalfKP_vmは駒数に1を加えるため、0を未初期化として使える。
+            // HalfKA includes kings; HalfKP and HalfKP_vm store the piece count plus one.
+            // HalfKAは玉を含み、HalfKP系は駒数に1を加えるため、0を未初期化として使える。
             if constexpr (kUseDirectFinny) return position.pieceCount != 0;
             else return active_indices.size() != 0;
         }
