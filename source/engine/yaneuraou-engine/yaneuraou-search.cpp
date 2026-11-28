@@ -988,7 +988,11 @@ Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
 }
 #endif
 
+#if STOCKFISH
+void Search::Worker::ensure_network_replicated() {
+#else
 void Search::YaneuraOuWorker::ensure_network_replicated() {
+#endif
     // Access once to force lazy initialization, avoiding initialization during search
     // 遅延初期化を一度だけ実行し、探索中に初期化が起きるのを避ける。
     (void) (network[numaAccessToken]);
@@ -1042,7 +1046,11 @@ void Search::YaneuraOuWorker::pre_start_searching() {
 }
 #endif
 
+#if STOCKFISH
+void Search::Worker::start_searching() {
+#else
 void Search::YaneuraOuWorker::start_searching() {
+#endif
 
     accumulatorStack.reset();
 
@@ -1546,7 +1554,11 @@ SKIP_SEARCH:
 // 📝 探索本体。並列化している場合、ここが各threadの探索のentry point。
 //     Lazy SMPなので、置換表を共有しながらそれぞれのスレッドが勝手に探索しているだけ。
 
+#if STOCKFISH
+bool Search::Worker::iterative_deepening() {
+#else
 bool Search::YaneuraOuWorker::iterative_deepening() {
+#endif
 
     // もし自分がメインスレッドであるならmainThreadにmain_managerのポインタを代入。
     // 自分がサブスレッドのときは、これはnullptrになる。
@@ -2431,7 +2443,11 @@ void Search::YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move
 
 // Reset histories, usually before a new game
 // 履歴をリセットする。通常は新しいゲームの前に実行される。
+#if STOCKFISH
+void Search::Worker::clear() {
+#else
 void Search::YaneuraOuWorker::clear() {
+#endif
 
     mainHistory.fill(-5);
     captureHistory.fill(-742);
