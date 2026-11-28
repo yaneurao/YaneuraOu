@@ -192,7 +192,8 @@ void TTWriter::write(
     auto&     entry   = cluster->entry[index];
 
     // Preserve the old ttmove if we don't have a new one
-    // 新しいttmoveがない場合、古いttmoveを保持します
+    // 新しいttmoveがなく、キーも一致する場合は古いttmoveを保持する。
+    // キーが異なる場合は、別局面の指し手を残さないようMove::none()も書き込む。
 
     if (m || keyDiff)
 #if STOCKFISH
