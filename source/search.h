@@ -358,45 +358,38 @@ struct LimitsType {
 
 // The UCI stores the uci options, thread pool, and transposition table.
 // This struct is used to easily forward data to the Search::Worker class.
-
-// UCIは、UCIオプション、スレッドプール、トランスポジションテーブルを保持する。
-// この構造体は、Search::Workerクラスへデータを簡単に渡すために使われる。
-
-// The UCI stores the uci options, thread pool, and transposition table.
-// This struct is used to easily forward data to the Search::Worker class.
 // UCI側が保持するオプション、スレッドプール、置換表などを
 // Search::Workerへまとめて渡すための構造体。
 // やねうら王ではUSIとEngineの構成に合わせて共通データを渡す。
-// The UCI stores the uci options, thread pool, and transposition table.
-// This struct is used to easily forward data to the Search::Worker class.
-// UCIはオプション・スレッドプール・置換表を保持し、
-// この構造体はそれらをSearch::Workerへまとめて渡すために用いる。
 struct SharedState {
-    SharedState(const OptionsMap&                                         optionsMap,
-                ThreadPool&                                               threadPool,
-                TranspositionTable&                                       transpositionTable,
-                std::map<NumaIndex, SharedHistories>&                     sharedHists
 #if STOCKFISH
-                , const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& net
+    SharedState(const OptionsMap&                                        optionsMap,
+                ThreadPool&                                              threadPool,
+                TranspositionTable&                                      transpositionTable,
+                std::map<NumaIndex, SharedHistories>&                    sharedHists,
+                const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& net) :
 #else
-                , const Eval::NetworkStorage& net
+    SharedState(const OptionsMap&                     optionsMap,
+                ThreadPool&                           threadPool,
+                TranspositionTable&                   transpositionTable,
+                std::map<NumaIndex, SharedHistories>& sharedHists,
+                const Eval::NetworkStorage&           net) :
 #endif
-	) :
         options(optionsMap),
         threads(threadPool),
         tt(transpositionTable),
         sharedHistories(sharedHists),
-        network(net)
-	{}
+        network(net) {}
 
-    const OptionsMap&                                         options;
-    ThreadPool&                                               threads;
-    TranspositionTable&                                       tt;
-    std::map<NumaIndex, SharedHistories>&                     sharedHistories;
+    const OptionsMap&                                        options;
+    ThreadPool&                                              threads;
+    TranspositionTable&                                      tt;
+    std::map<NumaIndex, SharedHistories>&                    sharedHistories;
 
 #if STOCKFISH
-	const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
+    const LazyNumaReplicatedSystemWide<Eval::NNUE::Network>& network;
 #else
+    // NNUE以外ではダミー型へ切り替えるため、共通のNetworkStorageを使う。
     const Eval::NetworkStorage& network;
 #endif
 };
