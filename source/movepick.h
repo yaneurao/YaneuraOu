@@ -128,8 +128,8 @@ class MovePicker {
     ExtMove                      moves[MAX_MOVES];
 
 #if !STOCKFISH
-    // Position::pseudo_legal()に渡す第2パラメーター。
-    // 📝 やねうら王では、MovePickerのコンストラクタでもらう。
+    // 不成手を省略せず生成するか。TT手のpseudo_legal()による検査にも渡す。
+    // やねうら王では、MovePickerのコンストラクタで受け取る。
     bool generate_all_legal_moves;
 #endif
 };
