@@ -340,8 +340,7 @@ void TranspositionTable::resize(usize mbSize, ThreadPool& threads, bool force) {
 #if STOCKFISH
 	clear(threads);
 
-	// →　Stockfish、ここでclear()呼び出しているが、Search::clear()からTT.clear()を呼び出すので
-	// 二重に初期化していることになると思う。
+	// Stockfishではサイズ変更時にクリアする。別途search_clear()が呼ばれた場合もクリアされる。
 #endif
 }
 
