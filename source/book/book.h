@@ -6,6 +6,7 @@
 #include "../position.h"
 #include "../misc.h"
 #include "../usi.h"
+#include "../usioption.h"
 #include "../testcmd/unit_test.h"
 
 #include <fstream>
@@ -16,6 +17,18 @@
 
 namespace YaneuraOu {
 
+
+
+struct PackedSfen;
+
+namespace Search {
+struct LimitsType;
+using  RootMoves = std::vector<RootMove>;
+};
+
+// 定跡処理関連のnamespace
+namespace Book
+{
 #if !STOCKFISH
 // OptionsMapを参照で使いたい時に使うproxy。(やねうら王独自拡張)
 // 📝 C++ではclass memberの参照型はコンストラクタで初期化(代入)しなければならない。コンストラクタ以外で代入するには、
@@ -38,17 +51,6 @@ private:
 	OptionsMap* options = nullptr;
 };
 #endif
-
-struct PackedSfen;
-
-namespace Search {
-struct LimitsType;
-using  RootMoves = std::vector<RootMove>;
-};
-
-// 定跡処理関連のnamespace
-namespace Book
-{
 static const char* BookDBHeader2016_100 = "#YANEURAOU-DB2016 1.00";
 
 // 定跡の指し手を返す時の型
