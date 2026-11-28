@@ -876,10 +876,9 @@ class Position {
 #if defined(USE_BOARD_EFFECT_PREV)
 	// 前局面のboard_effect（評価値の差分計算用）
 
-	// 構造的には、StateInfoが持つべきなのだが、探索のほうで
-	// do_move()して次のnodeのsearch()が呼び出された直後にしかevaluate()は
-	// 呼び出さないので、do_move()でこの利きをboard_effectからコピーすれば
-	// KPE9の差分計算で困ることはない。
+	// do_move()で着手前のboard_effectをコピーする。
+	// StateInfoごとの履歴ではなく1局面分の領域なので、次のdo_move()で上書きされる。
+	// 差分計算で使う際は、この領域が対象の着手に対応している必要がある。
 	LongEffect::ByteBoard board_effect_prev[COLOR_NB];
 #endif
 
