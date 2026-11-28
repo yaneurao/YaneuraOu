@@ -303,16 +303,11 @@ ExtMove* MovePicker::generate_and_score() {
 
 	const Color us = pos.side_to_move();
 
-	// 自分より価値の安い駒で当たりになっているか
-
+    // 将棋版では歩の脅威だけを使う案を試したが、強くならなかった（2022/04/26）。
 #if STOCKFISH
     [[maybe_unused]] Bitboard threatByLesser[KING + 1];
 	if constexpr (Type == QUIETS)
-#else
-    if constexpr (Type == QUIETS || Type == QUIETS_ALL)
-#endif
-	{
-#if STOCKFISH
+    {
         threatByLesser[PAWN]   = 0;
         threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.threats_by(PAWN);
         threatByLesser[ROOK] =
@@ -320,24 +315,8 @@ ExtMove* MovePicker::generate_and_score() {
         threatByLesser[QUEEN] = pos.threats_by(ROOK) | threatByLesser[ROOK];
         threatByLesser[KING]  = 0;
 
-#else
-
-#if 0
-		// 🌈　Stockfishのコードを忠実に実装すると将棋ではたくさんの利きを計算しなくてはならないので
-		//     非常に計算コストが高くなる。ここでは歩による当たりになっている駒だけ考える。
-
-		// 歩による脅威だけ。
-		// squares threatened by pawns
-        // 相手の歩の利きがある升。
-		threatenedByPawn = pos.xattacks_by(PAWN, ~us, pos.pieces());
-
-		// 歩以外の自駒で、相手の歩の利きにある駒
-		threatened =  (pos.pieces(us,PAWN).andnot(pos.pieces(us))                 & threatenedByPawn );
+    }
 #endif
-		// →　やってみたが強くならないのでコメントアウトする。[2022/04/26]
-
-#endif
-	}
 
     MoveList<Type> ml(pos);  // move generation
                             // 指し手を生成する。
