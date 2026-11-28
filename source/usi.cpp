@@ -788,7 +788,7 @@ void USIEngine::bench(std::istream& args) {
     });
 
 #if !STOCKFISH
-	// USIEngine::isready()を呼び出してやらかないと"engine_options.txt"などの読み込みが行われない。
+    // USIEngine::isready()を呼び出してやらかないと"engine_options.txt"などの読み込みが行われない。
     isready();
 #endif
 
@@ -845,13 +845,13 @@ void USIEngine::bench(std::istream& args) {
         else if (token == "position")
             position(is);
         else if (token == "ucinewgame")
-						// 💡 Stockfishとの互換性維持のため"usinewgame"と変更していない。
-						//     どうせ内部でしか使わない符号みたいなものなので…。
+                        // 💡 Stockfishとの互換性維持のため"usinewgame"と変更していない。
+                        //     どうせ内部でしか使わない符号みたいなものなので…。
         {
-			engine.search_clear();  // search_clear may take a while
+            engine.search_clear();  // search_clear may take a while
                                     // search_clear は時間がかかることがある
 
-			elapsed = now();
+            elapsed = now();
         }
     }
 
@@ -877,7 +877,7 @@ void USIEngine::bench(std::istream& args) {
 
 void USIEngine::benchmark(std::istream& args) {
 
-	// Probably not very important for a test this long, but include for completeness and sanity.
+    // Probably not very important for a test this long, but include for completeness and sanity.
     // このように長いテストではおそらくあまり重要ではないが、完全性と安心のために含めておく。
     static constexpr int NUM_WARMUP_POSITIONS = 3;
 
@@ -891,20 +891,20 @@ void USIEngine::benchmark(std::istream& args) {
     engine.set_on_verify_network([](const auto&) {});
 
 #if !STOCKFISH
-	// USIEngine::isready()を呼び出してやらかないと"engine_options.txt"などの読み込みが行われない。
+    // USIEngine::isready()を呼び出してやらかないと"engine_options.txt"などの読み込みが行われない。
     isready();
 #endif
 
     Benchmark::BenchmarkSetup setup = Benchmark::setup_benchmark(args);
 
     const auto numGoCommands = count_if(setup.commands.begin(), setup.commands.end(),
-                                             [](const std::string& s) { return s.find("go ") == 0; });
+                                        [](const std::string& s) { return s.find("go ") == 0; });
 
     // Set options once at the start.
     auto ss = std::istringstream("name Threads value " + std::to_string(setup.threads));
     setoption(ss);
 #if STOCKFISH
-	ss = std::istringstream("name Hash value " + std::to_string(setup.ttSize));
+    ss = std::istringstream("name Hash value " + std::to_string(setup.ttSize));
     setoption(ss);
     ss = std::istringstream("name UCI_Chess960 value false");
     setoption(ss);
@@ -1028,8 +1028,9 @@ void USIEngine::benchmark(std::istream& args) {
 
     std::cerr << "\n";
 
-    static_assert(std::size(hashfullAges) == 2 && hashfullAges[0] == 0 && hashfullAges[1] == 999,
-                  "Hardcoded for display. Would complicate the code needlessly in the current state.");
+    static_assert(
+      std::size(hashfullAges) == 2 && hashfullAges[0] == 0 && hashfullAges[1] == 999,
+      "Hardcoded for display. Would complicate the code needlessly in the current state.");
 
     std::string threadBinding = engine.thread_binding_information_as_string();
     if (threadBinding.empty())
