@@ -9,6 +9,10 @@
 
 #include "misc.h"
 
+#if !STOCKFISH
+#include <vector>
+#endif
+
 namespace YaneuraOu {
 
 // Define a custom comparator, because the UCI options should be case-insensitive
