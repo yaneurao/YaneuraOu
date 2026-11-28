@@ -3035,7 +3035,11 @@ void Position::do_castling(Color                              us,
 template <typename T>
 void Position::do_null_move(const T& tt) {
 
+#if STOCKFISH
+    assert(!checkers());
+#else
 	ASSERT_LV3(!checkers());
+#endif
 
 
     StateInfo* previousSt = st;
@@ -3130,7 +3134,11 @@ void Position::do_null_move() {
 // null moveを戻すときに使用する。
 void Position::undo_null_move() {
 
+#if STOCKFISH
+    assert(!checkers());
+#else
     ASSERT_LV3(!checkers());
+#endif
 
 #if STOCKFISH
     stateIdx = (stateIdx - 1) & (MAX_HIST - 1);
@@ -3168,7 +3176,11 @@ void Position::undo_null_move() {
 
 SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 {
+#if STOCKFISH
+    assert(m.is_ok());
+#else
 	ASSERT_LV3(m.is_ok());
+#endif
 
 #if STOCKFISH
     // Only deal with normal moves, assume others pass a simple SEE
