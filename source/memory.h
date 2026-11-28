@@ -98,6 +98,7 @@ void memory_deleter(T* ptr, FREE_FUNC free_func) {
         return;
 
     // Explicitly needed to call the destructor
+    // デストラクタを明示的に呼び出す必要がある。
     if constexpr (!std::is_trivially_destructible_v<T>)
         ptr->~T();
 

@@ -560,6 +560,7 @@ class AffineTransformSparseInput {
 
 #else
         // Use dense implementation for the other architectures.
+        // その他のアーキテクチャでは密な行列向けの実装を使う。
         affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
           output, weights, biases, input);
 #endif
@@ -807,6 +808,7 @@ class AffineTransformSparseInput {
 
 #else
         // Use dense implementation for the other architectures.
+        // その他のアーキテクチャでは密な行列向けの実装を使う。
         affine_transform_unaligned<InputDimensions, PaddedInputDimensions, OutputDimensions>(
           output, weights, biases, input);
 #endif

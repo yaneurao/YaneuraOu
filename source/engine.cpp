@@ -324,6 +324,7 @@ void Engine::search_clear() {
     threads.clear();
 
     // TODO: does not work with multiple instances
+    // TODO: 複数のインスタンスでは動作しない。
     Tablebases::init(options["SyzygyPath"]);  // Free mapped files
 #else
 	// benchコマンドから内部的に呼び出す。
