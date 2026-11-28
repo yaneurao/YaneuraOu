@@ -1,7 +1,4 @@
-﻿#if !STOCKFISH
-#include "extra/tools.h"
-#endif
-#include "misc.h"
+﻿#include "misc.h"
 
 #include <array>
 #include <atomic>
@@ -36,6 +33,10 @@
 #endif
 
 #include "types.h"
+
+#if !STOCKFISH
+#include "extra/tools.h"
+#endif
 
 
 namespace YaneuraOu {
