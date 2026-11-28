@@ -252,10 +252,6 @@ void TimeManagement::init(const Search::LimitsType& limits,
                           const OptionsMap&         options,
                           int                       max_moves_to_draw) {
 
-    // 📝 探索開始時刻をコピーしておく。
-    //     以降、elapsed_time()は、ここからの経過時間を返す。
-    startTime = limits.startTime;
-
     // 今回の思考時間を計算してoptimum()・maximum()へ反映する。
     // plyはここまでの手数で、平手の初期局面なら1（0ではない）。
 
@@ -266,7 +262,8 @@ void TimeManagement::init(const Search::LimitsType& limits,
 	// 秒未満を切り上げるのか
 	round_up_to_fullsecond = options["RoundUpToFullSecond"];
 
-	// 探索開始時刻と終了予定時刻。このタイミングで初期化しておく。
+	// 探索開始時刻をコピーする。elapsed_time()はここからの経過時間を返す。
+	// 探索開始時にはponderhit時刻も同じ値で初期化する。
 	// 終了時刻は0ならば未確定という意味である。
     startTime = ponderhitTime = limits.startTime;
     search_end                = 0;
