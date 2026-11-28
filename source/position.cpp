@@ -3070,6 +3070,12 @@ bool Position::is_draw(int ply) const {
 }
 #endif
 
+#if STOCKFISH
+// Return a draw score if a position repeats once earlier but strictly
+// after the root, or repeats twice before or at the root.
+// ルートより後で一度繰り返された場合、またはルート以前に二度繰り返された場合に引き分けとする。
+bool Position::is_repetition(int ply) const { return st->repetition && st->repetition < ply; }
+#else
 // 連続王手の千日手等で引き分けかどうかを返す
 RepetitionState Position::is_repetition(int ply) const
 {
@@ -3147,6 +3153,7 @@ RepetitionState Position::is_repetition(int ply) const
 
 #endif
 }
+#endif
 
 #if STOCKFISH
 // Tests whether there has been at least one repetition
@@ -3180,6 +3187,7 @@ bool Position::has_repeated() const {
 }
 #endif
 
+#if !STOCKFISH
 // is_repetition()の、千日手が見つかった時に、現局面から何手遡ったかを返すバージョン。
 // found_plyにその値が返ってくる。
 RepetitionState Position::is_repetition(int ply, int& found_ply) const
@@ -3246,6 +3254,7 @@ RepetitionState Position::is_repetition(int ply, int& found_ply) const
 	return REPETITION_NONE;
 #endif
 }
+#endif
 
 // ----------------------------------
 //      入玉判定
