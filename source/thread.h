@@ -150,7 +150,7 @@ public:
 	// さらなる作業が必要なため、この関数のリネームはその作業が
 	// 実施される時まで保留されています。
 
-	// start_searching()で開始した探索の終了を待機する。
+	// 探索またはカスタムジョブが終了して、スレッドが待機状態になるのを待つ。
 	// 💡 searchingフラグがfalseになるのを待つ。
 
 	void   wait_for_search_finished();
@@ -176,7 +176,7 @@ private:
     usize idx, idxInNuma, totalNuma;
 
 	// exit      : このフラグが立ったら終了する。
-	// searching : 探索中であるかを表すフラグ。プログラムを簡素化するため、事前にtrueにしてある。
+	// searching : 探索またはカスタムジョブが未完了であることを表す。起動時の同期待ちのため事前にtrueにしてある。
 	bool                      exit = false, searching = true;  // Set before starting std::thread
 															   // std::threadが始まる前にセットされる
 
