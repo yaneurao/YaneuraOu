@@ -3630,12 +3630,16 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
     // probCutに使うbeta値。
     probCutBeta = beta + 241 - 64 * improving;
 
+#if STOCKFISH
+    if (depth >= 3 && !is_decisive(beta) && !(is_valid(ttData.value) && ttData.value < probCutBeta))
+#else
 	if (depth >= 3
         && !is_decisive(beta)
         // If value from transposition table is lower than probCutBeta, don't attempt
         // probCut there
         // 置換表から得た値が probCutBeta より低い場合は、そこで probCut を試みない
         && !(is_valid(ttData.value) && ttData.value < probCutBeta))
+#endif
     {
 #if STOCKFISH
         assert(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
