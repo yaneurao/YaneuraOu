@@ -40,24 +40,6 @@ bool pseudo_legal_check(const Position& pos, Move* mlist_start, Move* mlist_end)
 	for (auto it = mlist_start; it != mlist_end; ++it)
 		all_ok &= pos.pseudo_legal_s<true>(*it);
 
-	// Debug用に、非合法手があった時に局面とその指し手を出力する。
-#if 0
-	if (!all_ok)
-	{
-		sync_cout << "Error! : A non-pseudo legal move was generated." << std::endl
-			      << pos << sync_endl;
-
-		for (auto it = mlist_start; it != mlist_end; ++it)
-		{
-			if (!pos.pseudo_legal(it->move))
-				sync_cout << "move = " << it->move << sync_endl;
-		}
-
-		// ここ↓にbreak pointを仕掛けておくと便利
-		sync_cout << "stopped." << sync_endl;
-	}
-#endif
-
 	return all_ok;
 }
 
