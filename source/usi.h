@@ -149,19 +149,19 @@ class USIEngine {
 #endif
 #endif
 
-private:
+   private:
 
-	// 内包している思考エンジン
+    // 内包している思考エンジン
 #if STOCKFISH
-	// main関数にコマンドラインから渡された引数
-	Engine engine;
+    // main関数にコマンドラインから渡された引数
+    Engine      engine;
 
-	CommandLine cli;
-	// 🌈 やねうら王では、CommandLine::gを用いるから、このclassが保持する必要がない。
+    CommandLine cli;
+    // 🌈 やねうら王では、CommandLine::gを用いるから、このclassが保持する必要がない。
 #else
-	// 🌈 やねうら王ではengineを切り替えられるようにIEngineをくるんだ
-	//     EngineWrapperというclassを用いる。
-	EngineWrapper engine;
+    // 🌈 やねうら王ではengineを切り替えられるようにIEngineをくるんだ
+    //     EngineWrapperというclassを用いる。
+    EngineWrapper engine;
 
     // 先行入力されたUSIコマンド。尽きれば標準入力から入力する。
     std::queue<std::string> pending_commands;
@@ -173,57 +173,57 @@ private:
 
     std::string currentCmd;
 
-	// string_viewを"\n"で複数行に分割して、それを"info string .."の形で出力する。
-	static void print_info_string(std::string_view str);
+    // string_viewを"\n"で複数行に分割して、それを"info string .."の形で出力する。
+    static void print_info_string(std::string_view str);
 
-	// --------------------
-	// USI command handlers
-	// --------------------
+    // --------------------
+    // USI command handlers
+    // --------------------
 
-	// USIプロトコルのコマンドに対応するhandler
-	// USIプロトコルのコマンド名がそのまま関数名になっている。
+    // USIプロトコルのコマンドに対応するhandler
+    // USIプロトコルのコマンド名がそのまま関数名になっている。
 
-	void          go(std::istringstream& is);
-	void          bench(std::istream& args);
-	void          benchmark(std::istream& args);
-	void          position(std::istringstream& is);
-	void          setoption(std::istringstream& is);
+    void go(std::istringstream& is);
+    void bench(std::istream& args);
+    void benchmark(std::istream& args);
+    void position(std::istringstream& is);
+    void setoption(std::istringstream& is);
     void apply_idle(const std::function<void()>& mutate);
-	u64 perft(const Search::LimitsType&);
+    u64  perft(const Search::LimitsType&);
 
 #if !STOCKFISH
-	// 🌈 やねうら王独自拡張 🌈
+    // 🌈 やねうら王独自拡張 🌈
 
-	void isready();
+    void isready();
     void moves();
     void getoption(std::istringstream& is);
     void qsearch_psv(std::istringstream& is);
     void unittest(std::istringstream& is);
 #endif
 
-	// 読み筋を出力するevent handler
-	// 📝 Engine class(およびその派生class)から、読み筋を出力したいタイミングで
-	//     updateContext経由で呼び出される。
-	// 🌈 on_update_info_string()はやねうら王独自拡張。
+    // 読み筋を出力するevent handler
+    // 📝 Engine class(およびその派生class)から、読み筋を出力したいタイミングで
+    //     updateContext経由で呼び出される。
+    // 🌈 on_update_info_string()はやねうら王独自拡張。
 
-	static void on_update_no_moves(const Engine::InfoShort& info);
+    static void on_update_no_moves(const Engine::InfoShort& info);
 #if STOCKFISH
-	static void on_update_full(const Engine::InfoFull& info, bool showWDL);
+    static void on_update_full(const Engine::InfoFull& info, bool showWDL);
 #else
     static void on_update_full(const Engine::InfoFull& info /*, bool showWDL*/);
 #endif
 
-	static void on_iter(const Engine::InfoIter& info);
-	static void on_bestmove(std::string_view bestmove, std::string_view ponder);
+    static void on_iter(const Engine::InfoIter& info);
+    static void on_bestmove(std::string_view bestmove, std::string_view ponder);
 #if !STOCKFISH
-	static void on_update_string(std::string_view info);
+    static void on_update_string(std::string_view info);
 #endif
 
     // すべての読み筋出力listenerを初期化する。
-	// 📝 set_engine()のタイミングでEngine側のset_on_XXXを呼び出して
-	//     上記のhandlerを登録してやる。
-	//     engine側は、読み筋の出力を抑制したい時やカスタマイズしたい時に
-	//     このlistenerを変更して対応する。
+    // 📝 set_engine()のタイミングでEngine側のset_on_XXXを呼び出して
+    //     上記のhandlerを登録してやる。
+    //     engine側は、読み筋の出力を抑制したい時やカスタマイズしたい時に
+    //     このlistenerを変更して対応する。
     void init_search_update_listeners();
 
     // 致命的なエラーが出たときにその内容を出力してプログラムを終了する。
