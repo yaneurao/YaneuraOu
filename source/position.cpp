@@ -1462,6 +1462,7 @@ std::string Position::moves_from_start(bool is_pretty) const
 
 
 
+#if !STOCKFISH
 // 打ち歩詰め判定に使う。王に打ち歩された歩の升をpawn_sqとして、c側(王側)のpawn_sqへ利いている駒を列挙する。香が利いていないことは自明。
 inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 {
@@ -1486,6 +1487,7 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 			| (rookAttacks    &  pieces(ROOK_DRAGON)     )
 			) & pieces(c);
 }
+#endif
 
 // Tests whether a legal move gives a check
 // 合法手が敵玉への王手になるかを判定する。
@@ -1568,6 +1570,7 @@ bool Position::gives_check(Move m) const
 
 #endif
 
+#if !STOCKFISH
 // 現局面に合法手がないかを判定する。指し手生成を伴うため、通常の探索では使わず、
 // 最大手数超過時の詰み判定など、限られた経路で呼び出す。
 bool Position::is_mated() const
@@ -1678,7 +1681,6 @@ bool Position::legal_pawn_drop(const Color us, const Square to) const
 		|| ((pawnEffect(us, to) == square_bb(square<KING>(~us)) && !legal_drop(to)))); // 打ち歩詰め
 }
 
-#if !STOCKFISH
 // mがpseudo_legalな指し手であるかを判定する。
 // ※　pseudo_legalとは、擬似合法手(自殺手が含まれていて良い)
 // 置換表の指し手でdo_move()して良いのかの事前判定のために使われる。
@@ -1984,6 +1986,7 @@ bool Position::legal(Move m) const
 
 #endif
 
+#if !STOCKFISH
 // legal()では、成れるかどうかのチェックをしていない。
 // (先手の指し手を後手の指し手と混同しない限り、指し手生成された段階で
 // 成れるという条件は満たしているはずだから)
@@ -2041,6 +2044,7 @@ Move Position::to_move(Move16 m16) const
 	// 通常の移動
 	return Move(m.to_u16() + (u32(moved_piece) << 16));
 }
+#endif
 
 
 // ----------------------------------
