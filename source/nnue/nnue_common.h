@@ -165,6 +165,7 @@ inline void write_little_endian(std::ostream& stream, const IntType* values, usi
             write_little_endian<IntType>(stream, values[i]);
 }
 
+#if !STOCKFISH
 // Compatibility reader for existing shogi SFNN files; current Stockfish no longer uses LEB128.
 // 既存の将棋用SFNNファイルとの互換性を保つ読み込み処理。現行StockfishではLEB128を使わない。
 // LEB128圧縮データを識別するためのmagic string。
@@ -213,6 +214,7 @@ inline void read_leb_128(std::istream& stream, IntType* out, usize count) {
     }
     assert(bytes_left == 0);
 }
+#endif
 
 } // namespace YaneuraOu::Eval::NNUE
 #endif // defined(EVAL_NNUE) || defined(EVAL_SFNN)
