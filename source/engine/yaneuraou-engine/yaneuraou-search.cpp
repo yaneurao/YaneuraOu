@@ -852,16 +852,15 @@ void update_correction_history(const Position&          pos,
 
 
 // Add a small random component to draw evaluations to avoid 3-fold blindness
-// 3回同一局面になる盲点（3-fold blindness）を回避するため、評価を引き分け方向に誘導する小さなランダム成分を追加する
+// 同一局面の反復を見落とす盲点（3-fold blindness）を避けるため、引き分け評価に小さなゆらぎを加える。
 
-// 💡 引き分け時の評価値VALUE_DRAW(0)の代わりに±1の乱数みたいなのを与える。
-//     nodes : 現在の探索node数(乱数のseed代わりに用いる)
+// 💡 VALUE_DRAW(0)を中心に、現在の探索ノード数のbit 1に応じて-1または+1を返す。
+//     乱数ではなく、ノード数から決定される値である。
 
 // 📝 チェスでは、引き分けが0.5勝扱いなので引き分け回避のための工夫がしてあって、
 //     以下のようにvalue_drawに揺らぎを加算することによって探索を固定化しない(同じnodeを
 //     探索しつづけて千日手にしてしまうのを回避)工夫がある。
-//     将棋の場合、普通の千日手と連続王手の千日手と劣等局面による千日手(循環？)とかあるのでこれ導入するのちょっと嫌。
-//     ⇨  TODO : もうちょっとどうにかする。
+//     将棋には通常の千日手のほかに連続王手や優等・劣等による反復もある。
 Value value_draw(usize nodes) { return VALUE_DRAW - 1 + Value(nodes & 0x2); }
 
 Value value_to_tt(Value v, int ply);
