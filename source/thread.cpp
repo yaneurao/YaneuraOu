@@ -384,7 +384,7 @@ void ThreadPool::set(const NumaConfig&             numaConfig,
         // やねうら王のWorkerコンストラクターではclear()せず、ここで初期化する。
         clear();
 
-        // 🤔 これ、ThreadPool::clear()のなかでやっているので不要なのでは…。
+        // clear()内ですでに全スレッドを待機しているが、Stockfishと同じ呼び出しを残す。
         main_thread()->wait_for_search_finished();
     }
 }
@@ -398,37 +398,38 @@ void ThreadPool::set(const NumaConfig&             numaConfig,
 // isready等に対して呼び出すかはEngine側の初期化経路による。
 
 void ThreadPool::clear() {
-	if (threads.empty())
-		return;
+    if (threads.empty())
+        return;
 
-	for (auto&& th : threads)
-		th->clear_worker();
+    for (auto&& th : threads)
+        th->clear_worker();
 
-	for (auto&& th : threads)
-		th->wait_for_search_finished();
+    for (auto&& th : threads)
+        th->wait_for_search_finished();
 
 	// 🤔 これはEngine派生class側で行うべき。
 	//     ここにあったコードは、YaneuraOuEngine::clear()に移動させた。
 #if STOCKFISH
-	// These two affect the time taken on the first move of a game:
-	main_manager()->bestPreviousAverageScore = VALUE_INFINITE;
-	main_manager()->previousTimeReduction = 0.85;
+    // These two affect the time taken on the first move of a game:
+    // この2つは対局の初手に使う時間に影響する。
+    main_manager()->bestPreviousAverageScore = VALUE_INFINITE;
+    main_manager()->previousTimeReduction    = 0.85;
 
-	main_manager()->callsCnt = 0;
-	main_manager()->bestPreviousScore = VALUE_INFINITE;
-	main_manager()->originalTimeAdjust = -1;
-	main_manager()->tm.clear();
+    main_manager()->callsCnt           = 0;
+    main_manager()->bestPreviousScore  = VALUE_INFINITE;
+    main_manager()->originalTimeAdjust = -1;
+    main_manager()->tm.clear();
 #endif
 }
 
 void ThreadPool::run_on_thread(usize threadId, std::function<void()> f) {
-	assert(threads.size() > threadId);
-	threads[threadId]->run_custom_job(std::move(f));
+    assert(threads.size() > threadId);
+    threads[threadId]->run_custom_job(std::move(f));
 }
 
 void ThreadPool::wait_on_thread(usize threadId) {
-	assert(threads.size() > threadId);
-	threads[threadId]->wait_for_search_finished();
+    assert(threads.size() > threadId);
+    threads[threadId]->wait_for_search_finished();
 }
 
 usize ThreadPool::num_threads() const { return threads.size(); }
