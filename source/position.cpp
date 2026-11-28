@@ -987,6 +987,31 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
     return std::nullopt;
 }
 
+#if STOCKFISH
+// Overload to initialize the position object with the given endgame code string
+// like "KBPKN". It's mainly a helper to get the material key out of an endgame code.
+// "KBPKN"のようなエンドゲームの駒構成文字列から局面を初期化する。
+// 主に、駒構成文字列からmaterial keyを取得するための補助関数。
+std::optional<PositionSetError> Position::set(const string& code, Color c) {
+
+    assert(code[0] == 'K');
+
+    string sides[] = {code.substr(code.find('K', 1)),                                // Weak
+                      code.substr(0, std::min(code.find('v'), code.find('K', 1)))};  // Strong
+    // sides[0]は弱い側、sides[1]は強い側の駒構成。
+
+    assert(sides[0].length() > 0 && sides[0].length() < 8);
+    assert(sides[1].length() > 0 && sides[1].length() < 8);
+
+    std::transform(sides[c].begin(), sides[c].end(), sides[c].begin(), tolower);
+
+    string fenStr = "8/" + sides[0] + char(8 - sides[0].length() + '0') + "/8/8/8/8/" + sides[1]
+                  + char(8 - sides[1].length() + '0') + "/8 w - - 0 10";
+
+    return set(fenStr, false);
+}
+#endif
+
 // Returns a FEN representation of the position. In case of
 // Chess960 the Shredder-FEN notation is used. This is mainly a debugging function.
 // 局面のFEN表現を返します。Chess960の場合はShredder-FEN表記が使われます。
