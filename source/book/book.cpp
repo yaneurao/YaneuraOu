@@ -694,14 +694,6 @@ namespace Book
 
 			std::string sfen;
 
-			// 手数違いの重複エントリーは、手数の一番若いほうだけをMemoryBook::write_book()で書き出すようにしたので、
-			// 以下のコードは不要(のはず)
-#if 0
-			// 一つ前のsfen文字列と、同一sfenエントリー内の手数の最小値
-			string last_sfen;
-			int last_sfen_ply = 0;
-			bool ignore_book_ply = options["IgnoreBookPly"];
-#endif
 
 			// 定跡に登録されている手数を無視するのか？
 			// (これがtrueならばsfenから手数を除去しておく)
@@ -732,30 +724,11 @@ namespace Book
 					if (ignoreBookPly)
 						StringExtension::trim_number_inplace(sfen); // 末尾の数字除去
 
-#if 0
-					if (ignore_book_ply)
-					{
-						int ply = StringExtension::to_int(StringExtension::mid(line, sfen.length() + 5), 0);
-
-						// options["IgnoreBookPly"] == trueのときに手数違いの重複エントリーがある場合がある。
-						// すでに見つけたentryなら、このentryに対して一切の操作を行わない。
-						// 若い手数のほうの局面情報を優先すべき。
-						// ※　定跡DBはsfen文字列順にソートされているので、手数違いのエントリーは連続していると仮定できる。
-
-						if (last_sfen != sfen)
-							last_sfen_ply = int_max;
-						else if (last_sfen_ply < ply)
-							sfen = "";
-
-						last_sfen_ply = std::min(last_sfen_ply,ply); // 同一sfenエントリーのなかでの最小値にする
-						last_sfen = sfen;
-					}
-#endif
 
 					continue;
 				}
 
-				// options["IgnoreBookPly"]==true絡みでskipするエントリーであるかの判定
+				// 局面行がまだ読み込まれていなければ指し手行を無視する。
 				if (sfen.size() == 0)
 					continue;
 
