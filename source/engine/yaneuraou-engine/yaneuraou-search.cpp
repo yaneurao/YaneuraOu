@@ -2555,7 +2555,11 @@ Value YaneuraOuWorker::qsearch_pv(Position& pos, PVMoves& pv) {
 // cutNode : LMRで悪そうな指し手に対してreduction量を増やすnode
 
 template<NodeType nodeType>
+#if STOCKFISH
+SYSV_ABI Value Search::Worker::search(
+#else
 SYSV_ABI Value Search::YaneuraOuWorker::search(
+#endif
   Position& pos, Stack* ss, Value alpha, Value beta, Depth depth, const bool cutNode) {
     // -----------------------
     //     nodeの種類
@@ -4711,11 +4715,12 @@ moves_loop:  // When in check, search starts here
 
 #if STOCKFISH
 template<NodeType nodeType>
+Value Search::Worker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta) {
 #else
 // PSV変換ではTTの読取無効化を再帰先にも引き継ぐ（f898bc64）。
 template<NodeType nodeType, bool ReadTT>
-#endif
 Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Value beta) {
+#endif
 
     // 将棋では持ち駒による連続王手が長く続くことがある。
     // 現在のMovePickerは、王手中は王手回避手を、それ以外は捕獲手を生成する。
@@ -5442,10 +5447,17 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 }
 
 // LMRのreductionの値を計算する。
+#if STOCKFISH
+int Search::Worker::reduction(bool i, Depth d, int mn) const {
+    int reductionScale = reductions[d] * reductions[mn];
+    return reductionScale + !i * reductionScale * 197 / 512 + 948;
+}
+#else
 int Search::YaneuraOuWorker::reduction(bool i, Depth d, int mn) const {
     int reductionScale = reductions[d] * reductions[mn];
     return reductionScale + !i * reductionScale * 197 / 512 + 948;
 }
+#endif
 
 // 📝 やねうら王では、下記のelapsed()は用いない。
 //     やねうら王はTimer classを持っているので、そちらを用いる。
@@ -5468,7 +5480,11 @@ TimePoint Search::Worker::elapsed() const {
 // Evaluate the current position of the game tree, from the point of view of
 // the side to move.
 // 手番側から見た、現在の探索木上の局面を評価する。
+#if STOCKFISH
+Value Search::Worker::evaluate(const Position& pos) {
+#else
 Value Search::YaneuraOuWorker::evaluate(const Position& pos) {
+#endif
 
 #if STOCKFISH || defined(EVAL_SFNN) || defined(EVAL_NNUE)
     return Eval::evaluate(network[numaAccessToken], pos, accumulatorStack, refreshTable);
