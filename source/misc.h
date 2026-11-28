@@ -78,8 +78,8 @@ std::string compiler_info();
 //    prefetch命令
 // --------------------
 
-// prefetch()は、与えられたアドレスの内容をL1/L2 cacheに事前に読み込む。
-// これはnon-blocking関数で、CPUがメモリに読み込むのを待たない。
+// prefetch()は、与えられたアドレスのデータをキャッシュへ先読みするようCPUに指示する。
+// ヒントなので実際の読み込みは保証されず、完了も待たない。
 
 // Prefetch hint enums for explicit call-site control.
 // 呼び出し側から読み書きと局所性のヒントを指定する。
@@ -156,7 +156,7 @@ void prefetch(const void* addr) {
 //  logger
 // --------------------
 
-// cin/coutへの入出力をファイルにリダイレクトを開始/終了する。
+// cin/coutの通常の入出力を維持しながら、ファイルへのログ記録を開始・終了する。
 void start_logger(const std::filesystem::path& fname);
 
 // "123"みたいな文字列を123のように数値型(usize)に変換する。
