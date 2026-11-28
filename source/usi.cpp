@@ -721,17 +721,16 @@ Search::LimitsType USIEngine::parse_limits(std::istream& is) {
 // go()は、思考エンジンがUSIコマンドの"go"を受け取ったときに呼び出される。
 // この関数は、入力文字列から思考時間とその他のパラメーターをセットし、探索を開始する。
 
-void USIEngine::go(std::istringstream& is)
-{
+void USIEngine::go(std::istringstream& is) {
     Search::LimitsType limits = parse_limits(is);
 
-	if (limits.perft)
-		perft(limits);
-	else
+    if (limits.perft)
+        perft(limits);
+    else
 #if STOCKFISH
-		engine.go(limits);
+        engine.go(limits);
 #else
-	{
+    {
         stochastic_ponder_rewound = false;
         // Stochastic Ponderでは、moves節の最後の指し手だけを除いて1手戻す。
         // 履歴がなければ元の局面のまま通常のponderを行う。
@@ -765,8 +764,8 @@ void USIEngine::go(std::istringstream& is)
             }
         }
 
-		engine.go(limits);
-	}
+        engine.go(limits);
+    }
 #endif
 }
 
