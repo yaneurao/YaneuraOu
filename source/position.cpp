@@ -2657,7 +2657,14 @@ void Position::do_null_move(const T& tt) {
 
     StateInfo* previousSt = st;
     st = push_state();
+#if STOCKFISH
+    // Remaining fields are recomputed, invalidated or overwritten below.
+    // 残りのフィールドは、後で再計算、無効化、または上書きする。
+    std::memcpy(st, previousSt, offsetof(StateInfo, blockersForKing));
+    st->piecePlacement = previousSt->piecePlacement;
+#else
     std::memcpy(static_cast<void*>(st), previousSt, sizeof(StateInfo));
+#endif
 
 #if STOCKFISH
 	if (st->epSquare != SQ_NONE)
@@ -2667,7 +2674,6 @@ void Position::do_null_move(const T& tt) {
     }
 
     st->key ^= Zobrist::side;
-    prefetch(tt.get_cluster(key()));
 
 	st->repWindow = 0;
 
