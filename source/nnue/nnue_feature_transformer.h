@@ -27,6 +27,7 @@
 #include "features/half_ka2.h"
 #include "features/half_kp_vm.h"
 #include "features/half_kp.h"
+#include "features/k.h"
 #include "features/king_piece_helpers.h"
 #endif
 
@@ -1208,10 +1209,12 @@ class FeatureTransformer {
                                FinnyEntry& entry, IndexType trigger_index) const {
         const Square king = Features::oriented_king_square<Features::Side::kFriend>(pos, perspective);
         Features::IndexList removed, added;
-        using DirectFeature = std::conditional_t<kUseHalfKP, Features::HalfKP<Features::Side::kFriend>,
+        using DirectFeature = std::conditional_t<kUseKP, Features::K,
+          std::conditional_t<kUseHalfKP, Features::HalfKP<Features::Side::kFriend>,
           std::conditional_t<kUseHalfKPvm, Features::HalfKP_vm<Features::Side::kFriend>,
-          std::conditional_t<kUseHalfKAHm2, Features::HalfKA_hm2<Features::Side::kFriend>, Features::HalfKA2<Features::Side::kFriend>>>>;
-        const typename DirectFeature::IndexContext indices(king, perspective);
+          std::conditional_t<kUseHalfKAHm2, Features::HalfKA_hm2<Features::Side::kFriend>, Features::HalfKA2<Features::Side::kFriend>>>>>;
+        using DirectContext = std::conditional_t<kUseKA2, Features::K::IndexContextA2, typename DirectFeature::IndexContext>;
+        const DirectContext indices(king, perspective);
         constexpr bool excludesKings = kUseHalfKP || kUseHalfKPvm;
         const int oldPieceCount = entry.position.pieceCount - (excludesKings && entry.is_initialized() ? 1 : 0);
         int pieceCount = oldPieceCount;
@@ -1269,10 +1272,19 @@ class FeatureTransformer {
                     continue;
                 if (before != NO_PIECE) {
                     removed.push_back(indices.board(before, sq));
+                    // K+A2ではA2の玉に加え、区別されたKの玉も更新する。
+                    if constexpr (kUseKA2)
+                        if (type_of(before) == KING)
+                            removed.push_back(kpp_board_index[before].from[perspective]
+                                              + IndexType(perspective == BLACK ? sq : Inv(sq)) + SQ_NB);
                     --pieceCount;
                 }
                 if (after != NO_PIECE) {
                     added.push_back(indices.board(after, sq));
+                    if constexpr (kUseKA2)
+                        if (type_of(after) == KING)
+                            added.push_back(kpp_board_index[after].from[perspective]
+                                            + IndexType(perspective == BLACK ? sq : Inv(sq)) + SQ_NB);
                     ++pieceCount;
                 }
             }
@@ -1300,8 +1312,14 @@ class FeatureTransformer {
         rebuild = rebuild || removed.size() + added.size() >= 40;
 #endif
         Features::IndexList active;
-        if (rebuild)
-            DirectFeature::append_active_indices(pos, perspective, &active);
+        if (rebuild) {
+            if constexpr (kUseKP || kUseKA2) {
+                Features::IndexList both[COLOR_NB];
+                RawFeatures::append_active_indices(pos, kRefreshTriggers[0], both);
+                copy_index_list(active, both[perspective]);
+            } else
+                DirectFeature::append_active_indices(pos, perspective, &active);
+        }
 #if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
         if constexpr (Packed) {
             if (rebuild) prefetch_sparse8_columns(active);
@@ -1341,7 +1359,8 @@ class FeatureTransformer {
 #if defined(VECTOR)
         if constexpr (kUseDirectFinny) {
             for (Color perspective : {BLACK, WHITE}) {
-                auto& entry = cache.entries[0][perspective][pos.square<KING>(perspective)];
+                // K+P・K+A2の特徴量は玉の位置で区分しない。
+                auto& entry = cache.entries[0][perspective][(kUseKP || kUseKA2) ? SQ_ZERO : pos.square<KING>(perspective)];
                 refresh_from_position<Packed>(pos, perspective,
                   accumulator.accumulation[perspective][0], entry, 0);
             }
@@ -1404,7 +1423,7 @@ class FeatureTransformer {
 			Features::IndexList removed_indices[2], added_indices[2];
 			bool                reset[2]{};
 #if defined(USE_FINNY_TABLES) && defined(USE_FINNY_RESET) && defined(VECTOR)
-            if constexpr (kUseDirectFinny) {
+            if constexpr (kUseDirectFinny && !kUseKP && !kUseKA2) {
                 for (Color c : {BLACK, WHITE}) {
                     reset[c] = state->dirtyPiece.pc == make_piece(c, KING);
                     if (!reset[c])

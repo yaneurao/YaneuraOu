@@ -15,6 +15,32 @@ namespace YaneuraOu::Eval::NNUE::Features {
 // 特徴量K：玉の位置
 class K {
  public:
+  // K+PではKのオフセット適用後の番号がBonaPieceと一致する。
+  struct IndexContext {
+    IndexContext(Square, Color c) : perspective(c) {}
+    IndexType board(Piece pc, Square sq) const {
+      return kpp_board_index[pc].from[perspective] + IndexType(perspective == BLACK ? sq : Inv(sq));
+    }
+    IndexType hand(Color c, PieceType pt, int slot) const {
+      return kpp_hand_index[c][pt].from[perspective] + slot;
+    }
+    IndexType zero() const { return 0; }
+    Color perspective;
+  };
+
+  // K+A2のA2部分では両玉のplaneを一つにまとめる。
+  struct IndexContextA2 {
+    IndexContextA2(Square, Color c) : perspective(c) {}
+    IndexType board(Piece pc, Square sq) const {
+      const IndexType base = kpp_board_index[pc].from[perspective];
+      return (base >= e_king ? base - SQ_NB : base) + IndexType(perspective == BLACK ? sq : Inv(sq));
+    }
+    IndexType hand(Color c, PieceType pt, int slot) const {
+      return kpp_hand_index[c][pt].from[perspective] + slot;
+    }
+    IndexType zero() const { return 0; }
+    Color perspective;
+  };
   // 特徴量名
   static constexpr const char* kName = "K";
   // 評価関数ファイルに埋め込むハッシュ値
