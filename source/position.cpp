@@ -3062,6 +3062,8 @@ void Position::do_null_move(const T& tt) {
 
 	st->repWindow = 0;
 
+    st->capturedPiece = NO_PIECE;
+
     sideToMove = ~sideToMove;
 
     set_extra_bitboards();
