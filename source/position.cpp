@@ -3148,7 +3148,7 @@ void Position::undo_null_move() {
 // algorithm similar to alpha-beta pruning with a null window.
 
 
-// Position::see()は指し手のSEE(静的交換評価)の値が、与えられたthreshold(しきい値)以上であるかをテストする。
+// Position::see_ge()は指し手のSEE(静的交換評価)の値が、与えられたthreshold(しきい値)以上であるかをテストする。
 // null windowの時のalpha-beta法に似たアルゴリズムを用いる。
 //
 // ※　SEEの解説についてはググれ。
@@ -3186,7 +3186,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 
     assert(piece_on(from) != NO_PIECE);
 #else
-	// 駒の移動元(駒打ちの場合は)と移動先。
+	// 駒の移動元と移動先。駒打ちの場合、移動元はSQ_NBとする。
 	// dropのときにはSQ_NBにしておくことで、pieces() ^ fromを無効化するhack
 	// ※　piece_on(SQ_NB)で NO_PIECE が返ることは保証されている。
 	Square from = drop ? SQ_NB : m.from_sq();
@@ -3298,7 +3298,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
             occupied ^= least_significant_square_bb(bb);
 
 #if !STOCKFISH
-            // 桂で取ったところでその背後にある駒がattckersに追加されることはないので、何も追加する必要はなく、
+            // 桂で取ったところでその背後にある駒がattackersに追加されることはないので、何も追加する必要はなく、
             // ループ先頭のwhileに戻る。
             continue;
 #endif
