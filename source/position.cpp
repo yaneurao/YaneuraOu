@@ -3536,6 +3536,69 @@ bool Position::material_key_is_ok() const { return compute_material_key() == st-
 // 何かおかしい箇所が検出された場合にassertを発生させます。
 // これはデバッグ時に役立つことを意図しています。
 
+#if STOCKFISH
+bool Position::pos_is_ok() const {
+
+    if ((sideToMove != WHITE && sideToMove != BLACK) || piece_on(square<KING>(WHITE)) != W_KING
+        || piece_on(square<KING>(BLACK)) != B_KING
+        || (ep_square() != SQ_NONE && relative_rank(sideToMove, ep_square()) != RANK_6))
+        assert(0 && "pos_is_ok: Default");
+
+    if (count<KING>(WHITE) != 1 || count<KING>(BLACK) != 1
+        || attackers_to(square<KING>(~sideToMove)) & pieces(sideToMove))
+        assert(0 && "pos_is_ok: Kings");
+
+    if ((pieces(PAWN) & (Rank1BB | Rank8BB)) || count<PAWN>(WHITE) > 8 || count<PAWN>(BLACK) > 8)
+        assert(0 && "pos_is_ok: Pawns");
+
+
+    if (ep_square() != SQ_NONE)
+    {
+        Square ksq = square<KING>(sideToMove);
+
+        Bitboard captured = (ep_square() + pawn_push(~sideToMove)) & pieces(~sideToMove, PAWN);
+        Bitboard pawns    = attacks_bb(PAWN, ep_square(), ~sideToMove) & pieces(sideToMove, PAWN);
+        Bitboard potentialCheckers = pieces(~sideToMove) ^ captured;
+
+        if (!captured || !pawns
+            || ((attackers_to(ksq, pieces() ^ captured ^ ep_square() ^ lsb(pawns))
+                 & potentialCheckers)
+                && (attackers_to(ksq, pieces() ^ captured ^ ep_square() ^ msb(pawns))
+                    & potentialCheckers)))
+            assert(0 && "pos_is_ok: En passant square");
+    }
+
+    if ((pieces(WHITE) & pieces(BLACK)) || (pieces(WHITE) | pieces(BLACK)) != pieces()
+        || popcount(pieces(WHITE)) > 16 || popcount(pieces(BLACK)) > 16)
+        assert(0 && "pos_is_ok: Bitboards");
+
+    for (PieceType p1 = PAWN; p1 <= KING; ++p1)
+        for (PieceType p2 = PieceType(p1 + 1); p2 <= KING; ++p2)
+            if (pieces(p1) & pieces(p2))
+                assert(0 && "pos_is_ok: Bitboards");
+
+    for (Piece pc : Pieces)
+        if (pieceCount[pc] != popcount(pieces(color_of(pc), type_of(pc)))
+            || pieceCount[pc] != std::count(board.begin(), board.end(), pc))
+            assert(0 && "pos_is_ok: Pieces");
+
+    for (Color c : {WHITE, BLACK})
+        for (CastlingRights cr : {c & KING_SIDE, c & QUEEN_SIDE})
+        {
+            if (!can_castle(cr))
+                continue;
+
+            if (piece_on(castling_rook_square(cr)) != make_piece(c, ROOK)
+                || castlingRightsMask[castlingRookSquare[cr]] != cr
+                || (castlingRightsMask[square<KING>(c)] & cr) != cr)
+                assert(0 && "pos_is_ok: Castling");
+        }
+
+    assert(material_key_is_ok() && "pos_is_ok: materialKey");
+
+    return true;
+}
+#else
 bool Position::pos_is_ok() const
 {
 	// Bitboardの完全なテストには時間がかかるので、あまりややこしいテストは現実的ではない。
@@ -3601,6 +3664,8 @@ bool Position::pos_is_ok() const
 
 	return true;
 }
+
+#endif
 
 // ----------------------------------
 //         明示的な実体化
