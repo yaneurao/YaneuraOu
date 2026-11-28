@@ -2326,8 +2326,16 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 #endif
 
 
+#if STOCKFISH
+    // Update king attacks used for fast check detection
+    // 王手の高速な判定に使う玉周辺の利き情報を更新する。
+    set_extra_bitboards();
+
+    st->piecePlacement = pack_pieces(board);
+#else
     // このタイミングで王手関係の情報を更新しておいてやる。
     set_extra_bitboards<false>();
+#endif
 
     // Calculate the repetition info. It is the ply distance from the previous
     // occurrence of the same position, negative in the 3-fold case, or zero
@@ -2335,8 +2343,19 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 
     // 繰り返し情報を計算します。これは、同じ局面の前回の発生からの手数で(1,2回目)、
     // 3回繰り返しの場合は負の値、または局面が繰り返されていない場合はゼロです。
+#if STOCKFISH
+    st->repetition = 0;
+    for (int i = 4; i <= st->repWindow; i += 2)
+    {
+        StateInfo* stp = &stateInfos[(stateIdx - i) & (MAX_HIST - 1)];
+        if (stp->key == st->key && stp->piecePlacement == st->piecePlacement)
+        {
+            st->repetition = stp->repetition ? -i : i;
+            break;
+        }
+    }
+#else
     // やねうら王では、同一局面が見つからなければ0、2・3回目は正、4回目以降は負。
-
 #if !defined(ENABLE_QUICK_DRAW)
     st->repetition       = 0;
     st->repetition_times = 0;
@@ -2429,6 +2448,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
             }
         }
     }
+#endif
 #endif
 
 	ASSERT_LV5(pos_is_ok());
