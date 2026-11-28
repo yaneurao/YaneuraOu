@@ -136,7 +136,7 @@ struct Stack {
     // singular extension判定のときに置換表の指し手をそのnodeで除外して探索したいのでその除外する指し手
     Move excludedMove;
 
-    // 評価関数を呼び出して得た値。NULL MOVEのときに親nodeでの評価値が欲しいので保存しておく。
+    // このnodeの静的評価値。通常は補正履歴を適用した値で、王手中は2手前の値を引き継ぐ。
     Value staticEval;
 
     // 一度計算したhistoryの合計値をcacheしておくのに用いる。
@@ -149,7 +149,7 @@ struct Stack {
     // この局面で王手がかかっていたかのフラグ
     bool inCheck;
 
-    // 置換表にPV nodeで調べた値が格納されていたか(これは価値が高い)
+    // このnodeをPV扱いするか。PV探索、TTのPVフラグ、親からの伝播などで設定される。
     bool ttPv;
 
     // 置換表にhitしたかのフラグ

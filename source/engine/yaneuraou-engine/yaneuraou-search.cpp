@@ -3158,8 +3158,8 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         // Never assume anything about values stored in TT
         // TTに格納されている値に関して何も仮定はしない
 
-        // 💡 置換表にhitしたなら、評価値が記録されているはずだから、それを取り出しておく。
-        //     あとで置換表に書き込むときにこの値を使えるし、各種枝刈りはこの評価値をベースに行なうから。
+		// TTの静的評価を取り出す。記録がないなど無効な場合は評価関数を呼ぶ。
+		// 枝刈りに使う値には、その後で補正履歴を適用する。
 
 		unadjustedStaticEval = ttData.eval;
         if (!is_valid(unadjustedStaticEval))
@@ -3227,10 +3227,8 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 		📝 improvingは、評価値が2手前の局面から上がって行っているのかのフラグ
 		    上がって行っているなら枝刈りを甘くする。
 
-		    VALUE_NONEの場合は、王手がかかっていてevaluate()していないわけだから、
-		    枝刈りを甘くして調べないといけないのでimproving扱いとする。
-
-		💡 VALUE_NONE == 32002なのでこれより大きなstaticEvalの値であることはない。
+		    王手中のstaticEvalは2手前から引き継ぐ。
+		    VALUE_NONEを含む場合も特別扱いせず、下の比較式に従う。
 	*/
 
     improving = ss->staticEval > (ss - 2)->staticEval;
