@@ -83,7 +83,7 @@ Thread::Thread(Search::SharedState&         sharedState,
     // スレッドはsearching == trueで開始するので、idle_loop()で待機状態になるまで待つ。
     wait_for_search_finished();
 
-    run_custom_job([this, &binder, &sharedState, n, worker_factory]() {
+    run_custom_job([this, &binder, &sharedState, &worker_factory, n]() {
         // Use the binder to [maybe] bind the threads to a NUMA node before doing
         // the Worker allocation. Ideally we would also allocate the SearchManager
         // here, but that's minor.
