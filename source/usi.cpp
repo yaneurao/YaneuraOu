@@ -1174,9 +1174,11 @@ WinRateParams win_rate_params(const Position& pos) {
                  + 5 * pos.count<ROOK>() + 9 * pos.count<QUEEN>();
 
     // The fitted model only uses data for material counts in [17, 78], and is anchored at count 58.
+    // このモデルのフィッティングには駒の価値合計が17～78のデータだけを使い、58を基準としている。
     double m = std::clamp(material, 17, 78) / 58.0;
 
     // Return a = p_a(material) and b = p_b(material), see github.com/official-stockfish/WDL_model
+    // 駒の価値合計からaとbを求める。詳細はStockfishのWDL_modelを参照。
     constexpr double as[] = {-142.72052667, 372.35176398, -340.71073572, 415.23490212};
     constexpr double bs[] = {5.93832785, 15.61267078, -30.57816876, 69.63866711};
 
@@ -1188,11 +1190,14 @@ WinRateParams win_rate_params(const Position& pos) {
 
 // The win rate model is 1 / (1 + exp((a - eval) / b)), where a = p_a(material) and b = p_b(material).
 // It fits the LTC fishtest statistics rather accurately.
+// 勝率モデルは1 / (1 + exp((a - eval) / b))で、aとbは駒の価値合計から求める。
+// 長時間対局のfishtest統計によく適合する。
 int win_rate_model(Value v, const Position& pos) {
 
     auto [a, b] = win_rate_params(pos);
 
     // Return the win rate in per mille units, rounded to the nearest integer.
+    // 勝率を千分率で求め、最も近い整数に丸めて返す。
     return int(0.5 + 1000 / (1 + std::exp((a - double(v)) / b)));
 }
 }
@@ -1236,6 +1241,8 @@ int USIEngine::to_cp(Value v, const Position& pos) {
     // In general, the score can be defined via the WDL as
     // (log(1/L - 1) - log(1/W - 1)) / (log(1/L - 1) + log(1/W - 1)).
     // Based on our win_rate_model, this simply yields v / a.
+    // 一般にスコアはWDLの勝率Wと敗率Lから上記の式で定義できる。
+    // この勝率モデルでは、結果は単にv / aとなる。
 
     auto [a, b] = win_rate_params(pos);
 
