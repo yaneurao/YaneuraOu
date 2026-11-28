@@ -14,6 +14,9 @@
 
 #include "memory.h"
 #include "misc.h"
+#if STOCKFISH
+#include "syzygy/tbprobe.h"
+#endif
 #include "thread.h"
 
 #if !STOCKFISH

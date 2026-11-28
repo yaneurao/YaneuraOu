@@ -15,9 +15,15 @@
 #include "misc.h"
 #include "history.h"
 #include "nnue/network.h"
+#if STOCKFISH
+#include "nnue/nnue_misc.h"
+#endif
 #include "numa.h"
 #include "position.h"
 #include "search.h"
+#if STOCKFISH
+#include "syzygy/tbprobe.h"  // for Stockfish::Depth
+#endif
 #include "thread.h"
 #include "tt.h"
 #include "types.h"

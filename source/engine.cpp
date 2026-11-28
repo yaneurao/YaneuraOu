@@ -20,10 +20,18 @@
 
 #include "evaluate.h"
 #include "misc.h"
+#if STOCKFISH
+#include "nnue/network.h"
+#include "nnue/nnue_common.h"
+#endif
 #include "numa.h"
 #include "perft.h"
 #include "position.h"
 #include "search.h"
+#if STOCKFISH
+#include "shm.h"
+#include "syzygy/tbprobe.h"
+#endif
 #include "types.h"
 #include "usi.h"
 #include "usioption.h"
