@@ -129,10 +129,10 @@ Thread::Thread(Search::SharedState&         sharedState,
 
 Thread::~Thread() {
 
-    // 探索中にスレッドオブジェクトが解体されることはない。
+    // 探索またはカスタムジョブが未完了の間はスレッドオブジェクトを解体しない。
     assert(!searching);
 
-    // 探索は終わっているのでexitフラグをセットしてstart_searching()を呼べば終了するはず。
+    // 待機状態なので、exitフラグをセットしてスレッドを起こせば終了する。
     exit = true;
     start_searching();
     stdThread.join();
@@ -155,7 +155,7 @@ void Thread::clear_worker() {
 }
 
 // Blocks on the condition variable until the thread has finished searching
-// 条件変数でブロックし、スレッドが探索を完了するのを待ちます
+// 条件変数でブロックし、探索またはカスタムジョブの完了を待つ。
 
 void Thread::wait_for_search_finished() {
 
@@ -190,7 +190,7 @@ void Thread::idle_loop() {
         std::unique_lock<std::mutex> lk(mutex);
         searching = false;
         cv.notify_one();  // Wake up anyone waiting for search finished
-                          // 探索の完了を待っているスレッドを1つ起こします
+                          // 探索またはカスタムジョブの完了を待つスレッドを1つ起こす。
 
         cv.wait(lk, [&] { return searching; });
 
