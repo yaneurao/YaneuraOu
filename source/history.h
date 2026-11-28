@@ -239,7 +239,7 @@ enum CorrHistType {
 	📓 UnifiedCorrectionHistoryが保持する補正履歴と、CorrHistTypeの分類
 
 		Pawn         : 歩の陣形(先後の区別はする)に対するもの
-		Minor        : minor piece(小駒。先後の区別はする)に対するもの。将棋では、香、桂、銀、金とその成り駒。
+		Minor        : 先後それぞれの盤上の香、桂、銀、金、と、成香、成桂、成銀に対するもの。
 		NonPawn      : 歩以外の陣形(先後の区別はする)
 		PieceTo      : 移動させる駒と移動先に対するもの。
 		Continuation : 指し手のペアの組み合わせhistory。

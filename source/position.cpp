@@ -61,7 +61,7 @@ bool Position::set_max_repetition_ply(int ply) {
 void Position::put_hand_piece(Color c, PieceType pr) { add_hand(hand[c], pr); }
 void Position::remove_hand_piece(Color c, PieceType pr) { sub_hand(hand[c], pr); }
 
-// minor pieceは、香・桂・銀・金とその成駒に限ることにする。
+// minor pieceは、盤上の香・桂・銀・金と、と・成香・成桂・成銀とする。
 constexpr bool minor_piece_table[PIECE_NB] = {
   false,         false /*歩*/, true /*香*/,  true /*桂*/,      true /*銀*/,   false /*角*/,
   false /*飛*/,  true /*金*/,  false /*玉*/, true /*と*/,      true /*成香*/, true /*成桂*/,
