@@ -1875,29 +1875,6 @@ namespace Book
 	// 定跡部のUnitTest
 	void UnitTest(Test::UnitTester& tester, IEngine& engine)
 	{
-		// 少し書こうとしたが、ファイルから読み込むテストでないと大したテストにならないので考え中。
-#if 0
-		auto s1 = tester.section("Book");
-
-		// Search::Limitsのalias
-		auto& limits = Search::Limits;
-
-		Position pos;
-
-
-		// 平手初期化
-		auto hirate_init = [&] { pos.set_hirate(); };
-
-		{
-			// Bookのprobeのテスト
-			auto s2 = tester.section("probe");
-			MemoryBook book;
-
-			limits.generate_all_legal_moves = true;
-
-			tester.test("pawn's unpromoted move", true);
-		}
-#endif
 
 		// BookToolsのテスト
 		auto s1 = tester.section("BookTools");
