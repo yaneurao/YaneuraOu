@@ -3148,7 +3148,19 @@ RepetitionState Position::is_repetition(int ply) const
 #endif
 }
 
-#if !defined(ENABLE_QUICK_DRAW)
+#if STOCKFISH
+// Tests whether there has been at least one repetition
+// of positions since the last capture or pawn move.
+// 最後の捕獲またはポーンの移動以降に、局面の繰り返しがあったか調べる。
+bool Position::has_repeated() const {
+    for (int i = 0; i <= st->repWindow - 4; ++i)
+    {
+        if (stateInfos[(stateIdx - i) & (MAX_HIST - 1)].repetition)
+            return true;
+    }
+    return false;
+}
+#elif !defined(ENABLE_QUICK_DRAW)
 // Tests whether there has been at least one repetition within the retained history.
 // 保持履歴の範囲で、計算済みの繰り返し情報を調べる。
 // 遡る範囲はmax_repetition_ply・最後のnull moveからの手数・保持履歴長で制限する。
