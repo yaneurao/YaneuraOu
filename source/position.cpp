@@ -1891,9 +1891,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     //  StateInfoの更新
     // ----------------------
 
-#if STOCKFISH
-    Key k = st->key ^ Zobrist::side;
-#else
+#if !STOCKFISH
     // 現局面の盤面キーを基に次局面のキーを更新する。
     // 将棋版は盤面と手駒を別々に計算し、StateInfo::board_keyとhand_keyへ格納する。
     HASH_KEY k = st->board_key ^ Zobrist::side;
@@ -1922,6 +1920,8 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     st = push_state();
 #if STOCKFISH
     std::memcpy(st, previousSt, offsetof(StateInfo, key));
+
+    Key k = previousSt->key ^ Zobrist::side;
 #else
     std::memcpy(static_cast<void*>(st), previousSt, offsetof(StateInfo, board_key));
 #endif
