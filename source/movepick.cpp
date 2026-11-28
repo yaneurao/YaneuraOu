@@ -281,8 +281,7 @@ MovePicker::MovePicker(const Position& p,
     stage = ttm && pos.capture(ttm) && pos.pseudo_legal(ttm, generate_all_legal_moves) && pos.legal(ttm)
               ? TT : INIT_FIRST_STAGE;
 #endif
-    // ⇨ qsearch()のTTと同様、置換表の指し手に関してはsee_geの条件、
-    // つけないほうがいい可能性があるが、やってみたら良くなかった。(V774v2 vs V774v3)
+    // TT手にはSEEの閾値を適用しない。生成した捕獲手にはPROBCUT段階で適用する。
 }
 
 // Assigns a numerical value to each move in a list, used for sorting.
