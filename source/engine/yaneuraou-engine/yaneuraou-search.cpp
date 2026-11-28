@@ -75,6 +75,17 @@ using namespace Eval;  // Eval::PieceValue
 //                            %%TUNE_DECLARATION%%
 
 
+SearchOptions::SearchOptions() {
+    max_moves_to_draw        = 100000;
+    pv_interval              = 300;
+    consideration_mode       = false;
+    output_fail_lh_pv        = true;
+    generate_all_legal_moves = false;
+    enteringKingRule         = EKR_27_POINT;
+    lastPvInfoTime           = 0;
+    computed_pv_interval     = 0;
+}
+
 // この構造体メンバーに対応するエンジンオプションを生やす
 void SearchOptions::add_options(OptionsMap& options) {
     // 引き分けまでの最大手数。256手ルールのときに256を設定すると良い。0なら無制限。
@@ -121,7 +132,7 @@ void SearchOptions::add_options(OptionsMap& options) {
 
     // fail low/highのときにPVを出力するかどうか。
     options.add("OutputFailLHPV", Option(true, [&](const Option& o) {
-                    outout_fail_lh_pv = o;
+                    output_fail_lh_pv = o;
                     return std::nullopt;
                 }));
 
@@ -1866,8 +1877,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                     && (rootDepth < 3
                         || search_options.lastPvInfoTime + search_options.computed_pv_interval
                              <= now())
-                    // outout_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
-                    && search_options.outout_fail_lh_pv
+                    // output_fail_lh_pvがfalseならfail high/fail lowのときのPVを出力しない。
+                    && search_options.output_fail_lh_pv
 #endif
                 )
 #if STOCKFISH

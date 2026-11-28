@@ -22,16 +22,7 @@ class YaneuraOuWorker;
 //     エンジンオプションで設定した設定値
 struct SearchOptions
 {
-    SearchOptions() {
-        max_moves_to_draw        = 100000;
-        pv_interval              = 300;
-        consideration_mode       = false;
-        outout_fail_lh_pv        = true;
-        generate_all_legal_moves = false;
-        enteringKingRule         = EKR_27_POINT;
-        lastPvInfoTime           = 0;
-        computed_pv_interval     = 0;
-    }
+    SearchOptions();
 
     // この構造体メンバーに対応するエンジンオプションを生やす
     void add_options(OptionsMap& options);
@@ -51,7 +42,7 @@ struct SearchOptions
 
     // fail low/highの時にPVを出力するか。
     // 📝 options["OutputFailLHPV"]の設定値。
-    bool outout_fail_lh_pv;
+    bool output_fail_lh_pv;
 
     // 合法手を生成する時に全合法手を生成するのか(歩の不成など)
     // エンジンオプションのGenerateAllLegalMovesの値がこのフラグに反映される。
