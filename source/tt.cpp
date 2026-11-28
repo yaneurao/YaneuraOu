@@ -1,7 +1,4 @@
-﻿#if !STOCKFISH
-#include "extra/tools.h"
-#endif
-#include "tt.h"
+﻿#include "tt.h"
 
 #include <algorithm>
 #include <cassert>
@@ -25,6 +22,7 @@
 // やねうら王独自拡張
 
 #include "extra/key128.h"
+#include "extra/tools.h"
 #include "testcmd/unit_test.h"
 #endif
 
