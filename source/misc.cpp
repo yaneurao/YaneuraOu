@@ -279,114 +279,114 @@ std::string engine_info(const std::string& engine_name,
 std::string compiler_info() {
 
 #define make_version_string(major, minor, patch) \
-	stringify(major) "." stringify(minor) "." stringify(patch)
+    stringify(major) "." stringify(minor) "." stringify(patch)
 
-	// Predefined macros hell:
-	//
+    // Predefined macros hell:
+    //
     // __GNUC__                Compiler is GCC, Clang or ICX
-	// __clang__               Compiler is Clang or ICX
-	// __INTEL_LLVM_COMPILER   Compiler is ICX
+    // __clang__               Compiler is Clang or ICX
+    // __INTEL_LLVM_COMPILER   Compiler is ICX
     // _MSC_VER                Compiler is MSVC
     // _WIN32                  Building on Windows (any)
     // _WIN64                  Building on Windows 64 bit
-	// 定義済みマクロによる複雑な判定:
-	//
-	// __GNUC__                コンパイラーがGCC、Clang、またはICX。
-	// __clang__               コンパイラーがClang、またはICX。
-	// __INTEL_LLVM_COMPILER   コンパイラーがICX。
-	// _MSC_VER                コンパイラーがMSVC。
-	// _WIN32                  Windows向けのビルド（32bit、64bitの両方）。
-	// _WIN64                  64bit Windows向けのビルド。
+    // 定義済みマクロによる複雑な判定:
+    //
+    // __GNUC__                コンパイラーがGCC、Clang、またはICX。
+    // __clang__               コンパイラーがClang、またはICX。
+    // __INTEL_LLVM_COMPILER   コンパイラーがICX。
+    // _MSC_VER                コンパイラーがMSVC。
+    // _WIN32                  Windows向けのビルド（32bit、64bitの両方）。
+    // _WIN64                  64bit Windows向けのビルド。
 
-	std::string compiler = "\nCompiled by                : ";
+    std::string compiler = "\nCompiled by                : ";
 
 #if defined(__INTEL_LLVM_COMPILER)
-	compiler += "ICX ";
-	compiler += stringify(__INTEL_LLVM_COMPILER);
+    compiler += "ICX ";
+    compiler += stringify(__INTEL_LLVM_COMPILER);
 #elif defined(__clang__)
-	compiler += "clang++ ";
-	compiler += make_version_string(__clang_major__, __clang_minor__, __clang_patchlevel__);
+    compiler += "clang++ ";
+    compiler += make_version_string(__clang_major__, __clang_minor__, __clang_patchlevel__);
 #elif _MSC_VER
-	compiler += "MSVC ";
-	compiler += "(version ";
-	compiler += stringify(_MSC_FULL_VER) "." stringify(_MSC_BUILD);
-	compiler += ")";
+    compiler += "MSVC ";
+    compiler += "(version ";
+    compiler += stringify(_MSC_FULL_VER) "." stringify(_MSC_BUILD);
+    compiler += ")";
 #elif defined(__e2k__) && defined(__LCC__)
-	#define dot_ver2(n) \
+    #define dot_ver2(n) \
         compiler += char('.'); \
         compiler += char('0' + (n) / 10); \
         compiler += char('0' + (n) % 10);
 
-	compiler += "MCST LCC ";
-	compiler += "(version ";
-	compiler += std::to_string(__LCC__ / 100);
-	dot_ver2(__LCC__ % 100) dot_ver2(__LCC_MINOR__) compiler += ")";
+    compiler += "MCST LCC ";
+    compiler += "(version ";
+    compiler += std::to_string(__LCC__ / 100);
+    dot_ver2(__LCC__ % 100) dot_ver2(__LCC_MINOR__) compiler += ")";
 
 #elif __GNUC__
-	compiler += "g++ (GNUC) ";
-	compiler += make_version_string(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
+    compiler += "g++ (GNUC) ";
+    compiler += make_version_string(__GNUC__, __GNUC_MINOR__, __GNUC_PATCHLEVEL__);
 #else
-	compiler += "Unknown compiler ";
-	compiler += "(unknown version)";
+    compiler += "Unknown compiler ";
+    compiler += "(unknown version)";
 #endif
 
 #if defined(__APPLE__)
-	compiler += " on Apple";
+    compiler += " on Apple";
 #elif defined(__CYGWIN__)
-	compiler += " on Cygwin";
+    compiler += " on Cygwin";
 #elif defined(__MINGW64__)
-	compiler += " on MinGW64";
+    compiler += " on MinGW64";
 #elif defined(__MINGW32__)
-	compiler += " on MinGW32";
+    compiler += " on MinGW32";
 #elif defined(__ANDROID__)
-	compiler += " on Android";
+    compiler += " on Android";
 #elif defined(__linux__)
-	compiler += " on Linux";
+    compiler += " on Linux";
 #elif defined(_WIN64)
-	compiler += " on Microsoft Windows 64-bit";
+    compiler += " on Microsoft Windows 64-bit";
 #elif defined(_WIN32)
-	compiler += " on Microsoft Windows 32-bit";
+    compiler += " on Microsoft Windows 32-bit";
 #else
-	compiler += " on unknown system";
+    compiler += " on unknown system";
 #endif
 
-	compiler += "\nCompilation architecture   : ";
+    compiler += "\nCompilation architecture   : ";
 #if defined(ARCH)
-	compiler += stringify(ARCH);
+    compiler += stringify(ARCH);
 #else
-	compiler += "(undefined architecture)";
+    compiler += "(undefined architecture)";
 #endif
 
-	compiler += "\nCompilation settings       : ";
-	compiler += (Is64Bit ? "64bit" : "32bit");
+    compiler += "\nCompilation settings       : ";
+    compiler += (Is64Bit ? "64bit" : "32bit");
 #if defined(USE_AVX512ICL)
     compiler += " AVX512ICL";
 #endif
 #if defined(USE_VNNI)
-	compiler += " VNNI";
+    compiler += " VNNI";
 #endif
 #if defined(USE_AVX512)
-	compiler += " AVX512";
+    compiler += " AVX512";
 #endif
 
     compiler += (HasPext ? " BMI2" : "");
 
 #if defined(USE_AVX2)
-	compiler += " AVX2";
+    compiler += " AVX2";
 #endif
 #if defined(USE_SSE41)
-	compiler += " SSE41";
+    compiler += " SSE41";
 #endif
 #if defined(USE_SSSE3)
-	compiler += " SSSE3";
+    compiler += " SSSE3";
 #endif
 #if defined(USE_SSE2)
-	compiler += " SSE2";
+    compiler += " SSE2";
 #endif
 #if defined(USE_NEON_DOTPROD)
-	compiler += " NEON_DOTPROD";
+    compiler += " NEON_DOTPROD";
 #elif defined(USE_NEON)
-	compiler += " NEON";
+    compiler += " NEON";
 #endif
 
 #if defined(USE_LASX)
@@ -397,25 +397,25 @@ std::string compiler_info() {
 #endif
 
 #if STOCKFISH
-	compiler += (HasPopCnt ? " POPCNT" : "");
-	// やねうら王にはHasPopCnt定数がないため、Stockfishとの比較用コードとしてのみ残す。
+    compiler += (HasPopCnt ? " POPCNT" : "");
+    // やねうら王にはHasPopCnt定数がないため、Stockfishとの比較用コードとしてのみ残す。
 #endif
 
 #if !defined(NDEBUG)
-	compiler += " DEBUG";
+    compiler += " DEBUG";
 #endif
 
-	compiler += "\nCompiler __VERSION__ macro : ";
+    compiler += "\nCompiler __VERSION__ macro : ";
 #ifdef __VERSION__
-	// 定義されている場合だけ、コンパイラーが提供するバージョン文字列を出力する。
-	compiler += __VERSION__;
+    // 定義されている場合だけ、コンパイラーが提供するバージョン文字列を出力する。
+    compiler += __VERSION__;
 #else
-	compiler += "(undefined macro)";
+    compiler += "(undefined macro)";
 #endif
 
-	compiler += "\n";
+    compiler += "\n";
 
-	return compiler;
+    return compiler;
 }
 
 // --------------------
