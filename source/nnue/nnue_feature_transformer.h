@@ -25,6 +25,7 @@
 #if defined(USE_FINNY_TABLES) || (defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1)
 #include "features/half_ka_hm2.h"
 #include "features/half_ka2.h"
+#include "features/half_kp_vm.h"
 #include "features/king_piece_helpers.h"
 #endif
 
@@ -1190,10 +1191,11 @@ class FeatureTransformer {
                                FinnyEntry& entry, IndexType trigger_index) const {
         const Square king = Features::oriented_king_square<Features::Side::kFriend>(pos, perspective);
         Features::IndexList removed, added;
-        using DirectFeature = std::conditional_t<kUseHalfKAHm2,
-          Features::HalfKA_hm2<Features::Side::kFriend>, Features::HalfKA2<Features::Side::kFriend>>;
+        using DirectFeature = std::conditional_t<kUseHalfKPvm, Features::HalfKP_vm<Features::Side::kFriend>,
+          std::conditional_t<kUseHalfKAHm2, Features::HalfKA_hm2<Features::Side::kFriend>, Features::HalfKA2<Features::Side::kFriend>>>;
         const typename DirectFeature::IndexContext indices(king, perspective);
-        int pieceCount = entry.position.pieceCount;
+        const int oldPieceCount = entry.position.pieceCount - (kUseHalfKPvm && entry.is_initialized() ? 1 : 0);
+        int pieceCount = oldPieceCount;
         const auto& currentPieces = pos.piece_array();
 #if defined(USE_AVX512)
         constexpr int compareWidth = 64;
@@ -1237,7 +1239,11 @@ class FeatureTransformer {
             while (changed) {
                 const Square sq = Square(base + int(lsb(changed)));
                 changed &= changed - 1;
-                const Piece before = entry.position.pieces[sq], after = currentPieces[sq];
+                Piece before = entry.position.pieces[sq], after = currentPieces[sq];
+                if constexpr (kUseHalfKPvm) {
+                    if (before != NO_PIECE && type_of(before) == KING) before = NO_PIECE;
+                    if (after != NO_PIECE && type_of(after) == KING) after = NO_PIECE;
+                }
                 // Promoted minor pieces share the gold feature in these nets.
                 if (before != NO_PIECE && after != NO_PIECE
                     && kpp_board_index[before].from[perspective] == kpp_board_index[after].from[perspective])
@@ -1265,9 +1271,9 @@ class FeatureTransformer {
             }
         }
         if (entry.is_initialized()) {
-            for (int n = entry.position.pieceCount; n < pieceCount; ++n)
+            for (int n = oldPieceCount; n < pieceCount; ++n)
                 removed.push_back(indices.zero());
-            for (int n = pieceCount; n < entry.position.pieceCount; ++n)
+            for (int n = pieceCount; n < oldPieceCount; ++n)
                 added.push_back(indices.zero());
         }
         bool rebuild = !entry.is_initialized();
@@ -1302,7 +1308,8 @@ class FeatureTransformer {
         entry.position.pieces = currentPieces;
         entry.position.hands[BLACK] = pos.hand_of(BLACK);
         entry.position.hands[WHITE] = pos.hand_of(WHITE);
-        entry.position.pieceCount = pieceCount;
+        // 玉を含まないHalfKP_vmは、駒落ちの0枚と未初期化を区別する。
+        entry.position.pieceCount = pieceCount + (kUseHalfKPvm ? 1 : 0);
     }
 #endif
 
@@ -1382,9 +1389,9 @@ class FeatureTransformer {
                 for (Color c : {BLACK, WHITE}) {
                     reset[c] = state->dirtyPiece.pc == make_piece(c, KING);
                     if (!reset[c])
-                        std::conditional_t<kUseHalfKAHm2,
-                          Features::HalfKA_hm2<Features::Side::kFriend>,
-                          Features::HalfKA2<Features::Side::kFriend>>::append_changed_indices(
+                        std::conditional_t<kUseHalfKPvm, Features::HalfKP_vm<Features::Side::kFriend>,
+                          std::conditional_t<kUseHalfKAHm2, Features::HalfKA_hm2<Features::Side::kFriend>,
+                          Features::HalfKA2<Features::Side::kFriend>>>::append_changed_indices(
                           pos, c, &removed_indices[c], &added_indices[c], state->dirtyPiece);
                 }
             } else

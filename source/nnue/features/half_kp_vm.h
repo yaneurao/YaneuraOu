@@ -7,6 +7,8 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
+#include <array>
+
 #include "../../evaluate.h"
 #include "features_common.h"
 
@@ -43,6 +45,33 @@ public:
 
 	// 玉の位置とBonaPieceから特徴量のインデックスを求める
 	static IndexType make_index(Square sq_k, BonaPiece p);
+
+    // 自玉の筋に応じた反転と特徴量番号を、盤面・手駒から直接求める。
+    struct IndexContext {
+        static inline constexpr auto Squares = [] {
+            std::array<std::array<Square, SQ_NB>, 4> result{};
+            for (int c = 0; c < 2; ++c)
+                for (int mirror = 0; mirror < 2; ++mirror)
+                    for (int sq = 0; sq < SQ_NB; ++sq) {
+                        const Square s = c == BLACK ? Square(sq) : Inv(Square(sq));
+                        result[2 * c + mirror][sq] = mirror ? Mir(s) : s;
+                    }
+            return result;
+        }();
+        IndexContext(Square king, Color c) : perspective(c),
+          kingOffset(IndexType(fe_end) * IndexType(king >= SQ_61 ? Mir(king) : king)),
+          squares(Squares[2 * c + (king >= SQ_61)].data()) {}
+        IndexType board(Piece pc, Square sq) const {
+            return kingOffset + kpp_board_index[pc].from[perspective] + IndexType(squares[sq]);
+        }
+        IndexType hand(Color c, PieceType pt, int slot) const {
+            return kingOffset + kpp_hand_index[c][pt].from[perspective] + slot;
+        }
+        IndexType zero() const { return kingOffset; }
+        Color perspective;
+        IndexType kingOffset;
+        const Square* squares;
+    };
 
 };
 
