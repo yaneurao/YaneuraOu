@@ -676,7 +676,8 @@ class AffineTransform {
 		return !stream.fail();
 	}
 
-	// パラメータを書き込む
+	// Write network parameters
+	// 前段に続けて、この層のパラメータをファイル上の順序で書き込む。
 	bool write_parameters(std::ostream& stream) const {
 		if (!previous_layer_.write_parameters(stream))
 			return false;
