@@ -475,22 +475,17 @@ ExtMove* MovePicker::generate_and_score() {
 template<typename Pred>
 Move MovePicker::select(Pred filter) {
 
-	for (; cur < endCur; ++cur)
-		// filter()のなかで*curにアクセスして判定するのでfilter()は引数を取らない。
-        // Check legality only after the candidate passes the stage's filter.
-        // 段階ごとの選別を通過し、実際に返す候補だけ合法性を確認する。
+    for (; cur < endCur; ++cur)
 #if STOCKFISH
         if (*cur != ttMove && filter())
-		// Stockfishでは、指し手生成で疑似合法手を生成するのではなく、
-		// いきなり合法手を生成するようになった。だから、ここでlegal判定は不要である。
 #else
-		// 将棋では、利き盤面を持っていないなら、いきなり合法手を生成するのはコストが大きい。
-		// ここで指し手を返すときにlegalityのチェックをしたほうが低コストとなる。
-		if (*cur != ttMove && filter() && pos.legal(*cur))
+        // Stockfishは合法手を生成するが、将棋では疑似合法手を生成してから確認する。
+        // 一括で合法手を生成するよりも、filter通過後の候補だけを確認する方が低コスト。
+        if (*cur != ttMove && filter() && pos.legal(*cur))
 #endif
-			return *cur++;
+            return *cur++;
 
-	return Move::none();
+    return Move::none();
 }
 
 // This is the most important method of the MovePicker class. We emit one
@@ -507,11 +502,11 @@ dispatch:
     switch (stage)
     {
 
-    case TT:
+    case TT :
         stage = INIT_FIRST_STAGE;
         return ttMove;
 
-    case INIT_FIRST_STAGE:
+    case INIT_FIRST_STAGE :
         cur = endBadMoves = moves;
 
         if (first_stage == EVASION)
@@ -535,7 +530,7 @@ dispatch:
         stage = first_stage;
         goto dispatch;
 
-    case GOOD_CAPTURE:
+    case GOOD_CAPTURE :
         if (Move move = select([&]() {
                 if (pos.see_ge(*cur, -cur->value / 18))
                     return true;
@@ -582,7 +577,7 @@ dispatch:
             stage = GOOD_QUIET;
             [[fallthrough]];
 
-        case GOOD_QUIET:
+        case GOOD_QUIET :
             if (Move move = select([&]() {
                     if (cur->value > goodQuietThreshold)
                         return true;
@@ -600,16 +595,16 @@ dispatch:
         stage = BAD_MOVES;
         [[fallthrough]];
 
-    case BAD_MOVES:
-    case QSEARCH:
-    case EVASION:
+    case BAD_MOVES :
+    case QSEARCH :
+    case EVASION :
         // TT手はselect()で除外する。王手回避手と静止探索の手は全数ソート済み。
         return select([]() { return true; });
 
-    case PROBCUT:
+    case PROBCUT :
         return select([&]() { return pos.see_ge(*cur, threshold); });
 
-    default:
+    default :
         ASSERT(false);
         sf_unreachable();
     }
