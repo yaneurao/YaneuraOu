@@ -404,14 +404,14 @@ struct SharedState {
 	(benchmarkや教師生成の時は抑制したいので…)	
 */
 
-// PVの短いやつ
+// 探索深さとスコアを通知する短い情報。
 struct InfoShort {
     int   depth;
     Score score;
 };
 
-// PVの長いやつ
-// 📝 MultiPVの場合、MultiPVのある1つの候補手を出力する。
+// 読み筋、ノード数、経過時間などを含む詳細な探索情報。
+// MultiPVの場合は、候補ごとに通知する。
 struct InfoFull: InfoShort {
     // 選択的な探索深さ
     int selDepth;
@@ -446,7 +446,7 @@ struct InfoFull: InfoShort {
     // PVを文字列化したもの
     std::string_view pv;
 
-    // hashfullを文字列化したもの
+    // 置換表の使用率（千分率）。
     int hashfull;
 };
 
