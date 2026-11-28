@@ -33,7 +33,7 @@ std::ostream& operator<<(std::ostream& os, ExtMove m)
 
 // mlist_startからmlist_endまで(mlist_endは含まない)の指し手がpseudo_legal_s<true>であるかを
 // 調べて、すべてがそうであるならばtrueを返す。
-bool pseudo_legal_check(const Position& pos, Move* mlist_start, Move* mlist_end)
+static bool pseudo_legal_check(const Position& pos, Move* mlist_start, Move* mlist_end)
 {
 	bool all_ok = true;
 
