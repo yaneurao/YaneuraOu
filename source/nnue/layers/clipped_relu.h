@@ -222,12 +222,13 @@ class ClippedReLU {
   }
 
   // Read network parameters
-  // パラメータを読み込む
+  // この層にはパラメータがないため、前段に読み込みを委譲する。
   bool read_parameters(std::istream& stream) {
     return previous_layer_.read_parameters(stream);
   }
 
-  // パラメータを書き込む
+  // Write network parameters
+  // この層にはパラメータがないため、前段に書き出しを委譲する。
   bool write_parameters(std::ostream& stream) const {
     return previous_layer_.write_parameters(stream);
   }

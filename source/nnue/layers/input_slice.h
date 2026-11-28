@@ -49,12 +49,12 @@ class InputSlice {
         std::to_string(Offset + OutputDimensions) + ")]";
   }
 
-  // パラメータを読み込む
+  // この層には読み込むパラメータがない。
   bool read_parameters(std::istream& /*stream*/) {
     return true;
   }
 
-  // パラメータを書き込む
+  // この層には書き出すパラメータがない。
   bool write_parameters(std::ostream& /*stream*/) const {
     return true;
   }
