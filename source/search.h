@@ -260,39 +260,42 @@ struct RootMove {
 
 using RootMoves = std::vector<RootMove>;
 
-// goコマンドでの探索時に用いる、持ち時間設定などが入った構造体
-// "ponder"のフラグはここに含まれず、Threads.ponderにあるので注意。
 // LimitsType struct stores information sent by the caller about the analysis required.
-// LimitsTypeは、呼び出し側から指定された解析条件を保持する。
+// LimitsTypeは、goコマンドで指定された持ち時間・探索条件を保持する。
+// ponderModeは受信時の指定。実行中のponder状態は各探索部の管理側が保持する。
 struct LimitsType {
 
     // Init explicitly due to broken value-initialization of non POD in MSVC
     // MSVCでは非POD型の値初期化に問題があるため、明示的に初期化する。
     LimitsType() {
+#if STOCKFISH
+        time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = npmsec = movetime = TimePoint(0);
+        movestogo = depth = mate = perft = infinite = 0;
+#else
+        time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] = movetime = TimePoint(0);
+        depth = mate = perft = infinite = 0;
+#endif
+        nodes                                       = 0;
+        ponderMode                                  = false;
 
-        time[WHITE] = time[BLACK] = inc[WHITE] = inc[BLACK] /* = npmsec */ = movetime = TimePoint(0);
-        /* movestogo =*/depth = mate = perft = infinite = 0;
-        nodes                                           = 0;
-        ponderMode                                      = false;
-
+#if !STOCKFISH
         // 🌈 将棋用に追加したメンバーの初期化。
-
         byoyomi[WHITE] = byoyomi[BLACK] = TimePoint(0);
         rtime                           = 0;
-#if !STOCKFISH
         disablePvInterval               = false;
         stochasticPonderRewound         = false;
 #endif
     }
 
-    // 時間制御を行うのか。
-    // 詰み専用探索、思考時間0、探索深さが指定されている、探索ノードが指定されている、思考時間無制限
-    // であるときは、時間制御に意味がないのでやらない。
+#if STOCKFISH
+    bool use_time_management() const { return time[WHITE] || time[BLACK]; }
+#else
+    // 将棋では残り時間が0でも秒読みがあるため、time[]だけでは判定しない。
+    // 詰将棋・固定時間・固定深さ・固定ノード数・perft・無制限の指定時は時間配分を行わない。
     bool use_time_management() const {
-        //return time[WHITE] || time[BLACK];
-        // →　将棋だと秒読みの処理があるので両方のtime[c]が0であっても持ち時間制御が不要とは言えない。
         return !(mate | movetime | depth | nodes | perft | infinite);
     }
+#endif
 
     // root(探索開始局面)で、探索する指し手集合。特定の指し手を除外したいときにここから省く
     std::vector<std::string> searchmoves;
@@ -305,40 +308,34 @@ struct LimitsType {
     // startTime : 探索開始時刻。"go"コマンドを受け取った時のnow()。なるべく早くに格納しておき、時差をなくす。
     //             💡 この時刻は、USIEngineの"go"のhandlerで設定される。
 #if STOCKFISH
-    TimePoint time[COLOR_NB], inc[COLOR_NB], npmsec, movetime, startTime;
+    TimePoint                time[COLOR_NB], inc[COLOR_NB], npmsec, movetime, startTime;
 #else
-    TimePoint time[COLOR_NB], inc[COLOR_NB] /*, npmsec*/, movetime, startTime;
+    TimePoint                time[COLOR_NB], inc[COLOR_NB], movetime, startTime;
 #endif
 
-    // movestogo: あと何手で引き分けとなるか。
-    //			📌 USIプロトコルではサポートしない。エンジンオプションで設定すべき。
+    // movestogo: 次の時間制御までの残り手数。将棋版では保持しない。
     // depth    : 探索深さ固定(0以外を指定してあるなら)
     // mate     : 詰み専用探索(USIの'go mate'コマンドを使ったとき)
-    //		詰み探索モードのときは、ここに詰みの手数が指定されている。
-    //		その手数以内の詰みが見つかったら探索を終了する。
-    //		※　Stockfishの場合、この変数は先後分として将棋の場合の半分の手数が格納されているので注意。
-    //		USIプロトコルでは、この値に詰将棋探索に使う時間[ms]を指定することになっている。
-    //		時間制限なしであれば、INT32_MAXが入っている。
+    //          Stockfishでは詰みを探す手数。将棋版では詰将棋探索の制限時間[ms]。
+    //          将棋版で時間制限なしならINT32_MAXが入る。
     // perft    : perft(performance test)中であるかのフラグ。非0なら、perft時の深さが入る。
     // infinite : 思考時間無制限かどうかのフラグ。非0なら無制限。
 #if STOCKFISH
-    int movestogo, depth, mate, perft, infinite;
+    int                      movestogo, depth, mate, perft, infinite;
 #else
-    int /* movestogo,*/ depth, mate, perft, infinite;
+    int                      depth, mate, perft, infinite;
 #endif
 
     // 今回のgoコマンドでの指定されていた"nodes"(探索ノード数)の値。
-    // これは、USIプロトコルで規定されているものの将棋所では送ってこない。ShogiGUIはたぶん送ってくる。
-    // goコマンドで"nodes"が指定されていない場合は、"エンジンオプションの"NodesLimit"の値。
-    u64 nodes;
+    // goコマンドで"nodes"が指定されていない場合は、エンジンオプション"NodesLimit"の値。
+    u64                      nodes;
 
     // "go"コマンドに"ponder"が付随していたかのフラグ。
     // 💡 ponder探索中であるかのフラグは、別途SearchManager::ponderが持っている。
-    //     そちらは、"stop"か"ponderhit"が来るとfalseになるが、こちらは、変化しない。
-    bool ponderMode;
+    //     ponderhitで実行中の状態が変わっても、こちらは変化しない。
+    bool                     ponderMode;
 
-#if STOCKFISH
-#else
+#if !STOCKFISH
     // 🌈 やねうら王が将棋用に追加したメンバー
 
     // 秒読み(ms換算で)
