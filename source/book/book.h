@@ -119,7 +119,7 @@ struct BookMove
 	}
 };
 
-static std::ostream& operator<<(std::ostream& os, BookMove c);
+std::ostream& operator<<(std::ostream& os, BookMove c);
 
 // BookMovesで返し値などに使いたいのでこれを定義しておく。
 typedef std::vector<BookMove>::iterator BookMoveIterator;
