@@ -325,6 +325,8 @@ struct SharedHistories {
 
     usize get_size() const { return sizeMinus1 + 1; }
 
+    // 通常の歩履歴はキーの手番bitを除いて歩の配置を参照する。
+    // 指し手の駒は別の添字で先後を区別する。
     auto& pawn_entry(const Position& pos) {
         return pawnHistory[pos.pawn_key() >> 1 & pawnHistSizeMinus1];
     }
@@ -332,6 +334,7 @@ struct SharedHistories {
         return pawnHistory[pos.pawn_key() >> 1 & pawnHistSizeMinus1];
     }
 
+    // 補正履歴はキーの手番bitを残し、同じ配置でも手番ごとに分ける。
     auto& pawn_correction_entry(const Position& pos) {
         return correctionHistory[pos.pawn_key() & sizeMinus1];
     }
