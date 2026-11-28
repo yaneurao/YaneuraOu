@@ -1677,9 +1677,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     //   反復深化のループ
     // ---------------------
 
-    // 反復深化の探索深さが深くなって行っているかのチェック用のカウンター
-    // これが増えていない時、同じ深さを再度探索していることになる。(fail highし続けている)
-    // 💡 あまり同じ深さでつっかえている時は、aspiration windowの幅を大きくしてやるなどして回避する必要がある。
+    // increaseDepthがfalseの反復を数え、後で実際の探索深さを調整する。
     // uciPvSentは、現在の反復で最終PVをGUIへ出力済みかを表す。
     int  searchAgainCounter = 0;
     int  failHighRecovery   = 0;
@@ -1747,7 +1745,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         // 最初のPVラインを探索する前に前回イテレーションのスコアを保存し、
         // （新しい）PV 以外のすべての手のスコアを -VALUE_INFINITE に設定する。
 
-        // 💡 aspiration window searchのために反復深化の前回のiterationのスコアをコピーしておく
+        // 前回のスコアとPVを保存し、探索途中の表示や中断時の復元などに使う。
 
         for (usize i = 0; i < rootMoves.size(); ++i)
         {
@@ -1759,8 +1757,7 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
         // 将棋では全root moveを同じrankとして扱うため、pvFirstは0のまま使う。
         usize pvFirst = pvLast = 0;
 
-        // 💡 探索深さを増やすかのフラグがfalseなら、同じ深さを探索したことになるので、
-        //     searchAgainCounterカウンターを1増やす
+        // 探索深さを増やすフラグがfalseならカウンターを増やし、後のadjustedDepthに反映する。
 #if STOCKFISH
         if (!threads.increaseDepth)
 #else
