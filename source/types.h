@@ -78,9 +78,6 @@ using HASH_KEY = Key256;
 constexpr int     int_max   = (std::numeric_limits<int>    ::max)();
 constexpr int     int_min   = (std::numeric_limits<int>    ::min)();
 constexpr i64 int64_max = (std::numeric_limits<i64>::max)();
-constexpr i64 int64_min = (std::numeric_limits<i64>::min)();
-constexpr size_t  size_max  = (std::numeric_limits<size_t> ::max)();
-constexpr size_t  size_min  = (std::numeric_limits<size_t> ::min)();
 
 // --------------------
 //      手番
