@@ -42,7 +42,7 @@ class Option {
 
     // integer
 #if STOCKFISH
-	Option(int v, int minv, int maxv, OnChange = nullptr);
+    Option(int v, int minv, int maxv, OnChange = nullptr);
 #else
 	// ⇨ 💡 やねうら王では、引数をint64_tに変更
     Option(i64 v, i64 minv, i64 maxv, OnChange = nullptr);
@@ -221,13 +221,8 @@ class OptionsMap {
     // 指定がなければ従来互換のV1。
     int book_options_version = 1;
 
-    // 思考エンジンがGUIからの"usi"に対して返す"option ..."文字列から
-    // Optionオブジェクトを構築して、それを *this に突っ込む。
-    // "engine_options.txt"というファイルの各行からOptionオブジェクト構築して
-    // Optionの値を上書きするためにこの関数が必要。
-    // "option name USI_Hash type spin default 256"
-    // のような文字列が引数として渡される。
-    // このとき、Optionのhandlerとidxは書き換えない。
+    // 設定の1行を解析し、登録済みOptionの値を検証して上書きする。
+    // 値を受理した場合はfixedにする。既存の型・範囲・handler・idxは変更しない。
     void build_option(const std::string& line);
 #endif
 };
