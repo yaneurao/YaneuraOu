@@ -550,14 +550,9 @@ public:
 	//    並列探索の具体例としては、YaneuraOuWorker::start_searching()を見ること。
 	virtual void start_searching(){}
 
-	// 🌈 start_searching()より前にUI threadから呼び出される。
-    /* 📓 start_searching() のなかでmain threadがlimits.ponderを初期化しようにも、
-	       start_searching()が呼び出された時にはUI threadは、次のUSIコマンドを受け取りのUSI loopに
-	       復帰していてstart_searching()内でlimits.ponderを初期化するより前に"ponderhit"を
-	       受信してしまう可能性がある。
-	       よって、start_searching()より前のタイミングで、UI threadからblock呼び出しで
-	       呼び出されるようなevent handlerが必要となり、それが、このpre_start_searching()である。
-	*/
+	// ThreadPool::start_thinking()が、各Workerのスレッド上で探索開始前に呼び出す。
+	// 全Workerの準備完了を待ってから探索を開始し、USIコマンドの受付へ戻る。
+	// ponderや時間管理の初期化をここで済ませることで、先に受信したponderhitの状態を上書きしない。
 	virtual void pre_start_searching() {}
 
 	// メインスレッドであるならtrueを返す。
