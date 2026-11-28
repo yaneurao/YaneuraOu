@@ -32,9 +32,13 @@
 
 #if defined(_MSC_VER)
 // Disable some silly and noisy warnings from MSVC compiler
+// MSVCの不要な警告を抑制する。
 #pragma warning(disable: 4127) // Conditional expression is constant
+                              // 条件式が定数。
 #pragma warning(disable: 4146) // Unary minus operator applied to unsigned type
+                              // 符号なし型に単項マイナスを適用。
 #pragma warning(disable: 4800) // Forcing value to bool 'true' or 'false'
+                              // 値をbool型に変換。
 #endif
 
 /// Predefined macros hell:
@@ -45,6 +49,7 @@
 /// _MSC_VER                Compiler is MSVC
 /// _WIN32                  Building on Windows (any)
 /// _WIN64                  Building on Windows 64 bit
+/// コンパイラーとWindowsの対象環境を示す定義済みマクロ。
 
 namespace YaneuraOu {
 
