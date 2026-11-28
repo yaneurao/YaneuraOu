@@ -812,7 +812,8 @@ namespace Mate {
 		Bitboard bb_attacks;
 
 		Hand ourHand  = pos.hand_of(Us);
-		Hand themHand = pos.hand_of(Them);
+		// 無効化中の離し王手・両王手の実験コードで使用する。
+		[[maybe_unused]] Hand themHand = pos.hand_of(Them);
 
 		// 飛車を短く打つ場合
 		if (hand_count(ourHand, ROOK))
