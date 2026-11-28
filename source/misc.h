@@ -59,27 +59,16 @@ __extension__ using i128 = signed __int128;
 // エンジンのバージョン情報を返す。
 std::string engine_version_info();
 
-// "USI"コマンドに応答するために表示する。
-//
-//  to_usi : これがtrueのときは、"usi"コマンドに対する応答として呼び出されたという意味。
-//           これがfalseのときは、起動直後の出力用。
-//        	 ⚠ やねうら王ではMultiEngineを採用しており、
-//			 起動直後ではエンジン名が確定しないから出力できない。
-// 
-// 🤔 やねうら王では、以下のように変更する。
-// engine_name    : エンジン名
-// engine_author  : エンジンの作者名
-// engine_version : エンジンのバージョン
-// eval_name      : 評価関数名
 #if STOCKFISH
+// to_uciがtrueならUCI応答用、falseなら起動時出力用の文字列を返す。
 std::string engine_info(bool to_uci = false);
 #else
+// USI応答用のエンジン名・作者・バージョン・評価関数名を含む文字列を返す。
+// やねうら王ではMultiEngineを採用しているため、起動直後にはエンジン名が確定しない。
 std::string engine_info(const std::string& engine_name,
-						const std::string& engine_author,
+                        const std::string& engine_author,
                         const std::string& engine_version,
                         const std::string& eval_name);
-
-
 #endif
 
 // 使用したコンパイラについての文字列を返す。
