@@ -301,6 +301,7 @@ std::string pretty(Piece pc) {
 #if STOCKFISH
 // Helper function used to set castling
 // rights given the corresponding color and the rook starting square.
+// 色とルークの開始位置からキャスリング権を設定するヘルパー関数。
 void Position::set_castling_right(Color c, Square rfrom) {
 
     Square         kfrom = square<KING>(c);
@@ -859,6 +860,10 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
         // a) side to move have a pawn threatening epSquare
         // b) there is an enemy pawn in front of epSquare
         // c) there is no piece on epSquare or behind epSquare
+        // アンパッサンの升は、次の条件をすべて満たす場合にのみ有効とする。
+        // a) 手番側のポーンがその升に利いている。
+        // b) その升の前に相手のポーンがある。
+        // c) その升とその後ろの升に駒がない。
         enpassant = attacks_bb(PAWN, st->epSquare, ~sideToMove) & pieces(sideToMove, PAWN)
                  && (pieces(~sideToMove, PAWN) & (st->epSquare + pawn_push(~sideToMove)))
                  && !(pieces() & (st->epSquare | (st->epSquare + pawn_push(sideToMove))));
@@ -875,7 +880,7 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
 #if STOCKFISH
     // 📝 Stockfishの場合、rule50とgamePlyが渡される。
     //     このgamePlyは自分が指した回数なのでこれを2倍して、現在の手番(先手なら+0、後手なら+1)を
-    //     足してやる必要があ。
+    //     足してやる必要がある。
 
     ss >> std::skipws >> st->rule50 >> gamePly;
 
