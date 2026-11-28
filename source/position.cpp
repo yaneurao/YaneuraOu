@@ -604,6 +604,11 @@ StateInfo* Position::previous_state(usize distance) const {
 }
 
 void Position::copy_state_infos(const Position& other) {
+#if STOCKFISH
+    std::memcpy(stateInfos, other.stateInfos, sizeof(stateInfos));
+    stateIdx = other.stateIdx;
+    st       = &stateInfos[stateIdx];
+#else
     assert(this != &other);
     usize stateCount = std::min(other.stateIdx + 1, usize(std::max(16, max_repetition_ply)) + 1);
     stateCount = std::min(stateCount, MAX_HIST);
@@ -617,6 +622,7 @@ void Position::copy_state_infos(const Position& other) {
         state.repWindow = std::min(state.repWindow, int(stateIdx - i));
     }
     st = &stateInfos[stateIdx];
+#endif
 }
 
 void Position::copy_from(const Position& other) {
@@ -3513,6 +3519,10 @@ std::optional<PositionSetError> Position::flip() {
 }
 
 
+
+#if STOCKFISH
+bool Position::material_key_is_ok() const { return compute_material_key() == st->materialKey; }
+#endif
 
 // ----------------------------------
 //      内部情報の正当性のテスト
