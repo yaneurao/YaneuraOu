@@ -447,19 +447,18 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
 
     main_thread()->wait_for_search_finished();
 
-    // 📝 increaseDepthはmain_managerに移動させた。
-    //     ここのある初期化のうち、stop以外は、Worker派生classで処理すべき。
-    // 🌈 SearchManager::pre_start_searching()に移動させた。
-	//     これは、Workerの派生classのpre_start_searching()から呼び出される。
 #if STOCKFISH
     main_manager()->stopOnPonderhit = stop = false;
-    main_manager()->ponder                                 = limits.ponderMode;
-    increaseDepth                                          = true;
+    main_manager()->ponder                 = limits.ponderMode;
+
+    increaseDepth = true;
 #else
+    // stop以外の初期化は、Worker派生classのpre_start_searching()で行う。
     stop = false;
 #endif
 
     Search::RootMoves rootMoves;
+
 #if STOCKFISH
     for (const auto& uciMove : limits.searchmoves)
     {
@@ -517,7 +516,7 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
             th->worker->rootMoves                                                = rootMoves;
             th->worker->rootPos.set(pos.fen(), pos.is_chess960());
             th->worker->rootPos.copy_state_infos(pos);
-            th->worker->tbConfig  = tbConfig;
+            th->worker->tbConfig = tbConfig;
 #else
             th->worker->limits = limits;
             th->worker->nodes  = 0;
@@ -530,7 +529,7 @@ void ThreadPool::start_thinking(const OptionsMap&  options,
             // (rootPosを使って入玉判定などを行うため)
             th->worker->pre_start_searching();
 #endif
-		});
+        });
     }
 
     for (auto&& th : threads)
