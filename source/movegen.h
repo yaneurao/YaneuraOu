@@ -145,9 +145,10 @@ struct MoveList {
 
 			 すると指し手が生成され、lastが初期化されるので、
 			 このclassのbegin(),end()が正常な値を返すようになる。
-			 lastは内部のバッファを指しているので、このクラスのコピーは不可。
+			 lastは内部のバッファを指している。コピー操作は禁止されていないが、
+			 コピーするとlastが元のバッファを指すため、このクラスをコピーしてはならない。
     
-			 for(auto extmove : MoveList<LEGAL_ALL>(pos)) ...
+			 for(auto move : MoveList<LEGAL_ALL>(pos)) ...
 			 のような書き方ができる。
 	*/
 
