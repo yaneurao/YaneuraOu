@@ -84,7 +84,7 @@ void DlshogiSearcher::InitGPU(const std::string& model_path, const std::string& 
     engine.threads.set(engine.numaContext.get_numa_config(), {engine.options, engine.threads, engine.tt, engine.sharedHists, engine.network},
 					engine.updateContext, total_thread_num + search_interruption_check_thread_num , worker_factory);
 
-	// このタイミングで確保しなおす。
+	// GPUごとのスレッド設定が変わった場合、探索グループを作り直す。
 
 	if (thread_settings != last_thread_settings)
     {
@@ -193,12 +193,12 @@ void DlshogiSearcher::SetDrawValue(const int value_black, const int value_white)
 // nodes   : 1局面で詰探索する最大ノード数。
 void DlshogiSearcher::SetPvMateSearch(const int threads, /*const int depth,*/ const int nodes)
 {
-	// 現在生成されているthread数とnodesがぴったり一致するなら、生成しなおす必要はない。
+	// スレッド数とノード数の上限が変わらなければ、作り直す必要はない。
 	if (threads == int(pv_mate_searchers.size()) &&
 		(threads == 0 || pv_mate_searchers[0].get_nodes_limit() == nodes))
 		return; 
 
-	// 個数が異なるので生成しなおす。
+	// スレッド数またはノード数の上限が変わったので作り直す。
 
 	pv_mate_searchers.clear(); // いったんすべて開放
 	pv_mate_searchers.reserve(threads);
