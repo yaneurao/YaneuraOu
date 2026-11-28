@@ -110,12 +110,12 @@ struct Dirties;
 	static void print_softname([[maybe_unused]] u64 check_sum) {}
 #endif
 
-#endif // defined(USE_CLASSIC_EVAL)
+#endif // defined(USE_CLASSIC_EVAL) || defined(EVAL_SFNN)
 
     // 駒割りを計算する。
 	// 💡 この関数は、classic evalでなくとも用いることがある。(例えば、dfpnのMovePickerでmaterialに従ってorderingする場合など)
-	// Position::set()での駒割り初期化のほか、詰み探索のMovePickerや検証処理でも用いる。
-	// 通常のdo_move()では、保持している駒割りを差分更新する。
+	// 詰み探索のMovePickerや検証処理などで用いる。
+	// USE_MATERIAL_VALUE有効時はPosition::set()で初期化し、do_move()で差分更新する。
     Value material(const Position& pos);
 
 	// Apery(WCSC26)の駒割り
