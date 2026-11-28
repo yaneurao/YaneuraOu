@@ -36,9 +36,9 @@ namespace YaneuraOu {
 // Different node types, used as a template parameter
 // テンプレートパラメータとして使用される異なるノードタイプ
 enum NodeType {
-	NonPV,
-	PV,
-	Root
+    NonPV,
+    PV,
+    Root
 };
 
 class TranspositionTable;
@@ -141,7 +141,8 @@ struct Stack {
     // 一度計算したhistoryの合計値をcacheしておくのに用いる。
     int statScore;
 
-    // このnodeでdo_move()した生成した何手目の指し手か。(1ならおそらく置換表の指し手だろう)
+    // このnodeで、除外手やrootの探索対象外を除いた何手目の候補か。
+    // 後続の枝刈りで探索されない候補も含む。
     int moveCount;
 
     // この局面で王手がかかっていたかのフラグ

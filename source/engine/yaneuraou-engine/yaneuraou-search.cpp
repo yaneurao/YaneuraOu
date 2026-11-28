@@ -3765,7 +3765,7 @@ moves_loop:  // When in check, search starts here
         if (rootNode && !std::count(rootMoves.begin() + pvIdx, rootMoves.begin() + pvLast, move))
             continue;
 
-        // do_move()した指し手の数のインクリメント
+        // 除外手やrootの探索対象外を除いた候補を数える。後続の枝刈り前に加算する。
         ss->moveCount = ++moveCount;
 
 // 🤔 Stockfish本家のこの読み筋の出力、細かすぎるので時間をロスする。しないほうがいいと思う。
