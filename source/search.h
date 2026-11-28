@@ -589,16 +589,13 @@ protected:
 	//     これを仮想関数にしてしまうと、呼び出しのoverheadが気になる。
 
 #if STOCKFISH
-    //bool iterative_deepening();
+    bool iterative_deepening();
 
-    void do_move(Position&    pos,
-                 const Move   move,
-                 const bool   givesCheck,
-                 const bool   capture,
-                 Stack* const ss);
+    void
+    do_move(Position& pos, const Move move, const bool givesCheck, const bool capture, Stack& ss);
     void do_null_move(Position& pos, Stack* const ss);
-	void undo_move(Position& pos, const Move move);
-	void undo_null_move(Position& pos);
+    void undo_move(Position& pos, const Move move);
+    void undo_null_move(Position& pos);
 
     // This is the main search function, for both PV and non-PV nodes
     // PVノードと非PVノードの両方で使うメインの探索関数。
