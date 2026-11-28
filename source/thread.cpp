@@ -338,14 +338,14 @@ void ThreadPool::set(const NumaConfig&             numaConfig,
 
         while (threads.size() < requested)
         {
-            const usize    threadId      = threads.size();
+            const usize     threadId      = threads.size();
             const NumaIndex numaId        = doBindThreads ? boundThreadToNumaNode[threadId] : 0;
-            auto create_thread = [&]() {
+            auto            create_thread = [&]() {
 #if STOCKFISH
                 auto manager =
                   threadId == 0 ? std::make_unique<Search::SearchManager>(updateContext) : nullptr;
-                // 💡 以前のStockfishはmain thread以外にNullSearchManagerを渡していたが、現行ではnullptr。
-                //     やねうら王ではSearchManagerをEngine派生classが持ち、WorkerFactory経由でWorkerを生成する。
+#else
+                // やねうら王ではSearchManagerをEngine派生classが持ち、WorkerFactory経由でWorkerを生成する。
 #endif
 
                 // When not binding threads we want to force all access to happen
@@ -360,11 +360,11 @@ void ThreadPool::set(const NumaConfig&             numaConfig,
                 // キャッシュが破棄されるのを防ぎたいからです。
 
                 auto binder = doBindThreads ? OptionalThreadToNumaNodeBinder(numaConfig, numaId)
-                                            : OptionalThreadToNumaNodeBinder(numaId);
+                                                       : OptionalThreadToNumaNodeBinder(numaId);
 #if STOCKFISH
                 threads.emplace_back(std::make_unique<Thread>(sharedState, std::move(manager),
-                                                              threadId, counts[numaId]++,
-                                                              threadsPerNode[numaId], binder));
+                                                                         threadId, counts[numaId]++,
+                                                                         threadsPerNode[numaId], binder));
 #else
                 threads.emplace_back(std::make_unique<Thread>(sharedState, worker_factory, threadId,
                                                               counts[numaId]++,
