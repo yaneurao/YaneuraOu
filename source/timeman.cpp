@@ -190,8 +190,8 @@ void  TimeManagement::clear() {}
 
 namespace {
 
-// これぐらい自分が指すと終局すると考えて計画を練る。
-// 近年、将棋ソフトは終局までの平均手数が伸びているので160に設定しておく。
+// 時間配分に使う残り手数の見積もりの基準値。手数は先後両方の指し手を数える。
+// 局面の手数や時間制御に応じて補正し、さらに2で割って自分の残り手番を見積もる。
 const int MoveHorizon = 160;
 
 // 思考時間のrtimeが指定されたときに用いる乱数
@@ -352,7 +352,7 @@ void TimeManagement::init(const Search::LimitsType& limits,
 	}
 	if (MTG == 1)
 	{
-		// この手番で終了なので使いきれば良い。
+		// 時間配分上、残りの自分の手番を1回と見積もるので使い切る。
 		minimumTime = optimumTime = maximumTime = remain_time;
 		return;
 	}
@@ -402,7 +402,7 @@ void TimeManagement::init(const Search::LimitsType& limits,
 		}
 		TimePoint t2 = minimumTime + (int)(remain_estimate * max_ratio / MTG);
 
-		// ただしmaximumは残り時間の30%以上は使わないものとする。
+		// ただしmaximumは、加算時間・秒読みを含むremain_estimateの30%以下に抑える。
 		// optimumが超える分にはいい。それは残り手数が少ないときとかなので構わない。
 		t2 = std::min(t2, (TimePoint)(remain_estimate * 0.3));
 
