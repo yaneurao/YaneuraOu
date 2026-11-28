@@ -49,16 +49,16 @@ public:
 		numaId(n) {}
 
 	/*
-	 📝 OptionalThreadToNumaNodeBinder binder;
+	 📝 OptionalThreadToNumaNodeBinder binder(numaId);
          に対してbinder() とやるとこのoperatorが呼び出されて、
 	     NumaReplicatedAccessTokenがもらえる。
 	 
-	     そのあと (void) (network[numaAccessToken]); とやると
+	     そのあと (void) (network[numaAccessToken]); とやると、
+	     必要に応じてそのNUMAノード用のnetworkが初期化される。
 	     (これは、Search::Worker::ensure_network_replicated()で行っている)
-	     適切なNUMAに割り当てられるようになっている。
 	 
-	     これは、LazyNumaReplicatedのoperator[]でensure_present()が呼び出されて
-	     NumaConfig.execute_on_numa_node()が呼び出されるからである。
+	     LazyNumaReplicatedのoperator[]でensure_present()が呼び出され、
+	     未作成ならNumaConfig::execute_on_numa_node()でノード上に作成する。
 	*/
 	NumaReplicatedAccessToken operator()() const {
 		if (numaConfig != nullptr)
