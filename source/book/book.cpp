@@ -1141,22 +1141,8 @@ namespace Book
 			for (const auto& entry : entries) {
 
 				Move16 theMove16 = convert_move_from_apery(entry.fromToPro);
+				// Apery定跡には予想手がない。必要なら指し手選択時に次局面の定跡から補う。
 				Move16 thePonder = Move16::none();
-#if 0
-				// Aperyの定跡、ponderの指し手が書かれていない。合法手であるなら、1手進めて、その局面の定跡をprobe()して取得する。
-				// →　呼び出し元で定跡PVの構築のためにこれに該当する処理は行われるから、ここでやらなくてよさそう。
-				Move   theMove   = pos.to_move(theMove16);
-				if (pos.pseudo_legal_s<true>(theMove) && pos.legal(theMove))
-				{
-
-					Position* thePos = const_cast<Position*>(&pos);
-					thePos->do_move(theMove);
-					const auto& entries2 = apery_book->get_entries(pos);
-					if (entries2.size())
-						thePonder = convert_move_from_apery(entries2[0].fromToPro); // 1つ目の指し手にしておく。
-					thePos->undo_move(theMove);
-				}
-#endif
 				BookMove book_pos(theMove16 , thePonder , entry.score, 256, entry.count);
 				pml_entry->insert(book_pos,true);
 			}
