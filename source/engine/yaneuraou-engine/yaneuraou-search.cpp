@@ -3426,8 +3426,8 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 		📝 局面の静的評価値(eval)が得られたので、以下ではこの評価値を用いて各種枝刈りを行なう。
 		    王手中、またはTTカットで探索を終了する場合は、ここでは履歴を更新しない。
 
-			is_ok()はMove::null()かのチェック。
-			1手前でMove::null()ではなく、王手がかかっておらず、駒を取る指し手ではなかったなら…。
+			1手前が通常の指し手で、王手がかかっておらず、駒を取る指し手でもなかった場合に更新する。
+			is_ok()はnull moveを含む特殊な指し手を除外する。
 	*/
 
 
@@ -3510,7 +3510,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
     // Step 10. 検証探索を伴うnull move探索
     // -----------------------
 
-    //  🖊 evalがbetaを超えているので1手パスしてもbetaは超えそう。だからnull moveを試す
+    // 静的評価などの条件を満たすcut nodeでは、1手パスしてもbeta以上になるか試す。
     if (cutNode
         && ss->staticEval + 50 * ss->priorNMPFailHigh >= beta - 13 * depth - 47 * improving + 365
         && !excludedMove
@@ -3582,7 +3582,7 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
             // 深い探索では、plyがnmpMinPlyを超えるまでnull move枝刈りを無効化し、検証探索を行う。
             nmpMinPly = ss->ply + 3 * (depth - R) / 4;
 
-            // 📝 nullMoveせずに(現在のnodeと同じ手番で)同じ深さで探索しなおして本当にbetaを超えるか検証する。
+            // null moveせず、現在の局面をdepth - Rで再探索してbeta以上になるか検証する。
             //     cutNodeにしない。
 
             Value v = search<NonPV>(pos, ss, beta - 1, beta, depth - R, false);
