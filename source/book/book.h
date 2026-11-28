@@ -16,6 +16,29 @@
 
 namespace YaneuraOu {
 
+#if !STOCKFISH
+// OptionsMapを参照で使いたい時に使うproxy。(やねうら王独自拡張)
+// 📝 C++ではclass memberの参照型はコンストラクタで初期化(代入)しなければならない。コンストラクタ以外で代入するには、
+//     std::reference_wrapperを用いればいいのだが、これを用いる場合、operator[]がうまく処理できない。
+//     そこで、operator[]を処理できるOptionsMapを用意する。これにより、コンストラクタ以外で代入できる。
+class OptionsMapRef
+{
+public:
+	// 参照のsetter/getter
+	void set_ref(OptionsMap& o) { options = &o; }
+	OptionsMap& get_ref() const { return *options; }
+
+	// -- 以下のmethodはOptionsMapの同名methodに委譲する。
+
+	const Option& operator[](const std::string& option_name) const { return (*options)[option_name]; };
+	void add(const std::string& option_name, const Option& option) { return (*options).add(option_name, option); }
+	bool book_options_v2() const { return (*options).book_options_v2(); }
+
+private:
+	OptionsMap* options = nullptr;
+};
+#endif
+
 struct PackedSfen;
 
 namespace Search {
