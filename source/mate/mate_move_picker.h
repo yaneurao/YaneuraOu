@@ -6,7 +6,7 @@
 #if defined(USE_MATE_SOLVER) || defined(USE_MATE_DFPN)
 
 #include "../position.h"
-#include "../evaluate.h" // CapturePieceValue
+#include "../evaluate.h" // Eval::PieceValue, Eval::material()
 #include "../movegen.h"
 
 namespace YaneuraOu {
