@@ -46,7 +46,7 @@ void DlshogiSearcher::InitGPU(const std::string& model_path, const std::string& 
 	// 必要なスレッド数の算出
 	// ----------------------
 
-	// トータルのスレッド数go
+	// 探索に使うスレッド数の合計
     size_t total_thread_num = std::accumulate(thread_settings.begin(), thread_settings.end(), 0);
 
 	// スレッド数の合計が0はさすがにおかしい。
@@ -60,20 +60,9 @@ void DlshogiSearcher::InitGPU(const std::string& model_path, const std::string& 
 	//    スレッドの確保
 	// ----------------------
 
-	/*
-		📓 確保するスレッド数について
-
-			以前のふかうら王では、探索の終了条件を満たしたかを監視するためのスレッドもThreadPoolから割り当てていたのだが、
-			どのみち監視スレッドはCPU負荷が高くないのでこれをわざわざ探索スレッドかのように扱うのは面倒なのでやめることにした。
-
-			また、dfpnスレッドも、あまり考えても仕方がないかと思った。(どうせ、これがあるとメモリ帯域をかなり食い潰すわけで…)
-
-			あと、GC用のスレッドも探索スレッドから割り当てたのだが、それは良くないアイデアだった。
-			(GC処理が終わらなくて、全探索スレッドの終了を待つコードになっているから、bestmoveが返せないことがあるため。)
-
-
-		💡 やねうら王のThreadPoolクラスは、前回と異なるスレッド数であれば自動的に再確保される。
-	*/ 
+	// 探索用スレッドに終了条件の監視用スレッドを1本加える。
+	// ThreadPool::set()は、前回と同じスレッド数でもスレッドを作り直す。
+	// GC用スレッドは探索スレッドから割り当てない。GCの完了を待つとbestmoveが遅れるため。
 
 	auto worker_factory = [&](Search::SharedState& sharedState,
 								const Search::ThreadIds& ids)
