@@ -273,11 +273,11 @@ namespace YaneuraOu::Eval {
 
 	// EvalSum sum;
 	// に対して
-	// sum.p[0] = ΣBKKP
+	// sum.p[0] = ΣBKPP
 	// sum.p[1] = ΣWKPP
-	// sum.p[2] = ΣKK (or ΣPPなど)
+	// sum.p[2] = ΣKK・ΣKKPなど
 	// (それぞれに手番は加味されているものとする)
-	// sum.sum() == ΣBKPP - ΣWKPP + ΣKK (or ΣPPなど)
+	// sum(c)は、盤面項ΣBKPP - ΣWKPP + ΣKK・ΣKKPなどを手番cの視点に変換し、手番項を加える。
 
 	// EvalSumクラスは、コンストラクタでの初期化が保証できないので(オーバーヘッドがあるのでやりたくないので)
 	// GCC 7.1.0以降で警告が出るのを回避できない。ゆえに、このクラスではこの警告を抑制する。
