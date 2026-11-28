@@ -40,6 +40,9 @@
 #include "../../nnue/network.h"
 #include "../../nnue/nnue_accumulator.h"
 #include "../../position.h"
+#if STOCKFISH
+#include "../../syzygy/tbprobe.h"
+#endif
 #include "../../thread.h"
 #include "../../timeman.h"
 #include "../../tt.h"
