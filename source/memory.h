@@ -81,7 +81,9 @@ void* aligned_large_pages_alloc_with_hint(usize size, bool hugePageHint);
 void* aligned_large_pages_alloc(usize size);
 void  aligned_large_pages_free(void* mem);
 
-// 現環境でlarge pagesが使えるか判定して返す。
+// WindowsではLarge Pagesの試験確保が成功するかを返す。
+// LinuxではMADV_HUGEPAGEが定義されているかを返し、実際の適用は保証しない。
+// それ以外の環境ではfalseを返す。
 bool has_large_pages();
 
 // Frees memory which was placed there with placement new.
