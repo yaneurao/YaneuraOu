@@ -17,7 +17,9 @@
 #include <stack>
 #endif
 
+#if !STOCKFISH
 #include "attacks.h"
+#endif
 #include "bitboard.h"
 #include "history.h"
 #include "misc.h"
