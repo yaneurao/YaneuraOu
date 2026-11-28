@@ -122,8 +122,11 @@ template<Side AssociatedKing> class HalfKA_hm2;
 template<Side AssociatedKing> class HalfKA2;
 template<Side AssociatedKing> class HalfKP;
 template<Side AssociatedKing> class HalfKP_vm;
+template<Side AssociatedKing> class HalfKA1;
+template<Side AssociatedKing> class HalfKA_hm1;
 class K;
 class P;
+class A2;
 }
 
 #if defined(EVAL_SFNN)
@@ -151,11 +154,17 @@ inline constexpr bool kUseHalfKP = std::is_same_v<
 inline constexpr bool kUseHalfKPvm = std::is_same_v<
   RawFeatures, Features::FeatureSet<Features::HalfKP_vm<Features::Side::kFriend>>>;
 inline constexpr bool kUseKP = std::is_same_v<RawFeatures, Features::FeatureSet<Features::K, Features::P>>;
+inline constexpr bool kUseKA2 = std::is_same_v<RawFeatures, Features::FeatureSet<Features::K, Features::A2>>;
+inline constexpr bool kUseHalfKA1 = std::is_same_v<
+  RawFeatures, Features::FeatureSet<Features::HalfKA1<Features::Side::kFriend>>>;
+inline constexpr bool kUseHalfKAHm1 = std::is_same_v<
+  RawFeatures, Features::FeatureSet<Features::HalfKA_hm1<Features::Side::kFriend>>>;
 
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
     // 複数手の直接更新は、自玉基準のHalfKA_hm2とHalfKA2に対応する。
     inline constexpr bool kUseMultiPly = kUseHalfKAHm2 || kUseHalfKA2;
-    inline constexpr bool kUseGenericMultiPly = kUseHalfKP || kUseHalfKPvm || kUseKP;
+    inline constexpr bool kUseGenericMultiPly =
+      kUseHalfKP || kUseHalfKPvm || kUseHalfKA1 || kUseHalfKAHm1 || kUseKP || kUseKA2;
 #else
     inline constexpr bool kUseMultiPly = false;
     inline constexpr bool kUseGenericMultiPly = false;

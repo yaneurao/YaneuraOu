@@ -198,7 +198,7 @@ class FeatureTransformer {
     }
 
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
-    // HalfKP・HalfKP_vmとK+Pは、計算済み祖先までの変更をまとめて反映する。
+    // 対応する特徴量は、計算済み祖先までの変更をまとめて反映する。
     // 玉基準の特徴量では玉の移動で座標系が変わるため、その場合は通常経路に戻る。
     template<bool Packed>
     bool update_generic_from_computed_ancestor(const Position& pos, AccumulatorState* state) const {
@@ -206,7 +206,7 @@ class FeatureTransformer {
         int distance = 0;
         while (ancestor && !accumulator_of(ancestor).computed_accumulation
                && distance < USE_LAZY_EVALUATE) {
-            if (!ancestor->previous || (!kUseKP && ancestor->dirtyPiece.king_moved()))
+            if (!ancestor->previous || (!(kUseKP || kUseKA2) && ancestor->dirtyPiece.king_moved()))
                 return false;
             ++distance;
             ancestor = ancestor->previous;
@@ -214,7 +214,9 @@ class FeatureTransformer {
         if (!ancestor || !accumulator_of(ancestor).computed_accumulation)
             return false;
 
-        std::array<IndexType, 2 * USE_LAZY_EVALUATE> removed[COLOR_NB], added[COLOR_NB];
+        // K+A2は玉が捕獲するとKの1個とA2の2個が変化する。
+        constexpr int maxChangesPerPly = kUseKA2 ? 3 : 2;
+        std::array<IndexType, maxChangesPerPly * USE_LAZY_EVALUATE> removed[COLOR_NB], added[COLOR_NB];
         int removedCount[COLOR_NB]{}, addedCount[COLOR_NB]{};
         for (auto* current = state; current != ancestor; current = current->previous) {
             Features::IndexList stepRemoved[COLOR_NB], stepAdded[COLOR_NB];
