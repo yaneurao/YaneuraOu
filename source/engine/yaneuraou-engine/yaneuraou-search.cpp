@@ -780,7 +780,11 @@ const std::array<int, MAX_MOVES> reductions = [] {
 // （※スケーラー）最適化された持ち時間よりも短い時間設定で調整された
 // すべてのパラメータについては、より長い持ち時間での検証が必要です。
 
+#if STOCKFISH
+int correction_value(const Worker& w, const Position& pos, const Stack* const ss) {
+#else
 int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack* const ss) {
+#endif
     const auto  m      = (ss - 1)->currentMove;
     const auto& shared = w.sharedHistory;
 #if STOCKFISH
@@ -807,13 +811,20 @@ int correction_value(const YaneuraOuWorker& w, const Position& pos, const Stack*
 // correctionHistory の値を raw staticEval に加え、
 // 評価値がテーブルベースの範囲に入らないことを保証する。
 Value to_corrected_static_eval(const Value v, const int cv) {
-	return std::clamp(v + cv / 131072, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
+    return std::clamp(v + cv / 131072, VALUE_TB_LOSS_IN_MAX_PLY + 1, VALUE_TB_WIN_IN_MAX_PLY - 1);
 }
 
+#if STOCKFISH
+void update_correction_history(const Position& pos,
+                               Stack* const    ss,
+                               Search::Worker& workerThread,
+                               const int       bonus) {
+#else
 void update_correction_history(const Position&          pos,
                                Stack* const             ss,
                                Search::YaneuraOuWorker& workerThread,
                                const int                bonus) {
+#endif
     const Move m = (ss - 1)->currentMove;
 
     constexpr int nonPawnWeight = 186;
