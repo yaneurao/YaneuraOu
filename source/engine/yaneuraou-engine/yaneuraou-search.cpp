@@ -2023,13 +2023,15 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
 
             // Publish only ongoing searches here; the final PV is emitted after stop handling.
             // 途中停止時の最終PVは、以下の復元処理が済んでから出力する。
+#if STOCKFISH
+            if (mainThread && !threads.stop && (pvIdx + 1 == multiPV || nodes > NODES_LIMIT_OUTPUT))
+#else
             if (mainThread && !threads.stop
                 && (pvIdx + 1 == multiPV || nodes > NODES_LIMIT_OUTPUT)
-#if !STOCKFISH
                 // PVの出力間隔を超えている。
                 && search_options.lastPvInfoTime + search_options.computed_pv_interval <= now()
-#endif
             )
+#endif
             {
                 main_manager()->output_pv(*this, threads, tt, rootDepth);
 #if !STOCKFISH
