@@ -1678,6 +1678,7 @@ bool Position::legal_pawn_drop(const Color us, const Square to) const
 		|| ((pawnEffect(us, to) == square_bb(square<KING>(~us)) && !legal_drop(to)))); // 打ち歩詰め
 }
 
+#if !STOCKFISH
 // mがpseudo_legalな指し手であるかを判定する。
 // ※　pseudo_legalとは、擬似合法手(自殺手が含まれていて良い)
 // 置換表の指し手でdo_move()して良いのかの事前判定のために使われる。
@@ -1861,13 +1862,9 @@ bool Position::pseudo_legal_s(const Move m) const {
 				// 例) 王■■■^飛
 				// となっているときに■の升か、^飛 のところが移動先であれば王手は回避できている。
 				// (素抜きになる可能性はあるが、そのチェックはここでは不要)
-#if STOCKFISH
-                if (!(between_bb(square<KING>(us), lsb(checkers())) & to))
-#else
                 // 単独王手のbitboardを再利用し、終点の升マスクを表から作り直さない。
                 const Bitboard checker = checkers();
                 if (!((between_exclusive_bb(square<KING>(us), checker.lsb()) | checker) & to))
-#endif
 					return false;
 			}
 
@@ -1878,6 +1875,7 @@ bool Position::pseudo_legal_s(const Move m) const {
 
 	return true;
 }
+#endif
 
 #if STOCKFISH
 bool Position::legal(Move m) const {
@@ -3804,8 +3802,10 @@ bool Position::pos_is_ok() const
 // ----------------------------------
 //         明示的な実体化
 // ----------------------------------
+#if !STOCKFISH
 template bool Position::pseudo_legal_s<false>(const Move m) const;
 template bool Position::pseudo_legal_s< true>(const Move m) const;
+#endif
 
 template void Position::do_move(Move m, bool givesCheck, const TranspositionTable* tt, const SharedHistories* history);
 template void Position::do_move(Move m, bool givesCheck, const void* tt, const SharedHistories* history);
