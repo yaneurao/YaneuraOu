@@ -1159,11 +1159,11 @@ std::string Position::sfen(int gamePly_) const
 
 void Position::update_slider_blockers(Color c) const {
 
-	Square ksq = square<KING>(c);
+    Square ksq = square<KING>(c);
 
 #if STOCKFISH
-    st->blockersForKing[c] = ZERO;
-    st->pinners[~c]        = ZERO;
+    st->blockersForKing[c] = 0;
+    st->pinners[~c]        = 0;
 #else
     // 計算途中の値は他で参照しない。ループ中はレジスターに集計し、最後に一度だけ書き戻す。
     Bitboard blockersForKing(ZERO), pinners(ZERO);
@@ -1174,8 +1174,9 @@ void Position::update_slider_blockers(Color c) const {
     // この候補集合から、他のsnipersを除いた盤面で遮る駒が1個のものを調べる。
 
 #if STOCKFISH
-    Bitboard snipers = (  (attacks_bb(ROOK, ksq) & pieces(QUEEN, ROOK))
-                        | (attacks_bb(BISHOP, ksq) & pieces(QUEEN, BISHOP))) & pieces(~c);
+    Bitboard snipers = ((attacks_bb(ROOK, ksq) & pieces(QUEEN, ROOK))
+                        | (attacks_bb(BISHOP, ksq) & pieces(QUEEN, BISHOP)))
+                     & pieces(~c);
 #else
 
     // cは現在の手番ではなく、遮る駒を調べる対象の玉の色。Stockfishも同じ意味で受け取る。
@@ -1204,10 +1205,11 @@ void Position::update_slider_blockers(Color c) const {
 
     while (snipers)
     {
-        Square   sniperSq = snipers.pop_lsb();
 #if STOCKFISH
+        Square   sniperSq = pop_lsb(snipers);
         Bitboard b        = between_bb(ksq, sniperSq) & occupancy;
 #else
+        Square   sniperSq = snipers.pop_lsb();
         // occupancyから全snipersを除いてあるので、終点sniperSqは必ずANDで消える。
         // Stockfishと同じ結果のまま、終点を追加するORとそのマスクの読み出しを省く。
         Bitboard b        = between_exclusive_bb(ksq, sniperSq) & occupancy;
@@ -1215,7 +1217,7 @@ void Position::update_slider_blockers(Color c) const {
 
         // snipperと玉との間にある駒が1個であるなら。
 #if STOCKFISH
-        if (b && !b.more_than_one())
+        if (b && !more_than_one(b))
 #else
         // bは玉とsniperを結ぶ直線上なので、2領域をmergeしてもbitは重ならない。
         // 非ゼロ判定と複数枚判定を、ちょうど1枚かの判定にまとめて分岐を省く。
