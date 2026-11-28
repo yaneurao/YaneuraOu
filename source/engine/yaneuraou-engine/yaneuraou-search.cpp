@@ -1899,8 +1899,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 // ただし、Fritz 19 などの GUI がフリーズするのを避けるため、
                 // 深さ N ではなく、10M ノードを超えてから出力を始める。
 
-                // 💡 将棋所のコンソールが詰まるのを予防するために出力を少し抑制する。
-                //    また、go infiniteのときは、検討モードから使用しているわけで、PVは必ず出力する。
+                // 将棋版ではPV出力間隔とOutputFailLHPVでも出力を制限する。
+                // go infiniteでは出力間隔を0にするが、他の出力条件は引き続き適用される。
 
                 if (mainThread && multiPV == 1 && (bestValue <= alpha || bestValue >= beta)
                     && nodes > NODES_LIMIT_OUTPUT
