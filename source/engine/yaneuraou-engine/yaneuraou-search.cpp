@@ -1879,8 +1879,8 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
                 // MultiPV探索の場合、すでに探索済みのPVラインは保持される点に注意。
 
                 // 📝 それぞれの指し手に対するスコアリングが終わったので並べ替えおく。
-                //    一つ目の指し手以外は-VALUE_INFINITEが返る仕様なので並べ替えのために安定ソートを
-                //    用いないと前回の反復深化の結果によって得た並び順を変えてしまうことになるのでまずい。
+                //    先頭の手と新しい最善手以外は-VALUE_INFINITEになるため、安定ソートを
+                //    用いないと前回の反復深化で得た並び順を変えてしまう。
 
                 std::stable_sort(rootMoves.begin() + pvIdx, rootMoves.begin() + pvLast);
 
