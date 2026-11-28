@@ -563,15 +563,15 @@ void dbg_clear() {
 // 複数のスレッドが同時に書き込まないよう、std::coutへのアクセスを直列化する。
 std::ostream& operator<<(std::ostream& os, SyncCout sc) {
 
-	static std::mutex m;
+    static std::mutex m;
 
-	if (sc == IO_LOCK)
-		m.lock();
+    if (sc == IO_LOCK)
+        m.lock();
 
-	if (sc == IO_UNLOCK)
-		m.unlock();
+    if (sc == IO_UNLOCK)
+        m.unlock();
 
-	return os;
+    return os;
 }
 
 void sync_cout_start() { std::cout << IO_LOCK; }
