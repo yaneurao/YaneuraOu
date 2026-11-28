@@ -1442,12 +1442,6 @@ Square USIEngine::usi_to_sq(char f, char r) {
 
 // USIプロトコルのマス目文字列をSquare型に変換する。
 // 変換できない文字である場合、SQ_NBを返す。
-Square USIEngine::to_square(const std::string& str) {
-    if (str.size() != 2)
-        return SQ_NB;
-    return usi_to_sq(str[0], str[1]);
-}
-
 #endif
 
 void USIEngine::on_update_no_moves(const Engine::InfoShort& info) {
