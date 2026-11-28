@@ -639,13 +639,6 @@ class Position {
 	// null move用のundo_move()
 	void undo_null_move();
 
-	// --- Evaluation
-
-#if !STOCKFISH
-
-
-#endif
-
     // Static Exchange Evaluation
     // 静的交換評価。
 	// 指し手mのsee(Static Exchange Evaluation : 静的取り合い評価)において
