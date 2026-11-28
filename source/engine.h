@@ -72,7 +72,8 @@ public:
 			この部分を変更することによって、生成するWorker派生classを変更することができる。
 
 		set_tt_size()
-			options["USI_Hash"]などの置換表サイズに対して、それが変更された時に呼び出されるhandler。
+			options["USI_Hash"]などの置換表サイズを反映するためのhandler。
+			呼び出すタイミングはエンジンによる。やねうら王探索ではisready時に反映する。
 			置換表的なものを使用するときは、これをoverrideすると便利。
 
 		isready()
@@ -164,7 +165,8 @@ public:
     //     USER_ENGINEの実装はengine/user-engine/user-search.cppにある。
     virtual void resize_threads() = 0;
 
-	// options["USI_Hash"]などの置換表サイズに対して、それが変更された時に呼び出されるhandler。
+	// options["USI_Hash"]などの置換表サイズを反映するhandler。
+	// 呼び出すタイミングはエンジンによる。やねうら王探索ではisready時に反映する。
     // 置換表的なものを使用するときは、これをoverrideすると便利。
 	virtual void set_tt_size(usize mb) = 0;
 
