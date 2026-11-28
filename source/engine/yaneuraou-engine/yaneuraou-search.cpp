@@ -3511,7 +3511,11 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         && beta >= -2000
     )
     {
+#if STOCKFISH
+        assert((ss - 1)->currentMove != Move::null());
+#else
         ASSERT_LV3((ss - 1)->currentMove != Move::null());
+#endif
 
         // Null move dynamic reduction based on depth
         // Odd threads reduce one ply less
@@ -3623,7 +3627,11 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         // 置換表から得た値が probCutBeta より低い場合は、そこで probCut を試みない
         && !(is_valid(ttData.value) && ttData.value < probCutBeta))
     {
+#if STOCKFISH
+        assert(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
+#else
         ASSERT_LV3(probCutBeta < VALUE_INFINITE && probCutBeta > beta);
+#endif
 
 #if STOCKFISH
         MovePicker mp(pos, ttData.move, probCutBeta - ss->staticEval, &captureHistory);
@@ -4534,8 +4542,12 @@ moves_loop:  // When in check, search starts here
     // Step 23. 詰み・ステイルメイトを確認し、それ以外は最善手と履歴の統計を更新する
     // -----------------------
 
+#if STOCKFISH
+    assert(moveCount || !ss->inCheck || excludedMove || !MoveList<ALL>(pos).size());
+#else
 	// このStockfishのassert、合法手を生成しているので重すぎる。良くない。
     ASSERT_LV5(moveCount || !ss->inCheck || excludedMove || !MoveList<LEGAL_ALL>(pos).size());
+#endif
 
     // Adjust best value for fail high cases
     // fail highの場合に最良値を調整する
