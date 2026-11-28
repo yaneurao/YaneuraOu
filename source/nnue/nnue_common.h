@@ -196,7 +196,8 @@ inline constexpr usize Leb128MagicStringSize = sizeof(Leb128MagicString) - 1;
 template<typename IntType>
 inline void read_leb_128(std::istream& stream, IntType* out, usize count) {
     // Check the presence of our LEB128 magic string
-    // LEB128圧縮データの識別文字列を確認する。
+    // LEB128圧縮データの識別文字列を読み、assert有効時に一致を確認する。
+    // NDEBUGを定義したビルドでは、この一致確認は行われない。
     char leb128MagicString[Leb128MagicStringSize];
     stream.read(leb128MagicString, Leb128MagicStringSize);
     assert(std::strncmp(Leb128MagicString, leb128MagicString, Leb128MagicStringSize) == 0);
