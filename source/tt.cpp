@@ -234,7 +234,7 @@ void TTWriter::write(
         auto v16 = entry.value16;
 
         // Guard against racy underflows, default to "unoccupied"
-        // 競合によるアンダーフローを防ぎ、0以下なら未使用として扱う。
+        // 競合によるアンダーフローを防ぐため0で打ち切り、0なら未使用として扱う。
         if (std::abs(v16) < VALUE_INFINITE && is_decisive(v16))
             entry.depth8 = std::max(int(entry.depth8) - 1, 0);
     }
@@ -266,7 +266,7 @@ TTWriter::TTWriter(Cluster* cl, int idx) :
 void TTWriter::penalize(int penalty) {
     auto& entry = cluster->entry[index];
     // Guard against racy underflows, default to "unoccupied"
-    // 競合によるアンダーフローを防ぎ、0以下なら未使用として扱う。
+    // 競合によるアンダーフローを防ぐため0で打ち切り、0なら未使用として扱う。
     entry.depth8 = std::max(int(entry.depth8) - penalty, 0);
 }
 
@@ -339,7 +339,7 @@ void TranspositionTable::resize(usize mbSize, ThreadPool& threads, bool force) {
     }
 
 #if STOCKFISH
-	clear(threads);
+    clear(threads);
 
 	// Stockfishではサイズ変更時にクリアする。別途search_clear()が呼ばれた場合もクリアされる。
 #endif
@@ -357,10 +357,10 @@ void TranspositionTable::clear(ThreadPool& threads) {
 #endif
 #endif
 
-	generation8 = 0;
+    generation8 = 0;
 
 #if STOCKFISH
-	const usize threadCount = threads.num_threads();
+    const usize threadCount = threads.num_threads();
 
     std::vector<usize> threadToNuma = threads.get_bound_thread_to_numa_node();
 
