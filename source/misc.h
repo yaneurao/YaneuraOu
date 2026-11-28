@@ -190,8 +190,8 @@ i64  dbg_stdev_of(i64 value, int slot = 0);
 i64  dbg_extremes_of(i64 value, int slot = 0);
 void dbg_correl_of(i64 value1, i64 value2, int slot = 0);
 
-// 探索部から1秒おきにdbg_print()が呼び出されるものとする。
-// このとき、記録した統計情報をcerrに出力する。
+// 記録した統計情報をcerrに出力する。
+// やねうら王探索中は約1秒ごと、benchでは終了時にも呼び出される。
 void dbg_print();
 void dbg_clear();
 
