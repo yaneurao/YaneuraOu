@@ -237,6 +237,11 @@ void Position::init() {
 
 namespace {
 #if STOCKFISH
+constexpr std::string_view PieceToChar(" PNBRQK  pnbrqk");
+
+static constexpr Piece Pieces[] = {W_PAWN, W_KNIGHT, W_BISHOP, W_ROOK, W_QUEEN, W_KING,
+                                   B_PAWN, B_KNIGHT, B_BISHOP, B_ROOK, B_QUEEN, B_KING};
+
 // Pack pieces into nibbles: lower half of the board to even nibbles, upper half to odd nibbles
 // 盤面の前半と後半の駒を、それぞれ偶数番目と奇数番目の4ビットに格納する。
 inline std::array<u8, 32> pack_pieces(const std::array<Piece, SQUARE_NB>& arr) {
@@ -1409,6 +1414,46 @@ void Position::update_kingSquare()
 //           Positionの表示
 // ----------------------------------
 
+#if STOCKFISH
+// Returns an ASCII representation of the position
+// 局面をASCII形式で出力する。
+std::ostream& operator<<(std::ostream& os, const Position& pos) {
+
+    os << "\n +---+---+---+---+---+---+---+---+\n";
+
+    for (Rank r = RANK_8;; --r)
+    {
+        for (File f = FILE_A; f <= FILE_H; ++f)
+            os << " | " << PieceToChar[pos.piece_on(make_square(f, r))];
+
+        os << " | " << (1 + r) << "\n +---+---+---+---+---+---+---+---+\n";
+
+        if (r == RANK_1)
+            break;
+    }
+
+    os << "   a   b   c   d   e   f   g   h\n"
+       << "\nFen: " << pos.fen() << "\nKey: " << std::hex << std::uppercase << std::setfill('0')
+       << std::setw(16) << pos.key() << std::setfill(' ') << std::dec << "\nCheckers: ";
+
+    for (Bitboard b = pos.checkers(); b;)
+        os << UCIEngine::square(pop_lsb(b)) << " ";
+
+    if (Tablebases::MaxCardinality >= popcount(pos.pieces()) && !pos.can_castle(ANY_CASTLING))
+    {
+        std::unique_ptr<Position> p = std::make_unique<Position>();
+        p->set(pos.fen(), pos.is_chess960());
+        Tablebases::ProbeState s1, s2;
+        Tablebases::WDLScore   wdl = Tablebases::probe_wdl(*p, &s1);
+        int                    dtz = Tablebases::probe_dtz(*p, &s2);
+        os << "\nTablebases WDL: " << std::setw(4) << wdl << " (" << s1 << ")"
+           << "\nTablebases DTZ: " << std::setw(4) << dtz << " (" << s2 << ")";
+    }
+
+    return os;
+}
+
+#else
 // 盤面を出力する。(USI形式ではない) デバッグ用。
 std::ostream& operator<<(std::ostream& os, const Position& pos)
 {
@@ -1436,6 +1481,8 @@ std::ostream& operator<<(std::ostream& os, const Position& pos)
 
 	return os;
 }
+
+#endif
 
 #if defined (KEEP_LAST_MOVE)
 
