@@ -33,27 +33,8 @@ namespace SystemIO
 	// 引数で渡されるlinesは空であるを期待しているが、空でない場合は、そこに追加されていく。
 	Tools::Result ReadAllLines(const fs::path& filename, std::vector<std::string>& lines, bool trim)
 	{
-#if 0
-		std::ifstream fs(filename);
-		if (fs.fail())
-			return 1; // 読み込み失敗
 
-		while (!fs.fail() && !fs.eof())
-		{
-			std::string line;
-			Dependency::getline(fs, line);
-			if (trim)
-				line = StringExtension::trim(line);
-			if (line.length())
-				lines.push_back(line);
-		}
-		fs.close();
-
-		return 0;
-#endif
-
-		// →　100MB程度のテキストファイルの読み込みにSurface Pro 6(Core i7モデル)で4秒程度かかる。
-		// ifstreamを使わない形で書き直す。これで4倍ぐらい速くなる。
+		// 旧ifstream版より高速なTextReaderを使う。
 
 		TextReader reader;
 
