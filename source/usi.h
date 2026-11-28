@@ -92,9 +92,9 @@ public:
 	// string全体を小文字化して返す。
     static std::string to_lower(std::string str);
 
-    // USIの指し手文字列をMove型の変換する。
-    // 合法手でなければMove::noneを返すようになっている。
-    // 💡 合法でない指し手の場合、エラーである旨を出力する。
+	// USIの指し手文字列をMove型に変換する。
+    // resign、win、null moveの表記も受け付ける。
+    // それ以外で合法手に変換できない場合はエラーを出力し、Move::none()を返す。
     static Move to_move(const Position& pos, std::string str);
 
 #if !STOCKFISH
