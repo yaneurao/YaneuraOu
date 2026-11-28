@@ -924,11 +924,14 @@ void USIEngine::benchmark(std::istream& args) {
         if (token == "go")
         {
             // One new line is produced by the search, so omit it here
+            // 探索側で改行を出力するため、ここでは改行しない。
             std::cerr << "\rWarmup position " << cnt++ << '/' << NUM_WARMUP_POSITIONS;
 
             Search::LimitsType limits = parse_limits(is);
 
             // Run with silenced network verification
+            // Stockfishではネットワーク検証の出力を抑えて実行する。
+            // やねうら王のEngine::go()はネットワーク検証を呼ばない。
             engine.go(limits);
             engine.wait_for_search_finished();
         }
@@ -995,6 +998,7 @@ void USIEngine::benchmark(std::istream& args) {
         if (token == "go")
         {
             // One new line is produced by the search, so omit it here
+            // 探索側で改行を出力するため、ここでは改行しない。
             std::cerr << "\rPosition " << cnt++ << '/' << numGoCommands;
 
             Search::LimitsType limits = parse_limits(is);
@@ -1006,6 +1010,8 @@ void USIEngine::benchmark(std::istream& args) {
 #endif
 
             // Run with silenced network verification
+            // Stockfishではネットワーク検証の出力を抑えて実行する。
+            // やねうら王のEngine::go()はネットワーク検証を呼ばない。
             engine.go(limits);
             engine.wait_for_search_finished();
 
