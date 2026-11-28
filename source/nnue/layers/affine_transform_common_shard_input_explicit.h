@@ -22,6 +22,7 @@ namespace YaneuraOu::Eval::NNUE::Layers {
 // commonと対応するshardだけを各出力が参照する、入力次元を明示したAffine層。
 // nn.binは通常のSFNN fc_0と同じbias・行優先の重み配置で、little-endianで読み書きする。
 // 読み込み時には、各出力が使うcommonと対応するshardの重みだけをメモリに保持する。
+// 書き出し時には、保持していない他のshardとパディングの重みは0になる。
 template <IndexType InDims,
           IndexType OutDims,
           IndexType CommonDimensions,
