@@ -162,10 +162,11 @@ Option::Option(const std::vector<std::string>& list, const std::string& cur, OnC
 
 #if STOCKFISH
 Option::operator int() const {
+    assert(type == "check" || type == "spin");
 #else
 Option::operator i64() const {
-#endif
 	ASSERT_LV1(type == "check" || type == "spin");
+#endif
 #if STOCKFISH
 	return (type == "spin" ? std::stoi(currentValue) : currentValue == "true");
 #else
@@ -183,7 +184,11 @@ Option::operator std::string() const {
 }
 
 bool Option::operator==(const char* s) const {
+#if STOCKFISH
+    assert(type == "combo");
+#else
 	ASSERT_LV1(type == "combo");
+#endif
     return !CaseInsensitiveLess()(currentValue, s) && !CaseInsensitiveLess()(s, currentValue);
 }
 
