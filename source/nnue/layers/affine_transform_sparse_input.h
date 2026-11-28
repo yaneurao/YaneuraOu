@@ -12,10 +12,10 @@
 
 #if (defined(EVAL_NNUE) || defined(EVAL_SFNN))
 
-#include "../nnue_common.h"
-#include "affine_transform.h"
 #include "../simd.h"
+#include "../nnue_common.h"
 #include "../nnz_helper.h"
+#include "affine_transform.h"
 
 namespace YaneuraOu::Eval::NNUE::Layers {
 
