@@ -38,36 +38,36 @@ constexpr auto StartFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 
 // このclassがEngineを内包していて、USIメッセージのハンドラを処理して
 // 内包しているEngineに対して司令を送る。
 class USIEngine {
-public:
+   public:
 
 #if STOCKFISH
-	// 📝 やねうら王では、CommandLine::gを見れば良いので、argc,argvは引数として渡さないことにした。
-	//     また、ここでやっている初期化は不要になったのでコンストラクタ自体を削除。
-	USIEngine(CommandLine cli);
+    // 📝 やねうら王では、CommandLine::gを見れば良いので、argc,argvは引数として渡さないことにした。
+    //     また、ここでやっている初期化は不要になったのでコンストラクタ自体を削除。
+    USIEngine(CommandLine cli);
 #else
-	 // USIEngine classから使うEngine。
-	 // 📌 やねうら王独自。エンジンの実装を変更できるように、
-	 //     IEngine(エンジン interface)を渡し、エンジンを動的に切り替えたり、
-	 //     複数の異なるエンジンから成るUSIEngineを同時に使うことができるようにする。
-	 void set_engine(IEngine& _engine);
+     // USIEngine classから使うEngine。
+     // 📌 やねうら王独自。エンジンの実装を変更できるように、
+     //     IEngine(エンジン interface)を渡し、エンジンを動的に切り替えたり、
+     //     複数の異なるエンジンから成るUSIEngineを同時に使うことができるようにする。
+     void set_engine(IEngine& _engine);
 #endif
 
-	// main threadをUSIメッセージの受信のために待機させる。
-	// "quit"コマンドが送られてくるまでこのループは抜けない。
-	// 📝 wasmではブラウザのメインスレッドをブロックできないため、この関数は何もしない。
-	//     代わりにwasm_pre.jsからusi_command()経由でexec_command_from_js()が呼び出される。
-	void loop();
+    // main threadをUSIメッセージの受信のために待機させる。
+    // "quit"コマンドが送られてくるまでこのループは抜けない。
+    // 📝 wasmではブラウザのメインスレッドをブロックできないため、この関数は何もしない。
+    //     代わりにwasm_pre.jsからusi_command()経由でexec_command_from_js()が呼び出される。
+    void loop();
 
-	// --------------------
-	// USI関係の記法変換部
-	// --------------------
+    // --------------------
+    // USI関係の記法変換部
+    // --------------------
 
-	// 詰みやそれに類似した特別なスコアの処理なしに、Valueを整数のセントポーン数に変換する。
+    // 詰みやそれに類似した特別なスコアの処理なしに、Valueを整数のセントポーン数に変換する。
 #if STOCKFISH
-	static int         to_cp(Value v, const Position& pos);
+    static int         to_cp(Value v, const Position& pos);
     // 📝 やねうら王では、Position&は不要。
 #else
-	static int   to_cp(Value v);
+    static int   to_cp(Value v);
 #endif
 
     // USIプロトコルで用いるscoreにScore構造体の内容を変換する。
@@ -96,18 +96,18 @@ public:
     static std::string to_lower(std::string str);
 #endif
 
-	// USIの指し手文字列をMove型に変換する。
+    // USIの指し手文字列をMove型に変換する。
     // resign、win、null moveの表記も受け付ける。
     // それ以外で合法手に変換できない場合はエラーを出力し、Move::none()を返す。
     static Move to_move(const Position& pos, std::string str);
 
 #if !STOCKFISH
-	// USI形式から指し手への変換。本来この関数は要らないのだが、
+    // USI形式から指し手への変換。本来この関数は要らないのだが、
     // 棋譜を大量に読み込む都合、この部分をそこそこ高速化しておきたい。
     static Move16 to_move16(const std::string& str);
 #endif
 
-	// "go"の後続文字列を解析して、それを反映させたSearch::LimitsTypeを返す。
+    // "go"の後続文字列を解析して、それを反映させたSearch::LimitsTypeを返す。
     Search::LimitsType parse_limits(std::istream& is);
 
     // エンジンオプション設定を取得する
@@ -118,8 +118,8 @@ public:
     // 🌈 やねうら王独自 🌈
     // --------------------
 
-	// cpからValueへ。to_cpの逆変換。
-	static Value cp_to_value(int v);
+    // cpからValueへ。to_cpの逆変換。
+    static Value cp_to_value(int v);
 
     // Move16をUSIプロトコルで使う文字列に変換する。
     static std::string move(Move16 m);
@@ -137,15 +137,15 @@ public:
     // 単一エンジン起動用に、コマンドラインとstartup.txtのUSIコマンドをコマンドキューに積む。
     void enqueue_startup_commands(const CommandLine& cli);
 
-	// このclassのUnitTest。
-	static void UnitTest(Test::UnitTester& tester, IEngine& engine);
+    // このclassのUnitTest。
+    static void UnitTest(Test::UnitTester& tester, IEngine& engine);
 
 #if defined(__EMSCRIPTEN__)
-	// yaneuraou.wasm : JS側から渡されたUSIコマンドを1つ実行する。
-	// 戻り値はそのままwasm_pre.jsに返る。
-	//   0 : 受理した。
-	//   1 : まだ実行できない。あとで再送してもらう。
-	int exec_command_from_js(const std::string& cmd);
+    // yaneuraou.wasm : JS側から渡されたUSIコマンドを1つ実行する。
+    // 戻り値はそのままwasm_pre.jsに返る。
+    //   0 : 受理した。
+    //   1 : まだ実行できない。あとで再送してもらう。
+    int exec_command_from_js(const std::string& cmd);
 #endif
 #endif
 
