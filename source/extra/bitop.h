@@ -12,20 +12,17 @@
 #include <intrin.h> // __popcnt, __popcnt64
 #endif
 
-// ターゲット環境でSSE,AVX,AVX2が搭載されていない場合はこれらの命令をsoftware emulationにより実行する。
-// software emulationなので多少遅いが、SSE2,SSE4.1,SSE4.2,AVX,AVX2,AVX-512の使えない環境でそれに合わせたコードを書く労力が省ける。
+// 一部のビット操作には、対応するCPU命令を使えない環境向けのソフトウェア実装がある。
 
 // ----------------------------
 //   include intrinsic header
 // ----------------------------
 
-#if defined(USE_AVX512)
-// immintrin.h から AVX512 関連の intrinsic は読み込まれる
+#if defined(USE_AVX512) || defined(USE_AVX2)
+// immintrin.hからAVX2・AVX512関連のintrinsicを読み込む。
 // intel: https://software.intel.com/sites/landingpage/IntrinsicsGuide/#techs=AVX_512
 // gcc: https://github.com/gcc-mirror/gcc/blob/master/gcc/config/i386/immintrin.h
 // clang: https://github.com/llvm-mirror/clang/blob/master/lib/Headers/immintrin.h
-#include <immintrin.h>
-#elif defined(USE_AVX2)
 #include <immintrin.h>
 #elif defined(USE_SSE42)
 #include <nmmintrin.h>
