@@ -59,28 +59,28 @@ void OptionsMap::setoption(std::istringstream& is) {
 // あるoption名に対応するOptionオブジェクトを取得する。
 // これはread onlyで、設定はここからしてはならない。
 const Option& OptionsMap::operator[](const std::string& name) const {
-	auto it = options_map.find(name);
+    auto it = options_map.find(name);
 #if STOCKFISH
-	assert(it != options_map.end());
+    assert(it != options_map.end());
 #else
-	if (it == options_map.end())
-	{
-		// Optionを生やす前に参照したのだと思うので、エラーメッセージを出力して終了する。
-		sync_cout << "Error : Options[" << name << "] , not found." << sync_endl;
-		Tools::exit();
-	}
+    if (it == options_map.end())
+    {
+        // Optionを生やす前に参照したのだと思うので、エラーメッセージを出力して終了する。
+        sync_cout << "Error : Options[" << name << "] , not found." << sync_endl;
+        Tools::exit();
+    }
 #endif
 
-	return it->second;
+    return it->second;
 }
 
 // Inits options and assigns idx in the correct printing order
 // オプションを初期化し、正しい表示順になるように idx を割り当てます
 
 void OptionsMap::add(const std::string& name, const Option& option) {
-	if (!options_map.count(name))
-	{
-		// 未追加なので追加してやる。
+    if (!options_map.count(name))
+    {
+        // 未追加なので追加してやる。
 
 #if STOCKFISH
         static usize insert_order = 0;
@@ -89,74 +89,74 @@ void OptionsMap::add(const std::string& name, const Option& option) {
         usize insert_order = options_map.size();
 #endif
 
-		options_map[name] = option;
+        options_map[name] = option;
 
-		options_map[name].parent = this;
-		options_map[name].idx = insert_order++;
-	}
-	else
-	{
-		// すでに追加されていたのでabort。
+        options_map[name].parent = this;
+        options_map[name].idx    = insert_order++;
+    }
+    else
+    {
+        // すでに追加されていたのでabort。
 
-		std::cerr << "Option \"" << name << "\" was already added!" << std::endl;
-		std::exit(EXIT_FAILURE);
-	}
+        std::cerr << "Option \"" << name << "\" was already added!" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
 }
 
 // 保持しているOptionのなかで、このoption_nameを持つものの数。
 usize OptionsMap::count(const std::string& name) const { return options_map.count(name); }
 
 Option::Option(const char* v, OnChange f) :
-	type("string"),
-	on_change(std::move(f)) {
-	defaultValue = currentValue = v;
+    type("string"),
+    on_change(std::move(f)) {
+    defaultValue = currentValue = v;
 }
 
 Option::Option(bool v, OnChange f) :
-	type("check"),
-	on_change(std::move(f)) {
-	defaultValue = currentValue = (v ? "true" : "false");
+    type("check"),
+    on_change(std::move(f)) {
+    defaultValue = currentValue = (v ? "true" : "false");
 }
 
 Option::Option(OnChange f) :
-	type("button"),
-	on_change(std::move(f)) {}
+    type("button"),
+    on_change(std::move(f)) {}
 
 #if STOCKFISH
 Option::Option(int v, int minv, int maxv, OnChange f) :
 #else
 Option::Option(i64 v, i64 minv, i64 maxv, OnChange f) :
 #endif
-	type("spin"),
-	min(minv),
-	max(maxv),
-	on_change(std::move(f)) {
-	defaultValue = currentValue = std::to_string(v);
+    type("spin"),
+    min(minv),
+    max(maxv),
+    on_change(std::move(f)) {
+    defaultValue = currentValue = std::to_string(v);
 }
 
 #if STOCKFISH
 
 Option::Option(const char* v, const char* cur, OnChange f) :
-	type("combo"),
-	on_change(std::move(f)) {
-	defaultValue = v;
-	currentValue = cur;
+    type("combo"),
+    on_change(std::move(f)) {
+    defaultValue = v;
+    currentValue = cur;
 }
 #else
 
 // 🤔 Stockfishのcombo optionの設定、すごく使いにくいので定義しなおす。
 Option::Option(const std::vector<std::string>& list, const std::string& cur, OnChange f) :
-	type("combo"),
-	on_change(std::move(f)) {
+    type("combo"),
+    on_change(std::move(f)) {
 
-	// 単純なスペース区切りではなく、combo形式でdefaultValueを構築する。
-	//    {"A","B","C"}なるstd::vector<string>とcur = "B"から
-	//    "B var A var B var C"のような文字列を構築してdefaultValueに入れる必要がある。
+    // 単純なスペース区切りではなく、combo形式でdefaultValueを構築する。
+    //    {"A","B","C"}なるstd::vector<string>とcur = "B"から
+    //    "B var A var B var C"のような文字列を構築してdefaultValueに入れる必要がある。
     std::string s = cur;
     for (const auto& l : list)
         s += " var " + l;
     defaultValue = s;
-	currentValue = cur;
+    currentValue = cur;
 }
 #endif
 
@@ -165,12 +165,12 @@ Option::operator int() const {
     assert(type == "check" || type == "spin");
 #else
 Option::operator i64() const {
-	ASSERT_LV1(type == "check" || type == "spin");
+    ASSERT_LV1(type == "check" || type == "spin");
 #endif
 #if STOCKFISH
-	return (type == "spin" ? std::stoi(currentValue) : currentValue == "true");
+    return (type == "spin" ? std::stoi(currentValue) : currentValue == "true");
 #else
-	return (type == "spin" ? std::stoll(currentValue) : currentValue == "true");
+    return (type == "spin" ? std::stoll(currentValue) : currentValue == "true");
 #endif
 }
 
@@ -178,9 +178,9 @@ Option::operator std::string() const {
 #if STOCKFISH
     assert(type == "string");
 #else
-	ASSERT_LV1(type == "string" || type == "combo");
+    ASSERT_LV1(type == "string" || type == "combo");
 #endif
-	return currentValue;
+    return currentValue;
 }
 
 bool Option::operator==(const char* s) const {
