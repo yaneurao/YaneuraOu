@@ -1490,6 +1490,57 @@ inline Bitboard Position::attackers_to_pawn(Color c, Square pawn_sq) const
 // Tests whether a legal move gives a check
 // 合法手が敵玉への王手になるかを判定する。
 
+#if STOCKFISH
+bool Position::gives_check(Move m) const {
+
+    assert(m.is_ok());
+    assert(color_of(moved_piece(m)) == sideToMove);
+
+    Square from = m.from_sq();
+    Square to   = m.to_sq();
+
+    // Is there a direct check?
+    // 直接王手になるか。
+    if (check_squares(type_of(piece_on(from))) & to)
+        return true;
+
+    // Is there a discovered check?
+    // 開き王手になるか。
+    if (blockers_for_king(~sideToMove) & from)
+        return !(line_bb(from, to) & pieces(~sideToMove, KING)) || m.type_of() == CASTLING;
+
+    switch (m.type_of())
+    {
+    case NORMAL :
+        return false;
+
+    case PROMOTION :
+        return attacks_bb(m.promotion_type(), to, pieces() ^ from) & pieces(~sideToMove, KING);
+
+    // En passant capture with check? We have already handled the case of direct
+    // checks and ordinary discovered check, so the only case we need to handle
+    // is the unusual case of a discovered check through the captured pawn.
+    // 直接王手と通常の開き王手は判定済みなので、取られたポーン越しの開き王手だけを調べる。
+    case EN_PASSANT : {
+        Square   capsq                          = make_square(file_of(to), rank_of(from));
+        Bitboard b                              = (pieces() ^ from ^ capsq) | to;
+        const auto [bishopAttacks, rookAttacks] = both_attacks_bb(square<KING>(~sideToMove), b);
+
+        return (rookAttacks & pieces(sideToMove, QUEEN, ROOK))
+             | (bishopAttacks & pieces(sideToMove, QUEEN, BISHOP));
+    }
+    default :  //CASTLING
+    {
+        // Castling is encoded as 'king captures the rook'
+        // キャスリングはキングがルークを取る指し手として表現する。
+        Square rto = relative_square(sideToMove, to > from ? SQ_F1 : SQ_D1);
+
+        return check_squares(ROOK) & rto;
+    }
+    }
+}
+
+#else
 bool Position::gives_check(Move m) const
 {
 	// 指し手がおかしくないか
@@ -1514,6 +1565,8 @@ bool Position::gives_check(Move m) const
 		&& (((blockers_for_king(~sideToMove) /*& pieces(sideToMove)*/) & from)
 		&&  !aligned(from, to, square<KING>(~sideToMove)));
 }
+
+#endif
 
 // 現局面に合法手がないかを判定する。指し手生成を伴うため、通常の探索では使わず、
 // 最大手数超過時の詰み判定など、限られた経路で呼び出す。
