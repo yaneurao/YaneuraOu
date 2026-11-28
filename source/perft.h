@@ -42,7 +42,7 @@ u64 perft(Position& pos, Depth depth) {
         }
         if (Root)
 #if STOCKFISH
-            sync_cout << USIEngine::move(m, pos.is_chess960()) << ": " << cnt << sync_endl;
+            sync_cout << UCIEngine::move(m, pos.is_chess960()) << ": " << cnt << sync_endl;
 #else
             sync_cout << USIEngine::move(m) << ": " << cnt << sync_endl;
 #endif
