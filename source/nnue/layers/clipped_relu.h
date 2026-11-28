@@ -132,6 +132,8 @@ static inline void clipped_relu(const i32* input, u8* output) {
     }
   }
 
+// StockfishはWeightScaleBitsLocalをテンプレート引数で指定できるが、
+// やねうら王では共通のWeightScaleBitsを使う。
 #if defined(EVAL_SFNN)
 // Clipped ReLU
 // 入力次元を直接指定するSFNN用のレイヤー。既存のSIMD経路とパディングを維持する。

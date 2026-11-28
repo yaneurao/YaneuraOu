@@ -17,7 +17,9 @@
 
 namespace YaneuraOu::Eval::NNUE::Layers {
 
-	// SqrClippedReLUレイヤー
+	// SqrClippedReLUレイヤー。
+	// StockfishはWeightScaleBitsLocalをテンプレート引数で指定できるが、
+	// やねうら王では共通のWeightScaleBitsを使う。
 	template<IndexType InDims>
 	class SqrClippedReLU {
 	public:
