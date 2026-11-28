@@ -4632,7 +4632,7 @@ moves_loop:  // When in check, search starts here
     // If no good move is found and the previous position was ttPv, then the previous
     // opponent move is probably good and the new position is added to the search tree.
 
-	// もし良い指し手が見つからず(bestValueがalphaを更新せず)、前の局面はttPvを選んでいた場合は、
+	// bestValueが現在のalpha以下で、前の局面がttPvだった場合は、
     // 前の相手の手がおそらく良い手であり、新しい局面が探索木に追加される。
     // (ttPvをtrueに変更してTTEntryに保存する)
 
@@ -4649,19 +4649,9 @@ moves_loop:  // When in check, search starts here
     // 静的評価はcorrection historyで補正する前の値を保存する。
 
 	/*
-		📓 betaを超えているということはbeta cutされるわけで残りの指し手を調べていないから
-			真の値はまだ大きいと考えられる。
-
-			すなわち、このとき値は下界と考えられるから、BOUND_LOWER。
-			さもなくば、(PvNodeなら)枝刈りはしていないので、
-			これが正確な値であるはずだから、BOUND_EXACTを返す。
-
-			また、PvNodeでないなら、枝刈りをしているので、これは正確な値ではないから、
-			BOUND_UPPERという扱いにする。
-
-			ただし、指し手がない場合は、詰まされているスコアなので、これより短い/長い手順の
-			詰みがあるかも知れないから、すなわち、スコアは変動するかも知れないので、
-			BOUND_UPPERという扱いをする。
+		📓 beta以上なら下界としてBOUND_LOWERを保存する。
+			それ以外では、PV nodeでbestMoveがある場合にBOUND_EXACT、
+			それ以外の場合にBOUND_UPPERを保存する。
 	*/
 
     if (!excludedMove && !(rootNode && pvIdx))
