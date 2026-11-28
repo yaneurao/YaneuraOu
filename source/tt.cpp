@@ -86,12 +86,15 @@ namespace YaneuraOu {
 // TTEntryでは、この3つを合わせた値をgenBound8に格納する。
 //
 
-static constexpr u8 GENERATION_BITS = 5;                            // genBound8のうち、generationに使うbit数。
-static constexpr u8 GENERATION_MASK = (1 << GENERATION_BITS) - 1;   // genBound8からgenerationだけを取り出すためのマスク。
-static constexpr u8 BOUND_SHIFT     = GENERATION_BITS;              // Boundを格納するbit位置。generationの直後に置く。
-static constexpr u8 BOUND_MASK      = 0b11 << BOUND_SHIFT;          // genBound8からBoundの2bitだけを取り出すためのマスク。
-static constexpr u8 PV_SHIFT        = BOUND_SHIFT + 2;              // PV nodeフラグを格納するbit位置。Boundの直後に置く。
-static constexpr u8 PV_MASK         = 1 << PV_SHIFT;                // genBound8からPV nodeフラグだけを取り出すためのマスク。
+// genBound8のうちgenerationに使うbit数と、その値を取り出すマスク。
+static constexpr u8 GENERATION_BITS = 5;
+static constexpr u8 GENERATION_MASK = (1 << GENERATION_BITS) - 1;
+// Boundを格納するbit位置と、その2bitを取り出すマスク。
+static constexpr u8 BOUND_SHIFT     = GENERATION_BITS;
+static constexpr u8 BOUND_MASK      = 0b11 << BOUND_SHIFT;
+// PV nodeフラグを格納するbit位置と、その値を取り出すマスク。
+static constexpr u8 PV_SHIFT        = BOUND_SHIFT + 2;
+static constexpr u8 PV_MASK         = 1 << PV_SHIFT;
 
 struct TTEntry {
 
