@@ -126,8 +126,8 @@ Tools::Result Parameters::read_parameters(std::istream& stream) {
 i64 Parameters::sum_q16(const Position& pos, AccumulatorState* state) const {
     if (state && state->progressParameters == this)
         return state->progressSum;
-	const auto sq_bk = pos.square<KING>(BLACK);
-	const auto sq_wk = Inv(pos.square<KING>(WHITE));
+    const auto sq_bk = pos.square<KING>(BLACK);
+    const auto sq_wk = Inv(pos.square<KING>(WHITE));
 
     i64 sum_q16 = 0;
     // 同じ玉位置の計算済み祖先があれば、変更された特徴量だけで進行度を更新する。
