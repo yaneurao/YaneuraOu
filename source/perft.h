@@ -26,7 +26,7 @@ template<bool Root>
 u64 perft(Position& pos, Depth depth) {
 
 
-    u64   cnt, nodes = 0;
+    u64        cnt, nodes = 0;
     const bool leaf = (depth == 2);
 
     for (const auto& m : MoveList<LEGAL_ALL>(pos))
@@ -42,9 +42,9 @@ u64 perft(Position& pos, Depth depth) {
         }
         if (Root)
 #if STOCKFISH
-            sync_cout << USIEngine::move(m, pos.is_chess960() ) << ": " << cnt << sync_endl;
+            sync_cout << USIEngine::move(m, pos.is_chess960()) << ": " << cnt << sync_endl;
 #else
-            sync_cout << USIEngine::move(m /*, pos.is_chess960() */) << ": " << cnt << sync_endl;
+            sync_cout << USIEngine::move(m) << ": " << cnt << sync_endl;
 #endif
     }
     return nodes;
@@ -52,10 +52,10 @@ u64 perft(Position& pos, Depth depth) {
 
 #if STOCKFISH
 inline std::variant<u64, PositionSetError>
-perft(const std::string& fen, Depth depth , bool isChess960) {
+perft(const std::string& fen, Depth depth, bool isChess960) {
 #else
 inline std::variant<u64, PositionSetError>
-perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
+perft(const std::string& fen, Depth depth) {
 
     const auto start = now();
 #endif

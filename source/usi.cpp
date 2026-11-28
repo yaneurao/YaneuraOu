@@ -1072,7 +1072,7 @@ u64 USIEngine::perft(const Search::LimitsType& limits) {
 #if STOCKFISH
     auto result = engine.perft(engine.fen(), limits.perft, engine.get_options()["UCI_Chess960"]);
 #else
-    auto result = engine.perft(engine.sfen(), limits.perft /*, engine.get_options()["UCI_Chess960"]*/);
+    auto result = engine.perft(engine.sfen(), limits.perft);
 #endif
     if (auto err = std::get_if<PositionSetError>(&result))
         terminate_on_critical_error(err->what());

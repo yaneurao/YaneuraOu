@@ -356,8 +356,12 @@ class Engine: public IEngine {
    public:
     Engine();
 
+#if STOCKFISH
+    std::variant<u64, PositionSetError> perft(const std::string& fen, Depth depth, bool isChess960);
+#else
     virtual std::variant<u64, PositionSetError>
-    perft(const std::string& fen, Depth depth /*, bool isChess960 */) override;
+    perft(const std::string& fen, Depth depth) override;
+#endif
 
     virtual void go(Search::LimitsType& limits) override;
     virtual void stop() override;
@@ -520,7 +524,7 @@ class EngineWrapper: public IEngine {
     // 📌 すべてset_engine()で渡されたengineに委譲する。
 
     virtual std::variant<u64, PositionSetError>
-    perft(const std::string& fen, Depth depth /*, bool isChess960 */) override {
+    perft(const std::string& fen, Depth depth) override {
         return engine->perft(fen, depth);
     }
 

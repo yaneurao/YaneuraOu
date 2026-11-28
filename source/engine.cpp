@@ -289,11 +289,20 @@ void Engine::isready()
 	sync_cout << "readyok" << sync_endl;
 }
 
+#if STOCKFISH
 std::variant<u64, PositionSetError>
-Engine::perft(const std::string& fen, Depth depth /*, bool isChess960 */) {
+Engine::perft(const std::string& fen, Depth depth, bool isChess960) {
+#else
+std::variant<u64, PositionSetError>
+Engine::perft(const std::string& fen, Depth depth) {
+#endif
 	verify_network();
 
-	return Benchmark::perft(fen, depth /*, isChess960 */);
+#if STOCKFISH
+    return Benchmark::perft(fen, depth, isChess960);
+#else
+	return Benchmark::perft(fen, depth);
+#endif
 }
 
 
