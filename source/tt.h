@@ -96,9 +96,9 @@ private:
 //               置換表本体
 // ============================================================
 
-// TT_ENTRYをClusterSize個並べて、クラスターをつくる。
-// このクラスターのTT_ENTRYは同じhash keyに対する保存場所である。(保存場所が被ったときに後続のTT_ENTRYを使う)
-// このクラスターが、clusterCount個だけ確保されている。
+// ClusterSize個のTTEntryからなるClusterを、clusterCount個確保する。
+// キーから求めた同じClusterに複数の局面が割り当てられることがある。
+// その中から保存したキーの一部が一致するエントリ、または置換対象を探す。
 class TranspositionTable {
 
 public:
