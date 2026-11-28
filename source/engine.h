@@ -73,7 +73,7 @@ public:
 
 		set_tt_size()
 			options["USI_Hash"]などの置換表サイズを反映するためのhandler。
-			呼び出すタイミングはエンジンによる。やねうら王探索ではisready時に反映する。
+			呼び出すタイミングはエンジンによる。やねうら王探索ではスレッド再生成時に反映する。
 			置換表的なものを使用するときは、これをoverrideすると便利。
 
 		isready()
@@ -166,7 +166,7 @@ public:
     virtual void resize_threads() = 0;
 
 	// options["USI_Hash"]などの置換表サイズを反映するhandler。
-	// 呼び出すタイミングはエンジンによる。やねうら王探索ではisready時に反映する。
+	// 呼び出すタイミングはエンジンによる。やねうら王探索ではスレッド再生成時に反映する。
     // 置換表的なものを使用するときは、これをoverrideすると便利。
 	virtual void set_tt_size(usize mb) = 0;
 
