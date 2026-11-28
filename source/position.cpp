@@ -24,6 +24,10 @@
 #include "history.h"
 #include "misc.h"
 #include "movegen.h"
+#if STOCKFISH
+#include "syzygy/tbprobe.h"
+#include "uci.h"
+#endif
 
 #if !STOCKFISH
 #include "evaluate.h"
