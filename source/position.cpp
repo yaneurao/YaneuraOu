@@ -1903,12 +1903,10 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 #endif
 
     // Copy some fields of the old state to our new StateInfo object except the
-    // ones which are going to be recalculated from scratch anyway and then switch
-    // our state pointer to point to the new (ready to be updated) state.
+    // ones which are going to be recalculated from scratch anyway
 
     // 古い状態の一部のフィールドを新しいStateInfoオブジェクトにコピーする。
-    // ただし、どうせ最初から再計算されるフィールドは除外する。
-    // そして、stateポインタを新しい（これから更新される）状態を指すように切り替える。
+    // ただし、最初から再計算されるフィールドは除外する。
 
     /* 📓 StateInfoのmemcpy()について
 
