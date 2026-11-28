@@ -1357,6 +1357,7 @@ std::string Position::sfen_to_flipped_sfen(std::string sfen)
 #endif
 
 
+#if !STOCKFISH
 namespace {
 // 不成の歩・香・桂は合成Bitboardに含まれないため、それらだけが変化する手では再計算を省ける。
 // 成りや捕獲による変化を含め、移動前・移動後・捕獲された駒を調べる。
@@ -1402,6 +1403,7 @@ void Position::update_kingSquare()
 		kingSquare[c] = b ? b.pop_lsb() : SQ_NB;
 	}
 }
+#endif
 
 // ----------------------------------
 //           Positionの表示
