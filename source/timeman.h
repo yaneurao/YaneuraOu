@@ -11,7 +11,7 @@ class OptionsMap;
 enum Color : u8;
 
 namespace Search {
-	struct LimitsType;
+struct LimitsType;
 }
 
 // The TimeManagement class computes the optimal time to think depending on
@@ -148,8 +148,7 @@ class TimeManagement {
 	// `nodes as time`モード関連。
 	// 💡 やねうら王ではNodesTimeを使わない。
 
-    bool         useNodesTime   = false;
-
+    bool useNodesTime      = false;
     i64  availableNodes    = -1;
     int  previousMovesToGo = 0;
     i64  cyclicBudget      = 0;
