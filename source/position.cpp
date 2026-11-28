@@ -2800,16 +2800,19 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 
 #if STOCKFISH
     // Only deal with normal moves, assume others pass a simple SEE
-    if (type_of(m) != NORMAL)
+    // 通常手だけを扱い、それ以外は単純なSEEを通過したものとみなす。
+    if (m.type_of() != NORMAL)
         return VALUE_ZERO >= threshold;
-#endif
-
+#else
 	bool drop = m.is_drop();
+#endif
 
 	// 以下、Stockfishの挙動をなるべく忠実に再現する。
 
 #if STOCKFISH
     Square from = m.from_sq(), to = m.to_sq();
+
+    assert(piece_on(from) != NO_PIECE);
 #else
 	// 駒の移動元(駒打ちの場合は)と移動先。
 	// dropのときにはSQ_NBにしておくことで、pieces() ^ fromを無効化するhack
