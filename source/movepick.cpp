@@ -294,19 +294,19 @@ template<GenType Type>
 ExtMove* MovePicker::generate_and_score() {
 
 #if STOCKFISH
-	static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
+    static_assert(Type == CAPTURES || Type == QUIETS || Type == EVASIONS, "Wrong type");
 #else
     static_assert(Type == CAPTURES || Type == CAPTURES_ALL || Type == QUIETS || Type == QUIETS_ALL
                     || Type == EVASIONS || Type == EVASIONS_ALL,
                   "Wrong type");
 #endif
 
-	const Color us = pos.side_to_move();
+    const Color us = pos.side_to_move();
 
     // 将棋版では歩の脅威だけを使う案を試したが、強くならなかった（2022/04/26）。
 #if STOCKFISH
     [[maybe_unused]] Bitboard threatByLesser[KING + 1];
-	if constexpr (Type == QUIETS)
+    if constexpr (Type == QUIETS)
     {
         threatByLesser[PAWN]   = 0;
         threatByLesser[KNIGHT] = threatByLesser[BISHOP] = pos.threats_by(PAWN);
@@ -350,14 +350,14 @@ ExtMove* MovePicker::generate_and_score() {
         ExtMove& m = *it++;
         m          = move;
 
-		const Square    from          = m.from_sq();
-		const Square    to            = m.to_sq();
-		const Piece     pc            = pos.moved_piece(m);
-		const PieceType pt            = type_of(pc);
-		const Piece     capturedPiece = pos.piece_on(to);
+        const Square    from          = m.from_sq();
+        const Square    to            = m.to_sq();
+        const Piece     pc            = pos.moved_piece(m);
+        const PieceType pt            = type_of(pc);
+        const Piece     capturedPiece = pos.piece_on(to);
 
 #if STOCKFISH
-		if constexpr (Type == CAPTURES)
+        if constexpr (Type == CAPTURES)
 #else
         if constexpr (Type == CAPTURES || Type == CAPTURES_ALL)
 #endif
@@ -380,11 +380,11 @@ ExtMove* MovePicker::generate_and_score() {
             // 駒の価値だけでなくcaptureHistoryも、良い捕獲手と後回しにする捕獲手の分類に影響する。
 
 #if STOCKFISH
-		else if constexpr (Type == QUIETS)
+        else if constexpr (Type == QUIETS)
 #else
         else if constexpr (Type == QUIETS || Type == QUIETS_ALL)
 #endif
-		{
+        {
             // 駒を取らない指し手を履歴で採点する。駒打ちや駒を取らない成りもここに含む。
             // この段階ではevaluate()を呼ばず、以下のスコアで探索順を決める。
             // Use a local accumulator to eliminate redundant stores to m.value
@@ -448,20 +448,20 @@ ExtMove* MovePicker::generate_and_score() {
             m.value = value;
 
         }
-		else // Type == EVASIONS
-			 // || EVASIONS_ALL
-		{
-			// 王手回避の指し手をスコアリングする。
-			if (pos.capture_stage(m))
-				m.value = PieceValue[capturedPiece] + (1 << 28);
+        else // Type == EVASIONS
+             // || EVASIONS_ALL
+        {
+            // 王手回避の指し手をスコアリングする。
+            if (pos.capture_stage(m))
+                m.value = PieceValue[capturedPiece] + (1 << 28);
             // 捕獲手は(1 << 28)を加えて非捕獲手より優先し、取る駒の価値で並べる。
             // ここではSEEもLVAも用いず、動かす駒の価値や成りの価値は採点に含めない。
 
-			else
-				// それ以外の指し手に関してはhistoryの値の順番
+            else
+                // それ以外の指し手に関してはhistoryの値の順番
                 m.value = (*mainHist)[m.raw()] + (*ch0)[pc][to];
-		}
-	}
+        }
+    }
     return it;
 }
 
