@@ -312,7 +312,7 @@ namespace Mate::Dfpn32
 		// このクラスで扱うノード型
 		typedef Node<NodeCountType,MoveOrdering> NodeType;
 
-		NodeManager() :node_index(0), nodes_num(0) {}
+		NodeManager() : nodes_num(0), node_index(0) {}
 
 		// メモリ確保。size_個分Nodeが確保される。
 		void alloc(size_t size_) {
