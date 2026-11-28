@@ -6201,8 +6201,8 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
         // 下界と上界のinexactフラグが同時に立つ状態は認めない。
         assert(!(rootMoves[i].inexactLower && rootMoves[i].inexactUpper));
         auto bound = rootMoves[i].inexactLower ? "lowerbound"
-                     : rootMoves[i].inexactUpper ? "upperbound"
-                                                : "";
+                   : rootMoves[i].inexactUpper ? "upperbound"
+                                               : "";
 
         InfoFull info;
 
@@ -6210,8 +6210,8 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
         info.selDepth = rootMoves[i].selDepth;
         info.multiPV  = i + 1;
 #if STOCKFISH
-        info.score = {v, pos};  // 📝 StockfishではValue,Position&からScore型に変換する。
-        info.wdl   = wdl;
+        info.score    = {v, pos};  // 📝 StockfishではValue,Position&からScore型に変換する。
+        info.wdl      = wdl;
 #else
         info.score = v;
 #endif
@@ -6230,7 +6230,7 @@ void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
         info.nodes     = nodes;
         info.nps       = nodes * 1000 / time;
 #if STOCKFISH
-        info.tbHits = tbHits;
+        info.tbHits    = tbHits;
 #endif
         info.pv       = pv;
         info.hashfull = tt.hashfull();
