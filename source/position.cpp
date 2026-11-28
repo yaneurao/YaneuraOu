@@ -3233,6 +3233,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 #endif
 
     Bitboard occupied  = pieces() ^ from ^ to;  // xoring to is important for pinned piece logic
+                                                 // toのビットを反転することはピン判定に必要。
     Color    stm       = sideToMove;
     Bitboard attackers = attackers_to(to, occupied);
     Bitboard stmAttackers, bb;
@@ -3378,6 +3379,7 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
         else  // KING
               // If we "capture" with the king but the opponent still has attackers,
               // reverse the result.
+              // 玉で取る場合、相手にまだ利きがあれば結果を反転する。
             return (attackers & ~pieces(stm)) ? res ^ 1 : res;
 
 #if !STOCKFISH
