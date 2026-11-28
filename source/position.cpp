@@ -1979,7 +1979,6 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     Color them = ~us;
 #else
     // 🌈 やねうら王では手番がtemplate引数になっている。
-    constexpr Color us   = Us;
     constexpr Color them = ~Us;
 #endif
 
