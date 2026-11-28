@@ -2367,7 +2367,11 @@ bool Search::YaneuraOuWorker::iterative_deepening() {
     return uciPvSent;
 }
 
+#if STOCKFISH
+void Search::Worker::do_move(
+#else
 void Search::YaneuraOuWorker::do_move(
+#endif
   Position& pos, const Move move, const bool givesCheck, const bool capture, Stack& ss) {
 #if STOCKFISH
     // prefetch_key() does not model castling, en passant or promotion exactly.
@@ -2419,7 +2423,11 @@ void Search::YaneuraOuWorker::do_move(
     ss.continuationCorrectionHistory = &continuationCorrectionHistory[pc][to];
 }
 
+#if STOCKFISH
+void Search::Worker::do_null_move(Position& pos, Stack* const ss) {
+#else
 void Search::YaneuraOuWorker::do_null_move(Position& pos, Stack* const ss) {
+#endif
 #if STOCKFISH
     pos.do_null_move();
 #else
@@ -2431,14 +2439,20 @@ void Search::YaneuraOuWorker::do_null_move(Position& pos, Stack* const ss) {
     ss->continuationCorrectionHistory = &continuationCorrectionHistory[NO_PIECE][0];
 }
 
+#if STOCKFISH
+void Search::Worker::undo_move(Position& pos, const Move move) {
+#else
 void Search::YaneuraOuWorker::undo_move(Position& pos, const Move move) {
-
-	pos.undo_move(move);
-
+#endif
+    pos.undo_move(move);
     accumulatorStack.pop();
 }
 
+#if STOCKFISH
+void Search::Worker::undo_null_move(Position& pos) { pos.undo_null_move(); }
+#else
 void Search::YaneuraOuWorker::undo_null_move(Position& pos) { pos.undo_null_move(); }
+#endif
 
 
 // Reset histories, usually before a new game
