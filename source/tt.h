@@ -78,16 +78,17 @@ struct TTData {
 // 書き込みは「保証」されない。チェスの観点から、新しいデータは古いデータよりも
 // 重要度が低いと判断し、書き込みを行わない場合がある。
 struct TTWriter {
-public:
+   public:
     void write(Key k, Value v, bool pv, Bound b, Depth d, Move m, Value ev, u8 generation8);
     void penalize(int penalty);  // decrement stored depth by the penalty
     // 格納された深さからpenaltyを減算する。
 
-private:
-	friend class TranspositionTable;
+   private:
+    friend class TranspositionTable;
 
-	// コンストラクタで渡されたcl,idx。最後、cluster[index]にwriteで書き戻す。
-	Cluster* cluster;
+    // コンストラクタで渡されたクラスターとエントリーの番号。
+    // write()はcluster->entry[index]へ書き込む。
+    Cluster* cluster;
     int      index;
 
     TTWriter(Cluster* cl, int idx);
