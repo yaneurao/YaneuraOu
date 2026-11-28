@@ -165,32 +165,18 @@ struct DynStats {
 // reductionや move ordering の判断に使用されます。
 // これは 2 つのテーブル（各手番ごとに1つ）を使用し、手の移動元と移動先のマスでインデックス付けします。
 // 詳細は https://www.chessprogramming.org/Butterfly_Boards を参照してください。
-// 💡 簡単に言うと、fromの駒をtoに移動させることに対するhistory。
+// やねうら王では、手番とMove::raw()の下位16bitを添字とする。
 
 using ButterflyHistory = Stats<i16, 7183, COLOR_NB, UINT_16_HISTORY_SIZE>;
 
 /*
-	 📓 上記のような配列、将棋では添字順を入れ替えて、history[c][to]をhistory[to][c]としたい。
-	     これは、配列の末尾側サイズは2のべき乗になっている方がアドレッシングが簡単で高速なコードが生成されるため。
+	 📓 Move::raw()は指し手の下位16bitを返す。
+	     bit 0～6は移動先、bit 7～13は移動元または打つ駒の種類、
+	     bit 14は駒打ち、bit 15は成りを表す。
+	     駒打ちも通常の移動と区別して記録でき、先後は第1添字のColorで区別する。
 
-	     しかし逆順にしているのを忘れてしまい、Stockfishのコードを参考にする時に色々面倒である。
-
-		 やねうら王V8.60まではwrapper classを用意していたが、管理が複雑になり、Stockfishとの差分が
-		 大きくなるのでやめることにした。
-
-		 move.from_to()を呼び出した時、Stockfishでは 0～SQUARE_NB*SQUARE_NB-1までの値だが、
-	     やねうら王では、0 ～ ((SQUARE_NB+7) * SQUARE_NB - 1)であることに注意。
-	     ⇨ 後者のサイズとして、Move::FROM_TO_SIZEを用いると良い。
-		 ⇨ move::from_to()が削除された。move::raw()でuint16_tが返る。from_toを使う必要がなくなった。
-
-	     また、やねうら王では、ここのfrom_toで用いられるfromは、駒打ちのときに特殊な値になっていて、
-	     盤上のfromとは区別される。そのため、(SQUARE_NB + 7)まで移動元がある。
-
-		 例) from = SQUARE_NB     の時、歩打ち
-			 from = SQUARE_NB + 1 の時、香打ち
-				 …
-		 注) 打ち駒に関して、先手と後手の歩打ちを区別する必要はない。
- 　　		   なぜなら、このButterflyHistoryではその指し手の手番(Color)の区別をしているから。
+	     やねうら王V8.60までは添字順を入れ替えるwrapper classを用意していたが、
+	     管理が複雑でStockfishとの差分も大きいため、現在は使っていない。
 */
 
 // LowPlyHistory is addressed by ply and move's from and to squares, used
