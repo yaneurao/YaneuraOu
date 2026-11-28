@@ -637,7 +637,7 @@ Search::LimitsType USIEngine::parse_limits(std::istream& is) {
         }
 
         // ランダム時間の思考を行う、"rtime"。
-        // 例) "go rtime 100"だと100～300[ms]思考する。
+        // 例) "go rtime 100"では100～149msを設定する。手数が進むと乱数の幅は小さくなる。
         // 📌 やねうら王独自
         else if (token == "rtime")
             is >> limits.rtime;
