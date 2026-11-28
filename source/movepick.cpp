@@ -355,6 +355,10 @@ ExtMove* MovePicker::generate_and_score() {
         ExtMove& m = *it++;
         m          = move;
 
+#if !STOCKFISH
+        // 将棋側ではfromを採点に使わないが、from_sq()のデバッグ検査は維持する。
+        [[maybe_unused]]
+#endif
         const Square    from          = m.from_sq();
         const Square    to            = m.to_sq();
         const Piece     pc            = pos.moved_piece(m);
