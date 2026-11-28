@@ -877,6 +877,8 @@ class Position {
 	// StateInfoごとの履歴ではなく1局面分の領域なので、次のdo_move()で上書きされる。
 	// 差分計算で使う際は、この領域が対象の着手に対応している必要がある。
 	LongEffect::ByteBoard board_effect_prev[COLOR_NB];
+	// undoやnull moveの後は、保存した利きが現局面の直前に対応するとは限らない。
+	bool board_effect_prev_valid = false;
 #endif
 
 	// 長い利き(これは先後共用)

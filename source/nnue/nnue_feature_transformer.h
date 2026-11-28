@@ -173,6 +173,11 @@ class FeatureTransformer {
 		}
 		const auto prev = now->previous;
 		if (prev && accumulator_of(prev).computed_accumulation) {
+#if defined(USE_BOARD_EFFECT_PREV)
+            // 利きの1手前のコピーはundoなどで無効になる。その場合は全計算する。
+            if (!pos.board_effect_prev_valid)
+                return false;
+#endif
 #if defined(NNUE_FT_PACKED8)
 			if (sparse8_enabled_) update_accumulator<true>(pos, state, refreshTable);
 			else

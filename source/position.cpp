@@ -2234,16 +2234,15 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 #endif
 
 
-    // 評価値の差分計算用の初期化
-#if defined(USE_CLASSIC_EVAL)
-
-
 #if defined(USE_BOARD_EFFECT_PREV)
     // NNUE-HalfKPE9
     // 現局面のboard_effectをコピー
     std::memcpy(board_effect_prev, board_effect, sizeof(board_effect));
+    board_effect_prev_valid = true;
 #endif
 
+    // 評価値の差分計算用の初期化
+#if defined(USE_CLASSIC_EVAL)
     // 直前の指し手を保存するならばここで行なう。
 
 #if defined(KEEP_LAST_MOVE)
@@ -2996,6 +2995,9 @@ void Position::undo_move(Move m) {
 }
 #else
 void Position::undo_move(Move m) {
+#if defined(USE_BOARD_EFFECT_PREV)
+    board_effect_prev_valid = false;
+#endif
 	if (sideToMove == BLACK)
 		undo_move_impl<WHITE>(m); // 1手前の手番が返らないとややこしいので入れ替えておく。
 	else
@@ -3100,7 +3102,11 @@ void Position::do_null_move(const T& tt) {
     // null move後の手番とキーを更新してから、そのキーでTTを先読みする。
     sideToMove = ~sideToMove;
 
-	st->board_key ^= Zobrist::side;
+    st->board_key ^= Zobrist::side;
+
+#if defined(USE_BOARD_EFFECT_PREV)
+    board_effect_prev_valid = false;
+#endif
 
 	// 🌈 やねうら王では、TTを引数に取らないこともできるように
 	//     template引数で実装している。
@@ -3157,6 +3163,9 @@ void Position::undo_null_move() {
     stateIdx = (stateIdx - 1) & (MAX_HIST - 1);
     st       = &stateInfos[stateIdx];
 #else
+#if defined(USE_BOARD_EFFECT_PREV)
+    board_effect_prev_valid = false;
+#endif
     pop_state();
 #endif
     sideToMove = ~sideToMove;
