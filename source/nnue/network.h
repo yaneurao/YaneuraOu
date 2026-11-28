@@ -33,6 +33,7 @@ namespace Progress {
 
 	// SFNNのLayerStack選択に使う進行度計算パラメーター。
 	// EvalDir/progress.bin: headerless little-endian doubles, without bias.
+	// EvalDir/progress.binには、ヘッダーとバイアスのないlittle-endianのdouble列を格納する。
 	struct Parameters {
 		static constexpr int kWeightCount = int(SQ_NB) * int(Eval::fe_end);
 
@@ -49,7 +50,7 @@ namespace Progress {
 
 	// NNUE評価関数パラメーターを格納する統合構造体。
 	// Stockfishと同じく、後段構成のNetworkArchitectureと重み全体のNetworkを区別する。
-	// 全メンバーが生配列で構成されており trivially copyable であるため、
+	// 重みなどのデータをオブジェクト内に保持し、trivially copyableであるため、
 	// プロセス間共有メモリに直接配置できる。
 	struct Network {
         // Hash value of evaluation function structure
