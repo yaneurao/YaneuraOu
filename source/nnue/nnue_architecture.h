@@ -124,6 +124,7 @@ template<Side AssociatedKing> class HalfKP;
 template<Side AssociatedKing> class HalfKP_vm;
 template<Side AssociatedKing> class HalfKA1;
 template<Side AssociatedKing> class HalfKA_hm1;
+template<Side AssociatedKing> class HalfKPE9;
 class K;
 class P;
 class A2;
@@ -159,6 +160,8 @@ inline constexpr bool kUseHalfKA1 = std::is_same_v<
   RawFeatures, Features::FeatureSet<Features::HalfKA1<Features::Side::kFriend>>>;
 inline constexpr bool kUseHalfKAHm1 = std::is_same_v<
   RawFeatures, Features::FeatureSet<Features::HalfKA_hm1<Features::Side::kFriend>>>;
+inline constexpr bool kUseHalfKPE9 = std::is_same_v<
+  RawFeatures, Features::FeatureSet<Features::HalfKPE9<Features::Side::kFriend>>>;
 
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
     // 複数手の直接更新は、自玉基準のHalfKA_hm2とHalfKA2に対応する。

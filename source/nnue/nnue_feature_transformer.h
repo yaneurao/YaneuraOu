@@ -977,8 +977,24 @@ class FeatureTransformer {
         const Features::IndexList& new_active,
         Features::IndexList& removed,
         Features::IndexList& added) {
-        // 入力の並びは駒番号ではなく盤面の列挙順。位置ではなく多重集合として比較する。
-        // 駒落ち等の0特徴量が複数あっても、それぞれ一度ずつ対応させる。
+        // 入力の並びは駒番号ではなく盤面の列挙順。駒落ちでは0特徴量が重複する。
+#if defined(USE_AVX2) && !defined(USE_AVX512) && defined(USE_FINNY_RESET)
+        // 同数なら対応する要素を引き足しすれば、並びが違っても累積値は一致する。
+        // 相殺できる列を探すコストを省き、差分が多い場合は呼び出し側で全計算する。
+        // 幅256の４特徴量では、列の再読込より多重集合の探索を省く効果が大きい。
+        // K+A2 FT1536では逆に遅くなるため、測定済みの構成だけに限定する。
+        if constexpr (HalfDimensions == 256 && (kUseKP || kUseHalfKA1 || kUseHalfKAHm1 || kUseHalfKPE9)) {
+            if (old_active.size() == new_active.size()) {
+                for (usize i = 0; i < old_active.size(); ++i) {
+                    if (old_active[i] != new_active[i]) {
+                        removed.push_back(old_active[i]);
+                        added.push_back(new_active[i]);
+                    }
+                }
+                return;
+            }
+        }
+#endif
 #if defined(USE_AVX512)
         if constexpr (RawFeatures::MaxActiveDimensions <= 64) {
             u64 oldMatched = 0, newMatched = 0;
