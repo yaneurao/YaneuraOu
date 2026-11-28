@@ -19,7 +19,7 @@ namespace YaneuraOu::Benchmark {
 // 指定された深さまでの全ての葉ノードを生成してカウントし、その合計を返す。
 
 // 💡 perftとはperformance testの略。
-//     開始局面から深さdepthまで全合法手で進めるときの総node数を数えあげる。
+//     開始局面から全合法手で深さdepthまで進めたときの末端node数を数えあげる。
 //     指し手生成が正常に行われているかや、生成速度等のテストとして有用。
 
 template<bool Root>
@@ -79,14 +79,14 @@ perft(const std::string& fen, Depth depth) {
 #if STOCKFISH
     return perft<true>(*p, depth);
 #else
-	// 🌈 やねうら王では、NPS(leaf nodeの数/elapsed)と計測に要した時間も出力する。
-	auto nodes = perft<true>(*p, depth);
+    // 🌈 やねうら王では、NPS(leaf nodeの数/elapsed)と計測に要した時間も出力する。
+    auto nodes = perft<true>(*p, depth);
     auto elapsed = now() - start + 1; // ゼロ割防止のために +1
 
-	sync_cout << "Elapsed Time = " << elapsed << " [ms]" << sync_endl;
+    sync_cout << "Elapsed Time = " << elapsed << " [ms]" << sync_endl;
     sync_cout << 1000 * nodes / elapsed << " NPS" << sync_endl;
 
-	return nodes;
+    return nodes;
 #endif
 
 }
