@@ -142,7 +142,7 @@ struct BookMoves
 
 	// [ASYNC] BookMoveを一つ追加する
 	// ただし、その局面ですでに同じmoveの指し手が登録されている場合、
-	//   overwrite == true の時は、上書き動作となる。このとき、BookMove::num,win,loseは、合算した値となる。
+	//   overwrite == true の時は、指し手の情報を上書きし、採用回数を合算する。
 	//   overwrite == falseの時は、上書きされない。
 	void insert(const BookMove& book_move,bool overwrite);
 

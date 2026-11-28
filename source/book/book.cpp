@@ -103,11 +103,7 @@ namespace Book
 		int depth = 0;
 		u64 move_count = 1;
 
-		//istringstream is(line);
-		// value以降は、元データに欠落してるかもですよ。
-		//is >> bestMove >> nextMove >> value >> depth >> num;
-
-		// → istringstream、げろげろ遅いので、自前でparseする。
+		// istringstreamより高速なLineScannerで解析する。value以降は省略可能。
 
 		Parser::LineScanner scanner(line);
 		move_str   = scanner.get_text();
