@@ -626,13 +626,15 @@ protected:
     // 今回の"go"コマンドで渡された思考条件
 	LimitsType limits;
 
-	// 📝 派生class側で
-    // usize pvIdx, pvLast;
-
+#if STOCKFISH
+    usize              pvIdx, pvLast;
+    RelaxedAtomic<u64> nodes, tbHits, bestMoveChanges;
+#else
 	// nodes           : 探索したnode数。do_move()で(自分で)カウントする。
     // tbHits          : tablebaseにhitした回数。将棋では使わない。
     // bestMoveChanges : bestMoveが反復深化のなかで変化した回数。📝 派生classのほうで。
     RelaxedAtomic<u64> nodes /*, tbHits, bestMoveChanges*/;
+#endif
 
 	// 📝 派生class側で。
 #if STOCKFISH
@@ -651,13 +653,13 @@ public:
 
 protected:
 
-	// 📝 派生class側で
 #if STOCKFISH
-    // 探索した深さ。
-    //Depth rootDepth;
+    Depth     rootDepth;
+    bool      seekMate = false;
 
-    // aspiration searchのroot delta
-    //Value rootDelta;
+    PVMoves lastIterationIdxPV;
+#else
+    // やねうら王ではrootDepth・seekMate・lastIterationIdxPVを派生Workerが持つ。
 #endif
 
     // Stockfishでは個別の引数、やねうら王ではThreadIdsにまとめてコンストラクターへ渡す。
