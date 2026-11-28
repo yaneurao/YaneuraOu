@@ -522,7 +522,7 @@ std::string OptionsMap::set_option_if_exists(const std::string& option_name, con
 		// 大文字、小文字を無視して比較。
 		if (!StringExtension::stricmp(option_name, o.first))
 		{
-			options_map[o.first] = option_value;
+			o.second = option_value;
 			return std::string("Options[") + o.first + "] = " + option_value;
 		}
 	}
