@@ -411,11 +411,10 @@ void Position::set_state() const {
 
 #if STOCKFISH
 
-    st->key                  = sideToMove;
-    st->materialKey          = 0;
-    st->minorPieceKey         = 0;
-    st->nonPawnKey[WHITE] = st->nonPawnKey[BLACK] = 0;
-    st->pawnKey                                   = 0;
+    st->key               = sideToMove;
+    st->minorPieceKey     = 0ULL;
+    st->nonPawnKey[WHITE] = st->nonPawnKey[BLACK] = 0ULL;
+    st->pawnKey                                   = 0ULL;
     st->nonPawnMaterial[WHITE] = st->nonPawnMaterial[BLACK] = VALUE_ZERO;
     st->checkersBB = attackers_to(square<KING>(sideToMove)) & pieces(~sideToMove);
 
@@ -500,9 +499,7 @@ void Position::set_state() const {
 
     st->key ^= Zobrist::castling[st->castlingRights];
 
-    for (Piece pc : Pieces)
-        for (int cnt = 0; cnt < pieceCount[pc]; ++cnt)
-            st->materialKey ^= Zobrist::psq[pc][8 + cnt];
+    st->materialKey = compute_material_key();
 
 #else
 
@@ -514,6 +511,16 @@ void Position::set_state() const {
 
 #endif
 }
+
+#if STOCKFISH
+Key Position::compute_material_key() const {
+    Key k = 0;
+    for (Piece pc : Pieces)
+        for (int cnt = 0; cnt < pieceCount[pc]; ++cnt)
+            k ^= Zobrist::psq[pc][8 + cnt];
+    return k;
+}
+#endif
 
 
 // 局面の本体と最初の状態だけを初期化し、未使用の履歴領域は触らない。
