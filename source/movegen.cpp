@@ -230,7 +230,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, PAWN
 		{
 			auto to = target2.pop_lsb();
 			auto from = to + (Us == BLACK ? SQ_D : SQ_U);
-			// 歩が成れるときは成る指し手しか生成しない。
+			// 成れる場合は成りを生成し、Allなら最終段以外で不成も生成する。
 			if (canPromote(Us, to))
 			{
 				*moveList++ = make_move_promote(from, to , Us, PAWN);
@@ -253,7 +253,7 @@ template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, PAWN
 	}
 };
 
-// 角・飛による移動による指し手生成。これらの駒は成れるなら絶対に成る
+// 角・飛の移動。成れる場合は成りを生成し、Allなら不成も生成する。
 template <GenType Type, Color Us, bool All> struct GeneratePieceMoves<Type, GPM_BR, Us, All> {
 	FORCE_INLINE Move* operator()(const Position&pos, Move*moveList, const Bitboard& target)
 	{
@@ -838,7 +838,7 @@ Move* generate_checks(const Position& pos, Move* moveList)
 	{
 		auto from = src.pop_lsb();
 
-		// 両王手候補なので指し手を生成してしまう。
+		// 開き王手の候補となる駒の指し手を生成する。
 
 		// いまの敵玉とfromを通る直線上の升と違うところに移動させれば開き王手が確定する。その直線を求める。
 		auto pin_line = line_bb(themKing, from);
@@ -846,7 +846,7 @@ Move* generate_checks(const Position& pos, Move* moveList)
 		moveList = make_move_target_general<Us, All>()(pos, pos.piece_on(from), from, pin_line.andnot(target) , moveList);
 
 		if (x & from)
-			// 直接王手にもなるので↑で生成した~line_bb以外の升への指し手を生成。
+			// 直線上への移動は開き王手にならないため、直接王手になる手だけを生成する。
 			moveList = make_move_check<Us, All>(pos, pos.piece_on(from), from, themKing, pin_line & target, moveList);
 	}
 
