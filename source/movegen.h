@@ -92,17 +92,17 @@ enum GenType {
 
 struct ExtMove: public Move {
 
-	int value;  // 指し手オーダリング(並び替え)のときのスコア(符号つき32bit)
+    int value;  // 指し手オーダリング(並び替え)のときのスコア(符号つき32bit)
 
 #if STOCKFISH
     void operator=(Move m) { data = m.raw(); }
 #else
     // Move型から暗黙で代入できる。
-    // 💡 こうしておけば、MoveList* curに対して *cur++ = move; のように書ける。
+    // 💡 こうしておけば、ExtMove* curに対して *cur++ = move; のように書ける。
     void operator=(Move m) { data = m.to_u32(); }
 #endif
 
-	// 補足 : このクラスの変数をMove型にしたいときは、このクラスの変数を Move(m) のようにすれば良い。
+    // 補足 : このクラスの変数をMove型にしたいときは、このクラスの変数を Move(m) のようにすれば良い。
 
     // Inhibit unwanted implicit conversions to Move
     // with an ambiguity that yields to a compile error.
