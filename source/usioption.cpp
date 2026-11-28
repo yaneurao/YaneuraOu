@@ -24,9 +24,9 @@ namespace YaneuraOu {
 // USIではここがプロトコル上どうなっているのかはわからないが、同様の処理にしておく。
 bool CaseInsensitiveLess::operator()(const std::string& s1, const std::string& s2) const {
 
-	return std::lexicographical_compare(
-		s1.begin(), s1.end(), s2.begin(), s2.end(),
-		[](unsigned char c1, unsigned char c2) { return std::tolower(c1) < std::tolower(c2); });
+    return std::lexicographical_compare(
+      s1.begin(), s1.end(), s2.begin(), s2.end(),
+      [](unsigned char c1, unsigned char c2) { return std::tolower(c1) < std::tolower(c2); });
 }
 
 // 受理した設定の適用でon_change() handlerが呼び出された時に
@@ -35,24 +35,25 @@ void OptionsMap::add_info_listener(InfoListener&& message_func) { info = std::mo
 
 // USIのsetoptionコマンドのhandler
 void OptionsMap::setoption(std::istringstream& is) {
-	std::string token, name, value;
+    std::string token, name, value;
 
-	is >> token;  // Consume the "name" token
+    is >> token;  // Consume the "name" token
+    // "name"トークンを読み飛ばす。
 
-	// Read the option name (can contain spaces)
-	// オプション名を読む（空白を含む場合もある）。
-	while (is >> token && token != "value")
-		name += (name.empty() ? "" : " ") + token;
+    // Read the option name (can contain spaces)
+    // オプション名を読む（空白を含む場合もある）。
+    while (is >> token && token != "value")
+        name += (name.empty() ? "" : " ") + token;
 
-	// Read the option value (can contain spaces)
-	// オプション値を読む（空白を含む場合もある）。
-	while (is >> token)
-		value += (value.empty() ? "" : " ") + token;
+    // Read the option value (can contain spaces)
+    // オプション値を読む（空白を含む場合もある）。
+    while (is >> token)
+        value += (value.empty() ? "" : " ") + token;
 
-	if (options_map.count(name))
-		options_map[name] = value;
-	else
-		sync_cout << "No such option: " << name << sync_endl;
+    if (options_map.count(name))
+        options_map[name] = value;
+    else
+        sync_cout << "No such option: " << name << sync_endl;
 }
 
 // あるoption名に対応するOptionオブジェクトを取得する。
