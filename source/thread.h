@@ -256,14 +256,13 @@ public:
          を渡しているが、やねうら王ではこれらを分離する。
 
 		 また、Stockfishでは、options["Threads"]から生成するスレッド数を決めているが、
-         やねうら王では、DL系でこのエンジンオプションからスレッド数をを決めたくないので
+         やねうら王では、DL系でこのエンジンオプションからスレッド数を決めたくないので
          ここに柔軟性を持たせる。
     
-       📝 スレッド数を変更するということは、スレッド数が足りなければ、スレッドを生成しなければならない。
-           スレッド(Thread class)は、その実行jobとしてWorker classの派生classを持っているので、
-           スレッド生成のためにはWorkerの生成を行う能力が必要である。そのため、ここでは、WorkerFactoryを渡している。
+       📝 set()は既存のスレッドを破棄してから、要求された数のスレッドを生成する。
+           各ThreadはWorker派生classを保持するため、その生成にWorkerFactoryを使う。
     
-       ⚠ このmethodはEngine::resize_threads()からのみ呼び出される。
+       Engineやその派生classのresize_threads()のほか、ふかうら王からも直接呼び出される。
     */
 
 #if STOCKFISH
