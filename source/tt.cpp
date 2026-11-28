@@ -319,12 +319,11 @@ void TranspositionTable::resize(usize mbSize, ThreadPool& threads, bool force) {
 
 	clusterCount = newClusterCount;
 
-	// tableはCacheLineSizeでalignされたメモリに配置したいので、CacheLineSize-1だけ余分に確保する。
-	// callocではなくmallocにしないと初回の探索でTTにアクセスするとき、特に巨大なTTだと
-	// 極めて遅くなるので、mallocで確保して自前でゼロクリアすることでこれを回避する。
+	// ページ境界に揃えた領域を確保する。必要なサイズの丸めは確保関数が行う。
+	// 確保後の置換表の初期化は、別途clear()で行う。
 	// cf. Explicitly zero TT upon resize. : https://github.com/official-stockfish/Stockfish/commit/2ba47416cbdd5db2c7c79257072cd8675b61721f
 
-	// Large Pageを確保する。ランダムメモリアクセスが5%程度速くなる。
+	// 利用可能な環境ではLarge Pageの使用を試みる。
 
 	table = static_cast<Cluster*>(aligned_large_pages_alloc(clusterCount * sizeof(Cluster)));
 
