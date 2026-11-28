@@ -894,6 +894,7 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
 
     // 4. En passant square.
     // Ignore if square is invalid or not on side to move relative rank 6.
+    // 4. アンパッサンの升。無効な升や、手番側から見て6段目でない升は無視する。
     bool enpassant = false;
 
     if (((ss >> col) && (col >= 'a' && col <= 'h'))
@@ -931,6 +932,8 @@ std::optional<PositionSetError> Position::set(const std::string& sfen) {
 
     // Convert from fullmove starting from 1 to gamePly starting from 0,
     // handle also common incorrect FEN with fullmove = 0.
+    // 1から始まるfullmoveを0から始まるgamePlyに変換する。
+    // fullmoveが0という、よくある不正なFENにも対応する。
     gamePly = std::max(2 * (gamePly - 1), 0) + (sideToMove == BLACK);
 
     chess960 = isChess960;
