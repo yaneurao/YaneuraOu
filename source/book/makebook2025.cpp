@@ -408,16 +408,16 @@ namespace MakeBook2025
 	{
 		// moveの指し手がleaf nodeである場合。
 		BookMove(Move16 move, s16 value, u16 depth) :
-			move(move), vd(ValueDepth(value, depth)), leaf(true) {
+			move(move), leaf(true), vd(ValueDepth(value, depth)) {
 		}
 
 		// moveの指し手がleaf nodeである場合。
 		BookMove(Move16 move, ValueDepth vd):
-			move(move), vd(vd), leaf(true) { }
+			move(move), leaf(true), vd(vd) { }
 
 		// moveの指し手がleaf nodeではない場合。
 		BookMove(Move16 move, BookNodeIndex next) :
-			move(move), next(next), leaf(false) {
+			move(move), leaf(false), next(next) {
 		}
 
 		// 指し手
