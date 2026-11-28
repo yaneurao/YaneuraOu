@@ -101,8 +101,8 @@ private:
 // その中から保存したキーの一部が一致するエントリ、または置換対象を探す。
 class TranspositionTable {
 
-public:
-	~TranspositionTable() { aligned_large_pages_free(table); }
+   public:
+    ~TranspositionTable() { aligned_large_pages_free(table); }
 
 	// Set TT size in MiB
 	// 置換表のサイズを変更する。mbSize == 確保するメモリサイズ。[MiB]単位。
@@ -122,23 +122,23 @@ public:
     void clear(ThreadPool& threads);
 
     // Must be called at the beginning of each root search to track entry aging
-	// エントリのエイジングを追跡するために、各ルート検索の開始時にこれを呼び出す必要があります。
-	// ⇨ 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
+    // エントリのエイジングを追跡するために、各ルート検索の開始時にこれを呼び出す必要があります。
+    // ⇨ 新しい探索ごとにこの関数を呼び出す。(generationを加算する。)
 
-	void new_search();
+    void new_search();
 
-	// The current age, used when writing new data to the TT
-	// 新しいデータをTTに書き込む際に使用される現在のエイジ
+    // The current age, used when writing new data to the TT
+    // 新しいデータをTTに書き込む際に使用される現在のエイジ
 
-	u8 generation() const;
+    u8 generation() const;
 
     // Approximate what fraction of entries (permille) have been written to
     // during this root search.
 
-	// このルート探索中に書き込まれたエントリの割合（パーミル単位）を概算します。
-	// ⇨ 置換表の使用率を1000分率で返す。(USIプロトコルで統計情報として出力するのに使う)
+    // maxAge以下の世代差を持つエントリの割合を千分率で概算する。
+    // maxAgeの既定値0では、現在の探索世代に書き込まれたエントリを数える。
 
-	int hashfull(int maxAge = 0) const;
+    int hashfull(int maxAge = 0) const;
 
     // `probe(key)` is the primary method: given a board position, we lookup
     //  its entry in the table, and return a tuple of:
