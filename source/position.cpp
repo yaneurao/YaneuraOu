@@ -507,7 +507,7 @@ void Position::set_state() const {
 
     // --- hand
 
-	st->hand = hand[sideToMove];
+    st->hand = hand[sideToMove];
 
 #endif
 
