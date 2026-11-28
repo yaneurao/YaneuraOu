@@ -256,46 +256,26 @@ class YaneuraOuEngine: public Engine {
    public:
     // 📌 StockfishのEngine classに合わせる 📌
 
-    // 📝 やねうら王では、namespace Searchに書いてあるので不要。
+    // 📝 やねうら王ではIEngineの型別名を継承するため、再宣言しない。
 #if STOCKFISH
     using InfoShort = Search::InfoShort;
     using InfoFull  = Search::InfoFull;
     using InfoIter  = Search::InfoIteration;
 #endif
 
-    YaneuraOuEngine(/* std::optional<std::filesystem::path> path = std::nullopt */) :
-        manager(updateContext) {}
+    YaneuraOuEngine();
 #if defined(EVAL_SFNN) || defined(EVAL_NNUE)
     ~YaneuraOuEngine() override { wait_for_search_finished(); }
 #endif
 
-    // 📝 やねうら王では、CommandLine::gから取得できるので使わない。
-    // const std::string binaryDirectory;
-
-    // TODO : あとで整理する
-
-    //NumaReplicationContext numaContext;
-
-    // 📝 やねうら王では、base classであるEngine classが持っている。
+    // 📝 局面・オプション・スレッド・TT・NUMA・network・更新通知は基底Engineが保持する。
+    // 起動ディレクトリはCommandLine::gから取得する。
 #if STOCKFISH
     Position     pos;
 
     OptionsMap options;
     ThreadPool threads;
 #endif
-
-    // 📝 以下は、Engine classにある
-
-	// 置換表
-    // TranspositionTable tt;
-
-    // TODO : あとで
-    //LazyNumaReplicatedSystemWide<Eval::NNUE::Network> network;
-
-    // Search::UpdateContext updateContext;
-
-    // TODO : あとで
-    //std::function<void(std::string_view)> onVerifyNetwork;
 
 	// historyの集めたやつ。
     std::map<NumaIndex, SharedHistories>  sharedHists;

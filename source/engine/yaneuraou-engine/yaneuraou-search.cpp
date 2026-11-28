@@ -159,6 +159,9 @@ void SearchManager::pre_start_searching(YaneuraOuWorker& worker) {
     increaseDepth                                = true;
 }
 
+YaneuraOuEngine::YaneuraOuEngine() :
+    manager(updateContext) {}
+
 // 思考エンジンの追加オプションを設定する。
 // 💡 Stockfishでは、Engine::Engine()で行っている。
 void YaneuraOuEngine::add_options() {
