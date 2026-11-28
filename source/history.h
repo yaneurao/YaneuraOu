@@ -25,6 +25,7 @@ namespace YaneuraOu {
 
 // 歩の陣形に対するhistoryのサイズ
 constexpr int PAWN_HISTORY_BASE_SIZE   = 8192;  // has to be a power of 2
+                                                // 2の冪である必要がある。
 constexpr int UINT_16_HISTORY_SIZE     = std::numeric_limits<u16>::max() + 1;
 // correction historyのサイズ
 constexpr int CORRHIST_BASE_SIZE       = 2 * UINT_16_HISTORY_SIZE;
@@ -230,7 +231,9 @@ using PawnHistory =
 
 enum CorrHistType {
     PieceTo,       // By [piece][to] move
+                   // 移動後の駒と移動先による補正。
     Continuation,  // Combined history of move pairs
+                   // 指し手の組み合わせによる補正。
 };
 /*
 	📓 UnifiedCorrectionHistoryが保持する補正履歴と、CorrHistTypeの分類
