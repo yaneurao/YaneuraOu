@@ -106,7 +106,7 @@ static void* aligned_large_pages_alloc_windows([[maybe_unused]] usize allocSize)
 
 #if !STOCKFISH
 // 🌈 やねうら王独自
-// 初回のlarge pageのallocationに対してメッセージを出力するためのフラグ。
+// Large Pagesの確保に初めて成功したとき、メッセージを出力するためのフラグ。
 bool first_large_pages_allocation = true;
 #endif
 
@@ -116,6 +116,7 @@ void* aligned_large_pages_alloc_with_hint(usize allocSize, bool) {
 	//     引数でalignを指定できる必要はない。(それを超えた大きなalignを行いたいケースがない)
 
     // Try to allocate large pages
+    // Large Pagesでの確保を試みる。
     void* mem = aligned_large_pages_alloc_windows(allocSize);
 
     // Fall back to regular, page-aligned, allocation if necessary
