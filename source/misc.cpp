@@ -168,33 +168,33 @@ class Logger {
 // GIT_DATEやGIT_SHAがビルド時に指定されていなければ、コンパイル日や「nogit」を使う。
 
 std::string engine_version_info() {
-	std::stringstream ss;
+    std::stringstream ss;
 #if STOCKFISH
-	ss << "Stockfish " << version << std::setfill('0');
+    ss << "Stockfish " << version << std::setfill('0');
 #else
     ss << "YaneuraOu" << ENGINE_VERSION;
 #endif
 
-	// "dev"版であれば日付を出力する機能。
+    // "dev"版であれば日付を出力する機能。
 #if STOCKFISH
-	if constexpr (version == "dev")
+    if constexpr (version == "dev")
 #else
     if (std::string_view(ENGINE_VERSION).find("dev") != std::string_view::npos)
 #endif
-	{
-		ss << "-";
+    {
+        ss << "-";
 #ifdef GIT_DATE
-		ss << stringify(GIT_DATE);
+        ss << stringify(GIT_DATE);
 #else
-		constexpr std::string_view months("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec");
+        constexpr std::string_view months("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec");
 
-		std::string       month, day, year;
-		std::stringstream date(__DATE__);  // From compiler, format is "Sep 21 2008"
+        std::string       month, day, year;
+        std::stringstream date(__DATE__);  // From compiler, format is "Sep 21 2008"
                                          // コンパイラーが提供する日付。書式は「Sep 21 2008」。
 
-		date >> month >> day >> year;
-		ss << year << std::setw(2) << std::setfill('0') << (1 + months.find(month) / 4)
-			<< std::setw(2) << std::setfill('0') << day;
+        date >> month >> day >> year;
+        ss << year << std::setw(2) << std::setfill('0') << (1 + months.find(month) / 4)
+           << std::setw(2) << std::setfill('0') << day;
 #endif
 
 #ifdef GIT_DIFFINDEX
@@ -205,16 +205,16 @@ std::string engine_version_info() {
         // やねうら王のMakefileでは自動設定しない。必要ならEXTRA_CPPFLAGSで
         // -DGIT_DIFFINDEXを指定する。
 
-		ss << "-";
+        ss << "-";
 
 #ifdef GIT_SHA
-		ss << stringify(GIT_SHA);
+        ss << stringify(GIT_SHA);
 #else
-		ss << "nogit";
+        ss << "nogit";
 #endif
-	}
+    }
 
-	return ss.str();
+    return ss.str();
 }
 
 #if STOCKFISH
