@@ -206,20 +206,21 @@ bool Engine::set_numa_config_from_option(const std::string& o) {
         set_config(NumaConfig::from_system(DefaultNumaPolicy, false));
     else if (o == "none")
         set_config(NumaConfig{});
-	else
-	{
+    else
+    {
         auto parsed = NumaConfig::from_string(o);
         if (!parsed.has_value())
             return false;
         set_config(std::move(*parsed));
-	}
+    }
 
     if (deferResourceOptions)
         return true;
 
-	// Force reallocation of threads in case affinities need to change.
-	resize_threads();
-	threads.ensure_network_replicated();
+    // Force reallocation of threads in case affinities need to change.
+    // アフィニティーの変更に備え、スレッドを再生成する。
+    resize_threads();
+    threads.ensure_network_replicated();
     return true;
 }
 
