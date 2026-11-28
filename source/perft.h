@@ -29,14 +29,22 @@ u64 perft(Position& pos, Depth depth) {
     u64        cnt, nodes = 0;
     const bool leaf = (depth == 2);
 
+#if STOCKFISH
+    for (const auto& m : MoveList<ALL>(pos))
+#else
     for (const auto& m : MoveList<LEGAL_ALL>(pos))
+#endif
     {
         if (Root && depth <= 1)
             cnt = 1, nodes++;
         else
         {
             pos.do_move(m);
+#if STOCKFISH
+            cnt = leaf ? MoveList<ALL>(pos).size() : perft<false>(pos, depth - 1);
+#else
             cnt = leaf ? MoveList<LEGAL_ALL>(pos).size() : perft<false>(pos, depth - 1);
+#endif
             nodes += cnt;
             pos.undo_move(m);
         }
