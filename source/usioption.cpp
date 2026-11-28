@@ -153,7 +153,7 @@ Option::Option(const std::vector<std::string>& list, const std::string& cur, OnC
 	//    {"A","B","C"}なるstd::vector<string>とcur = "B"から
 	//    "B var A var B var C"のような文字列を構築してdefaultValueに入れる必要がある。
     std::string s = cur;
-    for (auto l : list)
+    for (const auto& l : list)
         s += " var " + l;
     defaultValue = s;
 	currentValue = cur;
