@@ -120,7 +120,8 @@ struct Stack {
     // PVへのポインター。
     PVMoves* pv;
 
-    // historyのうち、counter moveに関するhistoryへのポインタ。実体はThreadが持っている。
+    // この指し手を起点とするcontinuation historyへのポインター。
+    // テーブル本体は同じNUMAノードのWorker間で共有する。
     PieceToHistory* continuationHistory;
 
     // [pc][to]のペアに対する correction history。

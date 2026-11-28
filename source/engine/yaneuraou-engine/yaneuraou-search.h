@@ -391,7 +391,7 @@ class YaneuraOuWorker: public Worker {
 	// Public because they need to be updatable by the stats
     // stats によって更新可能である必要があるため、public
 
-    // 近代的なMovePickerではオーダリングのために、スレッドごとにhistoryとcounter movesなどのtableを持たないといけない。
+    // 指し手の並べ替えに使うWorkerごとの履歴。continuation historyは下記の共有テーブルを参照する。
     ButterflyHistory mainHistory;
     LowPlyHistory    lowPlyHistory;
 
