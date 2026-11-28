@@ -24,6 +24,9 @@
 #include "numa.h"
 #include "position.h"
 #include "score.h"
+#if STOCKFISH
+#include "syzygy/tbprobe.h"
+#endif
 #include "timeman.h"
 #include "types.h"
 
@@ -48,6 +51,9 @@ class OptionsMap;
 // 探索関係
 namespace Search {
 
+#if STOCKFISH
+class SearchManager;
+#endif
 
 // -----------------------
 //  探索のときに使うPV
@@ -670,12 +676,15 @@ protected:
     usize                    threadIdx, numaThreadIdx, numaTotal;
     NumaReplicatedAccessToken numaAccessToken;
 
-	// 📝 派生class側で
-    //// The main thread has a SearchManager, the others have a nullptr
-    //std::unique_ptr<SearchManager> manager;
+#if STOCKFISH
+    // The main thread has a SearchManager, the others have a nullptr
+    // メインスレッドだけがSearchManagerを持ち、他はnullptr。
+    std::unique_ptr<SearchManager> manager;
 
-	// 📝 tablebaseは将棋では使わない。
-    //Tablebases::Config tbConfig;
+    Tablebases::Config tbConfig;
+#else
+    // やねうら王の探索管理は派生class側で行い、tablebaseは使わない。
+#endif
 
 	// エンジンOption管理
     // 💡 コンストラクタで渡されたもの
