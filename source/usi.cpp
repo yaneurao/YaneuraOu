@@ -1092,6 +1092,34 @@ u64 USIEngine::perft(const Search::LimitsType& limits) {
 }
 
 // "position"コマンドのhandler
+#if STOCKFISH
+void USIEngine::position(std::istringstream& is) {
+    std::string token, fen;
+
+    is >> token;
+
+    if (token == "startpos")
+    {
+        fen = StartFEN;
+        is >> token;  // Consume the "moves" token, if any
+                      // "moves"トークンがあれば読み飛ばす。
+    }
+    else if (token == "fen")
+        while (is >> token && token != "moves")
+            fen += token + " ";
+    else
+        return;
+
+    std::vector<std::string> moves;
+
+    while (is >> token)
+        moves.push_back(token);
+
+    auto err = engine.set_position(fen, moves);
+    if (err.has_value())
+        terminate_on_critical_error(err->what());
+}
+#else
 void USIEngine::position(std::istringstream& is) {
 	std::string token, sfen;
 
@@ -1106,13 +1134,6 @@ void USIEngine::position(std::istringstream& is) {
     }
     // 局面がfen形式で指定されているなら、その局面を読み込む。
     // UCI(チェスプロトコル)ではなくUSI(将棋用プロトコル)だとここの文字列は"fen"ではなく"sfen"
-#if STOCKFISH
-    else if (token == "fen")
-        while (is >> token && token != "moves")
-            sfen += token + " ";
-    else
-        return;
-#else
     // 💡 この"sfen"という文字列は省略可能にしたいので
     //     Stockfishのコードを少し工夫して書き換える。
     else
@@ -1124,7 +1145,6 @@ void USIEngine::position(std::istringstream& is) {
         while (is >> token && token != "moves")
             sfen += token + " ";
     }
-#endif
 
     std::vector<std::string> moves;
 
@@ -1136,6 +1156,7 @@ void USIEngine::position(std::istringstream& is) {
     if (err.has_value())
         terminate_on_critical_error(err->what());
 }
+#endif
 
 #if STOCKFISH
 
