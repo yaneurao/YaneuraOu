@@ -180,8 +180,8 @@ void TTWriter::write(
 
 #if !STOCKFISH
 	// value,evalが適切な範囲であるか(やねうら王独自追加)
-	ASSERT_LV3(-VALUE_INFINITE <   v  && v < VALUE_INFINITE  ||  v == VALUE_NONE);
-	ASSERT_LV3(-VALUE_MAX_EVAL <= ev && ev <= VALUE_MAX_EVAL || ev == VALUE_NONE);
+	ASSERT_LV3((-VALUE_INFINITE < v && v < VALUE_INFINITE) || v == VALUE_NONE);
+	ASSERT_LV3((-VALUE_MAX_EVAL <= ev && ev <= VALUE_MAX_EVAL) || ev == VALUE_NONE);
 #endif
 
     const int shift   = KeyBits * index;
