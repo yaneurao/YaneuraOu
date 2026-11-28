@@ -1072,7 +1072,7 @@ public:
 
 		// 置換表のサイズ。[MB]で指定。
 		options.add(  //
-			"USI_Hash", Option(1024, 1, MaxHashMB, [this](const Option& o) {
+			"USI_Hash", Option(1024, 1, MaxHashMB, [](const Option&) {
 				// set_tt_size();
 				// ⇨  どうせisready()で確保するので、handlerを呼び出して反映させる必要はない。
 				return std::nullopt;
