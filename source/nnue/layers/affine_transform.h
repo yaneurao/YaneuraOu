@@ -27,11 +27,9 @@ static void affine_transform_unaligned(i32*       output,
 
 #if defined(USE_AVX512)
 	constexpr IndexType NumChunks  = ceil_to_multiple<IndexType>(InputDimensions, 64) / 64;
-    const __m512i       Zeros      = _mm512_setzero_si512();
     const auto          inputVector = reinterpret_cast<const __m512i*>(input);
 #elif defined(USE_AVX2)
 	constexpr IndexType NumChunks  = ceil_to_multiple<IndexType>(InputDimensions, 32) / 32;
-    const __m256i       Zeros      = _mm256_setzero_si256();
     const auto          inputVector = reinterpret_cast<const __m256i*>(input);
 #elif defined(USE_SSE2)
     // At least a multiple of 16, with SSE2.
