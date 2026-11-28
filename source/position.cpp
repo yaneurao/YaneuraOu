@@ -1428,17 +1428,17 @@ std::string Position::moves_from_start(bool is_pretty) const
     for (usize distance = 0; distance < std::min(stateIdx, MAX_HIST - 1); ++distance)
         states.push(previous_state(distance));
 
-	std::stringstream ss;
-	while (states.size())
-	{
-		auto& top = states.top();
-		if (is_pretty)
-			ss << pretty(top->lastMove, top->lastMovedPieceType) << ' ';
-		else
-			ss << top->lastMove << ' ';
-		states.pop();
-	}
-	return ss.str();
+    std::stringstream ss;
+    while (states.size())
+    {
+        auto& top = states.top();
+        if (is_pretty)
+            ss << pretty(top->lastMove, top->lastMovedPieceType) << ' ';
+        else
+            ss << top->lastMove << ' ';
+        states.pop();
+    }
+    return ss.str();
 }
 #endif
 
