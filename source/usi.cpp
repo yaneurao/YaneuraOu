@@ -792,9 +792,14 @@ void USIEngine::bench(std::istream& args) {
     isready();
 #endif
 
+#if STOCKFISH
+    std::vector<std::string> list = Benchmark::setup_bench(engine.fen(), args);
+#else
     std::vector<std::string> list = Benchmark::setup_bench(engine.sfen(), args);
+#endif
 
-    num = count_if(list.begin(), list.end(), [](const std::string& s) { return s.find("go ") == 0 || s.find("eval") == 0; });
+    num = count_if(list.begin(), list.end(),
+                   [](const std::string& s) { return s.find("go ") == 0 || s.find("eval") == 0; });
 
     TimePoint elapsed = now();
 
@@ -806,7 +811,11 @@ void USIEngine::bench(std::istream& args) {
 
         if (token == "go" || token == "eval")
         {
+#if STOCKFISH
+            std::cerr << "\nPosition: " << cnt++ << '/' << num << " (" << engine.fen() << ")"
+#else
             std::cerr << "\nPosition: " << cnt++ << '/' << num << " (" << engine.sfen() << ")"
+#endif
                       << std::endl;
             if (token == "go")
             {
