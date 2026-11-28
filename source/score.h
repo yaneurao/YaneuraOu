@@ -44,9 +44,9 @@ class Score {
 #else
     Score(Value v);
 
-	// 🌈 Valueの値を(cpへの変換をせずに)そのままScoreに変換する。
-    static Score from_internal_value(Value v);
-	// 🌈 いま保持している値をValueに変換する。
+	// 🌈 変換済みのcp値をそのままScoreに格納する。定跡の評価値に使用する。
+    static Score from_cp(int cp);
+	// 🌈 保持しているcp値または詰み手数を内部評価値に変換する。
     Value        to_value() const;
 #endif
 

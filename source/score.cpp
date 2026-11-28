@@ -39,14 +39,14 @@ Score::Score(Value v) {
 }
 
 #if !STOCKFISH
-// 🌈 Valueの値を(cpへの変換をせずに)そのままScoreに変換する。
-Score Score::from_internal_value(Value v) {
+// 🌈 変換済みのcp値をそのままScoreに格納する。
+Score Score::from_cp(int cp) {
     Score score;
-    score.score = InternalUnits{ v };
+    score.score = InternalUnits{cp};
     return score;
 }
 
-// 🌈 いま保持している値をValueに変換する。
+// 🌈 保持しているcp値または詰み手数を内部評価値に変換する。
 Value Score::to_value() const {
     if (is<InternalUnits>())
 		// cpで保持している。
