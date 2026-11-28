@@ -559,6 +559,7 @@ Key Position::compute_material_key() const {
 #endif
 
 
+#if !STOCKFISH
 // 局面の本体と最初の状態だけを初期化し、未使用の履歴領域は触らない。
 void Position::reset_state() {
     std::memset(static_cast<void*>(this), 0, offsetof(Position, stateIdx));
@@ -607,6 +608,7 @@ StateInfo* Position::previous_state(usize distance) const {
     return const_cast<StateInfo*>(&stateInfos[(stateIdx - distance) & (MAX_HIST - 1)]);
 #endif
 }
+#endif
 
 void Position::copy_state_infos(const Position& other) {
 #if STOCKFISH
@@ -2152,12 +2154,14 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 	*/
 
     StateInfo* previousSt = st;
-    st = push_state();
 #if STOCKFISH
+    stateIdx = (stateIdx + 1) & (MAX_HIST - 1);
+    st       = &stateInfos[stateIdx];
     std::memcpy(st, previousSt, offsetof(StateInfo, key));
 
     Key k = previousSt->key ^ Zobrist::side;
 #else
+    st = push_state();
     std::memcpy(static_cast<void*>(st), previousSt, offsetof(StateInfo, board_key));
 #endif
 
@@ -2881,13 +2885,15 @@ void Position::do_null_move(const T& tt) {
 
 
     StateInfo* previousSt = st;
-    st = push_state();
 #if STOCKFISH
+    stateIdx = (stateIdx + 1) & (MAX_HIST - 1);
+    st       = &stateInfos[stateIdx];
     // Remaining fields are recomputed, invalidated or overwritten below.
     // 残りのフィールドは、後で再計算、無効化、または上書きする。
     std::memcpy(st, previousSt, offsetof(StateInfo, blockersForKing));
     st->piecePlacement = previousSt->piecePlacement;
 #else
+    st = push_state();
     std::memcpy(static_cast<void*>(st), previousSt, sizeof(StateInfo));
 #endif
 
@@ -2970,7 +2976,12 @@ void Position::undo_null_move() {
 
     ASSERT_LV3(!checkers());
 
+#if STOCKFISH
+    stateIdx = (stateIdx - 1) & (MAX_HIST - 1);
+    st       = &stateInfos[stateIdx];
+#else
     pop_state();
+#endif
     sideToMove = ~sideToMove;
 }
 
