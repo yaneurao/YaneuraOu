@@ -409,6 +409,13 @@ static bool aligned(Square sq1, Square sq2, Square sq3/* is ksq */)
 // 通常探索時の最大探索深さ
 constexpr int MAX_PLY = MAX_PLY_NUM;
 
+#if STOCKFISH
+constexpr int MAX_HIST  = 512;                         // must be power of two
+// 履歴リングのサイズは2の冪でなければならない。
+static_assert(MAX_HIST >= MAX_PLY + 10 + 50 * 2 + 1);  // search depth + 50 move rule hist
+// 探索深さと50手ルールの履歴を保持できることを確認する。
+#endif
+
 // 探索深さを表現する型
 using Depth = int;
 
