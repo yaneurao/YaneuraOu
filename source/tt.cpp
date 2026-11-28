@@ -248,7 +248,7 @@ void TTWriter::write(
 // 上位のpv/boundビットに関係なく、必要な桁借りが保証される。
 
 u8 TTEntry::relative_age(const u8 curr_generation) const {
-	return (curr_generation - genBound8) & GENERATION_MASK;
+    return (curr_generation - genBound8) & GENERATION_MASK;
 }
 
 
@@ -286,12 +286,12 @@ void TranspositionTable::resize(usize mbSize, ThreadPool& threads, bool force) {
 #if STOCKFISH
     aligned_large_pages_free(table);
 
-    clusterCount = mbSize * 1024 * 1024 / sizeof(Cluster);
-
+    clusterCount  = mbSize * 1024 * 1024 / sizeof(Cluster);
     usize ttBytes = clusterCount * sizeof(Cluster);
 
     // Request 1GB pages if we'd get at least eight per NUMA node, to avoid
     // memory oversubscription
+    // メモリの過剰確保を避けるため、NUMAノードあたり8ページ以上になる場合に1GBページを要求する。
     bool hugePageHint = ttBytes >= threads.numa_nodes() * HugePageSize * 8;
 
     table = static_cast<Cluster*>(aligned_large_pages_alloc_with_hint(ttBytes, hugePageHint));
@@ -331,11 +331,11 @@ void TranspositionTable::resize(usize mbSize, ThreadPool& threads, bool force) {
 
 #endif
 
-	if (!table)
-	{
-		std::cerr << "Failed to allocate " << mbSize << "MB for transposition table." << std::endl;
-		exit(EXIT_FAILURE);
-	}
+    if (!table)
+    {
+        std::cerr << "Failed to allocate " << mbSize << "MB for transposition table." << std::endl;
+        exit(EXIT_FAILURE);
+    }
 
 #if STOCKFISH
 	clear(threads);
