@@ -316,8 +316,7 @@ class Position {
 	// 例 : MOVE_WINやMOVE_NULLに対してはそれがそのまま返ってくる。つまり、この時、上位16bitは0(NO_PIECE)である。
 	//
 	// ※　このPositionクラスが保持している現在の手番(side_to_move)が移動させる駒に反映される。
-	// ※　mの移動元の駒が現在の手番の駒でなければ、MOVE_NONEが返ることは保証される。
-	// ※  mの移動元に駒がない場合も、MOVE_NONEが返ることは保証される。
+	// ※　駒打ち以外で、移動元に現在の手番の駒がなければMOVE_NONEを返す。
 	Move to_move(Move16 m) const;
 
     // 千日手検査の遡り上限を設定する。既定値は16手。
@@ -1095,7 +1094,6 @@ inline Bitboard Position::pieces() const { return byTypeBB[ALL_PIECES]; }
 
 template<typename... PieceTypes>
 inline Bitboard Position::pieces(PieceTypes... pts) const {
-	// 🤔 fold expressionで実装する。
     return (byTypeBB[pts] | ...);
 }
 
