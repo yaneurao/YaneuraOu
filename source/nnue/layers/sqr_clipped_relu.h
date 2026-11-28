@@ -44,10 +44,11 @@ namespace YaneuraOu::Eval::NNUE::Layers {
 		}
 
 		// Read network parameters
-		// パラメータを読み込む
+		// パラメータを読み込む。この層には読み込む値がない。
 		bool read_parameters(std::istream&) { return true; }
 
-		// パラメータを書き込む
+		// Write network parameters
+		// パラメータを書き込む。この層には書き出す値がない。
 		bool write_parameters(std::ostream&) const { return true; }
 
 		// Forward propagation
