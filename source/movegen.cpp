@@ -9,6 +9,12 @@
 #include "bitboard.h"
 #include "position.h"
 
+#if STOCKFISH
+#if defined(USE_AVX512ICL)
+    #include <immintrin.h>
+#endif
+#endif
+
 #if !STOCKFISH
 #include <iostream>
 #include "misc.h"
@@ -21,15 +27,14 @@ namespace YaneuraOu {
 
 using namespace Attacks;
 
+#if !STOCKFISH
 using namespace BB_Table;
 
-#if !STOCKFISH
 std::ostream& operator<<(std::ostream& os, ExtMove m)
 {
     os << Move(m) << '(' << m.value << ')';
     return os;
 }
-#endif
 
 // mlist_startからmlist_endまで(mlist_endは含まない)の指し手がpseudo_legal_s<true>であるかを
 // 調べて、すべてがそうであるならばtrueを返す。
@@ -42,6 +47,7 @@ static bool pseudo_legal_check(const Position& pos, Move* mlist_start, Move* mli
 
 	return all_ok;
 }
+#endif
 
 // ----------------------------------
 //      移動による指し手
