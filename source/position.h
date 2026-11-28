@@ -583,7 +583,7 @@ class Position {
 
 	// 指し手で盤面を1手進める
 	// m = 指し手。mとして非合法手を渡してはならない。
-	// StateInfoはPosition内部のリングバッファに保存する。
+	// StateInfoはPosition内部に保存する。通常版はリングバッファ、詰将棋版は固定長の履歴領域を使う。
 	// givesCheck = mの指し手によって王手になるかどうか。
 	// 王手情報は局面設定や直前のdo_move()/do_null_move()で更新されている。
 #if STOCKFISH
@@ -617,9 +617,9 @@ class Position {
 #endif
 #endif
 
+#if !STOCKFISH
 	// 💡 上記のdo_move()にはgivesCheckも渡さないといけないが、
 	//     mで王手になるかどうかがわからないときはこちらの関数を用いる。
-#if !STOCKFISH
     void do_move(Move m) { do_move(m, gives_check(m)); }
 #endif
 
@@ -627,11 +627,10 @@ class Position {
 	void undo_move(Move m);
 
 	// null move用のdo_move()
-	// 📝 Tのところには、TranspositionTable ttを渡すことができる。
-
 	void do_null_move();
 
 #if !STOCKFISH
+	// 📝 Tのところには、TranspositionTable ttを渡すことができる。
 	template<typename T>
     void do_null_move(const T& tt);
 #endif
