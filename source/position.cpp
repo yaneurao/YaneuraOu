@@ -2310,7 +2310,7 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 
     // 繰り返し情報を計算します。これは、同じ局面の前回の発生からの手数で(1,2回目)、
     // 3回繰り返しの場合は負の値、または局面が繰り返されていない場合はゼロです。
-    // ⇨　要するに千日手成立時にだけ負。つまり、やねうら王では、1,2,3回目は正、4回目を負。
+    // やねうら王では、同一局面が見つからなければ0、2・3回目は正、4回目以降は負。
 
 #if !defined(ENABLE_QUICK_DRAW)
     st->repetition       = 0;
@@ -3335,11 +3335,7 @@ Move Position::DeclarationWin() const
 			+ hand_count(h, PAWN) + hand_count(h, LANCE) + hand_count(h, KNIGHT) + hand_count(h, SILVER)
 			+ hand_count(h, GOLD) + (hand_count(h, BISHOP) + hand_count(h, ROOK)) * 5;
 
-		// rule==EKR_27_POINTならCSAルール。rule==EKR_24_POINTなら24点法(30点以下引き分けなので31点以上あるときのみ勝ち扱いとする)
-		//if (score < (rule == EKR_27_POINT ? (us == BLACK ? 28 : 27) : 31))
-			//return Move::none();
-
-		// ↓ 駒落ち対応などを考慮して、enteringKingPoint[]を参照することにした。
+		// ルールや駒落ちに応じた宣言勝ちの閾値を参照する。
 
 		if (score < enteringKingPoint[us])
 			return Move::none();
