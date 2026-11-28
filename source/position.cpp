@@ -1891,11 +1891,11 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
     //  StateInfoの更新
     // ----------------------
 
-    // 現局面のキーを基に次局面のキーを更新する。
-    // 将棋版は盤面と手駒を別々に計算し、StateInfo::board_keyとhand_keyへ格納する。
 #if STOCKFISH
-    HASH_KEY k = st->key ^ Zobrist::side;
+    Key k = st->key ^ Zobrist::side;
 #else
+    // 現局面の盤面キーを基に次局面のキーを更新する。
+    // 将棋版は盤面と手駒を別々に計算し、StateInfo::board_keyとhand_keyへ格納する。
     HASH_KEY k = st->board_key ^ Zobrist::side;
 
     // 🌈 将棋だと手駒がある。手駒用のhash keyを別途用意
