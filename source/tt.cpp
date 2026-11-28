@@ -100,35 +100,34 @@ struct TTEntry {
 
     // Extract data from the TT entry. We have to convert TT internal bitfields
     // to external types.
-	// TTエントリからデータを取り出す。TT内部のビットフィールドを
-	// 外部で使用する型に変換する必要がある。
+    // TTエントリからデータを取り出す。TT内部のビットフィールドを
+    // 外部で使用する型に変換する必要がある。
 
-	TTData read() const {
+    TTData read() const {
 #if STOCKFISH
         return TTData{Move(move16),
 #else
-		// やねうら王では、32bit Moveを設定する必要があるが、
-		// この時点では上位16bitは不明であるため、0埋めしておく。
-		return TTData{Move(u32(Move16(move16).to_u16())),
+        // やねうら王では、32bit Moveを設定する必要があるが、
+        // この時点では上位16bitは不明であるため、0埋めしておく。
+        return TTData{Move(u32(Move16(move16).to_u16())),
 #endif
-				Value(value16),
-				Value(eval16),
-				Depth(DEPTH_NONE + depth8),
-				Bound((genBound8 & BOUND_MASK) >> BOUND_SHIFT),
-				bool(genBound8 & PV_MASK)};
-	}
+                      Value(value16),
+                      Value(eval16),
+                      Depth(DEPTH_NONE + depth8),
+                      Bound((genBound8 & BOUND_MASK) >> BOUND_SHIFT),
+                      bool(genBound8 & PV_MASK)};
+    }
 
     // Check if the TT entry is occupied
-	// このEntryが使われているか？
-	bool is_occupied() const { return bool(depth8); }
+    // このEntryが使われているか？
+    bool is_occupied() const { return bool(depth8); }
 
     // Return TT entry age
     // TT entryの世代を返す
-	u8 relative_age(const u8 curr_generation) const;
+    u8 relative_age(const u8 curr_generation) const;
 
    private:
     friend class TranspositionTable;
-
     friend struct TTWriter;
 
     RelaxedAtomic<u8>   depth8;
