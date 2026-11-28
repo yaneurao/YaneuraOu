@@ -74,8 +74,8 @@ void makebook(IEngine& engine, std::istringstream& is);
 */
 
 template<typename... Ts>
-struct overload : Ts... {
-	using Ts::operator()...;
+struct overload: Ts... {
+    using Ts::operator()...;
 };
 
 template<typename... Ts>
@@ -83,11 +83,11 @@ overload(Ts...) -> overload<Ts...>;
 
 // string_viewで受け取ったものを"\n"で複数行に分割して、それをinfo stringとして出力する。
 void USIEngine::print_info_string(std::string_view str) {
-	sync_cout_start();
-	for (auto& line : split(str, "\n"))
-		if (!is_whitespace(line))
-			std::cout << "info string " << line << '\n';
-	sync_cout_end();
+    sync_cout_start();
+    for (auto& line : split(str, "\n"))
+        if (!is_whitespace(line))
+            std::cout << "info string " << line << '\n';
+    sync_cout_end();
 }
 
 #if STOCKFISH
