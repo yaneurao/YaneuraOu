@@ -169,12 +169,20 @@ class SearchManager {
         updates(updateContext) {}
 
     // 指し手をGUIに返す時刻になったかをチェックする。
+#if STOCKFISH
+    void check_time(Search::Worker& worker);
+#else
     void check_time(YaneuraOuWorker& worker);
+#endif
 
     // 現在のPV(読み筋)をUpdateContext::onUpdateFull()で登録する。
     // tt      : このスレッドに属する置換表
     // depth   : 反復深化のiteration深さ。
+#if STOCKFISH
+    void output_pv(Search::Worker&           worker,
+#else
     void output_pv(Search::YaneuraOuWorker&   worker,
+#endif
                    const ThreadPool&         threads,
                    const TranspositionTable& tt,
                    Depth                     depth);

@@ -5824,7 +5824,11 @@ Move Skill::pick_best(const RootMoves& rootMoves, usize multiPV) {
 // and to print debug info.
 // 使用可能な時間を使い切ったかを検出して探索を停止し、デバッグ情報も出力する。
 
+#if STOCKFISH
+void SearchManager::check_time(Search::Worker& worker) {
+#else
 void SearchManager::check_time(Search::YaneuraOuWorker& worker) {
+#endif
     if (--callsCnt > 0)
         return;
 
@@ -6076,7 +6080,11 @@ void syzygy_extend_pv(const OptionsMap&         options,
 #endif
 
 
+#if STOCKFISH
+void SearchManager::output_pv(Search::Worker&           worker,
+#else
 void SearchManager::output_pv(Search::YaneuraOuWorker&   worker,
+#endif
                               const ThreadPool&         threads,
                               const TranspositionTable& tt,
                               Depth                     depth) {
