@@ -119,6 +119,11 @@ namespace Features {
 // Type checks for lazy updates and Finny tables need only this declaration.
 // 遅延更新・Finny Tablesの型判定には前方宣言だけで足りる。
 template<Side AssociatedKing> class HalfKA_hm2;
+template<Side AssociatedKing> class HalfKA2;
+template<Side AssociatedKing> class HalfKP;
+template<Side AssociatedKing> class HalfKP_vm;
+class K;
+class P;
 }
 
 #if defined(EVAL_SFNN)
@@ -139,18 +144,27 @@ template<Side AssociatedKing> class HalfKA_hm2;
 // 複数手の遅延更新と盤面から直接更新するFinny経路で共用する特徴量の型判定。
 inline constexpr bool kUseHalfKAHm2 = std::is_same_v<
   RawFeatures, Features::FeatureSet<Features::HalfKA_hm2<Features::Side::kFriend>>>;
+inline constexpr bool kUseHalfKA2 = std::is_same_v<
+  RawFeatures, Features::FeatureSet<Features::HalfKA2<Features::Side::kFriend>>>;
+inline constexpr bool kUseHalfKP = std::is_same_v<
+  RawFeatures, Features::FeatureSet<Features::HalfKP<Features::Side::kFriend>>>;
+inline constexpr bool kUseHalfKPvm = std::is_same_v<
+  RawFeatures, Features::FeatureSet<Features::HalfKP_vm<Features::Side::kFriend>>>;
+inline constexpr bool kUseKP = std::is_same_v<RawFeatures, Features::FeatureSet<Features::K, Features::P>>;
 
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
-    // Multi-ply updates currently support this single feature set only.
-    // 複数手の差分更新は、現在この単一特徴量の組み合わせに対応する。
-    inline constexpr bool kUseMultiPly = kUseHalfKAHm2;
+    // 複数手の直接更新は、自玉基準のHalfKA_hm2とHalfKA2に対応する。
+    inline constexpr bool kUseMultiPly = kUseHalfKAHm2 || kUseHalfKA2;
+    inline constexpr bool kUseGenericMultiPly = kUseHalfKP || kUseHalfKPvm || kUseKP;
 #else
     inline constexpr bool kUseMultiPly = false;
+    inline constexpr bool kUseGenericMultiPly = false;
 #endif
 
 	// Trigger for full calculation instead of difference calculation
 	// 差分計算の代わりに全計算を行うタイミングのリスト
 	constexpr auto kRefreshTriggers = RawFeatures::kRefreshTriggers;
+	static_assert(!kUseGenericMultiPly || kRefreshTriggers.size() == 1);
 
 } // namespace YaneuraOu::Eval::NNUE
 

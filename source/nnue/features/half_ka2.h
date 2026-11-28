@@ -43,6 +43,22 @@ namespace YaneuraOu::Eval::NNUE::Features {
 		// 玉の位置とBonaPieceから特徴量のインデックスを求める
 		static IndexType make_index(Square sq_k, BonaPiece p);
 
+        // 盤面と手駒からFinny更新用の特徴量番号を直接求める。
+        struct IndexContext {
+            IndexContext(Square king, Color c) : perspective(c), kingOffset(IndexType(e_king) * IndexType(king)) {}
+            IndexType board(Piece pc, Square sq) const {
+                const auto base = kpp_board_index[pc].from[perspective];
+                const Square oriented = perspective == BLACK ? sq : Inv(sq);
+                return kingOffset + (base >= e_king ? base - SQ_NB : base) + IndexType(oriented);
+            }
+            IndexType hand(Color c, PieceType pt, int slot) const {
+                return kingOffset + kpp_hand_index[c][pt].from[perspective] + slot;
+            }
+            IndexType zero() const { return kingOffset; }
+            Color perspective;
+            IndexType kingOffset;
+        };
+
 	};
 
 } // namespace YaneuraOu::Eval::NNUE::Features

@@ -39,7 +39,7 @@ class AccumulatorCaches {
    public:
 #if defined(USE_FINNY_TABLES)
 #if defined(USE_AVX512) || defined(USE_AVX2) || defined(USE_SSE2) || defined(USE_NEON)
-    static constexpr bool kUseDirectFinny = kUseHalfKAHm2;
+    static constexpr bool kUseDirectFinny = kUseHalfKAHm2 || kUseHalfKA2;
 #else
     static constexpr bool kUseDirectFinny = false;
 #endif
@@ -59,8 +59,8 @@ class AccumulatorCaches {
         };
         Entry(): Entry(std::bool_constant<kUseDirectFinny>{}) {}
         bool is_initialized() const {
-            // HalfKA_hm2 requires both kings, so zero pieces denotes an unused snapshot.
-            // HalfKA_hm2は両玉が必要なので、駒数0を未使用の盤面として扱える。
+            // HalfKA_hm2 and HalfKA2 include both kings, so zero denotes an unused snapshot.
+            // 両玉を含むHalfKA_hm2とHalfKA2では、駒数0を未使用の盤面として扱える。
             if constexpr (kUseDirectFinny) return position.pieceCount != 0;
             else return active_indices.size() != 0;
         }

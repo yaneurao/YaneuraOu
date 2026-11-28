@@ -24,6 +24,7 @@
 
 #if defined(USE_FINNY_TABLES) || (defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1)
 #include "features/half_ka_hm2.h"
+#include "features/half_ka2.h"
 #include "features/king_piece_helpers.h"
 #endif
 
@@ -180,6 +181,12 @@ class FeatureTransformer {
 			return true;
 		}
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+        if constexpr (kUseGenericMultiPly) {
+#if defined(NNUE_FT_PACKED8)
+            if (sparse8_enabled_) return update_generic_from_computed_ancestor<true>(pos, state);
+#endif
+            return update_generic_from_computed_ancestor<false>(pos, state);
+        }
         if constexpr (kUseMultiPly) {
 #if defined(NNUE_FT_PACKED8)
             if (sparse8_enabled_) return update_from_computed_ancestor<true>(pos, state, refreshTable);
@@ -191,6 +198,71 @@ class FeatureTransformer {
     }
 
 #if defined(USE_LAZY_EVALUATE) && USE_LAZY_EVALUATE > 1
+    // HalfKP・HalfKP_vmとK+Pは、計算済み祖先までの変更をまとめて反映する。
+    // 玉基準の特徴量では玉の移動で座標系が変わるため、その場合は通常経路に戻る。
+    template<bool Packed>
+    bool update_generic_from_computed_ancestor(const Position& pos, AccumulatorState* state) const {
+        const auto* ancestor = state;
+        int distance = 0;
+        while (ancestor && !accumulator_of(ancestor).computed_accumulation
+               && distance < USE_LAZY_EVALUATE) {
+            if (!ancestor->previous || (!kUseKP && ancestor->dirtyPiece.king_moved()))
+                return false;
+            ++distance;
+            ancestor = ancestor->previous;
+        }
+        if (!ancestor || !accumulator_of(ancestor).computed_accumulation)
+            return false;
+
+        std::array<IndexType, 2 * USE_LAZY_EVALUATE> removed[COLOR_NB], added[COLOR_NB];
+        int removedCount[COLOR_NB]{}, addedCount[COLOR_NB]{};
+        for (auto* current = state; current != ancestor; current = current->previous) {
+            Features::IndexList stepRemoved[COLOR_NB], stepAdded[COLOR_NB];
+            bool reset[COLOR_NB]{};
+            RawFeatures::append_changed_indices(pos, kRefreshTriggers[0], stepRemoved, stepAdded,
+                                                reset, current->dirtyPiece);
+            if (reset[BLACK] || reset[WHITE])
+                return false;
+            for (const Color c : COLOR) {
+                auto record = [](auto& opposite, int& oppositeCount, IndexType value,
+                                 auto& own, int& ownCount) {
+                    for (int i = 0; i < oppositeCount; ++i)
+                        if (opposite[i] == value) {
+                            opposite[i] = opposite[--oppositeCount];
+                            return;
+                        }
+                    assert(usize(ownCount) < own.size());
+                    own[ownCount++] = value;
+                };
+                for (const auto index : stepRemoved[c])
+                    record(added[c], addedCount[c], index, removed[c], removedCount[c]);
+                for (const auto index : stepAdded[c])
+                    record(removed[c], removedCount[c], index, added[c], addedCount[c]);
+            }
+        }
+        auto& accumulator = accumulator_of(state);
+        for (const Color c : COLOR) {
+            const auto* source = accumulator_of(ancestor).accumulation[c][0];
+            auto* destination = accumulator.accumulation[c][0];
+#if defined(VECTOR)
+            update_accumulator_tiled<Packed>(source, destination, [&](vec_t* acc, IndexType offset) {
+                for (int i = 0; i < removedCount[c]; ++i) sub_weight_from_tile<Packed>(acc, removed[c][i], offset);
+                for (int i = 0; i < addedCount[c]; ++i) add_weight_to_tile<Packed>(acc, added[c][i], offset);
+            });
+#else
+            std::copy_n(source, HalfDimensions, destination);
+            for (int i = 0; i < removedCount[c]; ++i)
+                for (IndexType j = 0; j < HalfDimensions; ++j)
+                    destination[j] -= weights[HalfDimensions * removed[c][i] + j];
+            for (int i = 0; i < addedCount[c]; ++i)
+                for (IndexType j = 0; j < HalfDimensions; ++j)
+                    destination[j] += weights[HalfDimensions * added[c][i] + j];
+#endif
+        }
+        accumulator.computed_accumulation = true;
+        return true;
+    }
+
     // Merge changes directly from a computed ancestor, skipping intermediate FT states.
     // 計算済み祖先からの変化をまとめ、中間局面のFT計算を省略する。
     template<bool Packed>
@@ -225,7 +297,9 @@ class FeatureTransformer {
             if (reset[color]) continue;
             const Square king = color == BLACK ? pos.square<KING>(color)
                                                : Inv(pos.square<KING>(color));
-            const typename Features::HalfKA_hm2<Features::Side::kFriend>::IndexContext indices(king, color);
+            using DirectFeature = std::conditional_t<kUseHalfKAHm2,
+              Features::HalfKA_hm2<Features::Side::kFriend>, Features::HalfKA2<Features::Side::kFriend>>;
+            const typename DirectFeature::IndexContext indices(king, color);
             auto record = [](auto& opposite, int& oppositeCount, IndexType value,
                              auto& own, int& ownCount) {
                 for (int i = 0; i < oppositeCount; ++i)
@@ -1109,7 +1183,9 @@ class FeatureTransformer {
                                FinnyEntry& entry, IndexType trigger_index) const {
         const Square king = Features::oriented_king_square<Features::Side::kFriend>(pos, perspective);
         Features::IndexList removed, added;
-        const Features::HalfKA_hm2<Features::Side::kFriend>::IndexContext indices(king, perspective);
+        using DirectFeature = std::conditional_t<kUseHalfKAHm2,
+          Features::HalfKA_hm2<Features::Side::kFriend>, Features::HalfKA2<Features::Side::kFriend>>;
+        const typename DirectFeature::IndexContext indices(king, perspective);
         int pieceCount = entry.position.pieceCount;
         const auto& currentPieces = pos.piece_array();
 #if defined(USE_AVX512)
@@ -1193,7 +1269,7 @@ class FeatureTransformer {
 #endif
         Features::IndexList active;
         if (rebuild)
-            Features::HalfKA_hm2<Features::Side::kFriend>::append_active_indices(pos, perspective, &active);
+            DirectFeature::append_active_indices(pos, perspective, &active);
 #if defined(NNUE_FT_PACKED8) && !defined(NO_PREFETCH)
         if constexpr (Packed) {
             if (rebuild) prefetch_sparse8_columns(active);
@@ -1299,7 +1375,9 @@ class FeatureTransformer {
                 for (Color c : {BLACK, WHITE}) {
                     reset[c] = state->dirtyPiece.pc == make_piece(c, KING);
                     if (!reset[c])
-                        Features::HalfKA_hm2<Features::Side::kFriend>::append_changed_indices(
+                        std::conditional_t<kUseHalfKAHm2,
+                          Features::HalfKA_hm2<Features::Side::kFriend>,
+                          Features::HalfKA2<Features::Side::kFriend>>::append_changed_indices(
                           pos, c, &removed_indices[c], &added_indices[c], state->dirtyPiece);
                 }
             } else
