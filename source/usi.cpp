@@ -1261,7 +1261,7 @@ std::string USIEngine::move(Move m, bool chess960) {
 
 #else
 
-std::string USIEngine::move(Move m /*, bool chess960*/) { return USIEngine::move(m.to_move16()); }
+std::string USIEngine::move(Move m) { return USIEngine::move(m.to_move16()); }
 
 std::string USIEngine::move(Move16 m){
 

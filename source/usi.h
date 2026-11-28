@@ -126,7 +126,7 @@ public:
     static Square to_square(const std::string& str);
 
     // Move16をUSIプロトコルで使う文字列に変換する。
-    static std::string move(Move16 m /*, bool chess960*/);
+    static std::string move(Move16 m);
 
     // vector<Move>をUSIプロトコルで使う文字列に変換する。
     static std::string move(const std::vector<Move>& moves);
