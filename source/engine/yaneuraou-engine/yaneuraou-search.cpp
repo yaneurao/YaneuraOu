@@ -871,8 +871,13 @@ Value value_from_tt(Value v, int ply, int r50c);
 Value value_from_tt(Value v, int ply);
 #endif
 void  update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus);
+#if STOCKFISH
+void  update_quiet_histories(
+   const Position& pos, Stack* ss, Search::Worker& workerThread, Move move, int bonus);
+#else
 void  update_quiet_histories(
    const Position& pos, Stack* ss, Search::YaneuraOuWorker& workerThread, Move move, int bonus);
+#endif
 
 // 📝 quietsSearchedとcapturesSearchedには、最初のSEARCHEDLIST_CAPACITY手のうち探索済みでbestMoveに選ばれなかった手を分類して保持する。
 //     bonusを加点するときにこれらの指し手に対して行う。
@@ -880,6 +885,17 @@ void  update_quiet_histories(
 //     将棋ではハズレのquietの指し手が大量にあるので、それがベストとは限らない。
 // 📊 比較したところ、64より32の方がわずかに良かったので、とりあえず32にしておく。(V7.73mとV7.73m2との比較)
 
+#if STOCKFISH
+void update_all_stats(const Position& pos,
+                      Stack*          ss,
+                      Search::Worker& workerThread,
+                      Move            bestMove,
+                      Square          prevSq,
+                      SearchedList&   quietsSearched,
+                      SearchedList&   capturesSearched,
+                      Depth           depth,
+                      Move            ttMove);
+#else
 void update_all_stats(const Position&          pos,
                       Stack*                   ss,
                       Search::YaneuraOuWorker& workerThread,
@@ -889,6 +905,7 @@ void update_all_stats(const Position&          pos,
                       SearchedList&            capturesSearched,
                       Depth                    depth,
                       Move                     ttMove);
+#endif
 
 
 // Detect shuffling moves in order to limit search explosions. This code was
@@ -5540,6 +5557,17 @@ Value value_from_tt(Value v, int ply
 	capturesSearched : 同じ条件のcaptureの手、探索順
 */
 
+#if STOCKFISH
+void update_all_stats(const Position& pos,
+                      Stack*          ss,
+                      Search::Worker& workerThread,
+                      Move            bestMove,
+                      Square          prevSq,
+                      SearchedList&   quietsSearched,
+                      SearchedList&   capturesSearched,
+                      Depth           depth,
+                      Move            ttMove) {
+#else
 void update_all_stats(const Position&          pos,
                       Stack*                   ss,
                       Search::YaneuraOuWorker& workerThread,
@@ -5549,6 +5577,7 @@ void update_all_stats(const Position&          pos,
                       SearchedList&            capturesSearched,
                       Depth                    depth,
                       Move                     ttMove) {
+#endif
 
 
     CapturePieceToHistory& captureHistory = workerThread.captureHistory;
@@ -5666,8 +5695,13 @@ void update_continuation_histories(Stack* ss, Piece pc, Square to, int bonus) {
 
 // 📝  move      : これが良かった指し手
 
+#if STOCKFISH
+void update_quiet_histories(
+  const Position& pos, Stack* ss, Search::Worker& workerThread, Move move, int bonus) {
+#else
 void update_quiet_histories(
   const Position& pos, Stack* ss, Search::YaneuraOuWorker& workerThread, Move move, int bonus) {
+#endif
 
     Color us = pos.side_to_move();
     workerThread.mainHistory[us][move.raw()] << bonus;  // Untuned to prevent duplicate effort
