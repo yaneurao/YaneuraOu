@@ -4569,7 +4569,7 @@ moves_loop:  // When in check, search starts here
 
 	else if (bestMove)
     {
-        // 💡 quietな(駒を捕獲しない)best moveなのでkillerとhistoryとcountermovesを更新する。
+        // bestMoveがquietか捕獲手かに応じて、探索した手の履歴を更新する。
 
         update_all_stats(pos, ss, *this, bestMove, prevSq, quietsSearched, capturesSearched, depth,
                          ttData.move);
@@ -4947,13 +4947,9 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 			*/
         return ttData.value;
     /*
-			📓 ttData.valueが下界(真の評価値はこれより大きい)もしくはジャストな値で、
-			    かつttData.value >= beta超えならbeta cutできる。
-
-				ttData.valueが上界(真の評価値はこれより小さい)だが、
-				tte->depth()のほうがdepthより深ければ
-				より深い探索結果として十分信頼できるので、
-				この値を信頼して、この値でreturnして良い。
+			📓 TTの深さがDEPTH_QS以上で値が有効な場合、
+			    値がbeta以上なら下界、beta未満なら上界を持つエントリーでカットする。
+			    BOUND_EXACTは下界と上界の両方を含むため、どちらでも使える。
 		*/
 
 #if !STOCKFISH
