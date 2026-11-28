@@ -68,19 +68,23 @@ struct StatsEntry {
 
     operator T() const { return entry; }
 
-	// このStatsEntry(Statsの1要素)に対して"<<"演算子でbonus値の加算が出来るようにしておく。
-	// 値が範囲外にならないように制限してある。
-	void operator<<(int bonus) {
+    // このStatsEntry(Statsの1要素)に対して"<<"演算子でbonus値の加算が出来るようにしておく。
+    // 値が範囲外にならないように制限してある。
+    void operator<<(int bonus) {
 
-		// Make sure that bonus is in range [-D, D]
-		// bonusが[-D,D]の範囲に収まるようにする
+        // Make sure that bonus is in range [-D, D]
+        // bonusが[-D,D]の範囲に収まるようにする
 
-		int clampedBonus = std::clamp(bonus, -D, D);
+        int clampedBonus = std::clamp(bonus, -D, D);
 
         T   val          = *this;
         *this            = val + clampedBonus - val * std::abs(clampedBonus) / D;
 
+#if STOCKFISH
+        assert(std::abs(T(*this)) <= D);
+#else
         ASSERT_LV3(std::abs(T(*this)) <= D);
+#endif
 
         // Stockfishと同じ、履歴の値を[-D,D]に保つ更新式。
         // b = clampedBonus、v = 更新前の値、a = abs(b) / Dを実数で考える。
@@ -89,12 +93,12 @@ struct StatsEntry {
         // b == 0なら変化せず、b == Dなら+D、b == -Dなら-Dになる。
         // 更新前の値が[-D,D]なら、整数除算の丸めを含めても更新後は同じ範囲に収まる。
 
-	}
+    }
 };
 
 enum StatsType {
-	NoCaptures,
-	Captures
+    NoCaptures,
+    Captures
 };
 
 template<typename T, int D, usize... Sizes>
