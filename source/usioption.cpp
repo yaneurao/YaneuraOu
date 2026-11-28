@@ -410,13 +410,11 @@ void OptionsMap::read_engine_options(const std::string& filename)
 		build_option(line);
 }
 
-// 思考エンジンがGUIからの"usi"に対して返す"option ..."文字列から
-// Optionオブジェクトを構築して、それを *this に突っ込む。
-// "engine_options.txt"というファイルの各行からOptionオブジェクト構築して
-// Optionの値を上書きするためにこの関数が必要。
-// "option name USI_Hash type spin default 256"
-// のような文字列が引数として渡される。
-// このとき、Optionのhandlerとidxは書き換えない。
+// 設定ファイルなどの1行を解析し、登録済みOptionの値を上書きする。
+// "USI_Hash 256"、"USI_Hash=256"、
+// "option name USI_Hash type spin default 256"などの形式を受け付ける。
+// オプション自体は新規作成せず、既存の型・範囲・handler・idxを保持する。
+// 値を受理した場合は、そのOptionをfixedにして後のsetoptionによる変更を防ぐ。
 void OptionsMap::build_option(const std::string& line)
 {
     // 「名前 値」「名前=値」「option name ... type ... default ...」を扱う。
