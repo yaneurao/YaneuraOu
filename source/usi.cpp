@@ -555,15 +555,15 @@ bool USIEngine::usi_cmdexec(const std::string& cmd) { // diff:ignore
 // コマンドラインを解析して、Search::LimitsTypeに反映させて返す。
 Search::LimitsType USIEngine::parse_limits(std::istream& is) {
 
-	Search::LimitsType limits;
-	std::string        token;
+    Search::LimitsType limits;
+    std::string        token;
 
-	// 📝 "go"が呼び出された時にこの関数が呼び出される。
-	//     なるべく早くに探索開始時刻をlimits.startTimeに格納しておかないと
-	//     サーバー時刻との差が生じてしまうから、早めに格納する。
+    // 📝 "go"が呼び出された時にこの関数が呼び出される。
+    //     なるべく早くに探索開始時刻をlimits.startTimeに格納しておかないと
+    //     サーバー時刻との差が生じてしまうから、早めに格納する。
 
     limits.startTime = now();  // The search starts as early as possible
-							   // 探索はできるだけ早く開始される
+                               // 探索はできるだけ早く開始される
 
     // エンジンオプションによる探索制限(0なら無制限)
     // このあと、depthもしくはnodesが指定されていたら、その値で上書きされる。(この値は無視される)
@@ -574,51 +574,51 @@ Search::LimitsType USIEngine::parse_limits(std::istream& is) {
     limits.nodes = options.count("NodesLimit") ? (u64) options["NodesLimit"] : 0;
 #endif
 
-	while (is >> token)
+    while (is >> token)
     {
 
-		/* 📓 searchmovesとは？
-		
-			探索すべき指し手。(探索開始局面から特定の初手だけ探索させるとき)
+        /* 📓 searchmovesとは？
 
-			これ、Stockfishのコードでこうなっているからそのままにしてあるが、
-			これを指定しても定跡の指し手としてはこれ以外を指したりする問題はある。
-			またふかうら王ではこのオプションをサポートしていない。
-			ゆえに、非対応扱いで考えて欲しい。
-		*/
+            探索すべき指し手。(探索開始局面から特定の初手だけ探索させるとき)
 
-		if (token == "searchmoves")  // Needs to be the last command on the line
-			                         // この行の最後のコマンドである必要がある
-		{
-			// 残りの指し手すべてをsearchMovesに突っ込む。
-			while (is >> token)
+            これ、Stockfishのコードでこうなっているからそのままにしてあるが、
+            これを指定しても定跡の指し手としてはこれ以外を指したりする問題はある。
+            またふかうら王ではこのオプションをサポートしていない。
+            ゆえに、非対応扱いで考えて欲しい。
+        */
+
+        if (token == "searchmoves")  // Needs to be the last command on the line
+                                     // この行の最後のコマンドである必要がある
+        {
+            // 残りの指し手すべてをsearchMovesに突っ込む。
+            while (is >> token)
 #if STOCKFISH
-				limits.searchmoves.push_back(to_lower(token));
+                limits.searchmoves.push_back(to_lower(token));
 #else
-				// チェスUCIではsearchmovesを小文字化しても問題ないが、将棋USIでは
-				// "P*5e"のように打ち駒の駒種を大文字で表すので、大文字小文字を保持する。
-				limits.searchmoves.push_back(token);
+                // チェスUCIではsearchmovesを小文字化しても問題ないが、将棋USIでは
+                // "P*5e"のように打ち駒の駒種を大文字で表すので、大文字小文字を保持する。
+                limits.searchmoves.push_back(token);
 #endif
             break;
-		}
+        }
 
-		// 先手、後手の残り時間。[ms]
+        // 先手、後手の残り時間。[ms]
         else if (token == "wtime")
-			is >> limits.time[WHITE];
-		else if (token == "btime")
-			is >> limits.time[BLACK];
+            is >> limits.time[WHITE];
+        else if (token == "btime")
+            is >> limits.time[BLACK];
 
-		// フィッシャールール時における時間
+        // フィッシャールール時における時間
         else if (token == "winc")
-			is >> limits.inc[WHITE];
-		else if (token == "binc")
-			is >> limits.inc[BLACK];
+            is >> limits.inc[WHITE];
+        else if (token == "binc")
+            is >> limits.inc[BLACK];
 
 #if STOCKFISH
-		// あと何手で引き分けとなるか。
-		// 🤔 やねうら王ではサポートしない。GUIが対応していないし…。
-		else if (token == "movestogo")
-			is >> limits.movestogo;
+        // あと何手で引き分けとなるか。
+        // 🤔 やねうら王ではサポートしない。GUIが対応していないし…。
+        else if (token == "movestogo")
+            is >> limits.movestogo;
 #else
         // 秒読み設定。
         // 📝 USIでは"byoyomi"として指定できる。
@@ -638,29 +638,29 @@ Search::LimitsType USIEngine::parse_limits(std::istream& is) {
 
         // ランダム時間の思考を行う、"rtime"。
         // 例) "go rtime 100"だと100～300[ms]思考する。
-		// 📌 やねうら王独自
-		else if (token == "rtime")
+        // 📌 やねうら王独自
+        else if (token == "rtime")
             is >> limits.rtime;
 
 #endif
         // この探索深さで探索を打ち切る
         else if (token == "depth")
-			is >> limits.depth;
+            is >> limits.depth;
 
-		// この探索ノード数で探索を打ち切る
-		else if (token == "nodes")
-			is >> limits.nodes;
+        // この探索ノード数で探索を打ち切る
+        else if (token == "nodes")
+            is >> limits.nodes;
 
-		// 持ち時間固定(将棋だと対応しているGUIが無いが..)
-		else if (token == "movetime")
-			is >> limits.movetime;
+        // 持ち時間固定(将棋だと対応しているGUIが無いが..)
+        else if (token == "movetime")
+            is >> limits.movetime;
 
         // 詰み探索。
-		// 📝 UCIではこのあとには手数が入っており、その手数以内に詰むかどうかを判定するが、
+        // 📝 UCIではこのあとには手数が入っており、その手数以内に詰むかどうかを判定するが、
         //     USIでは、ここは探索のための時間制限に変更となっている。
 #if STOCKFISH
-		else if (token == "mate")
-			is >> limits.mate;
+        else if (token == "mate")
+            is >> limits.mate;
 #else
         else if (token == "mate")
         {
@@ -683,20 +683,20 @@ Search::LimitsType USIEngine::parse_limits(std::istream& is) {
         }
 #endif
 
-		/* 📓 perftとは？
-		       パフォーマンステストの略。
+        /* 📓 perftとは？
+               パフォーマンステストの略。
                合法手N手で到達できる局面の数を求める。
-		*/
-		else if (token == "perft")
-			is >> limits.perft;
+        */
+        else if (token == "perft")
+            is >> limits.perft;
 
-		// 時間無制限。
-		else if (token == "infinite")
-			limits.infinite = 1;
+        // 時間無制限。
+        else if (token == "infinite")
+            limits.infinite = 1;
 
-		// ponderモードでの思考。
+        // ponderモードでの思考。
         else if (token == "ponder")
-			limits.ponderMode = true;
+            limits.ponderMode = true;
 
         if (is.fail())
             terminate_on_critical_error("Invalid argument for '" + token + "'");
