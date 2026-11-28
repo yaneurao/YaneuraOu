@@ -1026,7 +1026,7 @@ string Position::fen() const {
     int                emptyCnt;
     std::ostringstream ss;
 
-    for (Rank r = RANK_8; r >= RANK_1; --r)
+    for (Rank r = RANK_8;; --r)
     {
         for (File f = FILE_A; f <= FILE_H; ++f)
         {
@@ -1040,8 +1040,9 @@ string Position::fen() const {
                 ss << PieceToChar[piece_on(make_square(f, r))];
         }
 
-        if (r > RANK_1)
-            ss << '/';
+        if (r == RANK_1)
+            break;
+        ss << '/';
     }
 
     ss << (sideToMove == WHITE ? " w " : " b ");
