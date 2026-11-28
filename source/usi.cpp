@@ -1333,12 +1333,15 @@ std::string USIEngine::move(const std::vector<Move>& moves)
 }
 #endif
 
+#if STOCKFISH
 // string全体を小文字化して返す。
 std::string USIEngine::to_lower(std::string str) {
-	std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c) { return std::tolower(c); });
+    std::transform(str.begin(), str.end(), str.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
 
-	return str;
+    return str;
 }
+#endif
 
 // USIの指し手文字列をMove型に変換する。
 // やねうら王ではresign、win、null moveの表記も受け付ける。

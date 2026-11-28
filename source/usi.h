@@ -91,8 +91,10 @@ public:
     static std::string wdl(Value v, const Position& pos);
 #endif
 
-	// string全体を小文字化して返す。
+#if STOCKFISH
+    // string全体を小文字化して返す。将棋の指し手では駒種の大文字を保持する。
     static std::string to_lower(std::string str);
+#endif
 
 	// USIの指し手文字列をMove型に変換する。
     // resign、win、null moveの表記も受け付ける。
