@@ -425,6 +425,10 @@ class FeatureTransformer {
 				6;
 #endif
 
+			// The first input is clipped to nonnegative values. A negative second
+			// input yields a negative product, which packus clips to zero.
+			// 片方の入力だけを0以上に制限する。もう片方が負なら積も負になり、
+			// 最後の符号なしパックで0に切り詰められるため、maxを省ける。
 			for (IndexType j = 0; j < NumOutputChunks; ++j)
 			{
 				const vec_t sum0a =
