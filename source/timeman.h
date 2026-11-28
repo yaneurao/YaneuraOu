@@ -60,7 +60,7 @@ class TimeManagement {
 #if STOCKFISH
         return useNodesTime ? TimePoint(nodes()) : elapsed_time();
 #else
-        // 📝 やねうら王ではNodesTimeを使わないのでelapsed()はそのままelapsed_Time()に委譲しておく。
+        // 📝 やねうら王ではNodesTimeを使わないのでelapsed()はそのままelapsed_time()に委譲しておく。
         return elapsed_time();
 #endif
     }
@@ -100,7 +100,7 @@ class TimeManagement {
 
 		  よって、
 			  search_end && search_end <= elapsed()
-		  という条件式が必要で、これはMainManager::check_time()に書いてある。
+		  という条件式が必要で、これは通常探索のSearchManager::check_time()に書いてある。
 	*/
     TimePoint search_end;
 
@@ -115,7 +115,7 @@ class TimeManagement {
 
     // ponderhitTimeからの経過時間。
     // 💡 ponderhitTimeは、init()した時にLimitsType::startTimeがコピーされる。
-	//     "ponderhit"したときには、MainManager::set_ponderhit()でその時刻がコピーされる。
+	//     "ponderhit"したときには、各Engineのset_ponderhit()でその時刻がコピーされる。
 	//     よって、"go ponder"での思考でなくともこの変数は使える。
     TimePoint elapsed_time_from_ponderhit() const { return now() - ponderhitTime; };
 
@@ -130,7 +130,7 @@ class TimeManagement {
     bool      isFinalPush = false;    // 🌈 秒読みに突入しているので持ち時間を使い切るべきであるフラグ。
 							  //     つまりはponderhitTimeから数えてminimumTime分は使って欲しい。
     TimePoint startTime;      // 💡 探索開始時刻。LimitsType startTimeの値。
-    TimePoint ponderhitTime;  // 🌈 "ponderhit"した時刻。startTimeからの経過時間ではなく、Timer::now()の生の値。
+    TimePoint ponderhitTime;  // 🌈 "ponderhit"した時刻。startTimeからの経過時間ではなく、now()の生の値。
                               //     "ponderhit"するまではstartTimeと同じ値。
    private:
     // 制限なしを表現する定数
@@ -156,13 +156,6 @@ class TimeManagement {
 
 #else
     // 📌 以下、やねうら王独自追加。
-
-    // init()の内部実装。
-    void init_(const Search::LimitsType& limits,
-               Color                     us,
-               int                       ply,
-               const OptionsMap&         options,
-               int                       max_moves_to_draw);
 
     // optionsのそれぞれの値
     TimePoint minimum_thinking_time;

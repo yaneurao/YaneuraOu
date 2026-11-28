@@ -256,18 +256,8 @@ void TimeManagement::init(const Search::LimitsType& limits,
     //     以降、elapsed_time()は、ここからの経過時間を返す。
     startTime = limits.startTime;
 
-    init_(limits, us, ply, options, max_moves_to_draw);
-}
-
-// 今回の思考時間を計算して、optimum(),maximum()が値をきちんと返せるようにする。
-// これは探索の開始時に呼び出されて、今回の指し手のための思考時間を計算する。
-// limitsで指定された条件に基いてうまく計算する。
-// ply : ここまでの手数。平手の初期局面なら1。(0ではない)
-void TimeManagement::init_(const Search::LimitsType& limits,
-                           Color               us,
-                           int                 ply,
-                           const OptionsMap&   options, int max_moves_to_draw) {
-
+    // 今回の思考時間を計算してoptimum()・maximum()へ反映する。
+    // plyはここまでの手数で、平手の初期局面なら1（0ではない）。
 
 	// ネットワークのDelayを考慮して少し減らすべき。
 	// かつ、minimumとmaximumは端数をなくすべき
