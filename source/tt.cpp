@@ -393,7 +393,7 @@ void TranspositionTable::clear(ThreadPool& threads) {
 	auto size = clusterCount * sizeof(Cluster);
 
 	// 進捗を表示しながら並列化してゼロクリア
-	// Stockfishのここにあったコードは、独自の置換表を実装した時にも使いたいため、tt.cppに移動させた。
+	// 独自の置換表でも利用できるよう、共通処理をextra/tools.cppにまとめている。
 	Tools::memclear(threads, "USI_Hash", table, size);
 #endif
 }
@@ -404,27 +404,27 @@ void TranspositionTable::clear(ThreadPool& threads) {
 
 // 探索中のハッシュテーブルの使用率の概算値を返す。
 // UCIプロトコルの仕様に従い、使用率は千分率で表す。
-// ageがmaxAgeより小さいエントリのみをカウントする。
+// ageがmaxAge以下のエントリのみをカウントする。
 
 int TranspositionTable::hashfull(int maxAge) const {
-	int cnt = 0;
-	for (int i = 0; i < 1000; ++i)
-		for (int j = 0; j < ClusterSize; ++j)
-			cnt += table[i].entry[j].is_occupied()
-			&& table[i].entry[j].relative_age(generation8) <= maxAge;
+    int cnt = 0;
+    for (int i = 0; i < 1000; ++i)
+        for (int j = 0; j < ClusterSize; ++j)
+            cnt += table[i].entry[j].is_occupied()
+                && table[i].entry[j].relative_age(generation8) <= maxAge;
 
-	return cnt / ClusterSize;
+    return cnt / ClusterSize;
 }
 
 // Must be called at the beginning of each root search to track entry aging
 // エントリのエイジングを管理するため、各ルート探索の開始時に呼び出す必要がある。
 void TranspositionTable::new_search() {
 
-	++generation8;
+    ++generation8;
 
-	// Don't overflow into the other bits of TTEntry::genBound8
-	// TTEntry::genBound8の他のビットへ溢れないようにします。
-	generation8 &= GENERATION_MASK;
+    // Don't overflow into the other bits of TTEntry::genBound8
+    // TTEntry::genBound8の他のビットへ溢れないようにします。
+    generation8 &= GENERATION_MASK;
 }
 
 
