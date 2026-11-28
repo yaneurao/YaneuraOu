@@ -970,16 +970,16 @@ Search::Worker::Worker(SharedState&                   sharedState,
 Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
                                          const ThreadIds& ids,
 										 YaneuraOuEngine&          engine) :
+	// 基底クラスのWorkerが共通の状態を展開する。
+	Search::Worker(sharedState, ids),
 	// Unpack the SharedState struct into member variables
 	// SharedState構造体の内容を各メンバー変数へ展開する。
     sharedHistory(sharedState.sharedHistories.at(ids.numaAccessToken.get_numa_index())),
     continuationHistory(sharedHistory.continuationHistory()),
     reductions(engine.reductions),
-	// 残りは基底classであるSearch::Workerのほうでunpackする。
-	Search::Worker(sharedState, ids),
-	engine(engine),
 	manager(engine.manager),
-    network(sharedState.network)
+    network(sharedState.network),
+	engine(engine)
 {
 
     // Worker生成後、ThreadPool::set()からThreadPool::clear()、Thread::clear_worker()を経て
