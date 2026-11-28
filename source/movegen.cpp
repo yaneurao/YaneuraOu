@@ -922,11 +922,11 @@ Move* generate(const Position& pos, Move* moveList, Square recapSq)
 	if (Type == LEGAL || Type == LEGAL_ALL)
 	{
 
-		// 合法性な指し手のみを生成する。
-		// 自殺手や打ち歩詰めが含まれているのでそれを取り除く。かなり重い。ゆえにLEGALは特殊な状況でしか使うべきではない。
+		// 疑似合法手を生成し、Position::legal()で自玉に王手が残る手を除く。
+		// 打ち歩詰めは駒打ちの生成時に除外済み。合法性確認にはコストがかかる。
 		auto last = pos.checkers() ? generateEvasionMoves<All>(pos, moveList) : generate<NON_EVASIONS, All>(pos, moveList);
 
-		// 合法ではない指し手を末尾の指し手と入れ替え
+		// 合法ではない手を末尾の手と入れ替えて除くため、生成順は保持されない。
 		while (moveList != last)
 		{
 			if (!pos.legal(*moveList))
@@ -960,7 +960,7 @@ Move* generate(const Position& pos, Move* moveList, Square recapSq)
 		return generateEvasionMoves<All>(pos, moveList);
 
 	// 上記のもの以外
-	// ただし、NON_EVASIONS_ALL , RECAPTURES_ALLは、ALLではないほうを呼び出す必要がある。
+	// *_ALLはAllをtrueにしたうえで、対応するALLなしの生成種別に変換する。
 	// EVASIONS_ALLは上で呼び出されているが、実際はここでも実体化されたあと、最適化によって削除されるので、ここでも書く必要がある。
 	const auto Type2 =
 		Type == NON_EVASIONS_ALL      ? NON_EVASIONS      :
