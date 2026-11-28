@@ -757,7 +757,9 @@ class Position {
 #if STOCKFISH
     bool                            material_key_is_ok() const;
 #endif
+#if !STOCKFISH
     // 将棋では盤面を180°回転させ、先後を交換する。局面の再設定に失敗したらエラーを返す。
+#endif
     std::optional<PositionSetError> flip();
 
 #if !STOCKFISH
@@ -771,8 +773,10 @@ class Position {
     usize remaining_state_capacity() const { return MAX_HIST - 1 - stateIdx; }
 #endif
 #endif
+#if !STOCKFISH
     // Copy only the history needed by shogi repetition detection.
     // 千日手判定に必要な過去の履歴を、自分の領域へコピーする。
+#endif
     void copy_state_infos(const Position& other);
 #if !STOCKFISH
     void copy_from(const Position& other);
@@ -781,6 +785,11 @@ class Position {
     void reset_to_root(const Position& root);
 #endif
 
+#if STOCKFISH
+    void put_piece(Piece pc, Square s, DirtyThreats* const dts = nullptr);
+    void remove_piece(Square s, DirtyThreats* const dts = nullptr);
+    void swap_piece(Square s, Piece pc, DirtyThreats* const dts = nullptr);
+#else
 	// put_piece()やremove_piece()を用いたときは、最後にupdate_bitboards()を呼び出して
     // bitboardの整合性を保つこと。
 
@@ -796,11 +805,6 @@ class Position {
 			もしくはupdate_kingSquare()を呼び出すこと。
 	*/
 
-#if STOCKFISH
-    void put_piece(Piece pc, Square s, DirtyThreats* const dts = nullptr);
-    void remove_piece(Square s, DirtyThreats* const dts = nullptr);
-    void swap_piece(Square s, Piece pc, DirtyThreats* const dts = nullptr);
-#else
     void put_piece(Piece pc, Square sq);
 
     // 駒を盤面から取り除き、内部的に保持しているBitboardも更新する。
