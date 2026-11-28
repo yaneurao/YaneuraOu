@@ -46,22 +46,42 @@
 
 namespace YaneuraOu::Eval::NNUE {
 
+#if STOCKFISH
+using BiasType         = i16;
+using ThreatWeightType = i8;
+using WeightType       = i8;
+using IndexType        = u32;
+#else
 using BiasType   = i16;
 // StockfishのFT重み型はi8だが、将棋用nn.binはi16を使う。SPARSE8でもファイル形式は変えない。
 using WeightType = i16;
 using IndexType  = u32;
+#endif
 
 // Version of the evaluation file
-// 評価関数ファイルのバージョン。既存の将棋用nn.binとの互換性を保つ。
+// 評価関数ファイルのバージョン。
+#if STOCKFISH
+constexpr u32 Version = 0x6A448AFAu;
+#else
+// 既存の将棋用nn.binとの互換性を保つ。
 #if defined(ENABLE_SFNN_16BIT_WEIGHT)
 constexpr u32 Version = 0x7AF32F17u;
 #else
 constexpr u32 Version = 0x7AF32F16u;
 #endif
+#endif
 
 // Constant used in evaluation value calculation
-// 評価値の計算で利用する定数。可変のFV_SCALEはnetwork.hで宣言する。
+// 評価値の計算で利用する定数。
+#if STOCKFISH
+constexpr int OutputScale     = 16;
 constexpr int WeightScaleBits = 6;
+constexpr int FtMaxVal        = 255;
+constexpr int HiddenOneVal    = 128;
+#else
+// 将棋版の可変のFV_SCALEはnetwork.hで宣言する。
+constexpr int WeightScaleBits = 6;
+#endif
 
 // Size of cache line (in bytes)
 // キャッシュラインのサイズ（バイト単位）
