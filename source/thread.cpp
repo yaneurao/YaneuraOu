@@ -92,8 +92,8 @@ Thread::Thread(Search::SharedState&         sharedState,
 
         this->numaAccessToken = binder();
 		// 🌈 やねうら王では、ここでworker_factoryを使ってWorker派生classを生成する。
-		this->worker = std::move(worker_factory(sharedState,
-												{n, idxInNuma, totalNuma, this->numaAccessToken}));
+        this->worker = worker_factory(sharedState,
+                                      {n, idxInNuma, totalNuma, this->numaAccessToken});
     });
 
     // Workerを生成するジョブが完了するまで待つ。
@@ -114,8 +114,8 @@ Thread::Thread(Search::SharedState&         sharedState,
     //     run_custom_job()を経由する目的はNUMAノードにbindしたスレッド上で
     //     workerのメモリを確保することだが、wasmにNUMAは無い。
     this->numaAccessToken = binder();
-    this->worker          = std::move(
-      worker_factory(sharedState, {n, idxInNuma, totalNuma, this->numaAccessToken}));
+    this->worker          =
+      worker_factory(sharedState, {n, idxInNuma, totalNuma, this->numaAccessToken});
 #endif // !defined(__EMSCRIPTEN__)
 #endif
 }
