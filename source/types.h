@@ -445,14 +445,12 @@ constexpr Depth DEPTH_NONE         = -3;
 //     評価値の性質
 // --------------------
 
-// searchで探索窓を設定するので、この窓の範囲外の値が返ってきた場合、
-// high fail時はこの値は上界(真の値はこれより小さい)、low fail時はこの値は下界(真の値はこれより大きい)
-// である。
+// 探索窓の範囲外の値が返った場合、fail-highは下界、fail-lowは上界となる。
 enum Bound : u8 {
-	BOUND_NONE,  // 探索していない(DEPTH_NONE)ときに、最善手か、静的評価スコアだけを置換表に格納したいときに用いる。
-	BOUND_UPPER, // 上界(真の評価値はこれより小さい) = 詰みのスコアや、nonPVで評価値があまり信用ならない状態であることを表現する。
-	BOUND_LOWER, // 下界(真の評価値はこれより大きい)
-	BOUND_EXACT = BOUND_UPPER | BOUND_LOWER // 真の評価値と一致している。PV nodeでかつ詰みのスコアでないことを表現する。
+	BOUND_NONE,  // 探索値のboundがない。静的評価値などだけを保存するときに用いる。
+	BOUND_UPPER, // 上界。真の評価値はこの値以下。
+	BOUND_LOWER, // 下界。真の評価値はこの値以上。
+	BOUND_EXACT = BOUND_UPPER | BOUND_LOWER // 真の評価値と一致する。
 };
 
 // --------------------
@@ -519,7 +517,8 @@ constexpr Value VALUE_MAX_EVAL =  VALUE_SUPERIOR;
 constexpr Value VALUE_MIN_EVAL = -VALUE_MAX_EVAL;
 
 // 評価関数がまだ呼び出されていないということを示すのに使う特殊な定数
-// StateInfo::sum.p[0][0]にこの値を格納して、マーカーとするのだが、このsumのp[0][0]は、ΣBKPPの計算結果であり、
+// 旧評価関数のAccumulatorが持つsum.p[0][0]にこの値をマーカーとして格納する。
+// このsumのp[0][0]はΣBKPPの計算結果であり、
 // 16bitの範囲で収まるとは限らないため、もっと大きな数にしておく必要がある。
 constexpr Value VALUE_NOT_EVALUATED = INT32_MAX;
 
