@@ -463,7 +463,7 @@ TimePoint TimeManagement::round_up(TimePoint t0) {
 		t = std::min(t, remain_time);
 		return t;
 	}
-};
+}
 
 // 探索を終了させることが確定しているが、秒単位で切り上げて、search_endにそれを設定したい時に呼び出す。
 void TimeManagement::set_search_end(TimePoint e) {
