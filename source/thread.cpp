@@ -612,9 +612,9 @@ Thread* ThreadPool::get_best_thread() const {
 
 void ThreadPool::start_searching() {
 
-	for (auto&& th : threads)
-		if (th != threads.front())
-			th->start_searching();
+    for (auto&& th : threads)
+        if (th != threads.front())
+            th->start_searching();
 }
 
 
@@ -624,9 +624,9 @@ void ThreadPool::start_searching() {
 
 void ThreadPool::wait_for_search_finished() const {
 
-	for (auto&& th : threads)
-		if (th != threads.front())
-			th->wait_for_search_finished();
+    for (auto&& th : threads)
+        if (th != threads.front())
+            th->wait_for_search_finished();
 }
 
 std::vector<usize> ThreadPool::get_bound_thread_to_numa_node() const {
@@ -634,22 +634,22 @@ std::vector<usize> ThreadPool::get_bound_thread_to_numa_node() const {
 }
 
 std::vector<usize> ThreadPool::get_bound_thread_count_by_numa_node() const {
-	std::vector<usize> counts;
+    std::vector<usize> counts;
 
-	if (!boundThreadToNumaNode.empty())
-	{
-		NumaIndex highestNumaNode = 0;
-		for (NumaIndex n : boundThreadToNumaNode)
-			if (n > highestNumaNode)
-				highestNumaNode = n;
+    if (!boundThreadToNumaNode.empty())
+    {
+        NumaIndex highestNumaNode = 0;
+        for (NumaIndex n : boundThreadToNumaNode)
+            if (n > highestNumaNode)
+                highestNumaNode = n;
 
-		counts.resize(highestNumaNode + 1, 0);
+        counts.resize(highestNumaNode + 1, 0);
 
-		for (NumaIndex n : boundThreadToNumaNode)
-			counts[n] += 1;
-	}
+        for (NumaIndex n : boundThreadToNumaNode)
+            counts[n] += 1;
+    }
 
-	return counts;
+    return counts;
 }
 
 usize ThreadPool::numa_nodes() const {
@@ -660,8 +660,8 @@ usize ThreadPool::numa_nodes() const {
 }
 
 void ThreadPool::ensure_network_replicated() {
-	for (auto&& th : threads)
-		th->ensure_network_replicated();
+    for (auto&& th : threads)
+        th->ensure_network_replicated();
 }
 
 } // namespace YaneuraOu
