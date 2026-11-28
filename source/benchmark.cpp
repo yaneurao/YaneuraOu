@@ -431,75 +431,75 @@ namespace YaneuraOu::Benchmark {
 */
 
 std::vector<std::string> setup_bench(const std::string& currentFen, std::istream& is) {
-	std::vector<std::string> fens, list;
-	std::string              go, token;
+    std::vector<std::string> fens, list;
+    std::string              go, token;
 
 #if STOCKFISH
-	// Assign default values to missing arguments
-	// 省略された引数には既定値を設定する。
-	std::string ttSize    = (is >> token) ? token : "16";
-	std::string threads   = (is >> token) ? token : "1";
-	std::string limit     = (is >> token) ? token : "13";
-	std::string fenFile   = (is >> token) ? token : "default";
-	std::string limitType = (is >> token) ? token : "depth";
+    // Assign default values to missing arguments
+    // 省略された引数には既定値を設定する。
+    std::string ttSize    = (is >> token) ? token : "16";
+    std::string threads   = (is >> token) ? token : "1";
+    std::string limit     = (is >> token) ? token : "13";
+    std::string fenFile   = (is >> token) ? token : "default";
+    std::string limitType = (is >> token) ? token : "depth";
 #else
-	// 🌈 やねうら王では、デフォルトで1分間(時間固定)のbenchにしておく。
+    // やねうら王では、既定で各局面を15秒ずつ探索する。
 
-	std::string ttSize    = (is >> token) ? token : "1024";
+    std::string ttSize    = (is >> token) ? token : "1024";
     std::string threads   = (is >> token) ? token : "1";
     std::string limit     = (is >> token) ? token : "15000";
     std::string fenFile   = (is >> token) ? token : "default";
     std::string limitType = (is >> token) ? token : "movetime";
 #endif
 
-	go = limitType == "eval" ? "eval" : "go " + limitType + " " + limit;
+    go = limitType == "eval" ? "eval" : "go " + limitType + " " + limit;
 
-	if (fenFile == "default")
-		fens = Defaults;
+    if (fenFile == "default")
+        fens = Defaults;
 
-	else if (fenFile == "current")
-		fens.push_back(currentFen);
+    else if (fenFile == "current")
+        fens.push_back(currentFen);
 
-	else
-	{
-		std::string   fen;
-		std::ifstream file(fenFile);
+    else
+    {
+        std::string   fen;
+        std::ifstream file(fenFile);
 
-		if (!file.is_open())
-		{
-			std::cerr << "Unable to open file " << fenFile << std::endl;
-			exit(EXIT_FAILURE);
-		}
+        if (!file.is_open())
+        {
+            std::cerr << "Unable to open file " << fenFile << std::endl;
+            exit(EXIT_FAILURE);
+        }
 
-		while (getline(file, fen))
-			if (!fen.empty())
-				fens.push_back(fen);
+        while (getline(file, fen))
+            if (!fen.empty())
+                fens.push_back(fen);
 
-	}
+    }
 
-	list.emplace_back("setoption name Threads value " + threads);
+    list.emplace_back("setoption name Threads value " + threads);
 #if STOCKFISH
-	list.emplace_back("setoption name Hash value " + ttSize);
+    list.emplace_back("setoption name Hash value " + ttSize);
 #else
     list.emplace_back("setoption name USI_Hash value " + ttSize);
 #endif
-	// 🤔 どうせ内部的にしか使わない符号みたいなものなので"usinewgame"に変更しないことにする。
+    // 🤔 どうせ内部的にしか使わない符号みたいなものなので"usinewgame"に変更しないことにする。
     list.emplace_back("ucinewgame");
 
-	for (const std::string& fen : fens)
-		if (fen.find("setoption") != std::string::npos)
-			list.emplace_back(fen);
-		else
-		{
+    for (const std::string& fen : fens)
+        if (fen.find("setoption") != std::string::npos)
+            list.emplace_back(fen);
+        else
+        {
 #if STOCKFISH
-			list.emplace_back("position fen " + fen);
+            list.emplace_back("position fen " + fen);
 #else
             list.emplace_back("position sfen " + fen);
 #endif
-			list.emplace_back(go);
-		}
+            list.emplace_back(go);
+        }
 
-	return list;
+    return list;
 }
 
 BenchmarkSetup setup_benchmark(std::istream& is) {
