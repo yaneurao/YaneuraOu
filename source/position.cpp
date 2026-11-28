@@ -1190,7 +1190,20 @@ void Position::update_slider_blockers(Color c) const {
 
 // Computes a bitboard of all pieces which attack a given square.
 // Slider attacks use the occupied bitboard to indicate occupancy.
+// 指定された升に利く全ての駒のBitboardを求める。
+// 長い利きの計算にはoccupiedを盤上の駒の配置として使う。
 
+#if STOCKFISH
+Bitboard Position::attackers_to(Square s, Bitboard occupied) const {
+
+    const auto [bishopAttacks, rookAttacks] = both_attacks_bb(s, occupied);
+
+    return (rookAttacks & pieces(ROOK, QUEEN)) | (bishopAttacks & pieces(BISHOP, QUEEN))
+         | (attacks_bb(PAWN, s, BLACK) & pieces(WHITE, PAWN))
+         | (attacks_bb(PAWN, s, WHITE) & pieces(BLACK, PAWN))
+         | (attacks_bb(KNIGHT, s) & pieces(KNIGHT)) | (attacks_bb(KING, s) & pieces(KING));
+}
+#else
 // sに利きのあるc側の駒を列挙する。先後両方。
 // (occが指定されていなければ現在の盤面において。occが指定されていればそれをoccupied bitboardとして)
 
@@ -1228,21 +1241,6 @@ Bitboard Position::attackers_to(Square s, const Bitboard& occupied) const {
 
 	// clang-format on
 
-}
-
-#if STOCKFISH
-
-// castlingの判定のために使う。
-
-bool Position::attackers_to_exist(Square s, Bitboard occupied, Color c) const {
-
-    return ((attacks_bb(ROOK, s) & pieces(c, ROOK, QUEEN))
-            && (attacks_bb(ROOK, s, occupied) & pieces(c, ROOK, QUEEN)))
-        || ((attacks_bb(BISHOP, s) & pieces(c, BISHOP, QUEEN))
-            && (attacks_bb(BISHOP, s, occupied) & pieces(c, BISHOP, QUEEN)))
-        || (((attacks_bb(PAWN, s, ~c) & pieces(PAWN)) | (attacks_bb(KNIGHT, s) & pieces(KNIGHT))
-             | (attacks_bb(KING, s) & pieces(KING)))
-            & pieces(c));
 }
 #endif
 
