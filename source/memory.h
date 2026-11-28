@@ -75,7 +75,7 @@ void  std_aligned_free(void* ptr);
 
 // Memory aligned by page size, min alignment: 4096 bytes
 // 大きなメモリの確保用のalloc/free。4096 bytes単位でalignmentされていることは保証されている。
-// ⇨ この関数は置換表のメモリ確保のために使われる。
+// 置換表やWorkerなどのメモリ確保に使われる。
 // 💡 Windowsのlarge pages allocの機能が使えるなら、それを用いる。
 void* aligned_large_pages_alloc_with_hint(usize size, bool hugePageHint);
 void* aligned_large_pages_alloc(usize size);
@@ -87,8 +87,8 @@ bool has_large_pages();
 // Frees memory which was placed there with placement new.
 // Works for both single objects and arrays of unknown bound.
 
-// placement new によって確保されたメモリを解放します。
-// 単一オブジェクトにも、サイズ不明の配列にも対応します。
+// placement newで構築した単一オブジェクトを破棄し、メモリを解放する。
+// 配列には下のmemory_deleter_array()を使う。
 
 template<typename T, typename FREE_FUNC>
 void memory_deleter(T* ptr, FREE_FUNC free_func) {
@@ -116,7 +116,7 @@ inline constexpr usize array_header_size<T, true> = 0;
 
 // Frees memory which was placed there with placement new.
 // Works for both single objects and arrays of unknown bound.
-// placement newで構築した単一オブジェクト・配列を解放する。
+// placement newで構築した配列を破棄し、メモリを解放する。
 template<typename T, typename FREE_FUNC>
 void memory_deleter_array(T* ptr, FREE_FUNC free_func) {
     if (!ptr)
