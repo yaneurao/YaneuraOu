@@ -141,6 +141,8 @@ class FeatureTransformer {
 
 	// Write network parameters
 	// パラメータを書き込む
+	// SFNNの読み込みはLEB128形式と重みの変換を使うが、この書き出しはその逆変換に対応していない。
+	// そのため、SFNNのnn.binを再読込可能な形式で保存する用途には使えない。
 	bool write_parameters(std::ostream& stream) const {
 		write_little_endian(stream, biases, HalfDimensions);
 #if defined(NNUE_FT_PACKED8)
