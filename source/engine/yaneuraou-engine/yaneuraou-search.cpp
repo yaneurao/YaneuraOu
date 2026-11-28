@@ -5564,11 +5564,11 @@ Value value_to_tt(Value v, int ply) { return is_win(v) ? v + ply : is_loss(v) ? 
 // 📓 value_to_tt()の逆関数
 //     ply : root node からの手数。
 
-Value value_from_tt(Value v, int ply
 #if STOCKFISH
-    , int r50c
+Value value_from_tt(Value v, int ply, int r50c) {
+#else
+Value value_from_tt(Value v, int ply) {
 #endif
-) {
 
     if (!is_valid(v))
         return VALUE_NONE;
