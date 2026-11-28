@@ -304,8 +304,8 @@ struct LimitsType {
 
     // time[]    : 残り時間(ms換算で)
     // inc[]     : 1手ごとに増加する時間(フィッシャールール)
-    // npmsec    : 探索node数を思考経過時間の代わりに用いるモードであるかのフラグ(from UCI)
-    // 　　→　将棋と相性がよくないのでこの機能をサポートしないことにする。
+    // npmsec    : nodes-as-timeで使う1msあたりのノード換算値。0ならこのモードを使わない。
+    //             将棋版ではこの機能をサポートしない。
     // movetime  : 思考時間固定(0以外が指定してあるなら) : 単位は[ms]
     // startTime : 探索開始時刻。"go"コマンドを受け取った時のnow()。なるべく早くに格納しておき、時差をなくす。
     //             💡 この時刻は、USIEngineの"go"のhandlerで設定される。
@@ -343,7 +343,7 @@ struct LimitsType {
     // 秒読み(ms換算で)
     TimePoint byoyomi[COLOR_NB];
 
-    // "go rtime 100"とすると100～300msぐらい考える。
+    // "go rtime 100"では100～149msを設定する。手数が進むと乱数の幅は小さくなる。
     TimePoint rtime;
 
     // benchコマンド中はPV出力間隔の抑制を無効化して、最終info nodesを安定して取得する。
