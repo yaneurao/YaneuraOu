@@ -31,7 +31,7 @@ namespace {
 	// このbenchには、"test genmate"コマンドで生成した詰み局面を利用すると良い。
 	void mate_bench(IEngine& engine, std::istringstream& is)
 	{
-		auto& options = engine.get_options();
+		(void) engine.get_options();
 		auto& threads = engine.get_threads();
 
 		Position pos;
