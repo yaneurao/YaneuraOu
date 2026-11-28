@@ -2930,7 +2930,11 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 	*/
 
     posKey                         = pos.key();
+#if STOCKFISH
+    auto [ttHit, ttData, ttWriter] = tt.probe(posKey);
+#else
     auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
+#endif
 
     // Need further processing of the saved data
     // 保存されていたデータのさらなる処理が必要です
@@ -2945,9 +2949,13 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
 			それが置換表にあったものとして指し手を進める。
 	*/
 
+#if STOCKFISH
+    ttData.move  = rootNode ? rootMoves[pvIdx].pv[0] : ttHit ? ttData.move : Move::none();
+#else
 	ttData.move  = rootNode ? rootMoves[pvIdx].pv[0]
                  : ttHit    ? ttData.move
                             : Move::none();
+#endif
 
 	// 置換表上のスコア
     // 💡 置換表にhitしなければVALUE_NONE
@@ -2955,11 +2963,10 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
     // singular searchとIIDとのスレッド競合を考慮して、ttValue , ttMoveの順で取り出さないといけないらしい。
     // cf. More robust interaction of singular search and iid : https://github.com/official-stockfish/Stockfish/commit/16b31bb249ccb9f4f625001f9772799d286e2f04
 
-    ttData.value =
 #if STOCKFISH
-      ttHit ? value_from_tt(ttData.value, ss->ply, pos.rule50_count()) : VALUE_NONE;
+    ttData.value = ttHit ? value_from_tt(ttData.value, ss->ply, pos.rule50_count()) : VALUE_NONE;
 #else
-      ttHit ? value_from_tt(ttData.value, ss->ply) : VALUE_NONE;
+    ttData.value = ttHit ? value_from_tt(ttData.value, ss->ply) : VALUE_NONE;
 #endif
 
 #if !STOCKFISH
@@ -4931,7 +4938,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     // -----------------------
 
     posKey                         = pos.key();
+#if STOCKFISH
+    auto [ttHit, ttData, ttWriter] = tt.probe(posKey);
+#else
     auto [ttHit, ttData, ttWriter] = tt.probe(posKey, pos);
+#endif
 
 #if !STOCKFISH
     if constexpr (!ReadTT)
@@ -4944,12 +4955,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     ss->ttHit   = ttHit;
     ttData.move = ttHit ? ttData.move : Move::none();
 
-    ttData.value =
 #if STOCKFISH
-      ttHit ? value_from_tt(ttData.value, ss->ply , pos.rule50_count()) : VALUE_NONE;
+    ttData.value = ttHit ? value_from_tt(ttData.value, ss->ply, pos.rule50_count()) : VALUE_NONE;
 #else
-      ttHit ? value_from_tt(ttData.value, ss->ply ) : VALUE_NONE;
-#endif      
+    ttData.value = ttHit ? value_from_tt(ttData.value, ss->ply) : VALUE_NONE;
+#endif
     pvHit = ttHit && ttData.is_pv;
 
     // 📌 やねうら王では置換表に先後間違えて書き出すバグを生じうるので、このassert追加する。
