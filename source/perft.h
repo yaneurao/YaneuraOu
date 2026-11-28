@@ -58,11 +58,10 @@ u64 perft(Position& pos, Depth depth) {
     return nodes;
 }
 
-#if STOCKFISH
 inline std::variant<u64, PositionSetError>
+#if STOCKFISH
 perft(const std::string& fen, Depth depth, bool isChess960) {
 #else
-inline std::variant<u64, PositionSetError>
 perft(const std::string& fen, Depth depth) {
 
     const auto start = now();
@@ -72,13 +71,14 @@ perft(const std::string& fen, Depth depth) {
 
 #if STOCKFISH
     if (auto err = p->set(fen, isChess960))
-        return {*err};
-
-    return perft<true>(*p, depth);
 #else
     if (auto err = p->set(fen))
+#endif
         return {*err};
 
+#if STOCKFISH
+    return perft<true>(*p, depth);
+#else
 	// 🌈 やねうら王では、NPS(leaf nodeの数/elapsed)と計測に要した時間も出力する。
 	auto nodes = perft<true>(*p, depth);
     auto elapsed = now() - start + 1; // ゼロ割防止のために +1
