@@ -952,15 +952,7 @@ Search::Worker::Worker(SharedState& sharedState,
 #else
 
 Search::YaneuraOuWorker::YaneuraOuWorker(SharedState& sharedState,
-#if STOCKFISH
-                                         std::unique_ptr<SearchManager>,
-                                         usize                    threadIdx,
-                                         usize                    numaThreadIdx,
-                                         usize                    numaTotal,
-                                         NumaReplicatedAccessToken token,
-#else
                                          const ThreadIds& ids,
-#endif
 										 YaneuraOuEngine&          engine) :
 	// Unpack the SharedState struct into member variables
 	// SharedState構造体の内容を各メンバー変数へ展開する。
