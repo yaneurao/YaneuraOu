@@ -1141,14 +1141,6 @@ namespace Book
 
 			// Apery定跡データベースを用いて指し手を選択する
 			const auto& entries = apery_book->get_entries(pos);
-			int64_t sum_count = 0;
-			for (const auto& entry : entries) {
-				sum_count += entry.count;
-			}
-
-			// 定跡ファイルによっては、採用率がすべて0ということがありうる。
-			// cf. https://github.com/yaneurao/YaneuraOu/issues/65
-			// この場合、sum_count == 0になるので、採用率を当確率だとみなして、1.0 / entries.size() にしておく。
 
 			for (const auto& entry : entries) {
 
