@@ -39,38 +39,38 @@ using Value = int;
 // このオプションのプロセスをカプセル化します。
 
 class OptionalThreadToNumaNodeBinder {
-public:
-	OptionalThreadToNumaNodeBinder(NumaIndex n) :
-		numaConfig(nullptr),
-		numaId(n) {}
+   public:
+    OptionalThreadToNumaNodeBinder(NumaIndex n) :
+        numaConfig(nullptr),
+        numaId(n) {}
 
-	OptionalThreadToNumaNodeBinder(const NumaConfig& cfg, NumaIndex n) :
-		numaConfig(&cfg),
-		numaId(n) {}
+    OptionalThreadToNumaNodeBinder(const NumaConfig& cfg, NumaIndex n) :
+        numaConfig(&cfg),
+        numaId(n) {}
 
-	/*
-	 📝 OptionalThreadToNumaNodeBinder binder(numaId);
+    /*
+     📝 OptionalThreadToNumaNodeBinder binder(numaId);
          に対してbinder() とやるとこのoperatorが呼び出されて、
-	     NumaReplicatedAccessTokenがもらえる。
-	 
-	     そのあと (void) (network[numaAccessToken]); とやると、
-	     必要に応じてそのNUMAノード用のnetworkが初期化される。
-	     (これは、Search::Worker::ensure_network_replicated()で行っている)
-	 
-	     LazyNumaReplicatedのoperator[]でensure_present()が呼び出され、
-	     未作成ならNumaConfig::execute_on_numa_node()でノード上に作成する。
-	*/
-	NumaReplicatedAccessToken operator()() const {
-		if (numaConfig != nullptr)
-			// このスレッドを適切なNUMAで実行できるようにOSレベルでbindする。
-			return numaConfig->bind_current_thread_to_numa_node(numaId);
-		else
-			return NumaReplicatedAccessToken(numaId);
-	}
+         NumaReplicatedAccessTokenがもらえる。
 
-private:
-	const NumaConfig* numaConfig;
-	NumaIndex         numaId;
+         そのあと (void) (network[numaAccessToken]); とやると、
+         必要に応じてそのNUMAノード用のnetworkが初期化される。
+         (これは、Search::Worker::ensure_network_replicated()で行っている)
+
+         LazyNumaReplicatedのoperator[]でensure_present()が呼び出され、
+         未作成ならNumaConfig::execute_on_numa_node()でノード上に作成する。
+    */
+    NumaReplicatedAccessToken operator()() const {
+        if (numaConfig != nullptr)
+            // このスレッドを適切なNUMAで実行できるようにOSレベルでbindする。
+            return numaConfig->bind_current_thread_to_numa_node(numaId);
+        else
+            return NumaReplicatedAccessToken(numaId);
+    }
+
+   private:
+    const NumaConfig* numaConfig;
+    NumaIndex         numaId;
 };
 
 
