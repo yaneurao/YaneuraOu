@@ -1264,6 +1264,7 @@ Bitboard Position::attackers_to(Square s, const Bitboard& occupied) const {
 #endif
 
 
+#if !STOCKFISH
 // 盤面を先後反転させた時のsfen文字列を取得する。
 std::string Position::flipped_sfen() const { return flipped_sfen(game_ply()); }
 
@@ -1353,6 +1354,7 @@ std::string Position::sfen_to_flipped_sfen(std::string sfen)
 	pos.set(sfen);
 	return pos.flipped_sfen();
 }
+#endif
 
 
 namespace {
