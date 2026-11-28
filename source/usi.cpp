@@ -1357,19 +1357,16 @@ std::string USIEngine::to_lower(std::string str) {
 #if STOCKFISH
 Move USIEngine::to_move(const Position& pos, std::string str) {
     str = to_lower(str);
-    // ⇨  将棋(USIプロトコル)では、駒打ちの時に大文字と小文字の区別があるので、
-    //	  小文字化して比較することはできない。
 
-    // 全合法手のなかからusi文字列に変換したときにstrと一致する指し手を探してそれを返す
     for (const auto& m : MoveList<ALL>(pos))
         if (str == move(m, pos.is_chess960()))
             return m;
-    // 📝 のコードは大変美しいコードではあるが、
-    //     棋譜を大量に読み込むときに時間がかかるうるのでもっと高速な実装をする。
 
     return Move::none();
 }
 #else
+// 将棋の駒打ちは大文字を使うため、小文字化せずに文字列を変換する。
+// 合法手をすべて文字列化して比較する代わりに、棋譜の大量読み込みに備えて直接変換する。
 Move USIEngine::to_move(const Position& pos, std::string str) {
 
 	if (str == "resign")
@@ -1382,7 +1379,7 @@ Move USIEngine::to_move(const Position& pos, std::string str) {
 	if (str == "0000" || str == "null" || str == "pass")
 		return Move::null();
 
-	// usi文字列を高速にmoveに変換するやつがいるがな..
+	// USI文字列をMove16に変換してから、局面の駒情報を補う。
 	Move move = pos.to_move(to_move16(str));
 
 	// 現在の局面に至る手順として歩の不成が与えられることはあるので、
