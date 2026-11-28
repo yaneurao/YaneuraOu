@@ -47,8 +47,8 @@ static bool pseudo_legal_check(const Position& pos, Move* mlist_start, Move* mli
 //      移動による指し手
 // ----------------------------------
 
-// fromにあるpcをtargetの升に移動させる指し手の生成。
-// 遅いので駒王手の指し手生成のときにしか使わない。
+// fromにあるPtの駒をtargetの升に移動させる指し手を生成する。
+// 通常の駒移動生成と王手生成の両方から使用する。
 template <PieceType Pt, Color Us, bool All> struct make_move_target {
 	FORCE_INLINE Move* operator()(const Position& pos, Square from, const Bitboard& target_, Move* moveList)
 	{
@@ -613,7 +613,7 @@ Move* generate_general(const Position& pos, Move* moveList, Square recapSq = SQ_
 // -----------------------------------------------------
 
 // make_move_targetを呼び出すための踏み台
-// ptの駒をfromに置いたときの移動する指し手を生成する。ただし、targetで指定された升のみ。
+// fromにあるpcの移動先のうち、targetで指定された升への指し手を生成する。
 template <Color Us, bool All>
 struct make_move_target_general {
 	Move* operator()(const Position& pos, Piece pc, Square from, const Bitboard& target, Move* moveList) {
