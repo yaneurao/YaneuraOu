@@ -256,7 +256,7 @@ void remove_whitespace(std::string& s);
 bool is_whitespace(std::string_view s);
 
 // --------------------
-//  sync_out/sync_endl
+//  sync_cout/sync_endl
 // --------------------
 
 // Used to serialize access to std::cout
@@ -264,7 +264,7 @@ bool is_whitespace(std::string_view s);
 
 // スレッド排他しながらcoutに出力するために使う。
 // 例)
-// sync_out << "bestmove " << m << sync_endl;
+// sync_cout << "bestmove " << m << sync_endl;
 // のように用いる。
 
 enum SyncCout {
@@ -307,14 +307,12 @@ constexpr void swap_constexpr(T& a, T& b) {
 template<typename T, usize MaxSize>
 class ValueList {
 
-public:
-	// 配列のsizeを返す。
+   public:
+    // 配列のsizeを返す。
     usize size() const { return size_; }
-
-	// 配列のsizeをintで返す。
-    int         ssize() const { return int(size_); }
-
-	void        push_back(const T& value) {
+    // 配列のsizeをintで返す。
+    int   ssize() const { return int(size_); }
+    void  push_back(const T& value) {
         assert(size_ < MaxSize);
         values_[size_++] = value;
     }
@@ -325,14 +323,13 @@ public:
         values_[size_] = value;
         size_ += (value < max);
     }
-	const T* begin() const { return values_; }
-	const T* end() const { return values_ + size_; }
+    const T* begin() const { return values_; }
+    const T* end() const { return values_ + size_; }
+    const T& operator[](int index) const { return values_[index]; }
+    // ⇨ ここの引数、どうせ大きな配列は確保しないのでsize_tではなくintで良い。
 
-	const T& operator[](int index) const { return values_[index]; }
-	// ⇨ ここの引数、どうせ大きな配列は確保しないのでsize_tではなくintで良い。
-
-	// count個の要素を増やす。
-	// 要素は未初期化のまま増やした要素の先頭のポインタを返す。
+    // count個の要素を増やす。
+    // 要素は未初期化のまま増やした要素の先頭のポインタを返す。
     T* make_space(usize count) {
         T* result = &values_[size_];
         size_ += count;
@@ -340,9 +337,9 @@ public:
         return result;
     }
 
-private:
-	T           values_[MaxSize];
-	usize size_ = 0;
+   private:
+    T     values_[MaxSize];
+    usize size_ = 0;
 };
 
 // --------------------
@@ -354,19 +351,19 @@ class MultiArray;
 
 namespace Detail {
 
-	template<typename T, usize Size, usize... Sizes>
-	struct MultiArrayHelper {
-		using ChildType = MultiArray<T, Sizes...>;
-	};
+template<typename T, usize Size, usize... Sizes>
+struct MultiArrayHelper {
+    using ChildType = MultiArray<T, Sizes...>;
+};
 
-	template<typename T, usize Size>
-	struct MultiArrayHelper<T, Size> {
-		using ChildType = T;
-	};
+template<typename T, usize Size>
+struct MultiArrayHelper<T, Size> {
+    using ChildType = T;
+};
 
-	template<typename To, typename From>
-	constexpr bool is_strictly_assignable_v =
-		std::is_assignable_v<To&, From> && (std::is_same_v<To, From> || !std::is_convertible_v<From, To>);
+template<typename To, typename From>
+constexpr bool is_strictly_assignable_v =
+  std::is_assignable_v<To&, From> && (std::is_same_v<To, From> || !std::is_convertible_v<From, To>);
 
 }
 
@@ -378,67 +375,73 @@ namespace Detail {
 
 template<typename T, usize Size, usize... Sizes>
 class MultiArray {
-	using ChildType = typename Detail::MultiArrayHelper<T, Size, Sizes...>::ChildType;
-	using ArrayType = std::array<ChildType, Size>;
-	ArrayType data_;
+    using ChildType = typename Detail::MultiArrayHelper<T, Size, Sizes...>::ChildType;
+    using ArrayType = std::array<ChildType, Size>;
+    ArrayType data_;
 
-public:
-	using value_type = typename ArrayType::value_type;
-	using size_type = typename ArrayType::size_type;
-	using difference_type = typename ArrayType::difference_type;
-	using reference = typename ArrayType::reference;
-	using const_reference = typename ArrayType::const_reference;
-	using pointer = typename ArrayType::pointer;
-	using const_pointer = typename ArrayType::const_pointer;
-	using iterator = typename ArrayType::iterator;
-	using const_iterator = typename ArrayType::const_iterator;
-	using reverse_iterator = typename ArrayType::reverse_iterator;
-	using const_reverse_iterator = typename ArrayType::const_reverse_iterator;
+   public:
+    using value_type             = typename ArrayType::value_type;
+    using size_type              = typename ArrayType::size_type;
+    using difference_type        = typename ArrayType::difference_type;
+    using reference              = typename ArrayType::reference;
+    using const_reference        = typename ArrayType::const_reference;
+    using pointer                = typename ArrayType::pointer;
+    using const_pointer          = typename ArrayType::const_pointer;
+    using iterator               = typename ArrayType::iterator;
+    using const_iterator         = typename ArrayType::const_iterator;
+    using reverse_iterator       = typename ArrayType::reverse_iterator;
+    using const_reverse_iterator = typename ArrayType::const_reverse_iterator;
 
-	constexpr auto& at(size_type index) { return data_.at(index); }
-	constexpr const auto& at(size_type index) const { return data_.at(index); }
+    constexpr auto&       at(size_type index) { return data_.at(index); }
+    constexpr const auto& at(size_type index) const { return data_.at(index); }
 
-	constexpr auto& operator[](size_type index) noexcept { assert(index < Size); return data_[index]; }
-	constexpr const auto& operator[](size_type index) const noexcept { assert(index < Size); return data_[index]; }
+    constexpr auto& operator[](size_type index) noexcept {
+        assert(index < Size);
+        return data_[index];
+    }
+    constexpr const auto& operator[](size_type index) const noexcept {
+        assert(index < Size);
+        return data_[index];
+    }
 
-	constexpr auto& front() noexcept { return data_.front(); }
-	constexpr const auto& front() const noexcept { return data_.front(); }
-	constexpr auto& back() noexcept { return data_.back(); }
-	constexpr const auto& back() const noexcept { return data_.back(); }
+    constexpr auto&       front() noexcept { return data_.front(); }
+    constexpr const auto& front() const noexcept { return data_.front(); }
+    constexpr auto&       back() noexcept { return data_.back(); }
+    constexpr const auto& back() const noexcept { return data_.back(); }
 
-	auto* data() { return data_.data(); }
-	const auto* data() const { return data_.data(); }
+    auto*       data() { return data_.data(); }
+    const auto* data() const { return data_.data(); }
 
-	constexpr auto begin() noexcept { return data_.begin(); }
-	constexpr auto end() noexcept { return data_.end(); }
-	constexpr auto begin() const noexcept { return data_.begin(); }
-	constexpr auto end() const noexcept { return data_.end(); }
-	constexpr auto cbegin() const noexcept { return data_.cbegin(); }
-	constexpr auto cend() const noexcept { return data_.cend(); }
+    constexpr auto begin() noexcept { return data_.begin(); }
+    constexpr auto end() noexcept { return data_.end(); }
+    constexpr auto begin() const noexcept { return data_.begin(); }
+    constexpr auto end() const noexcept { return data_.end(); }
+    constexpr auto cbegin() const noexcept { return data_.cbegin(); }
+    constexpr auto cend() const noexcept { return data_.cend(); }
 
-	constexpr auto rbegin() noexcept { return data_.rbegin(); }
-	constexpr auto rend() noexcept { return data_.rend(); }
-	constexpr auto rbegin() const noexcept { return data_.rbegin(); }
-	constexpr auto rend() const noexcept { return data_.rend(); }
-	constexpr auto crbegin() const noexcept { return data_.crbegin(); }
-	constexpr auto crend() const noexcept { return data_.crend(); }
+    constexpr auto rbegin() noexcept { return data_.rbegin(); }
+    constexpr auto rend() noexcept { return data_.rend(); }
+    constexpr auto rbegin() const noexcept { return data_.rbegin(); }
+    constexpr auto rend() const noexcept { return data_.rend(); }
+    constexpr auto crbegin() const noexcept { return data_.crbegin(); }
+    constexpr auto crend() const noexcept { return data_.crend(); }
 
-	constexpr bool      empty() const noexcept { return data_.empty(); }
-	constexpr size_type size() const noexcept { return data_.size(); }
-	constexpr size_type max_size() const noexcept { return data_.max_size(); }
+    constexpr bool      empty() const noexcept { return data_.empty(); }
+    constexpr size_type size() const noexcept { return data_.size(); }
+    constexpr size_type max_size() const noexcept { return data_.max_size(); }
 
-	template<typename U>
-	void fill(const U& v) {
-		static_assert(Detail::is_strictly_assignable_v<T, U>,
-			"Cannot assign fill value to entry type");
-		for (auto& ele : data_)
-			if constexpr (sizeof...(Sizes) == 0)
-				ele = v;
-			else
-				ele.fill(v);
-	}
+    template<typename U>
+    void fill(const U& v) {
+        static_assert(Detail::is_strictly_assignable_v<T, U>,
+                      "Cannot assign fill value to entry type");
+        for (auto& ele : data_)
+            if constexpr (sizeof...(Sizes) == 0)
+                ele = v;
+            else
+                ele.fill(v);
+    }
 
-	constexpr void swap(MultiArray<T, Size, Sizes...>& other) noexcept { data_.swap(other.data_); }
+    constexpr void swap(MultiArray<T, Size, Sizes...>& other) noexcept { data_.swap(other.data_); }
 };
 
 // Wrapper around std::atomic<T> which uses relaxed accesses or plain
