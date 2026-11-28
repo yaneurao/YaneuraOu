@@ -353,11 +353,9 @@ void ThreadPool::set(const NumaConfig&             numaConfig,
                 // accesses we don't want to trash cache in case the threads get scheduled
                 // on the same NUMA node.
 
-                // スレッドをバインドしない場合、すべてのアクセスが同じNUMAノードから
-                // 行われるように強制したいと考えています。
-                // なぜなら、NUMAのレプリケートメモリにアクセスする場合、
-                // スレッドが同じNUMAノードにスケジューリングされるときに
-                // キャッシュが破棄されるのを防ぎたいからです。
+                // スレッドをバインドしない場合は、NUMAごとに複製されたデータのうち
+                // 同じノード用の複製を参照する。異なる複製を使うスレッドが同じ
+                // NUMAノードで実行されると、キャッシュを余計に消費するためである。
 
                 auto binder = doBindThreads ? OptionalThreadToNumaNodeBinder(numaConfig, numaId)
                                                        : OptionalThreadToNumaNodeBinder(numaId);
@@ -407,8 +405,6 @@ void ThreadPool::clear() {
     for (auto&& th : threads)
         th->wait_for_search_finished();
 
-	// 🤔 これはEngine派生class側で行うべき。
-	//     ここにあったコードは、YaneuraOuEngine::clear()に移動させた。
 #if STOCKFISH
     // These two affect the time taken on the first move of a game:
     // この2つは対局の初手に使う時間に影響する。
@@ -419,6 +415,8 @@ void ThreadPool::clear() {
     main_manager()->bestPreviousScore  = VALUE_INFINITE;
     main_manager()->originalTimeAdjust = -1;
     main_manager()->tm.clear();
+#else
+    // やねうら王では、探索管理の初期化をYaneuraOuEngine::clear()で行う。
 #endif
 }
 
