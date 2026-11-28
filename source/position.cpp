@@ -630,6 +630,7 @@ void Position::copy_state_infos(const Position& other) {
 #endif
 }
 
+#if !STOCKFISH
 void Position::copy_from(const Position& other) {
     assert(this != &other);
     std::memcpy(static_cast<void*>(this), &other, offsetof(Position, stateIdx));
@@ -644,6 +645,7 @@ void Position::reset_to_root(const Position& root) {
     stateIdx = stateCount - 1;
     st = &stateInfos[stateIdx];
 }
+#endif
 
 // Initializes the position object with the given FEN string.
 // This function is not very robust - make sure that input FENs are correct,
