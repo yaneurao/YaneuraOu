@@ -1455,25 +1455,24 @@ void USIEngine::on_update_full(const Engine::InfoFull& info, bool showWDL) {
 #else
 void USIEngine::on_update_full(const Engine::InfoFull& info) {
 #endif
-
-	std::stringstream ss;
+    std::stringstream ss;
 
     ss << "info";
 
 #if STOCKFISH
-	ss << " depth " << info.depth                 //
+    ss << " depth " << info.depth                 //
        << " seldepth " << info.selDepth           //
        << " multipv " << info.multiPV             //
        << " score " << format_score(info.score);  //
 #else
 
-	ss << " depth " << info.depth;
+    ss << " depth " << info.depth;
 
-	// selDepthは、非0の時のみ出力する。(定跡にhitして出力されると見づらい)
+    // selDepthは、非0の時のみ出力する。(定跡にhitして出力されると見づらい)
     if (info.selDepth)
         ss << " seldepth " << info.selDepth;
 
-	ss << " multipv " << info.multiPV             //
+    ss << " multipv " << info.multiPV             //
        << " score " << format_score(info.score);  //
 #endif
 
@@ -1489,17 +1488,16 @@ void USIEngine::on_update_full(const Engine::InfoFull& info) {
        << " nps " << info.nps            //
        << " hashfull " << info.hashfull  //
 #if STOCKFISH
-       << " tbhits " << info.tbHits  //
+       << " tbhits " << info.tbHits      //
 #endif
-       << " time " << info.timeMs  //
-       << " pv " << info.pv;       //
+       << " time " << info.timeMs        //
+       << " pv " << info.pv;             //
 
     sync_cout << ss.str() << sync_endl;
 }
 
 void USIEngine::on_iter(const Engine::InfoIter& info) {
-
-	std::stringstream ss;
+    std::stringstream ss;
 
     ss << "info";
     ss << " depth " << info.depth                     //
@@ -1510,7 +1508,6 @@ void USIEngine::on_iter(const Engine::InfoIter& info) {
 }
 
 void USIEngine::on_bestmove(std::string_view bestmove, std::string_view ponder) {
-
     sync_cout << "bestmove " << bestmove;
     if (!ponder.empty())
         std::cout << " ponder " << ponder;
