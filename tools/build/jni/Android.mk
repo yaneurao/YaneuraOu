@@ -142,7 +142,7 @@ ifeq ($(YANEURAOU_EDITION),USER_ENGINE)
 endif
 
 ifeq ($(TARGET_ARCH_ABI),arm64-v8a)
-  CPPFLAGS += -DIS_64BIT -DUSE_NEON -mfpu=neon
+  CPPFLAGS += -DIS_64BIT -DUSE_NEON
   LOCAL_ARM_NEON := true
 endif
 
