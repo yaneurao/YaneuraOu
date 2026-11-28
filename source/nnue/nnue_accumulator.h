@@ -282,6 +282,7 @@ namespace YaneuraOu::Eval {
 	// EvalSumクラスは、コンストラクタでの初期化が保証できないので(オーバーヘッドがあるのでやりたくないので)
 	// GCC 7.1.0以降で警告が出るのを回避できない。ゆえに、このクラスではこの警告を抑制する。
 #if defined (__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
 
@@ -393,7 +394,7 @@ namespace YaneuraOu::Eval {
 
 	// 抑制していた警告を元に戻す。
 #if defined (__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic warning "-Wmaybe-uninitialized"
+#pragma GCC diagnostic pop
 #endif
 
 	// 出力用　デバッグ用。
