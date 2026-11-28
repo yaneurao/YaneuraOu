@@ -1,8 +1,8 @@
 ﻿#include "thread.h"
 
-#include <algorithm> // std::count
+#include <algorithm>
 #include <cassert>
-#include <cmath>     // std::abs
+#include <cmath>
 #include <cstdlib>
 #include <iostream>
 #include <map>
