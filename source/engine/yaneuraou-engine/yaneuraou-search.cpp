@@ -4640,11 +4640,11 @@ moves_loop:  // When in check, search starts here
 
     // Adjust correction history if the best move is not a capture and
     // the error direction matches whether we are above/below bounds.
-	// 最善手がキャプチャ（駒取り）でない場合、
-	// かつ誤差の方向が上限／下限を超えているかどうかと一致する場合には、
-	// 補正履歴(correction history)を調整する。
+    // 最善手がキャプチャ（駒取り）でない場合、
+    // かつ誤差の方向が上限／下限を超えているかどうかと一致する場合には、
+    // 補正履歴(correction history)を調整する。
 
-	if (!ss->inCheck && !(bestMove && pos.capture(bestMove))
+    if (!ss->inCheck && !(bestMove && pos.capture(bestMove))
         && (bestValue > ss->staticEval) == bool(bestMove))
     {
         auto bonus =
