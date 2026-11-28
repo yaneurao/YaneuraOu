@@ -491,6 +491,7 @@ class Position {
 
     // Properties of moves
     // 指し手の性質。
+#if !STOCKFISH
 	// --- legality(指し手の合法性)のチェック
 
 	// 生成した指し手(CAPTUREとかNON_CAPTUREとか)が、合法であるかどうかをテストする。
@@ -505,7 +506,8 @@ class Position {
 	// ※　それ以上のテストは行わないので、置換表から取ってきた指し手などについては、
 	// pseudo_legal()を用いて、そのあとこの関数で判定すること。
 	// 歩の不成に関しては、この関数は常にtrueを返す。(合法扱い)
-	bool legal(Move m) const;
+#endif
+    bool legal(Move m) const;
 
 #if !STOCKFISH
 	// mがpseudo_legalな指し手であるかを判定する。
@@ -541,7 +543,7 @@ class Position {
 	// 二歩でなく、かつ打ち歩詰めでないならtrueを返す。
 	bool legal_pawn_drop(const Color us, const Square to) const;
 
-	// leagl()では、成れるかどうかのチェックをしていない。
+	// legal()では、成れるかどうかのチェックをしていない。
 	// (先手の指し手を後手の指し手と混同しない限り、指し手生成された段階で
 	// 成れるという条件は満たしているはずだから)
 	// しかし、先手の指し手を後手の指し手と取り違えた場合、この前提が崩れるので
