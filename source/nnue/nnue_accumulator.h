@@ -24,6 +24,15 @@
 
 namespace YaneuraOu::Eval::NNUE {
 
+// AccumulatorCaches struct provides per-thread accumulator caches, where each
+// cache contains multiple entries for each of the possible king squares.
+// When the accumulator needs to be refreshed, the cached entry is used to more
+// efficiently update the accumulator, instead of rebuilding it from scratch.
+// This idea was first described by Luecx (author of Koivisto) and
+// is commonly referred to as "Finny Tables".
+// AccumulatorCachesは、玉の位置などに対応する累積値をスレッドごとに保持する。
+// 再計算時にキャッシュとの差分を使い、最初から全て計算し直すコストを抑える。
+// この方式はKoivistoの作者Luecxによって紹介され、Finny Tablesと呼ばれる。
 // Per-worker Finny tables; the shared network contains only immutable parameters.
 // WorkerごとのFinny Tables。共有ネットワークには読み取り専用のパラメーターだけを置く。
 class AccumulatorCaches {
