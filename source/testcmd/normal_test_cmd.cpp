@@ -119,8 +119,6 @@ namespace {
 
 		const int MAX_PLY = 256; // 256手までテスト
 
-		auto start = now();
-
 		// 読み筋の出力の抑制
 		//global_options.silent = true;
 		// TODO : あとで調整する。
