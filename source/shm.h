@@ -87,7 +87,7 @@ namespace YaneuraOu {
 // 空文字列のハッシュになる場合もある。
 
 inline std::string getExecutablePathHash() {
-    char        executable_path[4096] = {0};
+    char  executable_path[4096] = {0};
     usize path_length           = 0;
 
 #if defined(_WIN32)
@@ -111,7 +111,7 @@ inline std::string getExecutablePathHash() {
 
 #elif defined(__FreeBSD__)
     usize size   = sizeof(executable_path);
-    int    mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
+    int   mib[4] = {CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1};
     if (sysctl(mib, 4, executable_path, &size, NULL, 0) == 0)
     {
         path_length = std::strlen(executable_path);
@@ -165,9 +165,9 @@ inline std::string GetLastErrorAsString(DWORD error) {
     // Win32 APIに、メッセージIDに対応する文字列を取得するよう要求する。
     // メッセージの長さがまだ分からないため、渡す引数でWin32側にバッファの確保も依頼する。
     usize size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
-                                   | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                 NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                                 (LPSTR) &messageBuffer, 0, NULL);
+                                  | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                (LPSTR) &messageBuffer, 0, NULL);
 
     //Copy the error message into a std::string.
     // エラーメッセージをstd::stringにコピーする。
