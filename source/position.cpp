@@ -2149,7 +2149,11 @@ void Position::do_move_impl(Move m, bool givesCheck, const T* tt,
 #endif
                             ) {
 
+#if STOCKFISH
+    assert(m.is_ok());
+#else
     ASSERT_LV3(m.is_ok());
+#endif
 
 
     // ----------------------
