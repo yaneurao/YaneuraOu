@@ -191,25 +191,26 @@ void TTWriter::write(
     const u64 keyDiff = ((keys >> shift) ^ k) & KeyMask;
     auto&     entry   = cluster->entry[index];
 
-	// Preserve the old ttmove if we don't have a new one
-	// 新しいttmoveがない場合、古いttmoveを保持します
+    // Preserve the old ttmove if we don't have a new one
+    // 新しいttmoveがない場合、古いttmoveを保持します
 
-	if (m || keyDiff)
-	#if STOCKFISH
+    if (m || keyDiff)
+#if STOCKFISH
         entry.move16 = m;
-	#else
+#else
         entry.move16 = m.to_move16();
-    #endif
+#endif
 
-	// Overwrite less valuable entries (cheapest checks first)
-	// より価値の低いエントリを上書きします（最も簡単にできるチェックを先に行う）
+    // Overwrite less valuable entries (cheapest checks first)
+    // より価値の低いエントリを上書きします（最も簡単にできるチェックを先に行う）
 
-	if (b == BOUND_EXACT || keyDiff || d - DEPTH_NONE + 2 * pv > entry.depth8 - 4
-		|| entry.relative_age(curr_generation))
-	{
-		assert(d > DEPTH_NONE);
-		assert(d - DEPTH_NONE < 256);
-		assert(curr_generation <= GENERATION_MASK); // TT::new_search() plays nice
+    if (b == BOUND_EXACT || keyDiff || d - DEPTH_NONE + 2 * pv > entry.depth8 - 4
+        || entry.relative_age(curr_generation))
+    {
+        assert(d > DEPTH_NONE);
+        assert(d - DEPTH_NONE < 256);
+        assert(curr_generation <= GENERATION_MASK);  // TT::new_search() plays nice
+        // TT::new_search()はgenerationの範囲を守る。
 
         cluster->keys   = keys ^ (keyDiff << shift);
         entry.depth8    = u8(d - DEPTH_NONE);
@@ -222,9 +223,9 @@ void TTWriter::write(
     // (*Scaler) Secondary aging on entries relevant to singular extensions
     // generally scales poorly and requires VVLTC verification.
 
-	// 二次的なエイジング。基本的な詰みの発見に重要である。
-	// (*Scaler) Singular Extensionに関連するエントリに対する二次的なエイジングは、
-	// 一般にスケーリング特性が悪く、VVLTCによる検証が必要である。
+    // 二次的なエイジング。基本的な詰みの発見に重要である。
+    // (*Scaler) Singular Extensionに関連するエントリに対する二次的なエイジングは、
+    // 一般にスケーリング特性が悪く、VVLTCによる検証が必要である。
 
     else if (entry.depth8 + DEPTH_NONE >= 5
              && Bound((entry.genBound8 & BOUND_MASK) >> BOUND_SHIFT) != BOUND_EXACT)
@@ -232,6 +233,7 @@ void TTWriter::write(
         auto v16 = entry.value16;
 
         // Guard against racy underflows, default to "unoccupied"
+        // 競合によるアンダーフローを防ぎ、0以下なら未使用として扱う。
         if (std::abs(v16) < VALUE_INFINITE && is_decisive(v16))
             entry.depth8 = std::max(int(entry.depth8) - 1, 0);
     }
