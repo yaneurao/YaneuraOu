@@ -123,10 +123,11 @@ class AffineTransformSparseInput {
         }
 
         // Write network parameters
-        // パラメーターを書き込む。既存の内部配置での書き出しを維持する。
+        // パラメーターを書き込む。内部配置からファイル上の順序に戻す。
         bool write_parameters(std::ostream& stream) const {
                 write_little_endian(stream, biases, OutputDimensions);
-                write_little_endian(stream, weights, OutputDimensions * PaddedInputDimensions);
+                for (usize i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+                        write_little_endian(stream, weights[get_weight_index(IndexType(i))]);
                 return !stream.fail();
         }
 
@@ -655,7 +656,8 @@ class AffineTransformSparseInput {
 			return false;
 		// 実行環境によらずlittle-endianで書き込む。
 		write_little_endian(stream, biases, OutputDimensions);
-		write_little_endian(stream, weights, OutputDimensions * PaddedInputDimensions);
+		for (usize i = 0; i < OutputDimensions * PaddedInputDimensions; ++i)
+			write_little_endian(stream, weights[get_weight_index(IndexType(i))]);
 		return !stream.fail();
 	}
 
