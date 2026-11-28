@@ -2925,9 +2925,11 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
                 break;
             occupied ^= least_significant_square_bb(bb);
 
+#if !STOCKFISH
             // 桂で取ったところでその背後にある駒がattckersに追加されることはないので、何も追加する必要はなく、
             // ループ先頭のwhileに戻る。
             continue;
+#endif
         }
 
 #if !STOCKFISH
@@ -2990,11 +2992,15 @@ SYSV_ABI bool Position::see_ge(Move m, int threshold) const
 #if STOCKFISH
         else if ((bb = stmAttackers & pieces(QUEEN)))
         {
-            if ((swap = QueenValue - swap) < res)
-                break;
+            swap = QueenValue - swap;
+            //  implies that the previous recapture was done by a higher rated piece than a Queen (King is excluded)
+            // Queenより価値の高い駒による直前の取り返しを意味する（Kingは除く）。
+            assert(swap >= res);
             occupied ^= least_significant_square_bb(bb);
-            attackers |= (attacks_bb(BISHOP, to, occupied) & pieces(BISHOP, QUEEN))
-                       | (attacks_bb(ROOK, to, occupied) & pieces(ROOK, QUEEN));
+
+            const auto [bishopAttacks, rookAttacks] = both_attacks_bb(to, occupied);
+            attackers |=
+              (bishopAttacks & pieces(BISHOP, QUEEN)) | (rookAttacks & pieces(ROOK, QUEEN));
         }
 #endif
         else  // KING
