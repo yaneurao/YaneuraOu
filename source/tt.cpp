@@ -367,6 +367,8 @@ void TranspositionTable::clear(ThreadPool& threads) {
 
     // To promote good NUMA distribution (esp. with huge pages), we permute
     // threads so that all threads in a NUMA node clear a contiguous region.
+    // NUMA上の配置を改善するため、同じNUMAノードのスレッドが
+    // 連続した領域をクリアする順序に並べ替える。特に巨大ページで有効。
     if (threadToNuma.size() == threadCount)
         std::stable_sort(order.begin(), order.end(), [&threadToNuma](usize t1, usize t2) {
             return threadToNuma.at(t1) < threadToNuma.at(t2);
@@ -376,6 +378,7 @@ void TranspositionTable::clear(ThreadPool& threads) {
     {
         threads.run_on_thread(order[i], [this, i, threadCount]() {
             // Each thread will zero its part of the hash table
+            // 各スレッドが担当する置換表の領域をゼロで埋める。
             const usize stride = clusterCount / threadCount;
             const usize start  = stride * i;
             const usize len    = i + 1 != threadCount ? stride : clusterCount - start;
@@ -458,6 +461,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, cons
     Cluster* const cluster = get_cluster(key);
     auto&          tte     = cluster->entry;
     const u64      key21   = key & KeyMask;  // Use the low 21 bits as key inside the cluster
+    // クラスター内ではキーの下位21ビットを使用する。
 
     constexpr u64 KeyLsb  = 1ULL | (1ULL << KeyBits) | (1ULL << 2 * KeyBits);
     constexpr u64 KeyMsb  = KeyLsb << (KeyBits - 1);
@@ -466,6 +470,8 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, cons
     // This bit twiddling trick will produce a one in the last (=most significant) bit of
     // the first 21bit block matching key21. The bits before that first matching block will
     // be all zeros, but after the first matching block there could be garbage.
+    // このビット演算では、key21と最初に一致する21ビットのブロックの最上位ビットが1になる。
+    // それより前のブロックはすべて0だが、後のブロックには不要なビットが立つことがある。
     const u64 matches = (keyXors - KeyLsb) & ~keyXors & KeyMsb;
 
     if (matches)
@@ -484,7 +490,7 @@ std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, cons
 		if (ttData.move)
 		{
 			// TTEntryにMoveが登録されていて、それを32bit化しようとして失敗したら、
-			// 置換表にhitしなかったという扱いにする。(99.99%ありえないのだが..)
+			// この候補は採用せず、同じクラスターの後続候補も調べる。
 			Move move = pos.to_move(ttData.move.to_move16());
 			if (move)
 			{
