@@ -163,7 +163,7 @@ void start_logger(const std::filesystem::path& fname);
 std::optional<usize> str_to_size_t(const std::string& s);
 
 // ワイド文字列をUTF-8へ変換する。WindowsのUnicode起動引数で使用する。
-std::string utf8_from_wstring(std::wstring_view s);
+std::string           utf8_from_wstring(std::wstring_view s);
 
 // UTF-8のパスをOSのネイティブ形式へ変換する。
 // WindowsではUTF-8として不正な場合にANSIコードページで再試行する。
@@ -173,9 +173,8 @@ std::filesystem::path path_from_utf8(const std::string& path);
 // Returns std::nullopt if the file does not exist.
 
 // ファイルをバイトとして読み込みます。
-// ファイルが存在しない場合は std::nullopt を返します。
-
-// 💡 filenameは、起動フォルダ相対で指定する。
+// ファイルを開けない場合は std::nullopt を返す。
+// 相対パスはカレントディレクトリを基準に解決される。絶対パスも指定できる。
 
 std::optional<std::string> read_file_to_string(const std::string& path);
 
