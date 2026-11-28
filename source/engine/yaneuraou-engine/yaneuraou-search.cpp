@@ -2599,9 +2599,15 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
     }
 #endif
 
+#if STOCKFISH
+    assert(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
+    assert(PvNode || (alpha == beta - 1));
+    assert(0 < depth && depth < MAX_PLY);
+#else
 	ASSERT_LV3(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
     ASSERT_LV3(PvNode || (alpha == beta - 1));
     ASSERT_LV3(0 < depth && depth < MAX_PLY);
+#endif
     // IIDを含め、PvNodeではcutNodeで呼び出さない。
     ASSERT_LV3(!(PvNode && cutNode));
 
@@ -2845,7 +2851,11 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
     // -----------------------
 
 	// rootからの手数
+#if STOCKFISH
+    assert(0 <= ss->ply && ss->ply < MAX_PLY);
+#else
     ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
+#endif
 
 	// 前の指し手で移動させた先の升目
     // null moveのときはis_ok() == falseなのでSQ_NONEとする。
@@ -4298,7 +4308,11 @@ moves_loop:  // When in check, search starts here
 
 		undo_move(pos, move);
 
+#if STOCKFISH
+        assert(value > -VALUE_INFINITE && value < VALUE_INFINITE);
+#else
 		ASSERT_LV3(value > -VALUE_INFINITE && value < VALUE_INFINITE);
+#endif
 
 		// -----------------------
 
@@ -4468,7 +4482,11 @@ moves_loop:  // When in check, search starts here
 					// （*Scaler）まれで、小さな更新はスケールする。
 
                     ss->cutoffCnt += (extension < 2) || PvNode;
+#if STOCKFISH
+                    assert(value >= beta);  // Fail high
+#else
                     ASSERT_LV3(value >= beta);  // Fail high
+#endif
 
 					/*
 						📓 value >= beta なら fail high(beta cut)
@@ -4662,7 +4680,11 @@ moves_loop:  // When in check, search starts here
 	// 👉 qsearch()内の末尾にあるassertの文の説明を読むこと。
     // The search is now complete
     // 探索が完了した。
+#if STOCKFISH
+    assert(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
+#else
 	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
+#endif
     return bestValue;
 }
 
@@ -4704,8 +4726,13 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     static_assert(nodeType != Root);
     constexpr bool PvNode = nodeType == PV;
 
+#if STOCKFISH
+    assert(alpha >= -VALUE_INFINITE && alpha < beta && beta <= VALUE_INFINITE);
+    assert(PvNode || (alpha == beta - 1));
+#else
     ASSERT_LV3(alpha >= -VALUE_INFINITE && alpha < beta && beta <= VALUE_INFINITE);
     ASSERT_LV3(PvNode || (alpha == beta - 1));
+#endif
 
     // 🤔 Stockfishではここで上記のように千日手に突入できるかのチェックがあるようだが
     //     将棋でこれをやっても強くならないので導入しない。
@@ -4877,7 +4904,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
 #endif
 
+#if STOCKFISH
+    assert(0 <= ss->ply && ss->ply < MAX_PLY);
+#else
     ASSERT_LV3(0 <= ss->ply && ss->ply < MAX_PLY);
+#endif
 
     // -----------------------
     // Step 3. Transposition table lookup
@@ -5273,7 +5304,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 #endif
         undo_move(pos, move);
 
+#if STOCKFISH
+        assert(value > -VALUE_INFINITE && value < VALUE_INFINITE);
+#else
 		ASSERT_LV3(value > -VALUE_INFINITE && value < VALUE_INFINITE);
+#endif
 
         // -----------------------
 		// Step 8. Check for a new best move
@@ -5402,7 +5437,11 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 
     // The search is now complete
     // 探索が完了した。
+#if STOCKFISH
+    assert(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
+#else
 	ASSERT_LV3(-VALUE_INFINITE < bestValue && bestValue < VALUE_INFINITE);
+#endif
     return bestValue;
 }
 
