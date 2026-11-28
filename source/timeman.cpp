@@ -273,9 +273,7 @@ void TimeManagement::init(const Search::LimitsType& limits,
 	// 今回の最大残り時間(これを超えてはならない)
 	// byoyomiの指定は残り時間にこの時点で加算して考える。
 	// inctimeは、この指し手のあとに加算される時間であるから、ここでは足さない。
-    remain_time =
-      limits.time[us]
-      + limits.byoyomi[us] /* + limits.inc[us] */ -(TimePoint) options["NetworkDelay2"];
+    remain_time = limits.time[us] + limits.byoyomi[us] - (TimePoint) options["NetworkDelay2"];
 
 	// remain_timeを0にすると時間切れのあと自爆するのでとりあえず100はあることにしておく。
 	// round_up_to_fullsecond == falseのときは秒未満での戦いなので、1にしておく。
@@ -296,7 +294,6 @@ void TimeManagement::init(const Search::LimitsType& limits,
 		// 終盤で大きく持ち時間を変えると、勝率が5割に寄ってしまうのでそれには注意。
 
 		auto r = limits.rtime;
-#if 1
 		// 指し手が進むごとに減衰していく曲線にする。
         if (ply > 0)
         {
@@ -305,8 +302,6 @@ void TimeManagement::init(const Search::LimitsType& limits,
             if (width > 0)
                 r += (int)prng.rand(width);
         }
-#endif
-
 		remain_time = minimumTime = optimumTime = maximumTime = r;
 		return;
 	}
