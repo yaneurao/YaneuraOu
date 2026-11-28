@@ -692,7 +692,8 @@ Move* make_move_check(const Position& pos, Piece pc, Square from, Square ksq, co
 
 	// ↑のX==LANCEのとき
 	// 同じ筋にある敵玉と香との間には一つ以上の駒があるはず(ないとしたら、玉が取れるので非合法局面)
-	// この間にある駒が2個以上なら香の移動により王手にならない。1個でかつ、それが敵駒でなければ..
+	// 間に駒が2個以上あれば、この香の移動だけでは直接王手にならない。
+	// 1個なら、それが敵駒で取れる場合に不成の直接王手を生成する。
 #define GEN_MOVE_LANCE_CHECK(X,X_Effect,Y_Effect) {                    \
     occ = pos.pieces();                                                \
     dst = X_Effect(Us, from,occ) & Y_Effect(~Us, ksq) & target;        \
