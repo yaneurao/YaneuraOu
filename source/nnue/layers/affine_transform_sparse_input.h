@@ -105,6 +105,8 @@ class AffineTransformSparseInput {
              + i / PaddedInputDimensions * ChunkSize + i % ChunkSize;
     }
 
+    // 将棋側は対応SIMDを使い、出力が4の倍数の場合だけ並べ替える。
+    // Stockfishとは対応するSIMD経路が異なり、重みの内部配置も異なる場合がある。
     static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || USE_NEON >= 8
         return OutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;
@@ -632,6 +634,7 @@ class AffineTransformSparseInput {
              + i / PaddedInputDimensions * ChunkSize + i % ChunkSize;
     }
 
+    // 旧NNUEも、対応SIMDかつ出力が4の倍数の場合だけ並べ替える。
     static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || USE_NEON >= 8
         return OutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;

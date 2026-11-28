@@ -257,6 +257,8 @@ class AffineTransform {
              + i / PaddedInputDimensions * 4 + i % 4;
     }
 
+    // 将棋側は対応SIMDを使い、出力が4の倍数の場合だけ並べ替える。
+    // Stockfishは対応SIMDで前段の出力配置に合わせた並べ替えも行う。
     static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
         return OutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;
@@ -655,6 +657,7 @@ class AffineTransform {
              + i / PaddedInputDimensions * 4 + i % 4;
     }
 
+    // 旧NNUEも、対応SIMDかつ出力が4の倍数の場合だけ並べ替える。
     static constexpr IndexType get_weight_index(IndexType i) {
 #if defined(USE_SSSE3) || defined(USE_NEON_DOTPROD)
         return OutputDimensions % 4 == 0 ? get_weight_index_scrambled(i) : i;
