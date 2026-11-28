@@ -272,7 +272,8 @@ namespace {
 	{
 		std::string destination;
 		destination.resize(source.size());
-		std::transform(source.cbegin(), source.cend(), destination.begin(), /*toupper*/[](char c) { return (char)std::toupper(c); });
+		std::transform(source.cbegin(), source.cend(), destination.begin(),
+		               [](unsigned char c) { return (char)std::toupper(c); });
 		return destination;
 	}
 }
