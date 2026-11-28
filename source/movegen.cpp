@@ -508,7 +508,7 @@ Move* generate_evasions(const Position& pos, Move* moveList)
 	} while (checkers);
 
 	// 王手回避のための玉の移動先は、玉の利きで、自駒のない場所でかつさきほどの王手していた駒が利いていないところが候補として挙げられる
-	// これがまだ自殺手である可能性もあるが、それはis_legal()でチェックすればいいと思う。
+	// この時点ではまだ自玉に王手が残る手もあるため、必要に応じてPosition::legal()で確認する。
 
     // kingEffectは盤内の升だけなので、反転を全81升へ制限せず直接AND-NOTする。
     Bitboard bb = (pos.pieces(Us) | sliderAttacks).andnot(kingEffect(ksq));
@@ -592,12 +592,12 @@ Move* generate_general(const Position& pos, Move* moveList, Square recapSq = SQ_
 	// 歩の指し手は歩のBitboardをbit shiftすることで移動先が一発で求まるので特別扱い
 	moveList = GeneratePieceMoves<Type, PAWN    , Us, All>()(pos, moveList, targetPawn);
 
-	// 香・桂・銀は成れるなら成らない手の他に成る手も生成する駒。これらによる移動の指し手
+	// 香・桂・銀の移動。成れる手と、移動先に応じた不成の手を生成する。
 	moveList = GeneratePieceMoves<Type, LANCE   , Us, All>()(pos, moveList, target);
 	moveList = GeneratePieceMoves<Type, KNIGHT  , Us, All>()(pos, moveList, target);
 	moveList = GeneratePieceMoves<Type, SILVER  , Us, All>()(pos, moveList, target);
 
-	// 角・飛による移動による指し手生成。これらの駒は成れるなら絶対に成る
+	// 角・飛の移動。成れる場合は成りを生成し、Allなら不成も生成する。
 	moveList = GeneratePieceMoves<Type, GPM_BR  , Us, All>()(pos, moveList, target);
 
 	// 金相当の駒・馬・龍・王による移動による指し手。(成れない駒による移動による指し手)
