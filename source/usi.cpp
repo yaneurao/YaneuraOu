@@ -1261,10 +1261,12 @@ int USIEngine::to_cp(Value v) { return 100 * v / NormalizeToPawnValue; }
 
 #endif
 
-// Square型をUSI文字列に変換する
+#if STOCKFISH
+// チェスのマス表記に変換する。
 std::string USIEngine::square(Square s) {
-	return std::string{ char('a' + file_of(s)), char('1' + rank_of(s)) };
+    return std::string{char('a' + file_of(s)), char('1' + rank_of(s))};
 }
+#endif
 
 // 指し手をUSI文字列に変換する。
 #if STOCKFISH

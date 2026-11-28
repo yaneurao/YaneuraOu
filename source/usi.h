@@ -73,8 +73,10 @@ public:
     // USIプロトコルで用いるscoreにScore構造体の内容を変換する。
     static std::string format_score(const Score& s);
 
-	// USIプロトコルで使うマス目文字列に変換する。
+#if STOCKFISH
+    // チェスのマス表記に変換する。将棋では使わない。
     static std::string square(Square s);
+#endif
 
     // USIプロトコルで使う指し手文字列に変換する。
 #if STOCKFISH
