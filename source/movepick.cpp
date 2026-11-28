@@ -276,7 +276,7 @@ MovePicker::MovePicker(const Position& p,
     // 先行するTT手については、捕獲と合法性の条件を確認する。
     first_stage = PROBCUT;
 #if STOCKFISH
-    stage = ttm && pos.capture_stage(ttm) && pos.legal(ttm) ? TT : INIT_FIRST_STAGE;
+    stage       = ttm && pos.capture_stage(ttm) && pos.legal(ttm) ? TT : INIT_FIRST_STAGE;
 #else
     stage = ttm && pos.capture(ttm) && pos.pseudo_legal(ttm, generate_all_legal_moves) && pos.legal(ttm)
               ? TT : INIT_FIRST_STAGE;
@@ -307,7 +307,6 @@ ExtMove* MovePicker::generate_and_score() {
 
     const Color us = pos.side_to_move();
 
-    // 将棋版では歩の脅威だけを使う案を試したが、強くならなかった（2022/04/26）。
 #if STOCKFISH
     [[maybe_unused]] Bitboard threatByLesser[KING + 1];
     if constexpr (Type == QUIETS)
@@ -320,6 +319,8 @@ ExtMove* MovePicker::generate_and_score() {
         threatByLesser[KING]  = 0;
 
     }
+#else
+    // 将棋版では歩の脅威だけを使う案を試したが、強くならなかった（2022/04/26）。
 #endif
 
     MoveList<Type> ml(pos);  // move generation
