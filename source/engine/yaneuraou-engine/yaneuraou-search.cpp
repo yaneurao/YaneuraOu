@@ -3299,14 +3299,15 @@ SYSV_ABI Value Search::YaneuraOuWorker::search(
         if (pos.rule50_count() < 96)
         {
 #endif
-            if (depth >= 7 && ttData.move
 #if STOCKFISH
-                && pos.legal(ttData.move)
+            if (depth >= 7 && ttData.move && pos.legal(ttData.move)
+                && !is_decisive(ttData.value))
 #else
+            if (depth >= 7 && ttData.move
                 && pos.pseudo_legal(ttData.move, search_options.generate_all_legal_moves)
                 && pos.legal(ttData.move)
-#endif
                 && !is_decisive(ttData.value))
+#endif
             {
                 pos.do_move(ttData.move);
                 Key nextPosKey = pos.key();
