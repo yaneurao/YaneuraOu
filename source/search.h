@@ -224,13 +224,13 @@ struct RootMove {
     Value       score            = -VALUE_INFINITE;
 
 	// 前回の(反復深化の)iterationでの探索結果のスコア
-	// 次のiteration時の探索窓の範囲を決めるときに使う。
+	// 次のiterationの表示・途中停止時の復元や、詰み探索モードの判定などに使う。
     Value       previousScore    = -VALUE_INFINITE;
 
-	// aspiration searchの時に用いる。previousScoreの移動平均。
+	// aspiration windowの中心に用いる、探索スコアの移動平均。
     Value       averageScore     = -VALUE_INFINITE;
 
-	// aspiration searchの時に用いる。二乗平均スコア。
+	// aspiration windowの幅に用いる、score * abs(score)の移動平均。
     Value       meanSquaredScore = -VALUE_INFINITE * VALUE_INFINITE;
 
 	// USIに出力する用のscore

@@ -4342,10 +4342,11 @@ moves_loop:  // When in check, search starts here
 			/*
 				📓
 					effort           : このRootMoveのために探索したnode数
-					averageScore     : rootの平均スコア。
-					meanSquaredScore : rootの二乗平均スコア。
+					averageScore     : この指し手のスコアの移動平均。
+					meanSquaredScore : 符号付き二乗値score * abs(score)の移動平均。
 
-					これらは、aspiration searchのときにもう一回iterationが回るかの判定に用いる。
+					スコアの移動平均はaspiration windowの中心と幅に用いる。
+					effortは最善手への探索集中度による時間配分などに用いる。
 			*/
 
             // rootでこのRootMovesの指し手に対して探索したnode数を加算。
