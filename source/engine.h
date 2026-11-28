@@ -239,9 +239,8 @@ public:
     virtual const OptionsMap& get_options() const = 0;
     virtual OptionsMap&       get_options()       = 0;
 
-	// 置換表サイズの取得。
-	// 🤔 置換表はやねうら王ではEngine基底classでは関与しないが、
-	//	   "bench"コマンドから呼び出されるので用意しておく。
+	// 置換表の先頭1000クラスターを標本に、maxAge以内の使用率を千分率で返す。
+	// 通常探索以外の基底Engine実装は0を返す。
     virtual int get_hashfull(int maxAge = 0) const = 0;
 
 	// (探索中の)現在の局面のsfen文字列を返す。
