@@ -236,6 +236,23 @@ void Position::init() {
 // ----------------------------------
 
 namespace {
+#if STOCKFISH
+// Pack pieces into nibbles: lower half of the board to even nibbles, upper half to odd nibbles
+// 盤面の前半と後半の駒を、それぞれ偶数番目と奇数番目の4ビットに格納する。
+inline std::array<u8, 32> pack_pieces(const std::array<Piece, SQUARE_NB>& arr) {
+    std::array<u8, 32> p;
+    for (int k = 0; k < 32; k += 8)
+    {
+        u64 a, b;
+        memcpy(&a, &arr[k], 8);
+        memcpy(&b, &arr[k + 32], 8);
+        a |= b << 4;
+        memcpy(&p[k], &a, 8);
+    }
+    return p;
+}
+#endif
+
 inline void xor_piece_for_partial_key(StateInfo* st, Piece pc, Square s) {
 #if defined(USE_PARTIAL_KEY)
     /*
@@ -499,8 +516,8 @@ void Position::set_state() const {
         st->key ^= Zobrist::enpassant[file_of(st->epSquare)];
 
     st->key ^= Zobrist::castling[st->castlingRights];
-
     st->materialKey = compute_material_key();
+    st->piecePlacement = pack_pieces(board);
 
 #else
 
