@@ -187,7 +187,7 @@ bool Option::operator==(const char* s) const {
 #if STOCKFISH
     assert(type == "combo");
 #else
-	ASSERT_LV1(type == "combo");
+    ASSERT_LV1(type == "combo");
 #endif
     return !CaseInsensitiveLess()(currentValue, s) && !CaseInsensitiveLess()(s, currentValue);
 }
@@ -232,42 +232,42 @@ Option& Option::assign(const std::string& v, bool& accepted) {
 #if STOCKFISH
     assert(!type.empty());
 #else
-	ASSERT_LV1(!type.empty());
+    ASSERT_LV1(!type.empty());
 
-	// fixedになっていれば代入をキャンセル
-	if (fixed)
-		return *this;
+    // fixedになっていれば代入をキャンセル
+    if (fixed)
+        return *this;
 #endif
 
-	// 範囲外なら設定せずに返る。
-	// "EvalDir"などでstringの場合は空の文字列を設定したいことがあるので"string"に対して空の文字チェックは行わない。
-	if ((type != "button" && type != "string" && v.empty())
-		|| (type == "check" && v != "true" && v != "false")
+    // 範囲外なら設定せずに返る。
+    // "EvalDir"などでstringの場合は空の文字列を設定したいことがあるので"string"に対して空の文字チェックは行わない。
+    if ((type != "button" && type != "string" && v.empty())
+        || (type == "check" && v != "true" && v != "false")
         || (type == "spin" && !value_in_range(v, min, max)))
-		return *this;
+        return *this;
 
-	if (type == "combo")
-	{
-		OptionsMap         comboMap;  // To have case insensitive compare
-									  // 📝 comboのvalueを小文字化して比較したいのでOptionsMapを流用する。
-		std::string        token;
-		std::istringstream ss(defaultValue);
-		// defaultValueにスペース区切りで書かれているのでこれをparseする。
+    if (type == "combo")
+    {
+        OptionsMap         comboMap;  // To have case insensitive compare
+                                      // 📝 comboのvalueを小文字化して比較したいのでOptionsMapを流用する。
+        std::string        token;
+        std::istringstream ss(defaultValue);
+        // defaultValueにスペース区切りで書かれているのでこれをparseする。
 #if STOCKFISH
-		while (ss >> token)
-			comboMap.add(token, Option());
-		if (!comboMap.count(v) || v == "var")
-			// defaultValueのなかに見つからなかったのでリタイア
-			// "var"が見つかってもこれは見つかったことにはしない。
-			return *this;
+        while (ss >> token)
+            comboMap.add(token, Option());
+        if (!comboMap.count(v) || v == "var")
+            // defaultValueのなかに見つからなかったのでリタイア
+            // "var"が見つかってもこれは見つかったことにはしない。
+            return *this;
 #else
         while (ss >> token)
-			// 📝 varは選択肢を区切る語なので、値の検証用マップから除外する。
-			//     同じ値がdefulat値と選択肢との両方に出てくることもある。これも除外する。
+            // 📝 varは選択肢を区切る語なので、値の検証用マップから除外する。
+            //     同じ値がdefault値と選択肢との両方に出てくることもある。これも除外する。
             if (token != "var" && !comboMap.count(token))
                 comboMap.add(token, Option());
 
-		if (!comboMap.count(v))
+        if (!comboMap.count(v))
         {
             // defaultValueのなかに見つからなかったのでリタイア
             sync_cout << "info string Error! : combo value not found, value = `" << v
@@ -275,64 +275,64 @@ Option& Option::assign(const std::string& v, bool& accepted) {
             return *this;
         }
 #endif
-	}
+    }
 
-	if (type == "string")
-		currentValue = v == "<empty>" ? "" : v;
+    if (type == "string")
+        currentValue = v == "<empty>" ? "" : v;
 
-	// ボタン型は値を設定するものではなく、単なるトリガーボタン。
-	// ボタン型以外なら入力値をcurrentValueに反映させてやる。
-	else if (type != "button")
-		currentValue = v;
+    // ボタン型は値を設定するものではなく、単なるトリガーボタン。
+    // ボタン型以外なら入力値をcurrentValueに反映させてやる。
+    else if (type != "button")
+        currentValue = v;
 
-	// 適切な値の範囲であったので、
-	// ハンドラが設定されているならハンドラを呼びだす。
-	// 💡 値が変化したとは限らない。
-	if (on_change)
-	{
-		const auto ret = on_change(*this);
+    // 適切な値の範囲であったので、
+    // ハンドラが設定されているならハンドラを呼びだす。
+    // 💡 値が変化したとは限らない。
+    if (on_change)
+    {
+        const auto ret = on_change(*this);
 
-		if (ret && parent != nullptr && parent->info != nullptr)
-			parent->info(ret);
-	}
+        if (ret && parent != nullptr && parent->info != nullptr)
+            parent->info(ret);
+    }
 
 #if !STOCKFISH
     accepted = true;
 #endif
-	return *this;
+    return *this;
 }
 
 std::ostream& operator<<(std::ostream& os, const OptionsMap& om) {
-	// OptionsMapへの登録順に出力されてほしいので、idxを0から増やしていき、Option::idxが一致したものを表示していく。
-	for (usize idx = 0; idx < om.options_map.size(); ++idx)
-		for (const auto& it : om.options_map)
-			if (it.second.idx == idx)
-			{
-				const Option& o = it.second;
-				// 📝 先頭で改行しているので、必ず1行目が空行になる。
-				os << "\noption name " << it.first << " type " << o.type;
+    // OptionsMapへの登録順に出力されてほしいので、idxを0から増やしていき、Option::idxが一致したものを表示していく。
+    for (usize idx = 0; idx < om.options_map.size(); ++idx)
+        for (const auto& it : om.options_map)
+            if (it.second.idx == idx)
+            {
+                const Option& o = it.second;
+                // 📝 先頭で改行しているので、必ず1行目が空行になる。
+                os << "\noption name " << it.first << " type " << o.type;
 
-				if (o.type == "check" || o.type == "combo")
-					os << " default " << o.defaultValue;
+                if (o.type == "check" || o.type == "combo")
+                    os << " default " << o.defaultValue;
 
-				else if (o.type == "string")
-				{
-					std::string defaultValue = o.defaultValue.empty() ? "<empty>" : o.defaultValue;
-					os << " default " << defaultValue;
-				}
+                else if (o.type == "string")
+                {
+                    std::string defaultValue = o.defaultValue.empty() ? "<empty>" : o.defaultValue;
+                    os << " default " << defaultValue;
+                }
 
-				else if (o.type == "spin")
+                else if (o.type == "spin")
 #if STOCKFISH
                     os << " default " << stoi(o.defaultValue) << " min " << o.min << " max "
 #else
-					os << " default " << stoll(o.defaultValue) << " min " << o.min << " max "
+                    os << " default " << stoll(o.defaultValue) << " min " << o.min << " max "
 #endif
-					<< o.max;
+                    << o.max;
 
-				break;
-			}
+                break;
+            }
 
-	return os;
+    return os;
 }
 
 #if !STOCKFISH
