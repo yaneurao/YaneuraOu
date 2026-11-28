@@ -944,27 +944,27 @@ bool is_shuffling(Move move, Stack* const ss, const Position& pos) {
 
 // 💡 やねうら王では、Workerを派生させて書くことにしたので、このコードは、派生classであるYaneuraOuWorkerのコンストラクタで書く。
 #if STOCKFISH
-Search::Worker::Worker(SharedState& sharedState,
-	std::unique_ptr<SearchManager> sm,
-	usize                          threadId,
-	usize                          numaThreadId,
-	usize                          numaTotalThreads,
-	NumaReplicatedAccessToken       token) :
-	// Unpack the SharedState struct into member variables
-	// SharedState構造体の内容を各メンバー変数へ展開する。
-	sharedHistory(sharedState.sharedHistories.at(token.get_numa_index())),
-	continuationHistory(sharedHistory.continuationHistory()),
-	threadIdx(threadId),
-	numaThreadIdx(numaThreadId),
-	numaTotal(numaTotalThreads),
-	numaAccessToken(token),
-	manager(std::move(sm)),
-	options(sharedState.options),
-	threads(sharedState.threads),
-	tt(sharedState.tt),
-	network(sharedState.network),
-	refreshTable(network[token]) {
-	clear();
+Search::Worker::Worker(SharedState&                   sharedState,
+                       std::unique_ptr<SearchManager> sm,
+                       usize                          threadId,
+                       usize                          numaThreadId,
+                       usize                          numaTotalThreads,
+                       NumaReplicatedAccessToken      token) :
+    // Unpack the SharedState struct into member variables
+    // SharedState構造体の内容を各メンバー変数へ展開する。
+    sharedHistory(sharedState.sharedHistories.at(token.get_numa_index())),
+    continuationHistory(sharedHistory.continuationHistory()),
+    threadIdx(threadId),
+    numaThreadIdx(numaThreadId),
+    numaTotal(numaTotalThreads),
+    numaAccessToken(token),
+    manager(std::move(sm)),
+    options(sharedState.options),
+    threads(sharedState.threads),
+    tt(sharedState.tt),
+    network(sharedState.network),
+    refreshTable(network[token]) {
+    clear();
 }
 #else
 
