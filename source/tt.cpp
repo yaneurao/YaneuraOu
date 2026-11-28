@@ -452,14 +452,11 @@ u8 TranspositionTable::generation() const { return generation8; }
 
 #if STOCKFISH
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key) const {
-    Cluster* const cluster = get_cluster(key);
-
 #else
 std::tuple<bool, TTData, TTWriter> TranspositionTable::probe(const Key key, const Position& pos) const {
     ASSERT_LV3((key & 1) == pos.side_to_move());
-    Cluster* const cluster = get_cluster(key);
 #endif
-
+    Cluster* const cluster = get_cluster(key);
     auto&          tte     = cluster->entry;
     const u64      key21   = key & KeyMask;  // Use the low 21 bits as key inside the cluster
 
