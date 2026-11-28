@@ -3727,13 +3727,13 @@ moves_loop:  // When in check, search starts here
       (ss - 4)->continuationHistory, (ss - 5)->continuationHistory, (ss - 6)->continuationHistory};
 
 
+#if STOCKFISH
     MovePicker mp(pos, ttData.move, depth, &mainHistory, &lowPlyHistory, &captureHistory, contHist,
-                  &sharedHistory, ss->ply
-#if !STOCKFISH
-                  ,
-                  search_options.generate_all_legal_moves
+                  &sharedHistory, ss->ply);
+#else
+    MovePicker mp(pos, ttData.move, depth, &mainHistory, &lowPlyHistory, &captureHistory, contHist,
+                  &sharedHistory, ss->ply, search_options.generate_all_legal_moves);
 #endif
-    );
 
     value = bestValue;
 
@@ -3840,11 +3840,11 @@ moves_loop:  // When in check, search starts here
 
         // 📊 【計測資料 7.】 浅い深さでの枝刈りを行なうときに王手がかかっていないことを条件に入れる/入れない
 
-        if (!rootNode
 #if STOCKFISH
-            && pos.non_pawn_material(us)
+        if (!rootNode && pos.non_pawn_material(us) && !is_loss(bestValue))
+#else
+        if (!rootNode && !is_loss(bestValue))
 #endif
-            && !is_loss(bestValue))
         {
             // Skip quiet moves if movecount exceeds our threshold
             // movecountが閾値を超えた場合、quietの手をスキップします
@@ -4980,10 +4980,15 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
 		    PVでは置換表の指し手では枝刈りしない(前回evaluateした値は使える)
 	*/
 
+#if STOCKFISH
+    if (!PvNode && ttData.depth >= DEPTH_QS && is_valid(ttData.value)
+        && (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER)))
+#else
     if (!PvNode && ttData.depth >= DEPTH_QS
         && is_valid(ttData.value)  // Can happen when !ttHit or when access race in probe()
         // 置換表から取り出したときに他スレッドが値を潰している可能性がありうる
         && (ttData.bound & (ttData.value >= beta ? BOUND_LOWER : BOUND_UPPER)))
+#endif
         /*
 				💡 ↑ここは、↓この意味。
 				&& (ttData.value >= beta ? (ttData.bound & BOUND_LOWER)
@@ -5200,13 +5205,13 @@ Value Search::YaneuraOuWorker::qsearch(Position& pos, Stack* ss, Value alpha, Va
     // 静止探索では、王手中は王手回避手を、それ以外は捕獲手を生成する。
     // 有効なTT手は、捕獲手でなくても指し手生成に先立って調べる。
 
+#if STOCKFISH
     MovePicker mp(pos, ttData.move, DEPTH_QS, &mainHistory, &lowPlyHistory, &captureHistory,
-                  contHist, &sharedHistory, ss->ply
-#if !STOCKFISH
-                  ,
-                  search_options.generate_all_legal_moves
+                  contHist, &sharedHistory, ss->ply);
+#else
+    MovePicker mp(pos, ttData.move, DEPTH_QS, &mainHistory, &lowPlyHistory, &captureHistory,
+                  contHist, &sharedHistory, ss->ply, search_options.generate_all_legal_moves);
 #endif
-    );
 
 	// -----------------------
     // Step 5. Loop through all legal moves until no moves remain
